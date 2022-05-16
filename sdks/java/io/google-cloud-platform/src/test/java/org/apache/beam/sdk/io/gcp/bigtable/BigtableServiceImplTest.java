@@ -31,6 +31,7 @@ import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Mutation.SetCell;
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.Row;
+import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.RowRange;
 import com.google.bigtable.v2.RowSet;
 import com.google.cloud.bigtable.config.BigtableOptions;
@@ -91,7 +92,8 @@ public class BigtableServiceImplTest {
   private static final String TABLE_ID = "table";
 
   private static final int SEGMENT_SIZE = 10;
-  private static final long DEFAULT_ROW_SIZE = 1024 * 1024 * 256;
+  private static final long DEFAULT_ROW_SIZE = 1024 * 1024 * 25; // 25MB
+  private static final long DEFAULT_BYTE_SEGMENT_SIZE = 1024 * 1024 * 1000;
   private static final String DEFAULT_PREFIX = "b";
 
   private static final BigtableTableName TABLE_NAME =
@@ -117,8 +119,6 @@ public class BigtableServiceImplTest {
     when(mockSession.getOptions()).thenReturn(options);
     when(mockSession.createBulkMutation(eq(TABLE_NAME))).thenReturn(mockBulkMutation);
     when(mockSession.getDataClient()).thenReturn(mockBigtableDataClient);
-    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
-    when(mockBigtableSource.getMaxBufferElementCount()).thenReturn(SEGMENT_SIZE);
     // Setup the ProcessWideContainer for testing metrics are set.
     MetricsContainerImpl container = new MetricsContainerImpl(null);
     MetricsEnvironment.setProcessWideContainer(container);
@@ -136,6 +136,7 @@ public class BigtableServiceImplTest {
     ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
     ByteKey end = ByteKey.copyFrom("b".getBytes(StandardCharsets.UTF_8));
     when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
+    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
     @SuppressWarnings("unchecked")
     ResultScanner<Row> mockResultScanner = Mockito.mock(ResultScanner.class);
     Row expectedRow = Row.newBuilder().setKey(ByteString.copyFromUtf8("a")).build();
@@ -161,17 +162,25 @@ public class BigtableServiceImplTest {
    */
   @Test
   public void testReadSingleRangeBelowSegmentLimit() throws Exception {
-    ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
-    ByteKey end = ByteKey.copyFrom("b".getBytes(StandardCharsets.UTF_8));
+    RowSet.Builder ranges = RowSet.newBuilder();
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, 0), generateByteString(DEFAULT_PREFIX, 1)));
 
-    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
     FlatRow expectedRow = FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("a")).build();
 
     when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()))
         .thenAnswer(mockReadRowsAnswer(Arrays.asList(expectedRow)));
 
     BigtableService.Reader underTest =
-        BigtableServiceImpl.BigtableSegmentReaderImpl.create(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(
+            mockSession,
+            TABLE_ID,
+            ranges.build(),
+            SEGMENT_SIZE,
+            DEFAULT_BYTE_SEGMENT_SIZE,
+            RowFilter.getDefaultInstance(),
+            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
 
     underTest.start();
     Assert.assertEquals(FlatRowConverter.convert(expectedRow), underTest.getCurrentRow());
@@ -189,9 +198,11 @@ public class BigtableServiceImplTest {
    */
   @Test
   public void testReadSingleRangeAboveSegmentLimit() throws IOException {
-    ByteKey start = generateByteKey(DEFAULT_PREFIX, 0);
-    ByteKey end = generateByteKey(DEFAULT_PREFIX, SEGMENT_SIZE * 2);
-    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
+    RowSet.Builder ranges = RowSet.newBuilder();
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, 0),
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE * 2)));
 
     OngoingStubbing<?> stub =
         when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()));
@@ -203,7 +214,14 @@ public class BigtableServiceImplTest {
     expectRowResults(stub, expectedResults);
 
     BigtableService.Reader underTest =
-        BigtableServiceImpl.BigtableSegmentReaderImpl.create(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(
+            mockSession,
+            TABLE_ID,
+            ranges.build(),
+            SEGMENT_SIZE,
+            DEFAULT_BYTE_SEGMENT_SIZE,
+            RowFilter.getDefaultInstance(),
+            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -232,12 +250,15 @@ public class BigtableServiceImplTest {
    */
   @Test
   public void testReadMultipleRanges() throws IOException {
-    ByteKey start = generateByteKey(DEFAULT_PREFIX, 0);
-    ByteKey middleKey = generateByteKey(DEFAULT_PREFIX, SEGMENT_SIZE);
-    ByteKey end = generateByteKey(DEFAULT_PREFIX, SEGMENT_SIZE * 2);
-    when(mockBigtableSource.getRanges())
-        .thenReturn(
-            Arrays.asList(ByteKeyRange.of(start, middleKey), ByteKeyRange.of(middleKey, end)));
+    RowSet.Builder ranges = RowSet.newBuilder();
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, 0),
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE)));
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE),
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE * 2)));
 
     OngoingStubbing<?> stub =
         when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()));
@@ -249,7 +270,14 @@ public class BigtableServiceImplTest {
     expectRowResults(stub, expectedResults);
 
     BigtableService.Reader underTest =
-        BigtableServiceImpl.BigtableSegmentReaderImpl.create(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(
+            mockSession,
+            TABLE_ID,
+            ranges.build(),
+            SEGMENT_SIZE,
+            DEFAULT_BYTE_SEGMENT_SIZE,
+            RowFilter.getDefaultInstance(),
+            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -278,19 +306,19 @@ public class BigtableServiceImplTest {
    */
   @Test
   public void testReadMultipleRangesOverlappingKeys() throws IOException {
-    ByteKey firstStart = generateByteKey(DEFAULT_PREFIX, 0);
-    ByteKey firstEnd = generateByteKey(DEFAULT_PREFIX, SEGMENT_SIZE);
-
-    ByteKey secondStart = generateByteKey(DEFAULT_PREFIX, SEGMENT_SIZE / 2);
-    ByteKey secondEnd = generateByteKey(DEFAULT_PREFIX, SEGMENT_SIZE * 2);
-
-    ByteKey thirdStart = generateByteKey(DEFAULT_PREFIX, (int) (SEGMENT_SIZE * .7));
-    when(mockBigtableSource.getRanges())
-        .thenReturn(
-            Arrays.asList(
-                ByteKeyRange.of(firstStart, firstEnd),
-                ByteKeyRange.of(secondStart, secondEnd),
-                ByteKeyRange.of(thirdStart, secondEnd)));
+    RowSet.Builder ranges = RowSet.newBuilder();
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, 0),
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE)));
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE / 2),
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE * 2)));
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, (int) (SEGMENT_SIZE * .7)),
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE * 2)));
 
     OngoingStubbing<?> stub =
         when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()));
@@ -302,7 +330,14 @@ public class BigtableServiceImplTest {
     expectRowResults(stub, expectedResults);
 
     BigtableService.Reader underTest =
-        BigtableServiceImpl.BigtableSegmentReaderImpl.create(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(
+            mockSession,
+            TABLE_ID,
+            ranges.build(),
+            SEGMENT_SIZE,
+            DEFAULT_BYTE_SEGMENT_SIZE,
+            RowFilter.getDefaultInstance(),
+            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -329,8 +364,6 @@ public class BigtableServiceImplTest {
    */
   @Test
   public void testReadFullTableScan() throws IOException {
-    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList());
-
     OngoingStubbing<?> stub =
         when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()));
     List<List<FlatRow>> expectedResults =
@@ -342,7 +375,14 @@ public class BigtableServiceImplTest {
     expectRowResults(stub, expectedResults);
 
     BigtableService.Reader underTest =
-        BigtableServiceImpl.BigtableSegmentReaderImpl.create(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(
+            mockSession,
+            TABLE_ID,
+            RowSet.getDefaultInstance(),
+            SEGMENT_SIZE,
+            DEFAULT_BYTE_SEGMENT_SIZE,
+            RowFilter.getDefaultInstance(),
+            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -370,21 +410,19 @@ public class BigtableServiceImplTest {
    */
   @Test
   public void testReadFillBuffer() throws IOException {
-    ByteKey firstStart = generateByteKey(DEFAULT_PREFIX, 0);
-    ByteKey firstEnd = generateByteKey(DEFAULT_PREFIX, SEGMENT_SIZE / 2);
-
-    ByteKey secondStart = generateByteKey(DEFAULT_PREFIX, SEGMENT_SIZE / 2);
-    ByteKey secondEnd = generateByteKey(DEFAULT_PREFIX, SEGMENT_SIZE);
-
-    ByteKey thirdStart = generateByteKey(DEFAULT_PREFIX, SEGMENT_SIZE);
-    ByteKey thirdEnd = generateByteKey(DEFAULT_PREFIX, SEGMENT_SIZE * 2);
-
-    when(mockBigtableSource.getRanges())
-        .thenReturn(
-            Arrays.asList(
-                ByteKeyRange.of(firstStart, firstEnd),
-                ByteKeyRange.of(secondStart, secondEnd),
-                ByteKeyRange.of(thirdStart, thirdEnd)));
+    RowSet.Builder ranges = RowSet.newBuilder();
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, 0),
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE / 2)));
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE / 2),
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE)));
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE),
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE * 2)));
 
     OngoingStubbing<?> stub =
         when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()));
@@ -396,7 +434,14 @@ public class BigtableServiceImplTest {
     expectRowResults(stub, expectedResults);
 
     BigtableService.Reader underTest =
-        BigtableServiceImpl.BigtableSegmentReaderImpl.create(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(
+            mockSession,
+            TABLE_ID,
+            ranges.build(),
+            SEGMENT_SIZE,
+            DEFAULT_BYTE_SEGMENT_SIZE,
+            RowFilter.getDefaultInstance(),
+            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -435,23 +480,10 @@ public class BigtableServiceImplTest {
     long segmentByteLimit = DEFAULT_ROW_SIZE * (SEGMENT_SIZE / 2);
     int numOfRowsInsideBuffer = (int) (segmentByteLimit / DEFAULT_ROW_SIZE) + 1;
 
-    ByteKey start = generateByteKey(DEFAULT_PREFIX, 0);
-    ByteKey end = generateByteKey(DEFAULT_PREFIX, SEGMENT_SIZE);
-
-    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
-
     RowRange mockRowRange =
-        RowRange.newBuilder()
-            .setStartKeyClosed(generateByteString(DEFAULT_PREFIX, 0))
-            .setEndKeyOpen(generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE))
-            .build();
-
-    ReadRowsRequest mockRequest =
-        ReadRowsRequest.newBuilder()
-            .setTableName(TABLE_ID)
-            .setRows(RowSet.newBuilder().addRowRanges(mockRowRange).build())
-            .setRowsLimit(SEGMENT_SIZE)
-            .build();
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, 0),
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE));
 
     OngoingStubbing<?> stub =
         when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()));
@@ -463,13 +495,14 @@ public class BigtableServiceImplTest {
             ImmutableList.of());
     expectRowResults(stub, expectedResults);
 
-    // Max amount of memory allowed in a Row (256MB)
-    // This test uses a limit of 1000MB which should fill 5 rows per fill (1 + 1000/256 = 5)
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableSegmentReaderImpl(
             mockSession,
-            mockRequest,
+            TABLE_ID,
+            RowSet.newBuilder().addRowRanges(mockRowRange).build(),
+            SEGMENT_SIZE,
             segmentByteLimit,
+            RowFilter.getDefaultInstance(),
             BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
 
     List<Row> actualResults = new ArrayList<>();
@@ -495,15 +528,24 @@ public class BigtableServiceImplTest {
    */
   @Test(expected = StatusRuntimeException.class)
   public void testReadSegmentExceptionHandling() throws IOException {
-    ByteKey start = generateByteKey(DEFAULT_PREFIX, 0);
-    ByteKey end = generateByteKey(DEFAULT_PREFIX, 1);
+    // mockCallMetric must be fixed
+    RowSet.Builder ranges = RowSet.newBuilder();
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, 0), generateByteString(DEFAULT_PREFIX, 1)));
 
-    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
     when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()))
         .thenThrow(StatusRuntimeException.class);
 
     BigtableService.Reader underTest =
-        BigtableServiceImpl.BigtableSegmentReaderImpl.create(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(
+            mockSession,
+            TABLE_ID,
+            ranges.build(),
+            SEGMENT_SIZE,
+            DEFAULT_BYTE_SEGMENT_SIZE,
+            RowFilter.getDefaultInstance(),
+            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
 
     Assert.assertTrue(underTest.start());
     Exception returnedError = null;
@@ -526,6 +568,7 @@ public class BigtableServiceImplTest {
    */
   @Test
   public void testWrite() throws IOException, InterruptedException {
+    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
     BigtableService.Writer underTest =
         new BigtableServiceImpl.BigtableWriterImpl(mockSession, TABLE_NAME);
 
@@ -590,6 +633,10 @@ public class BigtableServiceImplTest {
     };
   }
 
+  public RowRange generateRowRange(ByteString start, ByteString end) {
+    return RowRange.newBuilder().setStartKeyClosed(start).setEndKeyOpen(end).build();
+  }
+
   public List<FlatRow> generateSegmentResult(String prefix, int startIndex, int count) {
     return generateSegmentResult(prefix, startIndex, count, false);
   }
@@ -631,10 +678,5 @@ public class BigtableServiceImplTest {
 
   public ByteString generateByteString(String prefix, int index) {
     return ByteString.copyFromUtf8(prefix + String.format("%05d", index));
-  }
-
-  public ByteKey generateByteKey(String prefix, int index) {
-    return ByteKey.copyFrom(
-        (prefix + String.format("%05d", index)).getBytes(StandardCharsets.UTF_8));
   }
 }
