@@ -22,7 +22,7 @@
     "codecovTest": "istanbul cover mocha dist/test --reporter lcovonly -- -R spec && codecov",
     "prettier": "prettier --write src/",
     "prettier-check": "prettier --check src/",
-    "lint": "eslint . --ext .js,.ts"
+    "lint": "eslint . --ext .ts"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.4.6",
