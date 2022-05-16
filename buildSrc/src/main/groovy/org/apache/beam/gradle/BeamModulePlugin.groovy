@@ -2270,6 +2270,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.evaluationDependsOn(":sdks:java:testing:expansion-service")
       project.evaluationDependsOn(":runners:core-construction-java")
       project.evaluationDependsOn(":sdks:go:test")
+      project.evaluationDependsOn(":sdks:java:extensions:python")
 
       // Task for launching expansion services
       def envDir = project.project(":sdks:python").envdir
