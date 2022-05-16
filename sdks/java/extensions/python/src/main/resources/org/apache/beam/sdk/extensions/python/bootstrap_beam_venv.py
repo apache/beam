@@ -77,7 +77,7 @@ def main():
           or options.beam_version.startswith('https://')):
         # It's a path to a tarball.
         beam_version = os.path.basename(options.beam_version)
-        beam_package = options.beam_version
+        beam_package = options.beam_version + '[gcp,aws,asure,dataframe]'
     else:
         beam_version = options.beam_version
         beam_package = 'apache_beam[gcp,aws,asure,dataframe]==' + beam_version

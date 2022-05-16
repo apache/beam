@@ -374,11 +374,3 @@ func schemaDec(t reflect.Type, in []byte) (T, error) {
 	}
 	return val, nil
 }
-
-func newSchemaCoder(t reflect.Type) (*coder.CustomCoder, error) {
-	c, err := coder.NewCustomCoder("schema", t, schemaEnc, schemaDec)
-	if err != nil {
-		return nil, errors.Wrapf(err, "invalid coder")
-	}
-	return c, nil
-}

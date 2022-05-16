@@ -23,8 +23,6 @@ import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
 import InfluxDBCredentialsHelper
 
-// TODO(BEAM-14229): remove forceNumInitialBundles once source issue resolved.
-
 def loadTestConfigurations = { mode, isStreaming ->
   [
     [
@@ -49,7 +47,6 @@ def loadTestConfigurations = { mode, isStreaming ->
             "numRecords": 20000000,
             "keySizeBytes": 10,
             "valueSizeBytes": 90,
-            "forceNumInitialBundles": 1,
             "numHotKeys": 1
           }
         """.trim().replaceAll("\\s", ""),
@@ -58,7 +55,6 @@ def loadTestConfigurations = { mode, isStreaming ->
                 "numRecords": 2000000,
                 "keySizeBytes": 10,
                 "valueSizeBytes": 90,
-                "forceNumInitialBundles": 1,
                 "numHotKeys": 1000
               }
             """.trim().replaceAll("\\s", ""),
@@ -90,7 +86,6 @@ def loadTestConfigurations = { mode, isStreaming ->
                     "numRecords": 20000000,
                     "keySizeBytes": 10,
                     "valueSizeBytes": 90,
-                    "forceNumInitialBundles": 1,
                     "numHotKeys": 5
                   }
                 """.trim().replaceAll("\\s", ""),
@@ -99,7 +94,6 @@ def loadTestConfigurations = { mode, isStreaming ->
                             "numRecords": 2000000,
                             "keySizeBytes": 10,
                             "valueSizeBytes": 90,
-                            "forceNumInitialBundles": 1,
                             "numHotKeys": 1000
                           }
                         """.trim().replaceAll("\\s", ""),
@@ -132,7 +126,6 @@ def loadTestConfigurations = { mode, isStreaming ->
                                 "numRecords": 2000000,
                                 "keySizeBytes": 10,
                                 "valueSizeBytes": 90,
-                                "forceNumInitialBundles": 1,
                                 "numHotKeys": 200000
                               }
                             """.trim().replaceAll("\\s", ""),
@@ -141,7 +134,6 @@ def loadTestConfigurations = { mode, isStreaming ->
                                 "numRecords": 2000000,
                                 "keySizeBytes": 10,
                                 "valueSizeBytes": 90,
-                                "forceNumInitialBundles": 1,
                                 "numHotKeys": 1000
                               }
                             """.trim().replaceAll("\\s", ""),
@@ -174,7 +166,6 @@ def loadTestConfigurations = { mode, isStreaming ->
                                 "numRecords": 2000000,
                                 "keySizeBytes": 10,
                                 "valueSizeBytes": 90,
-                                "forceNumInitialBundles": 1,
                                 "numHotKeys": 1000
                               }
                             """.trim().replaceAll("\\s", ""),
@@ -183,7 +174,6 @@ def loadTestConfigurations = { mode, isStreaming ->
                                 "numRecords": 2000000,
                                 "keySizeBytes": 10,
                                 "valueSizeBytes": 90,
-                                "forceNumInitialBundles": 1,
                                 "numHotKeys": 1000
                               }
                             """.trim().replaceAll("\\s", ""),
