@@ -22,8 +22,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -32,96 +36,144 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Streaming sources for Spark {@link Receiver}. */
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Streaming sources for Spark {@link Receiver}.
+ */
 @SuppressWarnings("rawtypes")
 public class SparkReceiverIO {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SparkReceiverIO.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SparkReceiverIO.class);
 
-  public static <V> Read<V> read() {
-    return new AutoValue_SparkReceiverIO_Read.Builder<V>().build();
-  }
-
-  /** A {@link PTransform} to read from Spark {@link Receiver}. */
-  @AutoValue
-  @AutoValue.CopyAnnotations
-  @SuppressWarnings({"UnnecessaryParentheses", "UnusedVariable", "rawtypes"})
-  public abstract static class Read<V> extends PTransform<PBegin, PCollection<V>> {
-
-    abstract @Nullable Receiver<V> getSparkReceiver();
-
-    abstract @Nullable Class<V> getValueClass();
-
-    abstract @Nullable Coder<V> getValueCoder();
-
-    abstract Builder<V> toBuilder();
-
-    @Experimental(Experimental.Kind.PORTABILITY)
-    @AutoValue.Builder
-    abstract static class Builder<V> {
-
-      abstract Builder<V> setValueClass(Class<V> valueClass);
-
-      abstract Builder<V> setValueCoder(Coder<V> valueCoder);
-
-      abstract Builder<V> setSparkReceiver(Receiver<V> sparkReceiver);
-
-      abstract Read<V> build();
-    }
-
-    public Read<V> withValueClass(Class<V> valueClass) {
-      return toBuilder().setValueClass(valueClass).build();
-    }
-
-    public Read<V> withValueCoder(Coder<V> valueCoder) {
-      return toBuilder().setValueCoder(valueCoder).build();
-    }
-
-    public Read<V> withSparkReceiver(Receiver<V> sparkReceiver) {
-      return toBuilder().setSparkReceiver(sparkReceiver).build();
-    }
-
-    @Override
-    public PCollection<V> expand(PBegin input) {
-      checkArgument(getValueClass() != null, "withValueClass() is required");
-
-      LOG.info("SparkReceiverIO");
-      return input.apply(new ReadFromSparkReceiverViaUnbounded<>(this, getValueCoder()));
+    public static <V> Read<V> read() {
+        return new AutoValue_SparkReceiverIO_Read.Builder<V>().build();
     }
 
     /**
-     * Creates an {@link UnboundedSource UnboundedSource with the
-     * configuration in {@link Read}.
+     * A {@link PTransform} to read from Spark {@link Receiver}.
      */
-    @VisibleForTesting
-    UnboundedSource<V, SparkReceiverCheckpointMark> makeSource() {
-      return new SparkReceiverUnboundedSource<>(this, -1, null, null, getSparkReceiver());
+    @AutoValue
+    @AutoValue.CopyAnnotations
+    @SuppressWarnings({"UnnecessaryParentheses", "UnusedVariable", "rawtypes"})
+    public abstract static class Read<V> extends PTransform<PBegin, PCollection<V>> {
+
+        abstract @Nullable Receiver<V> getSparkReceiver();
+
+        abstract @Nullable Class<V> getValueClass();
+
+        abstract @Nullable Coder<V> getValueCoder();
+
+        abstract Builder<V> toBuilder();
+
+        @Experimental(Experimental.Kind.PORTABILITY)
+        @AutoValue.Builder
+        abstract static class Builder<V> {
+
+            abstract Builder<V> setValueClass(Class<V> valueClass);
+
+            abstract Builder<V> setValueCoder(Coder<V> valueCoder);
+
+            abstract Builder<V> setSparkReceiver(Receiver<V> sparkReceiver);
+
+            abstract Read<V> build();
+        }
+
+        public Read<V> withValueClass(Class<V> valueClass) {
+            return toBuilder().setValueClass(valueClass).build();
+        }
+
+        public Read<V> withValueCoder(Coder<V> valueCoder) {
+            return toBuilder().setValueCoder(valueCoder).build();
+        }
+
+        public Read<V> withSparkReceiver(Receiver<V> sparkReceiver) {
+            return toBuilder().setSparkReceiver(sparkReceiver).build();
+        }
+
+        @Override
+        public PCollection<V> expand(PBegin input) {
+            checkArgument(getValueClass() != null, "withValueClass() is required");
+
+            LOG.info("SparkReceiverIO");
+            if (true) {
+                return input.apply(
+                        new ReadFromSparkReceiverViaSdf<>(this, getValueCoder())
+                );
+            } else {
+                return input.apply(
+                        new ReadFromSparkReceiverViaUnbounded<>(this, getValueCoder())
+                );
+            }
+        }
+
+        /**
+         * Creates an {@link UnboundedSource UnboundedSource with the
+         * configuration in {@link Read}.
+         */
+        @VisibleForTesting
+        UnboundedSource<V, SparkReceiverCheckpointMark> makeSource() {
+            return new SparkReceiverUnboundedSource<>(this, -1, null, null, getSparkReceiver());
+        }
     }
-  }
 
-  private static class ReadFromSparkReceiverViaUnbounded<V>
-      extends PTransform<PBegin, PCollection<V>> {
+    private static class ReadFromSparkReceiverViaUnbounded<V>
+            extends PTransform<PBegin, PCollection<V>> {
 
-    Read<V> sparkReceiverRead;
-    Coder<V> valueCoder;
+        Read<V> sparkReceiverRead;
+        Coder<V> valueCoder;
 
-    ReadFromSparkReceiverViaUnbounded(Read<V> sparkReceiverRead, Coder<V> valueCoder) {
-      this.sparkReceiverRead = sparkReceiverRead;
-      this.valueCoder = valueCoder;
+        ReadFromSparkReceiverViaUnbounded(Read<V> sparkReceiverRead, Coder<V> valueCoder) {
+            this.sparkReceiverRead = sparkReceiverRead;
+            this.valueCoder = valueCoder;
+        }
+
+        @Override
+        public PCollection<V> expand(PBegin input) {
+            org.apache.beam.sdk.io.Read.Unbounded<V> unbounded =
+                    org.apache.beam.sdk.io.Read.from(
+                            sparkReceiverRead
+                                    .toBuilder()
+                                    .setValueCoder(valueCoder)
+                                    .setSparkReceiver(sparkReceiverRead.getSparkReceiver())
+                                    .build()
+                                    .makeSource());
+
+            return input.getPipeline().apply(unbounded);
+        }
     }
 
-    @Override
-    public PCollection<V> expand(PBegin input) {
-      org.apache.beam.sdk.io.Read.Unbounded<V> unbounded =
-          org.apache.beam.sdk.io.Read.from(
-              sparkReceiverRead
-                  .toBuilder()
-                  .setValueCoder(valueCoder)
-                  .setSparkReceiver(sparkReceiverRead.getSparkReceiver())
-                  .build()
-                  .makeSource());
+    public static class ReadFromSparkReceiverViaSdf<V>
+            extends PTransform<PBegin, PCollection<V>> {
 
-      return input.getPipeline().apply(unbounded);
+        Read<V> sparkReceiverRead;
+        Coder<V> valueCoder;
+
+        ReadFromSparkReceiverViaSdf(Read<V> sparkReceiverRead, Coder<V> valueCoder) {
+            this.sparkReceiverRead = sparkReceiverRead;
+            this.valueCoder = valueCoder;
+        }
+
+        @Override
+        public PCollection<V> expand(PBegin input) {
+            return input
+                    .apply(Impulse.create())
+                    .apply(ParDo.of(new GenerateSparkReceiverSourceDescriptor(sparkReceiverRead)))
+                    .apply(ParDo.of(new ReadFromSparkReceiverDoFn<>(this)))
+                    .setCoder(valueCoder);
+        }
     }
-  }
+
+    static class GenerateSparkReceiverSourceDescriptor extends DoFn<byte[], SparkReceiverSourceDescriptor> {
+
+        GenerateSparkReceiverSourceDescriptor(Read read) {
+
+        }
+
+        @ProcessElement
+        public void processElement(OutputReceiver<SparkReceiverSourceDescriptor> receiver) {
+            receiver.output(new SparkReceiverSourceDescriptor());
+        }
+    }
 }

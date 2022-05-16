@@ -41,6 +41,7 @@ allprojects {
 dependencies {
     implementation library.java.avro
     implementation library.java.cdap_api
+    implementation library.java.cdap_etl_api
     implementation library.java.commons_lang2_6
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
