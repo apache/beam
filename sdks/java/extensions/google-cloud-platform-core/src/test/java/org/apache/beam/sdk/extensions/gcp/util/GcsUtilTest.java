@@ -1238,10 +1238,10 @@ public class GcsUtilTest {
     Storage.Objects.Get mockGetRequest = Mockito.mock(Storage.Objects.Get.class);
     StorageObject object = new StorageObject();
     when(mockGetRequest.execute()).thenReturn(object);
-    when(mockStorageObjects.get(any(),any())).thenReturn(mockGetRequest);
+    when(mockStorageObjects.get(any(), any())).thenReturn(mockGetRequest);
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
 
-    List<StorageObjectOrIOException> results = gcsUtil.getObjects(makeGcsPaths("s",1));
+    List<StorageObjectOrIOException> results = gcsUtil.getObjects(makeGcsPaths("s", 1));
 
     assertEquals(object, results.get(0).storageObject());
   }
@@ -1257,15 +1257,15 @@ public class GcsUtilTest {
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
     Storage.Objects.Get mockGetRequest = Mockito.mock(Storage.Objects.Get.class);
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get(any(),any())).thenReturn(mockGetRequest);
+    when(mockStorageObjects.get(any(), any())).thenReturn(mockGetRequest);
     when(mockGetRequest.execute()).thenThrow(new RuntimeException("fakeException"));
 
     thrown.expect(IOException.class);
     thrown.expectMessage("Error trying to get gs://bucket/s0");
 
-    List<StorageObjectOrIOException> results = gcsUtil.getObjects(makeGcsPaths("s",1));
+    List<StorageObjectOrIOException> results = gcsUtil.getObjects(makeGcsPaths("s", 1));
 
-    for (StorageObjectOrIOException result : results){
+    for (StorageObjectOrIOException result : results) {
       if (null != result.ioException()) throw result.ioException();
     }
   }
@@ -1287,14 +1287,14 @@ public class GcsUtilTest {
     thrown.expect(IOException.class);
     thrown.expectMessage("Unable to match files in bucket testBucket");
 
-    gcsUtil.listObjects("testBucket","prefix", null);
+    gcsUtil.listObjects("testBucket", "prefix", null);
   }
 
   public static class GcsUtilMock extends GcsUtil {
 
     public GoogleCloudStorage googleCloudStorage;
 
-    public static GcsUtilMock createMock(PipelineOptions options){
+    public static GcsUtilMock createMock(PipelineOptions options) {
       GcsOptions gcsOptions = options.as(GcsOptions.class);
       Storage.Builder storageBuilder = Transport.newStorageClient(gcsOptions);
       return new GcsUtilMock(
@@ -1306,16 +1306,25 @@ public class GcsUtilTest {
           gcsOptions.getGcsUploadBufferSizeBytes());
     }
 
-    private GcsUtilMock(Storage storageClient,
+    private GcsUtilMock(
+        Storage storageClient,
         HttpRequestInitializer httpRequestInitializer,
-        ExecutorService executorService, Boolean shouldUseGrpc, Credentials credentials,
+        ExecutorService executorService,
+        Boolean shouldUseGrpc,
+        Credentials credentials,
         @Nullable Integer uploadBufferSizeBytes) {
-      super(storageClient, httpRequestInitializer, executorService, shouldUseGrpc, credentials,
+      super(
+          storageClient,
+          httpRequestInitializer,
+          executorService,
+          shouldUseGrpc,
+          credentials,
           uploadBufferSizeBytes);
     }
 
     @Override
-    GoogleCloudStorage createGoogleCloudStorage(GoogleCloudStorageOptions options, Storage storage, Credentials credentials){
+    GoogleCloudStorage createGoogleCloudStorage(
+        GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
       return googleCloudStorage;
     }
   }
@@ -1331,16 +1340,16 @@ public class GcsUtilTest {
 
     gcsUtil.googleCloudStorage = mockStorage;
 
-    when(mockStorage.create(any(),any())).thenReturn(mockChannel);
+    when(mockStorage.create(any(), any())).thenReturn(mockChannel);
 
     GcsPath path = GcsPath.fromUri("gs://testbucket/testdirectory/otherfile");
     CreateOptions createOptions = CreateOptions.builder().build();
 
-    assertEquals(mockChannel,gcsUtil.create(path, createOptions));
+    assertEquals(mockChannel, gcsUtil.create(path, createOptions));
   }
 
   @Test
-  public void testCreateWithException() throws IOException{
+  public void testCreateWithException() throws IOException {
     GcsOptions gcsOptions = gcsOptionsWithTestCredential();
 
     GcsUtilMock gcsUtil = GcsUtilMock.createMock(gcsOptions);
@@ -1349,7 +1358,7 @@ public class GcsUtilTest {
 
     gcsUtil.googleCloudStorage = mockStorage;
 
-    when(mockStorage.create(any(),any())).thenThrow(new RuntimeException("testException"));
+    when(mockStorage.create(any(), any())).thenThrow(new RuntimeException("testException"));
 
     GcsPath path = GcsPath.fromUri("gs://testbucket/testdirectory/otherfile");
     CreateOptions createOptions = CreateOptions.builder().build();

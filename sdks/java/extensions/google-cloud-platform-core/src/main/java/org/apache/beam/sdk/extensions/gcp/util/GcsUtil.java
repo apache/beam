@@ -600,7 +600,8 @@ public class GcsUtil {
     }
   }
 
-  GoogleCloudStorage createGoogleCloudStorage(GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
+  GoogleCloudStorage createGoogleCloudStorage(
+      GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
     return new GoogleCloudStorageImpl(options, storage, credentials);
   }
 
