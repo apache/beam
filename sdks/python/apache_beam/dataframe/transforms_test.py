@@ -133,8 +133,9 @@ class TransformTest(unittest.TestCase):
     })
 
     def median_sum_fn(x):
-      warnings.filterwarnings("ignore", message="Mean of empty slice")
-      return (x.foo + x.bar).median()
+      with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Mean of empty slice")
+        return (x.foo + x.bar).median()
 
     describe = lambda df: df.describe()
 

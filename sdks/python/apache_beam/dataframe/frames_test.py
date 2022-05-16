@@ -1604,8 +1604,9 @@ class GroupByTest(_AbstractFrameTest):
   """Tests for DataFrame/Series GroupBy operations."""
   @staticmethod
   def median_sum_fn(x):
-    warnings.filterwarnings("ignore", message="Mean of empty slice")
-    return (x.foo + x.bar).median()
+    with warnings.catch_warnings():
+      warnings.filterwarnings("ignore", message="Mean of empty slice")
+      return (x.foo + x.bar).median()
 
   @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_groupby_agg(self, agg_type):
