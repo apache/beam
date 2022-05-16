@@ -213,8 +213,8 @@ class BigtableServiceImpl implements BigtableService {
   static class BigtableSegmentReaderImpl implements Reader {
     private BigtableSession session;
 
-    @Nullable private ReadRowsRequest nextRequest;
-    @Nullable private Row currentRow;
+    private @Nullable ReadRowsRequest nextRequest;
+    private @Nullable Row currentRow;
     private final Queue<Row> buffer;
     private final long refillSegmentWaterMark;
     private final long maxSegmentByteSize;
