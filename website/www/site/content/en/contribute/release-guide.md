@@ -734,7 +734,7 @@ You can (optionally) also do additional verification by:
 1. Pull docker images to make sure they are pullable.
 ```
 docker pull {image_name}
-docker pull apache/beam_python3.5_sdk:2.16.0_rc1
+docker pull apache/beam_python3.7_sdk:2.39.0_rc1
 ```
 
 
