@@ -38,6 +38,7 @@ public class FhirIOLROIT {
 
   private transient HealthcareApiClient client;
   private final String project;
+  private static final String BQ_DATASET_ID = "big_query_storage";
   private String healthcareDataset;
   private final String fhirStoreId;
   private final String deidFhirStoreId;
@@ -87,11 +88,19 @@ public class FhirIOLROIT {
   }
 
   @Test
-  public void test_FhirIO_exportFhirResourcesGcs() {
+  public void test_FhirIO_exportFhirResources_Gcs() {
     String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
     String exportGcsUriPrefix =
         "gs://" + DEFAULT_TEMP_BUCKET + "/export/" + new SecureRandom().nextInt(32);
     pipeline.apply(FhirIO.exportResources(fhirStoreName, exportGcsUriPrefix));
+    pipeline.run();
+  }
+
+  @Test
+  public void test_FhirIO_exportFhirResources_BigQuery() {
+    String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
+    String exportBqDatasetUri = String.format("bq://%s.%s", project, BQ_DATASET_ID);
+    pipeline.apply(FhirIO.exportResources(fhirStoreName, exportBqDatasetUri));
     pipeline.run();
   }
 
