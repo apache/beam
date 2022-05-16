@@ -29,7 +29,6 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.io.CreateStream;
@@ -86,7 +85,6 @@ import org.junit.rules.ExpectedException;
 public class CreateStreamTest implements Serializable {
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
-  @Rule public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
   @Rule public final transient ExpectedException thrown = ExpectedException.none();
 
   @Test

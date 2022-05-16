@@ -15,20 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.fn.harness;
+package org.apache.beam.runners.spark;
 
-/** An interface that groups inputs to an accumulator and flushes the output. */
-public interface GroupingTable<K, InputT, AccumT> {
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.values.KV;
 
-  /** Abstract interface of things that accept inputs one at a time via process(). */
-  interface Receiver {
-    /** Processes the element. */
-    void process(Object outputElem) throws Exception;
+public class SparkContextOptionsRule extends SparkContextRule {
+
+  private @Nullable SparkContextOptions contextOptions = null;
+
+  public SparkContextOptionsRule(KV<String, String>... sparkConfig) {
+    super(sparkConfig);
   }
 
-  /** Adds a pair to this table, possibly flushing some entries to output if the table is full. */
-  void put(Object pair, Receiver receiver) throws Exception;
+  @Override
+  protected void before() throws Throwable {
+    super.before();
+    contextOptions = createPipelineOptions();
+  }
 
-  /** Flushes all entries in this table to output. */
-  void flush(Receiver output) throws Exception;
+  public SparkContextOptions getOptions() {
+    if (contextOptions == null) {
+      throw new IllegalStateException("SparkContextOptions not available");
+    }
+    return contextOptions;
+  }
 }

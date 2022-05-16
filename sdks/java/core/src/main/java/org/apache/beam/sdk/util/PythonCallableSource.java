@@ -15,30 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark;
+package org.apache.beam.sdk.util;
 
-import org.apache.beam.runners.spark.translation.SparkContextFactory;
-import org.junit.rules.ExternalResource;
+import java.io.Serializable;
 
-/** Explicitly set {@link org.apache.spark.SparkContext} to be reused (or not) in tests. */
-public class ReuseSparkContextRule extends ExternalResource {
+/**
+ * A wrapper object storing a Python code that can be evaluated to Python callables in Python SDK.
+ */
+public class PythonCallableSource implements Serializable {
+  private final String pythonCallableCode;
 
-  private final boolean reuse;
-
-  private ReuseSparkContextRule(boolean reuse) {
-    this.reuse = reuse;
+  private PythonCallableSource(String pythonCallableCode) {
+    this.pythonCallableCode = pythonCallableCode;
   }
 
-  public static ReuseSparkContextRule no() {
-    return new ReuseSparkContextRule(false);
+  public static PythonCallableSource of(String pythonCallableCode) {
+    // TODO(BEAM-14457): check syntactic correctness of Python code if possible
+    return new PythonCallableSource(pythonCallableCode);
   }
 
-  public static ReuseSparkContextRule yes() {
-    return new ReuseSparkContextRule(true);
-  }
-
-  @Override
-  protected void before() throws Throwable {
-    System.setProperty(SparkContextFactory.TEST_REUSE_SPARK_CONTEXT, Boolean.toString(reuse));
+  public String getPythonCallableCode() {
+    return pythonCallableCode;
   }
 }
