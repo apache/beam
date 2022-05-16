@@ -90,7 +90,7 @@ class ModelLoader(Generic[T]):
 
 class RunInference(beam.PTransform):
   """An extensible transform for running inferences."""
-  def __init__(self, model_loader: ModelLoader, clock=None):
+  def __init__(self, model_loader: ModelLoader, clock=time):
     self._model_loader = model_loader
     self._clock = clock
 
@@ -155,15 +155,13 @@ class _MetricsCollector:
 
 class _RunInferenceDoFn(beam.DoFn):
   """A DoFn implementation generic to frameworks."""
-  def __init__(self, model_loader: ModelLoader, clock=None):
+  def __init__(self, model_loader: ModelLoader, clock):
     self._model_loader = model_loader
     self._inference_runner = model_loader.get_inference_runner()
     self._shared_model_handle = shared.Shared()
     self._metrics_collector = _MetricsCollector(
         self._inference_runner.get_metrics_namespace())
     self._clock = clock
-    if not clock:
-      self._clock = time
     self._model = None
 
   def _load_model(self):
