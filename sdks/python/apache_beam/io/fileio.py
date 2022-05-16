@@ -113,8 +113,9 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
-from apache_beam.transforms.periodicsequence import ImpulseSeqGenDoFn
+from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.userstate import CombiningValueStateSpec
+from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.annotations import experimental
@@ -270,7 +271,8 @@ class MatchContinuously(beam.PTransform):
       has_deduplication=True,
       start_timestamp=Timestamp.now(),
       stop_timestamp=MAX_TIMESTAMP,
-      match_updated_files=False):
+      match_updated_files=False,
+      apply_windowing=False):
     """Initializes a MatchContinuously transform.
 
     Args:
@@ -281,6 +283,8 @@ class MatchContinuously(beam.PTransform):
       stop_timestamp: Timestamp after which no more files will be checked.
       match_updated_files: (When has_deduplication is set to True) whether match
       file with timestamp changes.
+      apply_windowing: Whether each element should be assigned to
+      individual window. If false, all elements will reside in global window.
     """
     self.file_pattern = file_pattern
     self.interval = interval
@@ -288,15 +292,22 @@ class MatchContinuously(beam.PTransform):
     self.start_ts = start_timestamp
     self.stop_ts = stop_timestamp
     self.match_upd = match_updated_files
+    self.apply_windowing = apply_windowing
 
   def expand(self, pbegin) -> beam.PCollection[filesystem.FileMetadata]:
+    # invoke periodic impulse
+    impulse = pbegin | PeriodicImpulse(
+        start_timestamp=self.start_ts,
+        stop_timestamp=self.stop_ts,
+        fire_interval=self.interval)
+
+    # match file pattern periodically
     match_files = (
-        pbegin
-        | beam.Create([(self.start_ts, self.stop_ts, self.interval)])
-        | beam.ParDo(ImpulseSeqGenDoFn())
+        impulse
         | 'GetFilePattern' >> beam.Map(lambda x: self.file_pattern)
         | MatchAll())
 
+    # apply deduplication strategy if required
     if self.has_deduplication:
       # Making a Key Value so each file has its own state.
       match_files = match_files | 'ToKV' >> beam.Map(lambda x: (x.path, x))
@@ -306,6 +317,11 @@ class MatchContinuously(beam.PTransform):
       else:
         match_files = match_files | 'RemoveAlreadyRead' >> beam.ParDo(
             _RemoveDuplicates())
+
+    # apply windowing if required. Apply at last because deduplication relies on
+    # the global window.
+    if self.apply_windowing:
+      match_files = match_files | beam.WindowInto(FixedWindows(self.interval))
 
     return match_files
 

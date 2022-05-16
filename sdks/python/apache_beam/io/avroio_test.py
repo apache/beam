@@ -43,7 +43,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-from apache_beam.transforms.periodicsequence import ImpulseSeqGenDoFn
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.utils.timestamp import Timestamp
 
@@ -394,59 +393,50 @@ class AvroBase(object):
           | avroio.ReadAllFromAvro(with_filename=True),
           equal_to(result))
 
-  def test_read_all_from_avro_continuously(self):
-    class _WriteFilesFn(beam.DoFn):
-      """writes a couple of files with deferral."""
+  class _WriteFilesFn(beam.DoFn):
+    """writes a couple of files with deferral."""
 
-      COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
+    COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
 
-      def __init__(self, SCHEMA, RECORDS):
-        self._thread = None
-        self.SCHEMA = SCHEMA
-        self.RECORDS = RECORDS
+    def __init__(self, SCHEMA, RECORDS, tempdir):
+      self._thread = None
+      self.SCHEMA = SCHEMA
+      self.RECORDS = RECORDS
+      self.tempdir = tempdir
 
-      def get_expect(self, match_updated_files):
-        if match_updated_files:
-          results_file1 = [('file1', x) for x in self.gen_records(1) +
-                           self.gen_records(2) + self.gen_records(5)]
-          results_file2 = [('file2', x)
-                           for x in self.gen_records(3) + self.gen_records(8)]
-          results_file3 = [('file3', x) for x in self.gen_records(13)]
-        else:
-          results_file1 = [('file1', x) for x in self.gen_records(1)]
-          results_file2 = [('file2', x) for x in self.gen_records(3)]
-          results_file3 = [('file3', x) for x in self.gen_records(13)]
-        return results_file1 + results_file2 + results_file3
+    def get_expect(self, match_updated_files):
+      results_file1 = [('file1', x) for x in self.gen_records(1)]
+      results_file2 = [('file2', x) for x in self.gen_records(3)]
+      if match_updated_files:
+        results_file1 += [('file1', x) for x in self.gen_records(2)]
+      return results_file1 + results_file2
 
-      def gen_records(self, count):
-        return self.RECORDS * (count // len(self.RECORDS)) + self.RECORDS[:(
-            count % len(self.RECORDS))]
+    def gen_records(self, count):
+      return self.RECORDS * (count // len(self.RECORDS)) + self.RECORDS[:(
+          count % len(self.RECORDS))]
 
-      def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
-        tempdir = element[1]
-        counter = count_state.read()
-        if counter == 0:
-          with open(FileSystems.join(tempdir, 'file1'), 'wb') as f:
-            writer(f, self.SCHEMA, self.gen_records(2))
-          with open(FileSystems.join(tempdir, 'file2'), 'wb') as f:
-            writer(f, self.SCHEMA, self.gen_records(3))
-        elif counter == 1:
-          with open(FileSystems.join(tempdir, 'file1'), 'wb') as f:
-            writer(f, self.SCHEMA, self.gen_records(5))
-          with open(FileSystems.join(tempdir, 'file2'), 'wb') as f:
-            writer(f, self.SCHEMA, self.gen_records(8))
-          with open(FileSystems.join(tempdir, 'file3'), 'wb') as f:
-            writer(f, self.SCHEMA, self.gen_records(13))
+    def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
+      counter = count_state.read()
+      if counter == 0:
         count_state.add(1)
+        with open(FileSystems.join(self.tempdir, 'file1'), 'wb') as f:
+          writer(f, self.SCHEMA, self.gen_records(2))
+        with open(FileSystems.join(self.tempdir, 'file2'), 'wb') as f:
+          writer(f, self.SCHEMA, self.gen_records(3))
+      # convert dumb key to basename in output
+      basename = FileSystems.split(element[1][0])[1]
+      content = element[1][1]
+      yield basename, content
 
+  def test_read_all_continuously_new(self):
     with TestPipeline() as pipeline:
       tempdir = tempfile.mkdtemp()
-      writer_fn = _WriteFilesFn(self.SCHEMA, self.RECORDS)
+      writer_fn = self._WriteFilesFn(self.SCHEMA, self.RECORDS, tempdir)
       with open(FileSystems.join(tempdir, 'file1'), 'wb') as f:
         writer(f, writer_fn.SCHEMA, writer_fn.gen_records(1))
       match_pattern = FileSystems.join(tempdir, '*')
-      interval = 0.2
-      last = 4
+      interval = 0.5
+      last = 2
 
       p_read_once = (
           pipeline
@@ -457,7 +447,23 @@ class AvroBase(object):
               interval=interval,
               stop_timestamp=Timestamp.now() + last,
               match_updated_files=False)
-          | beam.Map(lambda x: (os.path.basename(x[0]), x[1])))
+          | 'add dumb key' >> beam.Map(lambda x: (0, x))
+          | 'Write files on-the-fly' >> beam.ParDo(writer_fn))
+      assert_that(
+          p_read_once,
+          equal_to(writer_fn.get_expect(match_updated_files=False)),
+          label='assert read new files results')
+
+  def test_read_all_continuously_update(self):
+    with TestPipeline() as pipeline:
+      tempdir = tempfile.mkdtemp()
+      writer_fn = self._WriteFilesFn(self.SCHEMA, self.RECORDS, tempdir)
+      with open(FileSystems.join(tempdir, 'file1'), 'wb') as f:
+        writer(f, writer_fn.SCHEMA, writer_fn.gen_records(1))
+      match_pattern = FileSystems.join(tempdir, '*')
+      interval = 0.5
+      last = 2
+
       p_read_upd = (
           pipeline
           | 'Continuously read updated files' >>
@@ -468,18 +474,8 @@ class AvroBase(object):
               interval=interval,
               stop_timestamp=Timestamp.now() + last,
               match_updated_files=True)
-          | beam.Map(lambda x: (os.path.basename(x[0]), x[1])))
-      _ = (
-          pipeline
-          | beam.Create([(Timestamp.now() + 1.0, Timestamp.now() + 2.0, 0.5)])
-          | beam.ParDo(ImpulseSeqGenDoFn())
-          | beam.Map(lambda x: (0, tempdir))
+          | 'add dumb key' >> beam.Map(lambda x: (0, x))
           | 'Write files on-the-fly' >> beam.ParDo(writer_fn))
-
-      assert_that(
-          p_read_once,
-          equal_to(writer_fn.get_expect(match_updated_files=False)),
-          label='assert read new files results')
       assert_that(
           p_read_upd,
           equal_to(writer_fn.get_expect(match_updated_files=True)),

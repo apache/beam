@@ -461,7 +461,7 @@ class ReadAllFiles(PTransform):
 
 
 class ReadAllFilesContinuously(PTransform):
-  """A Read transform that reads files continuously.
+  """A file source that reads files continuously.
 
   Pipeline authors should not use this directly. This is to be used by Read
   PTransform authors who wishes to implement file-based Read transforms that
@@ -475,7 +475,8 @@ class ReadAllFilesContinuously(PTransform):
       'has_deduplication',
       'start_timestamp',
       'stop_timestamp',
-      'match_updated_files'
+      'match_updated_files',
+      'apply_windowing'
   }
 
   def __init__(self,
@@ -542,9 +543,7 @@ class ReadAllFilesContinuously(PTransform):
                 self._desired_bundle_size,
                 self._min_bundle_size,
                 do_match=False))
+        # | 'Reshard' >> Reshuffle() # not Reshuffle because needs timely read.
         | 'ReadRange' >> ParDo(
             _ReadRange(
-                self._source_from_file, with_filename=self._with_filename))
-        # ReadAllFilesContinuously needs to read files instantly after matches,
-        # so move reshuffle at the end.
-        | 'Reshard' >> Reshuffle())
+                self._source_from_file, with_filename=self._with_filename)))

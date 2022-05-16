@@ -47,7 +47,6 @@ from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import Create
-from apache_beam.transforms.periodicsequence import ImpulseSeqGenDoFn
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.utils.timestamp import Timestamp
 
@@ -559,36 +558,35 @@ class TextSourceTest(unittest.TestCase):
           | 'ReadAll' >> ReadAllFromText())
       assert_that(pcoll, equal_to(expected_data))
 
-  def test_read_all_continuously(self):
-    class _WriteFilesFn(beam.DoFn):
-      """writes a couple of files with deferral."""
+  class _WriteFilesFn(beam.DoFn):
+    """writes a couple of files with deferral."""
+    COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
 
-      COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
+    def __init__(self, temp_path):
+      self.temp_path = temp_path
 
-      def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
-        temp_path = element[1]
-        counter = count_state.read()
-        if counter == 0:
-          with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
-            f.write('second')
-          with open(FileSystems.join(temp_path, 'file2'), 'w') as f:
-            f.write('first')
-        elif counter == 1:
-          with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
-            f.write('thirdA\nthirdB')
-          with open(FileSystems.join(temp_path, 'file2'), 'w') as f:
-            f.write('second')
-          with open(FileSystems.join(temp_path, 'file3'), 'w') as f:
-            f.write('first')
+    def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
+      counter = count_state.read()
+      if counter == 0:
         count_state.add(1)
+        with open(FileSystems.join(self.temp_path, 'file1'), 'w') as f:
+          f.write('second A\nsecond B')
+        with open(FileSystems.join(self.temp_path, 'file2'), 'w') as f:
+          f.write('first')
+      # convert dumb key to basename in output
+      basename = FileSystems.split(element[1][0])[1]
+      content = element[1][1]
+      yield basename, content
 
+  def test_read_all_continuously_new(self):
     with TempDir() as tempdir, TestPipeline() as pipeline:
+      temp_path = tempdir.get_path()
       # create a temp file at the beginning
-      with open(FileSystems.join(tempdir.get_path(), 'file1'), 'w') as f:
+      with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
         f.write('first')
-      match_pattern = FileSystems.join(tempdir.get_path(), '*')
-      interval = 0.2
-      last = 4
+      match_pattern = FileSystems.join(temp_path, '*')
+      interval = 0.5
+      last = 2
       p_read_once = (
           pipeline
           | 'Continuously read new files' >> ReadAllFromTextContinuously(
@@ -598,7 +596,23 @@ class TextSourceTest(unittest.TestCase):
               interval=interval,
               stop_timestamp=Timestamp.now() + last,
               match_updated_files=False)
-          | beam.Map(lambda x: (os.path.basename(x[0]), x[1])))
+          | 'add dumb key' >> beam.Map(lambda x: (0, x))
+          |
+          'Write files on-the-fly' >> beam.ParDo(self._WriteFilesFn(temp_path)))
+      assert_that(
+          p_read_once,
+          equal_to([('file1', 'first'), ('file2', 'first')]),
+          label='assert read new files results')
+
+  def test_read_all_continuously_update(self):
+    with TempDir() as tempdir, TestPipeline() as pipeline:
+      temp_path = tempdir.get_path()
+      # create a temp file at the beginning
+      with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
+        f.write('first')
+      match_pattern = FileSystems.join(temp_path, '*')
+      interval = 0.5
+      last = 2
       p_read_upd = (
           pipeline
           | 'Continuously read updated files' >> ReadAllFromTextContinuously(
@@ -608,25 +622,13 @@ class TextSourceTest(unittest.TestCase):
               interval=interval,
               stop_timestamp=Timestamp.now() + last,
               match_updated_files=True)
-          | beam.Map(lambda x: (os.path.basename(x[0]), x[1])))
-      _ = (
-          pipeline
-          | beam.Create([(Timestamp.now() + 1.0, Timestamp.now() + 2.0, 0.5)])
-          | beam.ParDo(ImpulseSeqGenDoFn())
-          | beam.Map(lambda x: (0, tempdir.get_path()))
-          | 'Write files on-the-fly' >> beam.ParDo(_WriteFilesFn()))
-
-      assert_that(
-          p_read_once,
-          equal_to([('file1', 'first'), ('file2', 'first'),
-                    ('file3', 'first')]),
-          label='assert read new files results')
+          | 'add dumb key' >> beam.Map(lambda x: (0, x))
+          |
+          'Write files on-the-fly' >> beam.ParDo(self._WriteFilesFn(temp_path)))
       assert_that(
           p_read_upd,
-          equal_to([('file1', 'first'), ('file1', 'second'),
-                    ('file1', 'thirdA'), ('file1', 'thirdB'),
-                    ('file2', 'first'), ('file2', 'second'),
-                    ('file3', 'first')]),
+          equal_to([('file1', 'first'), ('file1', 'second A'),
+                    ('file1', 'second B'), ('file2', 'first')]),
           label='assert read updated files results')
 
   def test_read_from_text_single_file_with_coder(self):
