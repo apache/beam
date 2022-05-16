@@ -202,7 +202,8 @@ class _RunInferenceDoFn(beam.DoFn):
         examples, self._model)
     predictions = list(result_generator)
 
-    inference_latency = _to_microseconds(self._clock.time()) - start_time
+    end_time = _to_microseconds(self._clock.time())
+    inference_latency = end_time - start_time
     num_bytes = self._inference_runner.get_num_bytes(examples)
     num_elements = len(batch)
     self._metrics_collector.update(num_elements, num_bytes, inference_latency)
