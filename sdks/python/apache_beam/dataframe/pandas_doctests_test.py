@@ -360,7 +360,22 @@ class DoctestTest(unittest.TestCase):
             ],
             # These tests use the static method pd.pivot_table, which doesn't
             # actually raise NotImplementedError
-            'pandas.core.frame.DataFrame.pivot_table': ['*'],
+            'pandas.core.frame.DataFrame.pivot_table': [
+                "table = pd.pivot_table(df, values='D', index=['A', 'B'],\n" +
+                    "                    columns=['C'], aggfunc=np.sum)",
+                "table = pd.pivot_table(df, values='D', index=['A', 'B'],\n" +
+                # pylint: disable=line-too-long
+                    "                    columns=['C'], aggfunc=np.sum, fill_value=0)",
+                # pylint: disable=line-too-long
+                "table = pd.pivot_table(df, values=['D', 'E'], index=['A', 'C'],\n" +
+                    "                    aggfunc={'D': np.mean,\n" +
+                    "                             'E': np.mean})\n",
+                # pylint: disable=line-too-long
+                "table = pd.pivot_table(df, values=['D', 'E'], index=['A', 'C']," +
+                    "                    aggfunc={'D': np.mean," +
+                    "                             'E': [min, max, np.mean]})",
+                "table",
+            ],
             # Expected to raise a ValueError, but we raise NotImplementedError
             'pandas.core.frame.DataFrame.pivot': [
                 "df.pivot(index='foo', columns='bar', values='baz')",
@@ -834,7 +849,6 @@ class DoctestTest(unittest.TestCase):
             'melt': ['*'],
             'merge': ["df1.merge(df2, how='cross')"],
             'merge_asof': ['*'],
-            'pivot_table': ['*'],
             'qcut': ['*'],
             'reset_option': ['*'],
             'set_eng_float_format': ['*'],
@@ -847,6 +861,7 @@ class DoctestTest(unittest.TestCase):
         wont_implement_ok={
             'factorize': ['*'],
             'pivot': ['*'],
+            'pivot_table': ['*'],
             'to_datetime': ['s.head()'],
             'to_pickle': ['*'],
             'melt': [
@@ -886,6 +901,22 @@ class DoctestTest(unittest.TestCase):
                 'df.pivot(index="lev1", columns=["lev2", "lev3"],values="values")',
                 # pylint: disable=line-too-long
                 'df.pivot(index=["lev1", "lev2"], columns=["lev3"],values="values")'
+            ],
+            'pivot_table': [
+                "table = pd.pivot_table(df, values='D', index=['A', 'B'],\n" +
+                "                    columns=['C'], aggfunc=np.sum)",
+                "table = pd.pivot_table(df, values='D', index=['A', 'B'],\n" +
+                # pylint: disable=line-too-long
+                "                    columns=['C'], aggfunc=np.sum, fill_value=0)",
+                # pylint: disable=line-too-long
+                "table = pd.pivot_table(df, values=['D', 'E'], index=['A', 'C'],\n"
+                + "                    aggfunc={'D': np.mean,\n" +
+                "                             'E': np.mean})\n",
+                # pylint: disable=line-too-long
+                "table = pd.pivot_table(df, values=['D', 'E'], index=['A', 'C'],"
+                + "                    aggfunc={'D': np.mean," +
+                "                             'E': [min, max, np.mean]})",
+                "table",
             ],
             # Never written.
             'to_pickle': ['os.remove("./dummy.pkl")'],
