@@ -279,8 +279,6 @@ class Environment(object):
       pool.network = self.worker_options.network
     if self.worker_options.subnetwork:
       pool.subnetwork = self.worker_options.subnetwork
-    pool.workerHarnessContainerImage = (
-        get_container_image_from_options(options))
 
     # Setting worker pool sdk_harness_container_images option for supported
     # Dataflow workers.
@@ -306,6 +304,14 @@ class Environment(object):
       for capability in environment.capabilities:
         container_image.capabilities.append(capability)
       pool.sdkHarnessContainerImages.append(container_image)
+
+    if not _use_fnapi(options) or not pool.sdkHarnessContainerImages:
+      pool.workerHarnessContainerImage = (
+          get_container_image_from_options(options))
+    elif len(pool.sdkHarnessContainerImages) == 1:
+      # Dataflow expects a value here when there is only one environment.
+      pool.workerHarnessContainerImage = (
+          pool.sdkHarnessContainerImages[0].containerImage)
 
     if self.debug_options.number_of_worker_harness_threads:
       pool.numThreadsPerWorker = (
@@ -339,6 +345,10 @@ class Environment(object):
           for k, v in sdk_pipeline_options.items() if v is not None
       }
       options_dict["pipelineUrl"] = proto_pipeline_staged_url
+      # Don't pass impersonate_service_account through to the harness.
+      # Though impersonation should start a job, the workers should
+      # not try to modify their credentials.
+      options_dict.pop('impersonate_service_account', None)
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='options', value=to_json_value(options_dict)))
@@ -551,7 +561,7 @@ class DataflowApplicationClient(object):
     if self.google_cloud_options.no_auth:
       credentials = None
     else:
-      credentials = get_service_credentials()
+      credentials = get_service_credentials(options)
 
     http_client = get_new_http()
     self._client = dataflow.DataflowV1b3(

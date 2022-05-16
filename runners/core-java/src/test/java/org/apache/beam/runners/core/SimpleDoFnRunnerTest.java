@@ -318,7 +318,8 @@ public class SimpleDoFnRunnerTest {
         allOf(
             containsString("must be no earlier"),
             containsString(
-                String.format("timestamp of the current input (%s)", new Instant(0).toString())),
+                String.format(
+                    "timestamp of the current input or timer (%s)", new Instant(0).toString())),
             containsString(
                 String.format(
                     "the allowed skew (%s)",
@@ -369,7 +370,8 @@ public class SimpleDoFnRunnerTest {
         allOf(
             containsString("must be no earlier"),
             containsString(
-                String.format("timestamp of the current input (%s)", new Instant(0).toString())),
+                String.format(
+                    "timestamp of the current input or timer (%s)", new Instant(0).toString())),
             containsString(
                 String.format(
                     "the allowed skew (%s)",
@@ -626,7 +628,9 @@ public class SimpleDoFnRunnerTest {
         exception.getMessage(),
         allOf(
             containsString("must be no earlier"),
-            containsString(String.format("timestamp of the timer (%s)", new Instant(0).toString())),
+            containsString(
+                String.format(
+                    "timestamp of the current input or timer (%s)", new Instant(0).toString())),
             containsString(
                 String.format(
                     "the allowed skew (%s)",

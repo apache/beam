@@ -46,6 +46,7 @@ const (
 	urnPairWithRestriction                 = "beam:transform:sdf_pair_with_restriction:v1"
 	urnSplitAndSizeRestrictions            = "beam:transform:sdf_split_and_size_restrictions:v1"
 	urnProcessSizedElementsAndRestrictions = "beam:transform:sdf_process_sized_element_and_restrictions:v1"
+	urnTruncateSizedRestrictions           = "beam:transform:sdf_truncate_sized_restrictions:v1"
 )
 
 // UnmarshalPlan converts a model bundle descriptor into an execution Plan.
@@ -400,14 +401,16 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		urnPerKeyCombineConvert,
 		urnPairWithRestriction,
 		urnSplitAndSizeRestrictions,
-		urnProcessSizedElementsAndRestrictions:
+		urnProcessSizedElementsAndRestrictions,
+		urnTruncateSizedRestrictions:
 		var data string
 		var sides map[string]*pipepb.SideInput
 		switch urn {
 		case graphx.URNParDo,
 			urnPairWithRestriction,
 			urnSplitAndSizeRestrictions,
-			urnProcessSizedElementsAndRestrictions:
+			urnProcessSizedElementsAndRestrictions,
+			urnTruncateSizedRestrictions:
 			var pardo pipepb.ParDoPayload
 			if err := proto.Unmarshal(payload, &pardo); err != nil {
 				return nil, errors.Wrapf(err, "invalid ParDo payload for %v", transform)
@@ -453,6 +456,8 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					u = &PairWithRestriction{UID: b.idgen.New(), Fn: dofn, Out: out[0]}
 				case urnSplitAndSizeRestrictions:
 					u = &SplitAndSizeRestrictions{UID: b.idgen.New(), Fn: dofn, Out: out[0]}
+				case urnTruncateSizedRestrictions:
+					u = &TruncateSizedRestriction{UID: b.idgen.New(), Fn: dofn, Out: out[0]}
 				default:
 					n := &ParDo{UID: b.idgen.New(), Fn: dofn, Inbound: in, Out: out}
 					n.PID = transform.GetUniqueName()
@@ -486,7 +491,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					}
 					u = n
 					if urn == urnProcessSizedElementsAndRestrictions {
-						u = &ProcessSizedElementsAndRestrictions{PDo: n, TfId: id.to}
+						outputs := make([]string, len(transform.GetOutputs()))
+						i := 0
+						for out := range transform.GetOutputs() {
+							outputs[i] = out
+							i++
+						}
+						u = &ProcessSizedElementsAndRestrictions{PDo: n, TfId: id.to, outputs: outputs}
 					} else if dofn.IsSplittable() {
 						u = &SdfFallback{PDo: n}
 					}

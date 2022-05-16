@@ -39,7 +39,7 @@ The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last Pytho
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-The Go SDK supports Go v1.16+. SDK release 2.32.0 is the last experimental version.
+The Go SDK supports Go v1.18+. SDK release 2.32.0 is the last experimental version.
 {{< /paragraph >}}
 
 ## 1. Overview {#overview}
@@ -1099,6 +1099,18 @@ tree, [2]
 
 Thus, `GroupByKey` represents a transform from a multimap (multiple keys to
 individual values) to a uni-map (unique keys to collections of values).
+
+<span class="language-java">Using `GroupByKey` is straightforward:</span>
+
+{{< highlight java >}}
+// The input PCollection.
+ PCollection<KV<String, String>> mapped = ...;
+
+// Apply GroupByKey to the PCollection mapped.
+// Save the result as the PCollection reduced.
+PCollection<KV<String, Iterable<String>>> reduced =
+ mapped.apply(GroupByKey.<String, String>create());
+{{< /highlight >}}
 
 ##### 4.2.2.1 GroupByKey and unbounded PCollections {#groupbykey-and-unbounded-pcollections}
 
@@ -3971,7 +3983,7 @@ Standard Go types like `int`, `int64` `float64`, `[]byte`, and `string` and more
 Structs and pointers to structs default using Beam Schema Row encoding.
 However, users can build and register custom coders with `beam.RegisterCoder`.
 You can find available Coder functions in the
-[coder](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coders)
+[coder](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder)
 package.
 {{< /paragraph >}}
 
@@ -6495,7 +6507,7 @@ watermark estimator implementation. You can also provide your own watermark esti
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-11105.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" watermarkestimation_customestimator >}}
 {{< /highlight >}}
 
 ### 12.6. Truncating during drain {#truncating-during-drain}

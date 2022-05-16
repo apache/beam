@@ -27,7 +27,9 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.util.LRUMap;
@@ -93,6 +95,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIt
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -326,12 +329,10 @@ public class DoFnOperatorTest {
 
           @OnTimer(processingTimerId)
           public void onProcessingTime(OnTimerContext context) {
-            assertEquals(
-                // Timestamps in processing timer context are defined to be the input watermark
-                // See SimpleDoFnRunner#onTimer
-                "Timer timestamp must match current input watermark",
-                timerTimestamp.plus(Duration.millis(1)),
-                context.timestamp());
+            assertTrue(
+                // Timestamps in processing timer context are defined to be the output watermark
+                "Timer timestamp must be at most current input watermark",
+                !timerTimestamp.plus(Duration.millis(1)).isBefore(context.timestamp()));
             context.outputWithTimestamp(processingTimeMessage, context.timestamp());
           }
         };
@@ -422,17 +423,12 @@ public class DoFnOperatorTest {
     // this must fire the processing timer
     testHarness.setProcessingTime(timerTimestamp.getMillis() + 1);
 
-    assertThat(
-        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
-        contains(
-            WindowedValue.of(
-                // Timestamps in processing timer context are defined to be the input watermark
-                // See SimpleDoFnRunner#onTimer
-                processingTimeMessage,
-                timerTimestamp.plus(Duration.millis(1)),
-                window1,
-                PaneInfo.NO_FIRING)));
-
+    ArrayList<WindowedValue<?>> outputs =
+        Lists.newArrayList(stripStreamRecordFromWindowedValue(testHarness.getOutput()));
+    assertEquals(1, outputs.size());
+    assertEquals(processingTimeMessage, outputs.get(0).getValue());
+    assertFalse(timerTimestamp.plus(Duration.millis(1)).isBefore(outputs.get(0).getTimestamp()));
+    assertEquals(Collections.singletonList(window1), outputs.get(0).getWindows());
     testHarness.close();
   }
 
@@ -793,6 +789,11 @@ public class DoFnOperatorTest {
     testHarness.processWatermark(51);
     assertThat(testHarness.numEventTimeTimers(), is(0));
     assertThat(testHarness.numKeyedStateEntries(), is(2));
+
+    // enforce closing of bundle
+    testHarness.setProcessingTime(
+        testHarness.getProcessingTime()
+            + 2 * FlinkPipelineOptions.defaults().getMaxBundleTimeMills());
 
     // Should not trigger garbage collection yet
     testHarness.processWatermark(

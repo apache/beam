@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.io.CreateStream;
@@ -52,8 +51,6 @@ public class SparkCoGroupByKeyStreamingTest {
 
   private static final TupleTag<Integer> INPUT1_TAG = new TupleTag<>("input1");
   private static final TupleTag<Integer> INPUT2_TAG = new TupleTag<>("input2");
-
-  @Rule public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
