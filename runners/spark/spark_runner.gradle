@@ -94,7 +94,6 @@ if (copySourceBase) {
 }
 
 test {
-  systemProperty "beam.spark.test.reuseSparkContext", "true"
   systemProperty "spark.sql.shuffle.partitions", "4"
   systemProperty "spark.ui.enabled", "false"
   systemProperty "spark.ui.showConsoleProgress", "false"
@@ -113,17 +112,14 @@ test {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
 
-  // Only one SparkContext may be running in a JVM (SPARK-2243)
-  forkEvery 1
   maxParallelForks 4
   useJUnit {
     excludeCategories "org.apache.beam.runners.spark.StreamingTest"
     excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
   }
-  filter {
-    // BEAM-11653 MetricsSinkTest is failing with Spark 3
-    excludeTestsMatching 'org.apache.beam.runners.spark.aggregators.metrics.sink.SparkMetricsSinkTest'
-  }
+
+  // easily re-run all tests (to deal with flaky tests / SparkContext leaks)
+  if(project.hasProperty("rerun-tests")) { 	outputs.upToDateWhen {false} }
 }
 
 dependencies {
@@ -290,10 +286,6 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
   maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.runners.spark.StreamingTest'
-  }
-  filter {
-    // BEAM-11653 MetricsSinkTest is failing with Spark 3
-    excludeTestsMatching 'org.apache.beam.runners.spark.aggregators.metrics.sink.SparkMetricsSinkTest'
   }
 }
 

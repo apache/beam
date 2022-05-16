@@ -56,12 +56,14 @@ try:
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
   from google.api_core.exceptions import ClientError, DeadlineExceeded
   from google.api_core.exceptions import InternalServerError
+  import google.cloud
 except ImportError:
   ClientError = None
   DeadlineExceeded = None
   HttpError = None
   HttpForbiddenError = None
   InternalServerError = None
+  google = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -220,6 +222,9 @@ class TestBigQueryWrapper(unittest.TestCase):
     wrapper._delete_dataset('', '')
     self.assertTrue(client.datasets.Delete.called)
 
+  @unittest.skipIf(
+      google and not hasattr(google.cloud, '_http'),  # pylint: disable=c-extension-no-member
+      'Dependencies not installed')
   @mock.patch('time.sleep', return_value=None)
   @mock.patch('google.cloud._http.JSONConnection.http')
   def test_user_agent_insert_all(self, http_mock, patched_sleep):
@@ -258,7 +263,10 @@ class TestBigQueryWrapper(unittest.TestCase):
 
   @mock.patch('time.sleep', return_value=None)
   def test_user_agent_passed(self, sleep_mock):
-    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
+    try:
+      wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
+    except:  # pylint: disable=bare-except
+      self.skipTest('Unable to create a BQ Wrapper')
     request_mock = mock.Mock()
     wrapper.client._http.request = request_mock
     try:
@@ -443,8 +451,8 @@ class TestBigQueryWrapper(unittest.TestCase):
           source_stream=io.BytesIO())
 
     # Neither source_uri nor source_stream specified.
-    with self.assertRaises(ValueError):
-      wrapper.perform_load_job(destination='P:D.T', job_id='J')
+    wrapper.perform_load_job(
+        destination=parse_table_reference('project:dataset.table'), job_id='J')
 
   def test_perform_load_job_with_source_stream(self):
     client = mock.Mock()

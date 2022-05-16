@@ -57,6 +57,7 @@ dependencies {
     implementation library.java.hadoop_mapred
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
+    implementation library.java.guava
     implementation library.java.slf4j_api
     implementation library.java.tephra
     implementation library.java.vendored_guava_26_0_jre

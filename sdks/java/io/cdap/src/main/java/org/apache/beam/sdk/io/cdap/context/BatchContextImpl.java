@@ -45,7 +45,7 @@ import javax.annotation.Nullable;
 
 /** Class for Batch, Sink and Stream CDAP wrapper classes that use it to provide common details. */
 @SuppressWarnings({"TypeParameterUnusedInFormals", "nullness"})
-public class BatchContextImpl implements BatchContext {
+public abstract class BatchContextImpl implements BatchContext {
 
   private final FailureCollectorWrapper failureCollector = new FailureCollectorWrapper();
 
@@ -60,7 +60,7 @@ public class BatchContextImpl implements BatchContext {
    * context object as a param.
    */
   protected OutputFormatProvider outputFormatProvider;
-
+  
   private final Timestamp startTime = new Timestamp(System.currentTimeMillis());
 
   public InputFormatProvider getInputFormatProvider() {
@@ -70,7 +70,7 @@ public class BatchContextImpl implements BatchContext {
   public OutputFormatProvider getOutputFormatProvider() {
     return outputFormatProvider;
   }
-
+  
   @Override
   public String getStageName() {
     return null;
