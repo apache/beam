@@ -155,7 +155,8 @@ public class PartitionRestrictionTracker
   }
 
   @VisibleForTesting
-  @Nullable PartitionPosition getLastClaimedPosition() {
+  @Nullable
+  PartitionPosition getLastClaimedPosition() {
     return lastClaimedPosition;
   }
 }
