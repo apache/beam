@@ -574,7 +574,7 @@ public class BigtableServiceImplTest {
     Assert.assertTrue(returnedError.getCause() instanceof StatusRuntimeException);
 
     Mockito.verify(mockCallMetric, Mockito.times(1))
-        .call(Status.INVALID_ARGUMENT.getCode().value());
+        .call(Status.INVALID_ARGUMENT.getCode().toString());
   }
 
   /**

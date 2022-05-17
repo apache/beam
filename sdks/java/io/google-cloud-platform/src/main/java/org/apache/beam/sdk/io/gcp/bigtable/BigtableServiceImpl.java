@@ -167,7 +167,7 @@ class BigtableServiceImpl implements BigtableService {
         results = session.getDataClient().readRows(requestB.build());
         serviceCallMetric.call("ok");
       } catch (StatusRuntimeException e) {
-        serviceCallMetric.call(e.getStatus().getCode().value());
+        serviceCallMetric.call(e.getStatus().getCode().toString());
         throw e;
       }
       return advance();
@@ -381,7 +381,7 @@ class BigtableServiceImpl implements BigtableService {
       } catch (ExecutionException e) {
         Throwable cause = e.getCause();
         if (cause instanceof StatusRuntimeException) {
-          serviceCallMetric.call(((StatusRuntimeException) cause).getStatus().getCode().value());
+          serviceCallMetric.call(((StatusRuntimeException) cause).getStatus().getCode().toString());
         }
         throw new IOException(cause);
       }
@@ -414,9 +414,6 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public void close() throws IOException {
-      if (session == null) {
-        return;
-      }
       session.close();
     }
 
