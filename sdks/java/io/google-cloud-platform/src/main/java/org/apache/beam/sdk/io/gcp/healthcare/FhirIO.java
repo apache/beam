@@ -1597,7 +1597,9 @@ public class FhirIO {
             RESOURCES_EXPORTED_ERRORS);
         if (operation.getError() != null) {
           throw new RuntimeException(
-              String.format("Export operation (%s) failed.", operation.getName()));
+              String.format(
+                  "Export operation (%s) failed. Reason: %s",
+                  operation.getName(), operation.getError().getMessage()));
         }
         context.output(exportResultPath);
       }

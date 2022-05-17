@@ -49,6 +49,7 @@ import com.google.api.services.healthcare.v1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1.model.Message;
 import com.google.api.services.healthcare.v1.model.NotificationConfig;
 import com.google.api.services.healthcare.v1.model.Operation;
+import com.google.api.services.healthcare.v1.model.SchemaConfig;
 import com.google.api.services.healthcare.v1.model.SearchResourcesRequest;
 import com.google.api.services.storage.StorageScopes;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -530,6 +531,11 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     final GoogleCloudHealthcareV1FhirBigQueryDestination bigQueryDestination =
         new GoogleCloudHealthcareV1FhirBigQueryDestination();
     bigQueryDestination.setDatasetUri(bigQueryDatasetUri);
+
+    final SchemaConfig schemaConfig = new SchemaConfig();
+    schemaConfig.setSchemaType("ANALYTICS");
+    bigQueryDestination.setSchemaConfig(schemaConfig);
+
     final ExportResourcesRequest exportRequest = new ExportResourcesRequest();
     exportRequest.setBigqueryDestination(bigQueryDestination);
     return client
