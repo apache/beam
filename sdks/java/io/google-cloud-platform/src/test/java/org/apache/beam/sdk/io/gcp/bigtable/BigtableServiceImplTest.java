@@ -56,7 +56,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -402,7 +401,8 @@ public class BigtableServiceImplTest {
         actualResults);
     underTest.close();
 
-    Mockito.verify(mockCallMetric, Mockito.times(4)).call("ok");;
+    Mockito.verify(mockCallMetric, Mockito.times(4)).call("ok");
+    ;
   }
 
   /**
@@ -534,27 +534,27 @@ public class BigtableServiceImplTest {
    */
   @Test
   public void testReadSegmentExceptionHandling() throws IOException {
-    // mockCallMetric must be fixed
     RowSet.Builder ranges = RowSet.newBuilder();
     ranges.addRowRanges(
         generateRowRange(
             generateByteString(DEFAULT_PREFIX, 0), generateByteString(DEFAULT_PREFIX, 1)));
 
     when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()))
-        .thenAnswer(new Answer<ScanHandler>() {
-                      @Override
-                      public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-                        StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-                        new Thread() {
-                          @Override
-                          public void run() {
-                            flatRowObserver.onError(Status.INVALID_ARGUMENT.asRuntimeException());
-                          }
-                        }.start();
+        .thenAnswer(
+            new Answer<ScanHandler>() {
+              @Override
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    flatRowObserver.onError(Status.INVALID_ARGUMENT.asRuntimeException());
+                  }
+                }.start();
 
-                        return scanHandler;
-                      }
-                    });
+                return scanHandler;
+              }
+            });
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableSegmentReaderImpl(
             mockSession,
@@ -573,7 +573,8 @@ public class BigtableServiceImplTest {
     }
     Assert.assertTrue(returnedError.getCause() instanceof StatusRuntimeException);
 
-    Mockito.verify(mockCallMetric, Mockito.times(1)).call(Status.INVALID_ARGUMENT.getCode().value());
+    Mockito.verify(mockCallMetric, Mockito.times(1))
+        .call(Status.INVALID_ARGUMENT.getCode().value());
   }
 
   /**
@@ -604,7 +605,7 @@ public class BigtableServiceImplTest {
     verify(mockBulkMutation, times(1)).add(expected);
 
     underTest.close();
-    
+
     verify(mockBulkMutation, times(1)).flush();
   }
 
