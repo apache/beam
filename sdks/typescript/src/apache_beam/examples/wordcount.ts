@@ -34,20 +34,7 @@ import * as yargs from "yargs";
 
 import * as beam from "../../apache_beam";
 import { createRunner } from "../runners/runner";
-
-import { count } from "../transforms/combiners";
-import { GroupBy } from "../transforms/group_and_combine";
-
-class CountElements extends beam.PTransform<
-  beam.PCollection<any>,
-  beam.PCollection<any>
-> {
-  expand(input: beam.PCollection<any>) {
-    return input
-      .map((e) => ({ element: e }))
-      .apply(new GroupBy("element").combining("element", count, "count"));
-  }
-}
+import { countPerElement } from "../transforms/group_and_combine";
 
 function wordCount(lines: beam.PCollection<string>): beam.PCollection<any> {
   return lines
@@ -55,13 +42,13 @@ function wordCount(lines: beam.PCollection<string>): beam.PCollection<any> {
     .flatMap(function* (line: string) {
       yield* line.split(/[^a-z]+/);
     })
-    .apply(new CountElements("Count"));
+    .apply(countPerElement());
 }
 
 async function main() {
   await createRunner(yargs.argv).run((root) => {
     const lines = root.apply(
-      new beam.Create([
+      beam.create([
         "In the beginning God created the heaven and the earth.",
         "And the earth was without form, and void; and darkness was upon the face of the deep.",
         "And the Spirit of God moved upon the face of the waters.",

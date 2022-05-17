@@ -38,16 +38,34 @@ interface Class<T> {
  */
 class CoderRegistry {
   internal_registry = {};
-  get(urn: string): Class<Coder<unknown>> {
-    const constructor: Class<Coder<unknown>> = this.internal_registry[urn];
+
+  getCoder(
+    urn: string,
+    payload: Uint8Array | undefined = undefined,
+    ...components: Coder<unknown>[]
+  ) {
+    const constructor: (...args) => Coder<unknown> =
+      this.internal_registry[urn];
     if (constructor === undefined) {
       throw new Error("Could not find coder for URN " + urn);
     }
-    return constructor;
+    if (payload && payload.length > 0) {
+      return constructor(payload, ...components);
+    } else {
+      return constructor(...components);
+    }
   }
 
-  register(urn: string, coderClass: Class<Coder<any>>) {
-    this.internal_registry[urn] = coderClass;
+  register(urn: string, constructorOrClass: Class<Coder<any>>) {
+    this.registerClass(urn, constructorOrClass);
+  }
+
+  registerClass(urn: string, coderClass: Class<Coder<any>>) {
+    this.registerConstructor(urn, (...args) => new coderClass(...args));
+  }
+
+  registerConstructor(urn: string, constructor: (...args) => Coder<any>) {
+    this.internal_registry[urn] = constructor;
   }
 }
 
