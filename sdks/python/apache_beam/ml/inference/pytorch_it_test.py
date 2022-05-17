@@ -73,7 +73,7 @@ class PyTorchInference(unittest.TestCase):
 
     model_path = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/models/mobilenet_v2.pt'
     extra_opts = {
-        'input': input_file_dir,
+        'input': file_of_image_names,
         'output': output_file,
         'model_path': model_path,
         'images_dir': base_output_files_dir,
