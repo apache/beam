@@ -46,6 +46,7 @@ import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.cloud.bigtable.grpc.scanner.ScanHandler;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
@@ -62,6 +63,7 @@ import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
@@ -108,6 +110,8 @@ public class BigtableServiceImplTest {
   @Mock private BigtableSource mockBigtableSource;
 
   @Mock private ScanHandler scanHandler;
+
+  @Mock private ServiceCallMetric mockCallMetric;
 
   @Captor private ArgumentCaptor<ReadRowsRequest> requestCaptor;
 
@@ -180,14 +184,14 @@ public class BigtableServiceImplTest {
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
             RowFilter.getDefaultInstance(),
-            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
+            mockCallMetric);
 
     underTest.start();
     Assert.assertEquals(FlatRowConverter.convert(expectedRow), underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
     underTest.close();
 
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
+    Mockito.verify(mockCallMetric, Mockito.times(2)).call("ok");
   }
 
   /**
@@ -221,7 +225,7 @@ public class BigtableServiceImplTest {
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
             RowFilter.getDefaultInstance(),
-            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
+            mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -236,7 +240,7 @@ public class BigtableServiceImplTest {
             .collect(Collectors.toList()),
         actualResults);
     underTest.close();
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 3);
+    Mockito.verify(mockCallMetric, Mockito.times(3)).call("ok");
   }
 
   /**
@@ -277,7 +281,7 @@ public class BigtableServiceImplTest {
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
             RowFilter.getDefaultInstance(),
-            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
+            mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -293,7 +297,7 @@ public class BigtableServiceImplTest {
         actualResults);
     underTest.close();
 
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 3);
+    Mockito.verify(mockCallMetric, Mockito.times(3)).call("ok");
   }
 
   /**
@@ -382,7 +386,7 @@ public class BigtableServiceImplTest {
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
             RowFilter.getDefaultInstance(),
-            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
+            mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -398,7 +402,7 @@ public class BigtableServiceImplTest {
         actualResults);
     underTest.close();
 
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 4);
+    Mockito.verify(mockCallMetric, Mockito.times(4)).call("ok");;
   }
 
   /**
@@ -441,7 +445,7 @@ public class BigtableServiceImplTest {
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
             RowFilter.getDefaultInstance(),
-            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
+            mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -464,7 +468,7 @@ public class BigtableServiceImplTest {
         actualResults);
     underTest.close();
 
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 3);
+    Mockito.verify(mockCallMetric, Mockito.times(3)).call("ok");
   }
 
   /**
@@ -503,7 +507,7 @@ public class BigtableServiceImplTest {
             SEGMENT_SIZE,
             segmentByteLimit,
             RowFilter.getDefaultInstance(),
-            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
+            mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -518,6 +522,8 @@ public class BigtableServiceImplTest {
             .collect(Collectors.toList()),
         actualResults);
     underTest.close();
+
+    Mockito.verify(mockCallMetric, Mockito.times(3)).call("ok");
   }
 
   /**
@@ -526,7 +532,7 @@ public class BigtableServiceImplTest {
    *
    * @throws IOException
    */
-  @Test(expected = StatusRuntimeException.class)
+  @Test
   public void testReadSegmentExceptionHandling() throws IOException {
     // mockCallMetric must be fixed
     RowSet.Builder ranges = RowSet.newBuilder();
@@ -535,8 +541,20 @@ public class BigtableServiceImplTest {
             generateByteString(DEFAULT_PREFIX, 0), generateByteString(DEFAULT_PREFIX, 1)));
 
     when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()))
-        .thenThrow(StatusRuntimeException.class);
+        .thenAnswer(new Answer<ScanHandler>() {
+                      @Override
+                      public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                        StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                        new Thread() {
+                          @Override
+                          public void run() {
+                            flatRowObserver.onError(Status.INVALID_ARGUMENT.asRuntimeException());
+                          }
+                        }.start();
 
+                        return scanHandler;
+                      }
+                    });
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableSegmentReaderImpl(
             mockSession,
@@ -545,18 +563,17 @@ public class BigtableServiceImplTest {
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
             RowFilter.getDefaultInstance(),
-            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
+            mockCallMetric);
 
-    Assert.assertTrue(underTest.start());
-    Exception returnedError = null;
+    IOException returnedError = null;
     try {
-      underTest.advance();
-    } catch (Exception e) {
+      underTest.start();
+    } catch (IOException e) {
       returnedError = e;
     }
-    Assert.assertTrue(returnedError instanceof ExecutionException);
     Assert.assertTrue(returnedError.getCause() instanceof StatusRuntimeException);
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 0);
+
+    Mockito.verify(mockCallMetric, Mockito.times(1)).call(Status.INVALID_ARGUMENT.getCode().value());
   }
 
   /**
@@ -587,6 +604,7 @@ public class BigtableServiceImplTest {
     verify(mockBulkMutation, times(1)).add(expected);
 
     underTest.close();
+    
     verify(mockBulkMutation, times(1)).flush();
   }
 
