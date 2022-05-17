@@ -43,7 +43,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, null);
 
-    assertEquals(Progress.from(0D, 63D), progress);
+    assertEquals(Progress.from(0D, 60D), progress);
   }
 
   @Test
@@ -56,7 +56,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, position);
 
-    assertEquals(Progress.from(0D, 63D), progress);
+    assertEquals(Progress.from(0D, 60D), progress);
   }
 
   // ------------------------
@@ -69,7 +69,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, null);
 
-    assertEquals(Progress.from(1D, 62D), progress);
+    assertEquals(Progress.from(0D, 60D), progress);
   }
 
   @Test
@@ -82,7 +82,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, position);
 
-    assertEquals(Progress.from(31D, 32D), progress);
+    assertEquals(Progress.from(30D, 30D), progress);
   }
 
   @Test
@@ -95,7 +95,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, position);
 
-    assertEquals(Progress.from(61D, 2D), progress);
+    assertEquals(Progress.from(60D, 1D), progress);
   }
 
   @Test
@@ -107,7 +107,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, position);
 
-    assertEquals(Progress.from(62D, 1D), progress);
+    assertEquals(Progress.from(60D, 1D), progress);
   }
 
   @Test
@@ -119,7 +119,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, position);
 
-    assertEquals(Progress.from(63D, 1D), progress);
+    assertEquals(Progress.from(60D, 1D), progress);
   }
 
   // ------------------------------
@@ -132,7 +132,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, null);
 
-    assertEquals(Progress.from(62D, 1D), progress);
+    assertEquals(Progress.from(60D, 1D), progress);
   }
 
   @Test
@@ -144,7 +144,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, position);
 
-    assertEquals(Progress.from(62D, 1D), progress);
+    assertEquals(Progress.from(60D, 1D), progress);
   }
 
   @Test
@@ -156,7 +156,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, position);
 
-    assertEquals(Progress.from(63D, 1D), progress);
+    assertEquals(Progress.from(60D, 1D), progress);
   }
 
   // ------------------------
@@ -170,7 +170,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, position);
 
-    assertEquals(Progress.from(63D, 1D), progress);
+    assertEquals(Progress.from(60D, 1D), progress);
   }
 
   // ------------------------
@@ -184,7 +184,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, null);
 
-    assertEquals(Progress.from(63D, 1D), progress);
+    assertEquals(Progress.from(60D, 1D), progress);
   }
 
   @Test
@@ -196,7 +196,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, null);
 
-    assertEquals(Progress.from(63D, 1D), progress);
+    assertEquals(Progress.from(60D, 1D), progress);
   }
 
   @Test
@@ -208,7 +208,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, null);
 
-    assertEquals(Progress.from(63D, 1D), progress);
+    assertEquals(Progress.from(60D, 1D), progress);
   }
 
   @Test
@@ -225,9 +225,6 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final Progress progress = progressChecker.getProgress(restriction, position);
 
-    final long queryChangeStreamTransitions = 1;
-    assertEquals(
-        Progress.from(101D + queryChangeStreamTransitions, 13D - queryChangeStreamTransitions),
-        progress);
+    assertEquals(Progress.from(101D, 10D), progress);
   }
 }

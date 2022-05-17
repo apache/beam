@@ -49,7 +49,6 @@ import org.junit.runner.RunWith;
 public class PartitionRestrictionTrackerTest {
 
   private static final String PARTITION_TOKEN = "partitionToken";
-  private static final int TOTAL_MODE_TRANSITIONS = 3;
   private static final double DELTA = 1e-10;
 
   // Test that trySplit returns null when no position was claimed.
@@ -712,15 +711,9 @@ public class PartitionRestrictionTrackerTest {
     assertTrue(tracker.tryClaim(position));
     final Progress progress = tracker.getProgress();
 
-    final long queryChangeStreamModes = 1;
+    assertEquals(position.getTimestamp().get().getSeconds(), progress.getWorkCompleted(), DELTA);
     assertEquals(
-        position.getTimestamp().get().getSeconds() + queryChangeStreamModes,
-        progress.getWorkCompleted(),
-        DELTA);
-    assertEquals(
-        to.getSeconds()
-            + TOTAL_MODE_TRANSITIONS
-            - (position.getTimestamp().get().getSeconds() + queryChangeStreamModes),
+        to.getSeconds() - position.getTimestamp().get().getSeconds(),
         progress.getWorkRemaining(),
         DELTA);
   }
@@ -745,10 +738,8 @@ public class PartitionRestrictionTrackerTest {
     assertTrue(tracker.tryClaim(position));
     final Progress progress = tracker.getProgress();
 
-    final long waitForChildPartitionsModes = 2;
-    assertEquals(to.getSeconds() + waitForChildPartitionsModes, progress.getWorkCompleted(), DELTA);
-    assertEquals(
-        TOTAL_MODE_TRANSITIONS - waitForChildPartitionsModes, progress.getWorkRemaining(), DELTA);
+    assertEquals(to.getSeconds(), progress.getWorkCompleted(), DELTA);
+    assertEquals(1, progress.getWorkRemaining(), DELTA);
   }
 
   @Property
@@ -769,10 +760,8 @@ public class PartitionRestrictionTrackerTest {
 
     final Progress progress = tracker.getProgress();
 
-    final long waitForChildPartitionsModes = 2;
-    assertEquals(to.getSeconds() + waitForChildPartitionsModes, progress.getWorkCompleted(), DELTA);
-    assertEquals(
-        TOTAL_MODE_TRANSITIONS - waitForChildPartitionsModes, progress.getWorkRemaining(), DELTA);
+    assertEquals(to.getSeconds(), progress.getWorkCompleted(), DELTA);
+    assertEquals(1, progress.getWorkRemaining(), DELTA);
   }
 
   @Property
@@ -796,10 +785,7 @@ public class PartitionRestrictionTrackerTest {
     final Progress progress = tracker.getProgress();
 
     assertEquals(from.getSeconds(), progress.getWorkCompleted(), DELTA);
-    assertEquals(
-        to.getSeconds() - from.getSeconds() + TOTAL_MODE_TRANSITIONS,
-        progress.getWorkRemaining(),
-        DELTA);
+    assertEquals(to.getSeconds() - from.getSeconds(), progress.getWorkRemaining(), DELTA);
   }
 
   @Property
@@ -820,10 +806,7 @@ public class PartitionRestrictionTrackerTest {
     final Progress progress = tracker.getProgress();
 
     assertEquals(from.getSeconds(), progress.getWorkCompleted(), DELTA);
-    assertEquals(
-        to.getSeconds() - from.getSeconds() + TOTAL_MODE_TRANSITIONS,
-        progress.getWorkRemaining(),
-        DELTA);
+    assertEquals(to.getSeconds() - from.getSeconds(), progress.getWorkRemaining(), DELTA);
   }
 
   @Property
@@ -847,7 +830,7 @@ public class PartitionRestrictionTrackerTest {
 
     final Progress progress = tracker.getProgress();
 
-    assertEquals(to.getSeconds() + TOTAL_MODE_TRANSITIONS, progress.getWorkCompleted(), DELTA);
+    assertEquals(to.getSeconds(), progress.getWorkCompleted(), DELTA);
     assertEquals(1, progress.getWorkRemaining(), DELTA);
   }
 
@@ -870,7 +853,7 @@ public class PartitionRestrictionTrackerTest {
 
     final Progress progress = tracker.getProgress();
 
-    assertEquals(to.getSeconds() + TOTAL_MODE_TRANSITIONS, progress.getWorkCompleted(), DELTA);
+    assertEquals(to.getSeconds(), progress.getWorkCompleted(), DELTA);
     assertEquals(1, progress.getWorkRemaining(), DELTA);
   }
 }

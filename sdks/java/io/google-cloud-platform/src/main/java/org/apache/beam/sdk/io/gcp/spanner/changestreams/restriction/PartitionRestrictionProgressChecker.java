@@ -17,17 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
-import static java.math.MathContext.DECIMAL128;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionMode.DONE;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionMode.QUERY_CHANGE_STREAM;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionMode.STOP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionMode.UPDATE_STATE;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionMode.WAIT_FOR_CHILD_PARTITIONS;
 
 import com.google.cloud.Timestamp;
 import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
@@ -36,7 +31,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class PartitionRestrictionProgressChecker {
 
-  private static final BigDecimal TOTAL_MODE_TRANSITIONS = BigDecimal.valueOf(3L);
   protected Supplier<Timestamp> timeSupplier;
 
   /**
@@ -47,14 +41,7 @@ public class PartitionRestrictionProgressChecker {
    * <p>This is used to calculate the units of work left, meaning that 1 transition = 1 unit of
    * work.
    */
-  private final Map<PartitionMode, BigDecimal> modeToTransitionsCompleted;
-
   public PartitionRestrictionProgressChecker() {
-    modeToTransitionsCompleted = new HashMap<>();
-    modeToTransitionsCompleted.put(UPDATE_STATE, BigDecimal.valueOf(0L));
-    modeToTransitionsCompleted.put(QUERY_CHANGE_STREAM, BigDecimal.valueOf(1L));
-    modeToTransitionsCompleted.put(WAIT_FOR_CHILD_PARTITIONS, BigDecimal.valueOf(2L));
-    modeToTransitionsCompleted.put(DONE, BigDecimal.valueOf(3L));
     this.timeSupplier = () -> Timestamp.now();
   }
 
@@ -65,14 +52,14 @@ public class PartitionRestrictionProgressChecker {
 
   public Progress getProgress(
       PartitionRestriction restriction, @Nullable PartitionPosition lastClaimedPosition) {
-    BigDecimal totalSeconds;
+    BigDecimal totalWork;
     if (restriction.getEndTimestamp().compareTo(Timestamp.MAX_VALUE) == 0) {
       // When the given end timestamp equals to Timestamp.MAX_VALUE, this means that
       // the end timestamp is not specified which should be a streaming job. So we
       // use now() as the end timestamp.
-      totalSeconds = BigDecimal.valueOf(timeSupplier.get().getSeconds());
+      totalWork = BigDecimal.valueOf(timeSupplier.get().getSeconds());
     } else {
-      totalSeconds = BigDecimal.valueOf(restriction.getEndTimestamp().getSeconds());
+      totalWork = BigDecimal.valueOf(restriction.getEndTimestamp().getSeconds());
     }
 
     final PartitionMode currentMode =
@@ -80,9 +67,6 @@ public class PartitionRestrictionProgressChecker {
             .map(PartitionPosition::getMode)
             .orElse(restriction.getMode());
 
-    // Total work is the total number of seconds in the timestamp range plus the total number
-    // of mode transitions.
-    final BigDecimal totalWork = totalSeconds.add(TOTAL_MODE_TRANSITIONS, DECIMAL128);
     if (currentMode == STOP) {
       // Return progress indicating that there is no more work to be done for this SDF.
       final double workCompleted = totalWork.doubleValue();
@@ -100,12 +84,7 @@ public class PartitionRestrictionProgressChecker {
                 (currentMode == UPDATE_STATE || currentMode == QUERY_CHANGE_STREAM)
                     ? restriction.getStartTimestamp().getSeconds()
                     : restriction.getEndTimestamp().getSeconds());
-    final BigDecimal currentSeconds = BigDecimal.valueOf(currentSecondsNum);
-    final BigDecimal transitionsCompleted =
-        modeToTransitionsCompleted.getOrDefault(currentMode, BigDecimal.ZERO);
-
-    // The work completed is the current number of seconds plus the number of transitions completed.
-    final BigDecimal workCompleted = currentSeconds.add(transitionsCompleted);
+    final BigDecimal workCompleted = BigDecimal.valueOf(currentSecondsNum);
 
     // The work remaining is the total work minus the work completed.
     // The remaining work must be greater than 0. Otherwise, it will cause an issue
