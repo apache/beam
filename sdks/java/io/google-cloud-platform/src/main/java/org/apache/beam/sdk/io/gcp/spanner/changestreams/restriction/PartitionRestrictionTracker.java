@@ -127,10 +127,7 @@ public class PartitionRestrictionTracker
               String.format(
                   "Last attempted key was %s in range %s, claiming work in [%s, %s) was not"
                       + " attempted",
-                  lastClaimedPosition.getTimestamp().get(),
-                  restriction,
-                  nextPosition,
-                  restriction.getEndTimestamp()));
+                  nextPosition, restriction, nextPosition, restriction.getEndTimestamp()));
         }
       } else {
         checkState(
