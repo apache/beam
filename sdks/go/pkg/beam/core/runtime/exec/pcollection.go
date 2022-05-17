@@ -43,6 +43,7 @@ type PCollection struct {
 	elementCoder  ElementEncoder
 
 	elementCount                         int64 // must use atomic operations.
+	scratchElementCount                  int64 // fast path
 	sizeMu                               sync.Mutex
 	sizeCount, sizeSum, sizeMin, sizeMax int64
 }
@@ -63,6 +64,7 @@ func (p *PCollection) Up(ctx context.Context) error {
 // StartBundle resets collected metrics for this PCollection, and propagates bundle start.
 func (p *PCollection) StartBundle(ctx context.Context, id string, data DataContext) error {
 	atomic.StoreInt64(&p.elementCount, 0)
+	p.scratchElementCount = 0
 	p.nextSampleIdx = 1
 	p.resetSize()
 	return MultiStartBundle(ctx, id, data, p.Out)
@@ -79,8 +81,10 @@ func (w *byteCounter) Write(p []byte) (n int, err error) {
 
 // ProcessElement increments the element count and sometimes takes size samples of the elements.
 func (p *PCollection) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
-	cur := atomic.AddInt64(&p.elementCount, 1)
+	p.scratchElementCount++
+	cur := p.scratchElementCount
 	if cur == p.nextSampleIdx {
+		atomic.StoreInt64(&p.elementCount, p.scratchElementCount)
 		// Always encode the first 3 elements. Otherwise...
 		// We pick the next sampling index based on how large this pcollection already is.
 		// We don't want to necessarily wait until the pcollection has doubled, so we reduce the range.
@@ -124,6 +128,7 @@ func (p *PCollection) resetSize() {
 
 // FinishBundle propagates bundle termination.
 func (p *PCollection) FinishBundle(ctx context.Context) error {
+	atomic.StoreInt64(&p.elementCount, p.scratchElementCount)
 	return MultiFinishBundle(ctx, p.Out)
 }
 

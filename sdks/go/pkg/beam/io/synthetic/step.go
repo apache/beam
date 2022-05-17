@@ -17,14 +17,14 @@ package synthetic
 
 import (
 	"fmt"
-	"math/rand"
 	"time"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"golang.org/x/exp/rand"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
@@ -66,7 +66,7 @@ type stepFn struct {
 
 // Setup sets up the random number generator.
 func (fn *stepFn) Setup() {
-	fn.rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+	fn.rng = rand.New(rand.NewSource(uint64(time.Now().UnixNano())))
 }
 
 // ProcessElement takes an input and either filters it or produces a number of
@@ -124,7 +124,7 @@ func (fn *sdfStepFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTrack
 
 // Setup sets up the random number generator.
 func (fn *sdfStepFn) Setup() {
-	fn.rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+	fn.rng = rand.New(rand.NewSource(uint64(time.Now().UnixNano())))
 }
 
 // ProcessElement takes an input and either filters it or produces a number of

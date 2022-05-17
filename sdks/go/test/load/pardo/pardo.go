@@ -19,6 +19,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"runtime/pprof"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/synthetic"
@@ -48,8 +50,8 @@ var (
 )
 
 func init() {
-	register.DoFn4x0[context.Context, []byte, []byte, func([]byte, []byte)]((*counterOperationFn)(nil))
-	register.Emitter2[[]byte, []byte]()
+	register.DoFn4x0[context.Context, beam.T, beam.T, func(beam.T, beam.T)]((*counterOperationFn)(nil))
+	register.Emitter2[beam.T, beam.T]()
 }
 
 type counterOperationFn struct {
@@ -71,7 +73,7 @@ func (fn *counterOperationFn) Setup() {
 	}
 }
 
-func (fn *counterOperationFn) ProcessElement(ctx context.Context, key []byte, value []byte, emit func([]byte, []byte)) {
+func (fn *counterOperationFn) ProcessElement(ctx context.Context, key, value beam.T, emit func(beam.T, beam.T)) {
 	for i := 0; i < fn.Operations; i++ {
 		for _, counter := range fn.counters {
 			counter.Inc(ctx, 1)
@@ -90,9 +92,15 @@ func parseSyntheticConfig() synthetic.SourceConfig {
 }
 
 func main() {
+	ctx := context.Background()
 	flag.Parse()
 	beam.Init()
-	ctx := context.Background()
+	f, err := ioutil.TempFile("/home/rebo/", "cpu*.prof")
+	if err != nil {
+		log.Exitf(ctx, "Unable to open temp file: %v", err)
+	}
+	defer f.Close()
+	pprof.StartCPUProfile(f)
 
 	p, s := beam.NewPipelineWithRoot()
 
@@ -113,4 +121,6 @@ func main() {
 		metrics := presult.Metrics().AllMetrics()
 		load.PublishMetrics(metrics)
 	}
+	pprof.StopCPUProfile()
+	fmt.Printf("cpu %s\n", f.Name())
 }

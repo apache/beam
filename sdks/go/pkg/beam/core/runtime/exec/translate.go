@@ -500,6 +500,12 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 						u = &ProcessSizedElementsAndRestrictions{PDo: n, TfId: id.to, outputs: outputs}
 					} else if dofn.IsSplittable() {
 						u = &SdfFallback{PDo: n}
+					} else if _, windows := dofn.ProcessElementFn().Window(); !dofn.IsSplittable() && !windows && len(n.Side) == 0 {
+						// Need to ensure this isn't used for GBKs either....
+						u = &SimpleParDo{ParDo: n}
+						if len(dofn.ProcessElementFn().Ret) == 0 {
+							u = &SimpleNoReturnParDo{ParDo: n}
+						}
 					}
 				}
 

@@ -17,8 +17,9 @@ package synthetic
 
 import (
 	"fmt"
-	"math/rand"
 	"testing"
+
+	"golang.org/x/exp/rand"
 )
 
 // TestStepConfig_OutputPerInput tests that setting the number of output per

@@ -232,6 +232,45 @@ func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Wind
 	return n.call(pn, ws, ts)
 }
 
+// InvokeFast invokes the fn with a minimal set of values.
+func (n *invoker) InvokeFast(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opt *MainInput, extra ...interface{}) (*FullValue, error) {
+	// (1) Populate contexts
+	// extract these to make things easier to read.
+	args := n.args
+	fn := n.fn
+	in := n.in
+
+	if n.ctxIdx >= 0 {
+		args[n.ctxIdx] = ctx
+	}
+
+	// (2) Main input from value, if any.
+	i := 0
+	if n.elmConvert == nil {
+		from := reflect.TypeOf(opt.Key.Elm)
+		n.elmConvert = ConvertFn(from, fn.Param[in[i]].T)
+	}
+	args[in[i]] = n.elmConvert(opt.Key.Elm)
+	i++
+	if opt.Key.Elm2 != nil {
+		if n.elm2Convert == nil {
+			from := reflect.TypeOf(opt.Key.Elm2)
+			n.elm2Convert = ConvertFn(from, fn.Param[in[i]].T)
+		}
+		args[in[i]] = n.elm2Convert(opt.Key.Elm2)
+		i++
+	}
+
+	// (3) Precomputed side input and emitters (or other output).
+	for _, arg := range extra {
+		args[in[i]] = arg
+		i++
+	}
+
+	// (4) Invoke
+	return n.call(pn, ws, ts)
+}
+
 // ret1 handles processing of a single return value.
 // Errors, single values, or a ProcessContinuation are the only options.
 func (n *invoker) ret1(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0 interface{}) (*FullValue, error) {

@@ -29,7 +29,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal/runnerlib"
-	"github.com/golang/protobuf/proto"
 	df "google.golang.org/api/dataflow/v1b3"
 	"google.golang.org/api/googleapi"
 )
@@ -90,7 +89,8 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	if err != nil {
 		return presult, err
 	}
-	log.Info(ctx, proto.MarshalTextString(p))
+	// TODO: print to a file instead.
+	// log.Info(ctx, proto.MarshalTextString(p))
 
 	if err := StageModel(ctx, opts.Project, modelURL, protox.MustEncode(p)); err != nil {
 		return presult, err
@@ -103,7 +103,8 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	if err != nil {
 		return presult, err
 	}
-	PrintJob(ctx, job)
+	// TODO print to a file instead
+	// PrintJob(ctx, job)
 
 	client, err := NewClient(ctx, endpoint)
 	if err != nil {

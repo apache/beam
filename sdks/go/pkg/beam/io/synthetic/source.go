@@ -26,8 +26,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"math/rand"
-	"time"
+
+	"golang.org/x/exp/rand"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
@@ -122,33 +122,31 @@ func (fn *sourceFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracke
 
 // Setup sets up the random number generator.
 func (fn *sourceFn) Setup() {
-	fn.rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+	fn.rng = rand.New(rand.NewSource(0))
 }
 
 // ProcessElement creates a number of random elements based on the restriction
 // tracker received. Each element is a random byte slice key and value, in the
 // form of KV<[]byte, []byte>.
 func (fn *sourceFn) ProcessElement(rt *sdf.LockRTracker, config SourceConfig, emit func([]byte, []byte)) error {
-	generator := rand.New(rand.NewSource(0))
 	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i); i++ {
-		key := make([]byte, config.KeySize)
-		val := make([]byte, config.ValueSize)
-		generator.Seed(i)
-		randomSample := generator.Float64()
+		byts := make([]byte, config.KeySize+config.ValueSize)
+		fn.rng.Seed(uint64(i))
+		randomSample := fn.rng.Float64()
 		if randomSample < config.HotKeyFraction {
-			generator.Seed(i % int64(config.NumHotKeys))
-			if _, err := generator.Read(key); err != nil {
+			fn.rng.Seed(uint64(i % config.NumHotKeys))
+			if _, err := fn.rng.Read(byts[:config.KeySize]); err != nil {
+				return err
+			}
+			if _, err := fn.rng.Read(byts[config.KeySize:]); err != nil {
 				return err
 			}
 		} else {
-			if _, err := fn.rng.Read(key); err != nil {
+			if _, err := fn.rng.Read(byts); err != nil {
 				return err
 			}
 		}
-		if _, err := fn.rng.Read(val); err != nil {
-			return err
-		}
-		emit(key, val)
+		emit(byts[:config.KeySize], byts[config.KeySize:])
 	}
 	return nil
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
 )
@@ -398,4 +399,129 @@ func (n *ParDo) fail(err error) error {
 
 func (n *ParDo) String() string {
 	return fmt.Sprintf("ParDo[%v] Out:%v", path.Base(n.Fn.Name()), IDs(n.Out...))
+}
+
+// SimpleParDo is a fast path for DoFns that only take in a context, element, and emiiters.
+// Must not observe windows, so no side inputs, nor handling SDFs.
+type SimpleParDo struct {
+	*ParDo
+}
+
+func (n *SimpleParDo) ProcessElement(_ context.Context, elm *FullValue, values ...ReStream) error {
+	if n.status != Active {
+		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
+	}
+
+	n.states.Set(n.ctx, metrics.ProcessBundle)
+
+	mainIn := &MainInput{Key: *elm, Values: values}
+
+	emitCount := len(n.emitters)
+
+	if n.cache == nil {
+		n.cache = &cacheElm{
+			extra: make([]interface{}, emitCount),
+		}
+		for i, emit := range n.emitters {
+			n.cache.extra[i] = emit.Value()
+		}
+	}
+
+	for _, e := range n.emitters {
+		if err := e.Init(n.ctx, elm.Windows, elm.Timestamp); err != nil {
+			return n.fail(err)
+		}
+	}
+	val, err := n.inv.InvokeFast(n.ctx, elm.Pane, elm.Windows, elm.Timestamp, mainIn, n.cache.extra...)
+	if err != nil {
+		return n.fail(err)
+	}
+	// Forward direct output, if any. It is always a main output.
+	if val != nil {
+		return n.Out[0].ProcessElement(n.ctx, val)
+	}
+	return nil
+}
+
+// SimpleNoReturnParDo is a fast path for DoFns that only take in a context, element, and emiiters.
+// Must not observe windows, so no side inputs, nor handling SDFs.
+type SimpleNoReturnParDo struct {
+	*ParDo
+	call func()
+	k, v int
+}
+
+func (n *SimpleNoReturnParDo) StartBundle(ctx context.Context, id string, data DataContext) error {
+	if err := n.ParDo.StartBundle(ctx, id, data); err != nil {
+		return err
+	}
+
+	switch fn := n.inv.fn.Fn.(type) {
+	case reflectx.Func1x0:
+		n.call = func() { fn.Call1x0(n.inv.args[0]) }
+	case reflectx.Func2x0:
+		n.call = func() { fn.Call2x0(n.inv.args[0], n.inv.args[1]) }
+	case reflectx.Func3x0:
+		n.call = func() { fn.Call3x0(n.inv.args[0], n.inv.args[1], n.inv.args[2]) }
+	case reflectx.Func4x0:
+		n.call = func() { fn.Call4x0(n.inv.args[0], n.inv.args[1], n.inv.args[2], n.inv.args[3]) }
+	case reflectx.Func5x0:
+		n.call = func() { fn.Call5x0(n.inv.args[0], n.inv.args[1], n.inv.args[2], n.inv.args[3], n.inv.args[4]) }
+	case reflectx.Func6x0:
+		n.call = func() {
+			fn.Call6x0(n.inv.args[0], n.inv.args[1], n.inv.args[2], n.inv.args[3], n.inv.args[4], n.inv.args[5])
+		}
+	case reflectx.Func7x0:
+		n.call = func() {
+			fn.Call7x0(n.inv.args[0], n.inv.args[1], n.inv.args[2], n.inv.args[3], n.inv.args[4], n.inv.args[5], n.inv.args[6])
+		}
+	default:
+		n.call = func() { n.inv.fn.Fn.Call(n.inv.args) }
+	}
+
+	if n.inv.ctxIdx >= 0 {
+		n.inv.args[n.inv.ctxIdx] = n.ctx
+	}
+	n.k = n.inv.in[0]
+	n.v = n.inv.in[1]
+
+	// Only need to add the emitters into the args once.
+	i, _, _ := n.inv.fn.Emits()
+	for _, emit := range n.emitters {
+		n.inv.args[i] = emit.Value()
+		i++
+	}
+	return nil
+}
+
+func (n *SimpleNoReturnParDo) ProcessElement(_ context.Context, elm *FullValue, values ...ReStream) error {
+	if n.status != Active {
+		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
+	}
+
+	n.states.Set(n.ctx, metrics.ProcessBundle)
+
+	for _, e := range n.emitters {
+		if err := e.Init(n.ctx, elm.Windows, elm.Timestamp); err != nil {
+			return n.fail(err)
+		}
+	}
+	// (2) Main input from value, if any.
+	// if n.inv.elmConvert == nil {
+	// 	from := reflect.TypeOf(elm.Elm)
+	// 	n.inv.elmConvert = ConvertFn(from, n.inv.fn.Param[n.k].T)
+	// }
+	// n.inv.args[n.k] = n.inv.elmConvert(elm.Elm)
+	n.inv.args[n.k] = elm.Elm
+	if elm.Elm2 != nil {
+		// if n.inv.elm2Convert == nil {
+		// 	from := reflect.TypeOf(elm.Elm2)
+		// 	n.inv.elm2Convert = ConvertFn(from, n.inv.fn.Param[n.v].T)
+		// }
+		// n.inv.args[n.v] = n.inv.elm2Convert(elm.Elm2)
+		n.inv.args[n.v] = elm.Elm2
+	}
+
+	n.call()
+	return nil
 }

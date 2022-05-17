@@ -22,4 +22,5 @@ package synthetic
 type randWrapper interface {
 	Float64() float64
 	Read([]byte) (int, error)
+	Seed(uint64)
 }

@@ -32,7 +32,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -80,7 +79,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 
 	lookupDesc := func(id bundleDescriptorID) (*fnpb.ProcessBundleDescriptor, error) {
 		pbd, err := client.GetProcessBundleDescriptor(ctx, &fnpb.GetProcessBundleDescriptorRequest{ProcessBundleDescriptorId: string(id)})
-		log.Debugf(ctx, "GPBD RESP [%v]: %v, err %v", id, pbd, err)
+		//	log.Debugf(ctx, "GPBD RESP [%v]: %v, err %v", id, pbd, err)
 		return pbd, err
 	}
 
@@ -103,7 +102,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 	go func() {
 		defer wg.Done()
 		for resp := range respc {
-			log.Debugf(ctx, "RESP: %v", proto.MarshalTextString(resp))
+			// log.Debugf(ctx, "RESP: %v", proto.MarshalTextString(resp))
 
 			if err := stub.Send(resp); err != nil {
 				log.Errorf(ctx, "control.Send: Failed to respond: %v", err)
@@ -162,7 +161,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		// Launch a goroutine to handle the control message.
 		// TODO(wcn): implement a rate limiter for 'heavy' messages?
 		fn := func(ctx context.Context, req *fnpb.InstructionRequest) {
-			log.Debugf(ctx, "RECV: %v", proto.MarshalTextString(req))
+			// log.Debugf(ctx, "RECV: %v", proto.MarshalTextString(req))
 			recordInstructionRequest(req)
 
 			ctx = hooks.RunRequestHooks(ctx, req)
@@ -335,7 +334,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		// NOTE: the harness sends a 0-length process bundle request to sources (changed?)
 
 		bdID := bundleDescriptorID(msg.GetProcessBundleDescriptorId())
-		log.Debugf(ctx, "PB [%v]: %v", instID, msg)
+		// log.Debugf(ctx, "PB [%v]: %v", instID, msg)
 		plan, err := c.getOrCreatePlan(bdID)
 
 		// Make the plan active.
@@ -508,7 +507,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 	case req.GetProcessBundleSplit() != nil:
 		msg := req.GetProcessBundleSplit()
 
-		log.Debugf(ctx, "PB Split: %v", msg)
+		// log.Debugf(ctx, "PB Split: %v", msg)
 		ref := instructionID(msg.GetInstructionId())
 
 		plan, _, resp := c.getPlanOrResponse(ctx, "split", instID, ref)
