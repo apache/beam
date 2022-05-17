@@ -64,33 +64,29 @@ def process_outputs(filepath):
 class PyTorchInference(unittest.TestCase):
   @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
-  @pytest.mark.sickbay_direct
-  @pytest.mark.sickbay_spark
-  @pytest.mark.sickbay_flink
   def test_predictions_output_file(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     output_file_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/outputs'
-    output = '/'.join([output_file_dir, str(uuid.uuid4()), 'result'])
-    input_file_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/imagenet_samples.csv'
-    images_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs'
+    output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
+    file_of_image_names = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/imagenet_samples.csv'
+    base_output_files_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs'
 
     model_path = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/models/mobilenet_v2.pt'
     extra_opts = {
         'input': input_file_dir,
-        'output': output,
+        'output': output_file,
         'model_path': model_path,
-        'images_dir': images_dir,
+        'images_dir': base_output_files_dir,
     }
     pytorch_image_classification.run(
         test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
 
-    output_file = output + '.txt'
     self.assertEqual(FileSystems().exists(output_file), True)
-    outputs = process_outputs(filepath=output_file)
+    predictions = process_outputs(filepath=output_file)
 
-    for output in outputs:
-      filename, prediction = output.split(',')
+    for prediction in predictions:
+      filename, prediction = prediction.split(',')
       self.assertEqual(_EXPECTED_OUTPUTS[filename], prediction)
 
 

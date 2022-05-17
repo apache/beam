@@ -32,11 +32,11 @@ from PIL import Image
 from torchvision import transforms
 
 
-def read_image(path_to_file: str, path_to_dir: str):
-  path_to_file = os.path.join(path_to_dir, path_to_file)
-  with FileSystems().open(path_to_file, 'r') as file:
+def read_image(image_file_name: str, path_to_dir: str):
+  image_file_name = os.path.join(path_to_dir, image_file_name)
+  with FileSystems().open(image_file_name, 'r') as file:
     data = Image.open(io.BytesIO(file.read())).convert('RGB')
-    return path_to_file, data
+    return image_file_name, data
 
 
 def preprocess_data(data):
@@ -86,7 +86,6 @@ def run_pipeline(options: PipelineOptions, args=None):
 
     predictions | "Write output to GCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
         args.output,
-        file_name_suffix='.txt',
         shard_name_template='',
         append_trailing_newlines=True)
 
@@ -100,7 +99,10 @@ def parse_known_args(argv):
       required=True,
       help='Path to the CSV file containing image names')
   parser.add_argument(
-      '--output', dest='output', help='Predictions are saved to the output.')
+      '--output',
+      dest='output',
+      help='Predictions are saved to the output'
+      ' text file.')
   parser.add_argument(
       '--model_path', dest='model_path', help='Path to load the model.')
   parser.add_argument(
