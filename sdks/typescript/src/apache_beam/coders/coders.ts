@@ -114,12 +114,16 @@ export interface Coder<T> {
   toProto(pipelineContext: ProtoContext): runnerApi.Coder;
 }
 
-function writeByteCallback(val: number, buf: { [x: string]: number; }, pos: number) {
+function writeByteCallback(
+  val: number,
+  buf: { [x: string]: number },
+  pos: number
+) {
   buf[pos] = val & 0xff;
 }
 
 interface HackedWriter extends Writer {
-  _push?(...args: unknown[])
+  _push?(...args: unknown[]);
 }
 
 /**
@@ -129,7 +133,11 @@ export function writeRawByte(b: unknown, writer: HackedWriter) {
   writer._push?.(writeByteCallback, 1, b);
 }
 
-function writeBytesCallback(val: number[], buf: { [x: string]: number; }, pos: number) {
+function writeBytesCallback(
+  val: number[],
+  buf: { [x: string]: number },
+  pos: number
+) {
   for (let i = 0; i < val.length; ++i) {
     buf[pos + i] = val[i];
   }
