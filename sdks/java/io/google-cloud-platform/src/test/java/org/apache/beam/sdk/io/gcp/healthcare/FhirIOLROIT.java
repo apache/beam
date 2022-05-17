@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_D
 import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
 import java.io.IOException;
 import java.security.SecureRandom;
-
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.junit.After;
@@ -36,55 +35,47 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class FhirIOLROIT {
-  // The minimum allowed expiration time is one hour.
-  private static Long BQ_TABLE_EXPIRATION_TIME_MS = 60*60*1000L;
-  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
-  private BigqueryClient bqClient;
-  private transient HealthcareApiClient client;
-  private final String project;
-  private String healthcareDataset;
-  private final String fhirStoreId;
-  private final String deidFhirStoreId;
-  private final String bqDatasetId;
-  private String version;
+  private static final String FHIR_VERSION = "STU3";
 
-  public FhirIOLROIT() {
-    this.bqClient = new BigqueryClient("FhirIOROIT");
-    long testTime = System.currentTimeMillis();
-    this.fhirStoreId = "FHIR_store_" + testTime + "_" + new SecureRandom().nextInt(32);
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  private final transient HealthcareApiClient client;
+  private final String project;
+  private final String healthcareDataset;
+  private final String fhirStoreId;
+  private final String fhirStoreName;
+  private final String deidFhirStoreId;
+  private final String deidFhirStoreName;
+
+  public FhirIOLROIT() throws IOException {
+    this.client = new HttpHealthcareApiClient();
+    this.fhirStoreId =
+        "FHIR_store_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
     this.deidFhirStoreId = fhirStoreId + "_deid";
-    this.bqDatasetId = fhirStoreId + "_dataset";
-    this.version = "STU3";
     this.project =
         TestPipeline.testingPipelineOptions()
             .as(HealthcareStoreTestPipelineOptions.class)
             .getStoreProjectId();
+    this.healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
+    final String fhirStorePrefix = healthcareDataset + "/fhirStores/";
+    this.fhirStoreName = fhirStorePrefix + fhirStoreId;
+    this.deidFhirStoreName = fhirStorePrefix + deidFhirStoreId;
   }
 
   @Before
   public void setup() throws Exception {
-    healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
-    if (client == null) {
-      this.client = new HttpHealthcareApiClient();
-    }
-    client.createFhirStore(healthcareDataset, fhirStoreId, version, null);
-    client.createFhirStore(healthcareDataset, deidFhirStoreId, version, null);
-    bqClient.createNewDataset(project, bqDatasetId, BQ_TABLE_EXPIRATION_TIME_MS);
+    client.createFhirStore(healthcareDataset, fhirStoreId, FHIR_VERSION, null);
+    client.createFhirStore(healthcareDataset, deidFhirStoreId, FHIR_VERSION, null);
 
     // Execute bundles to populate some data.
     FhirIOTestUtil.executeFhirBundles(
-        client,
-        healthcareDataset + "/fhirStores/" + fhirStoreId,
-        FhirIOTestUtil.BUNDLES.get(version));
+        client, fhirStoreName, FhirIOTestUtil.BUNDLES.get(FHIR_VERSION));
   }
 
   @After
-  public void deleteAllFhirStoresAndBqDataset() {
+  public void deleteAllFhirStores() {
     try {
-      HealthcareApiClient client = new HttpHealthcareApiClient();
-      client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreId);
-      client.deleteFhirStore(healthcareDataset + "/fhirStores/" + deidFhirStoreId);
-      bqClient.deleteDataset(project, bqDatasetId);
+      client.deleteFhirStore(fhirStoreName);
+      client.deleteFhirStore(deidFhirStoreName);
     } catch (IOException e) {
       // Do nothing.
     }
@@ -97,27 +88,28 @@ public class FhirIOLROIT {
 
   @Test
   public void test_FhirIO_exportFhirResources_Gcs() {
-    String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
-    String exportGcsUriPrefix =
+    final String exportGcsUriPrefix =
         "gs://" + DEFAULT_TEMP_BUCKET + "/export/" + new SecureRandom().nextInt(32);
     pipeline.apply(FhirIO.exportResources(fhirStoreName, exportGcsUriPrefix));
     pipeline.run();
   }
 
   @Test
-  public void test_FhirIO_exportFhirResources_BigQuery() {
-    String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
-    String exportBqDatasetUri = String.format("bq://%s.%s", project, bqDatasetId);
+  public void test_FhirIO_exportFhirResources_BigQuery() throws IOException, InterruptedException {
+    final String bqDatasetId = fhirStoreId + "_dataset";
+    final BigqueryClient bqClient = BigqueryClient.getClient("FhirIOROIT");
+    bqClient.createNewDataset(
+        project, bqDatasetId, 60 * 60 * 1000L); // min allowed expiration time is 1 hour.
+    final String exportBqDatasetUri = String.format("bq://%s.%s", project, bqDatasetId);
     pipeline.apply(FhirIO.exportResources(fhirStoreName, exportBqDatasetUri));
     pipeline.run();
+    bqClient.deleteDataset(project, bqDatasetId);
   }
 
   @Test
   public void test_FhirIO_deidentify() throws IOException {
-    String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
-    String destinationFhirStoreName = healthcareDataset + "/fhirStores/" + deidFhirStoreId;
     DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
-    pipeline.apply(FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig));
+    pipeline.apply(FhirIO.deidentify(fhirStoreName, deidFhirStoreName, deidConfig));
     pipeline.run();
   }
 }

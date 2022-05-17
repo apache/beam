@@ -49,7 +49,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -326,16 +325,7 @@ public class FhirIO {
     return new Export(StaticValueProvider.of(fhirStore), StaticValueProvider.of(exportUri));
   }
 
-  /**
-   * Export resources to GCS. Intended for use on non-empty FHIR stores
-   *
-   * @param fhirStore the fhir store, in the format:
-   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
-   * @param exportUri the destination GCS dir or BigQuery dataset, in the format:
-   *     gs://YOUR_BUCKET_NAME/path/to/a/dir | bq://PROJECT_ID.BIGQUERY_DATASET_ID
-   * @return the export
-   * @see Export
-   */
+  /** @see FhirIO#exportResources(String, String) */
   public static Export exportResources(
       ValueProvider<String> fhirStore, ValueProvider<String> exportUri) {
     return new Export(fhirStore, exportUri);
