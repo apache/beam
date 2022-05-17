@@ -60,7 +60,7 @@ public abstract class BatchContextImpl implements BatchContext {
    * context object as a param.
    */
   protected OutputFormatProvider outputFormatProvider;
-  
+
   private final Timestamp startTime = new Timestamp(System.currentTimeMillis());
 
   public InputFormatProvider getInputFormatProvider() {
@@ -70,7 +70,7 @@ public abstract class BatchContextImpl implements BatchContext {
   public OutputFormatProvider getOutputFormatProvider() {
     return outputFormatProvider;
   }
-  
+
   @Override
   public String getStageName() {
     return null;
