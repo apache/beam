@@ -31,16 +31,6 @@ from apache_beam.options.pipeline_options import SetupOptions
 from PIL import Image
 from torchvision import transforms
 
-_IMG_SIZE = (224, 224)
-normalize = transforms.Normalize(
-    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-
-transform = transforms.Compose([
-    transforms.Resize(_IMG_SIZE),
-    transforms.ToTensor(),
-    normalize,
-])
-
 
 def read_image(path_to_file: str, path_to_dir: str):
   path_to_file = os.path.join(path_to_dir, path_to_file)
@@ -50,6 +40,14 @@ def read_image(path_to_file: str, path_to_dir: str):
 
 
 def preprocess_data(data):
+  image_size = (224, 224)
+  normalize = transforms.Normalize(
+      mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+  transform = transforms.Compose([
+      transforms.Resize(image_size),
+      transforms.ToTensor(),
+      normalize,
+  ])
   return transform(data)
 
 
