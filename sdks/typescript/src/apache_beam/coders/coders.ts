@@ -24,7 +24,7 @@ export interface ProtoContext {
 }
 
 interface Class<T> {
-  new (...args: any[]): T;
+  new (...args: unknown[]): T;
 }
 
 /**
@@ -37,7 +37,7 @@ interface Class<T> {
  * for the key and the coder for the value as parameters).
  */
 class CoderRegistry {
-  internal_registry = {};
+  internal_registry: Record<string, Class<Coder<unknown>>> = {};
   get(urn: string): Class<Coder<unknown>> {
     const constructor: Class<Coder<unknown>> = this.internal_registry[urn];
     if (constructor === undefined) {
@@ -46,7 +46,7 @@ class CoderRegistry {
     return constructor;
   }
 
-  register(urn: string, coderClass: Class<Coder<any>>) {
+  register(urn: string, coderClass: Class<Coder<unknown>>) {
     this.internal_registry[urn] = coderClass;
   }
 }
@@ -114,20 +114,23 @@ export interface Coder<T> {
   toProto(pipelineContext: ProtoContext): runnerApi.Coder;
 }
 
-function writeByteCallback(val, buf, pos) {
+function writeByteCallback(val: number, buf: { [x: string]: number; }, pos: number) {
   buf[pos] = val & 0xff;
+}
+
+interface HackedWriter extends Writer {
+  _push?(...args: unknown[])
 }
 
 /**
  * Write a single byte, as an unsigned integer, directly to the writer.
  */
-export function writeRawByte(b, writer: Writer) {
-  var hackedWriter = <any>writer;
-  hackedWriter._push(writeByteCallback, 1, b);
+export function writeRawByte(b: unknown, writer: HackedWriter) {
+  writer._push?.(writeByteCallback, 1, b);
 }
 
-function writeBytesCallback(val, buf, pos) {
-  for (var i = 0; i < val.length; ++i) {
+function writeBytesCallback(val: number[], buf: { [x: string]: number; }, pos: number) {
+  for (let i = 0; i < val.length; ++i) {
     buf[pos + i] = val[i];
   }
 }
@@ -136,7 +139,6 @@ function writeBytesCallback(val, buf, pos) {
  * Writes a sequence of bytes, as unsigned integers, directly to the writer,
  * without a prefixing with the length of the bytes that writer.bytes() does.
  */
-export function writeRawBytes(value: Uint8Array, writer: Writer) {
-  var hackedWriter = <any>writer;
-  hackedWriter._push(writeBytesCallback, value.length, value);
+export function writeRawBytes(value: Uint8Array, writer: HackedWriter) {
+  writer._push?.(writeBytesCallback, value.length, value);
 }
