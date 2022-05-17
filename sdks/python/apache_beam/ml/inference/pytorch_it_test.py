@@ -30,7 +30,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
   import torch
-  from apache_beam.ml.inference.examples import pytorch_image_classification
+  from apache_beam.examples.inference import pytorch_image_classification
 except ImportError as e:
   torch = None
 
