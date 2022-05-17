@@ -72,7 +72,7 @@ func (fn *selfCheckpointingDoFn) ProcessElement(rt *sdf.LockRTracker, _ []byte, 
 		if rt.TryClaim(position) {
 			// Successful claim, emit the value and move on.
 			emit(position)
-			position += 1
+			position++
 			return sdf.ResumeProcessingIn(1 * time.Second)
 		} else if rt.GetError() != nil || rt.IsDone() {
 			// Stop processing on error or completion
