@@ -2045,7 +2045,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     expected_msg = \
       "Type hint violation for 'CombinePerKey': " \
-      "requires Tuple[TypeVariable[K], Union[float, float64, int, int64]] " \
+      "requires Tuple[TypeVariable[K], Union[float, int]] " \
       "but got Tuple[None, str] for element"
 
     self.assertStartswith(e.exception.args[0], expected_msg)
@@ -2111,7 +2111,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     expected_msg = \
       "Type hint violation for 'CombinePerKey(MeanCombineFn)': " \
-      "requires Tuple[TypeVariable[K], Union[float, float64, int, int64]] " \
+      "requires Tuple[TypeVariable[K], Union[float, int]] " \
       "but got Tuple[str, str] for element"
 
     self.assertStartswith(e.exception.args[0], expected_msg)
@@ -2151,8 +2151,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       "Runtime type violation detected within " \
       "OddMean/CombinePerKey(MeanCombineFn): " \
       "Type-hint for argument: 'element' violated: " \
-      "Union[float, float64, int, int64] type-constraint violated. " \
-      "Expected an instance of one of: ('float', 'float64', 'int', 'int64'), " \
+      "Union[float, int] type-constraint violated. " \
+      "Expected an instance of one of: ('float', 'int'), " \
       "received str instead"
 
     self.assertStartswith(e.exception.args[0], expected_msg)

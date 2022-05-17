@@ -32,13 +32,9 @@ import unittest
 import uuid
 from typing import Any
 from typing import Dict
-from typing import Iterator
-from typing import List
 from typing import Tuple
-from typing import no_type_check
 
 import hamcrest  # pylint: disable=ungrouped-imports
-import numpy as np
 import pytest
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
@@ -63,17 +59,14 @@ from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import statesampler
-from apache_beam.runners.worker.operations import InefficientExecutionWarning
 from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.tools import utils
 from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.utils import timestamp
-from apache_beam.utils import windowed_value
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
@@ -127,174 +120,6 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Map(lambda e: e * 2)
           | beam.Map(lambda e: e + 'x'))
       assert_that(res, equal_to(['aax', 'bcbcx']))
-
-  def test_batch_pardo(self):
-    with self.create_pipeline() as p:
-      res = (
-          p
-          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
-              np.int64)
-          | beam.ParDo(ArrayMultiplyDoFn())
-          | beam.Map(lambda x: x * 3))
-
-      assert_that(res, equal_to([6, 12, 18]))
-
-  def test_batch_pardo_trigger_flush(self):
-    try:
-      utils.check_compiled('apache_beam.coders.coder_impl')
-    except RuntimeError:
-      self.skipTest(
-          'BEAM-14410: FnRunnerTest with non-trivial inputs flakes '
-          'in non-cython environments')
-
-    with self.create_pipeline() as p:
-      res = (
-          p
-          # Pass more than GeneralPurposeConsumerSet.MAX_BATCH_SIZE elements
-          # here to make sure we exercise the batch size limit.
-          | beam.Create(np.array(range(5000),
-                                 dtype=np.int64)).with_output_types(np.int64)
-          | beam.ParDo(ArrayMultiplyDoFn())
-          | beam.Map(lambda x: x * 3))
-
-      assert_that(res, equal_to([i * 2 * 3 for i in range(5000)]))
-
-  def test_batch_rebatch_pardos(self):
-    # Should raise a warning about the rebatching that mentions:
-    # - The consuming DoFn
-    # - The output batch type of the producer
-    # - The input batch type of the consumer
-    with self.assertWarnsRegex(InefficientExecutionWarning,
-                               r'ListPlusOneDoFn.*NumpyArray.*List\[int64\]'):
-      with self.create_pipeline() as p:
-        res = (
-            p
-            | beam.Create(np.array([1, 2, 3],
-                                   dtype=np.int64)).with_output_types(np.int64)
-            | beam.ParDo(ArrayMultiplyDoFn())
-            | beam.ParDo(ListPlusOneDoFn())
-            | beam.Map(lambda x: x * 3))
-
-        assert_that(res, equal_to([9, 15, 21]))
-
-  def test_batch_pardo_fusion_break(self):
-    class NormalizeDoFn(beam.DoFn):
-      @no_type_check
-      def process_batch(
-          self,
-          batch: np.ndarray,
-          mean: np.float64,
-      ) -> Iterator[np.ndarray]:
-        assert isinstance(batch, np.ndarray)
-        yield batch - mean
-
-      # infer_output_type must be defined (when there's no process method),
-      # otherwise we don't know the input type is the same as output type.
-      def infer_output_type(self, input_type):
-        return np.float64
-
-    with self.create_pipeline() as p:
-      pc = (
-          p
-          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
-              np.int64)
-          | beam.ParDo(ArrayMultiplyDoFn()))
-
-      res = (
-          pc
-          | beam.ParDo(
-              NormalizeDoFn(),
-              mean=beam.pvalue.AsSingleton(
-                  pc | beam.CombineGlobally(beam.combiners.MeanCombineFn()))))
-      assert_that(res, equal_to([-2, 0, 2]))
-
-  def test_batch_pardo_dofn_params(self):
-    class ConsumeParamsDoFn(beam.DoFn):
-      @no_type_check
-      def process_batch(
-          self,
-          batch: np.ndarray,
-          ts=beam.DoFn.TimestampParam,
-          pane_info=beam.DoFn.PaneInfoParam,
-      ) -> Iterator[np.ndarray]:
-        assert isinstance(batch, np.ndarray)
-        assert isinstance(ts, timestamp.Timestamp)
-        assert isinstance(pane_info, windowed_value.PaneInfo)
-
-        yield batch * ts.seconds()
-
-      # infer_output_type must be defined (when there's no process method),
-      # otherwise we don't know the input type is the same as output type.
-      def infer_output_type(self, input_type):
-        return input_type
-
-    with self.create_pipeline() as p:
-      res = (
-          p
-          | beam.Create(np.array(range(10), dtype=np.int64)).with_output_types(
-              np.int64)
-          | beam.Map(lambda t: window.TimestampedValue(t, int(t % 2))).
-          with_output_types(np.int64)
-          | beam.ParDo(ConsumeParamsDoFn()))
-
-      assert_that(res, equal_to([0, 1, 0, 3, 0, 5, 0, 7, 0, 9]))
-
-  def test_batch_pardo_window_param(self):
-    class PerWindowDoFn(beam.DoFn):
-      @no_type_check
-      def process_batch(
-          self,
-          batch: np.ndarray,
-          window=beam.DoFn.WindowParam,
-      ) -> Iterator[np.ndarray]:
-        yield batch * window.start.seconds()
-
-      # infer_output_type must be defined (when there's no process method),
-      # otherwise we don't know the input type is the same as output type.
-      def infer_output_type(self, input_type):
-        return input_type
-
-    with self.create_pipeline() as p:
-      res = (
-          p
-          | beam.Create(np.array(range(10), dtype=np.int64)).with_output_types(
-              np.int64)
-          | beam.Map(lambda t: window.TimestampedValue(t, int(t))).
-          with_output_types(np.int64)
-          | beam.WindowInto(window.FixedWindows(5))
-          | beam.ParDo(PerWindowDoFn()))
-
-      assert_that(res, equal_to([0, 0, 0, 0, 0, 25, 30, 35, 40, 45]))
-
-  def test_batch_pardo_overlapping_windows(self):
-    class PerWindowDoFn(beam.DoFn):
-      @no_type_check
-      def process_batch(self,
-                        batch: np.ndarray,
-                        window=beam.DoFn.WindowParam) -> Iterator[np.ndarray]:
-        yield batch * window.start.seconds()
-
-      # infer_output_type must be defined (when there's no process method),
-      # otherwise we don't know the input type is the same as output type.
-      def infer_output_type(self, input_type):
-        return input_type
-
-    with self.create_pipeline() as p:
-      res = (
-          p
-          | beam.Create(np.array(range(10), dtype=np.int64)).with_output_types(
-              np.int64)
-          | beam.Map(lambda t: window.TimestampedValue(t, int(t))).
-          with_output_types(np.int64)
-          | beam.WindowInto(window.SlidingWindows(size=5, period=3))
-          | beam.ParDo(PerWindowDoFn()))
-
-      assert_that(res, equal_to([               0*-3, 1*-3, # [-3, 2)
-                                 0*0, 1*0, 2*0, 3* 0, 4* 0, # [ 0, 5)
-                                 3*3, 4*3, 5*3, 6* 3, 7* 3, # [ 3, 8)
-                                 6*6, 7*6, 8*6, 9* 6,       # [ 6, 11)
-                                 9*9                        # [ 9, 14)
-                                 ]))
 
   @retry(stop=stop_after_attempt(3))
   def test_pardo_side_outputs(self):
@@ -2306,33 +2131,6 @@ class ExpectingSideInputsFn(beam.DoFn):
     if not all(list(s) for s in side_inputs):
       raise ValueError(f'Missing data in side input {side_inputs}')
     yield self._name
-
-
-class ArrayMultiplyDoFn(beam.DoFn):
-  def process_batch(self, batch: np.ndarray, *unused_args,
-                    **unused_kwargs) -> Iterator[np.ndarray]:
-    assert isinstance(batch, np.ndarray)
-    # GeneralPurposeConsumerSet should limit batches to MAX_BATCH_SIZE (4096)
-    # elements
-    assert np.size(batch, axis=0) <= 4096
-    yield batch * 2
-
-  # infer_output_type must be defined (when there's no process method),
-  # otherwise we don't know the input type is the same as output type.
-  def infer_output_type(self, input_type):
-    return input_type
-
-
-class ListPlusOneDoFn(beam.DoFn):
-  def process_batch(self, batch: List[np.int64], *unused_args,
-                    **unused_kwargs) -> Iterator[List[np.int64]]:
-    assert isinstance(batch, list)
-    yield [element + 1 for element in batch]
-
-  # infer_output_type must be defined (when there's no process method),
-  # otherwise we don't know the input type is the same as output type.
-  def infer_output_type(self, input_type):
-    return input_type
 
 
 if __name__ == '__main__':
