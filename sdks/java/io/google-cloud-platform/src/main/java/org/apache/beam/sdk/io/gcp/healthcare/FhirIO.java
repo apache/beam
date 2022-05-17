@@ -1518,6 +1518,7 @@ public class FhirIO {
 
   /**
    * Export FHIR resources from a FHIR store to new line delimited json files on GCS or BigQuery.
+   * Output PCollection should contain the URI where the FHIR store was exported to.
    */
   public static class Export extends PTransform<PBegin, PCollection<String>> {
 
@@ -1533,10 +1534,7 @@ public class FhirIO {
     public PCollection<String> expand(PBegin input) {
       return input
           .apply(Create.ofProvider(fhirStore, StringUtf8Coder.of()))
-          .apply("ScheduleExportOperations", ParDo.of(new ExportResourcesFn(this.exportUri)))
-          .apply(FileIO.matchAll())
-          .apply(FileIO.readMatches())
-          .apply("ReadResourcesFromFiles", TextIO.readFiles());
+          .apply("PerformExportOperations", ParDo.of(new ExportResourcesFn(this.exportUri)));
     }
 
     /** A function that schedules an export operation and monitors the status. */
@@ -1573,14 +1571,11 @@ public class FhirIO {
         final String fhirStore = context.element();
         final String exportUri = this.exportUri.get();
 
-        final String exportResultPath;
         Operation operation;
         if (exportUri.startsWith(GCS_PREFIX)) {
           operation = client.exportFhirResourceToGcs(fhirStore, exportUri);
-          exportResultPath = String.format("%s/*", exportUri.replaceAll("/+$", ""));
         } else if (exportUri.startsWith(BQ_PREFIX)) {
           operation = client.exportFhirResourceToBigQuery(fhirStore, exportUri);
-          exportResultPath = exportUri;
         } else {
           throw new RuntimeException(
               String.format(
@@ -1601,7 +1596,7 @@ public class FhirIO {
                   "Export operation (%s) failed. Reason: %s",
                   operation.getName(), operation.getError().getMessage()));
         }
-        context.output(exportResultPath);
+        context.output(exportUri);
       }
     }
   }
