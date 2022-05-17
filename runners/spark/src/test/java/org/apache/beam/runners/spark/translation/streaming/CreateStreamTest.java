@@ -31,11 +31,13 @@ import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
+import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -84,7 +86,7 @@ import org.junit.rules.ExpectedException;
 @Category(StreamingTest.class)
 public class CreateStreamTest implements Serializable {
 
-  @Rule public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.fromOptions(streamingOptions());
   @Rule public final transient ExpectedException thrown = ExpectedException.none();
 
   @Test
@@ -523,5 +525,11 @@ public class CreateStreamTest implements Serializable {
       Integer element = context.element();
       context.output(element);
     }
+  }
+
+  private static PipelineOptions streamingOptions() {
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.as(TestSparkPipelineOptions.class).setForceStreaming(true);
+    return options;
   }
 }
