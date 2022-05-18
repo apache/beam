@@ -132,7 +132,7 @@ import org.slf4j.LoggerFactory;
  * store) This requires each resource to contain a client provided ID. It is important that when
  * using import you give the appropriate permissions to the Google Cloud Healthcare Service Agent.
  *
- * <p>Export This is to export FHIR resources from a FHIR store to Google Cloud Storage. The output
+ * <p>Export This is to export FHIR resources from a FHIR store to Google Cloud Storage or BigQuery. The output
  * resources are in ndjson (newline delimited json) of FHIR resources. It is important that when
  * using export you give the appropriate permissions to the Google Cloud Healthcare Service Agent.
  *
@@ -1508,7 +1508,7 @@ public class FhirIO {
 
   /**
    * Export FHIR resources from a FHIR store to new line delimited json files on GCS or BigQuery.
-   * Output PCollection should contain the URI where the FHIR store was exported to.
+   * Output PCollection contains the URI where the FHIR store was exported to.
    */
   public static class Export extends PTransform<PBegin, PCollection<String>> {
 
