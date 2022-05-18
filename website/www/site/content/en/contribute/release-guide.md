@@ -832,11 +832,11 @@ versions to run all of the tests. See Python installation tips in [Developer Wik
   1. Check whether validations succeed by following console output instructions.
   1. Terminate streaming jobs and java injector.
   1. Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on Jenkins.
-    1. Log in to Jenkins.
-    1. Go to https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/.
-    1. Click "Build with Parameters".
-    1. Set `snapshot_version` to `2.xx.0`, and set `snapshot_url` to point to the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
-    1. Click "Build".
+     * Log in to Jenkins.
+     * Go to https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/.
+     * Click "Build with Parameters".
+     * Set `snapshot_version` to `2.xx.0`, and set `snapshot_url` to point to the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
+     * Click "Build".
   1. Sign up [spreadsheet](https://s.apache.org/beam-release-validation).
   1. Vote in the release thread.
 
