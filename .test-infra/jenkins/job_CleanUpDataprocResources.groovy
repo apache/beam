@@ -20,7 +20,7 @@ import CommonJobProperties as commonJobProperties
 
 
 job('Cleanup Dataproc Resources') {
-  description('Removes leaked resources for all jobs that generates flink clusters.')
+  description('Removes leaked resources for all the jobs that generates flink clusters.')
 
   def CLEANUP_DIR = '"$WORKSPACE/src/.test-infra/dataproc"'
   def CLEANUP_SCRIPT = 'cleanup.sh'
@@ -33,7 +33,7 @@ job('Cleanup Dataproc Resources') {
   //Bash script path
   steps {
     //Starting credential rotation
-    shell("cd ${CLEANUP_DIR}; bash ${CLEANUP_SCRIPT}")
+    shell("cd ${CLEANUP_DIR}; ./${CLEANUP_SCRIPT}")
   }
 
 }
