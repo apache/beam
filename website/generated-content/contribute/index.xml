@@ -1400,7 +1400,7 @@ ${CONTRIBUTORS}
 &lt;ol>
 &lt;li>Maven artifacts deployed to the staging repository of &lt;a href="https://repository.apache.org/content/repositories/">repository.apache.org&lt;/a>&lt;/li>
 &lt;li>Source distribution deployed to the dev repository of &lt;a href="https://dist.apache.org/repos/dist/dev/beam/">dist.apache.org&lt;/a>&lt;/li>
-&lt;li>Website pull request proposed to list the &lt;a href="/get-started/downloads/">release&lt;/a>, publish the &lt;a href="https://beam.apache.org/releases/javadoc/">Java API reference manual&lt;/a>, and publish the &lt;a href="https://beam.apache.org/releases/pydoc/">Python API reference manual&lt;/a>.&lt;/li>
+&lt;li>Website pull request proposed to list the &lt;a href="https://beam.apache.org/get-started/downloads/">release&lt;/a>, publish the &lt;a href="https://beam.apache.org/releases/javadoc/">Java API reference manual&lt;/a>, and publish the &lt;a href="https://beam.apache.org/releases/pydoc/">Python API reference manual&lt;/a>.&lt;/li>
 &lt;li>Docker images are published to &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">DockerHub&lt;/a> with tags: {RELEASE}_rc{RC_NUM}.&lt;/li>
 &lt;/ol>
 &lt;p>You can (optionally) also do additional verification by:&lt;/p>
@@ -1413,7 +1413,7 @@ ${CONTRIBUTORS}
 &lt;li>Pull docker images to make sure they are pullable.&lt;/li>
 &lt;/ol>
 &lt;pre>&lt;code>docker pull {image_name}
-docker pull apache/beam_python3.5_sdk:2.16.0_rc1
+docker pull apache/beam_python3.7_sdk:2.39.0_rc1
 &lt;/code>&lt;/pre>&lt;hr>
 &lt;h2 id="10-vote-and-validate-release-candidate">10. Vote and validate release candidate&lt;/h2>
 &lt;p>Once you have built and individually reviewed the release candidate, please share it for the community-wide review.
@@ -1505,12 +1505,15 @@ versions to run all of the tests. See Python installation tips in &lt;a href="ht
 &lt;ol>
 &lt;li>Check whether validations succeed by following console output instructions.&lt;/li>
 &lt;li>Terminate streaming jobs and java injector.&lt;/li>
-&lt;li>Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on Jenkins.&lt;/li>
+&lt;li>Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on Jenkins.
+&lt;ul>
 &lt;li>Log in to Jenkins.&lt;/li>
 &lt;li>Go to &lt;a href="https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/">https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/&lt;/a>.&lt;/li>
 &lt;li>Click &amp;ldquo;Build with Parameters&amp;rdquo;.&lt;/li>
 &lt;li>Set &lt;code>snapshot_version&lt;/code> to &lt;code>2.xx.0&lt;/code>, and set &lt;code>snapshot_url&lt;/code> to point to the staged artifacts in Maven central (&lt;a href="https://repository.apache.org/content/repositories/orgapachebeam-NNNN/)">https://repository.apache.org/content/repositories/orgapachebeam-NNNN/)&lt;/a>.&lt;/li>
 &lt;li>Click &amp;ldquo;Build&amp;rdquo;.&lt;/li>
+&lt;/ul>
+&lt;/li>
 &lt;li>Sign up &lt;a href="https://s.apache.org/beam-release-validation">spreadsheet&lt;/a>.&lt;/li>
 &lt;li>Vote in the release thread.&lt;/li>
 &lt;/ol>
