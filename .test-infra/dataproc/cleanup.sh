@@ -62,6 +62,6 @@ function filterClusters(){
 
 
 
-clustersList=( $( gcloud dataprocoo clusters list --region=$GCLOUD_REGION --format="get(NAME)" ) )
+clustersList=( $( gcloud dataproc clusters list --region=$GCLOUD_REGION --format="get(NAME)" ) )
 filterClusters
 deleteFilteredClusters
