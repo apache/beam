@@ -33,7 +33,7 @@ job('Cleanup Dataproc Resources') {
   //Bash script path
   steps {
     //Starting credential rotation
-    shell("cd ${CLEANUP_DIR}; sudo ./${CLEANUP_SCRIPT}")
+    shell("cd ${CLEANUP_DIR}; ls ;sudo ./${CLEANUP_SCRIPT}")
   }
 
 }
