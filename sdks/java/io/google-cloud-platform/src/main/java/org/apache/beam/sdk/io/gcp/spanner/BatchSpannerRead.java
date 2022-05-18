@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
 })
 abstract class BatchSpannerRead
     extends PTransform<PCollection<ReadOperation>, PCollection<Struct>> {
-  private static final Logger LOG = LoggetFactory.getLogget(BatchSpannerRead.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BatchSpannerRead.class);
 
   public static BatchSpannerRead create(
       SpannerConfig spannerConfig,
