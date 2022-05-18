@@ -27,7 +27,7 @@
 # ./gradlew :sdks:python:container:generatePythonRequirementsAll
 # ./gradlew :sdks:python:container:py38:generatePythonRequirements
 
-# You will need Python intepreters for all versions supported by Beam, see:
+# You will need Python interpreters for all versions supported by Beam, see:
 # https://s.apache.org/beam-python-dev-wiki
 
 if [[ $# != 2 ]]; then
