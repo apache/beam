@@ -14,18 +14,16 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-#!/bin/bash
-
 GCLOUD_REGION="us-central1"
 clustersList=( )
 toDeleteList=( )
+
 
 generatedResources=("beam-loadtests-go-cogbk-flink" "beam-loadtests-python-cogbk-flink" \
 "beam-loadtests-go-combine-flink" "beam-loadtests-python-combine-flink" \
 "beam-loadtests-go-gbk-flink" "beam-loadtests-python-gbk-flink" \
 "beam-loadtests-go-pardo-flink" "beam-loadtests-python-pardo-flink" \
 "beam-postcommit-python-chicago" )
-
 
 function deleteFilteredClusters(){
     for cluster in ${toDeleteList[@]};do
@@ -35,6 +33,7 @@ function deleteFilteredClusters(){
 
     if  [ ${#toDeleteList[@]} -eq 0 ]; then
 		echo "No leaked resources were found"
+		return 1
     fi
 }
 
