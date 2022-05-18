@@ -122,20 +122,30 @@ func (r Restriction) Size() float64 {
 // no assumptions about the positions of blocks within the range, so users must handle validation
 // of block positions if needed.
 type Tracker struct {
-	rest    Restriction
-	claimed int64 // Tracks the last claimed position.
-	stopped bool  // Tracks whether TryClaim has indicated to stop processing elements.
-	err     error
+	rest      Restriction
+	claimed   int64 // Tracks the last claimed position.
+	stopped   bool  // Tracks whether TryClaim has indicated to stop processing elements.
+	attempted int64
+	err       error
 }
 
 // NewTracker is a constructor for an Tracker given a start and end range.
 func NewTracker(rest Restriction) *Tracker {
 	return &Tracker{
-		rest:    rest,
-		claimed: rest.Start - 1,
-		stopped: false,
-		err:     nil,
+		rest:      rest,
+		claimed:   rest.Start - 1,
+		attempted: -1,
+		stopped:   false,
+		err:       nil,
 	}
+}
+
+func (tracker *Tracker) GetAttempted() int64 {
+	return tracker.attempted
+}
+
+func (tracker *Tracker) GetClaimed() int64 {
+	return tracker.claimed
 }
 
 // TryClaim accepts an int64 position representing the starting position of a block of work. It
@@ -154,7 +164,7 @@ func (tracker *Tracker) TryClaim(rawPos interface{}) bool {
 	}
 
 	pos := rawPos.(int64)
-
+	tracker.attempted = pos
 	if pos < tracker.rest.Start {
 		tracker.stopped = true
 		tracker.err = errors.New("position claimed is out of bounds of the restriction")

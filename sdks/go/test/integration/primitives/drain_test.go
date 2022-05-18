@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
@@ -29,19 +28,8 @@ func TestDrain(t *testing.T) {
 
 	p, s := beam.NewPipelineWithRoot()
 	Drain(s)
-	pr, err := ptest.RunWithMetrics(p)
+	_, err := ptest.RunWithMetrics(p)
 	if err != nil {
 		t.Errorf("Drain test failed: %v", err)
-	}
-
-	qr := pr.Metrics().Query(func(mr beam.MetricResult) bool {
-		return mr.Name() == "truncate"
-	})
-	counter := metrics.CounterResult{}
-	if len(qr.Counters()) != 0 {
-		counter = qr.Counters()[0]
-	}
-	if counter.Result() != 1 {
-		t.Errorf("Metrics().Query(by Name) failed. Got %d counters, Want %d counters", counter.Result(), 1)
 	}
 }
