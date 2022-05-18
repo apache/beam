@@ -34,7 +34,6 @@ job('Cleanup Dataproc Resources') {
   steps {
     //Starting credential rotation
     shell("echo ${CLEANUP_DIR} ${CLEANUP_SCRIPT}")
-    shell("sleep 50000")
     shell("cd ${CLEANUP_DIR}; cat ${CLEANUP_SCRIPT}")
   }
 
