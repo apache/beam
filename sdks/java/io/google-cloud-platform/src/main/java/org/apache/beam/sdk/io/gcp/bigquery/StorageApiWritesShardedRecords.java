@@ -68,7 +68,6 @@ import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ShardedKey;
@@ -118,6 +117,10 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
                 runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::close);
               })
           .build();
+
+  static void clearCache() {
+    APPEND_CLIENTS.invalidateAll();
+  }
 
   // Run a closure asynchronously, ignoring failures.
   private interface ThrowingRunnable {
@@ -258,10 +261,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
         streamsCreated.inc();
       }
       // Reset the idle timer.
-      streamIdleTimer
-          .offset(streamIdleTime)
-          .withOutputTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
-          .setRelative();
+      streamIdleTimer.offset(streamIdleTime).withNoOutputTimestamp().setRelative();
 
       return stream;
     }
@@ -520,10 +520,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
       java.time.Duration timeElapsed = java.time.Duration.between(now, Instant.now());
       appendLatencyDistribution.update(timeElapsed.toMillis());
-      idleTimer
-          .offset(streamIdleTime)
-          .withOutputTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
-          .setRelative();
+      idleTimer.offset(streamIdleTime).withNoOutputTimestamp().setRelative();
     }
 
     // called by the idleTimer and window-expiration handlers.

@@ -66,21 +66,21 @@ func (bf *bundleFinalizer) RegisterCallback(t time.Duration, cb func() error) {
 
 // Invoke invokes the fn with the given values. The extra values must match the non-main
 // side input and emitters. It returns the direct output, if any.
-func Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput, bf *bundleFinalizer, extra ...interface{}) (*FullValue, error) {
+func Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, extra ...interface{}) (*FullValue, error) {
 	if fn == nil {
 		return nil, nil // ok: nothing to Invoke
 	}
 	inv := newInvoker(fn)
-	return inv.Invoke(ctx, pn, ws, ts, opt, bf, extra...)
+	return inv.Invoke(ctx, pn, ws, ts, opt, bf, we, extra...)
 }
 
 // InvokeWithoutEventTime runs the given function at time 0 in the global window.
-func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, bf *bundleFinalizer, extra ...interface{}) (*FullValue, error) {
+func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, extra ...interface{}) (*FullValue, error) {
 	if fn == nil {
 		return nil, nil // ok: nothing to Invoke
 	}
 	inv := newInvoker(fn)
-	return inv.InvokeWithoutEventTime(ctx, opt, bf, extra...)
+	return inv.InvokeWithoutEventTime(ctx, opt, bf, we, extra...)
 }
 
 // invoker is a container struct for hot path invocations of DoFns, to avoid
@@ -89,9 +89,9 @@ type invoker struct {
 	fn   *funcx.Fn
 	args []interface{}
 	// TODO(lostluck):  2018/07/06 consider replacing with a slice of functions to run over the args slice, as an improvement.
-	ctxIdx, pnIdx, wndIdx, etIdx, bfIdx int   // specialized input indexes
-	outEtIdx, outPcIdx, outErrIdx       int   // specialized output indexes
-	in, out                             []int // general indexes
+	ctxIdx, pnIdx, wndIdx, etIdx, bfIdx, weIdx int   // specialized input indexes
+	outEtIdx, outPcIdx, outErrIdx              int   // specialized output indexes
+	in, out                                    []int // general indexes
 
 	ret                     FullValue                     // ret is a cached allocation for passing to the next Unit. Units never modify the passed in FullValue.
 	elmConvert, elm2Convert func(interface{}) interface{} // Cached conversion functions, which assums this invoker is always used with the same parameter types.
@@ -117,6 +117,9 @@ func newInvoker(fn *funcx.Fn) *invoker {
 	}
 	if n.etIdx, ok = fn.EventTime(); !ok {
 		n.etIdx = -1
+	}
+	if n.weIdx, ok = fn.WatermarkEstimator(); !ok {
+		n.weIdx = -1
 	}
 	if n.outEtIdx, ok = fn.OutEventTime(); !ok {
 		n.outEtIdx = -1
@@ -146,13 +149,13 @@ func (n *invoker) Reset() {
 }
 
 // InvokeWithoutEventTime runs the function at time 0 in the global window.
-func (n *invoker) InvokeWithoutEventTime(ctx context.Context, opt *MainInput, bf *bundleFinalizer, extra ...interface{}) (*FullValue, error) {
-	return n.Invoke(ctx, typex.NoFiringPane(), window.SingleGlobalWindow, mtime.ZeroTimestamp, opt, bf, extra...)
+func (n *invoker) InvokeWithoutEventTime(ctx context.Context, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, extra ...interface{}) (*FullValue, error) {
+	return n.Invoke(ctx, typex.NoFiringPane(), window.SingleGlobalWindow, mtime.ZeroTimestamp, opt, bf, we, extra...)
 }
 
 // Invoke invokes the fn with the given values. The extra values must match the non-main
 // side input and emitters. It returns the direct output, if any.
-func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opt *MainInput, bf *bundleFinalizer, extra ...interface{}) (*FullValue, error) {
+func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, extra ...interface{}) (*FullValue, error) {
 	// (1) Populate contexts
 	// extract these to make things easier to read.
 	args := n.args
@@ -176,6 +179,9 @@ func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Wind
 	}
 	if n.bfIdx >= 0 {
 		args[n.bfIdx] = bf
+	}
+	if n.weIdx >= 0 {
+		args[n.weIdx] = we
 	}
 
 	// (2) Main input from value, if any.

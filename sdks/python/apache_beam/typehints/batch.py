@@ -226,6 +226,12 @@ class NumpyTypeHint():
     def __hash__(self) -> int:
       return hash(self.__key())
 
+    def __repr__(self):
+      if self.shape == (N, ):
+        return f'NumpyArray[{self.dtype!r}]'
+      else:
+        return f'NumpyArray[{self.dtype!r}, {self.shape!r}]'
+
   def __getitem__(self, value):
     if isinstance(value, tuple):
       if len(value) == 2:

@@ -18,18 +18,19 @@ package synthetic
 import (
 	"fmt"
 	"math/rand"
-	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*stepFn)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*sdfStepFn)(nil)).Elem())
+	register.DoFn3x0[[]byte, []byte, func([]byte, []byte)]((*stepFn)(nil))
+	register.DoFn4x0[*sdf.LockRTracker, []byte, []byte, func([]byte, []byte)]((*sdfStepFn)(nil))
+	register.Emitter2[[]byte, []byte]()
 }
 
 // Step creates a synthetic step transform that receives KV<[]byte, []byte>

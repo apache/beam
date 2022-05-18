@@ -61,7 +61,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.joda.time.Duration;
 import org.junit.After;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -227,7 +226,6 @@ public class ReadWriteIT {
   }
 
   @Test
-  @Ignore("BEAM-14253")
   public void testReadWrite() throws Exception {
     pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
     pipeline.getOptions().as(TestPipelineOptions.class).setBlockOnRun(false);
