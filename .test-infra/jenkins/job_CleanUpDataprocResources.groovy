@@ -34,7 +34,6 @@ job('Cleanup Dataproc Resources') {
   steps {
     // Cleanup script is implemented on a separated bash file 
     shell("cd ${CLEANUP_DIR}; ./${CLEANUP_SCRIPT} -xe") 
-    shell("exit -1")
   }
 
 }
