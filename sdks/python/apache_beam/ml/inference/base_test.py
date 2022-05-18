@@ -41,7 +41,7 @@ class FakeInferenceRunner(base.InferenceRunner):
 
   def run_inference(self, batch: Any, model: Any) -> Iterable[Any]:
     if self._fake_clock:
-      self._fake_clock.current_time += 3.0
+      self._fake_clock.current_time += 0.003  # 3 milliseconds
     for example in batch:
       yield model.predict(example)
 
@@ -133,7 +133,7 @@ class RunInferenceBaseTest(unittest.TestCase):
             MetricsFilter().with_name('inference_batch_latency_micro_secs')))
     batch_latency = metric_results['distributions'][0]
     self.assertEqual(batch_latency.result.count, 3)
-    self.assertEqual(batch_latency.result.mean, 3000000)
+    self.assertEqual(batch_latency.result.mean, 3000)
 
     metric_results = (
         res.metrics().query(
