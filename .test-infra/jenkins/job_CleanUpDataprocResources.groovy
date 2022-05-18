@@ -25,8 +25,7 @@ job('Cleanup Dataproc Resources') {
   def CLEANUP_DIR = '"$WORKSPACE/src/.test-infra/dataproc"'
   def CLEANUP_SCRIPT = 'cleanup.sh'
 
-  // Set common parameters.
-  //commonJobProperties.setTopLevelMainJobProperties(delegate)
+  commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // Sets that this is a cron job.
   //commonJobProperties.setCronJob(delegate, 'H 2 1 */2 *')// At 00:02am every second month.
