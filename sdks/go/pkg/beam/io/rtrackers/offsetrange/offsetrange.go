@@ -217,3 +217,7 @@ func (tracker *Tracker) IsDone() bool {
 func (tracker *Tracker) GetRestriction() interface{} {
 	return tracker.rest
 }
+
+func (tracker *Tracker) IsBounded() bool {
+	return true
+}

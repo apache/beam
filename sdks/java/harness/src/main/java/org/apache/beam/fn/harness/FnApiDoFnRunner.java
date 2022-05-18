@@ -1774,7 +1774,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     private final BoundedWindow boundedWindow;
     private final PaneInfo paneInfo;
 
-    private Instant outputTimestamp;
+    private @Nullable Instant outputTimestamp;
+    private boolean noOutputTimestamp;
     private Duration period = Duration.ZERO;
     private Duration offset = Duration.ZERO;
 
@@ -1793,6 +1794,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       this.elementTimestampOrTimerHoldTimestamp = elementTimestampOrTimerHoldTimestamp;
       this.boundedWindow = boundedWindow;
       this.paneInfo = paneInfo;
+      this.noOutputTimestamp = false;
       this.timeDomain = timeDomain;
 
       switch (timeDomain) {
@@ -1861,6 +1863,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public org.apache.beam.sdk.state.Timer withOutputTimestamp(Instant outputTime) {
       this.outputTimestamp = outputTime;
+      this.noOutputTimestamp = false;
+      return this;
+    }
+
+    @Override
+    public org.apache.beam.sdk.state.Timer withNoOutputTimestamp() {
+      this.outputTimestamp = null;
+      this.noOutputTimestamp = true;
       return this;
     }
 
@@ -1914,40 +1924,45 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       // Output timestamp is set to the delivery time if not initialized by an user.
-      if (outputTimestamp == null && TimeDomain.EVENT_TIME.equals(timeDomain)) {
+      if (!noOutputTimestamp
+          && outputTimestamp == null
+          && TimeDomain.EVENT_TIME.equals(timeDomain)) {
         outputTimestamp = scheduledTime;
       }
 
       // For processing timers
-      if (outputTimestamp == null) {
+      if (!noOutputTimestamp && outputTimestamp == null) {
         // For processing timers output timestamp will be:
         // 1) timestamp of input element
         // OR
         // 2) hold timestamp of firing timer.
         outputTimestamp = elementTimestampOrTimerHoldTimestamp;
       }
-
-      Instant windowExpiry = LateDataUtils.garbageCollectionTime(currentWindow, allowedLateness);
-      if (TimeDomain.EVENT_TIME.equals(timeDomain)) {
-        checkArgument(
-            !outputTimestamp.isAfter(scheduledTime),
-            "Attempted to set an event-time timer with an output timestamp of %s that is"
-                + " after the timer firing timestamp %s",
-            outputTimestamp,
-            scheduledTime);
-        checkArgument(
-            !scheduledTime.isAfter(windowExpiry),
-            "Attempted to set an event-time timer with a firing timestamp of %s that is"
-                + " after the expiration of window %s",
-            scheduledTime,
-            windowExpiry);
+      if (outputTimestamp != null) {
+        Instant windowExpiry = LateDataUtils.garbageCollectionTime(currentWindow, allowedLateness);
+        if (TimeDomain.EVENT_TIME.equals(timeDomain)) {
+          checkArgument(
+              !outputTimestamp.isAfter(scheduledTime),
+              "Attempted to set an event-time timer with an output timestamp of %s that is"
+                  + " after the timer firing timestamp %s",
+              outputTimestamp,
+              scheduledTime);
+          checkArgument(
+              !scheduledTime.isAfter(windowExpiry),
+              "Attempted to set an event-time timer with a firing timestamp of %s that is"
+                  + " after the expiration of window %s",
+              scheduledTime,
+              windowExpiry);
+        } else {
+          checkArgument(
+              !outputTimestamp.isAfter(windowExpiry),
+              "Attempted to set a processing-time timer with an output timestamp of %s that is"
+                  + " after the expiration of window %s",
+              outputTimestamp,
+              windowExpiry);
+        }
       } else {
-        checkArgument(
-            !outputTimestamp.isAfter(windowExpiry),
-            "Attempted to set a processing-time timer with an output timestamp of %s that is"
-                + " after the expiration of window %s",
-            outputTimestamp,
-            windowExpiry);
+        outputTimestamp = BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.millis(1));
       }
       return Timer.of(
           userKey,
@@ -2687,6 +2702,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public void output(OutputT output) {
+        checkTimerTimestamp(currentTimer.getHoldTimestamp());
         outputTo(
             mainOutputConsumers,
             WindowedValue.of(
@@ -2703,6 +2719,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public <T> void output(TupleTag<T> tag, T output) {
+        checkTimerTimestamp(currentTimer.getHoldTimestamp());
         Collection<FnDataReceiver<WindowedValue<T>>> consumers =
             (Collection) localNameToConsumer.get(tag.getId());
         if (consumers == null) {

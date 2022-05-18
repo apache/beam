@@ -21,9 +21,10 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 
-import org.apache.beam.runners.spark.ReuseSparkContextRule;
+import org.apache.beam.runners.spark.SparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
+import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -39,6 +40,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -49,9 +51,13 @@ import org.junit.rules.ExternalResource;
  * streaming modes.
  */
 public class SparkMetricsSinkTest {
+  @ClassRule public static SparkContextRule contextRule = new SparkContextRule();
+
   @Rule public ExternalResource inMemoryMetricsSink = new InMemoryMetricsSinkRule();
-  @Rule public final TestPipeline pipeline = TestPipeline.create();
-  @Rule public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
+
+  @Rule
+  public final TestPipeline pipeline =
+      TestPipeline.fromOptions(contextRule.createPipelineOptions());
 
   private static final ImmutableList<String> WORDS =
       ImmutableList.of("hi there", "hi", "hi sue bob", "hi sue", "", "bob hi");
@@ -68,7 +74,7 @@ public class SparkMetricsSinkTest {
             .apply(new WordCount.CountWords())
             .apply(MapElements.via(new WordCount.FormatAsTextFn()));
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNTS);
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
 
     assertThat(InMemoryMetrics.<Double>valueOf("emptyLines"), is(1d));
   }
@@ -76,6 +82,7 @@ public class SparkMetricsSinkTest {
   @Category(StreamingTest.class)
   @Test
   public void testInStreamingMode() throws Exception {
+    pipeline.getOptions().as(TestSparkPipelineOptions.class).setForceStreaming(true);
     assertThat(InMemoryMetrics.valueOf("emptyLines"), is(nullValue()));
 
     Instant instant = new Instant(0);
@@ -83,8 +90,7 @@ public class SparkMetricsSinkTest {
         CreateStream.of(
                 StringUtf8Coder.of(),
                 Duration.millis(
-                    pipeline.getOptions().as(SparkPipelineOptions.class)
-                        .getBatchIntervalMillis()))
+                    pipeline.getOptions().as(SparkPipelineOptions.class).getBatchIntervalMillis()))
             .emptyBatch()
             .advanceWatermarkForNextBatch(instant)
             .nextBatch(

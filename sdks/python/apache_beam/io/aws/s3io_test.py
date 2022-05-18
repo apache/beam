@@ -113,13 +113,13 @@ class TestS3IO(unittest.TestCase):
     self.aws.delete(file_name)
 
   def test_last_updated(self):
-    self.skipTest('BEAM-9532 fix issue with s3 last updated')
     file_name = self.TEST_DATA_PATH + 'dummy_file'
     file_size = 1234
 
     self._insert_random_file(self.client, file_name, file_size)
     self.assertTrue(self.aws.exists(file_name))
-
+    # The time difference should be tiny for the mock client.
+    # A loose tolerance is for the consideration of real s3 client.
     tolerance = 5 * 60  # 5 mins
     result = self.aws.last_updated(file_name)
     self.assertAlmostEqual(result, time.time(), delta=tolerance)
@@ -128,7 +128,6 @@ class TestS3IO(unittest.TestCase):
     self.aws.delete(file_name)
 
   def test_checksum(self):
-
     file_name = self.TEST_DATA_PATH + 'checksum'
     file_size = 1024
     file_ = self._insert_random_file(self.client, file_name, file_size)
@@ -145,6 +144,22 @@ class TestS3IO(unittest.TestCase):
     self.assertEqual(original_etag, rewritten_etag)
     self.assertEqual(len(original_etag), 36)
     self.assertTrue(original_etag.endswith('-1"'))
+
+    # Clean up
+    self.aws.delete(file_name)
+
+  def test_file_status(self):
+    file_name = self.TEST_DATA_PATH + 'metadata'
+    file_size = 1024
+    self._insert_random_file(self.client, file_name, file_size)
+    file_checksum = self.aws.checksum(file_name)
+    file_timestamp = self.aws.last_updated(file_name)
+
+    file_status = self.aws._status(file_name)
+
+    self.assertEqual(file_status['size'], file_size)
+    self.assertEqual(file_status['checksum'], file_checksum)
+    self.assertEqual(file_status['last_updated'], file_timestamp)
 
     # Clean up
     self.aws.delete(file_name)

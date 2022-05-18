@@ -276,3 +276,11 @@ func (p *Plan) Split(s SplitPoints) (SplitResult, error) {
 	}
 	return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
 }
+
+// Checkpoint attempts to split an SDF if the DoFn self-checkpointed.
+func (p *Plan) Checkpoint() (SplitResult, time.Duration, bool, error) {
+	if p.source != nil {
+		return p.source.Checkpoint()
+	}
+	return SplitResult{}, -1 * time.Minute, false, nil
+}

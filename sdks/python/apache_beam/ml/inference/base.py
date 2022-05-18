@@ -44,10 +44,10 @@ import apache_beam as beam
 from apache_beam.utils import shared
 
 try:
-  # pylint: disable=g-import-not-at-top
+  # pylint: disable=wrong-import-order, wrong-import-position
   import resource
 except ImportError:
-  resource = None
+  resource = None  # type: ignore[assignment]
 
 _MICROSECOND_TO_MILLISECOND = 1000
 _NANOSECOND_TO_MICROSECOND = 1000
@@ -59,7 +59,8 @@ T = TypeVar('T')
 class InferenceRunner():
   """Implements running inferences for a framework."""
   def run_inference(self, batch: List[Any], model: Any) -> Iterable[Any]:
-    """Runs inferences on a batch of examples and returns an Iterable of Predictions."""
+    """Runs inferences on a batch of examples and
+    returns an Iterable of Predictions."""
     raise NotImplementedError(type(self))
 
   def get_num_bytes(self, batch: Any) -> int:
@@ -67,7 +68,7 @@ class InferenceRunner():
     return len(pickle.dumps(batch))
 
   def get_metrics_namespace(self) -> str:
-    """Returns a namespace for metrics collected by the RunInference transform."""
+    """Returns a namespace for metrics collected by RunInference transform."""
     return 'RunInference'
 
 
@@ -249,7 +250,7 @@ class _Clock(object):
 class _FineGrainedClock(_Clock):
   def get_current_time_in_microseconds(self) -> int:
     return int(
-        time.clock_gettime_ns(time.CLOCK_REALTIME) /  # pytype: disable=module-attr
+        time.clock_gettime_ns(time.CLOCK_REALTIME) /  # type: ignore[attr-defined]
         _NANOSECOND_TO_MICROSECOND)
 
 

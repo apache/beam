@@ -21,9 +21,10 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.SparkSession;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -32,16 +33,15 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class EncoderHelpersTest {
 
+  @ClassRule public static SparkSessionRule sessionRule = new SparkSessionRule();
+
   @Test
   public void beamCoderToSparkEncoderTest() {
-    SparkSession sparkSession =
-        SparkSession.builder()
-            .appName("beamCoderToSparkEncoderTest")
-            .master("local[4]")
-            .getOrCreate();
     List<Integer> data = Arrays.asList(1, 2, 3);
     Dataset<Integer> dataset =
-        sparkSession.createDataset(data, EncoderHelpers.fromBeamCoder(VarIntCoder.of()));
+        sessionRule
+            .getSession()
+            .createDataset(data, EncoderHelpers.fromBeamCoder(VarIntCoder.of()));
     assertEquals(data, dataset.collectAsList());
   }
 }

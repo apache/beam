@@ -343,7 +343,8 @@ func BuildOptions(metaOptions []*MetaOption) *Options {
 			continue
 		}
 
-		options.JavaArguments = append(options.JavaArguments, meta.Options.JavaArguments...)
+		// Rightmost takes precedence
+		options.JavaArguments = append(meta.Options.JavaArguments, options.JavaArguments...)
 
 		for key, value := range meta.Options.Properties {
 			_, exists := options.Properties[key]

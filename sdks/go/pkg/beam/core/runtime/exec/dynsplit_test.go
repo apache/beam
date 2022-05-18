@@ -125,7 +125,7 @@ func TestDynamicSplit(t *testing.T) {
 			if err := procRes; err != nil {
 				t.Fatal(err)
 			}
-			pRest := p.Elm.(*FullValue).Elm2.(offsetrange.Restriction)
+			pRest := p.Elm.(*FullValue).Elm2.(*FullValue).Elm.(offsetrange.Restriction)
 			if got, want := len(out.Elements), int(pRest.End-pRest.Start); got != want {
 				t.Errorf("Unexpected number of elements: got: %v, want: %v", got, want)
 			}
@@ -226,8 +226,11 @@ func claimBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (splitRe
 func createElm() *FullValue {
 	return &FullValue{
 		Elm: &FullValue{
-			Elm:  20,
-			Elm2: offsetrange.Restriction{Start: 0, End: 20},
+			Elm: 20,
+			Elm2: &FullValue{
+				Elm:  offsetrange.Restriction{Start: 0, End: 20},
+				Elm2: false,
+			},
 		},
 		Elm2: float64(20),
 	}
@@ -244,7 +247,10 @@ func createSplitTestInCoder() *coder.Coder {
 		coder.NewKV([]*coder.Coder{
 			coder.NewKV([]*coder.Coder{
 				intCoder(reflectx.Int),
-				{Kind: coder.Custom, T: typex.New(restT), Custom: restCdr},
+				coder.NewKV([]*coder.Coder{
+					{Kind: coder.Custom, T: typex.New(restT), Custom: restCdr},
+					coder.NewBool(),
+				}),
 			}),
 			coder.NewDouble(),
 		}),

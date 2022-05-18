@@ -18,7 +18,7 @@
 @import "media";
 
 .logos {
-  padding: $pad-l $pad;
+  padding: 25px 30px 35px;
 
   .logos-title {
     @extend .component-title;
@@ -31,7 +31,7 @@
     justify-content: space-between;
     width: 100%;
     max-width: 1111px;
-    margin: 70px auto 60px;
+    margin: 40px auto 0;
 
     .logos-logo {
       line-height: 0;
@@ -45,7 +45,7 @@
 
 @media (max-width: $tablet) {
   .logos {
-    padding: $pad-md $pad-s;
+    padding: 20px 30px;
 
     .logos-logos {
       max-width: 360px;
