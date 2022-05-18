@@ -41,6 +41,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This transform reads from Cloud Spanner using the {@link com.google.cloud.spanner.BatchClient}.
@@ -228,6 +230,7 @@ abstract class BatchSpannerRead
         }
       } catch (SpannerException e) {
         serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
+        LOG.error("Error while processing element", e);
         throw (e);
       }
       serviceCallMetric.call("ok");
