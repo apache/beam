@@ -18,11 +18,12 @@
 
 import CommonJobProperties as commonJobProperties
 
-static final String CLEANUP_DIR = '"$WORKSPACE/src/.test-infra/dataproc"'
-static final String CLEANUP_SCRIPT = 'cleanup.sh'
 
 job('Cleanup Dataproc Resources') {
   description('Removes leaked resources for all jobs that generates flink clusters.')
+
+  def CLEANUP_DIR = '"$WORKSPACE/src/.test-infra/dataproc"'
+  def CLEANUP_SCRIPT = 'cleanup.sh'
 
   // Set common parameters.
   //commonJobProperties.setTopLevelMainJobProperties(delegate)
