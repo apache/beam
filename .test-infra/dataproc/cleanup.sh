@@ -33,7 +33,7 @@ function deleteFilteredClusters(){
 
     if  [ ${#toDeleteList[@]} -eq 0 ]; then
 		echo "No leaked resources were found"
-		return 1
+		exit -1
     fi
 }
 
