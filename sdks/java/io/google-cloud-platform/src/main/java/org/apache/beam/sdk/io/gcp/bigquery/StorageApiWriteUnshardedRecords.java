@@ -447,18 +447,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
     }
 
-    @Setup
-    public void setup() {
-      if (useDefaultStream) {
-        destinations = Maps.newHashMap();
-      }
-    }
-
     @StartBundle
     public void startBundle() throws IOException {
-      if (!useDefaultStream) {
-        destinations = Maps.newHashMap();
-      }
+      destinations = Maps.newHashMap();
       numPendingRecords = 0;
       numPendingRecordBytes = 0;
     }
@@ -506,26 +497,21 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     @FinishBundle
     public void finishBundle(FinishBundleContext context) throws Exception {
       flushAll();
-      if (!useDefaultStream) {
-        for (DestinationState state : destinations.values()) {
+      for (DestinationState state : destinations.values()) {
+        if (!useDefaultStream) {
           context.output(
               KV.of(state.tableUrn, state.streamName),
               BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1)),
               GlobalWindow.INSTANCE);
-          state.teardown();
         }
-        destinations.clear();
-        destinations = null;
+        state.teardown();
       }
+      destinations.clear();
+      destinations = null;
     }
 
     @Teardown
     public void teardown() {
-      if (destinations != null) {
-        for (DestinationState state : destinations.values()) {
-          state.teardown();
-        }
-      }
       destinations = null;
       try {
         if (datasetService != null) {
