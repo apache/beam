@@ -26,6 +26,8 @@ public class HubspotCustomReceiver extends Receiver<String> {
     private static final String RECEIVER_THREAD_NAME = "hubspot_api_listener";
     private final HubspotStreamingSourceConfig config;
     private String startOffset = null;
+    private boolean isStopped = false;
+    private Long endOffset = Long.MAX_VALUE;
 
     HubspotCustomReceiver(HubspotStreamingSourceConfig config) throws IOException {
         super(StorageLevel.MEMORY_AND_DISK_2());
@@ -57,13 +59,20 @@ public class HubspotCustomReceiver extends Receiver<String> {
     public void onStop() {
         // There is nothing we can do here as the thread calling receive()
         // is designed to stop by itself if isStopped() returns false
+        isStopped = true;
+    }
+
+    public Long getEndOffset() {
+        return endOffset;
     }
 
     private void receive() {
         try {
+            LOG.info("OFFSET = {}", startOffset);
             HubspotPagesIterator hubspotPagesIterator = new HubspotPagesIterator(config, startOffset);
 
-            while (!isStopped()) {
+            while (!isStopped) {
+                this.endOffset = Long.parseLong(hubspotPagesIterator.currentPage.getOffset());
                 if (hubspotPagesIterator.hasNext()) {
                     store(hubspotPagesIterator.next().toString());
                 } else {
@@ -81,6 +90,7 @@ public class HubspotCustomReceiver extends Receiver<String> {
                     hubspotPagesIterator.setIteratorPosition(iteratorPosition);
                 }
             }
+            LOG.info("STOPPED");
         } catch (Exception e) {
             String errorMessage = "Exception while receiving messages from hubspot";
             // Since it's top level method of thread, we need to log the exception or it will be unseen

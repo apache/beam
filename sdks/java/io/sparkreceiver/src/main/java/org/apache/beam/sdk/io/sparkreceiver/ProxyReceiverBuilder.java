@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
+import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import javax.annotation.Nullable;
+
 import org.apache.commons.lang.ClassUtils;
 import org.apache.spark.streaming.receiver.Receiver;
 
@@ -28,70 +30,69 @@ import org.apache.spark.streaming.receiver.Receiver;
  * Spark environment.
  */
 @SuppressWarnings({
-  "unchecked",
-  "argument.type.incompatible",
-  "return.type.incompatible",
-  "dereference.of.nullable"
+        "unchecked",
+        "argument.type.incompatible",
+        "return.type.incompatible",
+        "dereference.of.nullable"
 })
-public class ProxyReceiverBuilder<X, T extends Receiver<X>> {
+public class ProxyReceiverBuilder<X, T extends Receiver<X>> implements Serializable {
 
-  //  private static final Logger LOG = LoggerFactory.getLogger(ProxyReceiverBuilder.class);
-  private final Class<T> sparkReceiverClass;
-  private @Nullable Constructor<?> currentConstructor;
-  private @Nullable Object[] constructorArgs;
-  private @Nullable T receiver;
+    //  private static final Logger LOG = LoggerFactory.getLogger(ProxyReceiverBuilder.class);
+    private final Class<T> sparkReceiverClass;
+    private @Nullable Object[] constructorArgs;
 
-  public ProxyReceiverBuilder(Class<T> sparkReceiverClass) {
-    this.sparkReceiverClass = sparkReceiverClass;
-  }
+    public ProxyReceiverBuilder(Class<T> sparkReceiverClass) {
+        this.sparkReceiverClass = sparkReceiverClass;
+    }
 
-  /** Method for specifying constructor arguments for corresponding {@link #sparkReceiverClass}. */
-  public ProxyReceiverBuilder<X, T> withConstructorArgs(Object... args) {
-    for (Constructor<?> constructor : sparkReceiverClass.getDeclaredConstructors()) {
-      Class<?>[] paramTypes = constructor.getParameterTypes();
-      if (paramTypes.length != args.length) {
-        continue;
-      }
-      boolean matches = true;
-      for (int i = 0; i < args.length; i++) {
-        Object arg = args[i];
-        if (arg == null) {
-          throw new IllegalArgumentException("All args must be not null!");
-        }
-        Class<?> currArgClass = paramTypes[i];
-        if (currArgClass.isPrimitive()) {
-          currArgClass = ClassUtils.primitiveToWrapper(currArgClass);
-        }
-        if (!currArgClass.equals(arg.getClass())) {
-          matches = false;
-          break;
-        }
-      }
-      if (matches) {
-        currentConstructor = constructor;
+    /**
+     * Method for specifying constructor arguments for corresponding {@link #sparkReceiverClass}.
+     */
+    public ProxyReceiverBuilder<X, T> withConstructorArgs(Object... args) {
         this.constructorArgs = args;
         return this;
-      }
     }
-    throw new IllegalArgumentException("Can not find appropriate constructor for given args");
-  }
 
-  /**
-   * @return Proxy for given {@param receiver} that doesn't use Spark environment and uses Apache
-   *     Beam mechanisms instead.
-   */
-  public T build()
-      throws InvocationTargetException, InstantiationException, IllegalAccessException {
+    /**
+     * @return Proxy for given {@param receiver} that doesn't use Spark environment and uses Apache
+     * Beam mechanisms instead.
+     */
+    public T build()
+            throws InvocationTargetException, InstantiationException, IllegalAccessException {
 
-    if (currentConstructor == null || constructorArgs == null) {
-      throw new IllegalStateException(
-          "It is not possible to build a Receiver proxy without setting the obligatory parameters.");
+        if (constructorArgs == null) {
+            throw new IllegalStateException(
+                    "It is not possible to build a Receiver proxy without setting the obligatory parameters.");
+        }
+        Constructor<?> currentConstructor = null;
+        for (Constructor<?> constructor : sparkReceiverClass.getDeclaredConstructors()) {
+            Class<?>[] paramTypes = constructor.getParameterTypes();
+            if (paramTypes.length != constructorArgs.length) {
+                continue;
+            }
+            boolean matches = true;
+            for (int i = 0; i < constructorArgs.length; i++) {
+                Object arg = constructorArgs[i];
+                if (arg == null) {
+                    throw new IllegalArgumentException("All args must be not null!");
+                }
+                Class<?> currArgClass = paramTypes[i];
+                if (currArgClass.isPrimitive()) {
+                    currArgClass = ClassUtils.primitiveToWrapper(currArgClass);
+                }
+                if (!currArgClass.equals(arg.getClass())) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                currentConstructor = constructor;
+            }
+        }
+        if (currentConstructor == null) {
+            throw new IllegalStateException("Can not find appropriate constructor!");
+        }
+        currentConstructor.setAccessible(true);
+        return (T) currentConstructor.newInstance(constructorArgs);
     }
-    if (receiver != null) {
-      throw new IllegalStateException("Proxy already built.");
-    }
-    currentConstructor.setAccessible(true);
-    this.receiver = (T) currentConstructor.newInstance(constructorArgs);
-    return this.receiver;
-  }
 }

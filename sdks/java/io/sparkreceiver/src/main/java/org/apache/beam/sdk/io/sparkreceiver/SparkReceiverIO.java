@@ -63,6 +63,8 @@ public class SparkReceiverIO {
 
         abstract @Nullable Receiver<V> getSparkReceiver();
 
+        abstract @Nullable ProxyReceiverBuilder<V, ? extends Receiver<V>> getSparkReceiverBuilder();
+
         abstract @Nullable Class<V> getValueClass();
 
         abstract @Nullable Coder<V> getValueCoder();
@@ -79,6 +81,8 @@ public class SparkReceiverIO {
 
             abstract Builder<V> setSparkReceiver(Receiver<V> sparkReceiver);
 
+            abstract Builder<V> setSparkReceiverBuilder(ProxyReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder);
+
             abstract Read<V> build();
         }
 
@@ -94,12 +98,16 @@ public class SparkReceiverIO {
             return toBuilder().setSparkReceiver(sparkReceiver).build();
         }
 
+        public Read<V> withSparkReceiverBuilder(ProxyReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder) {
+            return toBuilder().setSparkReceiverBuilder(sparkReceiverBuilder).build();
+        }
+
         @Override
         public PCollection<V> expand(PBegin input) {
             checkArgument(getValueClass() != null, "withValueClass() is required");
 
             LOG.info("SparkReceiverIO");
-            if (true) {
+            if (getSparkReceiverBuilder() != null) {
                 return input.apply(
                         new ReadFromSparkReceiverViaSdf<>(this, getValueCoder())
                 );
@@ -167,6 +175,7 @@ public class SparkReceiverIO {
         }
     }
 
+    @SuppressWarnings("UnusedVariable")
     static class GenerateSparkReceiverSourceDescriptor extends DoFn<byte[], SparkReceiverSourceDescriptor> {
 
         private final SparkReceiverIO.Read read;
@@ -178,8 +187,7 @@ public class SparkReceiverIO {
         @ProcessElement
         public void processElement(OutputReceiver<SparkReceiverSourceDescriptor> receiver) {
             //TODO:
-            HubspotCustomReceiver hubspotReceiver = (HubspotCustomReceiver) read.getSparkReceiver();
-            receiver.output(new SparkReceiverSourceDescriptor(hubspotReceiver.getConfig().objectType));
+            receiver.output(new SparkReceiverSourceDescriptor(null));
         }
     }
 }

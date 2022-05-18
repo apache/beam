@@ -12,13 +12,15 @@ public class SparkReceiverUtils {
     private static ObjectMapper objectMapper = new ObjectMapper();
 
     public static Integer getOffsetByRecord(String record) {
-        try {
-            HashMap<String, Object> json =
-                    objectMapper.readValue(record, HashMap.class);
-            return (Integer) json.get("vid");
-        } catch (Exception e) {
-            LOG.error("Can not parse json", e);
-            return 0;
+        if (record != null) {
+            try {
+                HashMap<String, Object> json =
+                        objectMapper.readValue(record, HashMap.class);
+                return (Integer) json.get("vid");
+            } catch (Exception e) {
+                LOG.error("Can not parse json", e);
+            }
         }
+        return 0;
     }
 }

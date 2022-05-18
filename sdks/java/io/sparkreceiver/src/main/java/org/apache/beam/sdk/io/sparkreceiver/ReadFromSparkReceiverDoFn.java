@@ -17,6 +17,7 @@ import java.util.Comparator;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -25,7 +26,8 @@ import static org.apache.beam.sdk.io.sparkreceiver.SparkReceiverUtils.getOffsetB
 @UnboundedPerElement
 @SuppressWarnings({
         "rawtypes",
-        "nullness"
+        "nullness",
+        "UnusedVariable"
 })
 public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescriptor, V> {
 
@@ -33,36 +35,19 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
 
     private final SerializableFunction<Instant, WatermarkEstimator<Instant>>
             createWatermarkEstimatorFn;
-    private final Queue<V> availableRecordsQueue;
-    private final AtomicLong recordsRead;
-    private Receiver sparkReceiver;
+    private Queue<V> availableRecordsQueue;
+    private AtomicLong recordsRead;
+    private ProxyReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder;
+    private Receiver<V> sparkReceiver;
 
     public ReadFromSparkReceiverDoFn(SparkReceiverIO.ReadFromSparkReceiverViaSdf<V> transform) {
         createWatermarkEstimatorFn = WatermarkEstimators.Manual::new;
-        availableRecordsQueue = new LinkedBlockingDeque<>();
-        recordsRead = new AtomicLong(0);
-        sparkReceiver = transform.sparkReceiverRead.getSparkReceiver();
-        if (sparkReceiver instanceof HubspotCustomReceiver) {
-            try {
-                this.sparkReceiver = new HubspotCustomReceiver
-                        (((HubspotCustomReceiver) sparkReceiver).getConfig());
-                initReceiver(objects -> {
-                    availableRecordsQueue.offer((V) objects[0]);
-                    long read = recordsRead.getAndIncrement();
-                    if (read % 100 == 0) {
-                        LOG.info("[{}], records read = {}", 0, recordsRead);
-                    }
-                });
-            } catch (Exception e) {
-                LOG.error("Can not create new Hubspot Receiver");
-            }
-        }
+        sparkReceiverBuilder = transform.sparkReceiverRead.getSparkReceiverBuilder();
     }
 
-    private void initReceiver(Consumer<Object[]> storeConsumer) {
+    private void initReceiver(Consumer<Object[]> storeConsumer, Receiver<V> sparkReceiver) {
         try {
             new WrappedSupervisor(sparkReceiver, new SparkConf(), storeConsumer);
-            sparkReceiver.onStart();
         } catch (Exception e) {
             LOG.error("Can not init Spark Receiver!", e);
         }
@@ -91,13 +76,18 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
         // Before processing elements, we don't have a good estimated size of records and offset gap.
     }
 
-    private static class SparkReceiverLatestOffsetEstimator
+    private class SparkReceiverLatestOffsetEstimator
             implements GrowableOffsetRangeTracker.RangeEndEstimator {
 
 
+        public SparkReceiverLatestOffsetEstimator() {
+        }
+
         @Override
         public long estimate() {
-            //TODO:
+            if (sparkReceiver instanceof HubspotCustomReceiver) {
+                return ((HubspotCustomReceiver) sparkReceiver).getEndOffset();
+            }
             return Long.MAX_VALUE;
         }
     }
@@ -121,9 +111,10 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
     @Teardown
     public void teardown() throws Exception {
         //Closeables close
-        if (sparkReceiver.isStarted()) {
-            sparkReceiver.stop("Teardown");
-        }
+//        if (sparkReceiver.isStarted()) {
+//            sparkReceiver.stop("Teardown");
+//            availableRecordsQueue.clear();
+//        }
     }
 
     @ProcessElement
@@ -133,23 +124,63 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
             WatermarkEstimator watermarkEstimator,
             OutputReceiver<V> receiver) {
 
+        recordsRead = new AtomicLong(0);
+        AtomicLong recordsOut = new AtomicLong(0);
+        availableRecordsQueue = new LinkedBlockingDeque<>();
+        try {
+            this.sparkReceiver = sparkReceiverBuilder.build();
+            initReceiver(objects -> {
+                availableRecordsQueue.offer((V) objects[0]);
+                long read = recordsRead.getAndIncrement();
+                if (read % 200 == 0) {
+                    LOG.info("Records read = {}", read);
+                }
+            }, sparkReceiver);
+        } catch (Exception e) {
+            LOG.error("Can not create new Hubspot Receiver", e);
+        }
         if (sparkReceiver instanceof HubspotCustomReceiver) {
             ((HubspotCustomReceiver) sparkReceiver).setStartOffset(
                     String.valueOf(tracker.currentRestriction().getFrom()));
         }
+        sparkReceiver.onStart();
+        LOG.info("Restriction: {}, {}", tracker.currentRestriction().getFrom(), tracker.currentRestriction().getTo());
+        try {
+            TimeUnit.MILLISECONDS.sleep(500);
+        } catch (InterruptedException e) {
+            LOG.error("Interrupted", e);
+        }
 
+        Long prevOffset = null;
         while (true) {
+//            try {
+//                TimeUnit.MILLISECONDS.sleep(100);
+//            } catch (InterruptedException e) {
+//                LOG.error("Interrupted", e);
+//            }
             V record = availableRecordsQueue.poll();
             if (record == null) {
                 LOG.info("RESUME");
+                sparkReceiver.onStop();
+                availableRecordsQueue.clear();
                 return ProcessContinuation.resume();
             }
             Integer offset = getOffsetByRecord(record.toString());
+            if (prevOffset != null && offset <= prevOffset) {
+                continue;
+            }
             if (!tracker.tryClaim(offset.longValue())) {
                 LOG.info("TRY CLAIM FALSE");
+                sparkReceiver.onStop();
+                availableRecordsQueue.clear();
                 return ProcessContinuation.stop();
             }
             receiver.output(record);
+            prevOffset = offset.longValue();
+            long out = recordsOut.incrementAndGet();
+            if (out % 100 == 0) {
+                LOG.info("Records out = {}", out);
+            }
         }
     }
 
