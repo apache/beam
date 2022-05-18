@@ -1266,7 +1266,9 @@ public class GcsUtilTest {
     List<StorageObjectOrIOException> results = gcsUtil.getObjects(makeGcsPaths("s", 1));
 
     for (StorageObjectOrIOException result : results) {
-      if (null != result.ioException()) throw result.ioException();
+      if (null != result.ioException()) {
+        throw result.ioException();
+      }
     }
   }
 
