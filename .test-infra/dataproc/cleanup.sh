@@ -14,8 +14,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-set -Eeuxo pipefail
-
+set -Eeuo pipefail
 GCLOUD_REGION="us-central1"
 clustersList=( )
 toDeleteList=( )
@@ -35,7 +34,6 @@ function deleteFilteredClusters(){
 
     if  [ ${#toDeleteList[@]} -eq 0 ]; then
 		echo "No leaked resources were found"
-		exit -1
     fi
 }
 
