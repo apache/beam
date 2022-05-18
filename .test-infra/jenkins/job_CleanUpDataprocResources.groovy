@@ -32,8 +32,9 @@ job('Cleanup Dataproc Resources') {
 
   //Bash script path
   steps {
-    //Starting credential rotation
-    shell("cd ${CLEANUP_DIR}; ./${CLEANUP_SCRIPT} -xe") //Flags stop execution in case of failure
+    // Cleanup script is implemented on a separated bash file 
+    shell("cd ${CLEANUP_DIR}; ./${CLEANUP_SCRIPT} -xe") 
+    shell("exit -1")
   }
 
 }
