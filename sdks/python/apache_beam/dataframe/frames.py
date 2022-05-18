@@ -3876,8 +3876,18 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     ``columns`` must be CategoricalDType so we can determine the output column
     names."""
 
-    # TODO: check for non-commutative agg_func. (unliftable) e.g. mean.
-    # If unliftable --> requires singleton
+    margins = kwargs.get('margins', False)
+    if margins:
+      raise NotImplementedError(
+        "pivot_table(margins=True) is not yet supported")
+    dropna = kwargs.get('dropna', True)
+    if not dropna:
+      raise NotImplementedError(
+        "pivot_table(dropna=False) is not yet supported")
+    observed = kwargs.get('observed', False)
+    if observed:
+      raise NotImplementedError(
+        "pivot_table(observed=True) is not yet supported")
 
     def verify_all_categorical(all_cols_are_categorical):
       if not all_cols_are_categorical:

@@ -1703,35 +1703,6 @@ class DeferredFrameTest(_AbstractFrameTest):
         # the mean function
         lenient_dtype_check=True)
 
-  def test_pivot_table_margin_true(self):
-    df = pd.DataFrame({
-        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
-        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
-        "C": [
-            "small",
-            "large",
-            "large",
-            "small",
-            "small",
-            "large",
-            "small",
-            "small",
-            "large"
-        ],
-        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
-        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
-    })
-    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
-    self._run_test(
-        lambda df: df.pivot_table(
-            values=['D', 'E'],
-            index=['A', 'C'],
-            aggfunc={
-                'D': np.mean, 'E': [min, max, np.mean]
-            },
-            margins=True),
-        df)
-
   def test_pivot_table_no_index_provided(self):
     df = pd.DataFrame({
         "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
@@ -1856,6 +1827,65 @@ class DeferredFrameTest(_AbstractFrameTest):
       self._run_test(
           lambda df: df.pivot_table(
               values='D', index=['A', 'B'], columns=['C'], aggfunc=np.sum),
+          df)
+
+  # Example from pandas reshaping docs
+  # https://pandas.pydata.org/docs/user_guide/reshaping.html#adding-margins
+  def test_pivot_table_margin_not_implemented(self):
+    import datetime
+    df = pd.DataFrame({
+        "A": ["one", "one", "two", "three"] * 6,
+        "B": ["A", "B", "C"] * 8,
+        "C": ["foo", "foo", "foo", "bar", "bar", "bar"] * 4,
+        "D": np.random.randn(24),
+        "E": np.random.randn(24),
+        "F": [datetime.datetime(2013, i, 1) for i in range(1, 13)] +
+        [datetime.datetime(2013, i, 15) for i in range(1, 13)],
+    })
+    with self.assertRaisesRegex(
+        NotImplementedError,
+        r"pivot_table\(margins=True\) is not yet supported"):
+      self._run_test(
+          lambda df: df.pivot_table(
+              index=["A", "B"], columns="C", margins=True, aggfunc=np.std),
+          df)
+
+  def test_pivot_table_dropna_not_implemented(self):
+    import datetime
+    df = pd.DataFrame({
+        "A": ["one", "one", "two", "three"] * 6,
+        "B": ["A", "B", "C"] * 8,
+        "C": ["foo", "foo", "foo", "bar", "bar", "bar"] * 4,
+        "D": np.random.randn(24),
+        "E": np.random.randn(24),
+        "F": [datetime.datetime(2013, i, 1) for i in range(1, 13)] +
+        [datetime.datetime(2013, i, 15) for i in range(1, 13)],
+    })
+    with self.assertRaisesRegex(
+        NotImplementedError,
+        r"pivot_table\(dropna=False\) is not yet supported"):
+      self._run_test(
+          lambda df: df.pivot_table(
+              index=["A", "B"], columns="C", aggfunc=np.std, dropna=False),
+          df)
+
+  def test_pivot_table_observed_not_implemented(self):
+    import datetime
+    df = pd.DataFrame({
+        "A": ["one", "one", "two", "three"] * 6,
+        "B": ["A", "B", "C"] * 8,
+        "C": ["foo", "foo", "foo", "bar", "bar", "bar"] * 4,
+        "D": np.random.randn(24),
+        "E": np.random.randn(24),
+        "F": [datetime.datetime(2013, i, 1) for i in range(1, 13)] +
+        [datetime.datetime(2013, i, 15) for i in range(1, 13)],
+    })
+    with self.assertRaisesRegex(
+        NotImplementedError,
+        r"pivot_table\(observed=True\) is not yet supported"):
+      self._run_test(
+          lambda df: df.pivot_table(
+              index=["A", "B"], columns="C", aggfunc=np.std, observed=True),
           df)
 
 
