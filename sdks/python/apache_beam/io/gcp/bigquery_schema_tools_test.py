@@ -53,6 +53,17 @@ class TestBigQueryToSchema(unittest.TestCase):
         the_table_schema=schema)
     self.assertEqual(usertype.__annotations__, {})
 
+  def test_error_at_runtime(self):
+    fields = [
+        bigquery.TableFieldSchema(
+            name='number', type='DOUBLE', mode="NULLABLE"),
+        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
+        bigquery.TableFieldSchema(name='count', type='INTEGER', mode="None")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    with self.assertRaises(ValueError):
+      bigquery_schema_tools.produce_pcoll_with_schema(the_table_schema=schema)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
