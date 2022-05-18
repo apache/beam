@@ -42,7 +42,7 @@ function filterClusters(){
     local currentDate=$(date +%s)
     #To avoid the deletion of active clusters, a date comparison is required
     for cluster in ${clustersList[@]}; do
-        clusterStartTime=$(gcloud dataproc clusters describe $cluster --region=$GCLOUD_REGION --format="get(status.stateStartTime)" )
+        clusterStartTime=$(gcloud dataproc clusters describye $cluster --region=$GCLOUD_REGION --format="get(status.stateStartTime)" )
 		clusterStartTime=$(date -d$clusterStartTime +%s)
 
 		elapsedHours=$((($currentDate - $clusterStartTime)/3600))
