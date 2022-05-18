@@ -90,7 +90,7 @@ def bq_field_to_type(field, mode):
 
 
 class BeamSchemaUnbatchDoFn(beam.DoFn):
-  def __init__(self, pcoll_val):
+  def __init__(self, pcoll_val_ctor):
     self._pcoll_val_ctor = pcoll_val_ctor
 
   def infer_output_type(self, input_type):
