@@ -26,13 +26,11 @@ import java.util.List;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIOPatientEverything.PatientEverythingParameter;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Assert;
@@ -155,12 +153,7 @@ public class FhirIOTest {
   @Test
   public void test_FhirIO_Export_invalidUri() {
     final String invalidUri = "someInvalidUri";
-    pipeline
-        .apply(Create.of(Arrays.asList("resource1", "resource2")))
-        .apply(
-            ParDo.of(
-                new FhirIO.Export.ExportResourcesFn(
-                    ValueProvider.StaticValueProvider.<String>of(invalidUri))));
+    pipeline.apply(FhirIO.exportResources("fakeStore", invalidUri));
     final RuntimeException exceptionThrown = assertThrows(RuntimeException.class, pipeline::run);
     assertTrue(exceptionThrown.getMessage().contains(invalidUri));
   }
