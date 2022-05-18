@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
+import static org.apache.beam.sdk.io.sparkreceiver.SparkReceiverUtils.getOffsetByRecord;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
@@ -37,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -167,13 +169,17 @@ public class SparkReceiverIO {
 
     static class GenerateSparkReceiverSourceDescriptor extends DoFn<byte[], SparkReceiverSourceDescriptor> {
 
-        GenerateSparkReceiverSourceDescriptor(Read read) {
+        private final SparkReceiverIO.Read read;
 
+        GenerateSparkReceiverSourceDescriptor(SparkReceiverIO.Read read) {
+            this.read = read;
         }
 
         @ProcessElement
         public void processElement(OutputReceiver<SparkReceiverSourceDescriptor> receiver) {
-            receiver.output(new SparkReceiverSourceDescriptor());
+            //TODO:
+            HubspotCustomReceiver hubspotReceiver = (HubspotCustomReceiver) read.getSparkReceiver();
+            receiver.output(new SparkReceiverSourceDescriptor(hubspotReceiver.getConfig().objectType));
         }
     }
 }

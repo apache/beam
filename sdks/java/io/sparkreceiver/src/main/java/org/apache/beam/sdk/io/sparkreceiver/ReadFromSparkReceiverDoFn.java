@@ -13,10 +13,14 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Comparator;
 import java.util.Queue;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+
+import static org.apache.beam.sdk.io.sparkreceiver.SparkReceiverUtils.getOffsetByRecord;
 
 @UnboundedPerElement
 @SuppressWarnings({
@@ -31,27 +35,34 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
             createWatermarkEstimatorFn;
     private final Queue<V> availableRecordsQueue;
     private final AtomicLong recordsRead;
-    private final AtomicLong recordsWrite;
+    private Receiver sparkReceiver;
 
     public ReadFromSparkReceiverDoFn(SparkReceiverIO.ReadFromSparkReceiverViaSdf<V> transform) {
-        createWatermarkEstimatorFn = WatermarkEstimators.MonotonicallyIncreasing::new;
-        availableRecordsQueue = new PriorityBlockingQueue<>();
+        createWatermarkEstimatorFn = WatermarkEstimators.Manual::new;
+        availableRecordsQueue = new LinkedBlockingDeque<>();
         recordsRead = new AtomicLong(0);
-        recordsWrite = new AtomicLong(0);
-        initReceiver(objects -> {
-            availableRecordsQueue.offer((V) objects[0]);
-            long read = recordsRead.getAndIncrement();
-            if (read % 100 == 0) {
-                LOG.info("[{}], records read = {}", 0, recordsRead);
+        sparkReceiver = transform.sparkReceiverRead.getSparkReceiver();
+        if (sparkReceiver instanceof HubspotCustomReceiver) {
+            try {
+                this.sparkReceiver = new HubspotCustomReceiver
+                        (((HubspotCustomReceiver) sparkReceiver).getConfig());
+                initReceiver(objects -> {
+                    availableRecordsQueue.offer((V) objects[0]);
+                    long read = recordsRead.getAndIncrement();
+                    if (read % 100 == 0) {
+                        LOG.info("[{}], records read = {}", 0, recordsRead);
+                    }
+                });
+            } catch (Exception e) {
+                LOG.error("Can not create new Hubspot Receiver");
             }
-        }, transform.sparkReceiverRead.getSparkReceiver());
+        }
     }
 
-    private void initReceiver(Consumer<Object[]> storeConsumer, Receiver<V> receiver) {
+    private void initReceiver(Consumer<Object[]> storeConsumer) {
         try {
-            new WrappedSupervisor(receiver, new SparkConf(), storeConsumer);
-
-            receiver.onStart();
+            new WrappedSupervisor(sparkReceiver, new SparkConf(), storeConsumer);
+            sparkReceiver.onStart();
         } catch (Exception e) {
             LOG.error("Can not init Spark Receiver!", e);
         }
@@ -82,10 +93,12 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
 
     private static class SparkReceiverLatestOffsetEstimator
             implements GrowableOffsetRangeTracker.RangeEndEstimator {
+
+
         @Override
         public long estimate() {
             //TODO:
-            return 0;
+            return Long.MAX_VALUE;
         }
     }
 
@@ -108,6 +121,9 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
     @Teardown
     public void teardown() throws Exception {
         //Closeables close
+        if (sparkReceiver.isStarted()) {
+            sparkReceiver.stop("Teardown");
+        }
     }
 
     @ProcessElement
@@ -116,17 +132,24 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
             RestrictionTracker<OffsetRange, Long> tracker,
             WatermarkEstimator watermarkEstimator,
             OutputReceiver<V> receiver) {
-        //TODO:
+
+        if (sparkReceiver instanceof HubspotCustomReceiver) {
+            ((HubspotCustomReceiver) sparkReceiver).setStartOffset(
+                    String.valueOf(tracker.currentRestriction().getFrom()));
+        }
+
         while (true) {
             V record = availableRecordsQueue.poll();
             if (record == null) {
-                return ProcessContinuation.stop();
+                LOG.info("RESUME");
+                return ProcessContinuation.resume();
             }
-            if (!tracker.tryClaim(recordsWrite.get())) {
+            Integer offset = getOffsetByRecord(record.toString());
+            if (!tracker.tryClaim(offset.longValue())) {
+                LOG.info("TRY CLAIM FALSE");
                 return ProcessContinuation.stop();
             }
             receiver.output(record);
-            recordsWrite.getAndIncrement();
         }
     }
 
