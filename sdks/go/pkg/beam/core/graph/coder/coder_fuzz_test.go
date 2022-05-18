@@ -57,7 +57,7 @@ func FuzzEncodeDecodeDouble(f *testing.F) {
 
 		actual, err := DecodeDouble(&buf)
 		if err != nil {
-			t.Fatalf("DecodeDouble(%v) failed: %v", buf, err)
+			t.Fatalf("DecodeDouble(%v) failed: %v", &buf, err)
 		}
 		if math.Abs(actual-a) > floatPrecision {
 			t.Fatalf("got %f, want %f +/- %f", actual, a, floatPrecision)

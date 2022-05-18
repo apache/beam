@@ -140,7 +140,7 @@ func (fn *AnnotationsFn) ProcessElement(v int) int {
 }
 
 func doNothing(_ []byte, _ int) {}
-func TestParDoSideInputValdiation(t *testing.T) {
+func TestParDoSideInputValidation(t *testing.T) {
 	var tests = []struct {
 		name      string
 		wFn       *window.Fn
