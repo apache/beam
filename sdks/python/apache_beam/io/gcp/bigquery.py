@@ -2423,6 +2423,9 @@ class ReadFromBigQuery(PTransform):
       to run queries with INTERACTIVE priority. This option is ignored when
       reading from a table rather than a query. To learn more about query
       priority, see: https://cloud.google.com/bigquery/docs/running-queries
+    output_type (str): By default, the schema returned from this transform
+    would be of type TableSchema. Other schema types can be specified
+    ("BEAM_SCHEMAS").
    """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.
@@ -2435,10 +2438,12 @@ class ReadFromBigQuery(PTransform):
       gcs_location=None,
       method=None,
       use_native_datetime=False,
+      output_type=None,
       *args,
       **kwargs):
     self.method = method or ReadFromBigQuery.Method.EXPORT
     self.use_native_datetime = use_native_datetime
+    self.output_type = output_type
 
     if self.method is ReadFromBigQuery.Method.EXPORT \
         and self.use_native_datetime is True:
@@ -2552,8 +2557,9 @@ class ReadFromBigQuery(PTransform):
   def get_pcoll_from_schema(table_schema):
     pcoll_val = apache_beam.io.gcp.bigquery_schema_tools.\
         produce_pcoll_with_schema(table_schema)
-    return beam.Map(lambda values: pcoll_val(**values)).with_output_types(
-        pcoll_val)
+    # beam.Map(lambda values: pcoll_val(**values)) |
+    return beam.ParDo(
+        beam.io.gcp.bigquery_schema_tools.BeamSchemaUnabatchedDoFn(pcoll_val))
 
 
 class ReadFromBigQueryRequest:

@@ -186,8 +186,7 @@ class ReadTests(BigQueryReadIntegrationTests):
         table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
     table = the_table.schema
     utype = beam.io.gcp.bigquery_schema_tools.produce_pcoll_with_schema(table)
-    args = self.args + ["--experiments=save_main_session"]
-    with beam.Pipeline(argv=args) as p:
+    with beam.Pipeline(argv=self.args) as p:
       result = (
           p | beam.io.gcp.bigquery.ReadFromBigQuery(
               gcs_location="gs://bqio_schema",
