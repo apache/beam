@@ -35,10 +35,12 @@ import platform
 import sys
 import time
 from typing import Any
+from typing import Dict
 from typing import Generic
 from typing import Iterable
 from typing import List
 from typing import Mapping
+from typing import Optional
 from typing import TypeVar
 
 import apache_beam as beam
@@ -59,7 +61,11 @@ T = TypeVar('T')
 
 class InferenceRunner():
   """Implements running inferences for a framework."""
-  def run_inference(self, batch: List[Any], model: Any) -> Iterable[Any]:
+  def run_inference(
+      self,
+      batch: List[Any],
+      model: Any,
+      prediction_params: Optional[Dict[str, Any]] = None) -> Iterable[Any]:
     """Runs inferences on a batch of examples and
     returns an Iterable of Predictions."""
     raise NotImplementedError(type(self))
@@ -90,8 +96,13 @@ class ModelLoader(Generic[T]):
 
 class RunInference(beam.PTransform):
   """An extensible transform for running inferences."""
-  def __init__(self, model_loader: ModelLoader, clock=None):
+  def __init__(
+      self,
+      model_loader: ModelLoader,
+      prediction_params: Optional[Dict[str, Any]] = None,
+      clock=None):
     self._model_loader = model_loader
+    self._prediction_params = prediction_params
     self._clock = clock
 
   # TODO(BEAM-14208): Add batch_size back off in the case there
@@ -155,9 +166,14 @@ class _MetricsCollector:
 
 class _RunInferenceDoFn(beam.DoFn):
   """A DoFn implementation generic to frameworks."""
-  def __init__(self, model_loader: ModelLoader, clock=None):
+  def __init__(
+      self,
+      model_loader: ModelLoader,
+      prediction_params: Optional[Dict[str, Any]] = None,
+      clock=None):
     self._model_loader = model_loader
     self._inference_runner = model_loader.get_inference_runner()
+    self._prediction_params = prediction_params
     self._shared_model_handle = shared.Shared()
     self._metrics_collector = _MetricsCollector(
         self._inference_runner.get_metrics_namespace())
@@ -200,7 +216,7 @@ class _RunInferenceDoFn(beam.DoFn):
 
     start_time = self._clock.get_current_time_in_microseconds()
     result_generator = self._inference_runner.run_inference(
-        examples, self._model)
+        examples, self._model, self._prediction_params)
     predictions = list(result_generator)
 
     inference_latency = self._clock.get_current_time_in_microseconds(

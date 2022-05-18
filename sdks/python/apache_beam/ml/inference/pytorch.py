@@ -17,12 +17,14 @@
 
 # pytype: skip-file
 
+from collections import defaultdict
 from typing import Any
 from typing import Callable
 from typing import Dict
-from collections import defaultdict
 from typing import Iterable
 from typing import List
+from typing import Optional
+from typing import Union
 
 import torch
 from apache_beam.io.filesystems import FileSystems
@@ -40,8 +42,12 @@ class PytorchInferenceRunner(InferenceRunner):
   def __init__(self, device: torch.device):
     self._device = device
 
-  def run_inference(self, batch: List[torch.Tensor],
-                    model: torch.nn.Module) -> Iterable[PredictionResult]:
+  def run_inference(
+      self,
+      batch: List[Union[torch.Tensor, Dict[str, torch.Tensor]]],
+      model: torch.nn.Module,
+      prediction_params: Optional[Dict[str, Any]] = None,
+  ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
     Tensor Predictions.
@@ -59,17 +65,21 @@ class PytorchInferenceRunner(InferenceRunner):
         if batched_values.device != self._device:
           batched_values = batched_values.to(self._device)
         result_dict[k] = batched_values
-      predictions = model(**result_dict)
+      predictions = model(**result_dict, **prediction_params)
     else:
       batch = torch.stack(batch)
       if batch.device != self._device:
         batch = batch.to(self._device)
-      predictions = model(batch)
+      predictions = model(batch, **prediction_params)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: List[torch.Tensor]) -> int:
     """Returns the number of bytes of data for a batch of Tensors."""
-    return sum((el.element_size() for tensor in batch for el in tensor))
+    if isinstance(batch[0], dict):
+      return sum(
+          (el.element_size() for tensor in batch for el in tensor.values()))
+    else:
+      return sum((el.element_size() for tensor in batch for el in tensor))
 
   def get_metrics_namespace(self) -> str:
     """
