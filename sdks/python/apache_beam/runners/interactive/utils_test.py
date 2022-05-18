@@ -210,7 +210,7 @@ class IPythonLogHandlerTest(unittest.TestCase):
     # loggings from child loggers will be propagated to the interactive "root"
     # logger which is set to INFO level that gets handled by the sole log
     # handler IPythonLogHandler which is set to NOTSET. The effect will be
-    # everything >= info level will be logged through IPython.core.display to
+    # everything >= info level will be logged through IPython.display to
     # all frontends connected to current kernel.
     dummy_logger = logging.getLogger('apache_beam.runners.interactive.dummy1')
     dummy_logger.info('info')
@@ -259,11 +259,11 @@ class ProgressIndicatorTest(unittest.TestCase):
       self, mocked_is_in_notebook, unused):
     mocked_is_in_notebook.return_value = False
 
-    with patch('IPython.core.display.display') as mocked_display:
+    with patch('IPython.display.display') as mocked_display:
 
       @utils.progress_indicated
       def progress_indicated_dummy():
-        mocked_display.assert_any_call('Processing...')
+        mocked_display.assert_any_call('Processing... progress_indicated_dummy')
 
       progress_indicated_dummy()
       mocked_display.assert_any_call('Done.')
@@ -277,8 +277,8 @@ class ProgressIndicatorTest(unittest.TestCase):
       self, mocked_is_in_notebook, unused):
     mocked_is_in_notebook.return_value = True
 
-    with patch('IPython.core.display.HTML') as mocked_html,\
-      patch('IPython.core.display.Javascript') as mocked_js:
+    with patch('IPython.display.HTML') as mocked_html,\
+      patch('IPython.display.Javascript') as mocked_js:
       with utils.ProgressIndicator('enter', 'exit'):
         mocked_html.assert_called()
       mocked_js.assert_called()
@@ -378,36 +378,6 @@ class GCSUtilsTest(unittest.TestCase):
       return_value='test-bucket-found')
   def test_assert_bucket_exists_found(self, mock_response, mock_client):
     utils.assert_bucket_exists('')
-
-
-class BidictTest(unittest.TestCase):
-  def test_inverse_set_correctly(self):
-    bd = utils.bidict()
-    bd['foo'] = 'bar'
-    self.assertEqual(bd.inverse['bar'], 'foo')
-    bd['foo'] = 'baz'
-    self.assertEqual(bd.inverse['baz'], 'foo')
-
-  def test_on_delete_remove_pair(self):
-    bd = utils.bidict()
-    bd['foo'] = 'bar'
-    del bd['foo']
-    self.assertEqual(bd, {})
-    self.assertEqual(bd.inverse, {})
-
-  def test_clear_bidirectionally(self):
-    bd = utils.bidict()
-    bd['foo'] = 'bar'
-    bd.clear()
-    self.assertEqual(bd, {})
-    self.assertEqual(bd.inverse, {})
-
-  def test_on_pop_pair(self):
-    bd = utils.bidict()
-    bd['foo'] = 'bar'
-    value, inverse_value = bd.pop('foo')
-    self.assertEqual(value, 'bar')
-    self.assertEqual(inverse_value, 'foo')
 
 
 class PipelineUtilTest(unittest.TestCase):

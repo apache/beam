@@ -533,6 +533,12 @@ import org.slf4j.LoggerFactory;
  * ensure that the version included with the application is compatible with the version of your
  * Kafka cluster. Kafka client usually fails to initialize with a clear error message in case of
  * incompatibility.
+ *
+ * <h3>Updates to the I/O connector code</h3>
+ *
+ * For any significant significant updates to this I/O connector, please consider involving
+ * corresponding code reviewers mentioned <a
+ * href="https://github.com/apache/beam/blob/master/sdks/java/io/kafka/OWNERS">here</a>.
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
@@ -1679,8 +1685,8 @@ public class KafkaIO {
         int partition,
         long offset,
         long timestamp,
-        byte[] key,
-        byte[] value,
+        byte @Nullable [] key,
+        byte @Nullable [] value,
         @Nullable List<KafkaHeader> headers,
         int timestampTypeId,
         String timestampTypeName) {

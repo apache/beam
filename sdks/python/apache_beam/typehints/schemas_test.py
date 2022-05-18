@@ -31,6 +31,7 @@ from typing import Sequence
 
 import numpy as np
 
+from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from apache_beam.typehints.schemas import SchemaTypeRegistry
@@ -239,6 +240,22 @@ class SchemaTest(unittest.TestCase):
         schema_pb2.FieldType(atomic_type=schema_pb2.DOUBLE),
         typing_to_runner_api(float))
 
+  def test_python_callable_maps_to_logical_type(self):
+    from apache_beam.utils.python_callable import PythonCallableWithSource
+    self.assertEqual(
+        schema_pb2.FieldType(
+            logical_type=schema_pb2.LogicalType(
+                urn=common_urns.python_callable.urn,
+                representation=typing_to_runner_api(str))),
+        typing_to_runner_api(PythonCallableWithSource))
+    self.assertEqual(
+        typing_from_runner_api(
+            schema_pb2.FieldType(
+                logical_type=schema_pb2.LogicalType(
+                    urn=common_urns.python_callable.urn,
+                    representation=typing_to_runner_api(str)))),
+        PythonCallableWithSource)
+
   def test_trivial_example(self):
     MyCuteClass = NamedTuple(
         'MyCuteClass',
@@ -314,13 +331,18 @@ class SchemaTest(unittest.TestCase):
         fields=[
             schema_pb2.Field(
                 name="type_with_no_typeinfo", type=schema_pb2.FieldType())
-        ])
+        ],
+        id="helpful-error-uuid",
+    )
 
     # Should raise an exception referencing the problem field
     self.assertRaisesRegex(
         ValueError,
         "type_with_no_typeinfo",
-        lambda: named_tuple_from_schema(schema_proto))
+        lambda: named_tuple_from_schema(
+            schema_proto,
+            # bypass schema cache
+            schema_registry=SchemaTypeRegistry()))
 
 
 if __name__ == '__main__':

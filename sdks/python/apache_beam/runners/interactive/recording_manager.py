@@ -398,12 +398,11 @@ class RecordingManager:
     utils.watch_sources(self.user_pipeline)
 
     # Attempt to run background caching job to record any sources.
-    if ie.current_env().is_in_ipython:
-      warnings.filterwarnings(
-          'ignore',
-          'options is deprecated since First stable release. References to '
-          '<pipeline>.options will not be supported',
-          category=DeprecationWarning)
+    warnings.filterwarnings(
+        'ignore',
+        'options is deprecated since First stable release. References to '
+        '<pipeline>.options will not be supported',
+        category=DeprecationWarning)
     if bcj.attempt_to_run_background_caching_job(
         runner,
         self.user_pipeline,
