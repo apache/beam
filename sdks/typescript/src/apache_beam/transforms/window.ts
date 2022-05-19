@@ -19,12 +19,12 @@
 import * as runnerApi from "../proto/beam_runner_api";
 import * as urns from "../internal/urns";
 
-import { PTransform } from "./transform";
+import { PTransform, withName, extractName } from "./transform";
 import { Coder } from "../coders/coders";
 import { Window } from "../values";
 import { PCollection } from "../pvalue";
 import { Pipeline } from "../internal/pipeline";
-import { ParDo } from "./pardo";
+import { parDo } from "./pardo";
 import { serializeFn } from "../internal/serialize";
 
 export interface WindowFn<W extends Window> {
@@ -35,108 +35,96 @@ export interface WindowFn<W extends Window> {
   assignsToOneWindow: () => boolean;
 }
 
-export class WindowInto<T, W extends Window> extends PTransform<
-  PCollection<T>,
-  PCollection<T>
-> {
-  static createWindowingStrategy(
-    pipeline: Pipeline,
-    windowFn: WindowFn<any>,
-    windowingStrategyBase: runnerApi.WindowingStrategy | undefined = undefined
-  ): runnerApi.WindowingStrategy {
-    let result: runnerApi.WindowingStrategy;
-    if (windowingStrategyBase == undefined) {
-      result = {
-        windowFn: undefined!,
-        windowCoderId: undefined!,
-        mergeStatus: undefined!,
-        assignsToOneWindow: undefined!,
-        trigger: { trigger: { oneofKind: "default", default: {} } },
-        accumulationMode: runnerApi.AccumulationMode_Enum.DISCARDING,
-        outputTime: runnerApi.OutputTime_Enum.END_OF_WINDOW,
-        closingBehavior: runnerApi.ClosingBehavior_Enum.EMIT_ALWAYS,
-        onTimeBehavior: runnerApi.OnTimeBehavior_Enum.FIRE_ALWAYS,
-        allowedLateness: BigInt(0),
-        environmentId: pipeline.defaultEnvironment,
-      };
-    } else {
-      result = runnerApi.WindowingStrategy.clone(windowingStrategyBase);
+export function createWindowingStrategyProto(
+  pipeline: Pipeline,
+  windowFn: WindowFn<any>,
+  windowingStrategyBase: runnerApi.WindowingStrategy | undefined = undefined
+): runnerApi.WindowingStrategy {
+  let result: runnerApi.WindowingStrategy;
+  if (windowingStrategyBase == undefined) {
+    result = {
+      windowFn: undefined!,
+      windowCoderId: undefined!,
+      mergeStatus: undefined!,
+      assignsToOneWindow: undefined!,
+      trigger: { trigger: { oneofKind: "default", default: {} } },
+      accumulationMode: runnerApi.AccumulationMode_Enum.DISCARDING,
+      outputTime: runnerApi.OutputTime_Enum.END_OF_WINDOW,
+      closingBehavior: runnerApi.ClosingBehavior_Enum.EMIT_ALWAYS,
+      onTimeBehavior: runnerApi.OnTimeBehavior_Enum.FIRE_ALWAYS,
+      allowedLateness: BigInt(0),
+      environmentId: pipeline.defaultEnvironment,
+    };
+  } else {
+    result = runnerApi.WindowingStrategy.clone(windowingStrategyBase);
+  }
+  result.windowFn = windowFn.toProto();
+  result.windowCoderId = pipeline.context.getCoderId(windowFn.windowCoder());
+  result.mergeStatus = windowFn.isMerging()
+    ? runnerApi.MergeStatus_Enum.NEEDS_MERGE
+    : runnerApi.MergeStatus_Enum.NON_MERGING;
+  result.assignsToOneWindow = windowFn.assignsToOneWindow();
+  return result;
+}
+
+export function windowInto<T, W extends Window>(
+  windowFn: WindowFn<W>,
+  windowingStrategyBase: runnerApi.WindowingStrategy | undefined = undefined
+): PTransform<PCollection<T>, PCollection<T>> {
+  return withName(
+    `WindowInto(${extractName(windowFn)}, ${windowingStrategyBase})`,
+    (
+      input: PCollection<T>,
+      pipeline: Pipeline,
+      transformProto: runnerApi.PTransform
+    ) => {
+      transformProto.spec = runnerApi.FunctionSpec.create({
+        urn: parDo.urn,
+        payload: runnerApi.ParDoPayload.toBinary(
+          runnerApi.ParDoPayload.create({
+            doFn: runnerApi.FunctionSpec.create({
+              urn: urns.JS_WINDOW_INTO_DOFN_URN,
+              payload: serializeFn({ windowFn: windowFn }),
+            }),
+          })
+        ),
+      });
+
+      const inputCoder = pipeline.context.getPCollectionCoderId(input);
+      return pipeline.createPCollectionInternal<T>(
+        inputCoder,
+        createWindowingStrategyProto(pipeline, windowFn, windowingStrategyBase)
+      );
     }
-    result.windowFn = windowFn.toProto();
-    result.windowCoderId = pipeline.context.getCoderId(windowFn.windowCoder());
-    result.mergeStatus = windowFn.isMerging()
-      ? runnerApi.MergeStatus_Enum.NEEDS_MERGE
-      : runnerApi.MergeStatus_Enum.NON_MERGING;
-    result.assignsToOneWindow = windowFn.assignsToOneWindow();
-    return result;
-  }
-
-  constructor(
-    private windowFn: WindowFn<W>,
-    private windowingStrategyBase:
-      | runnerApi.WindowingStrategy
-      | undefined = undefined
-  ) {
-    super("WindowInto(" + windowFn + ", " + windowingStrategyBase + ")");
-  }
-
-  expandInternal(
-    input: PCollection<T>,
-    pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
-  ) {
-    transformProto.spec = runnerApi.FunctionSpec.create({
-      urn: ParDo.urn,
-      payload: runnerApi.ParDoPayload.toBinary(
-        runnerApi.ParDoPayload.create({
-          doFn: runnerApi.FunctionSpec.create({
-            urn: urns.JS_WINDOW_INTO_DOFN_URN,
-            payload: serializeFn({ windowFn: this.windowFn }),
-          }),
-        })
-      ),
-    });
-
-    const inputCoder = pipeline.context.getPCollectionCoderId(input);
-    return pipeline.createPCollectionInternal<T>(
-      inputCoder,
-      WindowInto.createWindowingStrategy(
-        pipeline,
-        this.windowFn,
-        this.windowingStrategyBase
-      )
-    );
-  }
+  );
 }
 
 // TODO: (Cleanup) Add restrictions on moving backwards?
-export class AssignTimestamps<T> extends PTransform<
-  PCollection<T>,
-  PCollection<T>
-> {
-  constructor(private func: (T, Instant) => typeof Instant) {
-    super();
-  }
+export function assignTimestamps<T>(
+  timestampFn: (T, Instant) => typeof Instant
+): PTransform<PCollection<T>, PCollection<T>> {
+  return withName(
+    `assignTimestamp(${extractName(timestampFn)})`,
+    (
+      input: PCollection<T>,
+      pipeline: Pipeline,
+      transformProto: runnerApi.PTransform
+    ) => {
+      transformProto.spec = runnerApi.FunctionSpec.create({
+        urn: parDo.urn,
+        payload: runnerApi.ParDoPayload.toBinary(
+          runnerApi.ParDoPayload.create({
+            doFn: runnerApi.FunctionSpec.create({
+              urn: urns.JS_ASSIGN_TIMESTAMPS_DOFN_URN,
+              payload: serializeFn({ func: timestampFn }),
+            }),
+          })
+        ),
+      });
 
-  expandInternal(
-    input: PCollection<T>,
-    pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
-  ) {
-    transformProto.spec = runnerApi.FunctionSpec.create({
-      urn: ParDo.urn,
-      payload: runnerApi.ParDoPayload.toBinary(
-        runnerApi.ParDoPayload.create({
-          doFn: runnerApi.FunctionSpec.create({
-            urn: urns.JS_ASSIGN_TIMESTAMPS_DOFN_URN,
-            payload: serializeFn({ func: this.func }),
-          }),
-        })
-      ),
-    });
-
-    return pipeline.createPCollectionInternal<T>(
-      pipeline.context.getPCollectionCoderId(input)
-    );
-  }
+      return pipeline.createPCollectionInternal<T>(
+        pipeline.context.getPCollectionCoderId(input)
+      );
+    }
+  );
 }

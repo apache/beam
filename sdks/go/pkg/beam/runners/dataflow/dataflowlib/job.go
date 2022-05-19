@@ -240,26 +240,43 @@ func WaitForCompletion(ctx context.Context, client *df.Service, project, region,
 			return errors.Wrap(err, "failed to get job")
 		}
 
-		switch j.CurrentState {
-		case "JOB_STATE_DONE":
-			log.Info(ctx, "Job succeeded!")
+		terminal, msg, err := currentStateMessage(j.CurrentState, jobID)
+		if err != nil {
+			return err
+		}
+		log.Infof(ctx, msg)
+		if terminal {
 			return nil
-
-		case "JOB_STATE_CANCELLED":
-			log.Info(ctx, "Job cancelled")
-			return nil
-
-		case "JOB_STATE_FAILED":
-			return errors.Errorf("job %s failed", jobID)
-
-		case "JOB_STATE_RUNNING":
-			log.Info(ctx, "Job still running ...")
-
-		default:
-			log.Infof(ctx, "Job state: %v ...", j.CurrentState)
 		}
 
 		time.Sleep(30 * time.Second)
+	}
+}
+
+// currentStateMessage indicates if the state is terminal, and provides a message to log, or an error.
+// Errors are always terminal.
+func currentStateMessage(currentState, jobID string) (bool, string, error) {
+	switch currentState {
+	// Add all Terminal Success stats here.
+	case "JOB_STATE_DONE", "JOB_STATE_CANCELLED", "JOB_STATE_DRAINED", "JOB_STATE_UPDATED":
+		var state string
+		switch currentState {
+		case "JOB_STATE_DONE":
+			state = "succeeded!"
+		case "JOB_STATE_CANCELLED":
+			state = "cancelled"
+		case "JOB_STATE_DRAINED":
+			state = "drained"
+		case "JOB_STATE_UPDATED":
+			state = "updated"
+		}
+		return true, fmt.Sprintf("Job %v %v", jobID, state), nil
+	case "JOB_STATE_FAILED":
+		return true, "", errors.Errorf("Job %s failed", jobID)
+	case "JOB_STATE_RUNNING":
+		return false, "Job still running ...", nil
+	default:
+		return false, fmt.Sprintf("Job state: %v ...", currentState), nil
 	}
 }
 
