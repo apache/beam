@@ -2468,15 +2468,15 @@ class ReadFromBigQuery(PTransform):
     self._args = args
     self._kwargs = kwargs
 
-    if self.output_type != (None, 'BEAM_ROWS'):
-      raise TypeError('This output type is currently not supported.')
-    elif self.output_type == 'BEAM_ROWS':
+    if self.output_type == 'BEAM_ROWS':
       ReadFromBigQuery.get_pcoll_from_schema(
           apache_beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().
           get_table(
               project_id=self.project,
               dataset_id=self.dataset,
               table_id=self.table).schema)
+    elif self.output_type != 'BEAM_ROWS':
+      raise TypeError('This output type is currently not supported.')
 
   def expand(self, pcoll):
     if self.method is ReadFromBigQuery.Method.EXPORT:
