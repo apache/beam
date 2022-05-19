@@ -72,6 +72,10 @@ type RTracker interface {
 	// the only split point is the end of the restriction, or the split failed for some recoverable
 	// reason), then this function returns nil as the residual.
 	//
+	// If the split fraction is 0 (e.g. a self-checkpointing split) TrySplit() should return either
+	// a nil primary or an RTracker that is both bounded and has size 0. This ensures that there is
+	// no data that is lost by not being rescheduled for execution later.
+	//
 	// If an error is returned, some catastrophic failure occurred and the entire bundle will fail.
 	TrySplit(fraction float64) (primary, residual interface{}, err error)
 
