@@ -137,29 +137,23 @@ describe("standard Beam coders on Javascript", function () {
     contexts.forEach((context) => {
       describe("in Context " + context, function () {
         const spec = doc;
-
-        const coderConstructor = globalRegistry().get(urn);
-        var coder;
+        var components;
         if (spec.coder.components) {
-          var components;
-          try {
-            components = spec.coder.components.map(
-              (c) => new (globalRegistry().get(c.urn))()
-            );
-          } catch (Error) {
-            return;
-          }
-          coder = new coderConstructor(...components);
+          components = spec.coder.components.map(
+            // Second level coders have neither payloads nor components.
+            (c) => globalRegistry().getCoder(c.urn)
+          );
         } else {
-          coder = new coderConstructor();
+          components = [];
         }
-        describeCoder(coder, urn, context, spec);
+        const coder = globalRegistry().getCoder(urn, undefined, ...components);
+        runCoderTest(coder, urn, context, spec);
       });
     });
   });
 });
 
-function describeCoder<T>(coder: Coder<T>, urn, context, spec: CoderSpec) {
+function runCoderTest<T>(coder: Coder<T>, urn, context, spec: CoderSpec) {
   describe(
     util.format(
       "coder %s (%s)",

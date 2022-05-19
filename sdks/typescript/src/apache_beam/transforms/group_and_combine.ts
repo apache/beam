@@ -17,8 +17,9 @@
  */
 
 import { KV } from "../values";
-import { PTransform } from "./transform";
+import { PTransform, PTransformClass, withName } from "./transform";
 import { PCollection } from "../pvalue";
+import { PValue } from "../pvalue";
 import * as internal from "./internal";
 import { count } from "./combiners";
 
@@ -40,13 +41,13 @@ export interface CombineFn<I, A, O> {
 type Combiner<I> = CombineFn<I, any, any> | ((a: any, b: any) => any);
 
 /**
- * A PTransform that takes a PCollection of elements, and returns a PCollection
+ * A PTransformClass that takes a PCollection of elements, and returns a PCollection
  * of elements grouped by a field, multiple fields, an expression that is used
  * as the grouping key.
  *
- * @extends PTransform
+ * @extends PTransformClass
  */
-export class GroupBy<T, K> extends PTransform<
+export class GroupBy<T, K> extends PTransformClass<
   PCollection<T>,
   PCollection<KV<K, Iterable<T>>>
 > {
@@ -72,7 +73,7 @@ export class GroupBy<T, K> extends PTransform<
     const keyFn = this.keyFn;
     return input
       .map((x) => ({ key: keyFn(x), value: x }))
-      .apply(new internal.GroupByKey());
+      .apply(internal.groupByKey());
   }
 
   combining<I>(
@@ -88,6 +89,13 @@ export class GroupBy<T, K> extends PTransform<
   }
 }
 
+export function groupBy<T, K>(
+  key: string | string[] | ((element: T) => K),
+  keyName: string | undefined = undefined
+): GroupBy<T, K> {
+  return new GroupBy<T, K>(key, keyName);
+}
+
 /**
  * Groups all elements of the input PCollection together.
  *
@@ -95,7 +103,7 @@ export class GroupBy<T, K> extends PTransform<
  * loses parallelization benefits in bringing all elements of a distributed
  * PCollection together on a single machine.
  */
-export class GroupGlobally<T> extends PTransform<
+export class GroupGlobally<T> extends PTransformClass<
   PCollection<T>,
   PCollection<Iterable<T>>
 > {
@@ -120,7 +128,11 @@ export class GroupGlobally<T> extends PTransform<
   }
 }
 
-class GroupByAndCombine<T, O> extends PTransform<
+export function groupGlobally<T>() {
+  return new GroupGlobally<T>();
+}
+
+class GroupByAndCombine<T, O> extends PTransformClass<
   PCollection<T>,
   PCollection<O>
 > {
@@ -167,8 +179,8 @@ class GroupByAndCombine<T, O> extends PTransform<
         };
       })
       .apply(
-        new internal.CombinePerKey(
-          new MultiCombineFn(this_.combiners.map((c) => c.combineFn))
+        internal.combinePerKey(
+          multiCombineFn(this_.combiners.map((c) => c.combineFn))
         )
       )
       .map(function constructResult(kv) {
@@ -190,34 +202,30 @@ class GroupByAndCombine<T, O> extends PTransform<
   }
 }
 
-// TODO: (API) Does this carry its weight as a top-level built-in function?
-// Cons: It's just a combine. Pros: It's kind of a non-obvious one.
-// NOTE: The encoded form of the elements will be used for equality checking.
-export class CountPerElement<T> extends PTransform<
+export function countPerElement<T>(): PTransform<
   PCollection<T>,
   PCollection<{ element: T; count: number }>
 > {
-  expand(input) {
-    return input.apply(
-      new GroupBy((e) => e, "element").combining((e) => e, count, "count")
-    );
-  }
+  return withName(
+    "countPerElement",
+    groupBy((e) => e, "element").combining((e) => e, count, "count")
+  );
 }
 
-export class CountGlobally<T> extends PTransform<
+export function countGlobally<T>(): PTransform<
   PCollection<T>,
   PCollection<number>
 > {
-  expand(input) {
-    return input
+  return withName("countGlobally", (input) =>
+    input
       .apply(new GroupGlobally().combining((e) => e, count, "count"))
-      .map((o) => o.count);
-  }
+      .map((o) => o.count)
+  );
 }
 
 function toCombineFn<I>(combiner: Combiner<I>): CombineFn<I, any, any> {
   if (typeof combiner == "function") {
-    return new BinaryCombineFn<I>(combiner);
+    return binaryCombineFn<I>(combiner);
   } else {
     return combiner;
   }
@@ -229,71 +237,62 @@ interface CombineSpec<T, I, O> {
   resultName: string;
 }
 
-class BinaryCombineFn<I> implements CombineFn<I, I | undefined, I> {
-  constructor(private combiner: (a: I, b: I) => I) {}
-  createAccumulator() {
-    return undefined;
-  }
-  addInput(a, b) {
-    if (a == undefined) {
-      return b;
-    } else {
-      return this.combiner(a, b);
-    }
-  }
-  mergeAccumulators(accs) {
-    return accs.filter((a) => a != undefined).reduce(this.combiner, undefined);
-  }
-  extractOutput(a) {
-    return a;
-  }
+function binaryCombineFn<I>(
+  combiner: (a: I, b: I) => I
+): CombineFn<I, I | undefined, I> {
+  return {
+    createAccumulator: () => undefined,
+    addInput: (a, b) => (a === undefined ? b : combiner(a, b)),
+    mergeAccumulators: (accs) =>
+      [...accs].filter((a) => a != undefined).reduce(combiner, undefined),
+    extractOutput: (a) => a,
+  };
 }
 
-class MultiCombineFn implements CombineFn<any[], any[], any[]> {
-  batchSize: number = 100;
-  // TODO: (Typescript) Is there a way to indicate type parameters match the above?
-  constructor(private combineFns: CombineFn<any, any, any>[]) {}
+// TODO: (Typescript) Is there a way to indicate type parameters match the above?
+function multiCombineFn(
+  combineFns: CombineFn<any, any, any>[],
+  batchSize: number = 100
+): CombineFn<any[], any[], any[]> {
+  return {
+    createAccumulator: () => combineFns.map((fn) => fn.createAccumulator()),
 
-  createAccumulator() {
-    return this.combineFns.map((fn) => fn.createAccumulator());
-  }
-
-  addInput(accumulators: any[], inputs: any[]) {
-    // TODO: (Cleanup) Does javascript have a clean zip?
-    let result: any[] = [];
-    for (let i = 0; i < this.combineFns.length; i++) {
-      result.push(this.combineFns[i].addInput(accumulators[i], inputs[i]));
-    }
-    return result;
-  }
-
-  mergeAccumulators(accumulators: Iterable<any[]>) {
-    const combineFns = this.combineFns;
-    let batches = combineFns.map((fn) => [fn.createAccumulator()]);
-    for (let acc of accumulators) {
+    addInput: (accumulators: any[], inputs: any[]) => {
+      // TODO: (Cleanup) Does javascript have a clean zip?
+      let result: any[] = [];
       for (let i = 0; i < combineFns.length; i++) {
-        batches[i].push(acc[i]);
-        if (batches[i].length > this.batchSize) {
+        result.push(combineFns[i].addInput(accumulators[i], inputs[i]));
+      }
+      return result;
+    },
+
+    mergeAccumulators: (accumulators: Iterable<any[]>) => {
+      let batches = combineFns.map((fn) => [fn.createAccumulator()]);
+      for (let acc of accumulators) {
+        for (let i = 0; i < combineFns.length; i++) {
+          batches[i].push(acc[i]);
+          if (batches[i].length > batchSize) {
+            batches[i] = [combineFns[i].mergeAccumulators(batches[i])];
+          }
+        }
+      }
+      for (let i = 0; i < combineFns.length; i++) {
+        if (batches[i].length > 1) {
           batches[i] = [combineFns[i].mergeAccumulators(batches[i])];
         }
       }
-    }
-    for (let i = 0; i < combineFns.length; i++) {
-      if (batches[i].length > 1) {
-        batches[i] = [combineFns[i].mergeAccumulators(batches[i])];
-      }
-    }
-    return batches.map((batch) => batch[0]);
-  }
+      return batches.map((batch) => batch[0]);
+    },
 
-  extractOutput(accumulators: any[]) {
-    // TODO: (Cleanup) Does javascript have a clean zip?
-    let result: any[] = [];
-    for (let i = 0; i < this.combineFns.length; i++) {
-      result.push(this.combineFns[i].extractOutput(accumulators[i]));
-    }
-    return result;
-  }
+    extractOutput: (accumulators: any[]) => {
+      // TODO: (Cleanup) Does javascript have a clean zip?
+      let result: any[] = [];
+      for (let i = 0; i < combineFns.length; i++) {
+        result.push(combineFns[i].extractOutput(accumulators[i]));
+      }
+      return result;
+    },
+  };
 }
 
 // TODO: (Typescript) Can I type T as "something that has this key" and/or,
@@ -330,7 +329,5 @@ function extractFn<T, K>(extractor: string | string[] | ((T) => K)) {
 import { requireForSerialization } from "../serialization";
 requireForSerialization("apache_beam.transforms.pardo", exports);
 requireForSerialization("apache_beam.transforms.pardo", {
-  BinaryCombineFn: BinaryCombineFn,
   GroupByAndCombine: GroupByAndCombine,
-  MultiCombineFn: MultiCombineFn,
 });
