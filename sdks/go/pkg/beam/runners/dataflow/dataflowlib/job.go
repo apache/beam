@@ -262,7 +262,7 @@ func currentStateMessage(currentState, jobID string) (bool, string, error) {
 		var state string
 		switch currentState {
 		case "JOB_STATE_DONE":
-			state = "succeeded"
+			state = "succeeded!"
 		case "JOB_STATE_CANCELLED":
 			state = "cancelled"
 		case "JOB_STATE_DRAINED":
