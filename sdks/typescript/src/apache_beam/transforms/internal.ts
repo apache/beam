@@ -171,7 +171,7 @@ export function combinePerKey<K, InputT, AccT, OutputT>(
   combineFn: CombineFn<InputT, AccT, OutputT>
 ): PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
   function expandInternal(input: PCollection<KV<any, InputT>>) {
-    input //
+    return input //
       .apply(groupByKey())
       .map(
         withName("applyCombine", (kv) => ({

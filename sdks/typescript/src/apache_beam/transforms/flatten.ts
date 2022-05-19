@@ -17,7 +17,7 @@
  */
 
 import * as runnerApi from "../proto/beam_runner_api";
-import { PTransform } from "./transform";
+import { PTransform, withName } from "./transform";
 import { PCollection } from "../pvalue";
 import { Pipeline } from "../internal/pipeline";
 import { GeneralObjectCoder } from "../coders/js_coders";

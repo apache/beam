@@ -56,8 +56,10 @@ class CoderRegistry {
     }
   }
 
-  register(urn: string, constructorOrClass: Class<Coder<any>>) {
-    this.registerClass(urn, constructorOrClass);
+  // TODO: Figure out how to branch on constructors (called with new) and
+  // ordinary functions.
+  register(urn: string, coderClass: Class<Coder<any>>) {
+    this.registerClass(urn, coderClass);
   }
 
   registerClass(urn: string, coderClass: Class<Coder<any>>) {
