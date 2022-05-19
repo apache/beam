@@ -387,6 +387,7 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 		return SplitResult{}, -1 * time.Minute, false, err
 	}
 	if len(ps) != 0 {
+		// Expected structure of the root FullValue is KV<KV<Elm, KV<BoundedRTracker, watermarkEstimatorState>>, Size, (Timestamp?, Windows?)>
 		for _, root := range ps {
 			tracker, size, ok := getBoundedRTrackerFromRoot(root)
 			// If type assertion didn't return a BoundableRTracker, we move on.
