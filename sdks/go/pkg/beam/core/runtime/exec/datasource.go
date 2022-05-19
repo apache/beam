@@ -386,6 +386,9 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 	if err != nil {
 		return SplitResult{}, -1 * time.Minute, false, err
 	}
+	if len(rs) == 0 {
+		return SplitResult{}, -1 * time.Minute, false, nil
+	}
 	if len(ps) != 0 {
 		// Expected structure of the root FullValue is KV<KV<Elm, KV<BoundedRTracker, watermarkEstimatorState>>, Size, (Timestamp?, Windows?)>
 		for _, root := range ps {
