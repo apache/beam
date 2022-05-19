@@ -65,7 +65,7 @@
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Go SDK users can now use generic registration functions to optimize their DoFn execution. ([BEAM-14347](https://issues.apache.org/jira/browse/BEAM-14347))
 * Go SDK users may now write self-checkpointing Splittable DoFns to read from streaming sources. ([BEAM-11104](https://issues.apache.org/jira/browse/BEAM-11104))
-* The dill library for python is updated to version 0.3.4 ([BEAM-11167](https://issues.apache.org/jira/browse/BEAM-11167))
+* The serialization (pickling)  library for Python is updated to dill==0.3.4 ([BEAM-11167](https://issues.apache.org/jira/browse/BEAM-11167))
 
 ## Breaking Changes
 
