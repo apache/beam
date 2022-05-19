@@ -350,15 +350,23 @@ func (n *DataSource) makeEncodeElms() func([]*FullValue) ([][]byte, error) {
 }
 
 func getBoundedRTrackerFromRoot(root *FullValue) (sdf.BoundableRTracker, float64, bool) {
-	tracker, ok := root.Elm.(*FullValue).Elm2.(*FullValue).Elm.(sdf.BoundableRTracker)
+	tElm := root.Elm.(*FullValue).Elm2.(*FullValue).Elm
+	tracker, ok := tElm.(sdf.RTracker)
 	if !ok {
+		log.Warnf(context.Background(), "expected type sdf.RTracker, got type %T", tElm)
+		return nil, -1.0, false
+	}
+	boundTracker, ok := tracker.(sdf.BoundableRTracker)
+	if !ok {
+		log.Warn(context.Background(), "expected type sdf.BoundableRTracker; ensure that the RTracker implements IsBounded()")
 		return nil, -1.0, false
 	}
 	size, ok := root.Elm2.(float64)
 	if !ok {
+		log.Warnf(context.Background(), "expected size to be type float64, got type %T", root.Elm2)
 		return nil, -1.0, false
 	}
-	return tracker, size, true
+	return boundTracker, size, true
 }
 
 // Checkpoint attempts to split an SDF that has self-checkpointed (e.g. returned a
