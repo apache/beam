@@ -98,9 +98,9 @@ $(document).ready(function() {
                     let elCurrentHeight = window.pageYOffset + previousEl.getBoundingClientRect().top;
 
                     // console.log(elPreviousHeight, elCurrentHeight);
-                    setTimeout(function() {
-                        $('html, body').scrollTop(elCurrentHeight - elPreviousHeightFromViewPort);
-                    }, 100);
+
+                    $('html, body').scrollTop(elCurrentHeight - elPreviousHeightFromViewPort);
+
                 });
             },
             "toggle": function() {
