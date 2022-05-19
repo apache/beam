@@ -17,7 +17,6 @@
 package textio
 
 import (
-	"context"
 	"errors"
 	"os"
 	"testing"
@@ -29,23 +28,6 @@ import (
 )
 
 const testFilePath = "../../../../data/textio_test.txt"
-
-func TestReadFn(t *testing.T) {
-	receivedLines := []string{}
-	getLines := func(line string) {
-		receivedLines = append(receivedLines, line)
-	}
-
-	err := readFn(context.Background(), testFilePath, getLines)
-	if err != nil {
-		t.Fatalf("failed with %v", err)
-	}
-	want := 1
-	if len(receivedLines) != 1 {
-		t.Fatalf("received %v lines, want %v", len(receivedLines), want)
-	}
-
-}
 
 func TestRead(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()

@@ -19,7 +19,6 @@ package textio
 import (
 	"bufio"
 	"context"
-	"io"
 	"os"
 	"reflect"
 	"strings"
@@ -31,31 +30,20 @@ import (
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*writeFileFn)(nil)).Elem())
-	beam.RegisterFunction(readFn)
 	beam.RegisterFunction(expandFn)
 }
 
 // Read reads a set of file and returns the lines as a PCollection<string>. The
 // newlines are not part of the lines.
 func Read(s beam.Scope, glob string) beam.PCollection {
-	s = s.Scope("textio.Read")
-
-	filesystem.ValidateScheme(glob)
-	return read(s, beam.Create(s, glob))
+	return ReadSdf(s, glob)
 }
 
 // ReadAll expands and reads the filename given as globs by the incoming
 // PCollection<string>. It returns the lines of all files as a single
 // PCollection<string>. The newlines are not part of the lines.
 func ReadAll(s beam.Scope, col beam.PCollection) beam.PCollection {
-	s = s.Scope("textio.ReadAll")
-
-	return read(s, col)
-}
-
-func read(s beam.Scope, col beam.PCollection) beam.PCollection {
-	files := beam.ParDo(s, expandFn, col)
-	return beam.ParDo(s, readFn, files)
+	return ReadAllSdf(s, col)
 }
 
 func expandFn(ctx context.Context, glob string, emit func(string)) error {
@@ -75,38 +63,6 @@ func expandFn(ctx context.Context, glob string, emit func(string)) error {
 	}
 	for _, filename := range files {
 		emit(filename)
-	}
-	return nil
-}
-
-func readFn(ctx context.Context, filename string, emit func(string)) error {
-	log.Infof(ctx, "Reading from %v", filename)
-
-	fs, err := filesystem.New(ctx, filename)
-	if err != nil {
-		return err
-	}
-	defer fs.Close()
-
-	fd, err := fs.OpenRead(ctx, filename)
-	if err != nil {
-		return err
-	}
-	defer fd.Close()
-
-	rd := bufio.NewReader(fd)
-	for {
-		line, err := rd.ReadString('\n')
-		if err == io.EOF {
-			if len(line) != 0 {
-				emit(strings.TrimSuffix(line, "\n"))
-			}
-			break
-		}
-		if err != nil {
-			return err
-		}
-		emit(strings.TrimSuffix(line, "\n"))
 	}
 	return nil
 }

@@ -37,8 +37,10 @@ func init() {
 
 // ReadSdf is a variation of Read implemented via SplittableDoFn. This should
 // result in increased performance with runners that support splitting.
+//
+// Deprecated: Called directly by Read, use that instead.
 func ReadSdf(s beam.Scope, glob string) beam.PCollection {
-	s = s.Scope("textio.ReadSdf")
+	s = s.Scope("textio.Read")
 
 	filesystem.ValidateScheme(glob)
 	return readSdf(s, beam.Create(s, glob))
@@ -46,8 +48,10 @@ func ReadSdf(s beam.Scope, glob string) beam.PCollection {
 
 // ReadAllSdf is a variation of ReadAll implemented via SplittableDoFn. This
 // should result in increased performance with runners that support splitting.
+//
+// Deprecated: Called directly by ReadAll, use that instead.
 func ReadAllSdf(s beam.Scope, col beam.PCollection) beam.PCollection {
-	s = s.Scope("textio.ReadAllSdf")
+	s = s.Scope("textio.ReadAll")
 
 	return readSdf(s, col)
 }
