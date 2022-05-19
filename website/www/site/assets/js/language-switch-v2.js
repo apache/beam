@@ -13,8 +13,8 @@
 $(document).ready(function() {
     function Switcher(conf) {
         var id = conf["class-prefix"],
-            def = conf["default"],
-            langs = [];
+          def = conf["default"],
+          langs = [];
         var prefix = id + "-";
         return {
             "id": id,
@@ -25,10 +25,10 @@ $(document).ready(function() {
 
             /**
              * @desc Generate bootstrapped like nav template,
-                    showing supported types in nav.
+             showing supported types in nav.
              * @param array $types - list of supported types.
              * @return string - html template, which is bootstrapped nav tabs.
-            */
+             */
             "navHtml": function(types) {
                 var lists = "";
                 var selectors = "";
@@ -69,12 +69,12 @@ $(document).ready(function() {
             },
             /**
              * @desc Search next sibling and if it's also a code block, then store
-                    its type and move on to the next element. It will keep
-                    looking until there is no direct code block descendant left.
+             its type and move on to the next element. It will keep
+             looking until there is no direct code block descendant left.
              * @param object $el - jQuery object, from where to start searching.
              * @param array $lang - list to hold types, found while searching.
              * @return array - list of types found.
-            */
+             */
             "lookup": function(el, lang) {
                 if (!el.is("div"+this.selector)) {
                     langs = lang;
@@ -88,8 +88,19 @@ $(document).ready(function() {
                 var _self = this;
                 $("." + _self.wrapper + " ul li").click(function(el) {
                     // Making type preferences presistance, for user.
+                    // console.log(el.target.closest("li").dataset.type);
                     localStorage.setItem(_self.dbKey, $(this).data("type"));
+
+                    const previousEl = el.target.closest('.language-switcher');
+                    const elPreviousHeight = window.pageYOffset + previousEl.getBoundingClientRect().top;
+                    const elPreviousHeightFromViewPort = previousEl.getBoundingClientRect().top;
                     _self.toggle();
+                    let elCurrentHeight = window.pageYOffset + previousEl.getBoundingClientRect().top;
+
+                    // console.log(elPreviousHeight, elCurrentHeight);
+                    setTimeout(function() {
+                        $('html, body').scrollTop(elCurrentHeight - elPreviousHeightFromViewPort);
+                    }, 100);
                 });
             },
             "toggle": function() {
@@ -105,28 +116,28 @@ $(document).ready(function() {
                 });
 
                 if (!isPrefSelected) {
-                  // if there's a code block for the default language,
-                  // set the preferred language to the default language
-                  if (langs.includes(this.default)) {
-                    pref = this.default;
-                  // otherwise set the preferred language to the first available
-                  // language, so we don't have a page with no code blocks
-                  } else {
-                    pref = langs[0];
-                  }
+                    // if there's a code block for the default language,
+                    // set the preferred language to the default language
+                    if (langs.includes(this.default)) {
+                        pref = this.default;
+                        // otherwise set the preferred language to the first available
+                        // language, so we don't have a page with no code blocks
+                    } else {
+                        pref = langs[0];
+                    }
 
-                  $("." + this.wrapper + " li").each(function() {
-                      if ($(this).data("type") === pref) {
-                          $(this).addClass("active");
-                      }
-                  });
-               }
+                    $("." + this.wrapper + " li").each(function() {
+                        if ($(this).data("type") === pref) {
+                            $(this).addClass("active");
+                        }
+                    });
+                }
                 // Swapping visibility of code blocks.
-                $(this.selector).hide();
-                $("nav"+this.selector).show();
+                $(this.selector).css('display', 'none');
+                $("nav"+this.selector).css('display', 'block');
                 // make sure that runner and shell snippets are still visible after changing language
-                $("code"+this.selector).show();
-                $("." + pref).show();
+                $("code"+this.selector).css('display', 'block');
+                $("." + pref).css('display', 'block');
 
                 // Fix nav-menu bug with jumping between links when switching tabs
                 $('[data-spy="scroll"]').each(function () {
@@ -137,6 +148,7 @@ $(document).ready(function() {
                 this.addTabs();
                 this.bindEvents();
                 this.toggle();
+
             }
         };
     }
