@@ -183,8 +183,7 @@ class ReadTests(BigQueryReadIntegrationTests):
     the_table = beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
         project_id="apache-beam-testing",
         dataset_id="beam_bigquery_io_test",
-        table_id="dfsqltable_3c7d6fd5_16e0460dfd0",
-        output_type='BEAM_ROWS')
+        table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
     table = the_table.schema
     utype = beam.io.gcp.bigquery_schema_tools.produce_pcoll_with_schema(table)
     with beam.Pipeline(argv=self.args) as p:
@@ -192,8 +191,8 @@ class ReadTests(BigQueryReadIntegrationTests):
           p | beam.io.gcp.bigquery.ReadFromBigQuery(
               gcs_location="gs://bqio_schema",
               table="beam_bigquery_io_test.dfsqltable_3c7d6fd5_16e0460dfd0",
-              project="apache-beam-testing")
-          | beam.io.gcp.bigquery.ReadFromBigQuery.get_pcoll_from_schema(table))
+              project="apache-beam-testing",
+              output_type='BEAM_ROWS'))
       assert_that(
           result,
           equal_to([
