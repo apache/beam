@@ -29,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // DataSource is a Root execution unit.
@@ -390,6 +391,7 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 			tracker, size, ok := getBoundedRTrackerFromRoot(root)
 			// If type assertion didn't return a BoundableRTracker, we move on.
 			if !ok {
+				log.Warn(context.Background(), "got unexpected primary root contents %v, please check the output of the restriction tracker's TrySplit() function", root)
 				continue
 			}
 			if !tracker.IsBounded() || size > 0.00001 {
