@@ -16,12 +16,14 @@
 package primitives
 
 import (
+	"context"
 	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
 
@@ -77,6 +79,9 @@ func (fn *selfCheckpointingDoFn) ProcessElement(rt *sdf.LockRTracker, _ []byte, 
 			counter++
 		} else if rt.GetError() != nil || rt.IsDone() {
 			// Stop processing on error or completion
+			if err := rt.GetError(); err != nil {
+				log.Errorf(context.Background(), "error in restriction tracker, got %v", err)
+			}
 			return sdf.StopProcessing()
 		} else {
 			// Resume later.
