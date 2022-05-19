@@ -29,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/wrappedbounded"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
@@ -359,7 +360,8 @@ func getBoundedRTrackerFromRoot(root *FullValue) (sdf.BoundableRTracker, float64
 	boundTracker, ok := tracker.(sdf.BoundableRTracker)
 	if !ok {
 		log.Warn(context.Background(), "expected type sdf.BoundableRTracker; ensure that the RTracker implements IsBounded()")
-		return nil, -1.0, false
+		// Assume an RTracker that does not implement IsBounded() will always be bounded, wrap so it can be used.
+		boundTracker = wrappedbounded.NewTracker(tracker)
 	}
 	size, ok := root.Elm2.(float64)
 	if !ok {
