@@ -2424,8 +2424,8 @@ class ReadFromBigQuery(PTransform):
       reading from a table rather than a query. To learn more about query
       priority, see: https://cloud.google.com/bigquery/docs/running-queries
     output_type (str): By default, the schema returned from this transform
-    would be of type TableSchema. Other schema types can be specified
-    ("BEAM_SCHEMAS").
+    would be of type PYTHON_DICT. Other schema types can be specified
+    ("BEAM_ROW").
    """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.
@@ -2467,6 +2467,16 @@ class ReadFromBigQuery(PTransform):
     }
     self._args = args
     self._kwargs = kwargs
+
+    if self.output_type != (None, 'BEAM_ROWS'):
+      raise TypeError('This output type is currently not supported.')
+    elif self.output_type == 'BEAM_ROWS':
+      ReadFromBigQuery.get_pcoll_from_schema(
+          apache_beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().
+          get_table(
+              project_id=self.project,
+              dataset_id=self.dataset,
+              table_id=self.table).schema)
 
   def expand(self, pcoll):
     if self.method is ReadFromBigQuery.Method.EXPORT:
@@ -2557,9 +2567,7 @@ class ReadFromBigQuery(PTransform):
   def get_pcoll_from_schema(table_schema):
     pcoll_val = apache_beam.io.gcp.bigquery_schema_tools.\
         produce_pcoll_with_schema(table_schema)
-    # beam.Map(lambda values: pcoll_val(**values)) |
-    return beam.ParDo(
-        beam.io.gcp.bigquery_schema_tools.BeamSchemaUnabatchedDoFn(pcoll_val))
+    return beam.Map(lambda values: pcoll_val(**values))
 
 
 class ReadFromBigQueryRequest:

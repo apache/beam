@@ -53,7 +53,7 @@ class TestBigQueryToSchema(unittest.TestCase):
         the_table_schema=schema)
     self.assertEqual(usertype.__annotations__, {})
 
-  def test_error_at_runtime(self):
+  def test_unsupported_type(self):
     fields = [
         bigquery.TableFieldSchema(
             name='number', type='DOUBLE', mode="NULLABLE"),
@@ -61,10 +61,21 @@ class TestBigQueryToSchema(unittest.TestCase):
         bigquery.TableFieldSchema(name='count', type='INTEGER', mode="None")
     ]
     schema = bigquery.TableSchema(fields=fields)
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(KeyError,
+                                "Encountered an unsupported type: 'DOUBLE'"):
       bigquery_schema_tools.produce_pcoll_with_schema(the_table_schema=schema)
 
+  def test_unsupported_mode(self):
+    fields = [
+        bigquery.TableFieldSchema(name='number', type='INTEGER', mode="NESTED"),
+        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
+        bigquery.TableFieldSchema(name='count', type='INTEGER', mode="NONE")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    with self.assertRaisesRegex(ValueError,
+                                "Encountered an unsupported mode: 'NESTED'"):
+      bigquery_schema_tools.produce_pcoll_with_schema(the_table_schema=schema)
 
-if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
+  if __name__ == '__main__':
+    logging.getLogger().setLevel(logging.INFO)
+    unittest.main()

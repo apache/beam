@@ -57,14 +57,16 @@ def produce_pcoll_with_schema(the_table_schema):
   the_schema = beam.io.gcp.bigquery_tools.get_dict_table_schema(
       the_table_schema)
   if the_schema == {}:
-    raise ValueError("The schema is empty")
+    raise ValueError("Encountered an empty schema")
   dict_of_tuples = []
   for i in range(len(the_schema['fields'])):
     if the_schema['fields'][i]['type'] in BIG_QUERY_TO_PYTHON_TYPES:
       typ = bq_field_to_type(
           the_schema['fields'][i]['type'], the_schema['fields'][i]['mode'])
     else:
-      raise ValueError(the_schema['fields'][i]['type'])
+      raise KeyError(
+          f"Encountered "
+          f"an unsupported type: {the_schema['fields'][i]['type']!r}")
     # TODO svetaksundhar@: Map remaining BQ types
     dict_of_tuples.append((the_schema['fields'][i]['name'], typ))
   sample_schema = beam.typehints.schemas.named_fields_to_schema(dict_of_tuples)
@@ -86,27 +88,4 @@ def bq_field_to_type(field, mode):
   elif mode == 'None' or mode == '':
     return BIG_QUERY_TO_PYTHON_TYPES[field]
   else:
-    return ValueError("Not a supported mode")
-
-
-class BeamSchemaUnbatchDoFn(beam.DoFn):
-  def __init__(self, pcoll_val_ctor):
-    self._pcoll_val_ctor = pcoll_val_ctor
-
-  def infer_output_type(self, input_type):
-    return self._pcoll_val_ctor
-
-  @classmethod
-  def _from_serialized_schema(cls, dict_of_tuples):
-    return cls(
-        beam.typehints.schemas.named_tuple_from_schema(
-            beam.dataframe.schemas.proto_utils.parse_Bytes(
-                dict_of_tuples, beam.dataframe.schemas.schema_pb2.Schema)))
-
-  def __reduce__(self):
-    # when pickling, use bytes representation of the schema.
-    return (
-        self._from_serialized_schema,
-        (
-            beam.typehints.schemas.named_tuple_to_schema(
-                self._pcoll_val_ctor).SerializeToString(), ))
+    raise ValueError(f"Encountered an unsupported mode: {mode!r}")
