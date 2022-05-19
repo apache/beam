@@ -348,7 +348,7 @@ func (n *DataSource) makeEncodeElms() func([]*FullValue) ([][]byte, error) {
 	return encodeElms
 }
 
-func getRTrackerFromRoot(root *FullValue) (sdf.BoundableRTracker, float64, bool) {
+func getBoundedRTrackerFromRoot(root *FullValue) (sdf.BoundableRTracker, float64, bool) {
 	tracker, ok := root.Elm.(*FullValue).Elm2.(*FullValue).Elm.(sdf.BoundableRTracker)
 	if !ok {
 		return nil, -1.0, false
@@ -387,7 +387,7 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 	}
 	if len(ps) != 0 {
 		for _, root := range ps {
-			tracker, size, ok := getRTrackerFromRoot(root)
+			tracker, size, ok := getBoundedRTrackerFromRoot(root)
 			// If type assertion didn't return a BoundableRTracker, we move on.
 			if !ok {
 				continue
