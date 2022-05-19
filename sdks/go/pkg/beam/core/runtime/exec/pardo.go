@@ -507,19 +507,19 @@ func (n *SimpleNoReturnParDo) ProcessElement(_ context.Context, elm *FullValue, 
 		}
 	}
 	// (2) Main input from value, if any.
-	// if n.inv.elmConvert == nil {
-	// 	from := reflect.TypeOf(elm.Elm)
-	// 	n.inv.elmConvert = ConvertFn(from, n.inv.fn.Param[n.k].T)
-	// }
-	// n.inv.args[n.k] = n.inv.elmConvert(elm.Elm)
-	n.inv.args[n.k] = elm.Elm
+	if n.inv.elmConvert == nil {
+		from := reflect.TypeOf(elm.Elm)
+		n.inv.elmConvert = ConvertFn(from, n.inv.fn.Param[n.k].T)
+	}
+	n.inv.args[n.k] = n.inv.elmConvert(elm.Elm)
+	// n.inv.args[n.k] = elm.Elm
 	if elm.Elm2 != nil {
-		// if n.inv.elm2Convert == nil {
-		// 	from := reflect.TypeOf(elm.Elm2)
-		// 	n.inv.elm2Convert = ConvertFn(from, n.inv.fn.Param[n.v].T)
-		// }
-		// n.inv.args[n.v] = n.inv.elm2Convert(elm.Elm2)
-		n.inv.args[n.v] = elm.Elm2
+		if n.inv.elm2Convert == nil {
+			from := reflect.TypeOf(elm.Elm2)
+			n.inv.elm2Convert = ConvertFn(from, n.inv.fn.Param[n.v].T)
+		}
+		n.inv.args[n.v] = n.inv.elm2Convert(elm.Elm2)
+		// n.inv.args[n.v] = elm.Elm2
 	}
 
 	n.call()

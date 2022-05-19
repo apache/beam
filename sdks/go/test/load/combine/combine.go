@@ -19,6 +19,9 @@ import (
 	"bytes"
 	"context"
 	"flag"
+	"fmt"
+	"io/ioutil"
+	"runtime/pprof"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/synthetic"
@@ -73,6 +76,13 @@ func main() {
 
 	ctx := context.Background()
 
+	f, err := ioutil.TempFile("/home/rebo/", "cpu*.prof")
+	if err != nil {
+		log.Exitf(ctx, "Unable to open temp file: %v", err)
+	}
+	defer f.Close()
+	pprof.StartCPUProfile(f)
+
 	p, s := beam.NewPipelineWithRoot()
 	src := synthetic.SourceSingle(s, parseSyntheticConfig())
 	src = beam.ParDo(s, &load.RuntimeMonitor{}, src)
@@ -92,4 +102,7 @@ func main() {
 		metrics := presult.Metrics().AllMetrics()
 		load.PublishMetrics(metrics)
 	}
+
+	pprof.StopCPUProfile()
+	fmt.Printf("cpu %s\n", f.Name())
 }
