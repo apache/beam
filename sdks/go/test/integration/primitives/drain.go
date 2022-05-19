@@ -37,7 +37,21 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*TruncateFn)(nil)).Elem())
 }
 
-type TruncateFn struct{}
+type RangeEstimator struct {
+	End int64
+}
+
+func (r *RangeEstimator) Estimate() int64 {
+	return r.End
+}
+
+func (r *RangeEstimator) SetEstimate(estimate int64) {
+	r.End = estimate
+}
+
+type TruncateFn struct {
+	Estimator RangeEstimator
+}
 
 // CreateInitialRestriction creates an initial restriction
 func (fn *TruncateFn) CreateInitialRestriction(b []byte) offsetrange.Restriction {
@@ -49,7 +63,13 @@ func (fn *TruncateFn) CreateInitialRestriction(b []byte) offsetrange.Restriction
 
 // CreateTracker wraps the fiven restriction into a LockRTracker type.
 func (fn *TruncateFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
-	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
+	// return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
+	fn.Estimator = RangeEstimator{50}
+	tracker, err := offsetrange.NewGrowableTracker(rest.Start, &fn.Estimator)
+	if err != nil {
+		panic(err)
+	}
+	return sdf.NewLockRTracker(tracker)
 }
 
 // RestrictionSize returns the size of the current restriction
