@@ -498,11 +498,13 @@ class TestReadFromBigQuery(unittest.TestCase):
   ])
   def test_create_temp_dataset_exception(self, exception_type, error_message):
 
-    with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert') as a,\
-          mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService, 'Insert') as mock_insert, \
-          mock.patch('time.sleep') as unused_mock, \
-          self.assertRaises(Exception) as exc,\
-          beam.Pipeline() as p:
+    with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                           'Insert'),\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService,
+                        'Insert') as mock_insert, \
+      mock.patch('time.sleep'), \
+      self.assertRaises(Exception) as exc,\
+      beam.Pipeline() as p:
 
       mock_insert.side_effect = exception_type(error_message)
 
@@ -526,12 +528,15 @@ class TestReadFromBigQuery(unittest.TestCase):
   ])
   def test_query_job_exception(self, exception_type, error_message):
 
-    with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource, 'estimate_size') as mock_estimate,\
-            mock.patch.object(BigQueryWrapper, 'get_query_location') as mock_query_location,\
-            mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert') as mock_query_job,\
-            mock.patch('time.sleep') as unused_mock,\
-            self.assertRaises(Exception) as exc,\
-            beam.Pipeline() as p:
+    with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
+                           'estimate_size') as mock_estimate,\
+      mock.patch.object(BigQueryWrapper,
+                        'get_query_location') as mock_query_location,\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                        'Insert') as mock_query_job,\
+      mock.patch('time.sleep'),\
+      self.assertRaises(Exception) as exc,\
+      beam.Pipeline() as p:
 
       mock_estimate.return_value = None
       mock_query_location.return_value = None
@@ -558,10 +563,12 @@ class TestReadFromBigQuery(unittest.TestCase):
   ])
   def test_read_export_exception(self, exception_type, error_message):
 
-    with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource, 'estimate_size') as mock_estimate,\
-      mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService, 'Get') as mock_get_table,\
-      mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert') as mock_query_job, \
-      mock.patch('time.sleep') as unused_mock, \
+    with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
+                           'estimate_size') as mock_estimate,\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService, 'Get'),\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                        'Insert') as mock_query_job, \
+      mock.patch('time.sleep'), \
       self.assertRaises(Exception) as exc,\
       beam.Pipeline() as p:
 
@@ -937,17 +944,15 @@ class TestWriteToBigQuery(unittest.TestCase):
           exception_type=exceptions.InternalServerError,
           error_message='internalError'),
   ])
-  def test_load_job_fail_exception(
-      self,
-      exception_type,
-      error_message):
+  def test_load_job_fail_exception(self, exception_type, error_message):
 
-    with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert') as mock_load_job,\
-            mock.patch('apache_beam.io.gcp.internal.clients.storage.storage_v1_client.StorageV1.ObjectsService') \
-                    as mock_storage,\
-            mock.patch('time.sleep') as unused_mock,\
-            self.assertRaises(Exception) as exc,\
-            beam.Pipeline() as p:
+    with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                     'Insert') as mock_load_job,\
+      mock.patch('apache_beam.io.gcp.internal.clients'
+                 '.storage.storage_v1_client.StorageV1.ObjectsService'),\
+      mock.patch('time.sleep') as unused_mock,\
+      self.assertRaises(Exception) as exc,\
+      beam.Pipeline() as p:
 
       mock_load_job.side_effect = exception_type(error_message)
 
@@ -971,10 +976,9 @@ class TestWriteToBigQuery(unittest.TestCase):
     self.assertIn(error_message, exc.exception.args[0])
 
   @parameterized.expand([
-      param(
-          exception_type=exceptions.Forbidden,
-          error_message='WE MADE IT accessDenied'),
+      param(exception_type=exceptions.Forbidden, error_message='accessDenied'),
       param(exception_type=exceptions.NotFound, error_message='notFound'),
+      param(exception_type=exceptions.Conflict, error_message='duplicate'),
       param(
           exception_type=exceptions.ServiceUnavailable,
           error_message='backendError'),
@@ -982,20 +986,28 @@ class TestWriteToBigQuery(unittest.TestCase):
           exception_type=exceptions.InternalServerError,
           error_message='internalError'),
   ])
-  def test_copy_load_job_fail_exception(
-      self,
-      exception_type,
-      error_message):
+  def test_copy_load_job_fail_exception(self, exception_type, error_message):
 
-    # self.assertRaises(Exception) as exc
-    # mock.patch.object(BigQueryWrapper, 'wait_for_bq_job') as mock_wait_for_job,
+    from apache_beam.io.gcp import bigquery_file_loads
 
-    with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert') as mock_insert_copy_job, \
-            mock.patch('apache_beam.io.gcp.internal.clients.storage.storage_v1_client.StorageV1.ObjectsService') \
-                    as mock_storage, \
-            mock.patch.object(BigQueryWrapper, 'perform_load_job') as mock_load_job,\
-            mock.patch('time.sleep') as unused_mock, \
-            beam.Pipeline() as p:
+    old_max_file_size = bigquery_file_loads._DEFAULT_MAX_FILE_SIZE
+    old_max_partition_size = bigquery_file_loads._MAXIMUM_LOAD_SIZE
+    old_max_files_per_partition = bigquery_file_loads._MAXIMUM_SOURCE_URIS
+    bigquery_file_loads._DEFAULT_MAX_FILE_SIZE = 15
+    bigquery_file_loads._MAXIMUM_LOAD_SIZE = 30
+    bigquery_file_loads._MAXIMUM_SOURCE_URIS = 1
+
+    with self.assertRaises(Exception) as exc, \
+      mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                        'Insert') as mock_insert_copy_job, \
+      mock.patch.object(BigQueryWrapper,
+                        'perform_load_job') as mock_load_job, \
+      mock.patch.object(BigQueryWrapper,
+                        'wait_for_bq_job'), \
+      mock.patch('apache_beam.io.gcp.internal.clients'
+        '.storage.storage_v1_client.StorageV1.ObjectsService'), \
+      mock.patch('time.sleep'), \
+      beam.Pipeline() as p:
 
       mock_insert_copy_job.side_effect = exception_type(error_message)
 
@@ -1010,6 +1022,10 @@ class TestWriteToBigQuery(unittest.TestCase):
           p
           | beam.Create([{
               'columnA': 'value1'
+          }, {
+              'columnA': 'value2'
+          }, {
+              'columnA': 'value3'
           }])
           | WriteToBigQuery(
               table='project:dataset.table',
@@ -1022,8 +1038,12 @@ class TestWriteToBigQuery(unittest.TestCase):
               custom_gcs_temp_location="gs://temp_location",
               method='FILE_LOADS'))
 
-    # self.assertEqual(4, mock_insert_copy_job.call_count)
-    # self.assertIn(error_message, exc.exception.args[0])
+    bigquery_file_loads._DEFAULT_MAX_FILE_SIZE = old_max_file_size
+    bigquery_file_loads._MAXIMUM_LOAD_SIZE = old_max_partition_size
+    bigquery_file_loads._MAXIMUM_SOURCE_URIS = old_max_files_per_partition
+
+    self.assertEqual(4, mock_insert_copy_job.call_count)
+    self.assertIn(error_message, exc.exception.args[0])
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
