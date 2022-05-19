@@ -48,9 +48,6 @@ export function fixedWindows(
   offsetSeconds: Instant = Long.fromValue(0)
 ): WindowFn<IntervalWindow> {
   // TODO: (Cleanup) Use a time library?
-  if (typeof sizeSeconds == "number") {
-    sizeSeconds = Long.fromValue(sizeSeconds);
-  }
   const sizeMillis = secsToMillisLong(sizeSeconds);
   const offsetMillis = secsToMillisLong(offsetSeconds);
 
