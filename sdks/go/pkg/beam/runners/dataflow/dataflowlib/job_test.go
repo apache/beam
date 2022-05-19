@@ -166,7 +166,7 @@ func TestCurrentStateMessage(t *testing.T) {
 		want    string
 		wantErr error
 	}{
-		{state: "JOB_STATE_DONE", want: "Job JorbID-09876 succeeded", term: true},
+		{state: "JOB_STATE_DONE", want: "Job JorbID-09876 succeeded!", term: true},
 		{state: "JOB_STATE_DRAINED", want: "Job JorbID-09876 drained", term: true},
 		{state: "JOB_STATE_UPDATED", want: "Job JorbID-09876 updated", term: true},
 		{state: "JOB_STATE_CANCELLED", want: "Job JorbID-09876 cancelled", term: true},
