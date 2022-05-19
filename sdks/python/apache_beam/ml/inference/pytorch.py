@@ -55,6 +55,9 @@ class PytorchInferenceRunner(InferenceRunner):
     This method stacks the list of Tensors in a vectorized format to optimize
     the inference call.
     """
+    if prediction_params is None:
+      prediction_params = {}
+
     if isinstance(batch[0], dict):
       result_dict = defaultdict(list)
       for el in batch:
