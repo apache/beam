@@ -366,13 +366,15 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 
 	ow := su.GetOutputWatermark()
 
-	// Always split at fraction 0.0, should have no primaries left.
+	// Always split at fraction 0.0. All remaining work should be returned as a residual, as anything left in the primaries
+	// will not be rescheduled and could represent data loss. We expect nil primaries but will also ignore any restrictions
+	// that are bounded and of size 0 as they represent no remaining work.
 	ps, rs, err := su.Split(0.0)
 	if err != nil {
 		return SplitResult{}, -1 * time.Minute, false, err
 	}
 	if len(ps) != 0 {
-		return SplitResult{}, -1 * time.Minute, false, fmt.Errorf("failed to checkpoint: got %v primary roots, want none", ps)
+		return SplitResult{}, -1 * time.Minute, false, fmt.Errorf("failed to checkpoint: got %#v primary roots, want none. Ensure that the restriction tracker returns nil in TrySplit() when the split fraction is 0.0", ps)
 	}
 
 	encodeElms := n.makeEncodeElms()
