@@ -348,6 +348,18 @@ func (n *DataSource) makeEncodeElms() func([]*FullValue) ([][]byte, error) {
 	return encodeElms
 }
 
+func getRTrackerFromRoot(root *FullValue) (sdf.BoundableRTracker, float64, bool) {
+	tracker, ok := root.Elm.(*FullValue).Elm2.(*FullValue).Elm.(sdf.BoundableRTracker)
+	if !ok {
+		return nil, -1.0, false
+	}
+	size, ok := root.Elm2.(float64)
+	if !ok {
+		return nil, -1.0, false
+	}
+	return tracker, size, true
+}
+
 // Checkpoint attempts to split an SDF that has self-checkpointed (e.g. returned a
 // ProcessContinuation) and needs to be resumed later. If the underlying DoFn is not
 // splittable or has not returned a resuming continuation, the function returns an empty
@@ -374,7 +386,17 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 		return SplitResult{}, -1 * time.Minute, false, err
 	}
 	if len(ps) != 0 {
-		return SplitResult{}, -1 * time.Minute, false, fmt.Errorf("failed to checkpoint: got %#v primary roots, want none. Ensure that the restriction tracker returns nil in TrySplit() when the split fraction is 0.0", ps)
+		for _, root := range ps {
+			tracker, size, ok := getRTrackerFromRoot(root)
+			// If type assertion didn't return a BoundableRTracker, we move on.
+			if !ok {
+				continue
+			}
+			if !tracker.IsBounded() || size > 0.00001 {
+				return SplitResult{}, -1 * time.Minute, false, fmt.Errorf("failed to checkpoint: got %#v primary roots, want none. Ensure that the restriction tracker returns nil in TrySplit() when the split fraction is 0.0", ps)
+			}
+		}
+
 	}
 
 	encodeElms := n.makeEncodeElms()
