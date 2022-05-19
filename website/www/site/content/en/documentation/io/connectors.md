@@ -23,7 +23,7 @@ Apache Beam I/O connectors provide read and write transforms for the most popula
 
 This table provides a consolidated, at-a-glance overview of the available built-in I/O connectors.
 <div class="table-container-wrapper">
-  <table class="table table-bordered">
+  <table class="table table-bordered table-connectors">
   <tr>
     <th>Connector Name</th>
     <th>Source Supported</th>
@@ -775,7 +775,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
 ## Other I/O Connectors for Apache Beam
 
 <div class="table-container-wrapper">
-  <table class="table table-bordered">
+  <table class="table table-bordered table-connectors">
   <tr>
     <th>Connector Name</th>
     <th>Source Supported</th>
