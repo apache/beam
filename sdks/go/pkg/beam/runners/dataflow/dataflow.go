@@ -72,13 +72,16 @@ var (
 	workerRegion         = flag.String("worker_region", "", "Dataflow worker region (optional)")
 	workerZone           = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
 
-	executeAsync   = flag.Bool("execute_async", false, "Asynchronous execution. Submit the job and return immediately.")
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 
 	// SDK options
 	cpuProfiling = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
 )
+
+func init() {
+	flag.BoolVar(jobopts.Async, "execute_async", false, "Asynchronous execution. Submit the job and return immediately. Alias of --async.")
+}
 
 // flagFilter filters flags that are already represented by the above flags
 // or in the JobOpts to prevent them from appearing duplicated
@@ -207,7 +210,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		return nil, nil
 	}
 
-	return dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *executeAsync)
+	return dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *jobopts.Async)
 }
 
 func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
