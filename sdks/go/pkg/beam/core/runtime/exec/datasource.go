@@ -29,7 +29,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/wrappedbounded"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
@@ -361,7 +360,7 @@ func getBoundedRTrackerFromRoot(root *FullValue) (sdf.BoundableRTracker, float64
 	if !ok {
 		log.Warn(context.Background(), "expected type sdf.BoundableRTracker; ensure that the RTracker implements IsBounded()")
 		// Assume an RTracker that does not implement IsBounded() will always be bounded, wrap so it can be used.
-		boundTracker = wrappedbounded.NewTracker(tracker)
+		boundTracker = sdf.NewWrappedTracker(tracker)
 	}
 	size, ok := root.Elm2.(float64)
 	if !ok {
@@ -400,7 +399,7 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 		return SplitResult{}, -1 * time.Minute, false, nil
 	}
 	if len(ps) != 0 {
-		// Expected structure of the root FullValue is KV<KV<Elm, KV<BoundedRTracker, watermarkEstimatorState>>, Size, (Timestamp?, Windows?)>
+		// Expected structure of the root FullValue is KV<KV<Elm, KV<BoundedRTracker, watermarkEstimatorState>>, Size>
 		for _, root := range ps {
 			tracker, size, ok := getBoundedRTrackerFromRoot(root)
 			// If type assertion didn't return a BoundableRTracker, we move on.
