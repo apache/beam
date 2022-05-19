@@ -95,7 +95,7 @@ information (such as the current timestamp, window, or side input) at runtime.
 
 * Rather than introduce multiple-output complexity into the map/do operations
 themselves, producing multiple outputs is done by following with a new
-`Split` primitive is introduced that takes a
+`Split` primitive that takes a
 `PCollection<{a?: AType, b: BType, ... }>` and produces an object
 `{a: PCollection<AType>, b: PCollection<BType>, ...}`.
 
