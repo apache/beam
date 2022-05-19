@@ -28,13 +28,13 @@ import { JobState_Enum } from "../proto/beam_job_api";
 
 import { Pipeline } from "../internal/pipeline";
 import { Root } from "../pvalue";
-import { Impulse, GroupByKey } from "../transforms/internal";
+import { impulse, groupByKey } from "../transforms/internal";
 import { Runner, PipelineResult } from "./runner";
 import * as worker from "../worker/worker";
 import * as operators from "../worker/operators";
 import { createStateKey } from "../worker/pardo_context";
 import * as state from "../worker/state";
-import { ParDo } from "../transforms/pardo";
+import { parDo } from "../transforms/pardo";
 import {
   Window,
   GlobalWindow,
@@ -121,7 +121,7 @@ export class DirectRunner extends Runner {
         descriptor,
         null!,
         new state.CachingStateProvider(stateProvider),
-        [Impulse.urn]
+        [impulse.urn]
       );
       await processor.process("bundle_id");
 
@@ -165,7 +165,7 @@ class DirectImpulseOperator implements operators.IOperator {
   async finishBundle() {}
 }
 
-operators.registerOperator(Impulse.urn, DirectImpulseOperator);
+operators.registerOperator(impulse.urn, DirectImpulseOperator);
 
 // Only to be used in direct runner, as this will only group within a single bundle.
 // TODO: (Extension) This could be used as a base for the PGBKOperation operator,
@@ -248,7 +248,7 @@ class DirectGbkOperator implements operators.IOperator {
   }
 }
 
-operators.registerOperator(GroupByKey.urn, DirectGbkOperator);
+operators.registerOperator(groupByKey.urn, DirectGbkOperator);
 
 /**
  * Rewrites the pipeline to be suitable for running as a single "bundle."
@@ -305,7 +305,7 @@ function rewriteSideInputs(p: runnerApi.Pipeline, pipelineStateRef: string) {
   for (const [transformId, transform] of Object.entries(transforms)) {
     if (
       transform.spec != undefined &&
-      transform.spec.urn == ParDo.urn &&
+      transform.spec.urn == parDo.urn &&
       Object.keys(transform.inputs).length > 1
     ) {
       const spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);
