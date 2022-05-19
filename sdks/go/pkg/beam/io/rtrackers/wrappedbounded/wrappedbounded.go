@@ -53,7 +53,7 @@ func (t *Tracker) GetProgress() (done float64, remaining float64) {
 	return t.baseTracker.GetProgress()
 }
 
-// IsDone() returns a boolean indicating if the work represented by the underlying RTracker has
+// IsDone returns a boolean indicating if the work represented by the underlying RTracker has
 // been completed.
 func (t *Tracker) IsDone() bool {
 	return t.baseTracker.IsDone()
