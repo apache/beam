@@ -340,7 +340,7 @@ public class BigtableServiceImplTest {
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
             RowFilter.getDefaultInstance(),
-            BigtableServiceImpl.populateReaderCallMetric(mockSession, TABLE_ID));
+            mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -356,7 +356,7 @@ public class BigtableServiceImplTest {
         actualResults);
     underTest.close();
 
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 3);
+    Mockito.verify(mockCallMetric, Mockito.times(3)).call("ok");
   }
 
   /**
@@ -632,7 +632,7 @@ public class BigtableServiceImplTest {
     assertEquals(count, (long) container.getCounter(name).getCumulative());
   }
 
-  public Answer<ScanHandler> mockReadRowsAnswer(List<FlatRow> rows) {
+  private Answer<ScanHandler> mockReadRowsAnswer(List<FlatRow> rows) {
     return new Answer<ScanHandler>() {
       @Override
       public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
@@ -652,19 +652,19 @@ public class BigtableServiceImplTest {
     };
   }
 
-  public RowRange generateRowRange(ByteString start, ByteString end) {
+  private static RowRange generateRowRange(ByteString start, ByteString end) {
     return RowRange.newBuilder().setStartKeyClosed(start).setEndKeyOpen(end).build();
   }
 
-  public List<FlatRow> generateSegmentResult(String prefix, int startIndex, int count) {
+  private static List<FlatRow> generateSegmentResult(String prefix, int startIndex, int count) {
     return generateSegmentResult(prefix, startIndex, count, false);
   }
 
-  public List<FlatRow> generateLargeSegmentResult(String prefix, int startIndex, int count) {
+  private static List<FlatRow> generateLargeSegmentResult(String prefix, int startIndex, int count) {
     return generateSegmentResult(prefix, startIndex, count, true);
   }
 
-  public List<FlatRow> generateSegmentResult(
+  private static List<FlatRow> generateSegmentResult(
       String prefix, int startIndex, int count, boolean largeRow) {
     byte[] largeMemory = new byte[(int) DEFAULT_ROW_SIZE];
     return IntStream.range(startIndex, startIndex + count)
@@ -687,7 +687,7 @@ public class BigtableServiceImplTest {
         .collect(Collectors.toList());
   }
 
-  public <T> OngoingStubbing<T> expectRowResults(
+  private <T> OngoingStubbing<T> expectRowResults(
       OngoingStubbing<T> stub, List<List<FlatRow>> results) {
     for (List<FlatRow> result : results) {
       stub = stub.thenAnswer(mockReadRowsAnswer(result));
@@ -695,7 +695,7 @@ public class BigtableServiceImplTest {
     return stub;
   }
 
-  public ByteString generateByteString(String prefix, int index) {
+  private static ByteString generateByteString(String prefix, int index) {
     return ByteString.copyFromUtf8(prefix + String.format("%05d", index));
   }
 }

@@ -157,7 +157,7 @@ class BigtableServiceImpl implements BigtableService {
           session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
 
       ServiceCallMetric serviceCallMetric =
-          populateReaderCallMetric(session, source.getTableId().get());
+          createCallMetric(session, source.getTableId().get());
       ReadRowsRequest.Builder requestB =
           ReadRowsRequest.newBuilder().setRows(rowSet).setTableName(tableNameSr);
       if (source.getRowFilter() != null) {
@@ -218,10 +218,10 @@ class BigtableServiceImpl implements BigtableService {
 
     private @Nullable ReadRowsRequest nextRequest;
     private @Nullable Row currentRow;
+    private @Nullable Future<UpstreamResults> future;
     private final Queue<Row> buffer;
     private final int refillSegmentWaterMark;
     private final long maxSegmentByteSize;
-    private Future<UpstreamResults> future;
     private ServiceCallMetric serviceCallMetric;
 
     private static class UpstreamResults {
@@ -264,7 +264,7 @@ class BigtableServiceImpl implements BigtableService {
           source.getMaxBufferElementCount(),
           maxSegmentByteSize,
           filter,
-          populateReaderCallMetric(session, source.getTableId().get()));
+          createCallMetric(session, source.getTableId().get()));
     }
 
     @VisibleForTesting
@@ -409,7 +409,7 @@ class BigtableServiceImpl implements BigtableService {
 
       ReadRowsRequest.Builder requestBuilder = request.toBuilder();
       requestBuilder.clearRows();
-      return requestBuilder.setRows(segment.build()).build();
+      return requestBuilder.setRows(segment).build();
     }
 
     @Override
@@ -556,7 +556,7 @@ class BigtableServiceImpl implements BigtableService {
   }
 
   @VisibleForTesting
-  public static ServiceCallMetric populateReaderCallMetric(
+  public static ServiceCallMetric createCallMetric(
       BigtableSession session, String tableId) {
     HashMap<String, String> baseLabels = new HashMap<>();
     baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
