@@ -203,7 +203,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         return BigQueryHelpers.stripPartitionDecorator(tableUrn) + "/streams/_default";
       }
 
-      String getStreamAppendClientCacheEntryName() {
+      String getStreamAppendClientCacheEntryKey() {
         if (useDefaultStream) {
           return getDefaultStreamName() + "-client" + clientNumber;
         }
@@ -226,12 +226,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         return this.streamName;
       }
 
-      StreamAppendClient generateClient() {
-        try {
-          return datasetService.getStreamAppendClient(streamName, descriptorWrapper.descriptor);
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
+      StreamAppendClient generateClient() throws Exception {
+        return datasetService.getStreamAppendClient(streamName, descriptorWrapper.descriptor);
       }
 
       StreamAppendClient getStreamAppendClient(boolean lookupCache) {
@@ -242,11 +238,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               if (lookupCache) {
                 this.streamAppendClient =
                     APPEND_CLIENTS.get(
-                        getStreamAppendClientCacheEntryName(), () -> generateClient());
+                        getStreamAppendClientCacheEntryKey(), () -> generateClient());
               } else {
                 this.streamAppendClient = generateClient();
                 // override the clients in the cache
-                APPEND_CLIENTS.put(getStreamAppendClientCacheEntryName(), streamAppendClient);
+                APPEND_CLIENTS.put(getStreamAppendClientCacheEntryKey(), streamAppendClient);
               }
               this.streamAppendClient.pin();
             }
@@ -262,7 +258,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       void maybeTickleCache() {
         if (streamAppendClient != null && Instant.now().isAfter(nextCacheTickle)) {
           synchronized (APPEND_CLIENTS) {
-            APPEND_CLIENTS.getIfPresent(getStreamAppendClientCacheEntryName());
+            APPEND_CLIENTS.getIfPresent(getStreamAppendClientCacheEntryKey());
           }
           nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
         }
@@ -280,13 +276,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             // cache still contains the object we created before invalidating (in case another
             // thread has already invalidated
             // and recreated the stream).
+            String cacheEntryKey = getStreamAppendClientCacheEntryKey();
             @Nullable
-            StreamAppendClient cachedAppendClient =
-                APPEND_CLIENTS.getIfPresent(getStreamAppendClientCacheEntryName());
+            StreamAppendClient cachedAppendClient = APPEND_CLIENTS.getIfPresent(cacheEntryKey);
             if (cachedAppendClient != null
                 && System.identityHashCode(cachedAppendClient)
                     == System.identityHashCode(streamAppendClient)) {
-              APPEND_CLIENTS.invalidate(getStreamAppendClientCacheEntryName());
+              APPEND_CLIENTS.invalidate(cacheEntryKey);
             }
           }
           streamAppendClient = null;
