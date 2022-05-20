@@ -42,8 +42,8 @@ class ModelFileType(enum.Enum):
 
 
 class SklearnInferenceRunner(InferenceRunner):
-  def run_inference(self, batch: List[numpy.ndarray],
-                    model: Any) -> Iterable[PredictionResult]:
+  def run_inference(self, batch: List[numpy.ndarray], model: Any,
+                    **kwargs) -> Iterable[PredictionResult]:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)

@@ -39,7 +39,7 @@ class FakeInferenceRunner(base.InferenceRunner):
   def __init__(self, clock=None):
     self._mock_clock = clock
 
-  def run_inference(self, batch: Any, model: Any) -> Iterable[Any]:
+  def run_inference(self, batch: Any, model: Any, **kwargs) -> Iterable[Any]:
     if self._mock_clock:
       self._mock_clock.current_time += 3000
     for example in batch:

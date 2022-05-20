@@ -23,7 +23,6 @@ from typing import Callable
 from typing import Dict
 from typing import Iterable
 from typing import List
-from typing import Optional
 from typing import Union
 
 import torch
@@ -60,8 +59,7 @@ class PytorchInferenceRunner(InferenceRunner):
       self,
       batch: List[Union[torch.Tensor, Dict[str, torch.Tensor]]],
       model: torch.nn.Module,
-      prediction_params: Optional[Dict[str, Any]] = None,
-  ) -> Iterable[PredictionResult]:
+      **kwargs) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
     Tensor Predictions.
@@ -69,8 +67,7 @@ class PytorchInferenceRunner(InferenceRunner):
     This method stacks the list of Tensors in a vectorized format to optimize
     the inference call.
     """
-    if prediction_params is None:
-      prediction_params = {}
+    prediction_params = kwargs.get('prediction_params', {})
 
     # If elements in `batch` are provided as a dictionaries from key to Tensors,
     # then iterate through the batch list, and group Tensors to the same key
