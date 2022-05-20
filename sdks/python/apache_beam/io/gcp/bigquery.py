@@ -694,6 +694,7 @@ class _CustomBigQuerySource(BoundedSource):
       step_name=None,
       unique_id=None,
       temp_dataset=None,
+      output_type=None,
       query_priority=BigQueryQueryPriority.BATCH):
     if table is not None and query is not None:
       raise ValueError(
@@ -731,6 +732,7 @@ class _CustomBigQuerySource(BoundedSource):
     self._job_name = job_name or 'BQ_EXPORT_JOB'
     self._step_name = step_name
     self._source_uuid = unique_id
+    self.output_type = output_type
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:
@@ -841,6 +843,17 @@ class _CustomBigQuerySource(BoundedSource):
       source = self._create_source(path, self.export_result.coder)
       yield SourceBundle(
           weight=1.0, source=source, start_position=None, stop_position=None)
+    table_ref = bigquery_tools.parse_table_reference(
+        self.table_reference.get(), project=self._get_project())
+    if self.output_type == 'BEAM_ROWS':
+      ReadFromBigQuery.get_pcoll_from_schema(
+          apache_beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().
+          get_table(
+              project_id=table_ref.projectId,
+              dataset_id=table_ref.datasetId,
+              table_id=table_ref.tableId).schema)
+    elif self.output_type != 'BEAM_ROWS':
+      raise TypeError('This output type is currently not supported.')
 
   def get_range_tracker(self, start_position, stop_position):
     class CustomBigQuerySourceRangeTracker(RangeTracker):
@@ -990,7 +1003,8 @@ class _CustomBigQueryStorageSource(BoundedSource):
       kms_key: Optional[str] = None,
       temp_dataset: Optional[DatasetReference] = None,
       temp_table: Optional[TableReference] = None,
-      use_native_datetime: Optional[bool] = False):
+      use_native_datetime: Optional[bool] = False,
+      output_type: Optional[str] = None):
 
     if table is not None and query is not None:
       raise ValueError(
@@ -1028,6 +1042,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
     self._job_name = job_name or 'BQ_DIRECT_READ_JOB'
     self._step_name = step_name
     self._source_uuid = unique_id
+    self.output_type = output_type
 
   def _get_parent_project(self):
     """Returns the project that will be billed."""
@@ -1189,6 +1204,16 @@ class _CustomBigQueryStorageSource(BoundedSource):
     for source in self.split_result:
       yield SourceBundle(
           weight=1.0, source=source, start_position=None, stop_position=None)
+
+    if self.output_type == 'BEAM_ROWS':
+      ReadFromBigQuery.get_pcoll_from_schema(
+          apache_beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().
+          get_table(
+              project_id=self.table_reference.projectId,
+              dataset_id=self.table_reference.datasetId,
+              table_id=self.table_reference.tableId).schema)
+    elif self.output_type != 'BEAM_ROWS':
+      raise TypeError('This output type is currently not supported.')
 
   def get_range_tracker(self, start_position, stop_position):
     class NonePositionRangeTracker(RangeTracker):
@@ -2467,16 +2492,6 @@ class ReadFromBigQuery(PTransform):
     }
     self._args = args
     self._kwargs = kwargs
-
-    if self.output_type == 'BEAM_ROWS':
-      ReadFromBigQuery.get_pcoll_from_schema(
-          apache_beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().
-          get_table(
-              project_id=self.project,
-              dataset_id=self.dataset,
-              table_id=self.table).schema)
-    elif self.output_type != 'BEAM_ROWS':
-      raise TypeError('This output type is currently not supported.')
 
   def expand(self, pcoll):
     if self.method is ReadFromBigQuery.Method.EXPORT:
