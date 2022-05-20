@@ -494,6 +494,10 @@ message ProcessBundleSplitResponse {
   //
   // Note that primary roots can only be specified if a channel split's
   // last_primary_element + 1 < first_residual_element
+  //
+  // Note that there must be a corresponding residual root contained within
+  // residual_roots representing the remainder of processing for the original
+  // element this this primary root represents a fraction of.
   repeated BundleApplication primary_roots = 1;
 
   // (Optional) Root applications that have been removed from the current bundle and
@@ -502,6 +506,10 @@ message ProcessBundleSplitResponse {
   //
   // Note that residual roots can only be specified if a channel split's
   // last_primary_element + 1 < first_residual_element
+  //
+  // Note that there must be a corresponding primary root contained within
+  // primary_roots representing the remainder of processing for the original
+  // element this this residual root represents a fraction of.
   //
   // Note that subsequent splits may not return prior residual roots.
   repeated DelayedBundleApplication residual_roots = 2;
