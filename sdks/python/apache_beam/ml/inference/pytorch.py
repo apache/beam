@@ -42,6 +42,20 @@ class PytorchInferenceRunner(InferenceRunner):
   def __init__(self, device: torch.device):
     self._device = device
 
+  def _convert_to_device(self, examples: torch.Tensor) -> torch.Tensor:
+    """
+    examples, which may or may not be attached to GPU during creation time, need
+    to match the device that was set during during PytorchModelLoader
+    initialization.
+
+    For example, a user may pass in device='GPU', and a
+    torch.Tensor([1, 2], device='cuda') example, but if GPU is not detected in
+    the environment, then we have to convert the example back to CPU.
+    """
+    if examples.device != self._device:
+      examples = examples.to(self._device)
+    return examples
+
   def run_inference(
       self,
       batch: List[Union[torch.Tensor, Dict[str, torch.Tensor]]],
@@ -58,30 +72,34 @@ class PytorchInferenceRunner(InferenceRunner):
     if prediction_params is None:
       prediction_params = {}
 
+    # If elements in `batch` are provided as a dictionaries from key to Tensors,
+    # then iterate through the batch list, and group Tensors to the same key
     if isinstance(batch[0], dict):
-      result_dict = defaultdict(list)
-      for el in batch:
-        for k, v in el.items():
-          result_dict[k].append(v)
-      for k in result_dict:
-        batched_values = torch.stack(result_dict[k])
-        if batched_values.device != self._device:
-          batched_values = batched_values.to(self._device)
-        result_dict[k] = batched_values
-      predictions = model(**result_dict, **prediction_params)
+      key_to_tensor_list = defaultdict(list)
+      for example in batch:
+        for key, tensor in example.items():
+          key_to_tensor_list[key].append(tensor)
+      key_to_batched_tensors = {}
+      for key in key_to_tensor_list:
+        batched_tensors = torch.stack(key_to_tensor_list[key])
+        batched_tensors = self._convert_to_device(batched_tensors)
+        key_to_batched_tensors[key] = batched_tensors
+      predictions = model(**key_to_batched_tensors, **prediction_params)
     else:
-      batch = torch.stack(batch)
-      if batch.device != self._device:
-        batch = batch.to(self._device)
-      predictions = model(batch, **prediction_params)
+      # If elements in `batch` are provided as Tensors, then do a regular stack
+      batched_tensors = torch.stack(batch)
+      batched_tensors = self._convert_to_device(batched_tensors)
+      predictions = model(batched_tensors, **prediction_params)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: List[torch.Tensor]) -> int:
     """Returns the number of bytes of data for a batch of Tensors."""
+    # If elements in `batch` are provided as a dictionaries from key to Tensors
     if isinstance(batch[0], dict):
       return sum(
           (el.element_size() for tensor in batch for el in tensor.values()))
     else:
+      # If elements in `batch` are provided as Tensors
       return sum((el.element_size() for tensor in batch for el in tensor))
 
   def get_metrics_namespace(self) -> str:

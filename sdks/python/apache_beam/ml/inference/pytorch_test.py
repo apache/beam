@@ -68,6 +68,9 @@ class PytorchLinearRegressionPredictionParams(torch.nn.Module):
     super().__init__()
     self.linear = torch.nn.Linear(input_dim, output_dim)
 
+  # k1 is the batched input, and prediction_param_array, prediction_param_bool
+  # are non-batchable inputs (typically model-related info) used to configure
+  # the model before its predict call is invoked
   def forward(self, k1, prediction_param_array, prediction_param_bool):
     if not prediction_param_bool:
       raise ValueError("Expected prediction_param_bool to be True")
