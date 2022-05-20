@@ -658,33 +658,7 @@ func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []
 // ProcessContinuation. If the split occurs and the primary restriction is marked as done
 // my the RTracker, the Checkpoint fails as this is a potential data-loss case.
 func (n *ProcessSizedElementsAndRestrictions) Checkpoint() ([]*FullValue, error) {
-	// Get the watermark state immediately so that we don't overestimate our current watermark.
-	var pWeState interface{}
-	var rWeState interface{}
-	rWeState = n.wesInv.Invoke(n.PDo.we)
-	pWeState = rWeState
-	// If we've processed elements, the initial watermark estimator state will be set.
-	// In that case we should hold the output watermark at that initial state so that we don't
-	// Advance past where the current elements are holding the watermark
-	if n.initWeS != nil {
-		pWeState = n.initWeS
-	}
-	addContext := func(err error) error {
-		return errors.WithContext(err, "Attempting checkpoint in ProcessSizedElementsAndRestrictions")
-	}
-
-	// Errors checking.
-	if n.rt == nil {
-		return nil, addContext(errors.New("Restriction tracker missing."))
-	}
-	if err := n.rt.GetError(); err != nil {
-		return nil, addContext(err)
-	}
-
-	_, r, err := n.singleWindowSplit(0.0, pWeState, rWeState)
-	if err != nil {
-		return nil, addContext(err)
-	}
+	_, r, err := n.Split(0.0)
 
 	if !n.rt.IsDone() {
 		return nil, addContext(errors.New("Primary restriction is not done, data may be lost as a result"))
