@@ -37,12 +37,6 @@ interface for integration with CDAP plugins."""
  * for details.
  */
 
-allprojects {
-    repositories {
-        maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
-    }
-}
-
 dependencies {
     implementation library.java.cdap_api
     implementation library.java.cdap_api_commons
@@ -63,14 +57,14 @@ dependencies {
     implementation library.java.vendored_guava_26_0_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(":sdks:java:io:hadoop-format")
-    implementation "io.cdap.plugin:salesforce-plugins:1.5.0-SNAPSHOT"
-    implementation "io.cdap.plugin:servicenow-plugins:1.2.0-SNAPSHOT"
-    implementation "io.cdap:hubspot-plugins:1.0.0-SNAPSHOT"
-    implementation "io.cdap.plugin:zendesk-plugins:1.0.0-SNAPSHOT"
-    testImplementation "io.cdap.plugin:salesforce-plugins:1.5.0-SNAPSHOT"
-    testImplementation "io.cdap:hubspot-plugins:1.0.0-SNAPSHOT"
-    testImplementation "io.cdap.plugin:zendesk-plugins:1.0.0-SNAPSHOT"
-    testImplementation "io.cdap.plugin:servicenow-plugins:1.2.0-SNAPSHOT"
+    implementation "io.cdap.plugin:salesforce-plugins:1.4.0"
+    implementation "io.cdap.plugin:servicenow-plugins:1.1.0"
+    implementation "io.cdap:hubspot-plugins:1.0.0"
+    implementation "io.cdap.plugin:zendesk-plugins:1.0.0"
+    testImplementation "io.cdap.plugin:salesforce-plugins:1.4.0"
+    testImplementation "io.cdap:hubspot-plugins:1.0.0"
+    testImplementation "io.cdap.plugin:zendesk-plugins:1.0.0"
+    testImplementation "io.cdap.plugin:servicenow-plugins:1.1.0"
     testImplementation library.java.cdap_plugin_service_now
     testImplementation library.java.cdap_etl_api
     testImplementation library.java.hadoop_common
