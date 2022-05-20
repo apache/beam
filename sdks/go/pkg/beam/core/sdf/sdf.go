@@ -73,8 +73,9 @@ type RTracker interface {
 	// reason), then this function returns nil as the residual.
 	//
 	// If the split fraction is 0 (e.g. a self-checkpointing split) TrySplit() should return either
-	// a nil primary or a restriction that represents no remaining work. This will ensure that there
-	// is not data loss.
+	// a restriction that represents no remaining work. The remaining RTracker should be marked as done
+	// (and return true when IsDone() is called) after that split. This will ensure that there
+	// is not data loss, which would result in the pipeline failing during the checkpoint.
 	//
 	// If an error is returned, some catastrophic failure occurred and the entire bundle will fail.
 	TrySplit(fraction float64) (primary, residual interface{}, err error)
@@ -88,6 +89,8 @@ type RTracker interface {
 	// claimed. This method is called by the SDK Harness to validate that a splittable DoFn has
 	// correctly processed all work in a restriction before finishing. If this method still returns
 	// false after processing, then GetError is expected to return a non-nil error.
+	//
+	// When called immediately following a checkpointing TrySplit() call, this should return true.
 	IsDone() bool
 
 	// GetRestriction returns the restriction this tracker is tracking, or nil if the restriction
