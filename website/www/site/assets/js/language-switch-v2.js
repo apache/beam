@@ -10,6 +10,21 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+function getElPreviousPositionAndData(el) {
+    const clickedLangSwitchEl = el.target.closest(".language-switcher");
+    const elPreviousOffsetFromViewPort = clickedLangSwitchEl.getBoundingClientRect().top;
+    return {
+        elPreviousOffsetFromViewPort,
+        clickedLangSwitchEl,
+    }
+}
+
+function setScrollToNewPosition(clickedElData) {
+    const { elPreviousOffsetFromViewPort, clickedLangSwitchEl } = clickedElData;
+    const elCurrentHeight = window.pageYOffset + clickedLangSwitchEl.getBoundingClientRect().top;
+    $('html, body').scrollTop(elCurrentHeight - elPreviousOffsetFromViewPort);
+}
+
 $(document).ready(function() {
     function Switcher(conf) {
         var id = conf["class-prefix"],
@@ -88,19 +103,12 @@ $(document).ready(function() {
                 var _self = this;
                 $("." + _self.wrapper + " ul li").click(function(el) {
                     // Making type preferences presistance, for user.
-                    // console.log(el.target.closest("li").dataset.type);
                     localStorage.setItem(_self.dbKey, $(this).data("type"));
 
-                    const previousEl = el.target.closest('.language-switcher');
-                    const elPreviousHeight = window.pageYOffset + previousEl.getBoundingClientRect().top;
-                    const elPreviousHeightFromViewPort = previousEl.getBoundingClientRect().top;
+                    // Set scroll to new position because Safari and Firefox can't do it automatically, only Chrome under the good detects the correct position of viewport
+                    const clickedLangSwitchElData = getElPreviousPositionAndData(el);
                     _self.toggle();
-                    let elCurrentHeight = window.pageYOffset + previousEl.getBoundingClientRect().top;
-
-                    // console.log(elPreviousHeight, elCurrentHeight);
-
-                    $('html, body').scrollTop(elCurrentHeight - elPreviousHeightFromViewPort);
-
+                    setScrollToNewPosition(clickedLangSwitchElData);
                 });
             },
             "toggle": function() {
@@ -148,7 +156,6 @@ $(document).ready(function() {
                 this.addTabs();
                 this.bindEvents();
                 this.toggle();
-
             }
         };
     }
