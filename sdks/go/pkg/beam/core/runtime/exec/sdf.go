@@ -658,10 +658,17 @@ func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []
 // ProcessContinuation. If the split occurs and the primary restriction is marked as done
 // my the RTracker, the Checkpoint fails as this is a potential data-loss case.
 func (n *ProcessSizedElementsAndRestrictions) Checkpoint() ([]*FullValue, error) {
+	addContext := func(err error) error {
+		return errors.WithContext(err, "Attempting checkpoint in ProcessSizedElementsAndRestrictions")
+	}
 	_, r, err := n.Split(0.0)
 
+	if err != nil {
+		return nil, addContext(err)
+	}
+
 	if !n.rt.IsDone() {
-		return nil, addContext(errors.New("Primary restriction is not done, data may be lost as a result"))
+		return nil, addContext(errors.Errorf("Primary restriction %#v is not done. Check that the RTracker's TrySplit() at fraction 0.0 returns a completed primary restriction", n.rt))
 	}
 
 	return r, nil
