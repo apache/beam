@@ -578,6 +578,12 @@ type SplittableUnit interface {
 	// fully represented in just one.
 	Split(fraction float64) (primaries, residuals []*FullValue, err error)
 
+	// Checkpoint performs a split at fraction 0.0 of an element that has stopped
+	// processing and has work that needs to be resumed later. This function will
+	// check that the produced primary restriction from the split represents
+	// completed work to avoid data loss and will error if work remains.
+	Checkpoint() (residuals []*FullValue, err error)
+
 	// GetProgress returns the fraction of progress the current element has
 	// made in processing. (ex. 0.0 means no progress, and 1.0 means fully
 	// processed.)
@@ -645,6 +651,46 @@ func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []
 		return nil, nil, addContext(err)
 	}
 	return p, r, nil
+}
+
+// Checkpoint splits the remaining work in a restriction into residuals to be resumed
+// later by the runner. This is done iff the underlying Splittable DoFn returns a resuming
+// ProcessContinuation. If the split occurs and the primary restriction is marked as done
+// my the RTracker, the Checkpoint fails as this is a potential data-loss case.
+func (n *ProcessSizedElementsAndRestrictions) Checkpoint() ([]*FullValue, error) {
+	// Get the watermark state immediately so that we don't overestimate our current watermark.
+	var pWeState interface{}
+	var rWeState interface{}
+	rWeState = n.wesInv.Invoke(n.PDo.we)
+	pWeState = rWeState
+	// If we've processed elements, the initial watermark estimator state will be set.
+	// In that case we should hold the output watermark at that initial state so that we don't
+	// Advance past where the current elements are holding the watermark
+	if n.initWeS != nil {
+		pWeState = n.initWeS
+	}
+	addContext := func(err error) error {
+		return errors.WithContext(err, "Attempting checkpoint in ProcessSizedElementsAndRestrictions")
+	}
+
+	// Errors checking.
+	if n.rt == nil {
+		return nil, addContext(errors.New("Restriction tracker missing."))
+	}
+	if err := n.rt.GetError(); err != nil {
+		return nil, addContext(err)
+	}
+
+	_, r, err := n.singleWindowSplit(0.0, pWeState, rWeState)
+	if err != nil {
+		return nil, addContext(err)
+	}
+
+	if !n.rt.IsDone() {
+		return nil, addContext(errors.New("Primary restriction is not done, data may be lost as a result"))
+	}
+
+	return r, nil
 }
 
 // singleWindowSplit is intended for splitting elements in non window-observing

@@ -29,7 +29,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // DataSource is a Root execution unit.
@@ -367,21 +366,13 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 
 	ow := su.GetOutputWatermark()
 
-	// Always split at fraction 0.0. All remaining work should be returned as a residual, as anything left in the primaries
-	// will not be rescheduled and could represent data loss. We expect nil primaries but will warn and continue if primaries are
-	// returned.
-	ps, rs, err := su.Split(0.0)
+	// Checkpointing is functionally a split at fraction 0.0
+	rs, err := su.Checkpoint()
 	if err != nil {
 		return SplitResult{}, -1 * time.Minute, false, err
 	}
 	if len(rs) == 0 {
 		return SplitResult{}, -1 * time.Minute, false, nil
-	}
-	if len(ps) != 0 {
-		// Expected structure of the root FullValue is KV<KV<Elm, KV<restriction, watermarkEstimatorState>>, Size>
-		for _, root := range ps {
-			log.Warnf(context.Background(), "got %#v primary root, want none. Ensure that the restriction tracker returns nil primaries in TrySplit() when the split fraction is 0.0", root)
-		}
 	}
 
 	encodeElms := n.makeEncodeElms()
