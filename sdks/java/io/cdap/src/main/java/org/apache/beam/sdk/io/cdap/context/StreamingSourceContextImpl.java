@@ -15,30 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark;
+package org.apache.beam.sdk.io.cdap.context;
 
-import org.apache.beam.runners.spark.translation.SparkContextFactory;
-import org.junit.rules.ExternalResource;
+import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.dataset.DatasetManagementException;
+import io.cdap.cdap.etl.api.streaming.StreamingSourceContext;
+import javax.annotation.Nullable;
+import org.apache.tephra.TransactionFailureException;
 
-/** Explicitly set {@link org.apache.spark.SparkContext} to be reused (or not) in tests. */
-public class ReuseSparkContextRule extends ExternalResource {
-
-  private final boolean reuse;
-
-  private ReuseSparkContextRule(boolean reuse) {
-    this.reuse = reuse;
-  }
-
-  public static ReuseSparkContextRule no() {
-    return new ReuseSparkContextRule(false);
-  }
-
-  public static ReuseSparkContextRule yes() {
-    return new ReuseSparkContextRule(true);
-  }
+/** Class for creating context object of different CDAP classes with stream source type. */
+public class StreamingSourceContextImpl extends BatchContextImpl implements StreamingSourceContext {
 
   @Override
-  protected void before() throws Throwable {
-    System.setProperty(SparkContextFactory.TEST_REUSE_SPARK_CONTEXT, Boolean.toString(reuse));
+  public void registerLineage(String referenceName, @Nullable Schema schema)
+      throws DatasetManagementException, TransactionFailureException {}
+
+  @Override
+  public boolean isPreviewEnabled() {
+    return false;
   }
 }

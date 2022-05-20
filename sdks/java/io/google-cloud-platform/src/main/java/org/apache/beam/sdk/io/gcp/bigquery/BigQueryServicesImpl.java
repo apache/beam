@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
+import com.google.api.client.http.AbstractInputStreamContent;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
@@ -244,6 +245,28 @@ class BigQueryServicesImpl implements BigQueryServices {
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
+    public void startLoadJob(
+        JobReference jobRef, JobConfigurationLoad loadConfig, AbstractInputStreamContent stream)
+        throws InterruptedException, IOException {
+      Map<String, String> labelMap = new HashMap<>();
+      Job job =
+          new Job()
+              .setJobReference(jobRef)
+              .setConfiguration(
+                  new JobConfiguration()
+                      .setLoad(loadConfig)
+                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(labelMap)));
+      startJobStream(job, stream, errorExtractor, client, Sleeper.DEFAULT, createDefaultBackoff());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
+     *
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
+     */
+    @Override
     public void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
         throws InterruptedException, IOException {
       Map<String, String> labelMap = new HashMap<>();
@@ -336,6 +359,47 @@ class BigQueryServicesImpl implements BigQueryServices {
           String.format(
               "Unable to insert job: %s, aborting after %d .", jobRef.getJobId(), MAX_RPC_RETRIES),
           lastException);
+    }
+
+    static void startJobStream(
+        Job job,
+        AbstractInputStreamContent streamContent,
+        ApiErrorExtractor errorExtractor,
+        Bigquery client,
+        Sleeper sleeper,
+        BackOff backOff)
+        throws IOException, InterruptedException {
+      JobReference jobReference = job.getJobReference();
+      Exception exception;
+      do {
+        try {
+          client
+              .jobs()
+              .insert(jobReference.getProjectId(), job, streamContent)
+              .setPrettyPrint(false)
+              .execute();
+          LOG.info(
+              "Started BigQuery job: {}.\n{}",
+              jobReference,
+              formatBqStatusCommand(jobReference.getProjectId(), jobReference.getJobId()));
+          return;
+        } catch (IOException e) {
+          if (errorExtractor.itemAlreadyExists(e)) {
+            LOG.info(
+                "BigQuery job " + jobReference + " already exists, will not retry inserting it:",
+                e);
+            return; // SUCCEEDED
+          }
+          // ignore and retry
+          LOG.info("Failed to insert job " + jobReference + ", will retry:", e);
+          exception = e;
+        }
+      } while (nextBackOff(sleeper, backOff));
+      throw new IOException(
+          String.format(
+              "Unable to insert job: %s, aborting after %d .",
+              jobReference.getJobId(), MAX_RPC_RETRIES),
+          exception);
     }
 
     @Override

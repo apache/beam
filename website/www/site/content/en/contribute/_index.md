@@ -40,7 +40,8 @@ Everyone is welcome to join and contribute to the project in multiple ways, not 
 
 Here’s a list of things you can do to get started contributing:
 
-<table class="table table-bordered">
+<div class="table-container-wrapper">
+  <table class="table-contribute">
   <tr>
     <th>Contribution</th>
     <th>How to do it</th>
@@ -48,11 +49,11 @@ Here’s a list of things you can do to get started contributing:
   <tr>
     <td>Participate and share ideas</td>
     <td class="list-text-size-md">
-      <ol>
+      <ul>
         <li>Start by <a href="https://beam.apache.org/contribute/#accounts-and-permissions">getting an Apache Beam Jira account</a>.</li>
         <li>Subscribe to our <a href="https://beam.apache.org/community/contact-us/">mailing lists</a> (<a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> and <a href="mailto:dev@beam.apache.org">user@beam.apache.org</a>).</li>
         <li>Stay in the loop of our <a href="https://issues.apache.org/jira/projects/BEAM/issues">Jira product backlog</a>, participate in discussions to brainstorm solutions, and help the community solve their mailing list questions.</li>
-      </ol>
+      </ul>
     </td>
   </tr>
   <tr>
@@ -60,7 +61,7 @@ Here’s a list of things you can do to get started contributing:
     <td class="list-text-size-md">
       <ol class="no-bullet">
         <li>Create a Jira ticket and mark it as a bug</li>
-        <br><span>OR</span><br><br>
+        <br><span class="text--active">OR</span><br><br>
         <li>Send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> with subject: [Bug] &lt;bug summary&gt; and include as much detail as possible.</li>
       </ol>
     </td>
@@ -70,7 +71,7 @@ Here’s a list of things you can do to get started contributing:
     <td class="list-text-size-md">
       <ol class="no-bullet">
         <li>Create a Jira ticket and mark it as a feature request</li>
-        <br><span>OR</span><br><br>
+        <br><span class="text--active">OR</span><br><br>
         <li>Send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> with subject: [Feature Proposal] &lt;your idea&gt;.</li>
       </ol>
     </td>
@@ -127,11 +128,11 @@ Here’s a list of things you can do to get started contributing:
   <tr>
     <td>Share a code sample or template</td>
     <td class="list-text-size-md">
-      <ol>
+      <ul>
         <li>Read our <a href="https://beam.apache.org/contribute/get-started-contributing/">Code Contribution Guide</a>.</li>
         <li>Create your code sample or template. </li>
         <li><a href="https://beam.apache.org/contribute/get-started-contributing/#make-your-change">Make a Pull Request</a> to add it to the Beam example folder.</li>
-      </ol>
+      </ul>
     </td>
   </tr>
   <tr>
@@ -147,7 +148,7 @@ Here’s a list of things you can do to get started contributing:
     </td>
   </tr>
 </table>
-
+</div>
 
 ## Become a Committer
 

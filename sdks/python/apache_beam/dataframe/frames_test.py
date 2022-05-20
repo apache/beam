@@ -16,6 +16,7 @@
 
 import re
 import unittest
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -1601,6 +1602,12 @@ ALL_GROUPING_AGGREGATIONS = sorted(
 
 class GroupByTest(_AbstractFrameTest):
   """Tests for DataFrame/Series GroupBy operations."""
+  @staticmethod
+  def median_sum_fn(x):
+    with warnings.catch_warnings():
+      warnings.filterwarnings("ignore", message="Mean of empty slice")
+      return (x.foo + x.bar).median()
+
   @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_groupby_agg(self, agg_type):
     if agg_type == 'describe' and PD_VERSION < (1, 2):
@@ -1723,10 +1730,6 @@ class GroupByTest(_AbstractFrameTest):
 
   def test_groupby_apply(self):
     df = GROUPBY_DF
-
-    def median_sum_fn(x):
-      return (x.foo + x.bar).median()
-
     # Note this is the same as DataFrameGroupBy.describe. Using it here is
     # just a convenient way to test apply() with a user fn that returns a Series
     describe = lambda df: df.describe()
@@ -1734,17 +1737,17 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(lambda df: df.groupby('group').foo.apply(describe), df)
     self._run_test(
         lambda df: df.groupby('group')[['foo', 'bar']].apply(describe), df)
-    self._run_test(lambda df: df.groupby('group').apply(median_sum_fn), df)
+    self._run_test(lambda df: df.groupby('group').apply(self.median_sum_fn), df)
     self._run_test(
         lambda df: df.set_index('group').foo.groupby(level=0).apply(describe),
         df)
-    self._run_test(lambda df: df.groupby(level=0).apply(median_sum_fn), df)
+    self._run_test(lambda df: df.groupby(level=0).apply(self.median_sum_fn), df)
     self._run_test(lambda df: df.groupby(lambda x: x % 3).apply(describe), df)
     self._run_test(
         lambda df: df.bar.groupby(lambda x: x % 3).apply(describe), df)
     self._run_test(
         lambda df: df.set_index(['str', 'group', 'bool']).groupby(
-            level='group').apply(median_sum_fn),
+            level='group').apply(self.median_sum_fn),
         df)
 
   def test_groupby_apply_preserves_column_order(self):
@@ -1830,9 +1833,7 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(
         lambda df: df.groupby(level=level).sum(numeric_only=True), df)
     self._run_test(
-        lambda df: df.groupby(level=level).apply(
-            lambda x: (x.foo + x.bar).median()),
-        df)
+        lambda df: df.groupby(level=level).apply(self.median_sum_fn), df)
 
   @unittest.skipIf(PD_VERSION < (1, 1), "drop_na added in pandas 1.1.0")
   def test_groupby_count_na(self):
@@ -1892,9 +1893,6 @@ class GroupByTest(_AbstractFrameTest):
   def test_groupby_series_apply(self):
     df = GROUPBY_DF
 
-    def median_sum_fn(x):
-      return (x.foo + x.bar).median()
-
     # Note this is the same as DataFrameGroupBy.describe. Using it here is
     # just a convenient way to test apply() with a user fn that returns a Series
     describe = lambda df: df.describe()
@@ -1902,7 +1900,8 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(lambda df: df.groupby(df.group).foo.apply(describe), df)
     self._run_test(
         lambda df: df.groupby(df.group)[['foo', 'bar']].apply(describe), df)
-    self._run_test(lambda df: df.groupby(df.group).apply(median_sum_fn), df)
+    self._run_test(
+        lambda df: df.groupby(df.group).apply(self.median_sum_fn), df)
 
   def test_groupby_multiindex_keep_nans(self):
     # Due to https://github.com/pandas-dev/pandas/issues/36470

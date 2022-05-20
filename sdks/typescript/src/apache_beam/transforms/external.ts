@@ -49,10 +49,27 @@ import * as service from "../utils/service";
 // TODO: (API) (Types) This class expects PCollections to already have the
 // correct Coders. It would be great if we could infer coders, or at least have
 // a cleaner way to specify them than using internal.WithCoderInternal.
-export class RawExternalTransform<
+export function rawExternalTransform<
   InputT extends PValue<any>,
   OutputT extends PValue<any>
-> extends transform.AsyncPTransform<InputT, OutputT> {
+>(
+  urn: string,
+  payload: Uint8Array | { [key: string]: any },
+  serviceProviderOrAddress: string | (() => Promise<service.Service>),
+  inferPValueType: boolean = true
+): transform.AsyncPTransform<InputT, OutputT> {
+  return new RawExternalTransform(
+    urn,
+    payload,
+    serviceProviderOrAddress,
+    inferPValueType
+  );
+}
+
+class RawExternalTransform<
+  InputT extends PValue<any>,
+  OutputT extends PValue<any>
+> extends transform.AsyncPTransformClass<InputT, OutputT> {
   static namespaceCounter = 0;
   static freshNamespace() {
     return "namespace_" + RawExternalTransform.namespaceCounter++ + "_";
@@ -110,7 +127,7 @@ export class RawExternalTransform<
       request.components!.transforms[fakeImpulseNamespace + pcId] =
         runnerApi.PTransform.create({
           uniqueName: fakeImpulseNamespace + "_create_" + pcId,
-          spec: { urn: internal.Impulse.urn, payload: new Uint8Array() },
+          spec: { urn: internal.impulse.urn, payload: new Uint8Array() },
           outputs: { main: pcId },
         });
     }
