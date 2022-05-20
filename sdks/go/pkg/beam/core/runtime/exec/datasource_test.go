@@ -28,7 +28,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -913,73 +912,5 @@ func validateSource(t *testing.T, out *CaptureNode, source *DataSource, expected
 	}
 	if !equalList(out.Elements, expected) {
 		t.Errorf("DataSource => %#v, want %#v", extractValues(out.Elements...), extractValues(expected...))
-	}
-}
-
-func constructRootFullValue(rt, size interface{}) *FullValue {
-	return &FullValue{
-		Elm: &FullValue{
-			Elm2: &FullValue{
-				Elm: rt,
-			},
-		},
-		Elm2: size,
-	}
-}
-
-func TestGetRTrackerFromRoot(t *testing.T) {
-	var tests = []struct {
-		name    string
-		inRt    interface{}
-		inSize  interface{}
-		valid   bool
-		expSize float64
-	}{
-		{
-			"valid",
-			offsetrange.NewTracker(offsetrange.Restriction{Start: int64(0), End: int64(1)}),
-			1.0,
-			true,
-			1.0,
-		},
-		{
-			"not a bounded rtracker",
-			int64(42),
-			1.0,
-			false,
-			-1.0,
-		},
-		{
-			"non-float size",
-			offsetrange.NewTracker(offsetrange.Restriction{Start: int64(0), End: int64(1)}),
-			int64(1),
-			false,
-			-1.0,
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := constructRootFullValue(test.inRt, test.inSize)
-			tracker, size, ok := getBoundedRTrackerFromRoot(root)
-
-			if test.valid {
-				if !ok {
-					t.Fatalf("failed to get tracker and size from root")
-				}
-				if tracker == nil {
-					t.Errorf("got nil tracker, expected %#v", test.inRt)
-				}
-			} else {
-				if ok {
-					t.Errorf("invalid root returned ok")
-				}
-				if tracker != nil {
-					t.Errorf("got tracker %#v, want nil", tracker)
-				}
-			}
-			if !floatEquals(test.expSize, size, 0.001) {
-				t.Errorf("got size %f, want %f", size, test.inSize)
-			}
-		})
 	}
 }
