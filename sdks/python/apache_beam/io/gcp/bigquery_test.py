@@ -500,8 +500,8 @@ class TestReadFromBigQuery(unittest.TestCase):
 
     with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
                            'Insert'),\
-      mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService,
-                        'Insert') as mock_insert, \
+      mock.patch.object(BigQueryWrapper,
+                        'get_or_create_dataset') as mock_insert, \
       mock.patch('time.sleep'), \
       self.assertRaises(Exception) as exc,\
       beam.Pipeline() as p:
@@ -513,7 +513,7 @@ class TestReadFromBigQuery(unittest.TestCase):
           query='SELECT * FROM `project.dataset.table`',
           gcs_location='gs://temp_location')
 
-    self.assertEqual(16, mock_insert.call_count)
+    self.assertEqual(4, mock_insert.call_count)
     self.assertIn(error_message, exc.exception.args[0])
 
   @parameterized.expand([
@@ -534,7 +534,8 @@ class TestReadFromBigQuery(unittest.TestCase):
                         'get_query_location') as mock_query_location,\
       mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
                         'Insert') as mock_query_job,\
-      mock.patch('time.sleep'),\
+      mock.patch('time.sleep'), \
+      self.assertRaises(Exception) as exc, \
       beam.Pipeline() as p:
 
       mock_estimate.return_value = None
@@ -546,8 +547,8 @@ class TestReadFromBigQuery(unittest.TestCase):
           query='SELECT * FROM `project.dataset.table`',
           gcs_location='gs://temp_location')
 
-    # self.assertEqual(4, mock_query_job.call_count)
-    # self.assertIn(error_message, exc.exception.args[0])
+    self.assertEqual(4, mock_query_job.call_count)
+    self.assertIn(error_message, exc.exception.args[0])
 
   @parameterized.expand([
       param(exception_type=exceptions.BadRequest, error_message='invalid'),
@@ -943,7 +944,7 @@ class TestWriteToBigQuery(unittest.TestCase):
           exception_type=exceptions.InternalServerError,
           error_message='internalError'),
   ])
-  def test_load_job_fail_exception(self, exception_type, error_message):
+  def test_load_job_exception(self, exception_type, error_message):
 
     with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
                      'Insert') as mock_load_job,\
@@ -985,7 +986,7 @@ class TestWriteToBigQuery(unittest.TestCase):
           exception_type=exceptions.InternalServerError,
           error_message='internalError'),
   ])
-  def test_copy_load_job_fail_exception(self, exception_type, error_message):
+  def test_copy_load_job_exception(self, exception_type, error_message):
 
     from apache_beam.io.gcp import bigquery_file_loads
 
@@ -1005,6 +1006,7 @@ class TestWriteToBigQuery(unittest.TestCase):
       mock.patch('apache_beam.io.gcp.internal.clients'
         '.storage.storage_v1_client.StorageV1.ObjectsService'), \
       mock.patch('time.sleep'), \
+      self.assertRaises(Exception) as exc, \
       beam.Pipeline() as p:
 
       mock_insert_copy_job.side_effect = exception_type(error_message)
