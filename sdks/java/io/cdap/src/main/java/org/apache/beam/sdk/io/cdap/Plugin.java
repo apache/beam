@@ -26,7 +26,6 @@ import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,7 +45,6 @@ import org.slf4j.LoggerFactory;
   "rawtypes",
   "unchecked",
   "assignment.type.incompatible",
-  "UnstableApiUsage",
   "initialization.fields.uninitialized"
 })
 public abstract class Plugin {
@@ -189,11 +187,10 @@ public abstract class Plugin {
   public Boolean isUnbounded() {
     Boolean isUnbounded = null;
 
-    for (Annotation annotation : getPluginClass().getDeclaredAnnotations()) {
-      if (annotation.annotationType().equals(io.cdap.cdap.api.annotation.Plugin.class)) {
-        String pluginType = ((io.cdap.cdap.api.annotation.Plugin) annotation).type();
-        isUnbounded = pluginType != null && pluginType.startsWith("streaming");
-      }
+    for (io.cdap.cdap.api.annotation.Plugin annotation :
+        getPluginClass().getDeclaredAnnotationsByType(io.cdap.cdap.api.annotation.Plugin.class)) {
+      String pluginType = annotation.type();
+      isUnbounded = pluginType != null && pluginType.startsWith("streaming");
     }
     if (isUnbounded == null) {
       throw new IllegalArgumentException("CDAP plugin class must have Plugin annotation!");
