@@ -20,9 +20,7 @@
 import pickle
 import unittest
 from typing import Any
-from typing import Dict
 from typing import Iterable
-from typing import Optional
 
 import apache_beam as beam
 from apache_beam.metrics.metric import MetricsFilter
@@ -41,12 +39,7 @@ class FakeInferenceRunner(base.InferenceRunner):
   def __init__(self, clock=None):
     self._mock_clock = clock
 
-  def run_inference(
-      self,
-      batch: Any,
-      model: Any,
-      prediction_params: Optional[Dict[str, Any]] = None,
-  ) -> Iterable[Any]:
+  def run_inference(self, batch: Any, model: Any) -> Iterable[Any]:
     if self._mock_clock:
       self._mock_clock.current_time += 3000
     for example in batch:

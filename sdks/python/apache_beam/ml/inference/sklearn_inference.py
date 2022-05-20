@@ -19,10 +19,8 @@ import enum
 import pickle
 import sys
 from typing import Any
-from typing import Dict
 from typing import Iterable
 from typing import List
-from typing import Optional
 
 import numpy
 
@@ -44,12 +42,8 @@ class ModelFileType(enum.Enum):
 
 
 class SklearnInferenceRunner(InferenceRunner):
-  def run_inference(
-      self,
-      batch: List[numpy.ndarray],
-      model: Any,
-      prediction_params: Optional[Dict[str, Any]] = None
-  ) -> Iterable[PredictionResult]:
+  def run_inference(self, batch: List[numpy.ndarray],
+                    model: Any) -> Iterable[PredictionResult]:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
