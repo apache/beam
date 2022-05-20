@@ -104,7 +104,8 @@ class RunInference(beam.PTransform):
         pcoll
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
         | beam.BatchElements(**self._model_loader.batch_elements_kwargs())
-        | beam.ParDo(_RunInferenceDoFn(self._model_loader, self._clock)))
+        | beam.ParDo(
+            _RunInferenceDoFn(self._model_loader, self._clock), **self._kwargs))
 
 
 class _MetricsCollector:
@@ -158,10 +159,9 @@ class _MetricsCollector:
 
 class _RunInferenceDoFn(beam.DoFn):
   """A DoFn implementation generic to frameworks."""
-  def __init__(self, model_loader: ModelLoader, clock=None, **kwargs):
+  def __init__(self, model_loader: ModelLoader, clock=None):
     self._model_loader = model_loader
     self._inference_runner = model_loader.get_inference_runner()
-    self._kwargs = kwargs
     self._shared_model_handle = shared.Shared()
     self._metrics_collector = _MetricsCollector(
         self._inference_runner.get_metrics_namespace())
@@ -191,7 +191,7 @@ class _RunInferenceDoFn(beam.DoFn):
   def setup(self):
     self._model = self._load_model()
 
-  def process(self, batch):
+  def process(self, batch, **kwargs):
     # Process supports both keyed data, and example only data.
     # First keys and samples are separated (if there are keys)
     has_keys = isinstance(batch[0], tuple)
@@ -204,7 +204,7 @@ class _RunInferenceDoFn(beam.DoFn):
 
     start_time = self._clock.get_current_time_in_microseconds()
     result_generator = self._inference_runner.run_inference(
-        examples, self._model, **self._kwargs)
+        examples, self._model, **kwargs)
     predictions = list(result_generator)
 
     inference_latency = self._clock.get_current_time_in_microseconds(

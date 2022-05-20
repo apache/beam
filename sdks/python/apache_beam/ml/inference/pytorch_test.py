@@ -314,8 +314,11 @@ class PytorchRunInferenceTest(unittest.TestCase):
           })
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
+      prediction_params_side_input = (
+          pipeline | 'create side' >> beam.Create(prediction_params))
       predictions = pcoll | RunInference(
-          model_loader=model_loader, prediction_params=prediction_params)
+          model_loader=model_loader,
+          prediction_params=beam.pvalue.AsDict(prediction_params_side_input))
       assert_that(
           predictions,
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
