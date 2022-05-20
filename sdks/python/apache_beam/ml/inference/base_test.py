@@ -63,7 +63,7 @@ class FakeClock:
   def __init__(self):
     self.current_time = 10.0
 
-  def time(self) -> int:
+  def time(self) -> float:
     return self.current_time
 
 
