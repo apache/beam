@@ -35,7 +35,7 @@ programming guide, take a look at the
 {{< language-switcher java py go >}}
 
 {{< paragraph class="language-py" >}}
-The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last Python SDK release to support Python 2 and 3.5.
+The Python SDK supports Python 3.7, 3.8, and 3.9.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}

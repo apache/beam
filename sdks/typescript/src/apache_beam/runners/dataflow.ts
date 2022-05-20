@@ -15,20 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.fn.harness;
 
-/** An interface that groups inputs to an accumulator and flushes the output. */
-public interface GroupingTable<K, InputT, AccumT> {
+import { Pipeline } from "../internal/pipeline";
+import { PipelineResult, Runner } from "./runner";
+import { PortableRunner } from "./portable_runner/runner";
+import { PythonService } from "../utils/service";
 
-  /** Abstract interface of things that accept inputs one at a time via process(). */
-  interface Receiver {
-    /** Processes the element. */
-    void process(Object outputElem) throws Exception;
-  }
-
-  /** Adds a pair to this table, possibly flushing some entries to output if the table is full. */
-  void put(Object pair, Receiver receiver) throws Exception;
-
-  /** Flushes all entries in this table to output. */
-  void flush(Receiver output) throws Exception;
+export function dataflowRunner(runnerOptions: {
+  project: string;
+  tempLocation: string;
+  region: string;
+  [others: string]: any;
+}): Runner {
+  return new (class extends Runner {
+    async runPipeline(
+      pipeline: Pipeline,
+      options: Object = {}
+    ): Promise<PipelineResult> {
+      return new PortableRunner(
+        runnerOptions as any,
+        new PythonService("apache_beam.runners.dataflow.dataflow_job_service", [
+          "--port",
+          "{{PORT}}",
+        ])
+      ).runPipeline(pipeline, options);
+    }
+  })();
 }
