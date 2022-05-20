@@ -47,18 +47,18 @@ try:
 except ImportError:
   resource = None  # type: ignore[assignment]
 
-_SECOND_TO_MILLISECOND = 1000
-_SECOND_TO_MICROSECOND = 1_000_000
+_NANOSECOND_TO_MILLISECOND = 1_000_000
+_NANOSECOND_TO_MICROSECOND = 1_000
 
 T = TypeVar('T')
 
 
-def _to_milliseconds(time_seconds):
-  return int(time_seconds * _SECOND_TO_MILLISECOND)
+def _to_milliseconds(time_ns: int) -> int:
+  return int(time_ns / _NANOSECOND_TO_MILLISECOND)
 
 
-def _to_microseconds(time_seconds):
-  return int(time_seconds * _SECOND_TO_MICROSECOND)
+def _to_microseconds(time_ns: int) -> int:
+  return int(time_ns / _NANOSECOND_TO_MICROSECOND)
 
 
 class InferenceRunner():
@@ -168,9 +168,9 @@ class _RunInferenceDoFn(beam.DoFn):
     def load():
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
-      start_time = _to_milliseconds(self._clock.time())
+      start_time = _to_milliseconds(self._clock.time_ns())
       model = self._model_loader.load_model()
-      end_time = _to_milliseconds(self._clock.time())
+      end_time = _to_milliseconds(self._clock.time_ns())
       memory_after = _get_current_process_memory_in_bytes()
       load_model_latency_ms = end_time - start_time
       model_byte_size = memory_after - memory_before
@@ -195,12 +195,12 @@ class _RunInferenceDoFn(beam.DoFn):
       examples = batch
       keys = None
 
-    start_time = _to_microseconds(self._clock.time())
+    start_time = _to_microseconds(self._clock.time_ns())
     result_generator = self._inference_runner.run_inference(
         examples, self._model)
     predictions = list(result_generator)
 
-    end_time = _to_microseconds(self._clock.time())
+    end_time = _to_microseconds(self._clock.time_ns())
     inference_latency = end_time - start_time
     num_bytes = self._inference_runner.get_num_bytes(examples)
     num_elements = len(batch)

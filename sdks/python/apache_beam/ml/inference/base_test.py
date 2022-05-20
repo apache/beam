@@ -41,7 +41,7 @@ class FakeInferenceRunner(base.InferenceRunner):
 
   def run_inference(self, batch: Any, model: Any) -> Iterable[Any]:
     if self._fake_clock:
-      self._fake_clock.current_time += 0.003  # 3 milliseconds
+      self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
     for example in batch:
       yield model.predict(example)
 
@@ -52,7 +52,7 @@ class FakeModelLoader(base.ModelLoader):
 
   def load_model(self):
     if self._fake_clock:
-      self._fake_clock.current_time += 0.5
+      self._fake_clock.current_time_ns += 500_000_000  # 500ms
     return FakeModel()
 
   def get_inference_runner(self):
@@ -61,10 +61,11 @@ class FakeModelLoader(base.ModelLoader):
 
 class FakeClock:
   def __init__(self):
-    self.current_time = 10.0
+    # Start at 10 seconds.
+    self.current_time_ns = 10_000_000_000
 
-  def time(self) -> int:
-    return self.current_time
+  def time_ns(self) -> int:
+    return self.current_time_ns
 
 
 class ExtractInferences(beam.DoFn):
