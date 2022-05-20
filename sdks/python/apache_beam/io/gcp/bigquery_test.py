@@ -976,9 +976,6 @@ class TestWriteToBigQuery(unittest.TestCase):
     self.assertIn(error_message, exc.exception.args[0])
 
   @parameterized.expand([
-      param(exception_type=exceptions.Forbidden, error_message='accessDenied'),
-      param(exception_type=exceptions.NotFound, error_message='notFound'),
-      param(exception_type=exceptions.Conflict, error_message='duplicate'),
       param(
           exception_type=exceptions.ServiceUnavailable,
           error_message='backendError'),
