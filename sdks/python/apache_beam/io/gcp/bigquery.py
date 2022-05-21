@@ -818,6 +818,11 @@ class _CustomBigQuerySource(BoundedSource):
           strip_trailing_newlines=True,
           coder=coder)
 
+  def _get_pcoll_from_schema(table_schema):
+    pcoll_val = apache_beam.io.gcp.bigquery_schema_tools.\
+        produce_pcoll_with_schema(table_schema)
+    return beam.Map(lambda values: pcoll_val(**values))
+
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.export_result is None:
       bq = bigquery_tools.BigQueryWrapper(
@@ -843,10 +848,12 @@ class _CustomBigQuerySource(BoundedSource):
       source = self._create_source(path, self.export_result.coder)
       yield SourceBundle(
           weight=1.0, source=source, start_position=None, stop_position=None)
-    if self.output_type not in (None, 'BEAM_ROWS'):
+    if self.output_type is None:
+      self.output_type = 'PYTHON_DICT'
+    if self.output_type not in ('PYTHON_DICT', 'BEAM_ROWS'):
       raise TypeError(f"Encountered an unsupported type: {self.output_type!r}")
     elif self.output_type == 'BEAM_ROWS':
-      ReadFromBigQuery.get_pcoll_from_schema(
+      _CustomBigQuerySource._get_pcoll_from_schema(
           apache_beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().
           get_table(
               project_id=self.table_reference.projectId,
@@ -1144,6 +1151,11 @@ class _CustomBigQueryStorageSource(BoundedSource):
       # no access to the query that we're running.
       return None
 
+  def _get_pcoll_from_schema(table_schema):
+    pcoll_val = apache_beam.io.gcp.bigquery_schema_tools.\
+        produce_pcoll_with_schema(table_schema)
+    return beam.Map(lambda values: pcoll_val(**values))
+
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
       bq = bigquery_tools.BigQueryWrapper(
@@ -1202,11 +1214,12 @@ class _CustomBigQueryStorageSource(BoundedSource):
     for source in self.split_result:
       yield SourceBundle(
           weight=1.0, source=source, start_position=None, stop_position=None)
-
-    if self.output_type not in (None, 'BEAM_ROWS'):
+    if self.output_type is None:
+      self.output_type = 'PYTHON_DICT'
+    if self.output_type not in ('PYTHON_DICT', 'BEAM_ROWS'):
       raise TypeError(f"Encountered an unsupported type: {self.output_type!r}")
     elif self.output_type == 'BEAM_ROWS':
-      ReadFromBigQuery.get_pcoll_from_schema(
+      _CustomBigQueryStorageSource._get_pcoll_from_schema(
           apache_beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().
           get_table(
               project_id=self.table_reference.projectId,
@@ -2576,11 +2589,6 @@ class ReadFromBigQuery(PTransform):
                 *self._args,
                 **self._kwargs))
         | _PassThroughThenCleanupTempDatasets(project_to_cleanup_pcoll))
-
-  def get_pcoll_from_schema(table_schema):
-    pcoll_val = apache_beam.io.gcp.bigquery_schema_tools.\
-        produce_pcoll_with_schema(table_schema)
-    return beam.Map(lambda values: pcoll_val(**values))
 
 
 class ReadFromBigQueryRequest:
