@@ -15,9 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.multilang;
+package org.apache.beam.examples.multilanguage;
 
-import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.python.PythonExternalTransform;
 import org.apache.beam.sdk.io.TextIO;
@@ -42,19 +41,20 @@ import org.apache.beam.sdk.values.Row;
  * An example that counts words in Shakespeare and utilizes a Python external transform.
  *
  * <p>This class, {@link PythonDataframeWordCount}, uses Python DataframeTransform to count words
- * from the input text file. The Python expansion service provided by --expansionService must allow
- * the expansion of apache_beam.dataframe.transforms.DataframeTransform (which can be done by
- * passing --fully_qualified_name_glob commandline option when launching the expansion service).
+ * from the input text file.
  *
- * <p>Note that, for using Dataflow Runner, you should specify the following two additional
- * arguments:
+ * <p>The example command below shows how to run this pipeline on Dataflow runner:
  *
  * <pre>{@code
- * --experiments=use_runner_v2
- * --sdkHarnessContainerImageOverrides=.*python.*,gcr.io/apache-beam-testing/beam-sdk/beam_python3.8_sdk:latest
+ * ./gradlew :examples:multi-language:pythonDataframeWordCount --args=" \
+ * --runner=DataflowRunner \
+ * --output=gs://{$OUTPUT_BUCKET}/count \
+ * --experiments=use_runner_v2 \
+ * --sdkHarnessContainerImageOverrides=.*python.*,gcr.io/apache-beam-testing/beam-sdk/beam_python{$PYTHON_VERSION}_sdk:latest"
  * }</pre>
  */
 public class PythonDataframeWordCount {
+  public static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
 
   // Extract the words and create the rows for counting.
   static class ExtractWordsFn extends DoFn<String, Row> {
@@ -74,7 +74,7 @@ public class PythonDataframeWordCount {
       }
 
       // Split the line into words.
-      String[] words = element.split(ExampleUtils.TOKENIZER_PATTERN, -1);
+      String[] words = element.split(TOKENIZER_PATTERN, -1);
 
       // Output each word encountered into the output PCollection.
       for (String word : words) {
@@ -117,9 +117,8 @@ public class PythonDataframeWordCount {
 
     void setOutput(String value);
 
-    /** Set this required option to specify Python expansion service URL. */
+    /** Set this option to specify Python expansion service URL. */
     @Description("URL of Python expansion service")
-    @Required
     String getExpansionService();
 
     void setExpansionService(String value);

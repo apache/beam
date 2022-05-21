@@ -17,23 +17,17 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesJavaExpansionService;
 import org.apache.beam.sdk.testing.UsesPythonExpansionService;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -47,14 +41,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ConnectivityState;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -85,10 +72,7 @@ import org.junit.runners.JUnit4;
  * details.
  */
 public class ValidateRunnerXlangTest {
-  static class ValidateRunnerXlangTestBase implements Serializable {
-    @Rule public transient TestPipeline testPipeline = TestPipeline.create();
-    private PipelineResult pipelineResult;
-
+  static class ValidateRunnerXlangTestBase extends BaseExternalTest implements Serializable {
     // URNs for core cross-language transforms.
     // See https://docs.google.com/document/d/1xQp0ElIV84b8OCVz8CD2hvbiWdR8w4BvWxPTZJZA6NA for
     // further
@@ -102,44 +86,6 @@ public class ValidateRunnerXlangTest {
     private static final String TEST_FLATTEN_URN = "beam:transforms:xlang:test:flatten";
     private static final String TEST_PARTITION_URN = "beam:transforms:xlang:test:partition";
     private static final String TEST_PYTHON_BS4_URN = "beam:transforms:xlang:test:python_bs4";
-
-    private static String expansionAddr;
-    private static String expansionJar;
-
-    @BeforeClass
-    public static void setUpClass() {
-      expansionAddr =
-          String.format("localhost:%s", Integer.valueOf(System.getProperty("expansionPort")));
-      expansionJar = System.getProperty("expansionJar");
-    }
-
-    @Before
-    public void setUp() {
-      ExperimentalOptions.addExperiment(
-          testPipeline.getOptions().as(ExperimentalOptions.class), "jar_packages=" + expansionJar);
-      waitForReady();
-    }
-
-    @After
-    public void tearDown() {
-      pipelineResult = testPipeline.run();
-      pipelineResult.waitUntilFinish();
-      assertThat(pipelineResult.getState(), equalTo(PipelineResult.State.DONE));
-    }
-
-    private void waitForReady() {
-      try {
-        ManagedChannel channel = ManagedChannelBuilder.forTarget(expansionAddr).build();
-        ConnectivityState state = channel.getState(true);
-        for (int retry = 0; retry < 30 && state != ConnectivityState.READY; retry++) {
-          Thread.sleep(500);
-          state = channel.getState(true);
-        }
-        channel.shutdownNow();
-      } catch (InterruptedException e) {
-        throw new RuntimeException("interrupted.");
-      }
-    }
 
     private byte[] toStringPayloadBytes(String data) throws IOException {
       Row configRow =
