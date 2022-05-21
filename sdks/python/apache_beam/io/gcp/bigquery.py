@@ -843,17 +843,15 @@ class _CustomBigQuerySource(BoundedSource):
       source = self._create_source(path, self.export_result.coder)
       yield SourceBundle(
           weight=1.0, source=source, start_position=None, stop_position=None)
-    table_ref = bigquery_tools.parse_table_reference(
-        self.table_reference.get(), project=self._get_project())
-    if self.output_type == 'BEAM_ROWS':
+    if self.output_type not in (None, 'BEAM_ROWS'):
+      raise TypeError(f"Encountered an unsupported type: {self.output_type!r}")
+    elif self.output_type == 'BEAM_ROWS':
       ReadFromBigQuery.get_pcoll_from_schema(
           apache_beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().
           get_table(
-              project_id=table_ref.projectId,
-              dataset_id=table_ref.datasetId,
-              table_id=table_ref.tableId).schema)
-    elif self.output_type != 'BEAM_ROWS':
-      raise TypeError('This output type is currently not supported.')
+              project_id=self.table_reference.projectId,
+              dataset_id=self.table_reference.datasetId,
+              table_id=self.table_reference.tableId).schema)
 
   def get_range_tracker(self, start_position, stop_position):
     class CustomBigQuerySourceRangeTracker(RangeTracker):
@@ -1205,15 +1203,15 @@ class _CustomBigQueryStorageSource(BoundedSource):
       yield SourceBundle(
           weight=1.0, source=source, start_position=None, stop_position=None)
 
-    if self.output_type == 'BEAM_ROWS':
+    if self.output_type not in (None, 'BEAM_ROWS'):
+      raise TypeError(f"Encountered an unsupported type: {self.output_type!r}")
+    elif self.output_type == 'BEAM_ROWS':
       ReadFromBigQuery.get_pcoll_from_schema(
           apache_beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().
           get_table(
               project_id=self.table_reference.projectId,
               dataset_id=self.table_reference.datasetId,
               table_id=self.table_reference.tableId).schema)
-    elif self.output_type != 'BEAM_ROWS':
-      raise TypeError('This output type is currently not supported.')
 
   def get_range_tracker(self, start_position, stop_position):
     class NonePositionRangeTracker(RangeTracker):
