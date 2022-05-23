@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
-import static org.apache.beam.sdk.io.sparkreceiver.SparkReceiverUtils.getOffsetByRecord;
-
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -49,10 +47,12 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
   private AtomicLong recordsRead;
   private ProxyReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder;
   private Receiver<V> sparkReceiver;
+  private final SerializableFunction<V, Long> getOffsetFn;
 
   public ReadFromSparkReceiverDoFn(SparkReceiverIO.ReadFromSparkReceiverViaSdf<V> transform) {
     createWatermarkEstimatorFn = WatermarkEstimators.Manual::new;
     sparkReceiverBuilder = transform.sparkReceiverRead.getSparkReceiverBuilder();
+    getOffsetFn = transform.sparkReceiverRead.getGetOffsetFn();
   }
 
   private void initReceiver(Consumer<Object[]> storeConsumer, Receiver<V> sparkReceiver) {
@@ -166,8 +166,7 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
 
     while (!availableRecordsQueue.isEmpty()) {
       V record = availableRecordsQueue.poll();
-      Integer offset = getOffsetByRecord(record.toString());
-      if (!tracker.tryClaim(offset.longValue())) {
+      if (!tracker.tryClaim(getOffsetFn.apply(record))) {
         sparkReceiver.onStop();
         availableRecordsQueue.clear();
         return ProcessContinuation.stop();

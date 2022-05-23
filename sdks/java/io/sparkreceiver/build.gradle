@@ -41,6 +41,7 @@ allprojects {
 dependencies {
     implementation library.java.avro
     implementation library.java.cdap_api
+    implementation library.java.cdap_etl_api
     implementation library.java.commons_lang2_6
     implementation library.java.google_code_gson
     implementation library.java.guava

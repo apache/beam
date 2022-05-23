@@ -25,17 +25,19 @@ import org.slf4j.LoggerFactory;
 public class SparkReceiverUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkReceiverUtils.class);
-  private static ObjectMapper objectMapper = new ObjectMapper();
 
-  public static Integer getOffsetByRecord(String record) {
+  private static final String HUBSPOT_ID_FIELD = "vid";
+  private static final ObjectMapper objectMapper = new ObjectMapper();
+
+  public static Long getOffsetByHubspotRecord(String record) {
     if (record != null) {
       try {
         HashMap<String, Object> json = objectMapper.readValue(record, HashMap.class);
-        return (Integer) json.get("vid");
+        return ((Integer) json.get(HUBSPOT_ID_FIELD)).longValue();
       } catch (Exception e) {
-        LOG.error("Can not parse json", e);
+        LOG.error("Can not get offset from json", e);
       }
     }
-    return 0;
+    return 0L;
   }
 }

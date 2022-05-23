@@ -63,12 +63,11 @@ public class SparkReceiverIOTest {
 
     ProxyReceiverBuilder<String, HubspotCustomReceiver> receiverBuilder =
         new ProxyReceiverBuilder<>(HubspotCustomReceiver.class).withConstructorArgs(pluginConfig);
-    //    HubspotCustomReceiver receiver = receiverBuilder.build();
     SparkReceiverIO.Read<String> reader =
         SparkReceiverIO.<String>read()
             .withValueClass(String.class)
             .withValueCoder(StringUtf8Coder.of())
-            //            .withSparkReceiver(receiver);
+            .withGetOffsetFn(SparkReceiverUtils::getOffsetByHubspotRecord)
             .withSparkReceiverBuilder(receiverBuilder);
 
     PCollection<String> input = p.apply(reader).setCoder(StringUtf8Coder.of());

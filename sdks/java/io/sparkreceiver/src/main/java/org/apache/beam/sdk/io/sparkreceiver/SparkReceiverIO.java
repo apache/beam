@@ -23,10 +23,7 @@ import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Impulse;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -59,6 +56,8 @@ public class SparkReceiverIO {
 
     abstract @Nullable Coder<V> getValueCoder();
 
+    abstract @Nullable SerializableFunction<V, Long> getGetOffsetFn();
+
     abstract Builder<V> toBuilder();
 
     @Experimental(Experimental.Kind.PORTABILITY)
@@ -73,6 +72,8 @@ public class SparkReceiverIO {
 
       abstract Builder<V> setSparkReceiverBuilder(
           ProxyReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder);
+
+      abstract Builder<V> setGetOffsetFn(SerializableFunction<V, Long> getOffsetFn);
 
       abstract Read<V> build();
     }
@@ -92,6 +93,10 @@ public class SparkReceiverIO {
     public Read<V> withSparkReceiverBuilder(
         ProxyReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder) {
       return toBuilder().setSparkReceiverBuilder(sparkReceiverBuilder).build();
+    }
+
+    public Read<V> withGetOffsetFn(SerializableFunction<V, Long> getOffsetFn) {
+      return toBuilder().setGetOffsetFn(getOffsetFn).build();
     }
 
     @Override
