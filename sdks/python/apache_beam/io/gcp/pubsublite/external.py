@@ -29,8 +29,7 @@ from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
 _ReadSchema = typing.NamedTuple(
-    '_ReadSchema',
-    [('subscription_path', str), ('deduplicate', bool)])
+    '_ReadSchema', [('subscription_path', str), ('deduplicate', bool)])
 
 
 def _default_io_expansion_service():
@@ -70,8 +69,7 @@ class _ReadExternal(ExternalTransform):
         'beam:transform:org.apache.beam:pubsublite_read:v1',
         NamedTupleBasedPayloadBuilder(
             _ReadSchema(
-                subscription_path=subscription_path,
-                deduplicate=deduplicate)),
+                subscription_path=subscription_path, deduplicate=deduplicate)),
         expansion_service)
 
 
