@@ -73,9 +73,11 @@ type RTracker interface {
 	// reason), then this function returns nil as the residual.
 	//
 	// If the split fraction is 0 (e.g. a self-checkpointing split) TrySplit() should return
-	// a restriction that represents no remaining work. The remaining RTracker should be marked as done
-	// (and return true when IsDone() is called) after that split. This will ensure that there
-	// is not data loss, which would result in the pipeline failing during the checkpoint.
+	// a primary restriction that represents no remaining work, and the residual should
+	// contain all remaining work. The RTracker should be marked as done
+	// (and return true when IsDone() is called) after that split.
+	// This will ensure that there is no data loss, which would result in 
+	// the pipeline failing during the checkpoint.
 	//
 	// If an error is returned, some catastrophic failure occurred and the entire bundle will fail.
 	TrySplit(fraction float64) (primary, residual interface{}, err error)
