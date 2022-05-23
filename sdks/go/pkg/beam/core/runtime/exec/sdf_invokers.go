@@ -16,12 +16,14 @@
 package exec
 
 import (
+	"context"
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // This file contains invokers for SDF methods. These invokers are based off
@@ -309,6 +311,7 @@ type trInvoker struct {
 }
 
 func defaultTruncateRestriction(restTracker interface{}) (newRest interface{}) {
+	log.Debug(context.Background(), "---------- inside the truncate restriction part ----------")
 	if tracker, ok := restTracker.(sdf.BoundableRTracker); ok && !tracker.IsBounded() {
 		return nil
 	}

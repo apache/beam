@@ -153,7 +153,7 @@ var dataflowFilters = []string{
 	".*Loopback.*",
 	// Dataflow does not automatically terminate the TestCheckpointing pipeline when
 	// complete.
-	"TestCheckpointing",
+	// "TestCheckpointing",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either

@@ -960,7 +960,7 @@ func TestGetRTrackerFromRoot(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			root := constructRootFullValue(test.inRt, test.inSize)
-			tracker, size, ok := getBoundedRTrackerFromRoot(root)
+			tracker, size, ok := getBoundedRTrackerFromRoot(root, nil)
 
 			if test.valid {
 				if !ok {

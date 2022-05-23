@@ -64,7 +64,7 @@ func (fn *TruncateFn) CreateInitialRestriction(b []byte) offsetrange.Restriction
 // CreateTracker wraps the fiven restriction into a LockRTracker type.
 func (fn *TruncateFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
 	// return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
-	fn.Estimator = RangeEstimator{50}
+	fn.Estimator = RangeEstimator{int64(10)}
 	tracker, err := offsetrange.NewGrowableTracker(rest.Start, &fn.Estimator)
 	if err != nil {
 		panic(err)
@@ -79,41 +79,33 @@ func (fn *TruncateFn) RestrictionSize(_ []byte, rest offsetrange.Restriction) fl
 
 // SplitRestriction is similar to the one used in checkpointing.go test.
 func (fn *TruncateFn) SplitRestriction(_ []byte, rest offsetrange.Restriction) []offsetrange.Restriction {
-	size := int64(1)
-	s := rest.Start
-	var splits []offsetrange.Restriction
-	for e := s + size; e < rest.End; s, e = e, e+size {
-		if s == e {
-			continue
-		}
-		splits = append(splits, offsetrange.Restriction{Start: s, End: e})
-	}
-	if s == rest.End {
-		return splits
-	}
-	splits = append(splits, offsetrange.Restriction{Start: s, End: rest.End})
-	return splits
+	return rest.EvenSplits(2)
 }
 
 func (fn *TruncateFn) TruncateRestriction(rt *sdf.LockRTracker, _ []byte) offsetrange.Restriction {
 	log.Debug(context.Background(), "triggering the truncate restriction")
-
 	return offsetrange.Restriction{
 		Start: rt.GetRestriction().(offsetrange.Restriction).Start,
-		End:   rt.GetRestriction().(offsetrange.Restriction).End / 4,
+		End:   rt.GetRestriction().(offsetrange.Restriction).Start + 2,
 	}
 }
 
 // ProcessElement continually gets the start position of the restriction and emits the element as it is.
 func (fn *TruncateFn) ProcessElement(rt *sdf.LockRTracker, p []byte, emit func([]byte)) sdf.ProcessContinuation {
 	position := rt.GetRestriction().(offsetrange.Restriction).Start
+
 	if rt.TryClaim(position) {
-		position += 1
+		// Successful claim, emit the value and move on.
 		emit(p)
-		return sdf.ResumeProcessingIn(1 * time.Second)
+		return sdf.ResumeProcessingIn(2 * time.Second)
 	} else if rt.GetError() != nil || rt.IsDone() {
+		// Stop processing on error or completion
+		if err := rt.GetError(); err != nil {
+			log.Errorf(context.Background(), "error in restriction tracker, got %v", err)
+		}
 		return sdf.StopProcessing()
 	} else {
+		// Resume later.
 		return sdf.ResumeProcessingIn(5 * time.Second)
 	}
 }
@@ -121,9 +113,10 @@ func (fn *TruncateFn) ProcessElement(rt *sdf.LockRTracker, p []byte, emit func([
 func Drain(s beam.Scope) {
 	beam.Init()
 	project := "pubsub-public-data"
-
+	// project := gcpopts.GetProject(context.Background())
 	input := "taxirides-realtime"
-	output := *output
+	// input := *output
+	output := "riteshghorse-draintest"
 
 	col := pubsubio.Read(s, project, input, &pubsubio.ReadOptions{})
 	cap := beam.ParDo(s, &TruncateFn{}, col)

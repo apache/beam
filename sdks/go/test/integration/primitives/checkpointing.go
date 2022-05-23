@@ -31,7 +31,21 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*selfCheckpointingDoFn)(nil)).Elem())
 }
 
-type selfCheckpointingDoFn struct{}
+type OffsetEstimator struct {
+	End int64
+}
+
+func (r *OffsetEstimator) Estimate() int64 {
+	return r.End
+}
+
+func (r *OffsetEstimator) SetEstimate(estimate int64) {
+	r.End = estimate
+}
+
+type selfCheckpointingDoFn struct {
+	Estimator OffsetEstimator
+}
 
 // CreateInitialRestriction creates the restriction being used by the SDF. In this case, the range
 // of values produced by the restriction is [Start, End).
@@ -44,7 +58,13 @@ func (fn *selfCheckpointingDoFn) CreateInitialRestriction(_ []byte) offsetrange.
 
 // CreateTracker wraps the fiven restriction into a LockRTracker type.
 func (fn *selfCheckpointingDoFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
-	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
+	// return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
+	fn.Estimator = OffsetEstimator{int64(10)}
+	tracker, err := offsetrange.NewGrowableTracker(rest.Start, &fn.Estimator)
+	if err != nil {
+		panic(err)
+	}
+	return sdf.NewLockRTracker(tracker)
 }
 
 // RestrictionSize returns the size of the current restriction

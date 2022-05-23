@@ -349,13 +349,16 @@ func (n *DataSource) makeEncodeElms() func([]*FullValue) ([][]byte, error) {
 	return encodeElms
 }
 
-func getBoundedRTrackerFromRoot(root *FullValue) (sdf.BoundableRTracker, float64, bool) {
-	tElm := root.Elm.(*FullValue).Elm2.(*FullValue).Elm
-	tracker, ok := tElm.(sdf.RTracker)
-	if !ok {
-		log.Warnf(context.Background(), "expected type sdf.RTracker, got type %T", tElm)
-		return nil, -1.0, false
-	}
+func getBoundedRTrackerFromRoot(root *FullValue, rt sdf.RTracker) (sdf.BoundableRTracker, float64, bool) {
+	// tElm := root.Elm.(*FullValue).Elm2.(*FullValue).Elm
+	// tracker, ok := tElm.(sdf.RTracker)
+	// if !ok {
+	// 	log.Warnf(context.Background(), "expected type sdf.RTracker, got type %T", tElm)
+	// 	return nil, -1.0, false
+	// }
+
+	// newCreateTrackerInvoker()
+	tracker := rt
 	boundTracker, ok := tracker.(sdf.BoundableRTracker)
 	if !ok {
 		log.Warn(context.Background(), "expected type sdf.BoundableRTracker; ensure that the RTracker implements IsBounded()")
@@ -401,13 +404,13 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 	if len(ps) != 0 {
 		// Expected structure of the root FullValue is KV<KV<Elm, KV<BoundedRTracker, watermarkEstimatorState>>, Size>
 		for _, root := range ps {
-			tracker, size, ok := getBoundedRTrackerFromRoot(root)
+			tracker, size, ok := getBoundedRTrackerFromRoot(root, n.Out.(*ProcessSizedElementsAndRestrictions).rt)
 			// If type assertion didn't return a BoundableRTracker, we move on.
 			if !ok {
 				log.Warnf(context.Background(), "got unexpected primary root contents %v, please check the output of the restriction tracker's TrySplit() function", root)
 				continue
 			}
-			if !tracker.IsBounded() || size > 0.00001 {
+			if tracker.IsBounded() || size > 0.00001 {
 				return SplitResult{}, -1 * time.Minute, false, fmt.Errorf("failed to checkpoint: got %#v primary roots, want none. Ensure that the restriction tracker returns nil in TrySplit() when the split fraction is 0.0", ps)
 			}
 		}

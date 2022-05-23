@@ -218,7 +218,7 @@ func (tracker *Tracker) GetProgress() (done, remaining float64) {
 
 // IsDone returns true if the most recent claimed element is past the end of the restriction.
 func (tracker *Tracker) IsDone() bool {
-	return tracker.err == nil && tracker.claimed >= tracker.rest.End
+	return tracker.err == nil && (tracker.claimed >= tracker.rest.End || tracker.rest.Start == tracker.rest.End)
 }
 
 // GetRestriction returns a copy of the tracker's underlying offsetrange.Restriction.
@@ -286,6 +286,9 @@ func max(x, y int64) int64 {
 // TrySplit splits at the nearest integer greater than the given fraction of the remainder. If the
 // fraction given is outside of the [0, 1] range, it is clamped to 0 or 1.
 func (tracker *GrowableTracker) TrySplit(fraction float64) (primary, residual interface{}, err error) {
+	if fraction == 0.0 {
+		return nil, tracker.rest, nil
+	}
 	// If current tracking range is no longer growable, split it as a normal range.
 	if tracker.End() != math.MaxInt64 || tracker.Start() == tracker.End() {
 		return tracker.Tracker.TrySplit(fraction)
@@ -343,4 +346,14 @@ func (tracker *GrowableTracker) IsBounded() bool {
 		return false
 	}
 	return true
+}
+
+func (tracker *GrowableTracker) IsDone() bool {
+	if tracker.rest.Start >= tracker.rest.End {
+		return true
+	}
+	if tracker.claimed >= tracker.rest.End {
+		return true
+	}
+	return false
 }
