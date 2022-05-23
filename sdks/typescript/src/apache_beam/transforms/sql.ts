@@ -49,7 +49,7 @@ export function sqlTransform<
   // TOOD: (API) (Typescript): How to infer input_types, or at least make it optional.
   async function expandInternal(input: InputT): Promise<PCollection<any>> {
     function withCoder<T>(pcoll: PCollection<T>, type): PCollection<T> {
-      if (type == null) {
+      if (type === null) {
         if (
           !(
             pcoll.pipeline.context.getPCollectionCoder(pcoll) instanceof
@@ -74,7 +74,7 @@ export function sqlTransform<
       input = Object.fromEntries(
         Object.keys(input).map((tag) => [
           tag,
-          withCoder(input[tag], inputTypes == null ? null : inputTypes[tag]),
+          withCoder(input[tag], inputTypes === null ? null : inputTypes[tag]),
         ])
       ) as InputT;
     }

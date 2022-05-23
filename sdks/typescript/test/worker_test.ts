@@ -105,7 +105,7 @@ class Recording implements operators.IOperator {
   process(wvalue: WindowedValue<any>) {
     Recording.log.push(this.transformId + ".process(" + wvalue.value + ")");
     const results = this.receivers.map((receiver) => receiver.receive(wvalue));
-    if (!results.every((r) => r == operators.NonPromise)) {
+    if (!results.every((r) => r === operators.NonPromise)) {
       throw new Error("Unexpected non-promise: " + results);
     }
     return operators.NonPromise;
@@ -134,10 +134,10 @@ class Partition implements operators.IOperator {
 
   process(wvalue: WindowedValue<any>) {
     const a = this.all.receive(wvalue);
-    if (a != operators.NonPromise) throw new Error("Unexpected promise: " + a);
+    if (a !== operators.NonPromise) throw new Error("Unexpected promise: " + a);
     if (wvalue.value.length > 3) {
       const b = this.big.receive(wvalue);
-      if (b != operators.NonPromise)
+      if (b !== operators.NonPromise)
         throw new Error("Unexpected promise: " + b);
     }
     return operators.NonPromise;

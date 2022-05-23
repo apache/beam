@@ -238,7 +238,7 @@ export class RowCoder implements Coder<any> {
     if (this.schema.encodingPositionsSet) {
       // Should never be duplicate encoding positions.
       let encPosx = schema.fields.map((f: Field) => f.encodingPosition);
-      if (encPosx.length != this.encodingPositions.length) {
+      if (encPosx.length !== this.encodingPositions.length) {
         throw new Error(
           `Schema with id ${this.schema.id} has encoding_positions_set=True, but not all fields have encoding_position set`
         );
@@ -282,14 +282,14 @@ export class RowCoder implements Coder<any> {
     let nullFields: number[] = [];
 
     if (this.hasNullableFields) {
-      if (attrs.some((attr) => attr == undefined)) {
+      if (attrs.some((attr) => attr === undefined)) {
         let running = 0;
         attrs.forEach((attr, i) => {
-          if (i && i % 8 == 0) {
+          if (i && i % 8 === 0) {
             nullFields.push(running);
             running = 0;
           }
-          running |= (attr == undefined ? 1 : 0) << i % 8;
+          running |= (attr === undefined ? 1 : 0) << i % 8;
         });
         nullFields.push(running);
       }
@@ -304,7 +304,7 @@ export class RowCoder implements Coder<any> {
 
     positions.forEach((i) => {
       let attr = attrs[i];
-      if (attr == undefined) {
+      if (attr === undefined) {
         if (!this.fieldNullable[i]) {
           throw new Error(
             `Attempted to encode null for non-nullable field \"${this.schema.fields[i].name}\".`
@@ -334,7 +334,7 @@ export class RowCoder implements Coder<any> {
       nulls = Array(nFields)
         .fill(0)
         .map((_, i) => {
-          if (i % 8 == 0) {
+          if (i % 8 === 0) {
             let chunk = Math.floor(i / 8);
             running = chunk >= nullMask.length ? 0 : nullMask[chunk];
           }

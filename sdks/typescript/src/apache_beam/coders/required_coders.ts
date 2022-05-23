@@ -542,13 +542,13 @@ export class PaneInfoCoder implements Coder<PaneInfo> {
 
   private static chooseEncoding(value: PaneInfo): number {
     if (
-      (value.index == 0 && value.onTimeIndex == 0) ||
-      value.timing == Timing.UNKNOWN
+      (value.index === 0 && value.onTimeIndex === 0) ||
+      value.timing === Timing.UNKNOWN
     ) {
       return PaneInfoEncoding.NO_INDEX;
     } else if (
-      value.index == value.onTimeIndex ||
-      value.timing == Timing.EARLY
+      value.index === value.onTimeIndex ||
+      value.timing === Timing.EARLY
     ) {
       return PaneInfoEncoding.ONE_INDEX;
     } else {
@@ -586,7 +586,7 @@ export class PaneInfoCoder implements Coder<PaneInfo> {
           isFirst: isFirst,
           isLast: isLast,
           index: onlyIndex,
-          onTimeIndex: timing == Timing.EARLY ? -1 : onlyIndex,
+          onTimeIndex: timing === Timing.EARLY ? -1 : onlyIndex,
           timing: timing,
         };
 

@@ -124,7 +124,7 @@ export function groupByKey<K, V>(): PTransform<
         pipelineComponents.pcollections[input.getId()].coderId
       ];
 
-    if (inputCoderProto.spec!.urn != KVCoder.URN) {
+    if (inputCoderProto.spec!.urn !== KVCoder.URN) {
       return input
         .apply(
           withCoderInternal(
