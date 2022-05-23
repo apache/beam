@@ -66,7 +66,7 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 		}
 		if (sideWfn.Kind == window.GlobalWindows) && !sideNode.Bounded() {
 			// TODO(BEAM-14501): Replace this warning with an error return when proper streaming test functions have been added.
-			log.Warnf(context.Background(), "side input %v is global windowed in DoFn %v but is unbounded, DoFn will block until end of Global Window. Consider windowing your unbounded side input PCollection before use", i, fn)
+			log.Warnf(context.Background(), "side input %v is global windowed in DoFn %v but is unbounded, DoFn will block until end of Global Window. Consider windowing your unbounded side input PCollection before use. This will cause your pipeline to fail in a future release, see BEAM-14501 for details", i, fn)
 		}
 		in = append(in, s.Input.n)
 	}
