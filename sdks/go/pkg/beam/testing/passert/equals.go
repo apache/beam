@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 )
 
 // Equals verifies the given collection has the same values as the given
@@ -53,10 +54,34 @@ func EqualsList(s beam.Scope, col beam.PCollection, list interface{}) beam.PColl
 	return equals(subScope, col, listCollection)
 }
 
+// WindowedEqualsList verifies that the given collection has the same values as a
+// given list, under coder equality. The values must be provided as an array or a slice.
+// This function also takes a window function to window the list into for cases where
+// the PCollections cannot be globally windowed (e.g. tests in unbounded pipelines.)
+// This windowing function is applied to both the PCollection created from the list
+// and the impulse used to trigger the Diff function.
+func WindowedEqualsList(s beam.Scope, wfn *window.Fn, col beam.PCollection, list interface{}) beam.PCollection {
+	subScope := s.Scope("passert.WindowedEqualsList")
+	if list == nil {
+		return Empty(subScope, col)
+	}
+	inter := beam.CreateList(subScope, list)
+	winList := beam.WindowInto(s, wfn, inter)
+	return windowedEquals(subScope, wfn, col, winList)
+}
+
 // equals verifies that the actual values match the expected ones.
 func equals(s beam.Scope, actual, expected beam.PCollection) beam.PCollection {
 	unexpected, correct, missing := Diff(s, actual, expected)
 	beam.ParDo0(s, failIfBadEntries, beam.Impulse(s), beam.SideInput{Input: unexpected}, beam.SideInput{Input: correct}, beam.SideInput{Input: missing})
+	return actual
+}
+
+// windowedEquals verifies that the actual values match the expected ones in cases where the PCollections
+// cannot be globally windowed.
+func windowedEquals(s beam.Scope, wfn *window.Fn, actual, expected beam.PCollection) beam.PCollection {
+	unexpected, correct, missing := WindowedDiff(s, wfn, actual, expected)
+	beam.ParDo0(s, failIfBadEntries, beam.WindowInto(s, wfn, beam.Impulse(s)), beam.SideInput{Input: unexpected}, beam.SideInput{Input: correct}, beam.SideInput{Input: missing})
 	return actual
 }
 

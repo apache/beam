@@ -23,6 +23,7 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
@@ -42,6 +43,21 @@ func Diff(s beam.Scope, a, b beam.PCollection) (left, both, right beam.PCollecti
 	t := beam.ValidateNonCompositeType(a)
 	beam.ValidateNonCompositeType(b)
 	return beam.ParDo3(s, &diffFn{Type: beam.EncodedType{T: t.Type()}}, imp, beam.SideInput{Input: a}, beam.SideInput{Input: b})
+}
+
+// WindowedDiff splits 2 incoming PCollections into 3: left only, both, right only. Duplicates are
+// preserved, so a value may appear multiple times and in multiple collections. Coder
+// equality is used to determine equality. Should only be used for small collections,
+// because all values are held in memory at the same time. WindowedDiff accepts a window function
+// to apply to the Impulse so it can operate on PCollections that are not globally windowed but are windowed using
+// the same window function.
+func WindowedDiff(s beam.Scope, wfn *window.Fn, a, b beam.PCollection) (left, both, right beam.PCollection) {
+	imp := beam.Impulse(s)
+	wImp := beam.WindowInto(s, wfn, imp)
+
+	t := beam.ValidateNonCompositeType(a)
+	beam.ValidateNonCompositeType(b)
+	return beam.ParDo3(s, &diffFn{Type: beam.EncodedType{T: t.Type()}}, wImp, beam.SideInput{Input: a}, beam.SideInput{Input: b})
 }
 
 // diffFn computes the symmetrical multi-set difference of 2 collections, under

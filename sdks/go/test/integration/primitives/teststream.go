@@ -16,10 +16,15 @@
 package primitives
 
 import (
+	"time"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
 )
+
+var bigWinFn *window.Fn = window.NewFixedWindows(10000 * time.Hour)
 
 // TestStreamSequence tests the TestStream primitive by inserting string elements
 // then advancing the watermark past the point where they were inserted.
@@ -37,16 +42,21 @@ func TestStreamStrings() *beam.Pipeline {
 }
 
 // TestStreamByteSliceSequence tests the TestStream primitive by inserting byte slice elements
-// then advancing the watermark to infinity and comparing the output..
+// then advancing the watermark to infinity and comparing the output.
 func TestStreamByteSliceSequence() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 	con := teststream.NewConfig()
-	b := []byte{91, 92, 93}
-	con.AddElements(1, b)
+	bOne := []byte{1, 91}
+	bTwo := []byte{1, 92}
+	bThree := []byte{1, 93}
+	con.AddElements(1, bOne, bTwo, bThree)
 	con.AdvanceWatermarkToInfinity()
 	col := teststream.Create(s, con)
-	passert.Count(s, col, "teststream byte", 1)
-	passert.Equals(s, col, append([]byte{3}, b...))
+	passert.Count(s, col, "teststream byte", 3)
+
+	winCol := beam.WindowInto(s, bigWinFn, col)
+
+	passert.WindowedEqualsList(s, bigWinFn, winCol, append([][]byte{}, bOne, bTwo, bThree))
 	return p
 }
 
@@ -62,7 +72,10 @@ func TestStreamInt64Sequence() *beam.Pipeline {
 	col := teststream.Create(s, con)
 
 	passert.Count(s, col, "teststream int64", 3)
-	passert.EqualsList(s, col, ele)
+
+	winCol := beam.WindowInto(s, bigWinFn, col)
+
+	passert.WindowedEqualsList(s, bigWinFn, winCol, ele)
 	return p
 }
 
@@ -81,7 +94,10 @@ func TestStreamTwoInt64Sequences() *beam.Pipeline {
 	col := teststream.Create(s, con)
 
 	passert.Count(s, col, "teststream int64", 6)
-	passert.EqualsList(s, col, append(eo, et...))
+
+	winCol := beam.WindowInto(s, bigWinFn, col)
+
+	passert.WindowedEqualsList(s, bigWinFn, winCol, append(eo, et...))
 	return p
 }
 
@@ -97,7 +113,10 @@ func TestStreamFloat64Sequence() *beam.Pipeline {
 	col := teststream.Create(s, con)
 
 	passert.Count(s, col, "teststream float64", 3)
-	passert.EqualsList(s, col, ele)
+
+	winCol := beam.WindowInto(s, bigWinFn, col)
+
+	passert.WindowedEqualsList(s, bigWinFn, winCol, ele)
 	return p
 }
 
@@ -116,7 +135,10 @@ func TestStreamTwoFloat64Sequences() *beam.Pipeline {
 	col := teststream.Create(s, con)
 
 	passert.Count(s, col, "teststream float64", 6)
-	passert.EqualsList(s, col, append(eo, et...))
+
+	winCol := beam.WindowInto(s, bigWinFn, col)
+
+	passert.WindowedEqualsList(s, bigWinFn, winCol, append(eo, et...))
 	return p
 }
 
@@ -132,7 +154,10 @@ func TestStreamBoolSequence() *beam.Pipeline {
 	col := teststream.Create(s, con)
 
 	passert.Count(s, col, "teststream bool", 3)
-	passert.EqualsList(s, col, ele)
+
+	winCol := beam.WindowInto(s, bigWinFn, col)
+
+	passert.WindowedEqualsList(s, bigWinFn, winCol, ele)
 	return p
 }
 
@@ -151,6 +176,9 @@ func TestStreamTwoBoolSequences() *beam.Pipeline {
 	col := teststream.Create(s, con)
 
 	passert.Count(s, col, "teststream bool", 6)
-	passert.EqualsList(s, col, append(eo, et...))
+
+	winCol := beam.WindowInto(s, bigWinFn, col)
+
+	passert.WindowedEqualsList(s, bigWinFn, winCol, append(eo, et...))
 	return p
 }
