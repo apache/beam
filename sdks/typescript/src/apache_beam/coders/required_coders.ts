@@ -271,7 +271,7 @@ export class IterableCoder<T> implements Coder<Iterable<T>> {
    */
   encode(element: Iterable<T>, writer: Writer, context: Context) {
     const elmLen = (element as Array<T>).length;
-    if (elmLen !== null && elmLen !== undefined) {
+    if (elmLen !== undefined) {
       const eArray = element as Array<T>;
       writer.fixed32(swapEndian32(eArray.length));
       for (let i = 0; i < eArray.length; ++i) {

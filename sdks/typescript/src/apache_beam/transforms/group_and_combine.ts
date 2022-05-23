@@ -242,7 +242,7 @@ function binaryCombineFn<I>(
 ): CombineFn<I, I | undefined, I> {
   return {
     createAccumulator: () => undefined,
-    addInput: (a, b) => (a === null || a === undefined ? b : combiner(a, b)),
+    addInput: (a, b) => (a === undefined ? b : combiner(a, b)),
     mergeAccumulators: (accs) =>
       [...accs]
         .filter((a) => a !== null && a !== undefined)

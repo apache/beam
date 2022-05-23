@@ -167,13 +167,10 @@ export function split<T extends { [key: string]: unknown }>(
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform
   ) {
-    if (options.exclusive === null || options.exclusive === undefined) {
+    if (options.exclusive === undefined) {
       options.exclusive = true;
     }
-    if (
-      options.unknownTagBehavior === null ||
-      options.unknownTagBehavior === undefined
-    ) {
+    if (options.unknownTagBehavior === undefined) {
       options.unknownTagBehavior = "error";
     }
     if (
@@ -182,7 +179,7 @@ export function split<T extends { [key: string]: unknown }>(
     ) {
       tags.push(options.unknownTagName!);
     }
-    if (options.knownTags === null || options.knownTags === undefined) {
+    if (options.knownTags === undefined) {
       options.knownTags = tags;
     }
 
@@ -225,7 +222,7 @@ export class ParDoParam<T> {
 
   // TODO: Nameing "get" seems to be special.
   lookup(): T {
-    if (this.provider === null || this.provider === undefined) {
+    if (this.provider === undefined) {
       throw new Error("Cannot be called outside of a DoFn's process method.");
     }
 

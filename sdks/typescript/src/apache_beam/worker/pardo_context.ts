@@ -18,10 +18,8 @@
 
 import * as protobufjs from "protobufjs";
 
-import { PTransform, PCollection } from "../proto/beam_runner_api";
 import * as runnerApi from "../proto/beam_runner_api";
 import * as fnApi from "../proto/beam_fn_api";
-import { MultiplexingDataChannel, IDataChannel } from "./data";
 import { StateProvider } from "./state";
 
 import * as urns from "../internal/urns";
@@ -75,6 +73,8 @@ export class ParamProviderImpl implements ParamProvider {
       if (
         typeof value === "object" &&
         value !== null &&
+        value !== undefined &&
+        value["parDoParamName"] !== null &&
         value["parDoParamName"] !== undefined
       ) {
         result[name] = Object.create(value);

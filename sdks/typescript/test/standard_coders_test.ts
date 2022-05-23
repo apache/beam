@@ -102,7 +102,7 @@ function get_json_value_parser(coderRepr: CoderRepr) {
   // TODO(pabloem): support 'beam:coder:row:v1' coder.
   var value_parser_factory = _urn_to_json_value_parser[coderRepr.urn];
 
-  if (value_parser_factory === null || value_parser_factory === undefined) {
+  if (value_parser_factory === undefined) {
     throw new Error(
       util.format("Do not know how to parse example values for %s", coderRepr)
     );
