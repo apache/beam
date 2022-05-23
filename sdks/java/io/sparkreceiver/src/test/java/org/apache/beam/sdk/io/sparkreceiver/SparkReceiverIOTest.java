@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.sparkreceiver;
 
 import io.cdap.plugin.hubspot.common.BaseHubspotConfig;
-import io.cdap.plugin.hubspot.source.streaming.HubspotReceiver;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import io.cdap.plugin.hubspot.source.streaming.PullFrequency;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -64,12 +63,12 @@ public class SparkReceiverIOTest {
 
     ProxyReceiverBuilder<String, HubspotCustomReceiver> receiverBuilder =
         new ProxyReceiverBuilder<>(HubspotCustomReceiver.class).withConstructorArgs(pluginConfig);
-//    HubspotCustomReceiver receiver = receiverBuilder.build();
+    //    HubspotCustomReceiver receiver = receiverBuilder.build();
     SparkReceiverIO.Read<String> reader =
         SparkReceiverIO.<String>read()
             .withValueClass(String.class)
             .withValueCoder(StringUtf8Coder.of())
-//            .withSparkReceiver(receiver);
+            //            .withSparkReceiver(receiver);
             .withSparkReceiverBuilder(receiverBuilder);
 
     PCollection<String> input = p.apply(reader).setCoder(StringUtf8Coder.of());
