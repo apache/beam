@@ -660,7 +660,8 @@ public class BigtableServiceImplTest {
     return generateSegmentResult(prefix, startIndex, count, false);
   }
 
-  private static List<FlatRow> generateLargeSegmentResult(String prefix, int startIndex, int count) {
+  private static List<FlatRow> generateLargeSegmentResult(
+      String prefix, int startIndex, int count) {
     return generateSegmentResult(prefix, startIndex, count, true);
   }
 

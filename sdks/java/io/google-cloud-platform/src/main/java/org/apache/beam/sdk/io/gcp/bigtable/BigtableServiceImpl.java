@@ -156,8 +156,7 @@ class BigtableServiceImpl implements BigtableService {
       String tableNameSr =
           session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
 
-      ServiceCallMetric serviceCallMetric =
-          createCallMetric(session, source.getTableId().get());
+      ServiceCallMetric serviceCallMetric = createCallMetric(session, source.getTableId().get());
       ReadRowsRequest.Builder requestB =
           ReadRowsRequest.newBuilder().setRows(rowSet).setTableName(tableNameSr);
       if (source.getRowFilter() != null) {
@@ -556,8 +555,7 @@ class BigtableServiceImpl implements BigtableService {
   }
 
   @VisibleForTesting
-  public static ServiceCallMetric createCallMetric(
-      BigtableSession session, String tableId) {
+  public static ServiceCallMetric createCallMetric(BigtableSession session, String tableId) {
     HashMap<String, String> baseLabels = new HashMap<>();
     baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
     baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigTable");
