@@ -23,6 +23,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 // Equals verifies the given collection has the same values as the given
@@ -60,6 +61,9 @@ func EqualsList(s beam.Scope, col beam.PCollection, list interface{}) beam.PColl
 // the PCollections cannot be globally windowed (e.g. tests in unbounded pipelines.)
 // This windowing function is applied to both the PCollection created from the list
 // and the impulse used to trigger the Diff function.
+//
+// Both PCollections should have EventTimes associated with them to place expected elements
+// in the correct windows or an extremely large window to cover all elements.
 func WindowedEqualsList(s beam.Scope, wfn *window.Fn, col beam.PCollection, list interface{}) beam.PCollection {
 	subScope := s.Scope("passert.WindowedEqualsList")
 	if list == nil {
@@ -86,7 +90,7 @@ const (
 // 'missing' PCollections, and fails if so. The returned error message contains
 // a full list of each unexpected or missing entry.
 // If all the entries are in place, returns nil.
-func failIfBadEntries(_ []byte, unexpected, correct, missing func(*beam.T) bool) error {
+func failIfBadEntries(win typex.Window, _ []byte, unexpected, correct, missing func(*beam.T) bool) error {
 	goodCount := 0
 	var dummy beam.T
 	for correct(&dummy) {
@@ -119,6 +123,11 @@ func failIfBadEntries(_ []byte, unexpected, correct, missing func(*beam.T) bool)
 	for _, entry := range missingStrings {
 		outStrings = append(outStrings, "---", entry)
 	}
+	outStrings = append(
+		outStrings,
+		partSeparator,
+		fmt.Sprintf("windowing: %#v", win),
+	)
 	return errors.New(strings.Join(outStrings, "\n"))
 }
 

@@ -217,4 +217,6 @@ func ExampleEqualsList_mismatch() {
 	// 1 missing entries (missing in actual, present in expected)
 	// ---
 	// wrong
+	// =========
+	// windowing: window.GlobalWindow{}
 }
