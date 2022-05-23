@@ -17,6 +17,7 @@
 package textio
 
 import (
+	"context"
 	"errors"
 	"os"
 	"testing"
@@ -87,4 +88,28 @@ func TestImmediate(t *testing.T) {
 	passert.Count(s, lines, "NumLines", 2)
 
 	ptest.RunAndValidate(t, p)
+}
+
+// TestReadSdf tests that readSdf successfully reads a test text file, and
+// outputs the correct number of lines for it, even for an exceedingly long
+// line.
+func TestReadSdf(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	lines := ReadSdf(s, testFilePath)
+	passert.Count(s, lines, "NumLines", 1)
+
+	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
+		t.Fatalf("Failed to execute job: %v", err)
+	}
+}
+
+func TestReadAllSdf(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	files := beam.Create(s, testFilePath)
+	lines := ReadAllSdf(s, files)
+	passert.Count(s, lines, "NumLines", 1)
+
+	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
+		t.Fatalf("Failed to execute job: %v", err)
+	}
 }
