@@ -492,11 +492,11 @@ class FileResult(_FileResult):
 # docstring contains constructor argument documentation.
 # @experimental()
 class WriteToFiles(beam.PTransform):
-  """Write the incoming PCollection to a set of output files.
+  r"""Write the incoming PCollection to a set of output files.
 
   The incoming ``PCollection`` may be bounded or unbounded.
 
-  **Note:** For unbounded ``PCollection``s, this transform does not support
+  **Note:** For unbounded ``PCollection``\s, this transform does not support
   multiple firings per Window (due to the fact that files are named only by
   their destination, and window, at the moment).
 
@@ -532,11 +532,11 @@ class WriteToFiles(beam.PTransform):
         directory that is meant to be temporary as well. Once the whole output
         has been written, the files are moved into their final destination, and
         given their final names. By default, the temporary directory will be
-          within the temp_location of your pipeline.
-      sink (callable, FileSink): The sink to use to write into a file. It should
-        implement the methods of a ``FileSink``. Pass a class signature or an
-        instance of FileSink to this parameter. If none is provided, a
-        ``TextSink`` is used.
+        within the temp_location of your pipeline.
+      sink (callable, ~apache_beam.io.fileio.FileSink): The sink to use to write
+        into a file. It should implement the methods of a ``FileSink``. Pass a
+        class signature or an instance of FileSink to this parameter. If none is
+        provided, a ``TextSink`` is used.
       shards (int): The number of shards per destination and trigger firing.
       max_writers_per_bundle (int): The number of writers that can be open
         concurrently in a single worker that's processing one bundle.
