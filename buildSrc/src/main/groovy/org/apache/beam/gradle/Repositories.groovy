@@ -41,7 +41,7 @@ class Repositories {
 
       // For pentaho dependencies.
       maven {
-        url "https://public.nexus.pentaho.org/repository/proxy-public-3rd-party-release"
+        url "https://public.nexus.pentaho.org/repository/omni"
         content { includeGroup "org.pentaho" }
       }
 
@@ -75,7 +75,7 @@ class Repositories {
         mavenCentral()
         maven { url "https://plugins.gradle.org/m2/" }
         maven { url "https://repo.spring.io/plugins-release" }
-        maven { url "https://public.nexus.pentaho.org/repository/proxy-public-3rd-party-release" }
+        maven { url "https://public.nexus.pentaho.org/repository/omni" }
         maven { url "https://packages.confluent.io/maven/" }
         maven { url project.offlineRepositoryRoot }
       }
@@ -85,4 +85,3 @@ class Repositories {
     }
   }
 }
-
