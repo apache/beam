@@ -43,7 +43,7 @@ export class PipelineContext {
 
   getCoder<T>(coderId: string): Coder<T> {
     const this_ = this;
-    if (this.coders[coderId] === undefined) {
+    if (this.coders[coderId] === null || this.coders[coderId] === undefined) {
       const coderProto = this.components.coders[coderId];
       const components: Coder<unknown>[] = (
         coderProto.componentCoderIds || []
@@ -277,7 +277,7 @@ export class Pipeline {
     } else {
       coderId = this.context.getCoderId(coder);
     }
-    if (windowingStrategy === undefined) {
+    if (windowingStrategy === null || windowingStrategy === undefined) {
       windowingStrategyId = undefined!;
     } else if (typeof windowingStrategy === "string") {
       windowingStrategyId = windowingStrategy;

@@ -115,7 +115,7 @@ export class GeneralObjectCoder<T> implements Coder<T> {
   };
 
   encode(element: T, writer: Writer, context: Context) {
-    if (element === null) {
+    if (element === null || element === undefined) {
       // typeof is "object" but BSON can't handle it.
       writer.string("Z");
     } else {

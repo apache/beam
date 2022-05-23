@@ -304,6 +304,7 @@ function rewriteSideInputs(p: runnerApi.Pipeline, pipelineStateRef: string) {
   const transforms = p.components!.transforms;
   for (const [transformId, transform] of Object.entries(transforms)) {
     if (
+      transform.spec !== null &&
       transform.spec !== undefined &&
       transform.spec.urn === parDo.urn &&
       Object.keys(transform.inputs).length > 1

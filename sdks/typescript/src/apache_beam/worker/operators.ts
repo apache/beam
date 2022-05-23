@@ -29,8 +29,8 @@ import * as urns from "../internal/urns";
 import { PipelineContext } from "../internal/pipeline";
 import { deserializeFn } from "../internal/serialize";
 import { Coder, Context as CoderContext } from "../coders/coders";
-import { Window, Instant, PaneInfo, WindowedValue } from "../values";
-import { parDo, DoFn, ParDoParam, SplitOptions } from "../transforms/pardo";
+import { Window, Instant, WindowedValue } from "../values";
+import { parDo, DoFn, SplitOptions } from "../transforms/pardo";
 import { WindowFn } from "../transforms/window";
 
 import {
@@ -108,7 +108,7 @@ export function createOperator(
   // Ensure receivers are eagerly created.
   Object.values(transform.outputs).map(context.getReceiver);
   let operatorConstructor = operatorsByUrn.get(transform.spec!.urn!);
-  if (operatorConstructor === undefined) {
+  if (operatorConstructor === null || operatorConstructor === undefined) {
     throw new Error("Unknown transform type:" + transform.spec!.urn);
   }
   return operatorConstructor(transformId, transform, context);

@@ -155,7 +155,7 @@ export class JavaJarService extends SubprocessService {
   static JAR_CACHE = path.join(BEAM_CACHE, "jars");
 
   constructor(jar: string, args: string[] | undefined = undefined) {
-    if (args === undefined) {
+    if (args === null || args === undefined) {
       // TODO: (Extension) Should filesToStage be set at some higher level?
       args = ["{{PORT}}", "--filesToStage=" + jar];
     }
@@ -268,7 +268,7 @@ export class JavaJarService extends SubprocessService {
   ): string {
     return (
       [artifactId, appendix, version, classifier]
-        .filter((s) => s !== undefined)
+        .filter((s) => s !== null && s !== undefined)
         .join("-") + ".jar"
     );
   }

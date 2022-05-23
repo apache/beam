@@ -194,7 +194,7 @@ export class Worker {
       this.bundleProcessors.set(descriptorId, []);
     }
     const processor = this.bundleProcessors.get(descriptorId)?.pop();
-    if (processor !== undefined) {
+    if (processor !== null && processor !== undefined) {
       return processor;
     } else {
       return new BundleProcessor(
@@ -321,7 +321,7 @@ export class BundleProcessor {
   }
 
   getStateProvider() {
-    if (this.stateProvider === undefined) {
+    if (this.stateProvider === null || this.stateProvider === undefined) {
       if (typeof this.getStateChannel === "function") {
         this.stateProvider = new CachingStateProvider(
           new GrpcStateProvider(
@@ -339,7 +339,7 @@ export class BundleProcessor {
   }
 
   getBundleId() {
-    if (this.currentBundleId === undefined) {
+    if (this.currentBundleId === null || this.currentBundleId === undefined) {
       throw new Error("Not currently processing a bundle.");
     }
     return this.currentBundleId!;

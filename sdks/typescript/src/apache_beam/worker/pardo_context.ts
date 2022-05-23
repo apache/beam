@@ -134,7 +134,7 @@ export class ParamProviderImpl implements ParamProvider {
 
   update(wvalue: WindowedValue<unknown> | undefined): operators.ProcessResult {
     this.wvalue = wvalue;
-    if (wvalue === undefined) {
+    if (wvalue === null || wvalue === undefined) {
       return operators.NonPromise;
     }
     // We have to prefetch all the side inputs.
@@ -151,7 +151,7 @@ export class ParamProviderImpl implements ParamProvider {
   }
 
   provide(param) {
-    if (this.wvalue === undefined) {
+    if (this.wvalue === null || this.wvalue === undefined) {
       throw new Error(
         param.parDoParamName + " not defined outside of a process() call."
       );

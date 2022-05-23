@@ -185,7 +185,7 @@ class GroupByAndCombine<T, O> extends PTransformClass<
       )
       .map(function constructResult(kv) {
         const result = {};
-        if (this_.keyNames === undefined) {
+        if (this_.keyNames === null || this_.keyNames === undefined) {
           // Don't populate a key at all.
         } else if (typeof this_.keyNames === "string") {
           result[this_.keyNames] = kv.key;
@@ -242,9 +242,11 @@ function binaryCombineFn<I>(
 ): CombineFn<I, I | undefined, I> {
   return {
     createAccumulator: () => undefined,
-    addInput: (a, b) => (a === undefined ? b : combiner(a, b)),
+    addInput: (a, b) => (a === null || a === undefined ? b : combiner(a, b)),
     mergeAccumulators: (accs) =>
-      [...accs].filter((a) => a != undefined).reduce(combiner, undefined),
+      [...accs]
+        .filter((a) => a !== null && a !== undefined)
+        .reduce(combiner, undefined),
     extractOutput: (a) => a,
   };
 }

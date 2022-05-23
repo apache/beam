@@ -89,7 +89,11 @@ class PortableRunnerPipelineResult implements PipelineResult {
     let pollMillis = 10;
     while (!PortableRunnerPipelineResult.isTerminal(state)) {
       const now = Date.now();
-      if (duration !== undefined && now - start > duration) {
+      if (
+        duration !== null &&
+        duration !== undefined &&
+        now - start > duration
+      ) {
         return state;
       }
 

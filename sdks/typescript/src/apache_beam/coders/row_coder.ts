@@ -31,7 +31,6 @@ import {
   StrUtf8Coder,
   VarIntCoder,
 } from "./standard_coders";
-import { Value } from "../proto/google/protobuf/struct";
 
 const argsort = (x) =>
   x
@@ -282,14 +281,14 @@ export class RowCoder implements Coder<any> {
     let nullFields: number[] = [];
 
     if (this.hasNullableFields) {
-      if (attrs.some((attr) => attr === undefined)) {
+      if (attrs.some((attr) => attr === null || attr === undefined)) {
         let running = 0;
         attrs.forEach((attr, i) => {
           if (i && i % 8 === 0) {
             nullFields.push(running);
             running = 0;
           }
-          running |= (attr === undefined ? 1 : 0) << i % 8;
+          running |= (attr === null || attr === undefined ? 1 : 0) << i % 8;
         });
         nullFields.push(running);
       }
@@ -304,7 +303,7 @@ export class RowCoder implements Coder<any> {
 
     positions.forEach((i) => {
       let attr = attrs[i];
-      if (attr === undefined) {
+      if (attr === null || attr === undefined) {
         if (!this.fieldNullable[i]) {
           throw new Error(
             `Attempted to encode null for non-nullable field \"${this.schema.fields[i].name}\".`

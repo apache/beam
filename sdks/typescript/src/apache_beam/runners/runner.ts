@@ -27,7 +27,11 @@ export interface PipelineResult {
 
 export function createRunner(options): Runner {
   let runnerConstructor: (any) => Runner;
-  if (options.runner === undefined || options.runner === "default") {
+  if (
+    options.runner === null ||
+    options.runner === undefined ||
+    options.runner === "default"
+  ) {
     runnerConstructor = defaultRunner;
   } else if (options.runner === "direct") {
     runnerConstructor = require("./direct_runner").directRunner;

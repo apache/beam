@@ -85,7 +85,7 @@ class RawExternalTransform<
     private inferPValueType: boolean = true
   ) {
     super("External(" + urn + ")");
-    if (payload === undefined) {
+    if (payload === null || payload === undefined) {
       this.payload = undefined;
     } else if (payload instanceof Uint8Array) {
       this.payload = payload as Uint8Array;
@@ -276,7 +276,9 @@ class RawExternalTransform<
       t.inputs = Object.fromEntries(
         Object.entries(t.inputs).map(([k, v]) => [
           k,
-          renamedInputs[v] !== undefined ? renamedInputs[v] : v,
+          renamedInputs[v] !== null && renamedInputs[v] !== undefined
+            ? renamedInputs[v]
+            : v,
         ])
       );
     }
