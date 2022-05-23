@@ -29,7 +29,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // DataSource is a Root execution unit.
@@ -349,30 +348,6 @@ func (n *DataSource) makeEncodeElms() func([]*FullValue) ([][]byte, error) {
 	return encodeElms
 }
 
-func getBoundedRTrackerFromRoot(root *FullValue, rt sdf.RTracker) (sdf.BoundableRTracker, float64, bool) {
-	// tElm := root.Elm.(*FullValue).Elm2.(*FullValue).Elm
-	// tracker, ok := tElm.(sdf.RTracker)
-	// if !ok {
-	// 	log.Warnf(context.Background(), "expected type sdf.RTracker, got type %T", tElm)
-	// 	return nil, -1.0, false
-	// }
-
-	// newCreateTrackerInvoker()
-	tracker := rt
-	boundTracker, ok := tracker.(sdf.BoundableRTracker)
-	if !ok {
-		log.Warn(context.Background(), "expected type sdf.BoundableRTracker; ensure that the RTracker implements IsBounded()")
-		// Assume an RTracker that does not implement IsBounded() will always be bounded, wrap so it can be used.
-		boundTracker = sdf.NewWrappedTracker(tracker)
-	}
-	size, ok := root.Elm2.(float64)
-	if !ok {
-		log.Warnf(context.Background(), "expected size to be type float64, got type %T", root.Elm2)
-		return nil, -1.0, false
-	}
-	return boundTracker, size, true
-}
-
 // Checkpoint attempts to split an SDF that has self-checkpointed (e.g. returned a
 // ProcessContinuation) and needs to be resumed later. If the underlying DoFn is not
 // splittable or has not returned a resuming continuation, the function returns an empty
@@ -391,30 +366,13 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 
 	ow := su.GetOutputWatermark()
 
-	// Always split at fraction 0.0. All remaining work should be returned as a residual, as anything left in the primaries
-	// will not be rescheduled and could represent data loss. We expect nil primaries but will also ignore any restrictions
-	// that are bounded and of size 0 as they represent no remaining work.
-	ps, rs, err := su.Split(0.0)
+	// Checkpointing is functionally a split at fraction 0.0
+	rs, err := su.Checkpoint()
 	if err != nil {
 		return SplitResult{}, -1 * time.Minute, false, err
 	}
 	if len(rs) == 0 {
 		return SplitResult{}, -1 * time.Minute, false, nil
-	}
-	if len(ps) != 0 {
-		// Expected structure of the root FullValue is KV<KV<Elm, KV<BoundedRTracker, watermarkEstimatorState>>, Size>
-		for _, root := range ps {
-			tracker, size, ok := getBoundedRTrackerFromRoot(root, n.Out.(*ProcessSizedElementsAndRestrictions).rt)
-			// If type assertion didn't return a BoundableRTracker, we move on.
-			if !ok {
-				log.Warnf(context.Background(), "got unexpected primary root contents %v, please check the output of the restriction tracker's TrySplit() function", root)
-				continue
-			}
-			if tracker.IsBounded() || size > 0.00001 {
-				return SplitResult{}, -1 * time.Minute, false, fmt.Errorf("failed to checkpoint: got %#v primary roots, want none. Ensure that the restriction tracker returns nil in TrySplit() when the split fraction is 0.0", ps)
-			}
-		}
-
 	}
 
 	encodeElms := n.makeEncodeElms()

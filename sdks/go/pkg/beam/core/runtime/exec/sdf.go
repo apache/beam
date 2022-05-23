@@ -580,6 +580,12 @@ type SplittableUnit interface {
 	// fully represented in just one.
 	Split(fraction float64) (primaries, residuals []*FullValue, err error)
 
+	// Checkpoint performs a split at fraction 0.0 of an element that has stopped
+	// processing and has work that needs to be resumed later. This function will
+	// check that the produced primary restriction from the split represents
+	// completed work to avoid data loss and will error if work remains.
+	Checkpoint() (residuals []*FullValue, err error)
+
 	// GetProgress returns the fraction of progress the current element has
 	// made in processing. (ex. 0.0 means no progress, and 1.0 means fully
 	// processed.)
@@ -647,6 +653,27 @@ func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []
 		return nil, nil, addContext(err)
 	}
 	return p, r, nil
+}
+
+// Checkpoint splits the remaining work in a restriction into residuals to be resumed
+// later by the runner. This is done iff the underlying Splittable DoFn returns a resuming
+// ProcessContinuation. If the split occurs and the primary restriction is marked as done
+// my the RTracker, the Checkpoint fails as this is a potential data-loss case.
+func (n *ProcessSizedElementsAndRestrictions) Checkpoint() ([]*FullValue, error) {
+	addContext := func(err error) error {
+		return errors.WithContext(err, "Attempting checkpoint in ProcessSizedElementsAndRestrictions")
+	}
+	_, r, err := n.Split(0.0)
+
+	if err != nil {
+		return nil, addContext(err)
+	}
+
+	if !n.rt.IsDone() {
+		return nil, addContext(errors.Errorf("Primary restriction %#v is not done. Check that the RTracker's TrySplit() at fraction 0.0 returns a completed primary restriction", n.rt))
+	}
+
+	return r, nil
 }
 
 // singleWindowSplit is intended for splitting elements in non window-observing
