@@ -10,8 +10,8 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-function getElPreviousPositionAndData(el) {
-    const clickedLangSwitchEl = el.target.closest(".language-switcher");
+function getElPreviousPositionAndData(element) {
+    const clickedLangSwitchEl = element.target.closest(".language-switcher");
     const elPreviousOffsetFromViewPort = clickedLangSwitchEl.getBoundingClientRect().top;
     return {
         elPreviousOffsetFromViewPort,
@@ -28,8 +28,8 @@ function setScrollToNewPosition(clickedElData) {
 $(document).ready(function() {
     function Switcher(conf) {
         var id = conf["class-prefix"],
-          def = conf["default"],
-          langs = [];
+            def = conf["default"],
+            langs = [];
         var prefix = id + "-";
         return {
             "id": id,
@@ -105,7 +105,7 @@ $(document).ready(function() {
                     // Making type preferences presistance, for user.
                     localStorage.setItem(_self.dbKey, $(this).data("type"));
 
-                    // Set scroll to new position because Safari and Firefox can't do it automatically, only Chrome under the good detects the correct position of viewport
+                    // Set scroll to new position because Safari and Firefox can't do it automatically, only Chrome under the hood detects the correct position of viewport
                     const clickedLangSwitchElData = getElPreviousPositionAndData(el);
                     _self.toggle();
                     setScrollToNewPosition(clickedLangSwitchElData);
