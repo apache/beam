@@ -29,16 +29,15 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 class SklearnInference(unittest.TestCase):
   @pytest.mark.it_postcommit
-  @pytest.mark.sickbay_direct
-  @pytest.mark.sickbay_spark
-  @pytest.mark.sickbay_flink
   def test_predictions_output_file(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
+    test_pipeline = TestPipeline(is_integration_test=False)
+    input_file = 'gs://apache-beam-ml/datasets/mnist/train.csv'
     output_file_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/outputs'  # pylint: disable=line-too-long
-    output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
-    model_path = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/models/fetch_20newsgroups/multinomialNB.pkl'  # pylint: disable=line-too-long
+    output_file = '/'.join(
+        [output_file_dir, str(uuid.uuid4()), 'sklearn_result.txt'])
+    model_path = 'gs://apache-beam-ml/models/mnist_model_svm.pickle'  # pylint: disable=line-too-long
     extra_opts = {
-        'dataset': 'fetch_20newsgroups',
+        'input': input_file,
         'output': output_file,
         'model_path': model_path,
     }
