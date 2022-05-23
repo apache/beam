@@ -76,7 +76,7 @@ type RTracker interface {
 	// a primary restriction that represents no remaining work, and the residual should
 	// contain all remaining work. The RTracker should be marked as done
 	// (and return true when IsDone() is called) after that split.
-	// This will ensure that there is no data loss, which would result in 
+	// This will ensure that there is no data loss, which would result in
 	// the pipeline failing during the checkpoint.
 	//
 	// If an error is returned, some catastrophic failure occurred and the entire bundle will fail.
