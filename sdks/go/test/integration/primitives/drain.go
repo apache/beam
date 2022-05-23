@@ -82,13 +82,13 @@ func (fn *TruncateFn) SplitRestriction(_ []byte, rest offsetrange.Restriction) [
 	return rest.EvenSplits(2)
 }
 
-func (fn *TruncateFn) TruncateRestriction(rt *sdf.LockRTracker, _ []byte) offsetrange.Restriction {
-	log.Debug(context.Background(), "triggering the truncate restriction")
-	return offsetrange.Restriction{
-		Start: rt.GetRestriction().(offsetrange.Restriction).Start,
-		End:   rt.GetRestriction().(offsetrange.Restriction).Start + 2,
-	}
-}
+// func (fn *TruncateFn) TruncateRestriction(rt *sdf.LockRTracker, _ []byte) offsetrange.Restriction {
+// 	log.Debug(context.Background(), "triggering the truncate restriction")
+// 	return offsetrange.Restriction{
+// 		Start: rt.GetRestriction().(offsetrange.Restriction).Start,
+// 		End:   rt.GetRestriction().(offsetrange.Restriction).Start + 2,
+// 	}
+// }
 
 // ProcessElement continually gets the start position of the restriction and emits the element as it is.
 func (fn *TruncateFn) ProcessElement(rt *sdf.LockRTracker, p []byte, emit func([]byte)) sdf.ProcessContinuation {
@@ -112,10 +112,10 @@ func (fn *TruncateFn) ProcessElement(rt *sdf.LockRTracker, p []byte, emit func([
 
 func Drain(s beam.Scope) {
 	beam.Init()
-	project := "pubsub-public-data"
-	// project := gcpopts.GetProject(context.Background())
-	input := "taxirides-realtime"
-	// input := *output
+	// project := "pubsub-public-data"
+	project := gcpopts.GetProject(context.Background())
+	// input := "taxirides-realtime"
+	input := *output
 	output := "riteshghorse-draintest"
 
 	col := pubsubio.Read(s, project, input, &pubsubio.ReadOptions{})

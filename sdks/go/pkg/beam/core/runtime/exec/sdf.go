@@ -314,10 +314,10 @@ func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *Full
 	rest := elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
 	rt := n.ctInv.Invoke(rest)
 	newRest := n.truncateInv.Invoke(rt, mainElm)
-	// if newRest == nil {
-	// 	// do not propagate discarded restrictions.
-	// 	return nil
-	// }
+	if newRest == nil {
+		// do not propagate discarded restrictions.
+		return nil
+	}
 	size := n.sizeInv.Invoke(elm.Elm.(*FullValue), newRest)
 
 	output := &FullValue{}
