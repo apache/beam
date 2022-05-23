@@ -10,7 +10,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-function getElPreviousPositionAndData(element) {
+function getElementData(element) {
     const clickedLangSwitchEl = element.target.closest(".language-switcher");
     const elPreviousOffsetFromViewPort = clickedLangSwitchEl.getBoundingClientRect().top;
     return {
@@ -19,8 +19,8 @@ function getElPreviousPositionAndData(element) {
     }
 }
 
-function setScrollToNewPosition(clickedElData) {
-    const { elPreviousOffsetFromViewPort, clickedLangSwitchEl } = clickedElData;
+function setScrollToNewPosition(clickedElementData) {
+    const { elPreviousOffsetFromViewPort, clickedLangSwitchEl } = clickedElementData;
     const elCurrentHeight = window.pageYOffset + clickedLangSwitchEl.getBoundingClientRect().top;
     $('html, body').scrollTop(elCurrentHeight - elPreviousOffsetFromViewPort);
 }
@@ -106,9 +106,9 @@ $(document).ready(function() {
                     localStorage.setItem(_self.dbKey, $(this).data("type"));
 
                     // Set scroll to new position because Safari and Firefox can't do it automatically, only Chrome under the hood detects the correct position of viewport
-                    const clickedLangSwitchElData = getElPreviousPositionAndData(el);
+                    const clickedLangSwitchData = getElementData(el);
                     _self.toggle();
-                    setScrollToNewPosition(clickedLangSwitchElData);
+                    setScrollToNewPosition(clickedLangSwitchData);
                 });
             },
             "toggle": function() {
