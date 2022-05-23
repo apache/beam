@@ -118,7 +118,6 @@ from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
-from apache_beam.utils.annotations import experimental
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
@@ -131,7 +130,8 @@ __all__ = [
     'MatchAll',
     'MatchContinuously',
     'ReadableFile',
-    'ReadMatches'
+    'ReadMatches',
+    'WriteToFiles'
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -257,12 +257,17 @@ class _ReadMatchesFn(beam.DoFn):
     yield ReadableFile(metadata, self._compression)
 
 
-@experimental()
+# TODO(BEAM-14401) experimental() decoration causes docstring not rendering when
+# docstring contains constructor argument documentation.
+# @experimental()
 class MatchContinuously(beam.PTransform):
   """Checks for new files for a given pattern every interval.
 
   This ``PTransform`` returns a ``PCollection`` of matching files in the form
   of ``FileMetadata`` objects.
+
+  MatchContinuously is experimental.  No backwards-compatibility
+  guarantees.
   """
   def __init__(
       self,
@@ -282,10 +287,11 @@ class MatchContinuously(beam.PTransform):
       start_timestamp: Timestamp for start file checking.
       stop_timestamp: Timestamp after which no more files will be checked.
       match_updated_files: (When has_deduplication is set to True) whether match
-      file with timestamp changes.
+        file with timestamp changes.
       apply_windowing: Whether each element should be assigned to
-      individual window. If false, all elements will reside in global window.
+        individual window. If false, all elements will reside in global window.
     """
+
     self.file_pattern = file_pattern
     self.interval = interval
     self.has_deduplication = has_deduplication
@@ -482,7 +488,9 @@ class FileResult(_FileResult):
   pass
 
 
-@experimental()
+# TODO(BEAM-14401) experimental() decoration causes docstring not rendering when
+# docstring contains constructor argument documentation.
+# @experimental()
 class WriteToFiles(beam.PTransform):
   """Write the incoming PCollection to a set of output files.
 
@@ -491,6 +499,8 @@ class WriteToFiles(beam.PTransform):
   **Note:** For unbounded ``PCollection``s, this transform does not support
   multiple firings per Window (due to the fact that files are named only by
   their destination, and window, at the moment).
+
+  WriteToFiles is experimental.  No backwards-compatibility guarantees.
   """
 
   # We allow up to 20 different destinations to be written in a single bundle.
@@ -522,7 +532,7 @@ class WriteToFiles(beam.PTransform):
         directory that is meant to be temporary as well. Once the whole output
         has been written, the files are moved into their final destination, and
         given their final names. By default, the temporary directory will be
-         within the temp_location of your pipeline.
+          within the temp_location of your pipeline.
       sink (callable, FileSink): The sink to use to write into a file. It should
         implement the methods of a ``FileSink``. Pass a class signature or an
         instance of FileSink to this parameter. If none is provided, a

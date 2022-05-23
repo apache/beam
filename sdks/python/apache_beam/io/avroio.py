@@ -209,6 +209,10 @@ class ReadAllFromAvroContinuously(ReadAllFromAvro):
 
   For more details, see ``ReadAllFromAvro`` for avro parsing settings;
   see ``apache_beam.io.fileio.MatchContinuously`` for watching settings.
+
+  ReadAllFromAvroContinuously is experimental.  No backwards-compatibility
+  guarantees. Due to the limitation on Reshuffle, current implementation does
+  not scale.
   """
   def __init__(self, file_pattern, label='ReadAllFilesContinuously', **kwargs):
     """Initialize the ``ReadAllFromAvroContinuously`` transform.

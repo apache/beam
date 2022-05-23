@@ -469,6 +469,10 @@ class ReadAllFilesContinuously(PTransform):
 
   Unlike ``ReadAllFiles``, patterns are provided as constructor parameter at
   the pipeline definition time.
+
+  ReadAllFilesContinuously is experimental. No backwards-compatibility
+  guarantees. Due to the limitation on Reshuffle, current implementation does
+  not scale.
   """
   ARGS_FOR_MATCH = {
       'interval',
@@ -543,7 +547,13 @@ class ReadAllFilesContinuously(PTransform):
                 self._desired_bundle_size,
                 self._min_bundle_size,
                 do_match=False))
-        # | 'Reshard' >> Reshuffle() # not Reshuffle because needs timely read.
+        # TODO(BEAM-14497) add back Reshuffle once gbk trigger works.
+        # This is because ReadRange is needed instantly after match, however
+        # currently Reshuffle() holds elements until the stage is completed.
+        # Without reshard ReadAllFilesContinuously does not scale and is deemed
+        # experimental.
+        #
+        # | 'Reshard' >> Reshuffle()
         | 'ReadRange' >> ParDo(
             _ReadRange(
                 self._source_from_file, with_filename=self._with_filename)))

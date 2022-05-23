@@ -634,6 +634,10 @@ class ReadAllFromTextContinuously(ReadAllFromText):
 
   For more details, see ``ReadAllFromText`` for text parsing settings;
   see ``apache_beam.io.fileio.MatchContinuously`` for watching settings.
+
+  ReadAllFromTextContinuously is experimental.  No backwards-compatibility
+  guarantees. Due to the limitation on Reshuffle, current implementation does
+  not scale.
   """
   def __init__(self, file_pattern, **kwargs):
     """Initialize the ``ReadAllFromTextContinuously`` transform.
