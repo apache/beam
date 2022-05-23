@@ -47,7 +47,6 @@ import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -149,7 +148,7 @@ public class SubscriptionPartitionProcessorImplTest {
   }
 
   @Test
-  public void successfulClaimThenTimeout() {
+  public void successfulClaimsThenNoMoreMessagesFromSubscriber() {
     doReturn(true).when(tracker).tryClaim(any());
 
     SequencedMessage message1 = messageWithOffset(1);
