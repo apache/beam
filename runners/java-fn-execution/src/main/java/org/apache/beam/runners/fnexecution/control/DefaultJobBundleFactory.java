@@ -665,6 +665,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       throws IOException {
     Preconditions.checkNotNull(serverFactory, "serverFactory can not be null");
 
+    LOG.info("Creating server info for {}", jobInfo);
+
     PortablePipelineOptions portableOptions =
         PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())
             .as(PortablePipelineOptions.class);
@@ -690,6 +692,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             StaticGrpcProvisionService.create(
                 provisionInfo.build(), GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
             serverFactory);
+    LOG.info("Started provision server on port {}", provisioningServer.getServer().getPort());
+
     GrpcFnServer<GrpcDataService> dataServer =
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcDataService.create(
