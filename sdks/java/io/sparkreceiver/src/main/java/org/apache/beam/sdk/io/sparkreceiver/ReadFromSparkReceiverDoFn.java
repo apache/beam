@@ -13,10 +13,8 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Comparator;
 import java.util.Queue;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -126,12 +124,18 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
 
         recordsRead = new AtomicLong(0);
         AtomicLong recordsOut = new AtomicLong(0);
-        availableRecordsQueue = new LinkedBlockingDeque<>();
+        availableRecordsQueue = new ArrayBlockingQueue<>(1000);
         try {
             this.sparkReceiver = sparkReceiverBuilder.build();
             initReceiver(objects -> {
-                availableRecordsQueue.offer((V) objects[0]);
+                V obj = (V) objects[0];
+                availableRecordsQueue.offer(obj);
                 long read = recordsRead.getAndIncrement();
+//                if (read == 0) {
+//                    LOG.info("First read = {}", obj);
+//                } else if (read == 1) {
+//                    LOG.info("Second read = {}", obj);
+//                }
                 if (read % 200 == 0) {
                     LOG.info("Records read = {}", read);
                 }
@@ -140,8 +144,9 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
             LOG.error("Can not create new Hubspot Receiver", e);
         }
         if (sparkReceiver instanceof HubspotCustomReceiver) {
+            long from = tracker.currentRestriction().getFrom();
             ((HubspotCustomReceiver) sparkReceiver).setStartOffset(
-                    String.valueOf(tracker.currentRestriction().getFrom()));
+                    String.valueOf(from == 0L ? 0 : from - 1));
         }
         sparkReceiver.onStart();
         LOG.info("Restriction: {}, {}", tracker.currentRestriction().getFrom(), tracker.currentRestriction().getTo());
@@ -158,29 +163,39 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
 //            } catch (InterruptedException e) {
 //                LOG.error("Interrupted", e);
 //            }
-            V record = availableRecordsQueue.poll();
-            if (record == null) {
-                LOG.info("RESUME");
-                sparkReceiver.onStop();
-                availableRecordsQueue.clear();
-                return ProcessContinuation.resume();
+            while (!availableRecordsQueue.isEmpty()) {
+                V record = availableRecordsQueue.poll();
+//                if (record == null) {
+//                    LOG.info("RESUME");
+//                    sparkReceiver.onStop();
+//                    availableRecordsQueue.clear();
+//                    return ProcessContinuation.resume();
+//                }
+                Integer offset = getOffsetByRecord(record.toString());
+                if (prevOffset != null && offset <= prevOffset) {
+                    //FIXME
+                    LOG.info("OFFSET {} IS LESS THAN PREVIOUS {}, ({}, {}), recordsOut = {}", offset, prevOffset,
+                            tracker.currentRestriction().getFrom(), tracker.currentRestriction().getTo(), recordsOut);
+                    continue;
+                }
+                if (!tracker.tryClaim(offset.longValue())) {
+                    LOG.info("TRY CLAIM FALSE, PREV = {}", prevOffset);
+                    sparkReceiver.stop("Stopped");
+                    availableRecordsQueue.clear();
+                    return ProcessContinuation.stop();
+                }
+                ((ManualWatermarkEstimator) watermarkEstimator).setWatermark(Instant.now());
+                receiver.outputWithTimestamp(record, Instant.now());
+                prevOffset = offset.longValue();
+                long out = recordsOut.incrementAndGet();
+                if (out % 100 == 0) {
+                    LOG.info("Records out = {}", out);
+                }
             }
-            Integer offset = getOffsetByRecord(record.toString());
-            if (prevOffset != null && offset <= prevOffset) {
-                continue;
-            }
-            if (!tracker.tryClaim(offset.longValue())) {
-                LOG.info("TRY CLAIM FALSE");
-                sparkReceiver.onStop();
-                availableRecordsQueue.clear();
-                return ProcessContinuation.stop();
-            }
-            receiver.output(record);
-            prevOffset = offset.longValue();
-            long out = recordsOut.incrementAndGet();
-            if (out % 100 == 0) {
-                LOG.info("Records out = {}", out);
-            }
+            LOG.info("RESUME");
+            sparkReceiver.stop("Stopped");
+            availableRecordsQueue.clear();
+            return ProcessContinuation.resume();
         }
     }
 

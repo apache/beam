@@ -5,7 +5,6 @@ import com.google.gson.JsonElement;
 import io.cdap.plugin.hubspot.common.HubspotHelper;
 import io.cdap.plugin.hubspot.common.HubspotPage;
 import io.cdap.plugin.hubspot.common.SourceHubspotConfig;
-import io.cdap.plugin.hubspot.source.streaming.HubspotReceiver;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.receiver.Receiver;
@@ -13,11 +12,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.Iterator;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @SuppressWarnings("FutureReturnValueIgnored")
 public class HubspotCustomReceiver extends Receiver<String> {
@@ -26,7 +25,7 @@ public class HubspotCustomReceiver extends Receiver<String> {
     private static final String RECEIVER_THREAD_NAME = "hubspot_api_listener";
     private final HubspotStreamingSourceConfig config;
     private String startOffset = null;
-    private boolean isStopped = false;
+    private final AtomicBoolean isStopped = new AtomicBoolean(false);
     private Long endOffset = Long.MAX_VALUE;
 
     HubspotCustomReceiver(HubspotStreamingSourceConfig config) throws IOException {
@@ -59,7 +58,12 @@ public class HubspotCustomReceiver extends Receiver<String> {
     public void onStop() {
         // There is nothing we can do here as the thread calling receive()
         // is designed to stop by itself if isStopped() returns false
-        isStopped = true;
+        isStopped.set(true);
+    }
+
+    @Override
+    public boolean isStopped() {
+        return isStopped.get();
     }
 
     public Long getEndOffset() {
@@ -71,10 +75,12 @@ public class HubspotCustomReceiver extends Receiver<String> {
             LOG.info("OFFSET = {}", startOffset);
             HubspotPagesIterator hubspotPagesIterator = new HubspotPagesIterator(config, startOffset);
 
-            while (!isStopped) {
+            while (!isStopped.get()) {
                 this.endOffset = Long.parseLong(hubspotPagesIterator.currentPage.getOffset());
                 if (hubspotPagesIterator.hasNext()) {
-                    store(hubspotPagesIterator.next().toString());
+                    if (!isStopped.get()) {
+                        store(hubspotPagesIterator.next().toString());
+                    }
                 } else {
                     Integer minutesToSleep = config.getPullFrequency().getMinutesValue();
                     LOG.debug(String.format("Waiting for '%d' minutes to pull.", minutesToSleep));
