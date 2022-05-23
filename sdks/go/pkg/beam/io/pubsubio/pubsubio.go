@@ -45,6 +45,9 @@ func init() {
 	register.Function2x1(unmarshalMessageFn)
 	register.Function2x1(marshalMessageFn)
 	register.Function2x0(wrapInMessage)
+	register.Function2x0(wrapInMessage)
+	register.Emitter1[[]byte]()
+	register.Emitter1[*pb.PubsubMessage]()
 }
 
 // ReadOptions represents options for reading from PubSub.
