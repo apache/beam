@@ -34,11 +34,11 @@ func Equals(s beam.Scope, col beam.PCollection, values ...interface{}) beam.PCol
 		return Empty(subScope, col)
 	}
 	if other, ok := values[0].(beam.PCollection); ok && len(values) == 1 {
-		return equals(subScope, col, other)
+		return windowedEquals(subScope, window.NewGlobalWindows(), col, other)
 	}
 
 	other := beam.Create(subScope, values...)
-	return equals(subScope, col, other)
+	return windowedEquals(subScope, window.NewGlobalWindows(), col, other)
 }
 
 // EqualsList verifies that the given collection has the same values as a
@@ -51,7 +51,7 @@ func EqualsList(s beam.Scope, col beam.PCollection, list interface{}) beam.PColl
 		return Empty(subScope, col)
 	}
 	listCollection := beam.CreateList(subScope, list)
-	return equals(subScope, col, listCollection)
+	return windowedEquals(subScope, window.NewGlobalWindows(), col, listCollection)
 }
 
 // WindowedEqualsList verifies that the given collection has the same values as a
@@ -68,13 +68,6 @@ func WindowedEqualsList(s beam.Scope, wfn *window.Fn, col beam.PCollection, list
 	inter := beam.CreateList(subScope, list)
 	winList := beam.WindowInto(s, wfn, inter)
 	return windowedEquals(subScope, wfn, col, winList)
-}
-
-// equals verifies that the actual values match the expected ones.
-func equals(s beam.Scope, actual, expected beam.PCollection) beam.PCollection {
-	unexpected, correct, missing := Diff(s, actual, expected)
-	beam.ParDo0(s, failIfBadEntries, beam.Impulse(s), beam.SideInput{Input: unexpected}, beam.SideInput{Input: correct}, beam.SideInput{Input: missing})
-	return actual
 }
 
 // windowedEquals verifies that the actual values match the expected ones in cases where the PCollections

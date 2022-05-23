@@ -35,12 +35,32 @@ func TestEquals_Good(t *testing.T) {
 	}
 }
 
+func TestEquals_Empty(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	gotC := beam.CreateList(s, []int{})
+
+	Equals(s, gotC)
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("Pipeline failed: %v", err)
+	}
+}
+
 func TestEqualsList_Good(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	wantL := [3]string{"c", "b", "a"}
 	gotC := beam.Create(s, "a", "b", "c")
 
 	EqualsList(s, gotC, wantL)
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("Pipeline failed: %v", err)
+	}
+}
+
+func TestEqualsList_Empty(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	gotC := beam.CreateList(s, []int{})
+
+	EqualsList(s, gotC, nil)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("Pipeline failed: %v", err)
 	}
