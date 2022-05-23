@@ -39,8 +39,9 @@ func init() {
 	beam.RegisterFunction(expandFn)
 }
 
-// Read reads a set of file and returns the lines as a PCollection<string>. The
-// newlines are not part of the lines.
+// Read reads a set of files indicated by the glob pattern and returns
+// the lines as a PCollection<string>.
+// The newlines are not part of the lines.
 func Read(s beam.Scope, glob string) beam.PCollection {
 	s = s.Scope("textio.Read")
 
@@ -59,7 +60,7 @@ func ReadAll(s beam.Scope, col beam.PCollection) beam.PCollection {
 // ReadSdf is a variation of Read implemented via SplittableDoFn. This should
 // result in increased performance with runners that support splitting.
 //
-// Deprecated: Use Read instead.
+// Deprecated: Use Read instead, which has been migrated to use this SDF implementation.
 func ReadSdf(s beam.Scope, glob string) beam.PCollection {
 	s = s.Scope("textio.ReadSdf")
 
@@ -70,7 +71,7 @@ func ReadSdf(s beam.Scope, glob string) beam.PCollection {
 // ReadAllSdf is a variation of ReadAll implemented via SplittableDoFn. This
 // should result in increased performance with runners that support splitting.
 //
-// Deprecated: Use ReadAll instead.
+// Deprecated: Use ReadAll instead, which has been migrated to use this SDF implementation.
 func ReadAllSdf(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("textio.ReadAllSdf")
 	return read(s, col)
