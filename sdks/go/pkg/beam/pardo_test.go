@@ -146,11 +146,12 @@ func TestParDoSideInputValidation(t *testing.T) {
 		wFn       *window.Fn
 		isBounded bool
 	}{
-		{
-			"global window unbounded",
-			window.NewGlobalWindows(),
-			false,
-		},
+		// TODO(BEAM-14501): Re-enable this test case once proper streaming testing support is finished.
+		// {
+		// 	"global window unbounded",
+		// 	window.NewGlobalWindows(),
+		// 	false,
+		// },
 		{
 			"side input session windowed",
 			window.NewSessions(1 * time.Minute),
