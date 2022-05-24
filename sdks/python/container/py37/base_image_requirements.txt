@@ -140,7 +140,7 @@ tenacity==5.1.5
 tensorboard==2.8.0
 tensorboard-data-server==0.6.1
 tensorboard-plugin-wit==1.8.1
-tensorflow==2.8.0
+tensorflow==2.8.1
 tensorflow-io-gcs-filesystem==0.25.0
 termcolor==1.1.0
 testcontainers==3.5.3
