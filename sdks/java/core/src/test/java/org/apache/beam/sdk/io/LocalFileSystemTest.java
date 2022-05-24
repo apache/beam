@@ -193,6 +193,23 @@ public class LocalFileSystemTest {
   }
 
   @Test
+  public void testMoveWithNonExistingSrcFile() throws Exception {
+    thrown.expect(NoSuchFileException.class);
+
+    Path existingSrc = temporaryFolder.newFile().toPath();
+    Path nonExistingSrc = temporaryFolder.getRoot().toPath().resolve("non-existent-file.txt");
+
+    Path destPath1 = temporaryFolder.getRoot().toPath().resolve("nonexistentdir").resolve("dest1");
+    Path destPath2 = destPath1.resolveSibling("dest2");
+
+    createFileWithContent(existingSrc, "content1");
+
+    localFileSystem.rename(
+        toLocalResourceIds(ImmutableList.of(existingSrc, nonExistingSrc), false /* isDirectory */),
+        toLocalResourceIds(ImmutableList.of(destPath1, destPath2), false /* isDirectory */));
+  }
+
+  @Test
   public void testDelete() throws Exception {
     File f1 = temporaryFolder.newFile("file1");
     File f2 = temporaryFolder.newFile("file2");
