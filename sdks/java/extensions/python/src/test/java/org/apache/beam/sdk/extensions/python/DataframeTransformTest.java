@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.extensions.python;
 
 import org.apache.beam.runners.core.construction.BaseExternalTest;
+import org.apache.beam.sdk.extensions.python.io.DataframeTransform;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.UsesPythonExpansionService;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.util.PythonCallableSource;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Test;
@@ -49,10 +49,9 @@ public class DataframeTransformTest extends BaseExternalTest {
             .apply(Create.of(foo1, foo2, bar4))
             .setRowSchema(schema)
             .apply(
-                PythonExternalTransform.<PCollection<Row>, PCollection<Row>>from(
-                        "apache_beam.dataframe.transforms.DataframeTransform", expansionAddr)
-                    .withKwarg("func", PythonCallableSource.of("lambda df: df.groupby('a').sum()"))
-                    .withKwarg("include_indexes", true));
+                DataframeTransform.of("lambda df: df.groupby('a').sum()")
+                    .withIndexes()
+                    .withExpansionService(expansionAddr));
     PAssert.that(col).containsInAnyOrder(foo3, bar4);
   }
 }
