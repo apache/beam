@@ -108,7 +108,7 @@ public class FhirIOWriteIT {
 
   @Test
   public void testFhirIO_ExecuteBundle() throws IOException {
-    FhirIO.Write.Result writeResult =
+    FhirIO.Write.AbstractResult writeResult =
         pipeline
             .apply(Create.of(BUNDLES.get(version)))
             .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
@@ -121,7 +121,7 @@ public class FhirIOWriteIT {
   @Test
   public void testFhirIO_ExecuteBundle_parseResponse() {
     List<String> bundles = BUNDLES.get("BUNDLE_PARSE_TEST");
-    FhirIO.Write.Result writeResult =
+    FhirIO.Write.AbstractResult writeResult =
         pipeline
             .apply(Create.of(bundles))
             .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
@@ -158,7 +158,7 @@ public class FhirIOWriteIT {
     if (options.getTempLocation() == null) {
       options.setTempLocation("gs://temp-storage-for-healthcare-io-tests");
     }
-    FhirIO.Write.Result result =
+    FhirIO.Write.AbstractResult result =
         pipeline
             .apply(Create.of(BUNDLES.get(version)))
             .apply(
