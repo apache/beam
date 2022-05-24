@@ -31,7 +31,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -90,7 +89,6 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -1243,7 +1241,7 @@ public class KafkaIO {
       return new TypedWithoutMetadata<>(this);
     }
 
-    PTransform<PBegin, PCollection<Row>> externalWithMetadata() {
+    public PTransform<PBegin, PCollection<Row>> externalWithMetadata() {
       return new RowsWithMetadata<>(this);
     }
 
@@ -1447,7 +1445,7 @@ public class KafkaIO {
         }
         PCollection<KafkaSourceDescriptor> output;
         if (kafkaRead.isDynamicRead()) {
-          Set<String> topics = new HashSet<>();
+          List<String> topics = new ArrayList<>();
           if (kafkaRead.getTopics() != null && kafkaRead.getTopics().size() > 0) {
             topics.addAll(kafkaRead.getTopics());
           }
@@ -1457,24 +1455,32 @@ public class KafkaIO {
             }
           }
           output =
-              input
-                  .getPipeline()
-                  .apply(Impulse.create())
-                  .apply(
-                      MapElements.into(
-                              TypeDescriptors.kvs(
-                                  new TypeDescriptor<byte[]>() {}, new TypeDescriptor<byte[]>() {}))
-                          .via(element -> KV.of(element, element)))
-                  .apply(
-                      ParDo.of(
-                          new WatchKafkaTopicPartitionDoFn(
-                              kafkaRead.getWatchTopicPartitionDuration(),
-                              kafkaRead.getConsumerFactoryFn(),
-                              kafkaRead.getCheckStopReadingFn(),
-                              kafkaRead.getConsumerConfig(),
-                              kafkaRead.getStartReadTime(),
-                              kafkaRead.getStopReadTime(),
-                              topics.stream().collect(Collectors.toList()))));
+              input.apply(
+                  new WatchForKafkaTopicPartitions(
+                      kafkaRead.getWatchTopicPartitionDuration(),
+                      kafkaRead.getConsumerFactoryFn(),
+                      kafkaRead.getConsumerConfig(),
+                      kafkaRead.getCheckStopReadingFn(),
+                      topics,
+                      kafkaRead.getStartReadTime(),
+                      kafkaRead.getStopReadTime()));
+          // .getPipeline()
+          // .apply(Impulse.create())
+          // .apply(
+          //     MapElements.into(
+          //             TypeDescriptors.kvs(
+          //                 new TypeDescriptor<byte[]>() {}, new TypeDescriptor<byte[]>() {}))
+          //         .via(element -> KV.of(element, element)))
+          // .apply(
+          //     ParDo.of(
+          //         new WatchKafkaTopicPartitionDoFn(
+          //             kafkaRead.getWatchTopicPartitionDuration(),
+          //             kafkaRead.getConsumerFactoryFn(),
+          //             kafkaRead.getCheckStopReadingFn(),
+          //             kafkaRead.getConsumerConfig(),
+          //             kafkaRead.getStartReadTime(),
+          //             kafkaRead.getStopReadTime(),
+          //             topics.stream().collect(Collectors.toList()))));
 
         } else {
           output =
@@ -1673,8 +1679,8 @@ public class KafkaIO {
     int partition;
     long offset;
     long timestamp;
-    byte[] key;
-    byte[] value;
+    byte @Nullable [] key;
+    byte @Nullable [] value;
     List<KafkaHeader> headers;
     int timestampTypeId;
     String timestampTypeName;
