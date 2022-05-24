@@ -91,6 +91,7 @@ SdfSplitResultsPrimary = Tuple['DoOperation', 'SplitResultPrimary']
 SdfSplitResultsResidual = Tuple['DoOperation', 'SplitResultResidual']
 
 
+# TODO(BEAM-9324) Remove these workarounds once upgraded to Cython 3
 def _cast_to_operation(value):
   if cython.compiled:
     return cython.cast(Operation, value)
@@ -98,6 +99,7 @@ def _cast_to_operation(value):
     return value
 
 
+# TODO(BEAM-9324) Remove these workarounds once upgraded to Cython 3
 def _cast_to_receiver(value):
   if cython.compiled:
     return cython.cast(Receiver, value)
