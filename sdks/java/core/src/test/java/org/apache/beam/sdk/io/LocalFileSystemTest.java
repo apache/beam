@@ -34,6 +34,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -150,6 +151,23 @@ public class LocalFileSystemTest {
 
     assertContents(
         ImmutableList.of(destPath1, destPath2), ImmutableList.of("content1", "content2"));
+  }
+
+  @Test
+  public void testCopyWithNonExistingSrcFile() throws Exception {
+    thrown.expect(NoSuchFileException.class);
+
+    Path existentSrc = temporaryFolder.newFile().toPath();
+    Path nonExistentSrc = temporaryFolder.getRoot().toPath().resolve("non-existent-file.txt");
+
+    Path destPath1 = temporaryFolder.getRoot().toPath().resolve("nonexistentdir").resolve("dest1");
+    Path destPath2 = destPath1.resolveSibling("dest2");
+
+    createFileWithContent(existentSrc, "content");
+
+    localFileSystem.copy(
+        toLocalResourceIds(ImmutableList.of(existentSrc, nonExistentSrc), false /* isDirectory */),
+        toLocalResourceIds(ImmutableList.of(destPath1, destPath2), false /* isDirectory */));
   }
 
   @Test
