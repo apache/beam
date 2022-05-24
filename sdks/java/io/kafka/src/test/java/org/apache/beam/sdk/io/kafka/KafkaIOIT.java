@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import com.google.cloud.Timestamp;
 import java.io.IOException;
@@ -59,6 +60,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -238,7 +240,7 @@ public class KafkaIOIT {
     PipelineResult writeResult = writePipeline.run();
     writeResult.waitUntilFinish();
 
-    readPipeline.apply(
+    PCollection<Row> rows = readPipeline.apply(
         KafkaIO.<byte[], byte[]>read()
             .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
             .withTopic(options.getKafkaTopic())
@@ -247,6 +249,13 @@ public class KafkaIOIT {
             .withValueDeserializerAndCoder(
                 ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
             .externalWithMetadata());
+
+    PAssert.thatSingleton(rows).satisfies(actualRow -> {
+      assertNull(actualRow.getString("key"));
+      assertNull(actualRow.getString("value"));
+      return null;
+    });
+
     PipelineResult readResult = readPipeline.run();
     readResult.waitUntilFinish();
   }
