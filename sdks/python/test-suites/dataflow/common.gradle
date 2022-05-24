@@ -387,7 +387,7 @@ doLast {
     def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      args '-c', ". ${envdir}/bin/activate && export FORCE_TORCH_IT=1 && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
     }
   }
 }

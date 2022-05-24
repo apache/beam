@@ -20,6 +20,7 @@
 """End-to-End test for Pytorch Inference"""
 
 import logging
+import os
 import unittest
 import uuid
 
@@ -58,7 +59,7 @@ def process_outputs(filepath):
 
 
 @unittest.skipIf(
-    torch is None,
+    os.getenv('FORCE_TORCH_IT') is None and torch is None,
     'Missing dependencies. '
     'Test depends on torch, torchvision and pillow')
 class PyTorchInference(unittest.TestCase):
