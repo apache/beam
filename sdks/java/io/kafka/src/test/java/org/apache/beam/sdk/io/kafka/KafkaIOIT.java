@@ -240,21 +240,24 @@ public class KafkaIOIT {
     PipelineResult writeResult = writePipeline.run();
     writeResult.waitUntilFinish();
 
-    PCollection<Row> rows = readPipeline.apply(
-        KafkaIO.<byte[], byte[]>read()
-            .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
-            .withTopic(options.getKafkaTopic())
-            .withKeyDeserializerAndCoder(
-                ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
-            .withValueDeserializerAndCoder(
-                ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
-            .externalWithMetadata());
+    PCollection<Row> rows =
+        readPipeline.apply(
+            KafkaIO.<byte[], byte[]>read()
+                .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                .withTopic(options.getKafkaTopic())
+                .withKeyDeserializerAndCoder(
+                    ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
+                .withValueDeserializerAndCoder(
+                    ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
+                .externalWithMetadata());
 
-    PAssert.thatSingleton(rows).satisfies(actualRow -> {
-      assertNull(actualRow.getString("key"));
-      assertNull(actualRow.getString("value"));
-      return null;
-    });
+    PAssert.thatSingleton(rows)
+        .satisfies(
+            actualRow -> {
+              assertNull(actualRow.getString("key"));
+              assertNull(actualRow.getString("value"));
+              return null;
+            });
 
     PipelineResult readResult = readPipeline.run();
     readResult.waitUntilFinish();
