@@ -37,7 +37,7 @@ def hadoopVersions = [
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
-def hive_version = "3.1.2"
+def hive_version = "3.1.3"
 
 configurations.all {
   resolutionStrategy {
