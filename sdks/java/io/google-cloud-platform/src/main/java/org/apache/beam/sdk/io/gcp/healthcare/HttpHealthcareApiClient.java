@@ -897,7 +897,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     private String pageToken;
     private boolean isFirstRequest;
 
-    private FhirResourcePagesIterator(
+    public FhirResourcePagesIterator(
         FhirMethod fhirMethod,
         HealthcareApiClient client,
         String fhirStore,
