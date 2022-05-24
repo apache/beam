@@ -73,7 +73,7 @@ public class WrappedSupervisor extends ReceiverSupervisor {
 
   @Override
   public boolean onReceiverStart() {
-    return false;
+    return true;
   }
 
   @Override
@@ -83,6 +83,6 @@ public class WrappedSupervisor extends ReceiverSupervisor {
 
   @Override
   public boolean isReceiverStopped() {
-    return false;
+    return super.isReceiverStopped();
   }
 }

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.sparkreceiver;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -49,7 +48,6 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
   private final SerializableFunction<Instant, WatermarkEstimator<Instant>>
       createWatermarkEstimatorFn;
   private Queue<V> availableRecordsQueue;
-  private AtomicLong recordsRead;
   private ProxyReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder;
   private Receiver<V> sparkReceiver;
   private final SerializableFunction<V, Long> getOffsetFn;
@@ -136,20 +134,10 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
       WatermarkEstimator watermarkEstimator,
       OutputReceiver<V> receiver) {
 
-    recordsRead = new AtomicLong(0);
-    AtomicLong recordsOut = new AtomicLong(0);
     availableRecordsQueue = new ArrayBlockingQueue<>(1000);
     try {
       this.sparkReceiver = sparkReceiverBuilder.build();
-      initReceiver(
-          objects -> {
-            availableRecordsQueue.offer((V) objects[0]);
-            long read = recordsRead.getAndIncrement();
-            if (read % 200 == 0) {
-              LOG.info("Records read = {}", read);
-            }
-          },
-          sparkReceiver);
+      initReceiver(objects -> availableRecordsQueue.offer((V) objects[0]), sparkReceiver);
     } catch (Exception e) {
       LOG.error("Can not create new Hubspot Receiver", e);
     }
@@ -157,7 +145,7 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
       long from = tracker.currentRestriction().getFrom();
       ((HasOffset) sparkReceiver).setStartOffset(from);
     }
-    sparkReceiver.onStart();
+    sparkReceiver.supervisor().startReceiver();
     LOG.info(
         "Restriction: {}, {}",
         tracker.currentRestriction().getFrom(),
@@ -171,18 +159,14 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
     while (!availableRecordsQueue.isEmpty()) {
       V record = availableRecordsQueue.poll();
       if (!tracker.tryClaim(getOffsetFn.apply(record))) {
-        sparkReceiver.onStop();
+        sparkReceiver.stop("Stopped");
         availableRecordsQueue.clear();
         return ProcessContinuation.stop();
       }
       ((ManualWatermarkEstimator) watermarkEstimator).setWatermark(Instant.now());
       receiver.outputWithTimestamp(record, Instant.now());
-      long out = recordsOut.incrementAndGet();
-      if (out % 100 == 0) {
-        LOG.info("Records out = {}", out);
-      }
     }
-    sparkReceiver.onStop();
+    sparkReceiver.stop("Stopped");
     availableRecordsQueue.clear();
     return ProcessContinuation.resume();
   }

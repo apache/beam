@@ -80,10 +80,10 @@ public class HubspotCustomReceiver extends Receiver<String> implements HasOffset
     isStopped.set(true);
   }
 
-  @Override
-  public boolean isStopped() {
-    return isStopped.get();
-  }
+  //  @Override
+  //  public boolean isStopped() {
+  //    return isStopped.get();
+  //  }
 
   /** @return exclusive end offset to which the reading from current page will occur. */
   @Override
@@ -96,10 +96,10 @@ public class HubspotCustomReceiver extends Receiver<String> implements HasOffset
       LOG.info("OFFSET = {}", startOffset);
       HubspotPagesIterator hubspotPagesIterator = new HubspotPagesIterator(config, startOffset);
 
-      while (!isStopped.get()) {
+      while (!isStopped()) {
         this.endOffset = Long.parseLong(hubspotPagesIterator.currentPage.getOffset());
         if (hubspotPagesIterator.hasNext()) {
-          if (!isStopped.get()) {
+          if (!isStopped()) {
             store(hubspotPagesIterator.next().toString());
           }
         } else {
