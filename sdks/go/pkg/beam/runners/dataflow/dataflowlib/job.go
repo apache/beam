@@ -66,6 +66,9 @@ type JobOptions struct {
 	FlexRSGoal          string
 	EnableHotKeyLogging bool
 
+	// Streaming update settings
+	Update bool
+
 	// Autoscaling settings
 	Algorithm            string
 	MaxNumWorkers        int64
@@ -156,6 +159,11 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		return nil, err
 	}
 
+	var replaceId string = ""
+	if opts.Update {
+		replaceId = opts.Name
+	}
+
 	job := &df.Job{
 		ProjectId: opts.Project,
 		Name:      opts.Name,
@@ -208,8 +216,9 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			TempStoragePrefix: opts.TempLocation,
 			Experiments:       experiments,
 		},
-		Labels: opts.Labels,
-		Steps:  steps,
+		Labels:       opts.Labels,
+		ReplaceJobId: replaceId,
+		Steps:        steps,
 	}
 
 	workerPool := job.Environment.WorkerPools[0]

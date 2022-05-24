@@ -78,6 +78,8 @@ var (
 	// TODO(BEAM-14512) Turn this on once TO_STRING is implemented
 	// enableHotKeyLogging    = flag.Bool("enable_hot_key_logging", false, "Specifies that when a hot key is detected in the pipeline, the literal, human-readable key is printed in the user's Cloud Logging project (optional).")
 
+	update = flag.Bool("update", false, "Submit this job as an update to an existing Dataflow job (optional); the job name must match the existing job to update")
+
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 
@@ -119,6 +121,7 @@ var flagFilter = map[string]bool{
 	"teardown_policy":                true,
 	"cpu_profiling":                  true,
 	"session_recording":              true,
+	"update":                         true,
 
 	// Job Options flags
 	"endpoint":                 true,
@@ -317,6 +320,7 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 		WorkerZone:             *workerZone,
 		TeardownPolicy:         *teardownPolicy,
 		ContainerImage:         getContainerImage(ctx),
+		Update:                 *update,
 	}
 	if opts.TempLocation == "" {
 		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")
