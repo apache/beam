@@ -24,9 +24,11 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.PartitionGrowthMockConsumer;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -46,7 +48,13 @@ import org.testcontainers.shaded.org.hamcrest.BaseMatcher;
 @RunWith(JUnit4.class)
 public class WatchForKafkaTopicPartitionsTest {
 
-  @Rule public final transient TestPipeline p = TestPipeline.create();
+  public static final TestPipelineOptions options = TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+
+  static {
+    options.setBlockOnRun(false);
+  }
+
+  @Rule public final transient TestPipeline p = TestPipeline.fromOptions(options);
 
   @Test
   public void testGetAllTopicPartitions() throws Exception {
@@ -108,7 +116,7 @@ public class WatchForKafkaTopicPartitionsTest {
 
     WatchForKafkaTopicPartitions watchForKafkaTopicPartitions =
         new WatchForKafkaTopicPartitions(
-            Duration.millis(50L),
+            Duration.millis(1L),
             (input) ->
                 new PartitionGrowthMockConsumer(
                     ImmutableList.of(ImmutableList.of(KV.of("topic1", 0)))),
@@ -122,7 +130,7 @@ public class WatchForKafkaTopicPartitionsTest {
 
     PAssert.that(descriptors).containsInAnyOrder(new KafkaSourceDescriptionMatcher("topic1", 0));
 
-    p.run();
+    p.run().waitUntilFinish(Duration.millis(10));
   }
 
   @Test
@@ -131,7 +139,7 @@ public class WatchForKafkaTopicPartitionsTest {
 
     WatchForKafkaTopicPartitions watchForKafkaTopicPartitions =
         new WatchForKafkaTopicPartitions(
-            Duration.millis(50L),
+            Duration.millis(1L),
             (input) ->
                 new PartitionGrowthMockConsumer(
                     ImmutableList.of(
@@ -150,7 +158,7 @@ public class WatchForKafkaTopicPartitionsTest {
             new KafkaSourceDescriptionMatcher("topic1", 0),
             new KafkaSourceDescriptionMatcher("topic1", 1));
 
-    p.run();
+    p.run().waitUntilFinish(Duration.millis(10));
   }
 
   private static class KafkaSourceDescriptionMatcher extends BaseMatcher<KafkaSourceDescriptor>
