@@ -97,7 +97,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance!.addPostFrameCallback((_) => _setTextScrolling());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _setTextScrolling());
 
     return Semantics(
       container: true,
