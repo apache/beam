@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.JsonElement;
 import io.cdap.plugin.hubspot.common.HubspotHelper;
 import io.cdap.plugin.hubspot.common.HubspotPage;
@@ -29,13 +28,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.receiver.Receiver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("FutureReturnValueIgnored")
-public class HubspotCustomReceiver extends Receiver<String> {
+public class HubspotCustomReceiver extends Receiver<String> implements HasOffset {
 
   private static final Logger LOG = LoggerFactory.getLogger(HubspotCustomReceiver.class);
   private static final String RECEIVER_THREAD_NAME = "hubspot_api_listener";
@@ -49,16 +49,20 @@ public class HubspotCustomReceiver extends Receiver<String> {
     this.config = config;
   }
 
-  public void setStartOffset(String startOffset) {
-    this.startOffset = startOffset;
+  /** @param startOffset inclusive start offset from which the reading should be started. */
+  @Override
+  public void setStartOffset(Long startOffset) {
+    if (startOffset != null) {
+      this.startOffset = String.valueOf(startOffset == 0L ? 0 : startOffset - 1);
+    }
   }
 
   public HubspotStreamingSourceConfig getConfig() {
     return config;
   }
 
-  public String getStartOffset() {
-    return startOffset;
+  public Long getOffset() {
+    return startOffset != null ? Long.valueOf(startOffset) : null;
   }
 
   @Override
@@ -81,6 +85,8 @@ public class HubspotCustomReceiver extends Receiver<String> {
     return isStopped.get();
   }
 
+  /** @return exclusive end offset to which the reading from current page will occur. */
+  @Override
   public Long getEndOffset() {
     return endOffset;
   }

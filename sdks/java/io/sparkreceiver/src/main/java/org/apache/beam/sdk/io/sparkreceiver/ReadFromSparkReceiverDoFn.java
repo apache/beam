@@ -27,7 +27,12 @@ import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.splittabledofn.*;
+import org.apache.beam.sdk.transforms.splittabledofn.GrowableOffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.spark.SparkConf;
 import org.apache.spark.streaming.receiver.Receiver;
@@ -94,8 +99,8 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
 
     @Override
     public long estimate() {
-      if (sparkReceiver instanceof HubspotCustomReceiver) {
-        return ((HubspotCustomReceiver) sparkReceiver).getEndOffset();
+      if (sparkReceiver instanceof HasOffset) {
+        return ((HasOffset) sparkReceiver).getEndOffset();
       }
       return Long.MAX_VALUE;
     }
@@ -148,10 +153,9 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
     } catch (Exception e) {
       LOG.error("Can not create new Hubspot Receiver", e);
     }
-    if (sparkReceiver instanceof HubspotCustomReceiver) {
+    if (sparkReceiver instanceof HasOffset) {
       long from = tracker.currentRestriction().getFrom();
-      ((HubspotCustomReceiver) sparkReceiver)
-          .setStartOffset(String.valueOf(from == 0L ? 0 : from - 1));
+      ((HasOffset) sparkReceiver).setStartOffset(from);
     }
     sparkReceiver.onStart();
     LOG.info(
