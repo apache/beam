@@ -54,12 +54,6 @@ class Repositories {
         url "https://packages.confluent.io/maven/"
         content { includeGroup "io.confluent" }
       }
-
-      // For pentaho dependencies.
-      maven {
-        url "https://public.nexus.pentaho.org/repository/omni"
-        content { includeGroup "org.pentaho" }
-      }
     }
 
     // plugin to support repository authentication via ~/.m2/settings.xml
@@ -82,7 +76,6 @@ class Repositories {
         maven { url "https://plugins.gradle.org/m2/" }
         maven { url "https://repo.spring.io/plugins-release" }
         maven { url "https://packages.confluent.io/maven/" }
-        maven { url "https://public.nexus.pentaho.org/repository/omni" }
         maven { url project.offlineRepositoryRoot }
       }
       includeSources = false
