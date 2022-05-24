@@ -27,7 +27,7 @@ const userAgent = "apache-beam-io-google-cloud-platform-healthcare/" + core.SdkV
 func NewGcpHealthcareService() *healthcareapi.Service {
 	healthcareService, err := healthcareapi.NewService(context.Background(), option.WithUserAgent(userAgent))
 	if err != nil {
-		panic("Failed to initialize Google Cloud Healthcare Client. Reason: " + err.Error())
+		panic("Failed to initialize Google Cloud Healthcare Service. Reason: " + err.Error())
 	}
 
 	return healthcareService
