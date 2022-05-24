@@ -72,11 +72,11 @@ class PyTorchInference(unittest.TestCase):
     file_of_image_names = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/imagenet_samples.csv'
     base_output_files_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs'
 
-    model_path = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/models/mobilenet_v2.pt'
+    model_state_dict_path = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/models/mobilenet_v2.pt'
     extra_opts = {
         'input': file_of_image_names,
         'output': output_file,
-        'model_path': model_path,
+        'model_state_dict_path': model_state_dict_path,
         'images_dir': base_output_files_dir,
     }
     pytorch_image_classification.run(
