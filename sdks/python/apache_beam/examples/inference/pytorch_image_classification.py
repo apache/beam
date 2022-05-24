@@ -113,7 +113,7 @@ def parse_known_args(argv):
 def run(argv=None, save_main_session=True):
   """Entry point. Defines and runs the pipeline."""
   known_args, pipeline_args = parse_known_args(argv)
-  pipeline_options = PipelineOptions(pipeline_args=pipeline_args)
+  pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
   run_pipeline(pipeline_options, args=known_args)
 
