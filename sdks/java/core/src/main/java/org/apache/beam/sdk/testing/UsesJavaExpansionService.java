@@ -20,8 +20,8 @@ package org.apache.beam.sdk.testing;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
- * Category tag for validation tests which use cross-language transforms. Tests tagged with {@link
- * UsesCrossLanguageTransforms} should be run for runners which support cross-language transforms.
+ * Category tag for tests which use the expansion service in Java. Tests tagged with {@link
+ * UsesJavaExpansionService} should be run for runners which support cross-language transforms.
  */
 @Internal
-public interface UsesCrossLanguageTransforms {}
+public interface UsesJavaExpansionService {}
