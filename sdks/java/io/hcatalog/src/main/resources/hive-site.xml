@@ -25,6 +25,12 @@
   <description>Internal marker for test. Used for masking env-dependent values</description>
 </property>
 
+<!-- Properties for test folders -->
+<property>
+  <name>mapreduce.jobtracker.staging.root.dir</name>
+  <value>${test.tmp.dir}/cli/mapred/staging</value>
+</property>
+
 <!-- Hive Configuration can either be stored in this file or in the hadoop configuration files  -->
 <!-- that are implied by Hadoop setup variables.                                                -->
 <!-- Aside from Hadoop setup variables - this file is provided as a convenience so that Hive    -->
@@ -64,8 +70,13 @@
 </property>
 
 <property>
+  <name>hive.metastore.schema.verification</name>
+  <value>false</value>
+</property>
+
+<property>
   <name>javax.jdo.option.ConnectionURL</name>
-  <value>jdbc:derby:;databaseName=${test.tmp.dir}/junit_metastore_db;create=true</value>
+  <value>jdbc:derby:memory:${test.tmp.dir}/junit_metastore_db;create=true</value>
 </property>
 
 <property>
@@ -136,7 +147,7 @@
 
 <property>
   <name>hive.exec.pre.hooks</name>
-  <value>org.apache.hadoop.hive.ql.hooks.PreExecutePrinter, org.apache.hadoop.hive.ql.hooks.EnforceReadOnlyTables</value>
+  <value>org.apache.hadoop.hive.ql.hooks.PreExecutePrinter, org.apache.hadoop.hive.ql.hooks.EnforceReadOnlyTables, org.apache.hadoop.hive.ql.hooks.MaterializedViewRegistryPropertiesHook</value>
   <description>Pre Execute Hook for Tests</description>
 </property>
 
@@ -261,6 +272,12 @@
 </property>
 
 <property>
+  <name>hive.security.authorization.manager</name>
+  <value>org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdHiveAuthorizerFactoryForTest</value>
+  <description>The Hive client authorization manager class name.</description>
+</property>
+
+<property>
   <name>hive.llap.io.cache.orc.size</name>
   <value>8388608</value>
 </property>
@@ -291,9 +308,34 @@
   <value>true</value>
 </property>
 
-
 <property>
   <name>hive.llap.io.allocator.direct</name>
+  <value>false</value>
+</property>
+
+<property>
+  <name>hive.stats.column.autogather</name>
+  <value>true</value>
+</property>
+
+<property>
+  <name>hive.materializedview.rewriting</name>
+  <value>true</value>
+</property>
+
+<property>
+  <name>hive.stats.fetch.bitvector</name>
+  <value>true</value>
+</property>
+
+
+<property>
+  <name>yarn.nodemanager.disk-health-checker.max-disk-utilization-per-disk-percentage</name>
+  <value>99</value>
+</property>
+
+<property>
+  <name>hive.query.results.cache.enabled</name>
   <value>false</value>
 </property>
 

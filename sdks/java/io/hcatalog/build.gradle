@@ -37,14 +37,7 @@ def hadoopVersions = [
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
-def hive_version = "2.1.0"
-
-test {
-  // TODO: Get tests to run. Known issues:
-  //  * calcite-avatica bundles w/o repackaging Jackson (CALCITE-1110)
-  //  * hive-exec bundles w/o repackaging Guava (HIVE-13690)
-  ignoreFailures true
-}
+def hive_version = "3.1.2"
 
 configurations.all {
   resolutionStrategy {
