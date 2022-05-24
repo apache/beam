@@ -60,7 +60,7 @@ func (fn *selfCheckpointingDoFn) CreateInitialRestriction(_ []byte) offsetrange.
 func (fn *selfCheckpointingDoFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
 	// return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
 	fn.Estimator = OffsetEstimator{int64(10)}
-	tracker, err := offsetrange.NewGrowableTracker(rest.Start, &fn.Estimator)
+	tracker, err := offsetrange.NewGrowableTracker(rest, &fn.Estimator)
 	if err != nil {
 		panic(err)
 	}

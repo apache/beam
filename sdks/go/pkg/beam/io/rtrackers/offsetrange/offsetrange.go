@@ -21,6 +21,7 @@ package offsetrange
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 func init() {
@@ -171,10 +173,7 @@ func (tracker *Tracker) TryClaim(rawPos interface{}) bool {
 	}
 
 	tracker.claimed = pos
-	if pos == tracker.rest.End {
-		tracker.stopped = true
-		return true
-	}
+
 	if pos >= tracker.rest.End {
 		tracker.stopped = true
 		return false
@@ -259,11 +258,11 @@ type GrowableTracker struct {
 }
 
 // NewGrowableTracker is a constructor for an GrowableTracker given a start and RangeEndEstimator.
-func NewGrowableTracker(start int64, rangeEndEstimator RangeEndEstimator) (*GrowableTracker, error) {
+func NewGrowableTracker(rest Restriction, rangeEndEstimator RangeEndEstimator) (*GrowableTracker, error) {
 	if rangeEndEstimator == nil {
 		return nil, fmt.Errorf("param rangeEndEstimator cannot be nil. Implementing offsetrange.RangeEndEstimator may be required.")
 	}
-	return &GrowableTracker{*NewTracker(Restriction{Start: start, End: math.MaxInt64}), rangeEndEstimator}, nil
+	return &GrowableTracker{*NewTracker(Restriction{Start: rest.Start, End: rest.End}), rangeEndEstimator}, nil
 }
 
 // Start returns the starting range of the restriction tracked by a tracker.
@@ -286,11 +285,22 @@ func max(x, y int64) int64 {
 // TrySplit splits at the nearest integer greater than the given fraction of the remainder. If the
 // fraction given is outside of the [0, 1] range, it is clamped to 0 or 1.
 func (tracker *GrowableTracker) TrySplit(fraction float64) (primary, residual interface{}, err error) {
+	log.Infof(context.Background(), "TrySplit(%f)", fraction)
+	log.Infof(context.Background(), "Current Tracker: %#v", tracker)
+	if tracker.stopped || tracker.IsDone() {
+		log.Infof(context.Background(), "Done in TrySplit(%f)", fraction)
+		return tracker.rest, nil, nil
+	}
 	if fraction == 0.0 {
-		return nil, tracker.rest, nil
+		log.Infof(context.Background(), "Done in TrySplit(%f)", fraction)
+		residual = Restriction{Start: tracker.rest.Start, End: tracker.rest.End}
+		tracker.rest.End = tracker.rest.Start
+		return tracker.rest, residual, nil
+		// return nil, tracker.rest, nil
 	}
 	// If current tracking range is no longer growable, split it as a normal range.
 	if tracker.End() != math.MaxInt64 || tracker.Start() == tracker.End() {
+		log.Infof(context.Background(), "Doing the normal OffsetTracker TrySplit(%f)", fraction)
 		return tracker.Tracker.TrySplit(fraction)
 	}
 
@@ -310,7 +320,10 @@ func (tracker *GrowableTracker) TrySplit(fraction float64) (primary, residual in
 
 	splitPt := cur + int64(math.Ceil(math.Max(1, float64(estimatedEnd-cur)*(fraction))))
 	if splitPt > estimatedEnd {
-		return nil, nil, nil
+		return tracker.rest, nil, nil
+	}
+	if splitPt <= tracker.rest.End {
+		return tracker.rest, nil, nil
 	}
 	residual = Restriction{Start: splitPt, End: tracker.End()}
 	tracker.rest.End = splitPt
