@@ -258,7 +258,7 @@ type GrowableTracker struct {
 // NewGrowableTracker is a constructor for an GrowableTracker given a start and RangeEndEstimator.
 func NewGrowableTracker(rest Restriction, rangeEndEstimator RangeEndEstimator) (*GrowableTracker, error) {
 	if rangeEndEstimator == nil {
-		return nil, fmt.Errorf("param rangeEndEstimator cannot be nil. Implementing offsetrange.RangeEndEstimator may be required.")
+		return nil, fmt.Errorf("param rangeEndEstimator cannot be nil. Implementing offsetrange.RangeEndEstimator may be required")
 	}
 	return &GrowableTracker{*NewTracker(Restriction{Start: rest.Start, End: rest.End}), rangeEndEstimator}, nil
 }
@@ -343,8 +343,5 @@ func (tracker *GrowableTracker) GetProgress() (done, remaining float64) {
 
 // IsBounded checks if the current restriction is bounded or not.
 func (tracker *GrowableTracker) IsBounded() bool {
-	if tracker.End() == math.MaxInt64 {
-		return false
-	}
-	return true
+	return tracker.End() != math.MaxInt64
 }

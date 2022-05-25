@@ -358,7 +358,7 @@ func TestGrowableTracker_SplitBeforeStart(t *testing.T) {
 		t.Fatalf("error creating new GrowableTracker: %v", err)
 	}
 	estimator.SetEstimateRangeEnd(10)
-	p, r, err := tracker.TrySplit(0)
+	p, r, _ := tracker.TrySplit(0)
 
 	expected := Restriction{0, 0}
 	if p.(Restriction) != expected {
@@ -386,7 +386,7 @@ func TestGrowableTracker_CheckpointJustStarted(t *testing.T) {
 		t.Fatal("tracker.TryClaim(int64(5)) should've claimed.")
 	}
 	estimator.SetEstimateRangeEnd(0)
-	p, r, err := tracker.TrySplit(0)
+	p, r, _ := tracker.TrySplit(0)
 	if tracker.IsDone() {
 		t.Fatal("tracker not done yet, , but IsDone() returns true")
 	}
@@ -411,7 +411,7 @@ func TestGrowableTracker_CheckpointJustStarted(t *testing.T) {
 		t.Fatal("tracker.TryClaim(int64(5)) should've claimed.")
 	}
 	estimator.SetEstimateRangeEnd(20)
-	p, r, err = tracker.TrySplit(0)
+	p, r, _ = tracker.TrySplit(0)
 	if tracker.IsDone() {
 		t.Fatal("tracker not done yet, , but IsDone() returns true")
 	}
@@ -438,7 +438,7 @@ func TestGrowableTracker_Split(t *testing.T) {
 
 	estimator.SetEstimateRangeEnd(16)
 
-	p, r, err := tracker.TrySplit(0.5)
+	p, r, _ := tracker.TrySplit(0.5)
 	expPr := Restriction{0, 8}
 	if p.(Restriction) != expPr {
 		t.Errorf("wrong primaries after TrySplit(0.5), got: %v, want: %v", p.(Restriction), expPr)
@@ -452,7 +452,7 @@ func TestGrowableTracker_Split(t *testing.T) {
 	}
 
 	estimator.SetEstimateRangeEnd(12)
-	p, r, err = tracker.TrySplit(0.5)
+	p, r, _ = tracker.TrySplit(0.5)
 	expPr = Restriction{0, 4}
 	if p.(Restriction) != expPr {
 		t.Errorf("wrong primaries after TrySplit(0.5), got: %v, want: %v", p.(Restriction), expPr)
