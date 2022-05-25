@@ -308,7 +308,7 @@ func (n *TruncateSizedRestriction) StartBundle(ctx context.Context, id string, d
 //     Timestamps
 //    }
 func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
-	mainElm := elm.Elm.(*FullValue).Elm.(*FullValue)
+	mainElm := elm.Elm.(*FullValue)
 	rest := elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
 	rt := n.ctInv.Invoke(rest)
 	newRest := n.truncateInv.Invoke(rt, mainElm)
@@ -316,11 +316,12 @@ func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *Full
 		// do not propagate discarded restrictions.
 		return nil
 	}
-	size := n.sizeInv.Invoke(mainElm, newRest)
+	size := n.sizeInv.Invoke(elm.Elm.(*FullValue), newRest)
+
 	output := &FullValue{}
 	output.Timestamp = elm.Timestamp
 	output.Windows = elm.Windows
-	output.Elm = &FullValue{Elm: mainElm, Elm2: &FullValue{Elm: newRest, Elm2: elm.Elm.(*FullValue).Elm2.(*FullValue).Elm2}}
+	output.Elm = &FullValue{Elm: mainElm.Elm, Elm2: &FullValue{Elm: newRest, Elm2: elm.Elm.(*FullValue).Elm2.(*FullValue).Elm2}}
 	output.Elm2 = size
 
 	if err := n.Out.ProcessElement(ctx, output, values...); err != nil {
