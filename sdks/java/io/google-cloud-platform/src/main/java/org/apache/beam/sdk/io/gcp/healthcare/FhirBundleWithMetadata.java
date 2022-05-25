@@ -36,11 +36,11 @@ public abstract class FhirBundleWithMetadata {
 
   /**
    * String representing the source of the Bundle to be written. Used to pass source data through
-   * the ExecuteBundles PTransform
+   * the ExecuteBundles PTransform.
    */
   public abstract String getMetadata();
 
-  /** FHIR R4 bundle resource object as a string */
+  /** FHIR R4 bundle resource object as a string. */
   public abstract String getBundle();
 
   /** HTTP response from the FHIR store after attempting to write the Bundle method. */
