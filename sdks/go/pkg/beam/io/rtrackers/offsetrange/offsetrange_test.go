@@ -343,7 +343,7 @@ func TestGrowableTracker_TryClaim(t *testing.T) {
 	if tracker.TryClaim(int64(math.MaxInt64)) {
 		t.Errorf("tracker.TryClaim(math.MaxInt64) = %v, want: %v, %v", true, false, tracker.err)
 	}
-	if !tracker.IsDone() {
+	if tracker.IsDone() {
 		t.Errorf("tracker has done all work, but IsDone() returns false")
 	}
 }
@@ -387,8 +387,9 @@ func TestGrowableTracker_CheckpointJustStarted(t *testing.T) {
 	}
 	estimator.SetEstimateRangeEnd(0)
 	p, r, _ := tracker.TrySplit(0)
-	if tracker.IsDone() {
-		t.Fatal("tracker not done yet, , but IsDone() returns true")
+	fmt.Printf("tracker: %#v", tracker)
+	if !tracker.IsDone() {
+		t.Fatal("tracker should have been done, but IsDone() returns false")
 	}
 
 	expPr := Restriction{0, 6}
@@ -412,8 +413,8 @@ func TestGrowableTracker_CheckpointJustStarted(t *testing.T) {
 	}
 	estimator.SetEstimateRangeEnd(20)
 	p, r, _ = tracker.TrySplit(0)
-	if tracker.IsDone() {
-		t.Fatal("tracker not done yet, , but IsDone() returns true")
+	if !tracker.IsDone() {
+		t.Fatal("tracker should have been done, but IsDone() returns false")
 	}
 	if p.(Restriction) != expPr {
 		t.Errorf("wrong primaries after TrySplit(0), got: %v, want: %v", p.(Restriction), expPr)
@@ -423,14 +424,12 @@ func TestGrowableTracker_CheckpointJustStarted(t *testing.T) {
 	}
 }
 
-// TestGrowableTracker_Split tests TrySplit method for GrowableTracker
-// in regards to returned primary and residual.
-func TestGrowableTracker_Split(t *testing.T) {
+func TestGrowableTracker_TrySplit(t *testing.T) {
 	estimator := offsetRangeEndEstimator{EstimateRangeEnd: 0}
 	rest := Restriction{Start: 0, End: math.MaxInt64}
 	tracker, err := NewGrowableTracker(rest, &estimator)
 	if err != nil {
-		t.Fatalf("error creating new GrowableTracker: %v", err)
+		t.Fatalf("error in creating new GrowableTracker: %v", err)
 	}
 	if !tracker.TryClaim(int64(0)) {
 		t.Errorf("tracker.TryClaim(0) = %v, want: %v", false, true)
@@ -480,7 +479,7 @@ func TestGrowableTracker_IsBounded(t *testing.T) {
 	}
 
 	if tracker.IsBounded() {
-		t.Errorf("GrowableTracker is unbounded initially.")
+		t.Errorf("GrowableTracker is bounded, want unbounded initially.")
 	}
 
 	if !tracker.TryClaim(int64(0)) {
@@ -506,12 +505,12 @@ func TestGrowableTracker_Progress(t *testing.T) {
 	rest := Restriction{Start: start, End: math.MaxInt64}
 	tracker, err := NewGrowableTracker(rest, &estimator)
 	if err != nil {
-		t.Fatalf("error creating new GrowableTracker: %v", err)
+		t.Fatalf("error in creating a new GrowableTracker: %v", err)
 	}
 	cur = 20
 
 	if !tracker.TryClaim(int64(cur)) {
-		t.Fatal("couldn't claim tracker.TryClaim(int64(cur))")
+		t.Fatalf("couldn't claim tracker.TryClaim(int64(%v))", cur)
 	}
 
 	estimator.SetEstimateRangeEnd(5)

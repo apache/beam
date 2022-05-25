@@ -21,7 +21,6 @@ package offsetrange
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -30,7 +29,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 func init() {
@@ -216,7 +214,7 @@ func (tracker *Tracker) GetProgress() (done, remaining float64) {
 
 // IsDone returns true if the most recent claimed element is past the end of the restriction.
 func (tracker *Tracker) IsDone() bool {
-	return tracker.err == nil && (tracker.claimed >= tracker.rest.End || tracker.rest.Start >= tracker.rest.End)
+	return tracker.err == nil && (tracker.claimed+1 >= tracker.rest.End || tracker.rest.Start >= tracker.rest.End)
 }
 
 // GetRestriction returns a copy of the tracker's underlying offsetrange.Restriction.
@@ -284,36 +282,24 @@ func max(x, y int64) int64 {
 // fraction given is outside of the [0, 1] range, it is clamped to 0 or 1.
 func (tracker *GrowableTracker) TrySplit(fraction float64) (primary, residual interface{}, err error) {
 	if tracker.stopped || tracker.IsDone() {
-		log.Infof(context.Background(), "Done in TrySplit(%f)", fraction)
 		return tracker.rest, nil, nil
 	}
 
 	// If current tracking range is no longer growable, split it as a normal range.
-	if tracker.End() != math.MaxInt64 || tracker.Start() == tracker.End() {
-		log.Infof(context.Background(), "Doing the normal OffsetTracker TrySplit(%f)", fraction)
+	if tracker.End() != math.MaxInt64 {
 		return tracker.Tracker.TrySplit(fraction)
 	}
 
 	// If current range has been done, there is no more space to split.
-	if tracker.attempted != -1 && tracker.attempted == math.MaxInt64 {
+	if tracker.attempted == math.MaxInt64 {
 		return nil, nil, nil
 	}
 
-	var cur int64
-	if tracker.attempted != -1 {
-		cur = tracker.attempted
-	} else {
-		cur = tracker.Start() - 1
-	}
-
+	cur := max(tracker.attempted, tracker.Start()-1)
 	estimatedEnd := max(tracker.rangeEndEstimator.Estimate(), cur+1)
 
 	splitPt := cur + int64(math.Ceil(math.Max(1, float64(estimatedEnd-cur)*(fraction))))
-	log.Infof(context.Background(), "Split using estimatedEnd, estimatedEnd: %v, splitPt: %v ", estimatedEnd, splitPt)
 	if splitPt > estimatedEnd {
-		return tracker.rest, nil, nil
-	}
-	if splitPt < tracker.rest.Start {
 		return tracker.rest, nil, nil
 	}
 	residual = Restriction{Start: splitPt, End: tracker.End()}
@@ -323,17 +309,9 @@ func (tracker *GrowableTracker) TrySplit(fraction float64) (primary, residual in
 
 // GetProgress reports progress based on the claimed size and unclaimed sizes of the restriction.
 func (tracker *GrowableTracker) GetProgress() (done, remaining float64) {
-	log.Infof(context.Background(), "PROGRESS: tracker: %#v", tracker)
-
-	// If current tracking range is no longer growable, split it as a normal range.
-	if tracker.End() != math.MaxInt64 || tracker.End() == tracker.Start() {
+	// If current tracking range is no longer growable, get its progress as a normal range.
+	if tracker.End() != math.MaxInt64 {
 		return tracker.Tracker.GetProgress()
-	}
-
-	if tracker.attempted == -1 {
-		done = 0
-		remaining = math.Max(float64(tracker.End())-float64(tracker.Start()), 0)
-		return done, remaining
 	}
 
 	done = float64((tracker.claimed + 1) - tracker.Start())
