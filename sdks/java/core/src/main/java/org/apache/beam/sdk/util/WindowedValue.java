@@ -792,7 +792,8 @@ public abstract class WindowedValue<T> {
 
     @Override
     public <NewT> WindowedValueCoder<NewT> withValueCoder(Coder<NewT> valueCoder) {
-      return new ParamWindowedValueCoder<>(valueCoder, getWindowCoder(), getTimestamp(), getWindows(), getPane());
+      return new ParamWindowedValueCoder<>(
+          valueCoder, getWindowCoder(), getTimestamp(), getWindows(), getPane());
     }
 
     @Override
