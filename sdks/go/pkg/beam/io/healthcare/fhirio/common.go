@@ -21,6 +21,8 @@ import (
 	"net/http"
 )
 
+const baseMetricPrefix = "fhirio/"
+
 type fhirStoreClient interface {
 	readResource(resourceName string) (*http.Response, error)
 }

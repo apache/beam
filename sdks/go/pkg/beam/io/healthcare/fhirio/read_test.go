@@ -73,7 +73,11 @@ func Test_readFailures(t *testing.T) {
 			passert.True(s, failedReads, func(errorMsg string) bool {
 				return strings.Contains(errorMsg, testCase.containedError)
 			})
-			ptest.RunAndValidate(t, p)
+			pipelineResult := ptest.RunAndValidate(t, p)
+			counterResults := pipelineResult.Metrics().AllMetrics().Counters()
+			if len(counterResults) != 1 || counterResults[0].Result() != int64(len(testResourceIds)) {
+				t.Error("Only error counter should be incremented and by exactly the amount of test resource ids")
+			}
 		})
 	}
 }

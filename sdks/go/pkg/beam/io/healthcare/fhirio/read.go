@@ -16,10 +16,13 @@
 package fhirio
 
 import (
+	"context"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"io"
 	"reflect"
+	"time"
 )
 
 func init() {
@@ -27,35 +30,58 @@ func init() {
 }
 
 type readResourceFn struct {
-	client fhirStoreClient
+	client                fhirStoreClient
+	readResourceErrors    *metrics.Counter
+	readResourceSuccess   *metrics.Counter
+	readResourceLatencyMs *metrics.Distribution
 }
 
-func (fn *readResourceFn) ProcessElement(resourceId string, emitResource func(string), emitDeadLetter func(string)) {
+func (fn readResourceFn) String() string {
+	return "readResourceFn"
+}
+
+func (fn *readResourceFn) Setup() {
+	if fn.client == nil {
+		fn.client = newFhirStoreClient()
+	}
+	fn.readResourceErrors = metrics.NewCounter(fn.String(), baseMetricPrefix+"read_resource_error_count")
+	fn.readResourceSuccess = metrics.NewCounter(fn.String(), baseMetricPrefix+"read_resource_success_count")
+	fn.readResourceLatencyMs = metrics.NewDistribution(fn.String(), baseMetricPrefix+"read_resource_latency_ms")
+}
+
+func (fn *readResourceFn) ProcessElement(ctx context.Context, resourceId string, emitResource func(string), emitDeadLetter func(string)) {
+	timeBeforeReadRequest := time.Now()
 	response, err := fn.client.readResource(resourceId)
+	fn.readResourceLatencyMs.Update(ctx, time.Now().Sub(timeBeforeReadRequest).Milliseconds())
+
 	if err != nil {
+		fn.readResourceErrors.Inc(ctx, 1)
 		emitDeadLetter(errors.Wrapf(err, "Failed to fetch resource [%s].", resourceId).Error())
 		return
 	}
 
 	if response.StatusCode != 200 {
+		fn.readResourceErrors.Inc(ctx, 1)
 		emitDeadLetter(errors.Errorf("Fetched resource [%s] returned bad status [%d].", resourceId, response.StatusCode).Error())
 		return
 	}
 
 	bytes, err := io.ReadAll(response.Body)
 	if err != nil {
+		fn.readResourceErrors.Inc(ctx, 1)
 		emitDeadLetter(errors.Wrapf(err, "Error while reading response body of resource [%s]", resourceId).Error())
 		return
 	}
 
+	fn.readResourceSuccess.Inc(ctx, 1)
 	emitResource(string(bytes))
 }
 
 func Read(s beam.Scope, resourceIds beam.PCollection) (beam.PCollection, beam.PCollection) {
 	s = s.Scope("fhirio.Read")
-	return read(s, resourceIds, newFhirStoreClient())
+	return read(s, resourceIds, nil)
 }
 
 func read(s beam.Scope, resourceIds beam.PCollection, client fhirStoreClient) (beam.PCollection, beam.PCollection) {
-	return beam.ParDo2(s, &readResourceFn{client}, resourceIds)
+	return beam.ParDo2(s, &readResourceFn{client: client}, resourceIds)
 }
