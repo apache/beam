@@ -527,7 +527,10 @@ class TestReadFromBigQuery(unittest.TestCase):
           error_message='backendError'),
   ])
   def test_query_job_exception(self, exception_type, error_message):
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
     with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
                            'estimate_size') as mock_estimate,\
       mock.patch.object(BigQueryWrapper,
