@@ -203,6 +203,7 @@ func TestGetJobOptions_TransformMapping(t *testing.T) {
 	*stagingLocation = "gs://testStagingLocation"
 	*autoscalingAlgorithm = "NONE"
 	*minCPUPlatform = "testPlatform"
+	*flexRSGoal = "FLEXRS_SPEED_OPTIMIZED"
 
 	*gcpopts.Project = "testProject"
 	*gcpopts.Region = "testRegion"
@@ -230,6 +231,7 @@ func TestGetJobOptions_TransformMappingNoUpdate(t *testing.T) {
 	*stagingLocation = "gs://testStagingLocation"
 	*autoscalingAlgorithm = "NONE"
 	*minCPUPlatform = "testPlatform"
+	*flexRSGoal = "FLEXRS_SPEED_OPTIMIZED"
 
 	*gcpopts.Project = "testProject"
 	*gcpopts.Region = "testRegion"
@@ -253,6 +255,7 @@ func TestGetJobOptions_InvalidMapping(t *testing.T) {
 	*stagingLocation = "gs://testStagingLocation"
 	*autoscalingAlgorithm = "NONE"
 	*minCPUPlatform = "testPlatform"
+	*flexRSGoal = "FLEXRS_SPEED_OPTIMIZED"
 
 	*gcpopts.Project = "testProject"
 	*gcpopts.Region = "testRegion"
