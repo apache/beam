@@ -95,6 +95,7 @@ class ScopedState(object):
     self.counter = counter
     self.nsecs = 0
     self.metrics_container = metrics_container
+    self._entered = False
 
   def sampled_seconds(self):
     # type: () -> float
@@ -108,7 +109,12 @@ class ScopedState(object):
     return "ScopedState[%s, %s]" % (self.name, self.nsecs)
 
   def __enter__(self):
+    assert not self._entered, (
+        f"Attempted to re-enter {self!r}",
+        "which is unnecessary and unsupported")
+    self._entered = True
     self.state_sampler._enter_state(self)
 
   def __exit__(self, exc_type, exc_value, traceback):
     self.state_sampler._exit_state()
+    self._entered = False

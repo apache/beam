@@ -67,6 +67,12 @@ class StateSamplerTest(unittest.TestCase):
               CounterName(
                   'statec-msecs', step_name='step1', stage_name='basic'))
         time.sleep(state_duration_ms / 1000)
+        self.assertEqual(
+            sampler.current_state().name,
+            CounterName('stateb-msecs', step_name='step1', stage_name='basic'))
+      self.assertEqual(
+          sampler.current_state().name,
+          CounterName('statea-msecs', step_name='step1', stage_name='basic'))
 
     sampler.stop()
     sampler.commit_counters()
@@ -126,6 +132,29 @@ class StateSamplerTest(unittest.TestCase):
     # take 0.17us when compiled in opt mode or 0.48 us when compiled with in
     # debug mode).
     self.assertLess(overhead_us, 20.0)
+
+  def test_reenter_scoped_state_disallowed(self):
+    # Re-entering a given ScopedState is disallowed, because the fast
+    # implementation does not support it, see BEAM-14481.
+    counter_factory = CounterFactory()
+    sampler = statesampler.StateSampler(
+        'basic', counter_factory, sampling_period_ms=1)
+
+    statea = sampler.scoped_state('step1', 'statea')
+    stateb = sampler.scoped_state('step1', 'stateb')
+
+    sampler.start()
+    with statea:
+      self.assertEqual(
+          sampler.current_state().name,
+          CounterName('statea-msecs', step_name='step1', stage_name='basic'))
+      with stateb:
+        self.assertEqual(
+            sampler.current_state().name,
+            CounterName('stateb-msecs', step_name='step1', stage_name='basic'))
+        with self.assertRaisesRegex(AssertionError, "[Rr]e-enter"):
+          with stateb:
+            pass
 
 
 if __name__ == '__main__':

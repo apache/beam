@@ -217,6 +217,7 @@ cdef class ScopedState(object):
     self.state_index = state_index
     self.counter = counter
     self.metrics_container = metrics_container
+    self.old_state_index = -1
 
   @property
   def nsecs(self):
@@ -232,6 +233,7 @@ cdef class ScopedState(object):
     return "ScopedState[%s, %s]" % (self.name, self.nsecs)
 
   cpdef __enter__(self):
+    assert self.old_state_index == -1, f"Attempted to re-enter {self!r}, which is unnecessary and unsupported"
     self.old_state_index = self.sampler.current_state_index
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.state_index
@@ -241,5 +243,6 @@ cdef class ScopedState(object):
   cpdef __exit__(self, unused_exc_type, unused_exc_value, unused_traceback):
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.old_state_index
+    self.old_state_index = -1
     self.sampler.state_transition_count += 1
     pythread.PyThread_release_lock(self.sampler.lock)
