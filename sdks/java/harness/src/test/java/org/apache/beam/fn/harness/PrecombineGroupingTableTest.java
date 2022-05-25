@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
@@ -51,6 +52,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -107,6 +109,32 @@ public class PrecombineGroupingTableTest {
           return accumulator;
         }
       };
+
+  @Test
+  public void testCombiningInheritsOneOfTheValuesTimestamps() throws Exception {
+    PrecombineGroupingTable<String, Integer, Long> table =
+        new PrecombineGroupingTable<>(
+            PipelineOptionsFactory.create(),
+            Caches.forMaximumBytes(2500L),
+            StringUtf8Coder.of(),
+            GlobalCombineFnRunners.create(COMBINE_FN),
+            new StringPowerSizeEstimator(),
+            new IdentitySizeEstimator());
+
+    TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
+
+    table.put(timestampedValueInGlobalWindow(KV.of("A", 1), new Instant(1)), receiver);
+    table.put(timestampedValueInGlobalWindow(KV.of("B", 9), new Instant(21)), receiver);
+    table.put(timestampedValueInGlobalWindow(KV.of("A", 2), new Instant(1)), receiver);
+    table.put(timestampedValueInGlobalWindow(KV.of("B", 2), new Instant(20)), receiver);
+    table.put(timestampedValueInGlobalWindow(KV.of("A", 4), new Instant(1)), receiver);
+    table.flush(receiver);
+    assertThat(
+        receiver.outputElems,
+        containsInAnyOrder(
+            timestampedValueInGlobalWindow(KV.of("A", 1L + 2 + 4), new Instant(1)),
+            timestampedValueInGlobalWindow(KV.of("B", 9L + 2), new Instant(21))));
+  }
 
   @Test
   public void testCombiningGroupingTableHonorsKeyWeights() throws Exception {
