@@ -23,8 +23,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
 
 /**
- * FhirBundleWithMetadata represents a FHIR bundle, with it's metadata (eg. Hl7 messageId) in JSON
- * format to be executed on the intermediate FHIR store. *
+ * FhirBundleWithMetadata represents a FHIR bundle, with it's metadata (eg. source ID like HL7
+ * message path) in JSON format to be executed on any FHIR store. *
  */
 @DefaultCoder(FhirBundleWithMetadataCoder.class)
 @AutoValue
@@ -34,10 +34,16 @@ public abstract class FhirBundleWithMetadata {
     return new AutoValue_FhirBundleWithMetadata.Builder();
   }
 
+  /**
+   * String representing the source of the Bundle to be written. Used to pass source data through
+   * the ExecuteBundles PTransform
+   */
   public abstract String getMetadata();
 
+  /** FHIR R4 bundle resource object as a string */
   public abstract String getBundle();
 
+  /** HTTP response from the FHIR store after attempting to write the Bundle method. */
   public abstract String getResponse();
 
   public static FhirBundleWithMetadata of(

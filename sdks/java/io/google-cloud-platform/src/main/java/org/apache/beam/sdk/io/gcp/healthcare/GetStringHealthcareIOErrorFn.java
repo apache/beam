@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
- * ParDo function that transforms a HealthcareIOError for a FhirExecuteBundleParameter to an error
- * with the body (string) as the data resource, for backwards compatibility.
+ * ParDo function that transforms a HealthcareIOError for a FhirBundleWithMetadata to an error with
+ * the body (string) as the data resource, for backwards compatibility.
  */
 public class GetStringHealthcareIOErrorFn
     extends DoFn<HealthcareIOError<FhirBundleWithMetadata>, HealthcareIOError<String>> {

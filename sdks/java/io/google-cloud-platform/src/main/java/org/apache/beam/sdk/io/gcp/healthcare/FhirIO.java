@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import static org.apache.beam.sdk.io.gcp.healthcare.FhirIO.ExecuteBundles.FAILED_BUNDLES;
-import static org.apache.beam.sdk.io.gcp.healthcare.FhirIO.ExecuteBundles.SUCCESSFUL_BUNDLES;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -59,8 +57,6 @@ import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
-import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Write.AbstractResult;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.FhirResourcePagesIterator;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -1521,16 +1517,22 @@ public class FhirIO {
             } else {
               fail++;
               context.output(
-                  Write.FAILED_BODY,
+                  FAILED_BUNDLES,
                   HealthcareIOError.of(
-                      inputBody, HealthcareHttpException.of(statusCode, entry.toString())));
+                      context.element(), HealthcareHttpException.of(statusCode, entry.toString())));
             }
           }
           EXECUTE_BUNDLE_RESOURCE_SUCCESS.inc(success);
           EXECUTE_BUNDLE_RESOURCE_ERRORS.inc(fail);
         } else if (bundleType.equals(BUNDLE_RESPONSE_TYPE_TRANSACTION)) {
           EXECUTE_BUNDLE_RESOURCE_SUCCESS.inc(entries.size());
-          context.output(Write.SUCCESSFUL_BODY, bundle.toString());
+          context.output(
+              SUCCESSFUL_BUNDLES,
+              FhirBundleWithMetadata.builder()
+                  .setMetadata(context.element().getMetadata())
+                  .setBundle(inputBody)
+                  .setResponse(resp.getData())
+                  .build());
         }
         EXECUTE_BUNDLE_SUCCESS.inc();
         return;
@@ -1553,7 +1555,7 @@ public class FhirIO {
    * ExecuteBundlesResult contains both successfully executed bundles and information help debugging
    * failed executions (eg metadata & error msgs).
    */
-  public static class ExecuteBundlesResult extends AbstractResult {
+  public static class ExecuteBundlesResult extends Write.AbstractResult {
     private final Pipeline pipeline;
     private final PCollection<FhirBundleWithMetadata> successfulBundles;
     private final PCollection<HealthcareIOError<FhirBundleWithMetadata>> failedBundles;
@@ -1616,7 +1618,11 @@ public class FhirIO {
 
     @Override
     public Map<TupleTag<?>, PValue> expand() {
-      return ImmutableMap.of(SUCCESSFUL_BUNDLES, successfulBundles, FAILED_BUNDLES, failedBundles);
+      return ImmutableMap.of(
+          ExecuteBundles.SUCCESSFUL_BUNDLES,
+          successfulBundles,
+          ExecuteBundles.FAILED_BUNDLES,
+          failedBundles);
     }
 
     @Override
