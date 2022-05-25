@@ -239,6 +239,7 @@ func TestGetJobOptions_TransformMappingNoUpdate(t *testing.T) {
 	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
 	*jobopts.JobName = "testJob"
 
+	*update = false
 	*transformMapping = `{"transformOne": "transformTwo"}`
 
 	opts, err := getJobOptions(context.Background())
