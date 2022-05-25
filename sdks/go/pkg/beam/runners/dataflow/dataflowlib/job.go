@@ -87,8 +87,6 @@ type JobOptions struct {
 	TeardownPolicy string
 }
 
-const replaceIdPlaceholder = "toBeReplaced"
-
 // Translate translates a pipeline to a Dataflow job.
 func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL string) (*df.Job, error) {
 	// (1) Translate pipeline to v1b3 speak.
@@ -162,11 +160,6 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		return nil, err
 	}
 
-	var replaceId string = ""
-	if opts.Update {
-		replaceId = replaceIdPlaceholder
-	}
-
 	job := &df.Job{
 		ProjectId: opts.Project,
 		Name:      opts.Name,
@@ -220,7 +213,6 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			Experiments:       experiments,
 		},
 		Labels:               opts.Labels,
-		ReplaceJobId:         replaceId,
 		TransformNameMapping: opts.TransformNameMapping,
 		Steps:                steps,
 	}
@@ -251,8 +243,8 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 }
 
 // Submit submits a prepared job to Cloud Dataflow.
-func Submit(ctx context.Context, client *df.Service, project, region string, job *df.Job) (*df.Job, error) {
-	if job.ReplaceJobId != "" {
+func Submit(ctx context.Context, client *df.Service, project, region string, job *df.Job, updateJob bool) (*df.Job, error) {
+	if updateJob {
 		runningJob, err := GetRunningJobByName(client, project, region, job.Name)
 		if err != nil {
 			return nil, err
