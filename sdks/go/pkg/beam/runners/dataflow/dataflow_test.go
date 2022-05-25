@@ -17,10 +17,11 @@ package dataflow
 
 import (
 	"context"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"sort"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 )
 
 func TestDontUseFlagAsPipelineOption(t *testing.T) {
@@ -39,6 +40,8 @@ func TestGetJobOptions(t *testing.T) {
 	*stagingLocation = "gs://testStagingLocation"
 	*autoscalingAlgorithm = "NONE"
 	*minCPUPlatform = "testPlatform"
+	*flexRSGoal = "FLEXRS_SPEED_OPTIMIZED"
+	*dataflowServiceOptions = "opt1,opt2"
 
 	*gcpopts.Project = "testProject"
 	*gcpopts.Region = "testRegion"
@@ -64,6 +67,17 @@ func TestGetJobOptions(t *testing.T) {
 			}
 		}
 	}
+	if got, want := len(opts.DataflowServiceOptions), 2; got != want {
+		t.Errorf("len(getJobOptions().DataflowServiceOptions) = %q, want %q", got, want)
+	} else {
+		sort.Strings(opts.DataflowServiceOptions)
+		expectedOptions := []string{"opt1", "opt2"}
+		for i := 0; i < 2; i++ {
+			if got, want := opts.DataflowServiceOptions[i], expectedOptions[i]; got != want {
+				t.Errorf("getJobOptions().DataflowServiceOptions = %q, want %q", got, want)
+			}
+		}
+	}
 	if got, want := opts.Project, "testProject"; got != want {
 		t.Errorf("getJobOptions().Project = %q, want %q", got, want)
 	}
@@ -82,6 +96,9 @@ func TestGetJobOptions(t *testing.T) {
 	}
 	if got, want := opts.TempLocation, "gs://testStagingLocation/tmp"; got != want {
 		t.Errorf("getJobOptions().TempLocation = %q, want %q", got, want)
+	}
+	if got, want := opts.FlexRSGoal, "FLEXRS_SPEED_OPTIMIZED"; got != want {
+		t.Errorf("getJobOptions().FlexRSGoal = %q, want %q", got, want)
 	}
 }
 
@@ -129,6 +146,24 @@ func TestGetJobOptions_InvalidAutoscaling(t *testing.T) {
 	*labels = `{"label1": "val1", "label2": "val2"}`
 	*stagingLocation = "gs://testStagingLocation"
 	*autoscalingAlgorithm = "INVALID"
+	*minCPUPlatform = "testPlatform"
+
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+
+	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
+	*jobopts.JobName = "testJob"
+
+	_, err := getJobOptions(context.Background())
+	if err == nil {
+		t.Fatalf("getJobOptions() returned error nil, want an error")
+	}
+}
+
+func TestGetJobOptions_InvalidRsGoal(t *testing.T) {
+	*labels = `{"label1": "val1", "label2": "val2"}`
+	*stagingLocation = "gs://testStagingLocation"
+	*flexRSGoal = "INVALID"
 	*minCPUPlatform = "testPlatform"
 
 	*gcpopts.Project = "testProject"
