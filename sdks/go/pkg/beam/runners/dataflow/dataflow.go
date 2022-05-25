@@ -253,8 +253,11 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 	}
 
 	if *flexRSGoal != "" {
-		if *flexRSGoal != "FLEXRS_UNSPECIFIED" && *flexRSGoal != "FLEXRS_SPEED_OPTIMIZED" && *flexRSGoal != "FLEXRS_COST_OPTIMIZED" {
-			return nil, errors.New("invalid flex resource scheduling goal. Use --flexrs_goal=(FLEXRS_UNSPECIFIED|FLEXRS_SPEED_OPTIMIZED|FLEXRS_COST_OPTIMIZED)")
+		switch *flexRSGoal {
+		case "FLEXRS_UNSPECIFIED" , "FLEXRS_SPEED_OPTIMIZED", "FLEXRS_COST_OPTIMIZED":
+		  // valid values
+		default:
+			return nil, errors.Errorf("invalid flex resource scheduling goal. Got %q; Use --flexrs_goal=(FLEXRS_UNSPECIFIED|FLEXRS_SPEED_OPTIMIZED|FLEXRS_COST_OPTIMIZED)", *flexRSGoal)
 		}
 	}
 
