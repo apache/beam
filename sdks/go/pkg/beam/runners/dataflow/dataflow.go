@@ -75,7 +75,8 @@ var (
 	workerZone             = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
 	dataflowServiceOptions = flag.String("dataflow_service_options", "", "Comma separated list of additional job modes and configurations (optional)")
 	flexRSGoal             = flag.String("flexrs_goal", "", "Which Flexible Resource Scheduling mode to run in (optional)")
-	enableHotKeyLogging    = flag.Bool("enable_hot_key_logging", false, "Specifies that when a hot key is detected in the pipeline, the literal, human-readable key is printed in the user's Cloud Logging project (optional).")
+	// TODO(BEAM-14512) Turn this on once TO_STRING is implemented
+	// enableHotKeyLogging    = flag.Bool("enable_hot_key_logging", false, "Specifies that when a hot key is detected in the pipeline, the literal, human-readable key is printed in the user's Cloud Logging project (optional).")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
@@ -95,34 +96,29 @@ func init() {
 // New flags that are already put into pipeline options
 // should be added to this map.
 var flagFilter = map[string]bool{
-	"dataflow_endpoint":                true,
-	"staging_location":                 true,
-	"worker_harness_container_image":   true,
-	"labels":                           true,
-	"service_account_email":            true,
-	"num_workers":                      true,
-	"max_num_workers":                  true,
-	"number_of_worker_harness_threads": true,
-	"disk_size_gb":                     true,
-	"disk_type":                        true,
-	"autoscaling_algorithm":            true,
-	"zone":                             true,
-	"dataflow_kms_key":                 true,
-	"network":                          true,
-	"subnetwork":                       true,
-	"no_use_public_ips":                true,
-	"temp_location":                    true,
-	"worker_machine_type":              true,
-	"min_cpu_platform":                 true,
-	"dataflow_worker_jar":              true,
-	"worker_region":                    true,
-	"worker_zone":                      true,
-	"dataflow_service_options":         true,
-	"flexrs_goal":                      true,
-	"enable_hot_key_logging":           true,
-	"teardown_policy":                  true,
-	"cpu_profiling":                    true,
-	"session_recording":                true,
+	"dataflow_endpoint":              true,
+	"staging_location":               true,
+	"worker_harness_container_image": true,
+	"labels":                         true,
+	"service_account_email":          true,
+	"num_workers":                    true,
+	"max_num_workers":                true,
+	"disk_size_gb":                   true,
+	"disk_type":                      true,
+	"autoscaling_algorithm":          true,
+	"zone":                           true,
+	"network":                        true,
+	"subnetwork":                     true,
+	"no_use_public_ips":              true,
+	"temp_location":                  true,
+	"worker_machine_type":            true,
+	"min_cpu_platform":               true,
+	"dataflow_worker_jar":            true,
+	"worker_region":                  true,
+	"worker_zone":                    true,
+	"teardown_policy":                true,
+	"cpu_profiling":                  true,
+	"session_recording":              true,
 
 	// Job Options flags
 	"endpoint":                 true,
@@ -308,7 +304,6 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 		DiskType:               *diskType,
 		Algorithm:              *autoscalingAlgorithm,
 		FlexRSGoal:             *flexRSGoal,
-		EnableHotKeyLogging:    *enableHotKeyLogging,
 		MachineType:            *machineType,
 		Labels:                 jobLabels,
 		ServiceAccountEmail:    *serviceAccountEmail,
