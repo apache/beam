@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.python;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -33,10 +34,12 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.PythonCallableSource;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -64,6 +67,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   // We preseve the order here since Schema's care about order of fields but the order will not
   // matter when applying kwargs at the Python side.
   private SortedMap<String, Object> kwargsMap;
+  private Map<java.lang.Class<?>, Schema.FieldType> typeHints;
 
   private @Nullable Object @NonNull [] argsArray;
   private @Nullable Row providedKwargsRow;
@@ -72,6 +76,11 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     this.fullyQualifiedName = fullyQualifiedName;
     this.expansionService = expansionService;
     this.kwargsMap = new TreeMap<>();
+    this.typeHints = new HashMap<>();
+    // TODO(BEAM-14458): remove a default type hint for PythonCallableSource when BEAM-14458 is
+    // resolved
+    this.typeHints.put(
+        PythonCallableSource.class, Schema.FieldType.logicalType(new PythonCallable()));
     argsArray = new Object[] {};
   }
 
@@ -162,6 +171,26 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     return this;
   }
 
+  /**
+   * Specifies the field type of arguments.
+   *
+   * <p>Type hints are especially useful for logical types since type inference does not work well
+   * for logical types.
+   *
+   * @param argType A class object for the argument type.
+   * @param fieldType A schema field type for the argument.
+   * @return updated wrapper for the cross-language transform.
+   */
+  public PythonExternalTransform<InputT, OutputT> withTypeHint(
+      java.lang.Class<?> argType, Schema.FieldType fieldType) {
+    if (typeHints.containsKey(argType)) {
+      throw new IllegalArgumentException(
+          String.format("typehint for arg type %s already exists", argType));
+    }
+    typeHints.put(argType, fieldType);
+    return this;
+  }
+
   @VisibleForTesting
   Row buildOrGetKwargsRow() {
     if (providedKwargsRow != null) {
@@ -170,6 +199,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       Schema schema =
           generateSchemaFromFieldValues(
               kwargsMap.values().toArray(), kwargsMap.keySet().toArray(new String[] {}));
+      schema.setUUID(UUID.randomUUID());
       return Row.withSchema(schema)
           .addValues(convertComplexTypesToRows(kwargsMap.values().toArray()))
           .build();
@@ -179,16 +209,18 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   // Types that are not one of following are considered custom types.
   // * Java primitives
   // * Type String
+  // * Any Type explicitly annotated by withTypeHint()
   // * Type Row
-  private static boolean isCustomType(java.lang.Class<?> type) {
+  private boolean isCustomType(java.lang.Class<?> type) {
     boolean val =
         !(ClassUtils.isPrimitiveOrWrapper(type)
             || type == String.class
+            || typeHints.containsKey(type)
             || Row.class.isAssignableFrom(type));
     return val;
   }
 
-  // If the custom type has a registered schema, we use that. OTherwise we try to register it using
+  // If the custom type has a registered schema, we use that. Otherwise, we try to register it using
   // 'JavaFieldSchema'.
   private Row convertCustomValue(Object value) {
     SerializableFunction<Object, Row> toRowFunc;
@@ -223,6 +255,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   @VisibleForTesting
   Row buildOrGetArgsRow() {
     Schema schema = generateSchemaFromFieldValues(argsArray, null);
+    schema.setUUID(UUID.randomUUID());
     Object[] convertedValues = convertComplexTypesToRows(argsArray);
     return Row.withSchema(schema).addValues(convertedValues).build();
   }
@@ -239,6 +272,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       if (field instanceof Row) {
         // Rows are used as is but other types are converted to proper field types.
         builder.addRowField(fieldName, ((Row) field).getSchema());
+      } else if (typeHints.containsKey(field.getClass())) {
+        builder.addField(fieldName, typeHints.get(field.getClass()));
       } else {
         builder.addField(
             fieldName,

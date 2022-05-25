@@ -25,10 +25,6 @@ import {
   IterableCoder,
   KVCoder,
 } from "../src/apache_beam/coders/standard_coders";
-import {
-  GroupBy,
-  GroupGlobally,
-} from "../src/apache_beam/transforms/group_and_combine";
 import * as combiners from "../src/apache_beam/transforms/combiners";
 import { GeneralObjectCoder } from "../src/apache_beam/coders/js_coders";
 
@@ -45,84 +41,74 @@ describe("primitives module", function () {
     it("runs a map", async function () {
       await new DirectRunner().run((root) => {
         const pcolls = root
-          .apply(new beam.Create([1, 2, 3]))
+          .apply(beam.create([1, 2, 3]))
           .map((x) => x * x)
-          .apply(new testing.AssertDeepEqual([1, 4, 9]));
+          .apply(testing.assertDeepEqual([1, 4, 9]));
       });
     });
 
     it("runs a flatmap", async function () {
       await new DirectRunner().run((root) => {
         const pcolls = root
-          .apply(new beam.Create(["a b", "c"]))
+          .apply(beam.create(["a b", "c"]))
           .flatMap((s) => s.split(/ +/))
-          .apply(new testing.AssertDeepEqual(["a", "b", "c"]));
+          .apply(testing.assertDeepEqual(["a", "b", "c"]));
       });
     });
 
     it("runs a Splitter", async function () {
       await new DirectRunner().run((root) => {
         const pcolls = root
-          .apply(new beam.Create(["apple", "apricot", "banana"]))
-          .apply(new beam.Split((e) => e[0], "a", "b"));
-        pcolls.a.apply(new testing.AssertDeepEqual(["apple", "apricot"]));
-        pcolls.b.apply(new testing.AssertDeepEqual(["banana"]));
-      });
-    });
-
-    it("runs a Splitter2", async function () {
-      await new DirectRunner().run((root) => {
-        const pcolls = root
-          .apply(new beam.Create([{ a: 1 }, { b: 10 }, { a: 2, b: 20 }]))
-          .apply(new beam.Split2("a", "b"));
-        pcolls.a.apply(new testing.AssertDeepEqual([1, 2]));
-        pcolls.b.apply(new testing.AssertDeepEqual([10, 20]));
+          .apply(beam.create([{ a: 1 }, { b: 10 }, { a: 2, b: 20 }]))
+          .apply(beam.split(["a", "b"], { exclusive: false }));
+        pcolls.a.apply(testing.assertDeepEqual([1, 2]));
+        pcolls.b.apply(testing.assertDeepEqual([10, 20]));
       });
     });
 
     it("runs a map with context", async function () {
       await new DirectRunner().run((root) => {
         root
-          .apply(new beam.Create([1, 2, 3]))
+          .apply(beam.create([1, 2, 3]))
           .map((a: number, b: number) => a + b, 100)
-          .apply(new testing.AssertDeepEqual([101, 102, 103]));
+          .apply(testing.assertDeepEqual([101, 102, 103]));
       });
     });
 
     it("runs a map with singleton side input", async function () {
       await new DirectRunner().run((root) => {
-        const input = root.apply(new beam.Create([1, 2, 1]));
-        const sideInput = root.apply(new beam.Create([4]));
+        const input = root.apply(beam.create([1, 2, 1]));
+        const sideInput = root.apply(beam.create([4]));
         input
           .map((e, context) => e / context.side.lookup(), {
-            side: new pardo.SingletonSideInput(sideInput),
+            side: pardo.singletonSideInput(sideInput),
           })
-          .apply(new testing.AssertDeepEqual([0.25, 0.5, 0.25]));
+          .apply(testing.assertDeepEqual([0.25, 0.5, 0.25]));
       });
     });
 
     it("runs a map with a side input sharing input root", async function () {
       await new DirectRunner().run((root) => {
-        const input = root.apply(new beam.Create([1, 2, 1]));
+        const input = root.apply(beam.create([1, 2, 1]));
         // TODO: Can this type be inferred?
         const sideInput: beam.PCollection<{ sum: number }> = input.apply(
-          new GroupGlobally().combining((e) => e, combiners.sum, "sum")
+          beam.groupGlobally().combining((e) => e, combiners.sum, "sum")
         );
         input
           .map((e, context) => e / context.side.lookup().sum, {
-            side: new pardo.SingletonSideInput(sideInput),
+            side: pardo.singletonSideInput(sideInput),
           })
-          .apply(new testing.AssertDeepEqual([0.25, 0.5, 0.25]));
+          .apply(testing.assertDeepEqual([0.25, 0.5, 0.25]));
       });
     });
 
     it("runs a map with window-sensitive context", async function () {
       await new DirectRunner().run((root) => {
         root
-          .apply(new beam.Create([1, 2, 3, 4, 5, 10, 11, 12]))
-          .apply(new beam.AssignTimestamps((t) => Long.fromValue(t * 1000)))
-          .apply(new beam.WindowInto(new windowings.FixedWindows(10)))
-          .apply(new beam.GroupBy((e: number) => ""))
+          .apply(beam.create([1, 2, 3, 4, 5, 10, 11, 12]))
+          .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)))
+          .apply(beam.windowInto(windowings.fixedWindows(10)))
+          .apply(beam.groupBy((e: number) => ""))
           .map(
             withName(
               "MapWithContext",
@@ -138,10 +124,10 @@ describe("primitives module", function () {
             ),
             // This is the context to pass as the second argument.
             // At each element, window.get() will return the associated window.
-            { window: new pardo.WindowParam(), other: "A" }
+            { window: pardo.windowParam(), other: "A" }
           )
           .apply(
-            new testing.AssertDeepEqual([
+            testing.assertDeepEqual([
               { key: "", value: [1, 2, 3, 4, 5], window_start_ms: 0, a: "A" },
               { key: "", value: [10, 11, 12], window_start_ms: 10000, a: "A" },
             ])
@@ -152,11 +138,11 @@ describe("primitives module", function () {
     it("runs a WindowInto", async function () {
       await new DirectRunner().run((root) => {
         root
-          .apply(new beam.Create(["apple", "apricot", "banana"]))
-          .apply(new beam.WindowInto(new windowings.GlobalWindows()))
-          .apply(new beam.GroupBy((e: string) => e[0]))
+          .apply(beam.create(["apple", "apricot", "banana"]))
+          .apply(beam.windowInto(windowings.globalWindows()))
+          .apply(beam.groupBy((e: string) => e[0]))
           .apply(
-            new testing.AssertDeepEqual([
+            testing.assertDeepEqual([
               { key: "a", value: ["apple", "apricot"] },
               { key: "b", value: ["banana"] },
             ])
@@ -167,12 +153,12 @@ describe("primitives module", function () {
     it("runs a WindowInto IntervalWindow", async function () {
       await new DirectRunner().run((root) => {
         root
-          .apply(new beam.Create([1, 2, 3, 4, 5, 10, 11, 12]))
-          .apply(new beam.AssignTimestamps((t) => Long.fromValue(t * 1000)))
-          .apply(new beam.WindowInto(new windowings.FixedWindows(10)))
-          .apply(new beam.GroupBy((e: number) => ""))
+          .apply(beam.create([1, 2, 3, 4, 5, 10, 11, 12]))
+          .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)))
+          .apply(beam.windowInto(windowings.fixedWindows(10)))
+          .apply(beam.groupBy((e: number) => ""))
           .apply(
-            new testing.AssertDeepEqual([
+            testing.assertDeepEqual([
               { key: "", value: [1, 2, 3, 4, 5] },
               { key: "", value: [10, 11, 12] },
             ])
@@ -185,7 +171,7 @@ describe("primitives module", function () {
     // TODO: test output with direct runner.
     it("runs a basic Impulse expansion", function () {
       var p = new Pipeline();
-      var res = new beam.Root(p).apply(new beam.Impulse());
+      var res = new beam.Root(p).apply(beam.impulse());
 
       assert.equal(res.type, "pcollection");
       assert.deepEqual(p.context.getPCollectionCoder(res), new BytesCoder());
@@ -193,7 +179,7 @@ describe("primitives module", function () {
     it("runs a ParDo expansion", function () {
       var p = new Pipeline();
       var res = new beam.Root(p)
-        .apply(new beam.Impulse())
+        .apply(beam.impulse())
         .map(function (v: any) {
           return v * 2;
         })
@@ -211,11 +197,11 @@ describe("primitives module", function () {
     it("runs a GroupBy expansion", function () {
       var p = new Pipeline();
       var res = new beam.Root(p)
-        .apply(new beam.Impulse())
+        .apply(beam.impulse())
         .map(function createElement(v) {
           return { name: "pablo", lastName: "wat" };
         })
-        .apply(new GroupBy("lastName"));
+        .apply(beam.groupBy("lastName"));
 
       assert.deepEqual(
         p.context.getPCollectionCoder(res),

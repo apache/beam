@@ -122,7 +122,6 @@ func NewFn(fn interface{}) (*Fn, error) {
 				}
 				methods[name] = f
 			}
-			return &Fn{Recv: fn, methods: methods, annotations: annotations}, nil
 		}
 		// TODO(lostluck): Consider moving this into the reflectx package.
 		for i := 0; i < val.Type().NumMethod(); i++ {
@@ -132,6 +131,9 @@ func NewFn(fn interface{}) (*Fn, error) {
 			}
 			if m.Name == "String" {
 				continue // skip: harmless
+			}
+			if _, ok := methods[m.Name]; ok {
+				continue // skip : already wrapped
 			}
 
 			// CAVEAT(herohde) 5/22/2017: The type val.Type.Method.Type is not
@@ -1354,7 +1356,7 @@ func verifyValidNames(fnKind string, fn *Fn, names ...string) error {
 
 	for key := range fn.methods {
 		if !m[key] {
-			return errors.Errorf("%s: unexpected exported method %v present. Valid methods are: %v", fnKind, key, names)
+			return errors.Errorf("%s: unexpected exported method %v present on %v. Valid methods are: %v", fnKind, key, fn.Name(), names)
 		}
 	}
 	return nil

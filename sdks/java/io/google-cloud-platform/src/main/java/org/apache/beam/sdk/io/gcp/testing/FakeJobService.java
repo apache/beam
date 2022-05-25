@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.testing;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.client.http.AbstractInputStreamContent;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
@@ -175,6 +176,15 @@ public class FakeJobService implements JobService, Serializable {
       }
       allJobs.put(jobRef.getProjectId(), jobRef.getJobId(), new JobInfo(job));
     }
+  }
+
+  @Override
+  public void startLoadJob(
+      JobReference jobRef,
+      JobConfigurationLoad loadConfig,
+      AbstractInputStreamContent streamContent)
+      throws InterruptedException, IOException {
+    // TODO
   }
 
   @Override

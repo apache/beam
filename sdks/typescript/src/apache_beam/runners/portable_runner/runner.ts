@@ -28,11 +28,12 @@ import { ArtifactStagingServiceClient } from "../../proto/beam_artifact_api.clie
 import { Pipeline } from "../../internal/pipeline";
 import { PipelineResult, Runner } from "../runner";
 import { PipelineOptions } from "../../options/pipeline_options";
-import { JobState_Enum } from "../../proto/beam_job_api";
+import { JobState_Enum, JobStateEvent } from "../../proto/beam_job_api";
 
 import { ExternalWorkerPool } from "../../worker/external_worker_service";
 import * as environments from "../../internal/environments";
 import * as artifacts from "../artifacts";
+import { Service as JobService } from "../../utils/service";
 
 const TERMINAL_STATES = [
   JobState_Enum.DONE,
@@ -42,19 +43,22 @@ const TERMINAL_STATES = [
   JobState_Enum.DRAINED,
 ];
 
+type completionCallback = (terminalState: JobStateEvent) => Promise<unknown>;
+
 class PortableRunnerPipelineResult implements PipelineResult {
   jobId: string;
   runner: PortableRunner;
-  workers?: ExternalWorkerPool;
+  completionCallbacks: completionCallback[];
+  terminalState?: JobStateEvent;
 
   constructor(
     runner: PortableRunner,
     jobId: string,
-    workers: ExternalWorkerPool | undefined = undefined
+    completionCallbacks: completionCallback[]
   ) {
     this.runner = runner;
     this.jobId = jobId;
-    this.workers = workers;
+    this.completionCallbacks = completionCallbacks;
   }
 
   static isTerminal(state: JobState_Enum) {
@@ -62,13 +66,15 @@ class PortableRunnerPipelineResult implements PipelineResult {
   }
 
   async getState() {
+    if (this.terminalState) {
+      return this.terminalState;
+    }
     const state = await this.runner.getJobState(this.jobId);
-    if (
-      this.workers != undefined &&
-      PortableRunnerPipelineResult.isTerminal(state.state)
-    ) {
-      this.workers.stop();
-      this.workers = undefined;
+    if (PortableRunnerPipelineResult.isTerminal(state.state)) {
+      this.terminalState = state;
+      for (const callback of this.completionCallbacks) {
+        await callback(state);
+      }
     }
     return state;
   }
@@ -96,11 +102,12 @@ class PortableRunnerPipelineResult implements PipelineResult {
 }
 
 export class PortableRunner extends Runner {
-  client: JobServiceClient;
+  client?: JobServiceClient;
   defaultOptions: any;
 
   constructor(
-    options: string | { jobEndpoint: string; [others: string]: any }
+    options: string | { jobEndpoint: string; [others: string]: any },
+    private jobService: JobService | undefined = undefined
   ) {
     super();
     if (typeof options == "string") {
@@ -108,16 +115,25 @@ export class PortableRunner extends Runner {
     } else if (options) {
       this.defaultOptions = options;
     }
-    this.client = new JobServiceClient(
-      new GrpcTransport({
-        host: this.defaultOptions?.jobEndpoint,
-        channelCredentials: ChannelCredentials.createInsecure(),
-      })
-    );
+  }
+
+  async getClient(): Promise<JobServiceClient> {
+    if (!this.client) {
+      if (this.jobService) {
+        this.defaultOptions.jobEndpoint = await this.jobService.start();
+      }
+      this.client = new JobServiceClient(
+        new GrpcTransport({
+          host: this.defaultOptions?.jobEndpoint,
+          channelCredentials: ChannelCredentials.createInsecure(),
+        })
+      );
+    }
+    return this.client;
   }
 
   async getJobState(jobId: string) {
-    const call = this.client.getState({ jobId });
+    const call = (await this.getClient()).getState({ jobId });
     return await call.response;
   }
 
@@ -138,11 +154,18 @@ export class PortableRunner extends Runner {
       options = { ...this.defaultOptions, ...options };
     }
 
-    const use_loopback_service =
-      (options as any)?.environmentType == "LOOPBACK";
-    const workers = use_loopback_service ? new ExternalWorkerPool() : undefined;
-    if (use_loopback_service) {
-      workers!.start();
+    const completionCallbacks: completionCallback[] = [];
+
+    if (this.jobService) {
+      const jobService = this.jobService;
+      completionCallbacks.push(() => jobService.stop());
+    }
+
+    let loopbackAddress: string | undefined = undefined;
+    if ((options as any)?.environmentType == "LOOPBACK") {
+      const workers = new ExternalWorkerPool();
+      loopbackAddress = await workers.start();
+      completionCallbacks.push(() => workers.stop());
     }
 
     // Replace the default environment according to the pipeline options.
@@ -151,9 +174,9 @@ export class PortableRunner extends Runner {
       pipeline.components!.environments
     )) {
       if (env.urn == environments.TYPESCRIPT_DEFAULT_ENVIRONMENT_URN) {
-        if (use_loopback_service) {
+        if (loopbackAddress) {
           pipeline.components!.environments[envId] =
-            environments.asExternalEnvironment(env, workers!.address);
+            environments.asExternalEnvironment(env, loopbackAddress);
         } else {
           pipeline.components!.environments[envId] =
             environments.asDockerEnvironment(
@@ -166,6 +189,7 @@ export class PortableRunner extends Runner {
     }
 
     // Inform the runner that we'd like to execute this pipeline.
+    console.debug("Preparing job.");
     let message: PrepareJobRequest = {
       pipeline,
       jobName: (options as any)?.jobName || "",
@@ -182,10 +206,12 @@ export class PortableRunner extends Runner {
         )
       );
     }
-    const prepareResponse = await this.client.prepare(message).response;
+    const client = await this.getClient();
+    const prepareResponse = await client.prepare(message).response;
 
     // Allow the runner to fetch any artifacts it can't interpret.
     if (prepareResponse.artifactStagingEndpoint) {
+      console.debug("Staging artifacts");
       await artifacts.offerArtifacts(
         new ArtifactStagingServiceClient(
           new GrpcTransport({
@@ -198,7 +224,8 @@ export class PortableRunner extends Runner {
     }
 
     // Actually kick off the job.
-    const runCall = this.client.run({
+    console.debug("Running job.");
+    const runCall = client.run({
       preparationId: prepareResponse.preparationId,
       retrievalToken: "",
     });
@@ -208,6 +235,6 @@ export class PortableRunner extends Runner {
     // If desired, the user can use this handle to await job completion, but
     // this function returns as soon as the job is successfully started, not
     // once the job has completed.
-    return new PortableRunnerPipelineResult(this, jobId, workers);
+    return new PortableRunnerPipelineResult(this, jobId, completionCallbacks);
   }
 }

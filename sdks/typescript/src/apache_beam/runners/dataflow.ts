@@ -15,13 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.testing;
 
-import org.apache.beam.sdk.annotations.Internal;
+import { Pipeline } from "../internal/pipeline";
+import { PipelineResult, Runner } from "./runner";
+import { PortableRunner } from "./portable_runner/runner";
+import { PythonService } from "../utils/service";
 
-/**
- * Category tag for validation tests which use cross-language transforms. Tests tagged with {@link
- * UsesCrossLanguageTransforms} should be run for runners which support cross-language transforms.
- */
-@Internal
-public interface UsesCrossLanguageTransforms {}
+export function dataflowRunner(runnerOptions: {
+  project: string;
+  tempLocation: string;
+  region: string;
+  [others: string]: any;
+}): Runner {
+  return new (class extends Runner {
+    async runPipeline(
+      pipeline: Pipeline,
+      options: Object = {}
+    ): Promise<PipelineResult> {
+      return new PortableRunner(
+        runnerOptions as any,
+        new PythonService("apache_beam.runners.dataflow.dataflow_job_service", [
+          "--port",
+          "{{PORT}}",
+        ])
+      ).runPipeline(pipeline, options);
+    }
+  })();
+}

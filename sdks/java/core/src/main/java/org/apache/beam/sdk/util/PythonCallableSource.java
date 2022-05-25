@@ -15,20 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.fn.harness;
+package org.apache.beam.sdk.util;
 
-/** An interface that groups inputs to an accumulator and flushes the output. */
-public interface GroupingTable<K, InputT, AccumT> {
+import java.io.Serializable;
 
-  /** Abstract interface of things that accept inputs one at a time via process(). */
-  interface Receiver {
-    /** Processes the element. */
-    void process(Object outputElem) throws Exception;
+/**
+ * A wrapper object storing a Python code that can be evaluated to Python callables in Python SDK.
+ */
+public class PythonCallableSource implements Serializable {
+  private final String pythonCallableCode;
+
+  private PythonCallableSource(String pythonCallableCode) {
+    this.pythonCallableCode = pythonCallableCode;
   }
 
-  /** Adds a pair to this table, possibly flushing some entries to output if the table is full. */
-  void put(Object pair, Receiver receiver) throws Exception;
+  public static PythonCallableSource of(String pythonCallableCode) {
+    // TODO(BEAM-14457): check syntactic correctness of Python code if possible
+    return new PythonCallableSource(pythonCallableCode);
+  }
 
-  /** Flushes all entries in this table to output. */
-  void flush(Receiver output) throws Exception;
+  public String getPythonCallableCode() {
+    return pythonCallableCode;
+  }
 }

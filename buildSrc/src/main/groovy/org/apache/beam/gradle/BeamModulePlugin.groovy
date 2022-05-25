@@ -351,15 +351,6 @@ class BeamModulePlugin implements Plugin<Project> {
     Integer numParallelTests = 1
     // Whether the pipeline needs --sdk_location option
     boolean needsSdkLocation = false
-    // Categories for Java tests to run.
-    Closure javaTestCategories = {
-      includeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
-      // Use the following to include / exclude categories:
-      // includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-      // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-    }
-    // Attribute for Python tests to run.
-    String pythonTestAttr = "xlang_transforms"
     // classpath for running tests.
     FileCollection classpath
   }
@@ -2269,6 +2260,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.evaluationDependsOn(":sdks:python")
       project.evaluationDependsOn(":sdks:java:testing:expansion-service")
       project.evaluationDependsOn(":runners:core-construction-java")
+      project.evaluationDependsOn(":sdks:java:extensions:python")
       project.evaluationDependsOn(":sdks:go:test")
 
       // Task for launching expansion services
@@ -2283,6 +2275,7 @@ class BeamModulePlugin implements Plugin<Project> {
         "java_expansion_service_jar": expansionJar,
         "java_port": javaPort,
         "java_expansion_service_allowlist_file": javaClassLookupAllowlistFile,
+        "python_expansion_service_allowlist_glob": "\\*",
         "python_virtualenv_dir": envDir,
         "python_expansion_service_module": "apache_beam.runners.portability.expansion_service_test",
         "python_port": pythonPort
@@ -2338,17 +2331,31 @@ class BeamModulePlugin implements Plugin<Project> {
           systemProperty "beamTestPipelineOptions", JsonOutput.toJson(config.javaPipelineOptions)
           systemProperty "expansionJar", expansionJar
           systemProperty "expansionPort", port
-          classpath = config.classpath
-          testClassesDirs = project.files(project.project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
+          classpath = config.classpath + project.files(
+              project.project(":runners:core-construction-java").sourceSets.test.runtimeClasspath,
+              project.project(":sdks:java:extensions:python").sourceSets.test.runtimeClasspath
+              )
+          testClassesDirs = project.files(
+              project.project(":runners:core-construction-java").sourceSets.test.output.classesDirs,
+              project.project(":sdks:java:extensions:python").sourceSets.test.output.classesDirs
+              )
           maxParallelForks config.numParallelTests
-          useJUnit(config.javaTestCategories)
+          if (sdk == "Java") {
+            useJUnit{ includeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService' }
+          } else if (sdk == "Python") {
+            useJUnit{ includeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService' }
+          } else {
+            throw new GradleException("unsupported expansion service for Java validate runner tests.")
+          }
           // increase maxHeapSize as this is directly correlated to direct memory,
           // see https://issues.apache.org/jira/browse/BEAM-6698
           maxHeapSize = '4g'
           dependsOn setupTask
           dependsOn config.startJobServer
         }
-        mainTask.configure {dependsOn javaTask}
+        if (sdk != "Java") {
+          mainTask.configure {dependsOn javaTask}
+        }
         cleanupTask.configure {mustRunAfter javaTask}
         config.cleanupJobServer.configure {mustRunAfter javaTask}
 
@@ -2357,47 +2364,31 @@ class BeamModulePlugin implements Plugin<Project> {
           "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
           "test_opts": config.pytestOptions,
           "suite": "xlangValidateRunner",
-          "collect": config.pythonTestAttr
         ]
+        if (sdk == "Java") {
+          beamPythonTestPipelineOptions["collect"] = "uses_java_expansion_service"
+        } else if (sdk == "Python") {
+          beamPythonTestPipelineOptions["collect"] = "uses_python_expansion_service"
+        } else {
+          throw new GradleException("unsupported expansion service for Python validate runner tests.")
+        }
         def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
         def pythonTask = project.tasks.register(config.name+"PythonUsing"+sdk, Exec) {
           group = "Verification"
           description = "Validates runner for cross-language capability of using ${sdk} transforms from Python SDK"
           environment "EXPANSION_JAR", expansionJar
           environment "EXPANSION_PORT", port
-          environment "EXPANSION_SERVICE_TYPE", sdk
           executable 'sh'
           args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           dependsOn setupTask
           dependsOn config.startJobServer
         }
-        mainTask.configure{dependsOn pythonTask}
+        if (sdk != "Python") {
+          mainTask.configure{dependsOn pythonTask}
+        }
         cleanupTask.configure{mustRunAfter pythonTask}
         config.cleanupJobServer.configure{mustRunAfter pythonTask}
       }
-
-      // Task for running Python-only testcases in Java SDK
-      def javaUsingPythonOnlyTask = project.tasks.register(config.name+"JavaUsingPythonOnly", Test) {
-        group = "Verification"
-        description = "Validates runner for cross-language capability of using Python-only transforms from Java SDK"
-        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(config.javaPipelineOptions)
-        systemProperty "expansionJar", expansionJar
-        systemProperty "expansionPort", pythonPort
-        classpath = config.classpath
-        testClassesDirs = project.files(project.project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
-        maxParallelForks config.numParallelTests
-        useJUnit {
-          includeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
-        }
-        // increase maxHeapSize as this is directly correlated to direct memory,
-        // see https://issues.apache.org/jira/browse/BEAM-6698
-        maxHeapSize = '4g'
-        dependsOn setupTask
-        dependsOn config.startJobServer
-      }
-      mainTask.configure{dependsOn javaUsingPythonOnlyTask}
-      cleanupTask.configure{mustRunAfter javaUsingPythonOnlyTask}
-      config.cleanupJobServer.configure{mustRunAfter javaUsingPythonOnlyTask}
 
       // Task for running SQL testcases in Python SDK
       def beamPythonTestPipelineOptions = [

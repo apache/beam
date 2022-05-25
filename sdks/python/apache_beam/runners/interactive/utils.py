@@ -452,7 +452,7 @@ def assert_bucket_exists(bucket_name):
   try:
     from apitools.base.py.exceptions import HttpError
     storage_client = storage.StorageV1(
-        credentials=auth.get_service_credentials(),
+        credentials=auth.get_service_credentials(None),
         get_credentials=False,
         http=get_new_http(),
         response_encoding='utf8')

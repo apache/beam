@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -69,35 +70,39 @@ public class CombineRunners {
   }
 
   private static class PrecombineRunner<KeyT, InputT, AccumT> {
-    private PipelineOptions options;
-    private CombineFn<InputT, AccumT, ?> combineFn;
-    private FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> output;
-    private Coder<KeyT> keyCoder;
-    private GroupingTable<WindowedValue<KeyT>, InputT, AccumT> groupingTable;
-    private Coder<AccumT> accumCoder;
+    private final PipelineOptions options;
+    private final String ptransformId;
+    private final Supplier<Cache<?, ?>> bundleCache;
+    private final CombineFn<InputT, AccumT, ?> combineFn;
+    private final FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> output;
+    private final Coder<KeyT> keyCoder;
+    private PrecombineGroupingTable<KeyT, InputT, AccumT> groupingTable;
     private boolean isGloballyWindowed;
 
     PrecombineRunner(
         PipelineOptions options,
+        String ptransformId,
+        Supplier<Cache<?, ?>> bundleCache,
         CombineFn<InputT, AccumT, ?> combineFn,
         FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> output,
-        Coder<KeyT> keyCoder,
-        Coder<AccumT> accumCoder) {
-      this(options, combineFn, output, keyCoder, accumCoder, false);
+        Coder<KeyT> keyCoder) {
+      this(options, ptransformId, bundleCache, combineFn, output, keyCoder, false);
     }
 
     PrecombineRunner(
         PipelineOptions options,
+        String ptransformId,
+        Supplier<Cache<?, ?>> bundleCache,
         CombineFn<InputT, AccumT, ?> combineFn,
         FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> output,
         Coder<KeyT> keyCoder,
-        Coder<AccumT> accumCoder,
         boolean isGloballyWindowed) {
       this.options = options;
+      this.ptransformId = ptransformId;
+      this.bundleCache = bundleCache;
       this.combineFn = combineFn;
       this.output = output;
       this.keyCoder = keyCoder;
-      this.accumCoder = accumCoder;
       this.isGloballyWindowed = isGloballyWindowed;
     }
 
@@ -105,21 +110,20 @@ public class CombineRunners {
       groupingTable =
           PrecombineGroupingTable.combiningAndSampling(
               options,
+              Caches.subCache(bundleCache.get(), ptransformId),
               combineFn,
               keyCoder,
-              accumCoder,
               0.001 /*sizeEstimatorSampleRate*/,
               isGloballyWindowed);
     }
 
     void processElement(WindowedValue<KV<KeyT, InputT>> elem) throws Exception {
-      groupingTable.put(
-          elem, (Object outputElem) -> output.accept((WindowedValue<KV<KeyT, AccumT>>) outputElem));
+      groupingTable.put(elem, output::accept);
     }
 
     void finishBundle() throws Exception {
-      groupingTable.flush(
-          (Object outputElem) -> output.accept((WindowedValue<KV<KeyT, AccumT>>) outputElem));
+      groupingTable.flush(output::accept);
+      groupingTable = null;
     }
   }
 
@@ -167,8 +171,6 @@ public class CombineRunners {
           (CombineFn)
               SerializableUtils.deserializeFromByteArray(
                   combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
-      Coder<AccumT> accumCoder =
-          (Coder<AccumT>) rehydratedComponents.getCoder(combinePayload.getAccumulatorCoderId());
 
       FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> consumer =
           (FnDataReceiver)
@@ -178,10 +180,11 @@ public class CombineRunners {
       PrecombineRunner<KeyT, InputT, AccumT> runner =
           new PrecombineRunner<>(
               context.getPipelineOptions(),
+              context.getPTransformId(),
+              context.getBundleCacheSupplier(),
               combineFn,
               consumer,
               keyCoder,
-              accumCoder,
               isGloballyWindowed);
 
       // Register the appropriate handlers.
