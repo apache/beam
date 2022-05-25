@@ -21,11 +21,9 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.fn.harness.GroupingTable;
+import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.PrecombineGroupingTable;
-import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
@@ -49,7 +47,7 @@ public class CombinerTableBenchmark {
     final int num_per_key = 1000;
     final Combine.BinaryCombineIntegerFn sumInts = Sum.ofIntegers();
     final PipelineOptions options = PipelineOptionsFactory.create();
-    GroupingTable<WindowedValue<String>, Integer, int[]> groupingTable;
+    PrecombineGroupingTable<String, Integer, int[]> groupingTable;
     List<WindowedValue<KV<String, Integer>>> elements;
 
     @Param({"true", "false"})
@@ -60,9 +58,9 @@ public class CombinerTableBenchmark {
       groupingTable =
           PrecombineGroupingTable.combiningAndSampling(
               options,
+              Caches.eternal(),
               sumInts,
               StringUtf8Coder.of(),
-              sumInts.getAccumulatorCoder(CoderRegistry.createDefault(), VarIntCoder.of()),
               .001,
               Boolean.valueOf(globallyWindowed));
       elements = new ArrayList<>();
