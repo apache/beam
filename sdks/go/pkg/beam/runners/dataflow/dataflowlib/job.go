@@ -250,22 +250,28 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 	return job, nil
 }
 
+func getRunningJobID(ctx context.Context, client *df.Service, project, region, jobName string) (string, error) {
+	resp, err := client.Projects.Locations.Jobs.List(project, region).View("JOB_VIEW_SUMMARY").Do()
+	if err != nil {
+		return "", err
+	}
+	for _, cloudJob := range resp.Jobs {
+		if cloudJob.Name == jobName && (cloudJob.CurrentState == "JOB_STATE_RUNNING" || cloudJob.CurrentState == "JOB_STATE_DRAINING") {
+			return cloudJob.Id, nil
+		}
+	}
+	return "", errors.New("failed to find matching job name to update")
+
+}
+
 // Submit submits a prepared job to Cloud Dataflow.
 func Submit(ctx context.Context, client *df.Service, project, region string, job *df.Job) (*df.Job, error) {
 	if job.ReplaceJobId != "" {
-		resp, err := client.Projects.Locations.Jobs.List(project, region).View("JOB_VIEW_SUMMARY").Do()
+		id, err := getRunningJobID(ctx, client, project, region, job.Name)
 		if err != nil {
 			return nil, err
 		}
-		for _, cloudJob := range resp.Jobs {
-			if cloudJob.Name == job.Name && (cloudJob.CurrentState == "JOB_STATE_RUNNING" || cloudJob.CurrentState == "JOB_STATE_DRAINING") {
-				job.ReplaceJobId = cloudJob.Id
-				break
-			}
-		}
-		if job.ReplaceJobId == replaceIdPlaceholder {
-			return nil, errors.New("failed to find matching job name to update")
-		}
+		job.ReplaceJobId = id
 	}
 	upd, err := client.Projects.Locations.Jobs.Create(project, region, job).Do()
 	if err == nil {
