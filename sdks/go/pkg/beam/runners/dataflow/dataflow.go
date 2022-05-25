@@ -79,7 +79,8 @@ var (
 	// enableHotKeyLogging    = flag.Bool("enable_hot_key_logging", false, "Specifies that when a hot key is detected in the pipeline, the literal, human-readable key is printed in the user's Cloud Logging project (optional).")
 
 	// Streaming update flags
-	update = flag.Bool("update", false, "Submit this job as an update to an existing Dataflow job (optional); the job name must match the existing job to update")
+	update           = flag.Bool("update", false, "Submit this job as an update to an existing Dataflow job (optional); the job name must match the existing job to update")
+	transformMapping = flag.String("transform_name_mapping", "", "JSON-formatted mapping of old transform names to new transform names for pipeline updates (optional)")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
@@ -123,6 +124,7 @@ var flagFilter = map[string]bool{
 	"cpu_profiling":                  true,
 	"session_recording":              true,
 	"update":                         true,
+	"transform_name_mapping":         true,
 
 	// Job Options flags
 	"endpoint":                 true,
@@ -260,6 +262,15 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 			return nil, errors.Errorf("invalid flex resource scheduling goal. Got %q; Use --flexrs_goal=(FLEXRS_UNSPECIFIED|FLEXRS_SPEED_OPTIMIZED|FLEXRS_COST_OPTIMIZED)", *flexRSGoal)
 		}
 	}
+	if !*update && *transformMapping != "" {
+		return nil, errors.New("provided transform_name_mapping without setting the --update flag, so the pipeline would not be updated")
+	}
+	var updateTransformMapping map[string]string
+	if *transformMapping != "" {
+		if err := json.Unmarshal([]byte(*transformMapping), &updateTransformMapping); err != nil {
+			return nil, errors.Wrapf(err, "error reading --transform_name_mapping flag as JSON")
+		}
+	}
 
 	hooks.SerializeHooksToOptions()
 
@@ -322,6 +333,7 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 		TeardownPolicy:         *teardownPolicy,
 		ContainerImage:         getContainerImage(ctx),
 		Update:                 *update,
+		TransformNameMapping:   updateTransformMapping,
 	}
 	if opts.TempLocation == "" {
 		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")

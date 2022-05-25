@@ -67,7 +67,8 @@ type JobOptions struct {
 	EnableHotKeyLogging bool
 
 	// Streaming update settings
-	Update bool
+	Update               bool
+	TransformNameMapping map[string]string
 
 	// Autoscaling settings
 	Algorithm            string
@@ -216,9 +217,10 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			TempStoragePrefix: opts.TempLocation,
 			Experiments:       experiments,
 		},
-		Labels:       opts.Labels,
-		ReplaceJobId: replaceId,
-		Steps:        steps,
+		Labels:               opts.Labels,
+		ReplaceJobId:         replaceId,
+		TransformNameMapping: opts.TransformNameMapping,
+		Steps:                steps,
 	}
 
 	workerPool := job.Environment.WorkerPools[0]
