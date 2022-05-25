@@ -23,10 +23,7 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 
 public class MiniClusterCompat {
   public static CompletableFuture<String> triggerSavepoint(
-    MiniCluster cluster,
-    JobID jobId,
-    String targetDirectory,
-    boolean cancelJob) {
+      MiniCluster cluster, JobID jobId, String targetDirectory, boolean cancelJob) {
     return cluster.triggerSavepoint(jobId, targetDirectory, cancelJob);
   }
 }
