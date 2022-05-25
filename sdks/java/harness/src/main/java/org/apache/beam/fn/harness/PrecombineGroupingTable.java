@@ -56,8 +56,6 @@ import org.joda.time.Instant;
 public class PrecombineGroupingTable<K, InputT, AccumT>
     implements Shrinkable<PrecombineGroupingTable<K, InputT, AccumT>>, Weighted {
 
-  private static final Instant IGNORED = BoundedWindow.TIMESTAMP_MIN_VALUE;
-
   /**
    * Returns a grouping table that combines inputs into an accumulator. The grouping table uses the
    * cache to defer flushing output until the cache evicts the table.
@@ -299,13 +297,20 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
   private class GroupingTableEntry implements Weighted {
     private final GroupingTableKey groupingKey;
     private final K userKey;
+    // The PGBK output will inherit the timestamp of one of its inputs.
+    private final Instant outputTimestamp;
     private final long keySize;
     private long accumulatorSize;
     private AccumT accumulator;
     private boolean dirty;
 
-    private GroupingTableEntry(GroupingTableKey groupingKey, K userKey, InputT initialInputValue) {
+    private GroupingTableEntry(
+        GroupingTableKey groupingKey,
+        Instant outputTimestamp,
+        K userKey,
+        InputT initialInputValue) {
       this.groupingKey = groupingKey;
+      this.outputTimestamp = outputTimestamp;
       this.userKey = userKey;
       if (groupingKey.getStructuralKey() == userKey) {
         // This object is only storing references to the same objects that are being stored
@@ -325,11 +330,15 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
       return groupingKey;
     }
 
+    public Instant getOutputTimestamp() {
+      return outputTimestamp;
+    }
+
     public K getKey() {
       return userKey;
     }
 
-    public AccumT getValue() {
+    public AccumT getAccumulator() {
       return accumulator;
     }
 
@@ -398,7 +407,10 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
             weight += groupingKey.getWeight();
             tableEntry =
                 new GroupingTableEntry(
-                    groupingKey, value.getValue().getKey(), value.getValue().getValue());
+                    groupingKey,
+                    value.getTimestamp(),
+                    value.getValue().getKey(),
+                    value.getValue().getValue());
           } else {
             weight -= tableEntry.getWeight();
             tableEntry.add(value.getValue().getValue());
@@ -453,10 +465,10 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
     entry.compact();
     receiver.accept(
         isGloballyWindowed
-            ? WindowedValue.valueInGlobalWindow(KV.of(entry.getKey(), entry.getValue()))
+            ? WindowedValue.valueInGlobalWindow(KV.of(entry.getKey(), entry.getAccumulator()))
             : WindowedValue.of(
-                KV.of(entry.getKey(), entry.getValue()),
-                IGNORED,
+                KV.of(entry.getKey(), entry.getAccumulator()),
+            entry.getOutputTimestamp(),
                 entry.getGroupingKey().getWindows(),
                 // The PaneInfow will always be overwritten by the GBK.
                 PaneInfo.NO_FIRING));
