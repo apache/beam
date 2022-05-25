@@ -17,8 +17,10 @@ package offsetrange
 
 import (
 	"fmt"
-	"github.com/google/go-cmp/cmp"
+	"math"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // TestRestriction_EvenSplits tests various splits and checks that they all
@@ -297,5 +299,227 @@ func TestTracker_TrySplit(t *testing.T) {
 				t.Errorf("split got incorrect residual: got: %v, want: %v", gotR, wantR)
 			}
 		})
+	}
+}
+
+type offsetRangeEndEstimator struct {
+	EstimateRangeEnd int64
+}
+
+// Estimate provides the estimated end for unbounded offset range.
+func (o *offsetRangeEndEstimator) Estimate() int64 {
+	return o.EstimateRangeEnd
+}
+
+// SetEstimateRangeEnd sets the estimated end for unbounded offset range.
+func (o *offsetRangeEndEstimator) SetEstimateRangeEnd(rangeEnd int64) {
+	o.EstimateRangeEnd = rangeEnd
+}
+
+// TestNewGrowableTracker_Bad tests the behavior of NewGrowableTracker when wrong arguments are passed.
+func TestNewGrowableTracker_Bad(t *testing.T) {
+	rest := Restriction{Start: 0, End: math.MaxInt64}
+	_, err := NewGrowableTracker(rest, nil)
+	if err == nil {
+		t.Errorf("NewGrowableTracker() expected to throw error.")
+	}
+}
+
+// TestGrowableTracker_TryClaim tests the TryClaim method for GrowableTracker.
+func TestGrowableTracker_TryClaim(t *testing.T) {
+	estimator := offsetRangeEndEstimator{EstimateRangeEnd: 0}
+	rest := Restriction{Start: 0, End: math.MaxInt64}
+	tracker, err := NewGrowableTracker(rest, &estimator)
+	if err != nil {
+		t.Fatalf("error creating new GrowableTracker: %v", err)
+	}
+
+	if !tracker.TryClaim(int64(10)) {
+		t.Errorf("tracker.TryClaim(10) = %v, want: %v", false, true)
+	}
+	if !tracker.TryClaim(int64(100)) {
+		t.Errorf("tracker.TryClaim(10) = %v, want: %v", false, true)
+	}
+	if tracker.TryClaim(int64(math.MaxInt64)) {
+		t.Errorf("tracker.TryClaim(math.MaxInt64) = %v, want: %v, %v", true, false, tracker.err)
+	}
+	if !tracker.IsDone() {
+		t.Errorf("tracker has done all work, but IsDone() returns false")
+	}
+}
+
+// TestGrowableTracker_SplitBeforeStart tests TrySplit() method for GrowableTracker
+// before claiming anything.
+func TestGrowableTracker_SplitBeforeStart(t *testing.T) {
+	estimator := offsetRangeEndEstimator{EstimateRangeEnd: 0}
+	rest := Restriction{Start: 0, End: math.MaxInt64}
+	tracker, err := NewGrowableTracker(rest, &estimator)
+	if err != nil {
+		t.Fatalf("error creating new GrowableTracker: %v", err)
+	}
+	estimator.SetEstimateRangeEnd(10)
+	p, r, err := tracker.TrySplit(0)
+
+	expected := Restriction{0, 0}
+	if p.(Restriction) != expected {
+		t.Errorf("wrong primaries after TrySplit(0), got: %v, want: %v", p.(Restriction), expected)
+	}
+	if tracker.GetRestriction().(Restriction) != expected {
+		t.Errorf("wrong restriction tracked by tracker after TrySplit(0), got: %v, want: %v", tracker.GetRestriction().(Restriction), expected)
+	}
+	res := Restriction{0, math.MaxInt64}
+	if res != r.(Restriction) {
+		t.Errorf("wrong residual TrySplit(0), got: %v, want: %v", r.(Restriction), expected)
+	}
+}
+
+// TestGrowableTracker_CheckpointJustStarted tests TryClaim and TrySplit
+// for GrowableTracker.
+func TestGrowableTracker_CheckpointJustStarted(t *testing.T) {
+	estimator := offsetRangeEndEstimator{EstimateRangeEnd: 0}
+	rest := Restriction{Start: 0, End: math.MaxInt64}
+	tracker, err := NewGrowableTracker(rest, &estimator)
+	if err != nil {
+		t.Fatalf("error creating new GrowableTracker: %v", err)
+	}
+	if !tracker.TryClaim(int64(5)) {
+		t.Fatal("tracker.TryClaim(int64(5)) should've claimed.")
+	}
+	estimator.SetEstimateRangeEnd(0)
+	p, r, err := tracker.TrySplit(0)
+	if tracker.IsDone() {
+		t.Fatal("tracker not done yet, , but IsDone() returns true")
+	}
+
+	expPr := Restriction{0, 6}
+	if p.(Restriction) != expPr {
+		t.Errorf("wrong primaries after TrySplit(0), got: %v, want: %v", p.(Restriction), expPr)
+	}
+	if tracker.GetRestriction().(Restriction) != expPr {
+		t.Errorf("wrong restriction tracked by tracker after TrySplit(0), got: %v, want: %v", tracker.GetRestriction().(Restriction), expPr)
+	}
+	expRes := Restriction{6, math.MaxInt64}
+	if r.(Restriction) != expRes {
+		t.Errorf("wrong residual TrySplit(0), got: %v, want: %v", r.(Restriction), expRes)
+	}
+
+	tracker, err = NewGrowableTracker(rest, &estimator)
+	if err != nil {
+		t.Fatalf("error creating new GrowableTracker: %v", err)
+	}
+	if !tracker.TryClaim(int64(5)) {
+		t.Fatal("tracker.TryClaim(int64(5)) should've claimed.")
+	}
+	estimator.SetEstimateRangeEnd(20)
+	p, r, err = tracker.TrySplit(0)
+	if tracker.IsDone() {
+		t.Fatal("tracker not done yet, , but IsDone() returns true")
+	}
+	if p.(Restriction) != expPr {
+		t.Errorf("wrong primaries after TrySplit(0), got: %v, want: %v", p.(Restriction), expPr)
+	}
+	if r.(Restriction) != expRes {
+		t.Errorf("wrong residual TrySplit(0), got: %v, want: %v", r.(Restriction), expRes)
+	}
+}
+
+// TestGrowableTracker_Split tests TrySplit method for GrowableTracker
+// in regards to returned primary and residual.
+func TestGrowableTracker_Split(t *testing.T) {
+	estimator := offsetRangeEndEstimator{EstimateRangeEnd: 0}
+	rest := Restriction{Start: 0, End: math.MaxInt64}
+	tracker, err := NewGrowableTracker(rest, &estimator)
+	if err != nil {
+		t.Fatalf("error creating new GrowableTracker: %v", err)
+	}
+	if !tracker.TryClaim(int64(0)) {
+		t.Errorf("tracker.TryClaim(0) = %v, want: %v", false, true)
+	}
+
+	estimator.SetEstimateRangeEnd(16)
+
+	p, r, err := tracker.TrySplit(0.5)
+	expPr := Restriction{0, 8}
+	if p.(Restriction) != expPr {
+		t.Errorf("wrong primaries after TrySplit(0.5), got: %v, want: %v", p.(Restriction), expPr)
+	}
+	if tracker.GetRestriction().(Restriction) != expPr {
+		t.Errorf("wrong restriction tracked by tracker after TrySplit(0.5), got: %v, want: %v", tracker.GetRestriction().(Restriction), expPr)
+	}
+	expRes := Restriction{8, math.MaxInt64}
+	if r.(Restriction) != expRes {
+		t.Errorf("wrong residual TrySplit(0.5), got: %v, want: %v", r.(Restriction), expRes)
+	}
+
+	estimator.SetEstimateRangeEnd(12)
+	p, r, err = tracker.TrySplit(0.5)
+	expPr = Restriction{0, 4}
+	if p.(Restriction) != expPr {
+		t.Errorf("wrong primaries after TrySplit(0.5), got: %v, want: %v", p.(Restriction), expPr)
+	}
+	if tracker.GetRestriction().(Restriction) != expPr {
+		t.Errorf("wrong restriction tracked by tracker after TrySplit(0.5), got: %v, want: %v", tracker.GetRestriction().(Restriction), expPr)
+	}
+	expRes = Restriction{4, 8}
+	if r.(Restriction) != expRes {
+		t.Errorf("wrong residual TrySplit(0.5), got: %v, want: %v", r.(Restriction), expRes)
+	}
+
+	if tracker.TryClaim(int64(4)) {
+		t.Errorf("tracker.TryClaim(4) = %v, want: %v", true, false)
+	}
+}
+
+// TestGrowableTracker_IsBounded tests IsBounded method for GrowableTracker.
+func TestGrowableTracker_IsBounded(t *testing.T) {
+	estimator := offsetRangeEndEstimator{EstimateRangeEnd: 0}
+	rest := Restriction{Start: 0, End: math.MaxInt64}
+	tracker, err := NewGrowableTracker(rest, &estimator)
+	if err != nil {
+		t.Fatalf("error creating new GrowableTracker: %v", err)
+	}
+
+	if tracker.IsBounded() {
+		t.Errorf("GrowableTracker is unbounded initially.")
+	}
+
+	if !tracker.TryClaim(int64(0)) {
+		t.Errorf("tracker.TryClaim(0) = %v, want: %v", false, true)
+	}
+
+	if tracker.IsBounded() {
+		t.Errorf("GrowableTracker should've been unbounded.")
+	}
+
+	estimator.SetEstimateRangeEnd(16)
+	tracker.TrySplit(0.5)
+	if !tracker.IsBounded() {
+		t.Errorf("tracker should've been bounded after split")
+	}
+}
+
+// TestGrowableTracker_Progress tests GetProgess method for GrowableTracker.
+func TestGrowableTracker_Progress(t *testing.T) {
+	var start, cur int64
+	start = 10
+	estimator := offsetRangeEndEstimator{EstimateRangeEnd: 0}
+	rest := Restriction{Start: start, End: math.MaxInt64}
+	tracker, err := NewGrowableTracker(rest, &estimator)
+	if err != nil {
+		t.Fatalf("error creating new GrowableTracker: %v", err)
+	}
+	cur = 20
+
+	if !tracker.TryClaim(int64(cur)) {
+		t.Fatal("couldn't claim tracker.TryClaim(int64(cur))")
+	}
+
+	estimator.SetEstimateRangeEnd(5)
+	done, remaining := tracker.GetProgress()
+	if float64(cur+1-start) != done {
+		t.Errorf("wrong amount of work done, got: %v, want: %v", cur+1-start, done)
+	}
+	if math.MaxInt64-done != remaining {
+		t.Errorf("work remaining:%v, expected: %v", remaining, math.MaxInt64-done)
 	}
 }
