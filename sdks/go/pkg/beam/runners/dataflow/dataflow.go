@@ -53,7 +53,7 @@ import (
 var (
 	endpoint               = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
 	stagingLocation        = flag.String("staging_location", "", "GCS staging location (required).")
-	image                  = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
+	image                  = flag.String("worker_harness_container_image", "", "Worker harness container image (optional).")
 	labels                 = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
 	serviceAccountEmail    = flag.String("service_account_email", "", "Service account email (optional).")
 	numWorkers             = flag.Int64("num_workers", 0, "Number of workers (optional).")
