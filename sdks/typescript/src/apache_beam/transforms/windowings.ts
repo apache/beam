@@ -30,106 +30,70 @@ import {
 } from "../coders/standard_coders";
 import { GlobalWindow, Instant, IntervalWindow } from "../values";
 
-export class GlobalWindows implements WindowFn<GlobalWindow> {
-  assignWindows(Instant) {
-    return [new GlobalWindow()];
-  }
-  windowCoder() {
-    return new GlobalWindowCoder();
-  }
-  toProto() {
-    return {
+export function globalWindows(): WindowFn<GlobalWindow> {
+  return {
+    assignWindows: (Instant) => [new GlobalWindow()],
+    windowCoder: () => new GlobalWindowCoder(),
+    isMerging: () => false,
+    assignsToOneWindow: () => true,
+    toProto: () => ({
       urn: "beam:window_fn:global_windows:v1",
       payload: new Uint8Array(),
-    };
-  }
-  isMerging() {
-    return false;
-  }
-  assignsToOneWindow() {
-    return true;
-  }
+    }),
+  };
 }
 
-export class FixedWindows implements WindowFn<IntervalWindow> {
-  size: Long;
-  offset: Instant; // TODO: (Cleanup) Or should this be a long as well?
-
+export function fixedWindows(
+  sizeSeconds: number | Long,
+  offsetSeconds: Instant = Long.fromValue(0)
+): WindowFn<IntervalWindow> {
   // TODO: (Cleanup) Use a time library?
-  constructor(
-    sizeSeconds: number | Long,
-    offsetSeconds: Instant = Long.fromValue(0)
-  ) {
-    if (typeof sizeSeconds == "number") {
-      this.size = Long.fromValue(sizeSeconds).mul(1000);
-    } else {
-      this.size = sizeSeconds.mul(1000);
-    }
-    this.offset = offsetSeconds.mul(1000);
-  }
+  const sizeMillis = secsToMillisLong(sizeSeconds);
+  const offsetMillis = secsToMillisLong(offsetSeconds);
 
-  assignWindows(t: Instant) {
-    const start = t.sub(t.sub(this.offset).mod(this.size));
-    return [new IntervalWindow(start, start.add(this.size))];
-  }
+  return {
+    assignWindows: (t: Instant) => {
+      const start = t.sub(t.sub(offsetMillis).mod(sizeMillis));
+      return [new IntervalWindow(start, start.add(sizeMillis))];
+    },
 
-  windowCoder() {
-    return new IntervalWindowCoder();
-  }
+    windowCoder: () => new IntervalWindowCoder(),
+    isMerging: () => false,
+    assignsToOneWindow: () => true,
 
-  toProto() {
-    return {
+    toProto: () => ({
       urn: "beam:window_fn:fixed_windows:v1",
       payload: FixedWindowsPayload.toBinary({
-        size: millisToProto(this.size),
-        offset: millisToProto(this.offset),
+        size: millisToProto(sizeMillis),
+        offset: millisToProto(offsetMillis),
       }),
-    };
-  }
-
-  isMerging() {
-    return false;
-  }
-
-  assignsToOneWindow() {
-    return true;
-  }
+    }),
+  };
 }
 
-export class Sessions implements WindowFn<IntervalWindow> {
-  gap: Long;
+export function sessions(gapSeconds: number | Long): WindowFn<IntervalWindow> {
+  const gapMillis = secsToMillisLong(gapSeconds);
 
-  constructor(gapSeconds: number | Long) {
-    if (typeof gapSeconds == "number") {
-      this.gap = Long.fromValue(gapSeconds).mul(1000);
-    } else {
-      this.gap = gapSeconds.mul(1000);
-    }
-  }
+  return {
+    assignWindows: (t: Instant) => [new IntervalWindow(t, t.add(gapMillis))],
+    windowCoder: () => new IntervalWindowCoder(),
+    isMerging: () => true,
+    assignsToOneWindow: () => true,
 
-  assignWindows(t: Instant) {
-    return [new IntervalWindow(t, t.add(this.gap))];
-  }
-
-  windowCoder() {
-    return new IntervalWindowCoder();
-  }
-
-  toProto() {
-    return {
+    toProto: () => ({
       urn: "beam:window_fn:session_windows:v1",
       payload: SessionWindowsPayload.toBinary({
-        gapSize: millisToProto(this.gap),
+        gapSize: millisToProto(gapMillis),
       }),
-    };
-  }
+    }),
+  };
+}
 
-  isMerging() {
-    return true;
-  }
-
-  assignsToOneWindow() {
-    return true;
+function secsToMillisLong(secs: number | Long): Long {
+  if (typeof secs == "number") {
+    return Long.fromValue(secs * 1000);
+  } else {
+    return secs.mul(1000);
   }
 }
 
@@ -139,3 +103,12 @@ function millisToProto(t: Long) {
 
 import { requireForSerialization } from "../serialization";
 requireForSerialization("apache_beam.transforms.windowings", exports);
+requireForSerialization("apache_beam.transforms.windowings", millisToProto);
+requireForSerialization(
+  "apache_beam.transforms.windowings",
+  FixedWindowsPayload
+);
+requireForSerialization(
+  "apache_beam.transforms.windowings",
+  SessionWindowsPayload
+);

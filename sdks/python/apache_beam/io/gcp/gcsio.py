@@ -138,7 +138,7 @@ def get_or_create_default_gcs_bucket(options):
     return None
 
   bucket_name = default_gcs_bucket_name(project, region)
-  bucket = GcsIO().get_bucket(bucket_name)
+  bucket = GcsIO(pipeline_options=options).get_bucket(bucket_name)
   if bucket:
     return bucket
   else:
@@ -146,7 +146,8 @@ def get_or_create_default_gcs_bucket(options):
         'Creating default GCS bucket for project %s: gs://%s',
         project,
         bucket_name)
-    return GcsIO().create_bucket(bucket_name, project, location=region)
+    return GcsIO(pipeline_options=options).create_bucket(
+        bucket_name, project, location=region)
 
 
 class GcsIOError(IOError, retry.PermanentException):
@@ -156,10 +157,10 @@ class GcsIOError(IOError, retry.PermanentException):
 
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
-  def __init__(self, storage_client=None):
+  def __init__(self, storage_client=None, pipeline_options=None):
     if storage_client is None:
       storage_client = storage.StorageV1(
-          credentials=auth.get_service_credentials(),
+          credentials=auth.get_service_credentials(pipeline_options),
           get_credentials=False,
           http=get_new_http(),
           response_encoding='utf8',

@@ -68,6 +68,7 @@ const (
 
 	URNRequiresSplittableDoFn     = "beam:requirement:pardo:splittable_dofn:v1"
 	URNRequiresBundleFinalization = "beam:requirement:pardo:finalization:v1"
+	URNTruncate                   = "beam:transform:sdf_truncate_sized_restrictions_v1"
 
 	// Deprecated: Determine worker binary based on GoWorkerBinary Role instead.
 	URNArtifactGoWorker = "beam:artifact:type:go_worker_binary:v1"
@@ -1246,12 +1247,6 @@ func mustEncodeMultiEdgeBase64(edge *graph.MultiEdge) (string, error) {
 		Urn:  URNDoFn,
 		Edge: ref,
 	}), nil
-}
-
-// makeBytesKeyedCoder returns KV<[]byte,A,> for any coder,
-// even if the coder is already a KV coder.
-func makeBytesKeyedCoder(c *coder.Coder) *coder.Coder {
-	return coder.NewKV([]*coder.Coder{coder.NewBytes(), c})
 }
 
 func edgeID(edge *graph.MultiEdge) string {
