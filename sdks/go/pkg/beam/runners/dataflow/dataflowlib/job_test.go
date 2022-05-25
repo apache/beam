@@ -194,3 +194,14 @@ func TestCurrentStateMessage(t *testing.T) {
 		})
 	}
 }
+
+func TestNewClient(t *testing.T) {
+	endpoint := "dummyEndpoint"
+	service, err := NewClient(context.Background(), endpoint)
+	if err != nil {
+		t.Errorf("NewClient(ctx, %v) returned error when it should have succeeded, got %v", endpoint, err)
+	}
+	if service.BasePath != endpoint {
+		t.Errorf("got endpoint %v, want endpoint %v", service.BasePath, endpoint)
+	}
+}
