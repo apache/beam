@@ -61,7 +61,6 @@ var (
 	maxNumWorkers          = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
 	diskSizeGb             = flag.Int64("disk_size_gb", 0, "Size of root disk for VMs, in GB (optional).")
 	diskType               = flag.String("disk_type", "", "Type of root disk for VMs (optional).")
-	enableStreamingEngine  = flag.Bool("enable_streaming_engine", false, "Specifies whether to use the streaming engine or not")
 	autoscalingAlgorithm   = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
 	zone                   = flag.String("zone", "", "GCP zone (optional)")
 	kmsKey                 = flag.String("dataflow_kms_key", "", "The Cloud KMS key identifier used to encrypt data at rest (optional).")
@@ -106,7 +105,6 @@ var flagFilter = map[string]bool{
 	"number_of_worker_harness_threads": true,
 	"disk_size_gb":                     true,
 	"disk_type":                        true,
-	"enable_streaming_engine":          true,
 	"autoscaling_algorithm":            true,
 	"zone":                             true,
 	"dataflow_kms_key":                 true,
@@ -283,10 +281,6 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 
 	if *minCPUPlatform != "" {
 		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
-	}
-
-	if *enableStreamingEngine {
-		experiments = append(experiments, "enable_windmill_service", "enable_streaming_engine")
 	}
 
 	var dfServiceOptions []string
