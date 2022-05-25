@@ -17,7 +17,7 @@ package fhirio
 
 import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/healthcare"
-	healthcareapi "google.golang.org/api/healthcare/v1"
+	healthcarex "google.golang.org/api/healthcare/v1"
 	"net/http"
 )
 
@@ -26,12 +26,12 @@ type fhirStoreClient interface {
 }
 
 type fhirStoreClientImpl struct {
-	fhirService *healthcareapi.ProjectsLocationsDatasetsFhirStoresFhirService
+	fhirService *healthcarex.ProjectsLocationsDatasetsFhirStoresFhirService
 }
 
 func newFhirStoreClient() *fhirStoreClientImpl {
 	healthcareService := healthcare.NewGcpHealthcareService()
-	return &fhirStoreClientImpl{fhirService: healthcareapi.NewProjectsLocationsDatasetsFhirStoresFhirService(healthcareService)}
+	return &fhirStoreClientImpl{fhirService: healthcarex.NewProjectsLocationsDatasetsFhirStoresFhirService(healthcareService)}
 }
 
 func (c *fhirStoreClientImpl) readResource(resourceName string) (*http.Response, error) {
