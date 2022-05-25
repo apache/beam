@@ -53,7 +53,7 @@ import (
 var (
 	endpoint               = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
 	stagingLocation        = flag.String("staging_location", "", "GCS staging location (required).")
-	image                  = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
+	image                  = flag.String("worker_harness_container_image", "", "Worker harness container image (optional).")
 	labels                 = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
 	serviceAccountEmail    = flag.String("service_account_email", "", "Service account email (optional).")
 	numWorkers             = flag.Int64("num_workers", 0, "Number of workers (optional).")
@@ -249,8 +249,11 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 	}
 
 	if *flexRSGoal != "" {
-		if *flexRSGoal != "FLEXRS_UNSPECIFIED" && *flexRSGoal != "FLEXRS_SPEED_OPTIMIZED" && *flexRSGoal != "FLEXRS_COST_OPTIMIZED" {
-			return nil, errors.New("invalid flex resource scheduling goal. Use --flexrs_goal=(FLEXRS_UNSPECIFIED|FLEXRS_SPEED_OPTIMIZED|FLEXRS_COST_OPTIMIZED)")
+		switch *flexRSGoal {
+		case "FLEXRS_UNSPECIFIED" , "FLEXRS_SPEED_OPTIMIZED", "FLEXRS_COST_OPTIMIZED":
+		  // valid values
+		default:
+			return nil, errors.Errorf("invalid flex resource scheduling goal. Got %q; Use --flexrs_goal=(FLEXRS_UNSPECIFIED|FLEXRS_SPEED_OPTIMIZED|FLEXRS_COST_OPTIMIZED)", *flexRSGoal)
 		}
 	}
 
