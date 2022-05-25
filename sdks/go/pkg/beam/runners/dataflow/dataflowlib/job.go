@@ -87,6 +87,8 @@ type JobOptions struct {
 	TeardownPolicy string
 }
 
+const replaceIdPlaceholder = "toBeReplaced"
+
 // Translate translates a pipeline to a Dataflow job.
 func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL string) (*df.Job, error) {
 	// (1) Translate pipeline to v1b3 speak.
@@ -162,7 +164,7 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 
 	var replaceId string = ""
 	if opts.Update {
-		replaceId = opts.Name
+		replaceId = replaceIdPlaceholder
 	}
 
 	job := &df.Job{
@@ -250,6 +252,21 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 
 // Submit submits a prepared job to Cloud Dataflow.
 func Submit(ctx context.Context, client *df.Service, project, region string, job *df.Job) (*df.Job, error) {
+	if job.ReplaceJobId != "" {
+		resp, err := client.Projects.Locations.Jobs.List(project, region).View("JOB_VIEW_SUMMARY").Do()
+		if err != nil {
+			return nil, err
+		}
+		for _, cloudJob := range resp.Jobs {
+			if cloudJob.Name == job.Name && (cloudJob.CurrentState == "JOB_STATE_RUNNING" || cloudJob.CurrentState == "JOB_STATE_DRAINING") {
+				job.ReplaceJobId = cloudJob.Id
+				break
+			}
+		}
+		if job.ReplaceJobId == replaceIdPlaceholder {
+			return nil, errors.New("failed to find matching job name to update")
+		}
+	}
 	upd, err := client.Projects.Locations.Jobs.Create(project, region, job).Do()
 	if err == nil {
 		log.Infof(ctx, "Submitted job: %v", upd.Id)
