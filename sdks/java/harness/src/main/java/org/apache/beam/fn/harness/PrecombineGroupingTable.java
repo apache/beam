@@ -468,7 +468,7 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
             ? WindowedValue.valueInGlobalWindow(KV.of(entry.getKey(), entry.getAccumulator()))
             : WindowedValue.of(
                 KV.of(entry.getKey(), entry.getAccumulator()),
-            entry.getOutputTimestamp(),
+                entry.getOutputTimestamp(),
                 entry.getGroupingKey().getWindows(),
                 // The PaneInfow will always be overwritten by the GBK.
                 PaneInfo.NO_FIRING));
