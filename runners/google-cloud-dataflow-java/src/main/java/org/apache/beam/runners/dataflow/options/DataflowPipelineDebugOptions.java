@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.options;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.api.services.dataflow.Dataflow;
 import java.util.Map;
+import org.apache.beam.runners.dataflow.ShuffleCompressor;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.GcsStager;
 import org.apache.beam.runners.dataflow.util.Stager;
@@ -317,6 +318,41 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   String getSdkHarnessContainerImageOverrides();
 
   void setSdkHarnessContainerImageOverrides(String value);
+
+  Class<? extends ShuffleCompressor.Factory> getShuffleCompressorFactoryClass();
+
+  void setShuffleCompressorFactoryClass(Class<? extends ShuffleCompressor.Factory> clazz);
+
+  @Default.InstanceFactory(ShuffleCompressorFactoryFactory.class)
+  ShuffleCompressor.Factory getShuffleCompressorFactory();
+
+  void setShuffleCompressorFactory(ShuffleCompressor.Factory factory);
+
+  class ShuffleCompressorFactoryFactory implements DefaultValueFactory<ShuffleCompressor.Factory> {
+    private static ShuffleCompressor.Factory NOOP =
+        new ShuffleCompressor.Factory() {
+          @Override
+          public ShuffleCompressor create() {
+            return null;
+          }
+        };
+
+    @Override
+    public ShuffleCompressor.Factory create(PipelineOptions options) {
+      DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
+      Class<? extends ShuffleCompressor.Factory> clazz =
+          debugOptions.getShuffleCompressorFactoryClass();
+      if (clazz == null) {
+        return NOOP;
+      }
+
+      return InstanceBuilder.ofType(ShuffleCompressor.Factory.class)
+          .fromClass(clazz)
+          .fromFactoryMethod("fromOptions")
+          .withArg(PipelineOptions.class, options)
+          .build();
+    }
+  }
 
   /** Creates a {@link Stager} object using the class specified in {@link #getStagerClass()}. */
   class StagerFactory implements DefaultValueFactory<Stager> {
