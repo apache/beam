@@ -132,6 +132,7 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
   private final AtomicLong maxWeight;
   private long weight;
   private boolean isGloballyWindowed;
+  private long checkFlushCounter;
 
   private static final class Key implements Weighted {
     private static final Key INSTANCE = new Key();
@@ -253,7 +254,7 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
 
     private <K> GloballyWindowedTableGroupingKey(
         K key, Coder<K> keyCoder, SizeEstimator<K> keySizer) {
-      this.structuralKey = keyCoder.structuralValue(key);
+      structuralKey = keyCoder.structuralValue(key);
       if (structuralKey == key) {
         weight = keySizer.estimateSize(key);
       } else {
@@ -290,7 +291,7 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
 
     @Override
     public int hashCode() {
-      return Objects.hash(structuralKey);
+      return Objects.hashCode(structuralKey);
     }
   }
 
@@ -395,30 +396,39 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
     // Ignore timestamp for grouping purposes.
     // The Pre-combine output will inherit the timestamp of one of its inputs.
     GroupingTableKey groupingKey =
-        isGloballyWindowed
-            ? new GloballyWindowedTableGroupingKey(value.getValue().getKey(), keyCoder, keySizer)
-            : new WindowedGroupingTableKey(
-                value.getValue().getKey(), value.getWindows(), keyCoder, keySizer);
+            isGloballyWindowed
+                    ? new GloballyWindowedTableGroupingKey(value.getValue().getKey(), keyCoder, keySizer)
+                    : new WindowedGroupingTableKey(
+                    value.getValue().getKey(), value.getWindows(), keyCoder, keySizer);
 
     lruMap.compute(
-        groupingKey,
-        (key, tableEntry) -> {
-          if (tableEntry == null) {
-            weight += groupingKey.getWeight();
-            tableEntry =
-                new GroupingTableEntry(
-                    groupingKey,
-                    value.getTimestamp(),
-                    value.getValue().getKey(),
-                    value.getValue().getValue());
-          } else {
-            weight -= tableEntry.getWeight();
-            tableEntry.add(value.getValue().getValue());
-          }
-          weight += tableEntry.getWeight();
-          return tableEntry;
-        });
+            groupingKey,
+            (key, tableEntry) -> {
+              if (tableEntry == null) {
+                weight += groupingKey.getWeight();
+                tableEntry =
+                        new GroupingTableEntry(
+                                groupingKey,
+                                value.getTimestamp(),
+                                value.getValue().getKey(),
+                                value.getValue().getValue());
+              } else {
+                weight -= tableEntry.getWeight();
+                tableEntry.add(value.getValue().getValue());
+              }
+              weight += tableEntry.getWeight();
+              return tableEntry;
+            });
 
+    if (checkFlushCounter++ < 25) {
+      return;
+    } else {
+      checkFlushCounter = 0;
+      flushIfNeeded(receiver);
+    }
+  }
+
+  private void flushIfNeeded(FnDataReceiver<WindowedValue<KV<K, AccumT>>> receiver) throws Exception {
     // Increase the maximum only if we require it
     maxWeight.accumulateAndGet(weight, (current, update) -> current < update ? update : current);
 
