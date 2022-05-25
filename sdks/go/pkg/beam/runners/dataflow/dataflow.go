@@ -250,8 +250,8 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 
 	if *flexRSGoal != "" {
 		switch *flexRSGoal {
-		case "FLEXRS_UNSPECIFIED" , "FLEXRS_SPEED_OPTIMIZED", "FLEXRS_COST_OPTIMIZED":
-		  // valid values
+		case "FLEXRS_UNSPECIFIED", "FLEXRS_SPEED_OPTIMIZED", "FLEXRS_COST_OPTIMIZED":
+			// valid values
 		default:
 			return nil, errors.Errorf("invalid flex resource scheduling goal. Got %q; Use --flexrs_goal=(FLEXRS_UNSPECIFIED|FLEXRS_SPEED_OPTIMIZED|FLEXRS_COST_OPTIMIZED)", *flexRSGoal)
 		}
