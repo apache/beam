@@ -660,8 +660,8 @@ class Operation(object):
 
 class ReadOperation(Operation):
   def start(self):
+    super(ReadOperation, self).start()
     with self.scoped_start_state:
-      super(ReadOperation, self).start()
       range_tracker = self.spec.source.source.get_range_tracker(
           self.spec.source.start_position, self.spec.source.stop_position)
       for value in self.spec.source.source.read(range_tracker):
@@ -830,9 +830,8 @@ class DoOperation(Operation):
 
   def setup(self):
     # type: () -> None
+    super(DoOperation, self).setup()
     with self.scoped_start_state:
-      super(DoOperation, self).setup()
-
       # See fn_data in dataflow_runner.py
       fn, args, kwargs, tags_and_types, window_fn = (
           pickler.loads(self.spec.serialized_fn))
@@ -883,8 +882,8 @@ class DoOperation(Operation):
 
   def start(self):
     # type: () -> None
+    super(DoOperation, self).start()
     with self.scoped_start_state:
-      super(DoOperation, self).start()
       self.dofn_runner.start()
 
   def get_batching_preference(self):
@@ -1109,9 +1108,9 @@ class CombineOperation(Operation):
 
   def setup(self):
     # type: () -> None
+    super(CombineOperation, self).setup()
     with self.scoped_start_state:
       _LOGGER.debug('Setup called for %s', self)
-      super(CombineOperation, self).setup()
       self.phased_combine_fn.combine_fn.setup()
 
   def process(self, o):
@@ -1228,9 +1227,9 @@ class PGBKCVOperation(Operation):
 
   def setup(self):
     # type: () -> None
+    _LOGGER.debug('Setup called for %s', self)
+    super(PGBKCVOperation, self).setup()
     with self.scoped_start_state:
-      _LOGGER.debug('Setup called for %s', self)
-      super(PGBKCVOperation, self).setup()
       self.combine_fn.setup()
 
   def process(self, wkv):
