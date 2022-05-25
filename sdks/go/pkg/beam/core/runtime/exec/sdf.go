@@ -316,7 +316,7 @@ func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *Full
 		// do not propagate discarded restrictions.
 		return nil
 	}
-	size := n.sizeInv.Invoke(elm.Elm.(*FullValue), newRest)
+	size := n.sizeInv.Invoke(mainElm, newRest)
 
 	output := &FullValue{}
 	output.Timestamp = elm.Timestamp
