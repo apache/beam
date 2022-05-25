@@ -205,7 +205,7 @@ fi
 
 
 ###########################################################################
-# Build pipeline options if not provided in --  pipeline_opts from commandline
+# Build pipeline options if not provided in --pipeline_opts from commandline
 
 if [[ -z $PIPELINE_OPTS ]]; then
   # Get tar ball path
