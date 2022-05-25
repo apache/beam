@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.nullValue;
 import org.apache.beam.runners.spark.SparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
+import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -81,6 +82,7 @@ public class SparkMetricsSinkTest {
   @Category(StreamingTest.class)
   @Test
   public void testInStreamingMode() throws Exception {
+    pipeline.getOptions().as(TestSparkPipelineOptions.class).setForceStreaming(true);
     assertThat(InMemoryMetrics.valueOf("emptyLines"), is(nullValue()));
 
     Instant instant = new Instant(0);

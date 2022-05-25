@@ -1356,7 +1356,7 @@ func verifyValidNames(fnKind string, fn *Fn, names ...string) error {
 
 	for key := range fn.methods {
 		if !m[key] {
-			return errors.Errorf("%s: unexpected exported method %v present. Valid methods are: %v", fnKind, key, names)
+			return errors.Errorf("%s: unexpected exported method %v present on %v. Valid methods are: %v", fnKind, key, fn.Name(), names)
 		}
 	}
 	return nil
