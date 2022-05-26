@@ -575,7 +575,10 @@ func TestSdfNodes(t *testing.T) {
 				fn:   dfn,
 				in: FullValue{
 					Elm: &FullValue{
-						Elm: 1,
+						Elm: &FullValue{
+							Elm:  1,
+							Elm2: nil,
+						},
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf"},
 							Elm2: nil,
@@ -588,7 +591,10 @@ func TestSdfNodes(t *testing.T) {
 				want: []FullValue{
 					{
 						Elm: &FullValue{
-							Elm: 1,
+							Elm: &FullValue{
+								Elm:  1,
+								Elm2: nil,
+							},
 							Elm2: &FullValue{
 								Elm:  &VetRestriction{ID: "Sdf", CreateTracker: true, TruncateRest: true, RestSize: true, Val: 1},
 								Elm2: nil,

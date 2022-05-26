@@ -310,6 +310,11 @@ func (n *TruncateSizedRestriction) StartBundle(ctx context.Context, id string, d
 func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	mainElm := elm.Elm.(*FullValue)
 	inp := mainElm.Elm
+	// For the main element, the way we fill it out depends on whether the input element
+	// is a KV or single-element. Single-elements might have been lifted out of
+	// their FullValue if they were decoded, so we need to have a case for that.
+	// TODO(BEAM-9798): Optimize this so it's decided in exec/translate.go
+	// instead of checking per-element.
 	if e, ok := mainElm.Elm.(*FullValue); ok {
 		mainElm = e
 		inp = e
