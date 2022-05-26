@@ -198,7 +198,7 @@ task torchTests {
       }
     }
   doLast {
-      def testOpts = basicPytestOpts
+      def testOpts = basicTestOpts
       def argMap = [
           "test_opts": testOpts,
           "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
@@ -213,6 +213,7 @@ task torchTests {
     }
 }
 
+// Add all the RunInference IT tests to this gradle task.
 project.tasks.register("inferenceTestsPy${pythonVersionSuffix}") {
   dependsOn = ['torchTests']
 }
