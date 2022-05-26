@@ -253,7 +253,10 @@ type GrowableTracker struct {
 	rangeEndEstimator RangeEndEstimator
 }
 
-// NewGrowableTracker is a constructor for an GrowableTracker given a start and RangeEndEstimator.
+// NewGrowableTracker is a constructor for an GrowableTracker given a offsetrange.Restriction and RangeEndEstimator.
+// This tracker should be used when dealing with streaming use cases where the end of the restriction is
+// undefined (math.MaxInt64) in this case. Otherwise, this tracker works the same as offsetrange.Tracker, so it is
+// recommended to use that directly for bounded restrictions.
 func NewGrowableTracker(rest Restriction, rangeEndEstimator RangeEndEstimator) (*GrowableTracker, error) {
 	if rangeEndEstimator == nil {
 		return nil, fmt.Errorf("param rangeEndEstimator cannot be nil. Implementing offsetrange.RangeEndEstimator may be required")
@@ -315,7 +318,7 @@ func (tracker *GrowableTracker) GetProgress() (done, remaining float64) {
 	}
 
 	done = float64((tracker.claimed + 1) - tracker.Start())
-	remaining = float64(tracker.rest.End - (tracker.claimed + 1))
+	remaining = float64(tracker.End() - (tracker.claimed + 1))
 	return done, remaining
 }
 
