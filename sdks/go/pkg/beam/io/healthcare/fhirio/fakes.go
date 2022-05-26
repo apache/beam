@@ -15,9 +15,7 @@
 
 package fhirio
 
-import (
-	"net/http"
-)
+import "net/http"
 
 type fakeFhirStoreClient struct {
 	fakeReadResources func(string) (*http.Response, error)

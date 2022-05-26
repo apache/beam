@@ -17,11 +17,12 @@ package fhirio
 
 import (
 	"errors"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
 func Test_readFailures(t *testing.T) {

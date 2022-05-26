@@ -16,9 +16,10 @@
 package fhirio
 
 import (
+	"net/http"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/healthcare"
 	healthcarex "google.golang.org/api/healthcare/v1"
-	"net/http"
 )
 
 const baseMetricPrefix = "fhirio/"
