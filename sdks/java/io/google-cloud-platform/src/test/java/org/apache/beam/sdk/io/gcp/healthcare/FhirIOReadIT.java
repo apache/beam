@@ -109,7 +109,7 @@ public class FhirIOReadIT {
   }
 
   @After
-  public void deleteFHIRtore() throws IOException {
+  public void deleteFhirStore() throws IOException {
     HealthcareApiClient client = new HttpHealthcareApiClient();
     client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreName);
     TopicPath topicPath = PubsubClient.topicPathFromPath(pubsubTopic);
