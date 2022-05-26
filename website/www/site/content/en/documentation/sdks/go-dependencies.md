@@ -1,6 +1,6 @@
 ---
 type: languages
-title: "Go Sdk Dependencies"
+title: "Go SDK Dependencies"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
