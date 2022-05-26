@@ -319,15 +319,15 @@ tasks.register("python38PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
 }
 
 tasks.register("python39PostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
-  dependsOn(":sdks:python:test-suites:dataflow:py39:torchTests")
+  // dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
+  // dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
+  // dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
+  // dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
+  dependsOn(":sdks:python:test-suites:direct:py39:inferenceTestsPy39")
+
 }
 
 task("python37SickbayPostCommit") {
