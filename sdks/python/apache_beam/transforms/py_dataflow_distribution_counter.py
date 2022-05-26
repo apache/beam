@@ -144,6 +144,8 @@ class DataflowDistributionCounter(object):
         self.buckets[first_bucket_offset:last_bucket_offset + 1])
 
   def extract_output(self):
+    global INT64_MIN  # pylint: disable=global-variable-not-assigned
+    global INT64_MAX  # pylint: disable=global-variable-not-assigned
     if not INT64_MIN <= self.sum <= INT64_MAX:
       self.sum %= 2**64
       if self.sum >= INT64_MAX:
