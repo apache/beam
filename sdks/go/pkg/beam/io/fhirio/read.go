@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package fhirio provides an API for reading and writing resources to Google
+// Cloud Healthcare Fhir stores. Experimental.
 package fhirio
 
 import (
@@ -78,6 +80,13 @@ func (fn *readResourceFn) ProcessElement(ctx context.Context, resourceId string,
 	emitResource(string(bytes))
 }
 
+// Read fetches resources from Google Cloud Healthcare FHIR stores based on the
+// resource path. It consumes a PCollection<string> of notifications from the
+// FHIR store of resource paths, and fetches the actual resource object on the
+// path in the notification. It outputs two PCollection<string>. The first
+// contains the fetched object as a JSON-encoded string, and the second is a
+// dead-letter with an error message, in case the object failed to be fetched.
+// See: https://cloud.google.com/healthcare-api/docs/how-tos/fhir-resources#getting_a_fhir_resource.
 func Read(s beam.Scope, resourceIds beam.PCollection) (beam.PCollection, beam.PCollection) {
 	s = s.Scope("fhirio.Read")
 	return read(s, resourceIds, nil)

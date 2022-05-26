@@ -25,6 +25,7 @@ func (c *fakeFhirStoreClient) readResource(resourceName string) (*http.Response,
 	return c.fakeReadResources(resourceName)
 }
 
+// Useful to fake the Body of a http.Response.
 type fakeReaderCloser struct {
 	fakeRead func([]byte) (int, error)
 }

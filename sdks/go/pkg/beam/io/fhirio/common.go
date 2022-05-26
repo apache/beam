@@ -10,15 +10,15 @@
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specifinguage governing permissions and
+// See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package fhirio provides an API for reading and writing resources to Google
+// Cloud Healthcare Fhir stores. Experimental.
 package fhirio
 
 import (
 	"context"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
-	"google.golang.org/api/option"
 	"net/http"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
