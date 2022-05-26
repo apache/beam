@@ -18,26 +18,24 @@
 package org.apache.beam.sdk.io.cdap;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.reflect.TypeToken;
 import io.cdap.cdap.api.plugin.PluginConfig;
+import io.cdap.cdap.common.lang.InstantiatorFactory;
 import io.cdap.cdap.etl.api.SubmitterLifecycle;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
+import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.io.cdap.context.BatchContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,13 +45,11 @@ import org.slf4j.LoggerFactory;
   "rawtypes",
   "unchecked",
   "assignment.type.incompatible",
-  "dereference.of.nullable",
   "initialization.fields.uninitialized"
 })
 public abstract class Plugin {
 
   private static final Logger LOG = LoggerFactory.getLogger(Plugin.class);
-  private static final String PREPARE_RUN_METHOD_NAME = "prepareRun";
 
   protected @Nullable PluginConfig pluginConfig;
   protected @Nullable Configuration hadoopConfiguration;
@@ -78,7 +74,7 @@ public abstract class Plugin {
   }
 
   /** Gets a plugin config. */
-  public @Nullable PluginConfig getPluginConfig() {
+  public PluginConfig getPluginConfig() {
     return pluginConfig;
   }
 
@@ -88,34 +84,16 @@ public abstract class Plugin {
    * validating connection to the CDAP sink/source and performing initial tuning.
    */
   public void prepareRun() {
-    PluginConfig pluginConfig = getPluginConfig();
-    if (pluginConfig == null) {
-      throw new IllegalArgumentException("PluginConfig should be not null!");
-    }
     if (cdapPluginObj == null) {
-      for (Constructor<?> constructor : getPluginClass().getDeclaredConstructors()) {
-        constructor.setAccessible(true);
-        try {
-          cdapPluginObj = (SubmitterLifecycle) constructor.newInstance(pluginConfig);
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-          LOG.error("Can not instantiate CDAP plugin class", e);
-          throw new IllegalStateException("Can not call prepareRun");
-        }
-      }
+      InstantiatorFactory instantiatorFactory = new InstantiatorFactory(false);
+      cdapPluginObj =
+          (SubmitterLifecycle) instantiatorFactory.get(TypeToken.of(getPluginClass())).create();
     }
     try {
       cdapPluginObj.prepareRun(getContext());
-      if (getFormatType().equals(PluginConstants.Format.INPUT)) {
-        for (Map.Entry<String, String> entry :
-            getContext().getInputFormatProvider().getInputFormatConfiguration().entrySet()) {
-          getHadoopConfiguration().set(entry.getKey(), entry.getValue());
-        }
-      } else {
-        for (Map.Entry<String, String> entry :
-            getContext().getOutputFormatProvider().getOutputFormatConfiguration().entrySet()) {
-          getHadoopConfiguration().set(entry.getKey(), entry.getValue());
-        }
-        getHadoopConfiguration().set(MRJobConfig.ID, String.valueOf(1));
+      for (Map.Entry<String, String> entry :
+          getContext().getInputFormatProvider().getInputFormatConfiguration().entrySet()) {
+        getHadoopConfiguration().set(entry.getKey(), entry.getValue());
       }
     } catch (Exception e) {
       LOG.error("Error while prepareRun", e);
@@ -182,34 +160,37 @@ public abstract class Plugin {
 
   public static BatchContextImpl initContext(Class<?> cdapPluginClass) {
     // Init context and determine input or output
-    Class<?> contextClass;
+    Class<?> contextClass = null;
     List<Method> methods = new ArrayList<>(Arrays.asList(cdapPluginClass.getDeclaredMethods()));
-    Class<?> cdapPluginSuperclass = cdapPluginClass.getSuperclass();
-    if (cdapPluginSuperclass != null) {
-      methods.addAll(Arrays.asList(cdapPluginSuperclass.getDeclaredMethods()));
+    if (cdapPluginClass.getSuperclass() != null) {
+      methods.addAll(Arrays.asList(cdapPluginClass.getSuperclass().getDeclaredMethods()));
     }
     for (Method method : methods) {
-      if (method.getName().equals(PREPARE_RUN_METHOD_NAME)) {
+      if (method.getName().equals("prepareRun")) {
         contextClass = method.getParameterTypes()[0];
-        if (contextClass.equals(BatchSourceContext.class)) {
-          return new BatchSourceContextImpl();
-        } else if (contextClass.equals(BatchSinkContext.class)) {
-          return new BatchSinkContextImpl();
-        }
       }
     }
-    throw new IllegalStateException("Cannot determine context class");
+    if (contextClass == null) {
+      throw new IllegalStateException("Cannot determine context class");
+    }
+
+    if (contextClass.equals(BatchSourceContext.class)) {
+      return new BatchSourceContextImpl();
+    } else if (contextClass.equals(BatchSinkContext.class)) {
+      return new BatchSinkContextImpl();
+    } else {
+      return new BatchSourceContextImpl();
+    }
   }
 
   /** Gets value of a plugin type. */
   public Boolean isUnbounded() {
     Boolean isUnbounded = null;
 
-    for (Annotation annotation : getPluginClass().getDeclaredAnnotations()) {
-      if (annotation.annotationType().equals(io.cdap.cdap.api.annotation.Plugin.class)) {
-        String pluginType = ((io.cdap.cdap.api.annotation.Plugin) annotation).type();
-        isUnbounded = pluginType != null && pluginType.startsWith("streaming");
-      }
+    for (io.cdap.cdap.api.annotation.Plugin annotation :
+        getPluginClass().getDeclaredAnnotationsByType(io.cdap.cdap.api.annotation.Plugin.class)) {
+      String pluginType = annotation.type();
+      isUnbounded = pluginType != null && pluginType.startsWith("streaming");
     }
     if (isUnbounded == null) {
       throw new IllegalArgumentException("CDAP plugin class must have Plugin annotation!");
