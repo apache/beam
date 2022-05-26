@@ -26,7 +26,7 @@ from typing import Union
 from apache_beam.pipeline import Pipeline
 
 
-def _default_cluster_name():
+def _generate_unique_cluster_name():
   return f'interactive-beam-{uuid.uuid4().hex}'
 
 
@@ -52,7 +52,8 @@ class ClusterMetadata:
   """
   project_id: Optional[str] = None
   region: Optional[str] = None
-  cluster_name: Optional[str] = field(default_factory=_default_cluster_name)
+  cluster_name: Optional[str] = field(
+      default_factory=_generate_unique_cluster_name)
   # From WorkerOptions.
   subnetwork: Optional[str] = None
   num_workers: Optional[int] = None
@@ -79,8 +80,8 @@ class ClusterMetadata:
       return self.__key() == other.__key()
     return False
 
-  def rename(self):
-    self.cluster_name = _default_cluster_name()
+  def reset_name(self):
+    self.cluster_name = _generate_unique_cluster_name()
 
 
 ClusterIdentifier = Union[str, Pipeline, ClusterMetadata]

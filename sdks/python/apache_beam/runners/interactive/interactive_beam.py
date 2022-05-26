@@ -402,6 +402,9 @@ class Clusters:
   # https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.0
   DATAPROC_FLINK_VERSION = '1.12'
 
+  # The minimum worker number to create a Dataproc cluster.
+  DATAPROC_MINIMUM_WORKER_NUM = 2
+
   # TODO(BEAM-14142): Fix the Dataproc image version after a released image
   # contains all missing dependencies for Flink to run.
   # DATAPROC_IMAGE_VERSION = '2.0.XX-debian10'
@@ -433,10 +436,13 @@ class Clusters:
       # The global region is unsupported as it will be eventually deprecated.
       raise ValueError('Clusters in the global region are not supported.')
     # else use the provided region.
-    if cluster_metadata.num_workers and cluster_metadata.num_workers < 2:
+    if (cluster_metadata.num_workers and
+        cluster_metadata.num_workers < self.DATAPROC_MINIMUM_WORKER_NUM):
       _LOGGER.info(
-          'At least 2 workers are required for a cluster, defaulting to 2.')
-      cluster_metadata.num_workers = 2
+          'At least %s workers are required for a cluster, defaulting to %s.',
+          self.DATAPROC_MINIMUM_WORKER_NUM,
+          self.DATAPROC_MINIMUM_WORKER_NUM)
+      cluster_metadata.num_workers = self.DATAPROC_MINIMUM_WORKER_NUM
     known_dcm = self.dataproc_cluster_managers.get(cluster_metadata, None)
     if known_dcm:
       return known_dcm
@@ -578,7 +584,7 @@ class Clusters:
               self.default_cluster_metadata.cluster_name,
               self.default_cluster_metadata,
               meta)
-          meta.rename()
+          meta.reset_name()
           _LOGGER.warning(
               'To avoid conflict, issuing a new cluster name %s '
               'for a new cluster.',
