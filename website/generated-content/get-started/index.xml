@@ -2125,9 +2125,9 @@ versions denoted &lt;code>0.x.y&lt;/code>.&lt;/p>
 &lt;p>&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12351169">Release notes&lt;/a>
 &lt;a href="/blog/beam-2.39.0">Blog post&lt;/a>.&lt;/p>
 &lt;h3 id="2380-2022-04-20">2.38.0 (2022-04-20)&lt;/h3>
-&lt;p>Official &lt;a href="https://www.apache.org/dyn/closer.cgi/beam/2.38.0/apache-beam-2.38.0-source-release.zip">source code download&lt;/a>.
-&lt;a href="https://downloads.apache.org/beam/2.38.0/apache-beam-2.38.0-source-release.zip.sha512">SHA-512&lt;/a>.
-&lt;a href="https://downloads.apache.org/beam/2.38.0/apache-beam-2.38.0-source-release.zip.asc">signature&lt;/a>.&lt;/p>
+&lt;p>Official &lt;a href="https://archive.apache.org/dist/beam/2.38.0/apache-beam-2.38.0-source-release.zip">source code download&lt;/a>.
+&lt;a href="https://archive.apache.org/dist/beam/2.38.0/apache-beam-2.38.0-source-release.zip.sha512">SHA-512&lt;/a>.
+&lt;a href="https://archive.apache.org/dist/beam/2.38.0/apache-beam-2.38.0-source-release.zip.asc">signature&lt;/a>.&lt;/p>
 &lt;p>&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12351169">Release notes&lt;/a>
 &lt;a href="/blog/beam-2.38.0">Blog post&lt;/a>.&lt;/p>
 &lt;h3 id="2370-2022-03-04">2.37.0 (2022-03-04)&lt;/h3>
