@@ -24,17 +24,27 @@ import java.io.Serializable;
  */
 public class PythonCallableSource implements Serializable {
   private final String pythonCallableCode;
+  private final String pythonContextCode;
 
-  private PythonCallableSource(String pythonCallableCode) {
+  private PythonCallableSource(String pythonCallableCode, String pythonContextCode) {
+    // TODO(BEAM-14457): check syntactic correctness of Python code if possible
     this.pythonCallableCode = pythonCallableCode;
+    this.pythonContextCode = pythonContextCode;
   }
 
   public static PythonCallableSource of(String pythonCallableCode) {
-    // TODO(BEAM-14457): check syntactic correctness of Python code if possible
-    return new PythonCallableSource(pythonCallableCode);
+    return new PythonCallableSource(pythonCallableCode, "");
+  }
+
+  public PythonCallableSource withContext(String pythonContextCode) {
+    return new PythonCallableSource(pythonCallableCode, pythonContextCode);
   }
 
   public String getPythonCallableCode() {
     return pythonCallableCode;
+  }
+
+  public String getPythonContextCode() {
+    return pythonContextCode;
   }
 }

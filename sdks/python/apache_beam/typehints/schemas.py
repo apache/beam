@@ -563,8 +563,13 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
     return Timestamp(seconds=int(value.seconds), micros=int(value.micros))
 
 
+PythonCallableRepresentation = NamedTuple(
+    'PythonCallableRepresentation', [('callable', str), ('context', str)])
+
+
 @LogicalType.register_logical_type
-class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource, str]):
+class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource,
+                                           PythonCallableRepresentation]):
   @classmethod
   def urn(cls):
     return common_urns.python_callable.urn
@@ -572,16 +577,16 @@ class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource, str]):
   @classmethod
   def representation_type(cls):
     # type: () -> type
-    return str
+    return PythonCallableRepresentation
 
   @classmethod
   def language_type(cls):
     return PythonCallableWithSource
 
   def to_representation_type(self, value):
-    # type: (PythonCallableWithSource) -> str
-    return value.get_source()
+    # type: (PythonCallableWithSource) -> PythonCallableRepresentation
+    return PythonCallableRepresentation(value.get_source(), value.get_context())
 
   def to_language_type(self, value):
-    # type: (str) -> PythonCallableWithSource
-    return PythonCallableWithSource(value)
+    # type: (PythonCallableRepresentation) -> PythonCallableWithSource
+    return PythonCallableWithSource(value.callable, value.context)

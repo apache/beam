@@ -28,14 +28,20 @@ class PythonCallableWithSource(object):
   The string form is used when the object is encoded and transferred to foreign
   SDKs (non-Python SDKs).
   """
-  def __init__(self, source):
-    # type: (str) -> None
+  def __init__(self, source, context):
+    # type: (str, str) -> None
     self._source = source
     self._callable = eval(source)  # pylint: disable=eval-used
+    self._context = context
 
   def get_source(self):
     # type: () -> str
     return self._source
 
+  def get_context(self):
+    # type: () -> str
+    return self._context
+
   def __call__(self, *args, **kwargs):
+    exec(self._context, globals())  # pylint: disable=exec-used
     return self._callable(*args, **kwargs)

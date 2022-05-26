@@ -241,19 +241,22 @@ class SchemaTest(unittest.TestCase):
         typing_to_runner_api(float))
 
   def test_python_callable_maps_to_logical_type(self):
+    from apache_beam.typehints.schemas import PythonCallableRepresentation
     from apache_beam.utils.python_callable import PythonCallableWithSource
     self.assertEqual(
         schema_pb2.FieldType(
             logical_type=schema_pb2.LogicalType(
                 urn=common_urns.python_callable.urn,
-                representation=typing_to_runner_api(str))),
+                representation=typing_to_runner_api(
+                    PythonCallableRepresentation))),
         typing_to_runner_api(PythonCallableWithSource))
     self.assertEqual(
         typing_from_runner_api(
             schema_pb2.FieldType(
                 logical_type=schema_pb2.LogicalType(
                     urn=common_urns.python_callable.urn,
-                    representation=typing_to_runner_api(str)))),
+                    representation=typing_to_runner_api(
+                        PythonCallableRepresentation)))),
         PythonCallableWithSource)
 
   def test_trivial_example(self):

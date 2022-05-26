@@ -117,9 +117,9 @@ message LogicalType {
 message LogicalTypes {
   enum Enum {
     // A URN for Python Callable logical type
-    //   - Representation type: STRING
+    //   - Representation type: ROW(callable: STRING, context: STRING)
     //   - Language type: In Python SDK, PythonCallableWithSource.
-    //     In any other SDKs, a wrapper object for a string which
+    //     In any other SDKs, a wrapper object for a row which
     //     can be evaluated to a Python Callable object.
     PYTHON_CALLABLE = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
         "beam:logical_type:python_callable:v1"];
