@@ -10,26 +10,41 @@
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
+// See the License for the specifinguage governing permissions and
 // limitations under the License.
 
-package healthcare
+package fhirio
 
 import (
 	"context"
-
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
-	healthcarex "google.golang.org/api/healthcare/v1"
 	"google.golang.org/api/option"
+	"net/http"
+
+	healthcarex "google.golang.org/api/healthcare/v1"
 )
 
-const userAgent = "apache-beam-io-google-cloud-platform-healthcare/" + core.SdkVersion
+const (
+	baseMetricPrefix = "fhirio/"
+	userAgent        = "apache-beam-io-google-cloud-platform-healthcare/" + core.SdkVersion
+)
 
-func NewGcpHealthcareService() *healthcarex.Service {
+type fhirStoreClient interface {
+	readResource(resourceName string) (*http.Response, error)
+}
+
+type fhirStoreClientImpl struct {
+	fhirService *healthcarex.ProjectsLocationsDatasetsFhirStoresFhirService
+}
+
+func newFhirStoreClient() *fhirStoreClientImpl {
 	healthcareService, err := healthcarex.NewService(context.Background(), option.WithUserAgent(userAgent))
 	if err != nil {
 		panic("Failed to initialize Google Cloud Healthcare Service. Reason: " + err.Error())
 	}
+	return &fhirStoreClientImpl{fhirService: healthcarex.NewProjectsLocationsDatasetsFhirStoresFhirService(healthcareService)}
+}
 
-	return healthcareService
+func (c *fhirStoreClientImpl) readResource(resourceName string) (*http.Response, error) {
+	return c.fhirService.Read(resourceName).Do()
 }

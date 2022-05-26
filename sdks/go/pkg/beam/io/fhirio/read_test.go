@@ -25,7 +25,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
-func Test_readFailures(t *testing.T) {
+func TestRead(t *testing.T) {
 	testCases := []struct {
 		name           string
 		client         fhirStoreClient
