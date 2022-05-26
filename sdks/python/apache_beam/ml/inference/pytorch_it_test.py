@@ -90,6 +90,33 @@ class PyTorchInference(unittest.TestCase):
       filename, prediction = prediction.split(',')
       self.assertEqual(_EXPECTED_OUTPUTS[filename], prediction)
 
+  @pytest.mark.uses_pytorch
+  @pytest.mark.inference_benchmark
+  def test_imagenet_benchmark(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    output_file_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/outputs'
+    output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
+    file_of_image_names = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/imagenet_samples.csv'
+    base_output_files_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs'
+
+    model_state_dict_path = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/models/mobilenet_v2.pt'
+    extra_opts = {
+        'input': file_of_image_names,
+        'output': output_file,
+        'model_state_dict_path': model_state_dict_path,
+        'images_dir': base_output_files_dir,
+    }
+    pytorch_image_classification.run(
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
+
+    self.assertEqual(FileSystems().exists(output_file), True)
+    predictions = process_outputs(filepath=output_file)
+
+    for prediction in predictions:
+      filename, prediction = prediction.split(',')
+      self.assertEqual(_EXPECTED_OUTPUTS[filename], prediction)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
