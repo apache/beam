@@ -64,19 +64,19 @@ func TestRead(t *testing.T) {
 		},
 	}
 
-	testResourceIds := []string{"foo", "bar"}
+	testResourcePaths := []string{"foo", "bar"}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			p, s, resourceIds := ptest.CreateList(testResourceIds)
-			resources, failedReads := read(s, resourceIds, testCase.client)
+			p, s, resourcePaths := ptest.CreateList(testResourcePaths)
+			resources, failedReads := read(s, resourcePaths, testCase.client)
 			passert.Empty(s, resources)
-			passert.Count(s, failedReads, "", len(testResourceIds))
+			passert.Count(s, failedReads, "", len(testResourcePaths))
 			passert.True(s, failedReads, func(errorMsg string) bool {
 				return strings.Contains(errorMsg, testCase.containedError)
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
 			counterResults := pipelineResult.Metrics().AllMetrics().Counters()
-			if len(counterResults) != 1 || counterResults[0].Result() != int64(len(testResourceIds)) {
+			if len(counterResults) != 1 || counterResults[0].Result() != int64(len(testResourcePaths)) {
 				t.Error("Only error counter should be incremented and by exactly the amount of test resource ids")
 			}
 		})

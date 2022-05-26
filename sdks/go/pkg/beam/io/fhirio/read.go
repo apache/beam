@@ -52,27 +52,27 @@ func (fn *readResourceFn) Setup() {
 	fn.readResourceLatencyMs = metrics.NewDistribution(fn.String(), baseMetricPrefix+"read_resource_latency_ms")
 }
 
-func (fn *readResourceFn) ProcessElement(ctx context.Context, resourceId string, emitResource func(string), emitDeadLetter func(string)) {
+func (fn *readResourceFn) ProcessElement(ctx context.Context, resourcePath string, emitResource func(string), emitDeadLetter func(string)) {
 	timeBeforeReadRequest := time.Now()
-	response, err := fn.client.readResource(resourceId)
+	response, err := fn.client.readResource(resourcePath)
 	fn.readResourceLatencyMs.Update(ctx, time.Now().Sub(timeBeforeReadRequest).Milliseconds())
 
 	if err != nil {
 		fn.readResourceErrors.Inc(ctx, 1)
-		emitDeadLetter(errors.Wrapf(err, "Failed to fetch resource [%s].", resourceId).Error())
+		emitDeadLetter(errors.Wrapf(err, "Failed to fetch resource [%s].", resourcePath).Error())
 		return
 	}
 
 	if response.StatusCode != 200 {
 		fn.readResourceErrors.Inc(ctx, 1)
-		emitDeadLetter(errors.Errorf("Fetched resource [%s] returned bad status [%d].", resourceId, response.StatusCode).Error())
+		emitDeadLetter(errors.Errorf("Fetched resource [%s] returned bad status [%d].", resourcePath, response.StatusCode).Error())
 		return
 	}
 
 	bytes, err := io.ReadAll(response.Body)
 	if err != nil {
 		fn.readResourceErrors.Inc(ctx, 1)
-		emitDeadLetter(errors.Wrapf(err, "Error while reading response body of resource [%s]", resourceId).Error())
+		emitDeadLetter(errors.Wrapf(err, "Error while reading response body of resource [%s]", resourcePath).Error())
 		return
 	}
 
@@ -87,11 +87,11 @@ func (fn *readResourceFn) ProcessElement(ctx context.Context, resourceId string,
 // contains the fetched object as a JSON-encoded string, and the second is a
 // dead-letter with an error message, in case the object failed to be fetched.
 // See: https://cloud.google.com/healthcare-api/docs/how-tos/fhir-resources#getting_a_fhir_resource.
-func Read(s beam.Scope, resourceIds beam.PCollection) (beam.PCollection, beam.PCollection) {
+func Read(s beam.Scope, resourcePaths beam.PCollection) (beam.PCollection, beam.PCollection) {
 	s = s.Scope("fhirio.Read")
-	return read(s, resourceIds, nil)
+	return read(s, resourcePaths, nil)
 }
 
-func read(s beam.Scope, resourceIds beam.PCollection, client fhirStoreClient) (beam.PCollection, beam.PCollection) {
-	return beam.ParDo2(s, &readResourceFn{client: client}, resourceIds)
+func read(s beam.Scope, resourcePaths beam.PCollection, client fhirStoreClient) (beam.PCollection, beam.PCollection) {
+	return beam.ParDo2(s, &readResourceFn{client: client}, resourcePaths)
 }

@@ -47,6 +47,6 @@ func newFhirStoreClient() *fhirStoreClientImpl {
 	return &fhirStoreClientImpl{fhirService: healthcarex.NewProjectsLocationsDatasetsFhirStoresFhirService(healthcareService)}
 }
 
-func (c *fhirStoreClientImpl) readResource(resourceName string) (*http.Response, error) {
-	return c.fhirService.Read(resourceName).Do()
+func (c *fhirStoreClientImpl) readResource(resourcePath string) (*http.Response, error) {
+	return c.fhirService.Read(resourcePath).Do()
 }
