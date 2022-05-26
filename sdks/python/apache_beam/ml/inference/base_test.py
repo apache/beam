@@ -21,6 +21,7 @@ import pickle
 import unittest
 from typing import Any
 from typing import Iterable
+from typing import List
 
 import apache_beam as beam
 from apache_beam.metrics.metric import MetricsFilter
@@ -35,18 +36,18 @@ class FakeModel:
     return example + 1
 
 
-class FakeInferenceRunner(base.InferenceRunner):
+class FakeInferenceRunner(base.InferenceRunner[int, int, FakeModel]):
   def __init__(self, clock=None):
     self._mock_clock = clock
 
-  def run_inference(self, batch: Any, model: Any) -> Iterable[Any]:
+  def run_inference(self, batch: List[int], model: FakeModel) -> Iterable[int]:
     if self._mock_clock:
       self._mock_clock.current_time += 3000
     for example in batch:
       yield model.predict(example)
 
 
-class FakeModelLoader(base.ModelLoader):
+class FakeModelLoader(base.ModelLoader[int, int, FakeModel]):
   def __init__(self, clock=None):
     self._mock_clock = clock
 

@@ -41,7 +41,9 @@ class ModelFileType(enum.Enum):
   JOBLIB = 2
 
 
-class SklearnInferenceRunner(InferenceRunner):
+class SklearnInferenceRunner(InferenceRunner[numpy.ndarray,
+                                             PredictionResult,
+                                             Any]):
   def run_inference(self, batch: List[numpy.ndarray],
                     model: Any) -> Iterable[PredictionResult]:
     # vectorize data for better performance
@@ -54,14 +56,13 @@ class SklearnInferenceRunner(InferenceRunner):
     return sum(sys.getsizeof(element) for element in batch)
 
 
-class SklearnModelLoader(ModelLoader):
+class SklearnModelLoader(ModelLoader[numpy.ndarray, PredictionResult, Any]):
   def __init__(
       self,
       model_file_type: ModelFileType = ModelFileType.PICKLE,
       model_uri: str = ''):
     self._model_file_type = model_file_type
     self._model_uri = model_uri
-    self._inference_runner = SklearnInferenceRunner()
 
   def load_model(self):
     """Loads and initializes a model for processing."""
@@ -79,4 +80,4 @@ class SklearnModelLoader(ModelLoader):
     raise AssertionError('Unsupported serialization type.')
 
   def get_inference_runner(self) -> SklearnInferenceRunner:
-    return self._inference_runner
+    return SklearnInferenceRunner()

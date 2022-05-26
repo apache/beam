@@ -30,7 +30,9 @@ from apache_beam.ml.inference.base import InferenceRunner
 from apache_beam.ml.inference.base import ModelLoader
 
 
-class PytorchInferenceRunner(InferenceRunner):
+class PytorchInferenceRunner(InferenceRunner[torch.Tensor,
+                                             PredictionResult,
+                                             torch.nn.Module]):
   """
   This class runs Pytorch inferences with the run_inference method. It also has
   other methods to get the bytes of a batch of Tensors as well as the namespace
@@ -66,7 +68,9 @@ class PytorchInferenceRunner(InferenceRunner):
     return 'RunInferencePytorch'
 
 
-class PytorchModelLoader(ModelLoader):
+class PytorchModelLoader(ModelLoader[torch.Tensor,
+                                     PredictionResult,
+                                     torch.nn.Module]):
   """Loads a Pytorch Model."""
   def __init__(
       self,
@@ -92,18 +96,17 @@ class PytorchModelLoader(ModelLoader):
     else:
       self._device = torch.device('cpu')
     self._model_class = model_class
-    self.model_params = model_params
-    self._inference_runner = PytorchInferenceRunner(device=self._device)
+    self._model_params = model_params
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
-    model = self._model_class(**self.model_params)
+    model = self._model_class(**self._model_params)
     model.to(self._device)
     file = FileSystems.open(self._state_dict_path, 'rb')
     model.load_state_dict(torch.load(file))
     model.eval()
     return model
 
-  def get_inference_runner(self) -> InferenceRunner:
+  def get_inference_runner(self) -> PytorchInferenceRunner:
     """Returns a Pytorch implementation of InferenceRunner."""
-    return self._inference_runner
+    return PytorchInferenceRunner(device=self._device)
