@@ -269,6 +269,7 @@ public class TextIO {
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
         .setNoSpilling(false)
+        .setSkipIfEmpty(false)
         .build();
   }
 
@@ -648,6 +649,9 @@ public class TextIO {
     /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
     abstract boolean getNoSpilling();
 
+    /** Whether to skip writing any output files if the PCollection is empty. */
+    abstract boolean getSkipIfEmpty();
+
     /**
      * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
      * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
@@ -694,6 +698,8 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
 
       abstract Builder<UserT, DestinationT> setNoSpilling(boolean noSpilling);
+
+      abstract Builder<UserT, DestinationT> setSkipIfEmpty(boolean noSpilling);
 
       abstract Builder<UserT, DestinationT> setWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory);
@@ -941,6 +947,11 @@ public class TextIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
+    /** Don't write any output files if the PCollection is empty. */
+    public TypedWrite<UserT, DestinationT> skipIfEmpty() {
+      return toBuilder().setSkipIfEmpty(true).build();
+    }
+
     private DynamicDestinations<UserT, DestinationT, String> resolveDynamicDestinations() {
       DynamicDestinations<UserT, DestinationT, String> dynamicDestinations =
           getDynamicDestinations();
@@ -1025,6 +1036,9 @@ public class TextIO {
       }
       if (getNoSpilling()) {
         write = write.withNoSpilling();
+      }
+      if (getSkipIfEmpty()) {
+        write = write.withSkipIfEmpty();
       }
       return input.apply("WriteFiles", write);
     }

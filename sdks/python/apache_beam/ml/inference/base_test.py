@@ -72,6 +72,21 @@ class ExtractInferences(beam.DoFn):
     yield prediction_result.inference
 
 
+class FakeInferenceRunnerNeedsBigBatch(FakeInferenceRunner):
+  def run_inference(self, batch, unused_model):
+    if len(batch) < 100:
+      raise ValueError('Unexpectedly small batch')
+    return batch
+
+
+class FakeLoaderWithBatchArgForwarding(FakeModelLoader):
+  def get_inference_runner(self):
+    return FakeInferenceRunnerNeedsBigBatch()
+
+  def batch_elements_kwargs(self):
+    return {'min_batch_size': 9999}
+
+
 class RunInferenceBaseTest(unittest.TestCase):
   def test_run_inference_impl_simple_examples(self):
     with TestPipeline() as pipeline:
@@ -141,6 +156,13 @@ class RunInferenceBaseTest(unittest.TestCase):
     load_model_latency = metric_results['distributions'][0]
     self.assertEqual(load_model_latency.result.count, 1)
     self.assertEqual(load_model_latency.result.mean, 50)
+
+  def test_forwards_batch_args(self):
+    examples = list(range(100))
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(FakeLoaderWithBatchArgForwarding())
+      assert_that(actual, equal_to(examples), label='assert:inferences')
 
 
 if __name__ == '__main__':

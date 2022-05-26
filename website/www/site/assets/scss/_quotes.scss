@@ -119,7 +119,6 @@
   }
 }
 
-
 .bullet-class-custom {
   display: inline-block;
   border: none;
@@ -167,5 +166,21 @@
       display: block;
       margin: 0;
     }
+  }
+}
+
+.swiper-container {
+  display: flex;
+  align-items: center;
+}
+
+.swiper-button-next-custom,
+.swiper-button-prev-custom {
+  @media (max-width: $mobile) {
+    display: none;
+  }
+  img {
+    display: block;
+    width: 100%;
   }
 }

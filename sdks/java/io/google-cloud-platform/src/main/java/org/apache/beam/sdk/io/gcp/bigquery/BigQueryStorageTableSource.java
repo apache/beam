@@ -28,6 +28,7 @@ import java.io.ObjectInputStream;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -183,8 +184,10 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
                 ? options.getProject()
                 : options.getBigQueryProject());
       }
-      Table table = bqServices.getDatasetService(options).getTable(tableReference);
-      cachedTable.compareAndSet(null, table);
+      try (DatasetService datasetService = bqServices.getDatasetService(options)) {
+        Table table = datasetService.getTable(tableReference);
+        cachedTable.compareAndSet(null, table);
+      }
     }
 
     return cachedTable.get();
