@@ -26,6 +26,8 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -36,11 +38,13 @@ import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -54,10 +58,13 @@ import org.apache.commons.lang3.SystemUtils;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 /** Tests for {@link LocalFileSystem}. */
 @RunWith(JUnit4.class)
@@ -81,6 +88,31 @@ public class LocalFileSystemTest {
   @Test
   public void testCreateWithNonExistentSubDirectory() throws Exception {
     testCreate(temporaryFolder.getRoot().toPath().resolve("non-existent-dir").resolve("file.txt"));
+  }
+
+  @Test
+  public void testCreateException() throws Exception {
+    File mockParentFile = mock(File.class);
+    when(mockParentFile.mkdirs()).thenThrow(new RuntimeException("exception when creating files"));
+
+    File mockAbsoluteFile = mock(File.class);
+    when(mockAbsoluteFile.getParentFile()).thenReturn(mockParentFile);
+
+    File mockFile = mock(File.class);
+    when(mockFile.getAbsoluteFile()).thenReturn(mockAbsoluteFile);
+
+    Path mockPath = mock(Path.class);
+    when(mockPath.toFile()).thenReturn(mockFile);
+
+    LocalResourceId mockResourceId = mock(LocalResourceId.class);
+    when(mockResourceId.getPath()).thenReturn(mockPath);
+
+    thrown.expect(RuntimeException.class);
+
+    localFileSystem.create(
+        mockResourceId,
+        StandardCreateOptions.builder().setMimeType(MimeTypes.TEXT).build()
+    );
   }
 
   private void testCreate(Path path) throws Exception {
@@ -481,6 +513,22 @@ public class LocalFileSystemTest {
     assertTrue(exception.getMessage().startsWith("Expected file path but received directory path"));
   }
 
+  @Test
+  public void testGetDefaultFileSystemException() throws Exception{
+    temporaryFolder.newFile("a");
+
+    try(MockedStatic<java.nio.file.FileSystems> mockFileSystems =
+        Mockito.mockStatic(java.nio.file.FileSystems.class)) {
+      mockFileSystems.when(java.nio.file.FileSystems::getDefault).thenThrow(
+          new RuntimeException("exception finding filesystem"));
+
+      thrown.expect(RuntimeException.class);
+
+      localFileSystem.match(
+              ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("a").toString()));
+    }
+  }
+
   private void createFileWithContent(Path path, String content) throws Exception {
     try (Writer writer =
         Channels.newWriter(
@@ -491,6 +539,8 @@ public class LocalFileSystemTest {
       writer.write(content);
     }
   }
+
+
 
   private List<MatchResult> matchGlobWithPathPrefix(Path pathPrefix, String glob)
       throws IOException {
