@@ -25,7 +25,11 @@ aware that some libraries are not forward-compatible and you may need to pin to
 the listed versions that will be in scope during execution.
 
 Compile and runtime dependencies for your Beam SDK version are listed in `go.sum` in the Beam repository.
-This can be found at `https://raw.githubusercontent.com/apache/beam/v<VERSION_NUMBER>/sdks/go.sum`
+This can be found at
+
+```
+https://raw.githubusercontent.com/apache/beam/v<VERSION_NUMBER>/sdks/go.sum
+```
 
 Replace `<VERSION_NUMBER>` with the major.minor.patch version of the SDK. For example, <https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/go.sum> will provide the dependencies for the {{< param release_latest >}} release.
 
