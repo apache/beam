@@ -18,12 +18,7 @@ limitations under the License.
 
 # Beam SDK for Go dependencies
 
-The Beam SDKs depend on common third-party components which then
-import additional dependencies. Version collisions can result in unexpected
-behavior in the service. If you are using any of these packages in your code, be
-aware that some libraries are not forward-compatible and you may need to pin to
-the listed versions that will be in scope during execution.
-
+Beam Go uses [Go modules](https://go.dev/blog/using-go-modules) for package management.
 Compile and runtime dependencies for your Beam SDK version are listed in `go.sum` in the Beam repository.
 This can be found at
 
