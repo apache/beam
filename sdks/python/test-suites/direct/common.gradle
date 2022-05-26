@@ -186,7 +186,7 @@ tasks.register("hdfsIntegrationTest") {
   }
 }
 
-// Run RunInference IT tests on DirectRunner
+// Pytorch RunInference IT tests
 task torchTests {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
@@ -213,7 +213,8 @@ task torchTests {
     }
 }
 
-// Add all the RunInference IT tests to this gradle task.
-project.tasks.register("inferenceTestsPy${pythonVersionSuffix}") {
+// Add all the RunInference framework IT tests to this gradle task that runs on Direct Runner Post commit suite.
+// TODO(anandinguva): Add sklearn IT test here
+project.tasks.register("inferencePostCommitIT") {
   dependsOn = ['torchTests']
 }
