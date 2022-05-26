@@ -21,7 +21,9 @@ import (
 	"google.golang.org/api/option"
 	"net/http"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	healthcarex "google.golang.org/api/healthcare/v1"
+	"google.golang.org/api/option"
 )
 
 const (
