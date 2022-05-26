@@ -21,8 +21,8 @@ type fakeFhirStoreClient struct {
 	fakeReadResources func(string) (*http.Response, error)
 }
 
-func (c *fakeFhirStoreClient) readResource(resourceName string) (*http.Response, error) {
-	return c.fakeReadResources(resourceName)
+func (c *fakeFhirStoreClient) readResource(resourcePath string) (*http.Response, error) {
+	return c.fakeReadResources(resourcePath)
 }
 
 // Useful to fake the Body of a http.Response.

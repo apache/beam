@@ -33,7 +33,7 @@ const (
 )
 
 type fhirStoreClient interface {
-	readResource(resourceName string) (*http.Response, error)
+	readResource(resourcePath string) (*http.Response, error)
 }
 
 type fhirStoreClientImpl struct {
