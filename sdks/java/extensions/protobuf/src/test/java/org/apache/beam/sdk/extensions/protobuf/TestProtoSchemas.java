@@ -113,10 +113,10 @@ class TestProtoSchemas {
 
   static final Schema OPTIONAL_PRIMITIVE_SCHEMA =
       Schema.builder()
-          .addField(withFieldNumber("primitive_int32", FieldType.INT32, 1))
-          .addField(withFieldNumber("primitive_bool", FieldType.BOOLEAN, 2))
-          .addField(withFieldNumber("primitive_string", FieldType.STRING, 3))
-          .addField(withFieldNumber("primitive_bytes", FieldType.BYTES, 4))
+          .addField(withFieldNumber("primitive_int32", FieldType.INT32, 1).withNullable(true))
+          .addField(withFieldNumber("primitive_bool", FieldType.BOOLEAN, 2).withNullable(true))
+          .addField(withFieldNumber("primitive_string", FieldType.STRING, 3).withNullable(true))
+          .addField(withFieldNumber("primitive_bytes", FieldType.BYTES, 4).withNullable(true))
           .setOptions(
               Schema.Options.builder()
                   .setOption(

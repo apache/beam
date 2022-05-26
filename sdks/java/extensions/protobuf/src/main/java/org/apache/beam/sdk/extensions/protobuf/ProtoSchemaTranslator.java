@@ -342,13 +342,13 @@ class ProtoSchemaTranslator {
           default:
             fieldType = FieldType.row(getSchema(protoFieldDescriptor.getMessageType()));
         }
+        // all messages are nullable in Proto
+        if (protoFieldDescriptor.isOptional()) {
+          fieldType = fieldType.withNullable(true);
+        }
         break;
       default:
         throw new RuntimeException("Field type not matched.");
-    }
-    // all messages are nullable in Proto
-    if (protoFieldDescriptor.isOptional()) {
-      fieldType = fieldType.withNullable(true);
     }
     return fieldType;
   }
