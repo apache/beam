@@ -17,7 +17,6 @@ package primitives
 
 import (
 	"context"
-	"flag"
 	"math"
 	"reflect"
 	"time"
@@ -26,10 +25,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-)
-
-var (
-	output = flag.String("output", "", "output pubsub topic to write to.")
 )
 
 func init() {
@@ -62,7 +57,6 @@ func (fn *TruncateFn) CreateInitialRestriction(b []byte) offsetrange.Restriction
 
 // CreateTracker wraps the fiven restriction into a LockRTracker type.
 func (fn *TruncateFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
-	// return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
 	fn.Estimator = RangeEstimator{int64(10)}
 	tracker, err := offsetrange.NewGrowableTracker(rest, &fn.Estimator)
 	if err != nil {
@@ -124,7 +118,6 @@ func (fn *TruncateFn) ProcessElement(rt *sdf.LockRTracker, p []byte, emit func(i
 
 func Drain(s beam.Scope) {
 	beam.Init()
-
 	s.Scope("truncate")
 	beam.ParDo(s, &TruncateFn{}, beam.Impulse(s))
 }
