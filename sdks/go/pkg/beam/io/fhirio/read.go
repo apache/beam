@@ -14,7 +14,8 @@
 // limitations under the License.
 
 // Package fhirio provides an API for reading and writing resources to Google
-// Cloud Healthcare Fhir stores. Experimental.
+// Cloud Healthcare Fhir stores.
+// Experimental.
 package fhirio
 
 import (
