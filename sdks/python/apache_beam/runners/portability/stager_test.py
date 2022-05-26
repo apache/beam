@@ -745,6 +745,35 @@ class StagerTest(unittest.TestCase):
                              options, staging_location=staging_dir)[1])
     self.assertEqual(['/tmp/remote/remote.jar'], self.remote_copied_files)
 
+  def test_with_files_to_stage(self):
+    staging_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
+    self.create_temp_file(os.path.join(source_dir, 'abc.txt'), 'nothing')
+    self.create_temp_file(os.path.join(source_dir, 'xyz.bin'), 'nothing')
+    self.create_temp_file(os.path.join(source_dir, 'ijk.tmp'), 'nothing')
+
+    options = PipelineOptions()
+    self.update_options(options)
+    options.view_as(SetupOptions).files_to_stage = [
+        os.path.join(source_dir, 'abc.txt'),
+        os.path.join(source_dir, 'xyz.bin'),
+        os.path.join(source_dir, 'ijk.tmp'),
+        '/tmp/remote/remote.jpg'
+    ]
+
+    self.remote_copied_files = []
+
+    with mock.patch('apache_beam.runners.portability.stager_test'
+                    '.stager.Stager._download_file',
+                    staticmethod(self.file_copy)):
+      with mock.patch('apache_beam.runners.portability.stager_test'
+                      '.stager.Stager._is_remote_path',
+                      staticmethod(self.is_remote_path)):
+        self.assertEqual(['abc.txt', 'xyz.bin', 'ijk.tmp', 'remote.jpg'],
+                         self.stager.create_and_stage_job_resources(
+                             options, staging_location=staging_dir)[1])
+    self.assertEqual(['/tmp/remote/remote.jpg'], self.remote_copied_files)
+
   def test_remove_dependency_from_requirements(self):
     requirements_cache_dir = self.make_temp_dir()
     requirements = ['apache_beam\n', 'avro-python3\n', 'fastavro\n', 'numpy\n']

@@ -206,6 +206,17 @@ class Stager(object):
 
     pickler.set_library(setup_options.pickle_library)
 
+    if setup_options.files_to_stage is not None:
+      files_to_stage = setup_options.files_to_stage
+      if len(files_to_stage) != len(set(files_to_stage)):
+        raise RuntimeError(
+            'Duplicated entries are found in %s. It was specified in the '
+            '--files_to_stage command line option.' % files_to_stage)
+      resources.extend(
+          Stager._create_files_to_stage(
+              files_to_stage, temp_dir=temp_dir,
+              option_hint='--files_to_stage'))
+
     # We can skip boot dependencies: apache beam sdk, python packages from
     # requirements.txt, python packages from extra_packages and workflow tarball
     # if we know we are using a dependency pre-installed sdk container image.
@@ -351,9 +362,15 @@ class Stager(object):
     jar_packages = options.view_as(DebugOptions).lookup_experiment(
         'jar_packages')
     if jar_packages is not None:
+      _LOGGER.warning(
+          'jar_packages experimental flag is not necessary and will be removed '
+          'in the future version of Beam.')
       resources.extend(
-          Stager._create_jar_packages(
-              jar_packages.split(','), temp_dir=temp_dir))
+          Stager._create_files_to_stage(
+              jar_packages.split(','),
+              temp_dir=temp_dir,
+              option_hint="--experiment='jar_packages='",
+              check_extension='.jar'))
 
     # Pickle the main session if requested.
     # We will create the pickled main session locally and then copy it to the
@@ -521,13 +538,14 @@ class Stager(object):
     return path.find('://') != -1
 
   @staticmethod
-  def _create_jar_packages(jar_packages, temp_dir):
+  def _create_files_to_stage(
+      files_to_stage, temp_dir, option_hint, check_extension=None):
     # type: (...) -> List[beam_runner_api_pb2.ArtifactInformation]
 
-    """Creates a list of local jar packages for Java SDK Harness.
+    """Creates a list of local files for Python SDK Harness.
 
-    :param jar_packages: Ordered list of local paths to jar packages to be
-      staged. Only packages on localfile system and GCS are supported.
+    :param files_to_stage: Ordered list of local paths to files to be
+      staged. Only files on localfile system and GCS are supported.
     :param temp_dir: Temporary folder where the resource building can happen.
     :return: A list of tuples of local file paths and file names (no paths) for
       the resource staged. All the files are assumed to be staged in
@@ -538,36 +556,36 @@ class Stager(object):
     """
     resources = []  # type: List[beam_runner_api_pb2.ArtifactInformation]
     staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
-    local_packages = []  # type: List[str]
-    for package in jar_packages:
-      if not os.path.basename(package).endswith('.jar'):
+    local_files = []  # type: List[str]
+    for file in files_to_stage:
+      if check_extension is not None and not os.path.basename(file).endswith(
+          check_extension):
         raise RuntimeError(
-            'The --experiment=\'jar_packages=\' option expects a full path '
-            'ending with ".jar" instead of %s' % package)
+            'The %s option expects a full path ending with "%s" instead of %s' %
+            (option_hint, check_extension, file))
 
-      if not os.path.isfile(package):
-        if Stager._is_remote_path(package):
-          # Download remote package.
-          _LOGGER.info(
-              'Downloading jar package: %s locally before staging', package)
-          _, last_component = FileSystems.split(package)
+      if not os.path.isfile(file):
+        if Stager._is_remote_path(file):
+          # Download remote file.
+          _LOGGER.info('Downloading file: %s locally before staging', file)
+          _, last_component = FileSystems.split(file)
           local_file_path = FileSystems.join(staging_temp_dir, last_component)
-          Stager._download_file(package, local_file_path)
+          Stager._download_file(file, local_file_path)
         else:
           raise RuntimeError(
               'The file %s cannot be found. It was specified in the '
-              '--experiment=\'jar_packages=\' command line option.' % package)
+              '%s command line option.' % (file, option_hint))
       else:
-        local_packages.append(package)
+        local_files.append(file)
 
-    local_packages.extend([
+    local_files.extend([
         FileSystems.join(staging_temp_dir, f)
         for f in os.listdir(staging_temp_dir)
     ])
 
-    for package in local_packages:
-      basename = os.path.basename(package)
-      resources.append(Stager._create_file_stage_to_artifact(package, basename))
+    for file in local_files:
+      basename = os.path.basename(file)
+      resources.append(Stager._create_file_stage_to_artifact(file, basename))
 
     return resources
 

@@ -1115,6 +1115,15 @@ class SetupOptions(PipelineOptions):
             'the worker will install the resulting package before running any '
             'custom code.'))
     parser.add_argument(
+        '--file_to_stage',
+        '--files_to_stage',
+        dest='files_to_stage',
+        action='append',
+        default=None,
+        help=(
+            'Files to stage to the artifact service and be accessible to '
+            'workers.'))
+    parser.add_argument(
         '--beam_plugin',
         '--beam_plugins',
         dest='beam_plugins',
