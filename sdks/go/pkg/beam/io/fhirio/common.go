@@ -23,7 +23,7 @@ import (
 	"net/http"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
-	healthcarex "google.golang.org/api/healthcare/v1"
+	"google.golang.org/api/healthcare/v1"
 	"google.golang.org/api/option"
 )
 
@@ -37,15 +37,15 @@ type fhirStoreClient interface {
 }
 
 type fhirStoreClientImpl struct {
-	fhirService *healthcarex.ProjectsLocationsDatasetsFhirStoresFhirService
+	fhirService *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService
 }
 
 func newFhirStoreClient() *fhirStoreClientImpl {
-	healthcareService, err := healthcarex.NewService(context.Background(), option.WithUserAgent(userAgent))
+	healthcareService, err := healthcare.NewService(context.Background(), option.WithUserAgent(userAgent))
 	if err != nil {
 		panic("Failed to initialize Google Cloud Healthcare Service. Reason: " + err.Error())
 	}
-	return &fhirStoreClientImpl{fhirService: healthcarex.NewProjectsLocationsDatasetsFhirStoresFhirService(healthcareService)}
+	return &fhirStoreClientImpl{fhirService: healthcare.NewProjectsLocationsDatasetsFhirStoresFhirService(healthcareService)}
 }
 
 func (c *fhirStoreClientImpl) readResource(resourcePath string) (*http.Response, error) {
