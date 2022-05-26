@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+import importlib
+
 
 class PythonCallableWithSource(object):
   """Represents a Python callable object with source codes before evaluated.
@@ -31,7 +33,56 @@ class PythonCallableWithSource(object):
   def __init__(self, source):
     # type: (str) -> None
     self._source = source
-    self._callable = eval(source)  # pylint: disable=eval-used
+    self._callable = self.load_from_source(source)
+
+  @classmethod
+  def load_from_source(cls, source):
+    if source in __builtins__:
+      return cls.load_from_expression(source)
+    elif all(s.isidentifier() for s in source.split('.')):
+      if source.split('.')[0] in __builtins__:
+        return cls.load_from_expression(source)
+      else:
+        return cls.load_from_fully_qualified_name(source)
+    else:
+      return cls.load_from_script(source)
+
+  @staticmethod
+  def load_from_expression(source):
+    return eval(source)  # pylint: disable=eval-used
+
+  @staticmethod
+  def load_from_fully_qualified_name(fully_qualified_name):
+    o = None
+    path = ''
+    for segment in fully_qualified_name.split('.'):
+      path = '.'.join([path, segment]) if path else segment
+      if o is not None and hasattr(o, segment):
+        o = getattr(o, segment)
+      else:
+        o = importlib.import_module(path)
+    return o
+
+  @staticmethod
+  def load_from_script(source):
+    lines = [line for line in source.split('\n') if line.strip()]
+    common_indent = min(len(line) - len(line.lstrip()) for line in lines)
+    lines = [line[common_indent:] for line in lines]
+
+    for ix, line in reversed(list(enumerate(lines))):
+      if line[0] != ' ':
+        if line.startswith('def '):
+          name = line[4:line.index('(')].strip()
+        else:
+          name = '__python_callable__'
+          lines[ix] = name + ' = ' + line
+        break
+    else:
+      raise ValueError("Unable to identify callable from %r" % source)
+
+    exec_globals = {}
+    exec('\n'.join(lines), exec_globals)
+    return exec_globals[name]
 
   def get_source(self):
     # type: () -> str
