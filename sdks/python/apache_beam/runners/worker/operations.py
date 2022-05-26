@@ -1227,7 +1227,6 @@ class PGBKCVOperation(Operation):
 
   def setup(self):
     # type: () -> None
-    _LOGGER.debug('Setup called for %s', self)
     super(PGBKCVOperation, self).setup()
     with self.scoped_start_state:
       self.combine_fn.setup()
