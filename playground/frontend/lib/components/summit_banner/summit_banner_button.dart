@@ -21,7 +21,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground/components/summit_banner/banner_description.dart';
 import 'package:playground/constants/assets.dart';
-import 'package:playground/constants/sizes.dart';
 
 class SummitBanner extends StatelessWidget {
   const SummitBanner({Key? key}) : super(key: key);
@@ -39,16 +38,7 @@ class SummitBanner extends StatelessWidget {
           barrierColor: Colors.transparent,
         );
       },
-      child: Container(
-        color: Colors.transparent,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: kMdSpacing),
-          child: SvgPicture.asset(
-            kSummitBannerAsset,
-            height: kFooterHeight,
-          ),
-        ),
-      ),
+      child: SvgPicture.asset(kSummitBannerAsset),
     );
   }
 }

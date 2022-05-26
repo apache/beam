@@ -16,14 +16,21 @@
  * limitations under the License.
  */
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:playground/config/theme.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+const kBannerTopPadding = 60.0;
+const kDescriptionLineHeight = 1.5;
 const kBannerTitle = 'Beam Summit';
-const kBannerDescription = 'Join the Apache Beam community July 18th-20th '
-    'for Beam Summit 2022 to learn more about Beam and share your expertise.';
+const kBannerDescription1 = 'Join the Apache Beam community ';
+const kBannerDescription2 = 'July 18th-20th for Beam Summit 2022 to learn'
+    ' more about Beam and share your expertise.';
+const kSummitUrl = 'https://2022.beamsummit.org';
 
 class BannerDescription extends StatelessWidget {
   const BannerDescription({Key? key}) : super(key: key);
@@ -31,17 +38,17 @@ class BannerDescription extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 60),
+      padding: const EdgeInsets.only(top: kBannerTopPadding),
       child: SizedBox(
-        width: kDescriptionWidth,
+        width: kDescriptionWidth + kSmSpacing,
         child: Card(
           child: Padding(
             padding: const EdgeInsets.all(kLgSpacing),
             child: Wrap(
               children: [
                 Column(
-                  children: const [
-                    Align(
+                  children: [
+                    const Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         kBannerTitle,
@@ -51,7 +58,27 @@ class BannerDescription extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Text(kBannerDescription),
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                              text: kBannerDescription1,
+                              style: const TextStyle(color: Colors.blue),
+                              mouseCursor: SystemMouseCursors.click,
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () async {
+                                  launchUrl(Uri.parse(kSummitUrl));
+                                }),
+                          TextSpan(
+                            text: kBannerDescription2,
+                            style: TextStyle(
+                              color: ThemeColors.of(context).textColor,
+                              height: kDescriptionLineHeight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ],
