@@ -37,7 +37,8 @@ interface Class<T> {
  * for the key and the coder for the value as parameters).
  */
 class CoderRegistry {
-  internal_registry: Record<string, Class<Coder<unknown>>> = {};
+  internal_registry: Record<string, (...args: unknown[]) => Coder<unknown>> =
+    {};
 
   getCoder(
     urn: string,
@@ -46,7 +47,7 @@ class CoderRegistry {
   ) {
     const constructor: (...args) => Coder<unknown> =
       this.internal_registry[urn];
-      
+
     if (constructor === undefined) {
       throw new Error("Could not find coder for URN " + urn);
     }
@@ -59,15 +60,18 @@ class CoderRegistry {
 
   // TODO: Figure out how to branch on constructors (called with new) and
   // ordinary functions.
-  register(urn: string, coderClass: Class<Coder<any>>) {
+  register(urn: string, coderClass: Class<Coder<unknown>>) {
     this.registerClass(urn, coderClass);
   }
 
-  registerClass(urn: string, coderClass: Class<Coder<any>>) {
+  registerClass(urn: string, coderClass: Class<Coder<unknown>>) {
     this.registerConstructor(urn, (...args) => new coderClass(...args));
   }
 
-  registerConstructor(urn: string, constructor: (...args) => Coder<any>) {
+  registerConstructor(
+    urn: string,
+    constructor: (...args: unknown[]) => Coder<unknown>
+  ) {
     this.internal_registry[urn] = constructor;
   }
 }
