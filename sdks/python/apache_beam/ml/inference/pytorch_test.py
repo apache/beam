@@ -112,7 +112,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
     inference_runner = PytorchInferenceRunner(torch.device('cpu'))
     predictions = inference_runner.run_inference(examples, model)
     for actual, expected in zip(predictions, expected_predictions):
-      self.assertTrue(_compare_prediction_result(actual, expected))
+      self.assertEqual(actual, expected)
 
   def test_inference_runner_multiple_tensor_features(self):
     examples = [
@@ -138,7 +138,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
     inference_runner = PytorchInferenceRunner(torch.device('cpu'))
     predictions = inference_runner.run_inference(examples, model)
     for actual, expected in zip(predictions, expected_predictions):
-      self.assertTrue(_compare_prediction_result(actual, expected))
+      self.assertEqual(actual, expected)
 
   def test_inference_runner_kwargs(self):
     examples = [
@@ -226,7 +226,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
     predictions = inference_runner.run_inference(
         batch=examples, model=model, prediction_params=prediction_params)
     for actual, expected in zip(predictions, expected_predictions):
-      self.assertTrue(_compare_prediction_result(actual, expected))
+      self.assertEqual(actual, expected)
 
   def test_num_bytes(self):
     inference_runner = PytorchInferenceRunner(torch.device('cpu'))
