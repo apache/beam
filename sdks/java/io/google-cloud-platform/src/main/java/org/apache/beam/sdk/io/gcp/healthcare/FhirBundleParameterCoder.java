@@ -24,26 +24,24 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
-/** Coder for {@link FhirBundleWithMetadata}. */
-public class FhirBundleWithMetadataCoder extends CustomCoder<FhirBundleWithMetadata> {
+/** Coder for {@link FhirBundleParameter}. */
+public class FhirBundleParameterCoder extends CustomCoder<FhirBundleParameter> {
   private static final NullableCoder<String> STRING_CODER = NullableCoder.of(StringUtf8Coder.of());
 
-  public static FhirBundleWithMetadataCoder of() {
-    return new FhirBundleWithMetadataCoder();
+  public static FhirBundleParameterCoder of() {
+    return new FhirBundleParameterCoder();
   }
 
   @Override
-  public void encode(FhirBundleWithMetadata value, OutputStream outStream) throws IOException {
+  public void encode(FhirBundleParameter value, OutputStream outStream) throws IOException {
     STRING_CODER.encode(value.getMetadata(), outStream);
     STRING_CODER.encode(value.getBundle(), outStream);
-    STRING_CODER.encode(value.getResponse(), outStream);
   }
 
   @Override
-  public FhirBundleWithMetadata decode(InputStream inStream) throws IOException {
+  public FhirBundleParameter decode(InputStream inStream) throws IOException {
     String metadata = STRING_CODER.decode(inStream);
     String bundle = STRING_CODER.decode(inStream);
-    String response = STRING_CODER.decode(inStream);
-    return FhirBundleWithMetadata.of(metadata, bundle, response);
+    return FhirBundleParameter.of(metadata, bundle);
   }
 }

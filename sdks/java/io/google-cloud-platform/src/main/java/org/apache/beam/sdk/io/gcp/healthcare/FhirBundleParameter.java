@@ -22,42 +22,34 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
 
-/**
- * FhirBundleWithMetadata represents a FHIR bundle, with it's metadata (eg. source ID like HL7
- * message path) in JSON format to be executed on any FHIR store. *
- */
-@DefaultCoder(FhirBundleWithMetadataCoder.class)
+/** FhirBundleParameter represents a FHIR bundle in JSON format to be executed on a FHIR store. */
+@DefaultCoder(FhirBundleParameterCoder.class)
 @AutoValue
-public abstract class FhirBundleWithMetadata {
+public abstract class FhirBundleParameter {
 
   static Builder builder() {
-    return new AutoValue_FhirBundleWithMetadata.Builder();
+    return new AutoValue_FhirBundleParameter.Builder();
   }
 
   /**
-   * String representing the source of the Bundle to be written. Used to pass source data through
-   * the ExecuteBundles PTransform.
+   * String representing the metadata of the Bundle to be written. Used to pass metadata through the
+   * ExecuteBundles PTransform.
    */
   public abstract String getMetadata();
 
   /** FHIR R4 bundle resource object as a string. */
   public abstract String getBundle();
 
-  /** HTTP response from the FHIR store after attempting to write the Bundle method. */
-  public abstract String getResponse();
+  public static FhirBundleParameter of(@Nullable String metadata, String bundle) {
 
-  public static FhirBundleWithMetadata of(
-      @Nullable String metadata, String bundle, @Nullable String response) {
-
-    return FhirBundleWithMetadata.builder()
+    return FhirBundleParameter.builder()
         .setMetadata(Objects.toString(metadata, ""))
         .setBundle(bundle)
-        .setResponse(Objects.toString(response, ""))
         .build();
   }
 
-  public static FhirBundleWithMetadata of(String bundle) {
-    return FhirBundleWithMetadata.of(null, bundle, null);
+  public static FhirBundleParameter of(String bundle) {
+    return FhirBundleParameter.of(null, bundle);
   }
 
   @AutoValue.Builder
@@ -66,8 +58,6 @@ public abstract class FhirBundleWithMetadata {
 
     abstract Builder setBundle(String bundle);
 
-    abstract Builder setResponse(String response);
-
-    abstract FhirBundleWithMetadata build();
+    abstract FhirBundleParameter build();
   }
 }
