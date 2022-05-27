@@ -51,34 +51,47 @@ import (
 // TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
 
 var (
-	endpoint             = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
-	stagingLocation      = flag.String("staging_location", "", "GCS staging location (required).")
-	image                = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
-	labels               = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
-	serviceAccountEmail  = flag.String("service_account_email", "", "Service account email (optional).")
-	numWorkers           = flag.Int64("num_workers", 0, "Number of workers (optional).")
-	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
-	diskSizeGb           = flag.Int64("disk_size_gb", 0, "Size of root disk for VMs, in GB (optional).")
-	diskType             = flag.String("disk_type", "", "Type of root disk for VMs (optional).")
-	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
-	zone                 = flag.String("zone", "", "GCP zone (optional)")
-	network              = flag.String("network", "", "GCP network (optional)")
-	subnetwork           = flag.String("subnetwork", "", "GCP subnetwork (optional)")
-	noUsePublicIPs       = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
-	tempLocation         = flag.String("temp_location", "", "Temp location (optional)")
-	machineType          = flag.String("worker_machine_type", "", "GCE machine type (optional)")
-	minCPUPlatform       = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
-	workerJar            = flag.String("dataflow_worker_jar", "", "Dataflow worker jar (optional)")
-	workerRegion         = flag.String("worker_region", "", "Dataflow worker region (optional)")
-	workerZone           = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
+	endpoint               = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
+	stagingLocation        = flag.String("staging_location", "", "GCS staging location (required).")
+	image                  = flag.String("worker_harness_container_image", "", "Worker harness container image (optional).")
+	labels                 = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
+	serviceAccountEmail    = flag.String("service_account_email", "", "Service account email (optional).")
+	numWorkers             = flag.Int64("num_workers", 0, "Number of workers (optional).")
+	workerHarnessThreads   = flag.Int64("number_of_worker_harness_threads", 0, "The number of threads per each worker harness process (optional).")
+	maxNumWorkers          = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
+	diskSizeGb             = flag.Int64("disk_size_gb", 0, "Size of root disk for VMs, in GB (optional).")
+	diskType               = flag.String("disk_type", "", "Type of root disk for VMs (optional).")
+	autoscalingAlgorithm   = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
+	zone                   = flag.String("zone", "", "GCP zone (optional)")
+	kmsKey                 = flag.String("dataflow_kms_key", "", "The Cloud KMS key identifier used to encrypt data at rest (optional).")
+	network                = flag.String("network", "", "GCP network (optional)")
+	subnetwork             = flag.String("subnetwork", "", "GCP subnetwork (optional)")
+	noUsePublicIPs         = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
+	tempLocation           = flag.String("temp_location", "", "Temp location (optional)")
+	machineType            = flag.String("worker_machine_type", "", "GCE machine type (optional)")
+	minCPUPlatform         = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
+	workerJar              = flag.String("dataflow_worker_jar", "", "Dataflow worker jar (optional)")
+	workerRegion           = flag.String("worker_region", "", "Dataflow worker region (optional)")
+	workerZone             = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
+	dataflowServiceOptions = flag.String("dataflow_service_options", "", "Comma separated list of additional job modes and configurations (optional)")
+	flexRSGoal             = flag.String("flexrs_goal", "", "Which Flexible Resource Scheduling mode to run in (optional)")
+	// TODO(BEAM-14512) Turn this on once TO_STRING is implemented
+	// enableHotKeyLogging    = flag.Bool("enable_hot_key_logging", false, "Specifies that when a hot key is detected in the pipeline, the literal, human-readable key is printed in the user's Cloud Logging project (optional).")
 
-	executeAsync   = flag.Bool("execute_async", false, "Asynchronous execution. Submit the job and return immediately.")
+	// Streaming update flags
+	update           = flag.Bool("update", false, "Submit this job as an update to an existing Dataflow job (optional); the job name must match the existing job to update")
+	transformMapping = flag.String("transform_name_mapping", "", "JSON-formatted mapping of old transform names to new transform names for pipeline updates (optional)")
+
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 
 	// SDK options
 	cpuProfiling = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
 )
+
+func init() {
+	flag.BoolVar(jobopts.Async, "execute_async", false, "Asynchronous execution. Submit the job and return immediately. Alias of --async.")
+}
 
 // flagFilter filters flags that are already represented by the above flags
 // or in the JobOpts to prevent them from appearing duplicated
@@ -110,6 +123,8 @@ var flagFilter = map[string]bool{
 	"teardown_policy":                true,
 	"cpu_profiling":                  true,
 	"session_recording":              true,
+	"update":                         true,
+	"transform_name_mapping":         true,
 
 	// Job Options flags
 	"endpoint":                 true,
@@ -207,7 +222,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		return nil, nil
 	}
 
-	return dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *executeAsync)
+	return dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *jobopts.Async)
 }
 
 func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
@@ -239,6 +254,24 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 		}
 	}
 
+	if *flexRSGoal != "" {
+		switch *flexRSGoal {
+		case "FLEXRS_UNSPECIFIED", "FLEXRS_SPEED_OPTIMIZED", "FLEXRS_COST_OPTIMIZED":
+			// valid values
+		default:
+			return nil, errors.Errorf("invalid flex resource scheduling goal. Got %q; Use --flexrs_goal=(FLEXRS_UNSPECIFIED|FLEXRS_SPEED_OPTIMIZED|FLEXRS_COST_OPTIMIZED)", *flexRSGoal)
+		}
+	}
+	if !*update && *transformMapping != "" {
+		return nil, errors.New("provided transform_name_mapping without setting the --update flag, so the pipeline would not be updated")
+	}
+	var updateTransformMapping map[string]string
+	if *transformMapping != "" {
+		if err := json.Unmarshal([]byte(*transformMapping), &updateTransformMapping); err != nil {
+			return nil, errors.Wrapf(err, "error reading --transform_name_mapping flag as JSON")
+		}
+	}
+
 	hooks.SerializeHooksToOptions()
 
 	experiments := jobopts.GetExperiments()
@@ -264,32 +297,43 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
 	}
 
+	var dfServiceOptions []string
+	if *dataflowServiceOptions != "" {
+		dfServiceOptions = strings.Split(*dataflowServiceOptions, ",")
+	}
+
 	beam.PipelineOptions.LoadOptionsFromFlags(flagFilter)
 	opts := &dataflowlib.JobOptions{
-		Name:                jobopts.GetJobName(),
-		Experiments:         experiments,
-		Options:             beam.PipelineOptions.Export(),
-		Project:             project,
-		Region:              region,
-		Zone:                *zone,
-		Network:             *network,
-		Subnetwork:          *subnetwork,
-		NoUsePublicIPs:      *noUsePublicIPs,
-		NumWorkers:          *numWorkers,
-		MaxNumWorkers:       *maxNumWorkers,
-		DiskSizeGb:          *diskSizeGb,
-		DiskType:            *diskType,
-		Algorithm:           *autoscalingAlgorithm,
-		MachineType:         *machineType,
-		Labels:              jobLabels,
-		ServiceAccountEmail: *serviceAccountEmail,
-		TempLocation:        *tempLocation,
-		Worker:              *jobopts.WorkerBinary,
-		WorkerJar:           *workerJar,
-		WorkerRegion:        *workerRegion,
-		WorkerZone:          *workerZone,
-		TeardownPolicy:      *teardownPolicy,
-		ContainerImage:      getContainerImage(ctx),
+		Name:                   jobopts.GetJobName(),
+		Experiments:            experiments,
+		DataflowServiceOptions: dfServiceOptions,
+		Options:                beam.PipelineOptions.Export(),
+		Project:                project,
+		Region:                 region,
+		Zone:                   *zone,
+		KmsKey:                 *kmsKey,
+		Network:                *network,
+		Subnetwork:             *subnetwork,
+		NoUsePublicIPs:         *noUsePublicIPs,
+		NumWorkers:             *numWorkers,
+		MaxNumWorkers:          *maxNumWorkers,
+		WorkerHarnessThreads:   *workerHarnessThreads,
+		DiskSizeGb:             *diskSizeGb,
+		DiskType:               *diskType,
+		Algorithm:              *autoscalingAlgorithm,
+		FlexRSGoal:             *flexRSGoal,
+		MachineType:            *machineType,
+		Labels:                 jobLabels,
+		ServiceAccountEmail:    *serviceAccountEmail,
+		TempLocation:           *tempLocation,
+		Worker:                 *jobopts.WorkerBinary,
+		WorkerJar:              *workerJar,
+		WorkerRegion:           *workerRegion,
+		WorkerZone:             *workerZone,
+		TeardownPolicy:         *teardownPolicy,
+		ContainerImage:         getContainerImage(ctx),
+		Update:                 *update,
+		TransformNameMapping:   updateTransformMapping,
 	}
 	if opts.TempLocation == "" {
 		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")

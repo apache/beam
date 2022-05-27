@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//lint:file-ignore U1000 unused functions/types are for tests
+
 package graph
 
 import (
@@ -21,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
@@ -190,6 +193,7 @@ func TestNewDoFnSdf(t *testing.T) {
 			{dfn: &BadSdfReturnsRestSize{}},
 			{dfn: &BadSdfReturnsCreateTracker{}},
 			{dfn: &BadSdfReturnsTruncateRestriction{}},
+			{dfn: &BadSdfReturnsProcessElement{}},
 			// Validate element types consistent with ProcessElement.
 			{dfn: &BadSdfElementTCreateRest{}},
 			{dfn: &BadSdfElementTSplitRest{}},
@@ -758,8 +762,8 @@ func (fn *GoodSdf) CreateTracker(RestT) *RTrackerT {
 	return &RTrackerT{}
 }
 
-func (fn *GoodSdf) ProcessElement(*RTrackerT, int) int {
-	return 0
+func (fn *GoodSdf) ProcessElement(*RTrackerT, int) (int, sdf.ProcessContinuation) {
+	return 0, sdf.StopProcessing()
 }
 
 func (fn *GoodSdf) TruncateRestriction(*RTrackerT, int) RestT {
@@ -786,8 +790,8 @@ func (fn *GoodSdfKv) CreateTracker(RestT) *RTrackerT {
 	return &RTrackerT{}
 }
 
-func (fn *GoodSdfKv) ProcessElement(*RTrackerT, int, int) int {
-	return 0
+func (fn *GoodSdfKv) ProcessElement(*RTrackerT, int, int) (int, sdf.ProcessContinuation) {
+	return 0, sdf.StopProcessing()
 }
 
 func (fn *GoodSdfKv) TruncateRestriction(*RTrackerT, int, int) RestT {
@@ -977,6 +981,14 @@ type BadSdfReturnsTruncateRestriction struct {
 
 func (fn *BadSdfReturnsTruncateRestriction) TruncateRestriction(*RTrackerT, int) (RestT, int) {
 	return RestT{}, 0
+}
+
+type BadSdfReturnsProcessElement struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfReturnsProcessElement) ProcessElement(*RTrackerT, int) int {
+	return 0
 }
 
 // Examples with element types inconsistent with ProcessElement.

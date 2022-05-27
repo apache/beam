@@ -38,6 +38,7 @@ from typing import Any
 from typing import Generic
 from typing import Iterable
 from typing import List
+from typing import Mapping
 from typing import TypeVar
 
 import apache_beam as beam
@@ -82,6 +83,10 @@ class ModelLoader(Generic[T]):
     """Returns an implementation of InferenceRunner for this model."""
     raise NotImplementedError(type(self))
 
+  def batch_elements_kwargs(self) -> Mapping[str, Any]:
+    """Returns kwargs suitable for beam.BatchElements."""
+    return {}
+
 
 class RunInference(beam.PTransform):
   """An extensible transform for running inferences."""
@@ -95,7 +100,7 @@ class RunInference(beam.PTransform):
     return (
         pcoll
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
-        | beam.BatchElements()
+        | beam.BatchElements(**self._model_loader.batch_elements_kwargs())
         | beam.ParDo(_RunInferenceDoFn(self._model_loader, self._clock)))
 
 

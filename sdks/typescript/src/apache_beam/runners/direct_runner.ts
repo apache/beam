@@ -28,13 +28,13 @@ import { JobState_Enum } from "../proto/beam_job_api";
 
 import { Pipeline } from "../internal/pipeline";
 import { Root } from "../pvalue";
-import { Impulse, GroupByKey } from "../transforms/internal";
+import { impulse, groupByKey } from "../transforms/internal";
 import { Runner, PipelineResult } from "./runner";
 import * as worker from "../worker/worker";
 import * as operators from "../worker/operators";
 import { createStateKey } from "../worker/pardo_context";
 import * as state from "../worker/state";
-import { ParDo } from "../transforms/pardo";
+import { parDo } from "../transforms/pardo";
 import {
   Window,
   GlobalWindow,
@@ -44,13 +44,60 @@ import {
 } from "../values";
 import { PaneInfoCoder } from "../coders/standard_coders";
 import { Coder, Context as CoderContext } from "../coders/coders";
+import * as environments from "../internal/environments";
 import { serializeFn, deserializeFn } from "../internal/serialize";
+
+const SUPPORTED_REQUIREMENTS: string[] = [];
+
+export function directRunner(options: Object = {}): Runner {
+  return new DirectRunner(options);
+}
 
 export class DirectRunner extends Runner {
   // All the operators for a given pipeline should share the same state.
   // This global mapping allows operators to look up a shared state object for
   // a given pipeline on deserialization.
   static inMemoryStatesRefs: Map<string, InMemoryStateProvider> = new Map();
+
+  constructor(private options: Object = {}) {
+    super();
+  }
+
+  unsupportedFeatures(pipeline, options: Object = {}): string[] {
+    return [...this.unsupportedFeaturesIter(pipeline, options)];
+  }
+
+  *unsupportedFeaturesIter(pipeline, options: Object = {}) {
+    const proto: runnerApi.Pipeline = pipeline.proto;
+    for (const requirement of proto.requirements) {
+      if (!SUPPORTED_REQUIREMENTS.includes(requirement)) {
+        yield requirement;
+      }
+    }
+
+    for (const env of Object.values(proto.components!.environments)) {
+      if (
+        env.urn &&
+        env.urn != environments.TYPESCRIPT_DEFAULT_ENVIRONMENT_URN
+      ) {
+        yield env.urn;
+      }
+    }
+
+    for (const windowing of Object.values(
+      proto.components!.windowingStrategies
+    )) {
+      if (
+        ![
+          runnerApi.MergeStatus_Enum.UNSPECIFIED,
+          runnerApi.MergeStatus_Enum.NON_MERGING,
+          runnerApi.MergeStatus_Enum.ALREADY_MERGED,
+        ].includes(windowing.mergeStatus)
+      ) {
+        yield "MergeStatus=" + windowing.mergeStatus;
+      }
+    }
+  }
 
   async runPipeline(p): Promise<PipelineResult> {
     // console.dir(p.proto, { depth: null });
@@ -74,7 +121,7 @@ export class DirectRunner extends Runner {
         descriptor,
         null!,
         new state.CachingStateProvider(stateProvider),
-        [Impulse.urn]
+        [impulse.urn]
       );
       await processor.process("bundle_id");
 
@@ -118,7 +165,7 @@ class DirectImpulseOperator implements operators.IOperator {
   async finishBundle() {}
 }
 
-operators.registerOperator(Impulse.urn, DirectImpulseOperator);
+operators.registerOperator(impulse.urn, DirectImpulseOperator);
 
 // Only to be used in direct runner, as this will only group within a single bundle.
 // TODO: (Extension) This could be used as a base for the PGBKOperation operator,
@@ -201,7 +248,7 @@ class DirectGbkOperator implements operators.IOperator {
   }
 }
 
-operators.registerOperator(GroupByKey.urn, DirectGbkOperator);
+operators.registerOperator(groupByKey.urn, DirectGbkOperator);
 
 /**
  * Rewrites the pipeline to be suitable for running as a single "bundle."
@@ -258,7 +305,7 @@ function rewriteSideInputs(p: runnerApi.Pipeline, pipelineStateRef: string) {
   for (const [transformId, transform] of Object.entries(transforms)) {
     if (
       transform.spec != undefined &&
-      transform.spec.urn == ParDo.urn &&
+      transform.spec.urn == parDo.urn &&
       Object.keys(transform.inputs).length > 1
     ) {
       const spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);

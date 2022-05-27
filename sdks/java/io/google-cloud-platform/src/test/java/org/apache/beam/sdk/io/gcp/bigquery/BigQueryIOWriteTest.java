@@ -124,6 +124,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
@@ -1277,8 +1278,6 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withoutValidation());
     p.run();
 
-    System.err.println(
-        "Wrote: " + fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"));
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(
@@ -2485,6 +2484,97 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(row1, row3));
+  }
+
+  @Test
+  public void testStorageApiErrors() throws Exception {
+    BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
+    bqOptions.setSchemaUpdateRetries(1);
+
+    if (!useStorageApi) {
+      return;
+    }
+
+    final Method method =
+        useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+
+    TableSchema subSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(new TableFieldSchema().setName("number").setType("INTEGER")));
+
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema()
+                        .setName("name")
+                        .setType("STRING")
+                        .setMode(Mode.REQUIRED.name()),
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema()
+                        .setName("nested")
+                        .setType("RECORD")
+                        .setFields(subSchema.getFields())));
+
+    TableRow goodNested = new TableRow().set("number", "42");
+    TableRow badNested = new TableRow().set("number", "nAn");
+
+    List<TableRow> goodRows =
+        ImmutableList.of(
+            new TableRow().set("name", "n1").set("number", "1"),
+            new TableRow().set("name", "n2").set("number", "2"),
+            new TableRow().set("name", "parent1").set("nested", goodNested));
+    List<TableRow> badRows =
+        ImmutableList.of(
+            // Unknown field.
+            new TableRow().set("name", "n3").set("number", "3").set("badField", "foo"),
+            // Unknown field.
+            new TableRow()
+                .setF(
+                    ImmutableList.of(
+                        new TableCell().setV("n3"),
+                        new TableCell().setV("3"),
+                        new TableCell(),
+                        new TableCell().setV("foo"))),
+            // Wrong type.
+            new TableRow().set("name", "n4").set("number", "baadvalue"),
+            // Wrong type.
+            new TableRow()
+                .setF(
+                    ImmutableList.of(
+                        new TableCell().setV("n4"),
+                        new TableCell().setV("baadvalue"),
+                        new TableCell())),
+            // Missing required field.
+            new TableRow().set("number", "42"),
+            // Invalid nested row
+            new TableRow().set("name", "parent2").set("nested", badNested));
+
+    WriteResult result =
+        p.apply(Create.of(Iterables.concat(goodRows, badRows)))
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to("project-id:dataset-id.table")
+                    .withMethod(method)
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withSchema(tableSchema)
+                    .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
+                    .withTestServices(fakeBqServices)
+                    .withoutValidation());
+
+    PCollection<TableRow> deadRows =
+        result
+            .getFailedStorageApiInserts()
+            .apply(
+                MapElements.into(TypeDescriptor.of(TableRow.class))
+                    .via(BigQueryStorageApiInsertError::getRow));
+    PAssert.that(deadRows).containsInAnyOrder(badRows);
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table"),
+        containsInAnyOrder(Iterables.toArray(goodRows, TableRow.class)));
   }
 
   @Test

@@ -366,13 +366,13 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 
 	ow := su.GetOutputWatermark()
 
-	// Always split at fraction 0.0, should have no primaries left.
-	ps, rs, err := su.Split(0.0)
+	// Checkpointing is functionally a split at fraction 0.0
+	rs, err := su.Checkpoint()
 	if err != nil {
 		return SplitResult{}, -1 * time.Minute, false, err
 	}
-	if len(ps) != 0 {
-		return SplitResult{}, -1 * time.Minute, false, fmt.Errorf("failed to checkpoint: got %v primary roots, want none", ps)
+	if len(rs) == 0 {
+		return SplitResult{}, -1 * time.Minute, false, nil
 	}
 
 	encodeElms := n.makeEncodeElms()

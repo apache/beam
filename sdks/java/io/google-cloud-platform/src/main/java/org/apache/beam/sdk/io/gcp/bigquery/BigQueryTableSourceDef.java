@@ -26,6 +26,7 @@ import java.io.IOException;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -106,11 +107,12 @@ class BigQueryTableSourceDef implements BigQuerySourceDef {
   @Override
   public Schema getBeamSchema(BigQueryOptions bqOptions) {
     try {
-      TableReference tableRef = getTableReference(bqOptions);
-      TableSchema tableSchema =
-          bqServices.getDatasetService(bqOptions).getTable(tableRef).getSchema();
-      return BigQueryUtils.fromTableSchema(tableSchema);
-    } catch (IOException | InterruptedException | NullPointerException e) {
+      try (DatasetService datasetService = bqServices.getDatasetService(bqOptions)) {
+        TableReference tableRef = getTableReference(bqOptions);
+        TableSchema tableSchema = datasetService.getTable(tableRef).getSchema();
+        return BigQueryUtils.fromTableSchema(tableSchema);
+      }
+    } catch (Exception e) {
       throw new BigQuerySchemaRetrievalException("Exception while trying to retrieve schema", e);
     }
   }

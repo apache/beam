@@ -69,8 +69,6 @@ var defaultClasspaths = map[string][]string{
 	"com.mysql.jdbc.Driver": []string{"mysql:mysql-connector-java:8.0.28"},
 }
 
-var autoStartupAddress string = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
-
 // jdbcConfigSchema is the config schema as per the expected corss language payload
 // for JDBC IO read and write transform.
 type jdbcConfigSchema struct {

@@ -31,25 +31,23 @@ import { serviceProviderFromJavaGradleTarget } from "../utils/service";
  * corresponding names can be used in the sql statement.
  *
  * The input(s) must be schema'd (i.e. use the RowCoder). This can be done
- * by explicitly setting the schema with internal.WithCoderInternal or passing
+ * by explicitly setting the schema with external.withRowCoder or passing
  * a prototype element in as a second argument, e.g.
  *
  * pcoll.applyAsync(
- *    new SqlTransform(
+ *    sqlTransform(
  *        "select a, b from PCOLLECTION",
  *        {a: 0, b: "string"},
  *    ));
  */
-export class SqlTransform<
+export function sqlTransform<
   InputT extends PCollection<any> | { [key: string]: PCollection<any> }
-> extends transform.AsyncPTransform<InputT, PCollection<any>> {
+>(
+  query: string,
+  inputTypes = null
+): transform.AsyncPTransform<InputT, PCollection<any>> {
   // TOOD: (API) (Typescript): How to infer input_types, or at least make it optional.
-  constructor(private query: string, private inputTypes = null) {
-    // TODO: Unique names. Should we truncate/omit the full SQL statement?
-    super("Sql(" + query + ")");
-  }
-
-  async asyncExpand(input: InputT): Promise<PCollection<any>> {
+  async function expandInternal(input: InputT): Promise<PCollection<any>> {
     function withCoder<T>(pcoll: PCollection<T>, type): PCollection<T> {
       if (type == null) {
         if (
@@ -67,33 +65,30 @@ export class SqlTransform<
         }
         return pcoll;
       }
-      return pcoll.apply(
-        new internal.WithCoderInternal(row_coder.RowCoder.fromJSON(type))
-      );
+      return pcoll.apply(internal.withRowCoder(type));
     }
 
     if (input instanceof PCollection) {
-      input = withCoder(input, this.inputTypes) as InputT;
+      input = withCoder(input, inputTypes) as InputT;
     } else {
       input = Object.fromEntries(
         Object.keys(input).map((tag) => [
           tag,
-          withCoder(
-            input[tag],
-            this.inputTypes == null ? null : this.inputTypes[tag]
-          ),
+          withCoder(input[tag], inputTypes == null ? null : inputTypes[tag]),
         ])
       ) as InputT;
     }
 
     return await P(input).asyncApply(
-      new external.RawExternalTransform(
+      external.rawExternalTransform(
         "beam:external:java:sql:v1",
-        { query: this.query },
+        { query: query },
         serviceProviderFromJavaGradleTarget(
           "sdks:java:extensions:sql:expansion-service:shadowJar"
         )
       )
     );
   }
+
+  return transform.withName(`sqlTransform(${query})`, expandInternal);
 }
