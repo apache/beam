@@ -122,7 +122,7 @@ function writeByteCallback(
   buf[pos] = val & 0xff;
 }
 
-interface HackedWriter extends Writer {
+export interface HackedWriter extends Writer {
   _push?(...args: unknown[]);
 }
 
