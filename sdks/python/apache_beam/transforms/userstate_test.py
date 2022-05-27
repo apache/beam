@@ -992,6 +992,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
     self.assertEqual([('emit1', 10), ('emit2', 20), ('emit3', 30)],
                      sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
+  @pytest.mark.no_xdist
   @pytest.mark.timeout(3)
   def test_dynamic_timer_clear_then_set_timer(self):
     class EmitTwoEvents(DoFn):
