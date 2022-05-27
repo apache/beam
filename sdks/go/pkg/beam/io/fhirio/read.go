@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
@@ -35,9 +34,9 @@ func init() {
 
 type readResourceFn struct {
 	client                fhirStoreClient
-	readResourceErrors    *metrics.Counter
-	readResourceSuccess   *metrics.Counter
-	readResourceLatencyMs *metrics.Distribution
+	readResourceErrors    beam.Counter
+	readResourceSuccess   beam.Counter
+	readResourceLatencyMs beam.Distribution
 }
 
 func (fn readResourceFn) String() string {
@@ -48,9 +47,9 @@ func (fn *readResourceFn) Setup() {
 	if fn.client == nil {
 		fn.client = newFhirStoreClient()
 	}
-	fn.readResourceErrors = metrics.NewCounter(fn.String(), baseMetricPrefix+"read_resource_error_count")
-	fn.readResourceSuccess = metrics.NewCounter(fn.String(), baseMetricPrefix+"read_resource_success_count")
-	fn.readResourceLatencyMs = metrics.NewDistribution(fn.String(), baseMetricPrefix+"read_resource_latency_ms")
+	fn.readResourceErrors = beam.NewCounter(fn.String(), baseMetricPrefix+"read_resource_error_count")
+	fn.readResourceSuccess = beam.NewCounter(fn.String(), baseMetricPrefix+"read_resource_success_count")
+	fn.readResourceLatencyMs = beam.NewDistribution(fn.String(), baseMetricPrefix+"read_resource_latency_ms")
 }
 
 func (fn *readResourceFn) ProcessElement(ctx context.Context, resourcePath string, emitResource func(string), emitDeadLetter func(string)) {
