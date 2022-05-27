@@ -38,7 +38,7 @@ func TestRead(t *testing.T) {
 					return nil, errors.New("")
 				},
 			},
-			containedError: "Failed to fetch resource",
+			containedError: "failed fetching resource",
 		},
 		{
 			name: "Read Request Returns Bad Status",
@@ -47,7 +47,7 @@ func TestRead(t *testing.T) {
 					return &http.Response{StatusCode: 403}, nil
 				},
 			},
-			containedError: "bad status",
+			containedError: "returned bad status",
 		},
 		{
 			name: "Response body fails to be parsed",
@@ -60,7 +60,7 @@ func TestRead(t *testing.T) {
 					}, StatusCode: 200}, nil
 				},
 			},
-			containedError: "Error while reading response body",
+			containedError: "error reading response body",
 		},
 	}
 

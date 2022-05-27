@@ -59,20 +59,20 @@ func (fn *readResourceFn) ProcessElement(ctx context.Context, resourcePath strin
 
 	if err != nil {
 		fn.readResourceErrors.Inc(ctx, 1)
-		emitDeadLetter(errors.Wrapf(err, "Failed to fetch resource [%s].", resourcePath).Error())
+		emitDeadLetter(errors.Wrapf(err, "failed fetching resource [%s]", resourcePath).Error())
 		return
 	}
 
 	if response.StatusCode != 200 {
 		fn.readResourceErrors.Inc(ctx, 1)
-		emitDeadLetter(errors.Errorf("Fetched resource [%s] returned bad status [%d].", resourcePath, response.StatusCode).Error())
+		emitDeadLetter(errors.Errorf("fetched resource [%s] returned bad status [%d]", resourcePath, response.StatusCode).Error())
 		return
 	}
 
 	bytes, err := io.ReadAll(response.Body)
 	if err != nil {
 		fn.readResourceErrors.Inc(ctx, 1)
-		emitDeadLetter(errors.Wrapf(err, "Error while reading response body of resource [%s]", resourcePath).Error())
+		emitDeadLetter(errors.Wrapf(err, "error reading response body of resource [%s]", resourcePath).Error())
 		return
 	}
 
