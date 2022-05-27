@@ -28,13 +28,13 @@ public abstract class FhirBundleResponse {
     return new AutoValue_FhirBundleResponse.Builder();
   }
 
-  /**
-   * String representing the metadata of the Bundle to be written. Used to pass metadata through the
-   * ExecuteBundles PTransform.
-   */
+  /** FhirBundleParameter represents a FHIR bundle in JSON format to be executed on a FHIR store. */
   public abstract FhirBundleParameter getFhirBundleParameter();
 
-  /** FHIR R4 bundle resource object as a string. */
+  /**
+   * HTTP response from the FHIR store after attempting to write the Bundle method. The value varies
+   * depending on BATCH vs TRANSACTION bundles.
+   */
   public abstract String getResponse();
 
   public static FhirBundleResponse of(
@@ -43,10 +43,6 @@ public abstract class FhirBundleResponse {
         .setFhirBundleParameter(fhirBundleParameter)
         .setResponse(Objects.toString(response, ""))
         .build();
-  }
-
-  public static FhirBundleResponse of(FhirBundleParameter fhirBundleParameter) {
-    return FhirBundleResponse.of(fhirBundleParameter, null);
   }
 
   @AutoValue.Builder

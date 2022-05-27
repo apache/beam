@@ -28,7 +28,10 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.ExecuteBundles;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.ExecuteBundlesResult;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -120,11 +123,13 @@ public class FhirIOWriteIT {
 
   @Test
   public void testFhirIO_ExecuteBundle_parseResponse() {
-    List<String> bundles = BUNDLES.get("BUNDLE_PARSE_TEST");
-    FhirIO.Write.AbstractResult writeResult =
-        pipeline
-            .apply(Create.of(bundles))
-            .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
+    List<FhirBundleParameter> bundles =
+        BUNDLES.get("BUNDLE_PARSE_TEST").stream()
+            .map(bundle -> FhirBundleParameter.of(bundle))
+            .collect(Collectors.toList());
+
+    ExecuteBundlesResult writeResult =
+        pipeline.apply(Create.of(bundles)).apply(new ExecuteBundles(options.getFhirStore()));
 
     PAssert.that(writeResult.getSuccessfulBodies())
         .satisfies(
@@ -137,6 +142,19 @@ public class FhirIOWriteIT {
               assertEquals(2, counter);
               return null;
             });
+
+    PAssert.that(writeResult.getSuccessfulBundles())
+        .satisfies(
+            input -> {
+              int counter = 0;
+              for (FhirBundleResponse resp : input) {
+                assertFalse(resp.getResponse().isEmpty());
+                counter++;
+              }
+              assertEquals(2, counter);
+              return null;
+            });
+
     PAssert.that(writeResult.getFailedBodies())
         .satisfies(
             input -> {

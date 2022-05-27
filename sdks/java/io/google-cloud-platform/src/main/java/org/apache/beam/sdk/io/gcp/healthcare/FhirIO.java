@@ -31,6 +31,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -1383,7 +1384,7 @@ public class FhirIO {
     public static final TupleTag<FhirBundleResponse> SUCCESSFUL_BUNDLES = new TupleTag<>();
 
     /** The TupleTag used for bundles that failed to be executed for any reason. */
-    public static final TupleTag<HealthcareIOError<FhirBundleResponse>> FAILED_BUNDLES =
+    public static final TupleTag<HealthcareIOError<FhirBundleParameter>> FAILED_BUNDLES =
         new TupleTag<>();
 
     private final ValueProvider<String> fhirStore;
@@ -1412,7 +1413,9 @@ public class FhirIO {
               ParDo.of(new ExecuteBundlesFn(this.fhirStore))
                   .withOutputTags(SUCCESSFUL_BUNDLES, TupleTagList.of(FAILED_BUNDLES)));
       bundles.get(SUCCESSFUL_BUNDLES).setCoder(FhirBundleResponseCoder.of());
-      bundles.get(FAILED_BUNDLES).setCoder(HealthcareIOErrorCoder.of(FhirBundleResponseCoder.of()));
+      bundles
+          .get(FAILED_BUNDLES)
+          .setCoder(HealthcareIOErrorCoder.of(FhirBundleParameterCoder.of()));
 
       return ExecuteBundlesResult.in(
           input.getPipeline(), bundles.get(SUCCESSFUL_BUNDLES), bundles.get(FAILED_BUNDLES));
@@ -1481,8 +1484,7 @@ public class FhirIO {
           parseResponse(context, resp);
         } catch (IOException | HealthcareHttpException e) {
           EXECUTE_BUNDLE_ERRORS.inc();
-          context.output(
-              FAILED_BUNDLES, HealthcareIOError.of(FhirBundleResponse.of(context.element()), e));
+          context.output(FAILED_BUNDLES, HealthcareIOError.of(context.element(), e));
         }
       }
 
@@ -1514,14 +1516,15 @@ public class FhirIO {
             if (statusCode / 100 == 2) {
               success++;
               context.output(
-                  SUCCESSFUL_BUNDLES, FhirBundleResponse.of(context.element(), entry.toString()));
+                  SUCCESSFUL_BUNDLES,
+                  FhirBundleResponse.of(context.element(), entry.getAsString()));
             } else {
               fail++;
               context.output(
                   FAILED_BUNDLES,
                   HealthcareIOError.of(
-                      FhirBundleResponse.of(context.element()),
-                      HealthcareHttpException.of(statusCode, entry.toString())));
+                      context.element(),
+                      HealthcareHttpException.of(statusCode, entry.getAsString())));
             }
           }
           EXECUTE_BUNDLE_RESOURCE_SUCCESS.inc(success);
@@ -1529,7 +1532,7 @@ public class FhirIO {
         } else if (bundleType.equals(BUNDLE_RESPONSE_TYPE_TRANSACTION)) {
           EXECUTE_BUNDLE_RESOURCE_SUCCESS.inc(entries.size());
           context.output(
-              SUCCESSFUL_BUNDLES, FhirBundleResponse.of(context.element(), bundle.toString()));
+              SUCCESSFUL_BUNDLES, FhirBundleResponse.of(context.element(), bundle.getAsString()));
         }
         EXECUTE_BUNDLE_SUCCESS.inc();
         return;
@@ -1552,15 +1555,15 @@ public class FhirIO {
    * ExecuteBundlesResult contains both successfully executed bundles and information help debugging
    * failed executions (eg metadata & error msgs).
    */
-  public static class ExecuteBundlesResult extends Write.AbstractResult {
+  public static class ExecuteBundlesResult extends Write.AbstractResult implements Serializable {
     private final Pipeline pipeline;
     private final PCollection<FhirBundleResponse> successfulBundles;
-    private final PCollection<HealthcareIOError<FhirBundleResponse>> failedBundles;
+    private final PCollection<HealthcareIOError<FhirBundleParameter>> failedBundles;
 
     private ExecuteBundlesResult(
         Pipeline pipeline,
         PCollection<FhirBundleResponse> successfulBundles,
-        PCollection<HealthcareIOError<FhirBundleResponse>> failedBundles) {
+        PCollection<HealthcareIOError<FhirBundleParameter>> failedBundles) {
       this.pipeline = pipeline;
       this.successfulBundles = successfulBundles;
       this.failedBundles = failedBundles;
@@ -1573,15 +1576,17 @@ public class FhirIO {
     public static ExecuteBundlesResult in(
         Pipeline pipeline,
         PCollection<FhirBundleResponse> successfulBundles,
-        PCollection<HealthcareIOError<FhirBundleResponse>> failedBundles) {
+        PCollection<HealthcareIOError<FhirBundleParameter>> failedBundles) {
       return new ExecuteBundlesResult(pipeline, successfulBundles, failedBundles);
     }
 
     @Override
     public PCollection<String> getSuccessfulBodies() {
-      return this.successfulBundles.apply(
-          MapElements.into(TypeDescriptors.strings())
-              .via(bundleResponse -> bundleResponse.getFhirBundleParameter().getBundle()));
+      return this.successfulBundles
+          .apply(
+              MapElements.into(TypeDescriptors.strings())
+                  .via(bundleResponse -> bundleResponse.getFhirBundleParameter().getBundle()))
+          .setCoder(StringUtf8Coder.of());
     }
 
     /** Gets successful FhirBundleResponse from execute bundles operation. */
@@ -1591,28 +1596,30 @@ public class FhirIO {
 
     @Override
     public PCollection<HealthcareIOError<String>> getFailedBodies() {
-      return this.failedBundles.apply(
-          MapElements.via(
-              new SimpleFunction<
-                  HealthcareIOError<FhirBundleResponse>, HealthcareIOError<String>>() {
-                @Override
-                public HealthcareIOError<String> apply(
-                    HealthcareIOError<FhirBundleResponse> input) {
-                  return new HealthcareIOError<>(
-                      input.getDataResource().getFhirBundleParameter().getBundle(),
-                      input.getErrorMessage(),
-                      input.getStackTrace(),
-                      input.getObservedTime(),
-                      input.getStatusCode());
-                }
-              }));
+      return this.failedBundles
+          .apply(
+              MapElements.via(
+                  new SimpleFunction<
+                      HealthcareIOError<FhirBundleParameter>, HealthcareIOError<String>>() {
+                    @Override
+                    public HealthcareIOError<String> apply(
+                        HealthcareIOError<FhirBundleParameter> input) {
+                      return new HealthcareIOError<>(
+                          input.getDataResource().getBundle(),
+                          input.getErrorMessage(),
+                          input.getStackTrace(),
+                          input.getObservedTime(),
+                          input.getStatusCode());
+                    }
+                  }))
+          .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
     }
 
     /**
      * Gets failed FhirBundleResponse wrapped inside HealthcareIOError. The bundle field could be
      * null.
      */
-    public PCollection<HealthcareIOError<FhirBundleResponse>> getFailedBundles() {
+    public PCollection<HealthcareIOError<FhirBundleParameter>> getFailedBundles() {
       return this.failedBundles;
     }
 
