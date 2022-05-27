@@ -42,19 +42,24 @@ class ModelFileType(enum.Enum):
 
 
 class SklearnInferenceRunner(InferenceRunner):
-  def run_inference(self, batch: List[numpy.array],
-                    model: Any) -> Iterable[numpy.array]:
+  def run_inference(self, batch: List[numpy.ndarray],
+                    model: Any) -> Iterable[PredictionResult]:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
-  def get_num_bytes(self, batch: List[numpy.array]) -> int:
+  def get_num_bytes(self, batch: List[numpy.ndarray]) -> int:
     """Returns the number of bytes of data for a batch."""
     return sum(sys.getsizeof(element) for element in batch)
 
 
 class SklearnModelLoader(ModelLoader):
+  """ Implementation of the ModelLoader interface for scikit learn.
+
+      NOTE: This API and its implementation are under development and
+      do not provide backward compatibility guarantees.
+  """
   def __init__(
       self,
       model_file_type: ModelFileType = ModelFileType.PICKLE,
@@ -71,8 +76,9 @@ class SklearnModelLoader(ModelLoader):
     elif self._model_file_type == ModelFileType.JOBLIB:
       if not joblib:
         raise ImportError(
-            'Could not import joblib in this execution'
-            ' environment. For help with managing dependencies on Python workers see https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'
+            'Could not import joblib in this execution environment. '
+            'For help with managing dependencies on Python workers.'
+            'see https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'  # pylint: disable=line-too-long
         )
       return joblib.load(file)
     raise AssertionError('Unsupported serialization type.')

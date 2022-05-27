@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//lint:file-ignore U1000 unused functions/types are for tests
+
 package graph
 
 import (
@@ -21,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
@@ -183,11 +186,14 @@ func TestNewDoFnSdf(t *testing.T) {
 			{dfn: &BadSdfParamsSplitRest{}},
 			{dfn: &BadSdfParamsRestSize{}},
 			{dfn: &BadSdfParamsCreateTracker{}},
+			{dfn: &BadSdfParamsTruncateRestriction{}},
 			// Validate return numbers.
 			{dfn: &BadSdfReturnsCreateRest{}},
 			{dfn: &BadSdfReturnsSplitRest{}},
 			{dfn: &BadSdfReturnsRestSize{}},
 			{dfn: &BadSdfReturnsCreateTracker{}},
+			{dfn: &BadSdfReturnsTruncateRestriction{}},
+			{dfn: &BadSdfReturnsProcessElement{}},
 			// Validate element types consistent with ProcessElement.
 			{dfn: &BadSdfElementTCreateRest{}},
 			{dfn: &BadSdfElementTSplitRest{}},
@@ -197,11 +203,13 @@ func TestNewDoFnSdf(t *testing.T) {
 			{dfn: &BadSdfRestTSplitRestReturn{}},
 			{dfn: &BadSdfRestTRestSize{}},
 			{dfn: &BadSdfRestTCreateTracker{}},
+			{dfn: &BadSdfRestTTruncateRestriction{}},
 			// Validate other types
 			{dfn: &BadSdfRestSizeReturn{}},
 			{dfn: &BadSdfCreateTrackerReturn{}},
 			{dfn: &BadSdfMismatchedRTracker{}},
 			{dfn: &BadSdfMissingRTracker{}},
+			{dfn: &BadSdfMismatchRTrackerTruncateRestriction{}},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
@@ -709,6 +717,9 @@ func (rt *RTrackerT) IsDone() bool {
 func (rt *RTrackerT) GetRestriction() interface{} {
 	return nil
 }
+func (rt *RTrackerT) IsBounded() bool {
+	return true
+}
 
 type RTracker2T struct{}
 
@@ -751,8 +762,12 @@ func (fn *GoodSdf) CreateTracker(RestT) *RTrackerT {
 	return &RTrackerT{}
 }
 
-func (fn *GoodSdf) ProcessElement(*RTrackerT, int) int {
-	return 0
+func (fn *GoodSdf) ProcessElement(*RTrackerT, int) (int, sdf.ProcessContinuation) {
+	return 0, sdf.StopProcessing()
+}
+
+func (fn *GoodSdf) TruncateRestriction(*RTrackerT, int) RestT {
+	return RestT{}
 }
 
 type GoodSdfKv struct {
@@ -775,8 +790,12 @@ func (fn *GoodSdfKv) CreateTracker(RestT) *RTrackerT {
 	return &RTrackerT{}
 }
 
-func (fn *GoodSdfKv) ProcessElement(*RTrackerT, int, int) int {
-	return 0
+func (fn *GoodSdfKv) ProcessElement(*RTrackerT, int, int) (int, sdf.ProcessContinuation) {
+	return 0, sdf.StopProcessing()
+}
+
+func (fn *GoodSdfKv) TruncateRestriction(*RTrackerT, int, int) RestT {
+	return RestT{}
 }
 
 type WatermarkEstimatorT struct{}
@@ -914,6 +933,14 @@ func (fn *BadSdfParamsCreateTracker) CreateTracker(int, RestT) *RTrackerT {
 	return &RTrackerT{}
 }
 
+type BadSdfParamsTruncateRestriction struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfParamsTruncateRestriction) TruncateRestriction(*RTrackerT, int, int) RestT {
+	return RestT{}
+}
+
 // Examples with invalid numbers of return values.
 
 type BadSdfReturnsCreateRest struct {
@@ -946,6 +973,22 @@ type BadSdfReturnsCreateTracker struct {
 
 func (fn *BadSdfReturnsCreateTracker) CreateTracker(RestT) (*RTrackerT, int) {
 	return &RTrackerT{}, 0
+}
+
+type BadSdfReturnsTruncateRestriction struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfReturnsTruncateRestriction) TruncateRestriction(*RTrackerT, int) (RestT, int) {
+	return RestT{}, 0
+}
+
+type BadSdfReturnsProcessElement struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfReturnsProcessElement) ProcessElement(*RTrackerT, int) int {
+	return 0
 }
 
 // Examples with element types inconsistent with ProcessElement.
@@ -1010,6 +1053,14 @@ func (fn *BadSdfRestTCreateTracker) CreateTracker(BadRestT) *RTrackerT {
 	return &RTrackerT{}
 }
 
+type BadSdfRestTTruncateRestriction struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfRestTTruncateRestriction) TruncateRestriction(*RTrackerT, int) BadRestT {
+	return BadRestT{}
+}
+
 type BadWatermarkEstimatingNonSdf struct {
 	*GoodDoFn
 }
@@ -1056,6 +1107,14 @@ type BadSdfMismatchedRTracker struct {
 
 func (fn *BadSdfMismatchedRTracker) ProcessElement(*OtherRTrackerT, int) int {
 	return 0
+}
+
+type BadSdfMismatchRTrackerTruncateRestriction struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfMismatchRTrackerTruncateRestriction) TruncateRestriction(*OtherRTrackerT, int) RestT {
+	return RestT{}
 }
 
 type BadWatermarkEstimatingCreateWatermarkEstimatorReturnType struct {

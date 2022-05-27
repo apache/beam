@@ -19,17 +19,22 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.core.ApiFuture;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DynamicMessage;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -40,6 +45,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.RetryType;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.DescriptorWrapper;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.MessageConverter;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -54,7 +60,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNotification;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Duration;
@@ -76,11 +81,18 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final BigQueryServices bqServices;
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
 
+  /**
+   * The Guava cache object is thread-safe. However our protocol requires that client pin the
+   * StreamAppendClient after looking up the cache, and we must ensure that the cache is not
+   * accessed in between the lookup and the pin (any access of the cache could trigger element
+   * expiration). Therefore most used of APPEND_CLIENTS should synchronize.
+   */
   private static final Cache<String, StreamAppendClient> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
-          .expireAfterAccess(5, TimeUnit.MINUTES)
+          .expireAfterAccess(15, TimeUnit.MINUTES)
           .removalListener(
               (RemovalNotification<String, StreamAppendClient> removal) -> {
+                LOG.info("Expiring append client for " + removal.getKey());
                 @Nullable final StreamAppendClient streamAppendClient = removal.getValue();
                 // Close the writer in a different thread so as not to block the main one.
                 runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::close);
@@ -117,10 +129,19 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   @Override
   public PCollection<Void> expand(PCollection<KV<DestinationT, StorageApiWritePayload>> input) {
     String operationName = input.getName() + "/" + getName();
+    BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
     return input
         .apply(
             "Write Records",
-            ParDo.of(new WriteRecordsDoFn<>(operationName, dynamicDestinations, bqServices, false))
+            ParDo.of(
+                    new WriteRecordsDoFn<>(
+                        operationName,
+                        dynamicDestinations,
+                        bqServices,
+                        false,
+                        options.getStorageApiAppendThresholdBytes(),
+                        options.getStorageApiAppendThresholdRecordCount(),
+                        options.getNumStorageWriteApiStreamAppendClients()))
                 .withSideInputs(dynamicDestinations.getSideInputs()))
         .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
         // Calling Reshuffle makes the output stable - once this completes, the append operations
@@ -132,6 +153,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
   static class WriteRecordsDoFn<DestinationT, ElementT>
       extends DoFn<KV<DestinationT, StorageApiWritePayload>, KV<String, String>> {
+    private final Counter forcedFlushes = Metrics.counter(WriteRecordsDoFn.class, "forcedFlushes");
+
     class DestinationState {
       private final String tableUrn;
       private final MessageConverter<ElementT> messageConverter;
@@ -144,30 +167,47 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           Metrics.counter(WriteRecordsDoFn.class, "recordsAppended");
       private final Counter appendFailures =
           Metrics.counter(WriteRecordsDoFn.class, "appendFailures");
+      private final Counter schemaMismatches =
+          Metrics.counter(WriteRecordsDoFn.class, "schemaMismatches");
+      private final Distribution inflightWaitSecondsDistribution =
+          Metrics.distribution(WriteRecordsDoFn.class, "streamWriterWaitSeconds");
       private final boolean useDefaultStream;
       private DescriptorWrapper descriptorWrapper;
+      private Instant nextCacheTickle;
+      private final int clientNumber;
 
       public DestinationState(
           String tableUrn,
           MessageConverter<ElementT> messageConverter,
           DatasetService datasetService,
-          boolean useDefaultStream) {
+          boolean useDefaultStream,
+          int streamAppendClientCount) {
         this.tableUrn = tableUrn;
         this.messageConverter = messageConverter;
         this.pendingMessages = Lists.newArrayList();
         this.datasetService = datasetService;
         this.useDefaultStream = useDefaultStream;
         this.descriptorWrapper = messageConverter.getSchemaDescriptor();
+        this.clientNumber = new Random().nextInt(streamAppendClientCount);
       }
 
       void teardown() {
+        maybeTickleCache();
         if (streamAppendClient != null) {
           runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::unpin);
+          streamAppendClient = null;
         }
       }
 
       String getDefaultStreamName() {
         return BigQueryHelpers.stripPartitionDecorator(tableUrn) + "/streams/_default";
+      }
+
+      String getStreamAppendClientCacheEntryKey() {
+        if (useDefaultStream) {
+          return getDefaultStreamName() + "-client" + clientNumber;
+        }
+        return this.streamName;
       }
 
       String createStreamIfNeeded() {
@@ -186,6 +226,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         return this.streamName;
       }
 
+      StreamAppendClient generateClient() throws Exception {
+        return datasetService.getStreamAppendClient(streamName, descriptorWrapper.descriptor);
+      }
+
       StreamAppendClient getStreamAppendClient(boolean lookupCache) {
         try {
           if (streamAppendClient == null) {
@@ -194,22 +238,29 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               if (lookupCache) {
                 this.streamAppendClient =
                     APPEND_CLIENTS.get(
-                        streamName,
-                        () ->
-                            datasetService.getStreamAppendClient(
-                                streamName, descriptorWrapper.descriptor));
+                        getStreamAppendClientCacheEntryKey(), () -> generateClient());
               } else {
-                this.streamAppendClient =
-                    datasetService.getStreamAppendClient(streamName, descriptorWrapper.descriptor);
-                APPEND_CLIENTS.put(streamName, this.streamAppendClient);
+                this.streamAppendClient = generateClient();
+                // override the clients in the cache
+                APPEND_CLIENTS.put(getStreamAppendClientCacheEntryKey(), streamAppendClient);
               }
               this.streamAppendClient.pin();
             }
             this.currentOffset = 0;
+            nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
           }
           return streamAppendClient;
         } catch (Exception e) {
           throw new RuntimeException(e);
+        }
+      }
+
+      void maybeTickleCache() {
+        if (streamAppendClient != null && Instant.now().isAfter(nextCacheTickle)) {
+          synchronized (APPEND_CLIENTS) {
+            APPEND_CLIENTS.getIfPresent(getStreamAppendClientCacheEntryKey());
+          }
+          nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
         }
       }
 
@@ -218,16 +269,30 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           synchronized (APPEND_CLIENTS) {
             // Unpin in a different thread, as it may execute a blocking close.
             runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::unpin);
+            // The default stream is cached across multiple different DoFns. If they all try and
+            // invalidate, then we can
+            // get races between threads invalidating and recreating streams. For this reason, we
+            // check to see that the
+            // cache still contains the object we created before invalidating (in case another
+            // thread has already invalidated
+            // and recreated the stream).
+            String cacheEntryKey = getStreamAppendClientCacheEntryKey();
+            @Nullable
+            StreamAppendClient cachedAppendClient = APPEND_CLIENTS.getIfPresent(cacheEntryKey);
+            if (cachedAppendClient != null
+                && System.identityHashCode(cachedAppendClient)
+                    == System.identityHashCode(streamAppendClient)) {
+              APPEND_CLIENTS.invalidate(cacheEntryKey);
+            }
           }
           streamAppendClient = null;
-          APPEND_CLIENTS.invalidate(streamName);
-        } else if (useDefaultStream) {
-          APPEND_CLIENTS.invalidate(getDefaultStreamName());
         }
       }
 
       void addMessage(StorageApiWritePayload payload) throws Exception {
+        maybeTickleCache();
         if (payload.getSchemaHash() != descriptorWrapper.hash) {
+          schemaMismatches.inc();
           // The descriptor on the payload doesn't match the descriptor we know about. This
           // means that the table has been updated, but that this transform hasn't found out
           // about that yet. Refresh the schema and force a new StreamAppendClient to be
@@ -259,9 +324,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           return;
         }
         final ProtoRows.Builder inserts = ProtoRows.newBuilder();
-        for (ByteString m : pendingMessages) {
-          inserts.addSerializedRows(m);
-        }
+        inserts.addAllSerializedRows(pendingMessages);
 
         ProtoRows protoRows = inserts.build();
         pendingMessages.clear();
@@ -275,17 +338,24 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   offset = this.currentOffset;
                   this.currentOffset += inserts.getSerializedRowsCount();
                 }
-                return writeStream.appendRows(offset, protoRows);
+                ApiFuture<AppendRowsResponse> response = writeStream.appendRows(offset, protoRows);
+                inflightWaitSecondsDistribution.update(writeStream.getInflightWaitSeconds());
+                if (writeStream.getInflightWaitSeconds() > 5) {
+                  LOG.warn(
+                      "Storage Api write delay more than {} seconds.",
+                      writeStream.getInflightWaitSeconds());
+                }
+                return response;
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }
             },
             contexts -> {
-              LOG.info(
-                  "Append to stream "
-                      + streamName
-                      + " failed with error "
-                      + Iterables.getFirst(contexts, null).getError());
+              LOG.warn(
+                  "Append to stream {} by client #{} failed with error, operations will be retried. Details: {}",
+                  streamName,
+                  clientNumber,
+                  retrieveErrorDetails(contexts));
               invalidateWriteStream();
               appendFailures.inc();
               return RetryType.RETRY_ALL_OPERATIONS;
@@ -294,6 +364,21 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               recordsAppended.inc(protoRows.getSerializedRowsCount());
             },
             new Context<>());
+        maybeTickleCache();
+      }
+
+      String retrieveErrorDetails(Iterable<Context<AppendRowsResponse>> contexts) {
+        return StreamSupport.stream(contexts.spliterator(), false)
+            .map(ctx -> ctx.getError())
+            .map(
+                err ->
+                    String.format(
+                        "message: %s, stacktrace: %s",
+                        err.toString(),
+                        Lists.newArrayList(err.getStackTrace()).stream()
+                            .map(se -> se.toString())
+                            .collect(Collectors.joining("\n"))))
+            .collect(Collectors.joining(","));
       }
     }
 
@@ -302,30 +387,37 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private transient @Nullable DatasetService datasetService;
     private int numPendingRecords = 0;
     private int numPendingRecordBytes = 0;
-    private static final int FLUSH_THRESHOLD_RECORDS = 100;
-    private static final int FLUSH_THRESHOLD_RECORD_BYTES = 2 * 1024 * 1024;
+    private final int flushThresholdBytes;
+    private final int flushThresholdCount;
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private final BigQueryServices bqServices;
     private final boolean useDefaultStream;
+    private int streamAppendClientCount;
 
     WriteRecordsDoFn(
         String operationName,
         StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
         BigQueryServices bqServices,
-        boolean useDefaultStream) {
+        boolean useDefaultStream,
+        int flushThresholdBytes,
+        int flushThresholdCount,
+        int streamAppendClientCount) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;
       this.useDefaultStream = useDefaultStream;
+      this.flushThresholdBytes = flushThresholdBytes;
+      this.flushThresholdCount = flushThresholdCount;
+      this.streamAppendClientCount = streamAppendClientCount;
     }
 
     boolean shouldFlush() {
-      return numPendingRecords > FLUSH_THRESHOLD_RECORDS
-          || numPendingRecordBytes > FLUSH_THRESHOLD_RECORD_BYTES;
+      return numPendingRecords > flushThresholdCount || numPendingRecordBytes > flushThresholdBytes;
     }
 
     void flushIfNecessary() throws Exception {
       if (shouldFlush()) {
+        forcedFlushes.inc();
         // Too much memory being used. Flush the state and wait for it to drain out.
         // TODO(reuvenlax): Consider waiting for memory usage to drop instead of waiting for all the
         // appends to finish.
@@ -374,7 +466,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         throw new RuntimeException(e);
       }
       return new DestinationState(
-          tableDestination1.getTableUrn(), messageConverter, datasetService, useDefaultStream);
+          tableDestination1.getTableUrn(),
+          messageConverter,
+          datasetService,
+          useDefaultStream,
+          streamAppendClientCount);
     }
 
     @ProcessElement

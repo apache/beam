@@ -65,11 +65,11 @@ class FullyQualifiedNamedTransform(ptransform.PTransform):
     o = None
     path = ''
     for segment in fully_qualified_name.split('.'):
+      path = '.'.join([path, segment]) if path else segment
       if o is not None and hasattr(o, segment):
         o = getattr(o, segment)
       else:
-        o = importlib.import_module(segment, path)
-      path = '.'.join([path, segment])
+        o = importlib.import_module(path)
     return o
 
   def to_runner_api_parameter(self, unused_context):

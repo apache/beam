@@ -366,13 +366,13 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 
 	ow := su.GetOutputWatermark()
 
-	// Always split at fraction 0.0, should have no primaries left.
-	ps, rs, err := su.Split(0.0)
+	// Checkpointing is functionally a split at fraction 0.0
+	rs, err := su.Checkpoint()
 	if err != nil {
 		return SplitResult{}, -1 * time.Minute, false, err
 	}
-	if ps != nil {
-		return SplitResult{}, -1 * time.Minute, false, fmt.Errorf("failed to checkpoint: got %v primary roots, want nil", ps)
+	if len(rs) == 0 {
+		return SplitResult{}, -1 * time.Minute, false, nil
 	}
 
 	encodeElms := n.makeEncodeElms()
@@ -596,8 +596,12 @@ func splitHelper(
 	if bestS != -1 {
 		return bestS, -1.0, nil
 	}
-
-	return -1, -1.0, fmt.Errorf("failed to split DataSource (at index: %v) at requested splits: {%v}", currIdx, splits)
+	// Printing all splits is expensive. Instead, return the current start and
+	// end indices, and fraction along with the range of the indices and how
+	// many there are. This branch requires at least one split index, so we don't
+	// need to bounds check the slice.
+	return -1, -1.0, fmt.Errorf("failed to split DataSource (at index: %v, last index: %v) at fraction %.4f with requested splits (%v indices from %v to %v)",
+		currIdx, endIdx, frac, len(splits), splits[0], splits[len(splits)-1])
 }
 
 func encodeElm(elm *FullValue, wc WindowEncoder, ec ElementEncoder) ([]byte, error) {

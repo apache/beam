@@ -35,11 +35,11 @@ programming guide, take a look at the
 {{< language-switcher java py go >}}
 
 {{< paragraph class="language-py" >}}
-The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last Python SDK release to support Python 2 and 3.5.
+The Python SDK supports Python 3.7, 3.8, and 3.9.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-The Go SDK supports Go v1.16+. SDK release 2.32.0 is the last experimental version.
+The Go SDK supports Go v1.18+. SDK release 2.32.0 is the last experimental version.
 {{< /paragraph >}}
 
 ## 1. Overview {#overview}
@@ -6507,7 +6507,7 @@ watermark estimator implementation. You can also provide your own watermark esti
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-11105.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" watermarkestimation_customestimator >}}
 {{< /highlight >}}
 
 ### 12.6. Truncating during drain {#truncating-during-drain}

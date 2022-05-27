@@ -217,3 +217,9 @@ func (tracker *Tracker) IsDone() bool {
 func (tracker *Tracker) GetRestriction() interface{} {
 	return tracker.rest
 }
+
+// IsBounded returns whether or not the restriction tracker is tracking a bounded restriction
+// that has a set maximum value or an unbounded one which can grow indefinitely.
+func (tracker *Tracker) IsBounded() bool {
+	return true
+}

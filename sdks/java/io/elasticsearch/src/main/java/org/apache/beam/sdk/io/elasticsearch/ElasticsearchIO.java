@@ -46,11 +46,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -72,7 +72,9 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -83,10 +85,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 import org.apache.http.ConnectionClosedException;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -234,7 +236,7 @@ public class ElasticsearchIO {
         // advised default starting batch size in ES docs
         .setMaxBatchSizeBytes(5L * 1024L * 1024L)
         .setUseStatefulBatches(false)
-        .setMaxParallelRequestsPerWindow(1)
+        .setMaxParallelRequests(1)
         .setThrowWriteErrors(true)
         .build();
   }
@@ -1794,7 +1796,7 @@ public class ElasticsearchIO {
             // advised default starting batch size in ES docs
             .setMaxBatchSizeBytes(5L * 1024L * 1024L)
             .setUseStatefulBatches(false)
-            .setMaxParallelRequestsPerWindow(1)
+            .setMaxParallelRequests(1)
             .setThrowWriteErrors(true)
             .build();
 
@@ -1918,9 +1920,20 @@ public class ElasticsearchIO {
       return this;
     }
 
-    /** Refer to {@link BulkIO#withMaxParallelRequestsPerWindow}. */
+    /**
+     * Refer to {@link BulkIO#withMaxParallelRequestsPerWindow}.
+     *
+     * @deprecated use {@link Write#withMaxParallelRequests} instead
+     */
+    @Deprecated
     public Write withMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow) {
       bulkIO = bulkIO.withMaxParallelRequestsPerWindow(maxParallelRequestsPerWindow);
+      return this;
+    }
+
+    /** Refer to {@link BulkIO#withMaxParallelRequests}. */
+    public Write withMaxParallelRequests(int maxParallelRequests) {
+      bulkIO = bulkIO.withMaxParallelRequests(maxParallelRequests);
       return this;
     }
 
@@ -1971,7 +1984,9 @@ public class ElasticsearchIO {
 
     abstract boolean getUseStatefulBatches();
 
-    abstract int getMaxParallelRequestsPerWindow();
+    abstract @Nullable Integer getMaxParallelRequestsPerWindow();
+
+    abstract int getMaxParallelRequests();
 
     abstract @Nullable RetryConfiguration getRetryConfiguration();
 
@@ -1997,7 +2012,11 @@ public class ElasticsearchIO {
 
       abstract Builder setUseStatefulBatches(boolean useStatefulBatches);
 
+      /** @deprecated Use {@link #setMaxParallelRequests} instead. */
+      @Deprecated
       abstract Builder setMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow);
+
+      abstract Builder setMaxParallelRequests(int maxParallelRequests);
 
       abstract Builder setThrowWriteErrors(boolean throwWriteErrors);
 
@@ -2152,22 +2171,45 @@ public class ElasticsearchIO {
     /**
      * When using {@link BulkIO#withUseStatefulBatches} Stateful Processing, states and therefore
      * batches are maintained per-key-per-window. BE AWARE that low values for @param
-     * maxParallelRequestsPerWindow, in particular if the input data has a finite number of windows,
-     * can reduce parallelism greatly. If data is globally windowed and @param
-     * maxParallelRequestsPerWindow is set to 1,there will only ever be 1 request in flight. Having
-     * only a single request in flight can be beneficial for ensuring an Elasticsearch cluster is
-     * not overwhelmed by parallel requests,but may not work for all use cases. If this number is
-     * less than the number of maximum workers in your pipeline, the IO work will result in a
-     * sub-distribution of the last write step with most of the runners.
+     * maxParallelRequests, in particular if the input data has a finite number of windows, can
+     * reduce parallelism greatly. Because data will be temporarily globally windowed as part of
+     * writing data to Elasticsearch, if @param maxParallelRequests is set to 1, there will only
+     * ever be 1 request in flight. Having only a single request in flight can be beneficial for
+     * ensuring an Elasticsearch cluster is not overwhelmed by parallel requests, but may not work
+     * for all use cases. If this number is less than the number of maximum workers in your
+     * pipeline, the IO work will result in a sub-optimal distribution of the write step with most
+     * runners.
      *
-     * @param maxParallelRequestsPerWindow the maximum number of parallel bulk requests for a window
-     *     of data
+     * @param maxParallelRequests the maximum number of parallel bulk requests for a window of data
      * @return the {@link BulkIO} with maximum parallel bulk requests per window set
+     * @deprecated use {@link BulkIO#withMaxParallelRequests} instead.
      */
-    public BulkIO withMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow) {
+    @Deprecated
+    public BulkIO withMaxParallelRequestsPerWindow(int maxParallelRequests) {
       checkArgument(
-          maxParallelRequestsPerWindow > 0, "parameter value must be positive " + "a integer");
-      return builder().setMaxParallelRequestsPerWindow(maxParallelRequestsPerWindow).build();
+          maxParallelRequests > 0, "maxParallelRequestsPerWindow value must be a positive integer");
+      return builder().setMaxParallelRequests(maxParallelRequests).build();
+    }
+
+    /**
+     * When using {@link BulkIO#withUseStatefulBatches} Stateful Processing, states and therefore
+     * batches are maintained per-key-per-window. BE AWARE that low values for @param
+     * maxParallelRequests, in particular if the input data has a finite number of windows, can
+     * reduce parallelism greatly. Because data will be temporarily globally windowed as part of
+     * writing data to Elasticsearch, if @param maxParallelRequests is set to 1, there will only
+     * ever be 1 request in flight. Having only a single request in flight can be beneficial for
+     * ensuring an Elasticsearch cluster is not overwhelmed by parallel requests, but may not work
+     * for all use cases. If this number is less than the number of maximum workers in your
+     * pipeline, the IO work will result in a sub-optimal distribution of the write step with most
+     * runners.
+     *
+     * @param maxParallelRequests the maximum number of parallel bulk requests
+     * @return the {@link BulkIO} with maximum parallel bulk requests
+     */
+    public BulkIO withMaxParallelRequests(int maxParallelRequests) {
+      checkArgument(
+          maxParallelRequests > 0, "maxParallelRequests value must be a positive integer");
+      return builder().setMaxParallelRequests(maxParallelRequests).build();
     }
 
     /**
@@ -2217,7 +2259,7 @@ public class ElasticsearchIO {
         }
 
         return input
-            .apply(ParDo.of(new Reshuffle.AssignShardFn<>(spec.getMaxParallelRequestsPerWindow())))
+            .apply(ParDo.of(new Reshuffle.AssignShardFn<>(spec.getMaxParallelRequests())))
             .apply(groupIntoBatches);
       }
     }
@@ -2225,19 +2267,42 @@ public class ElasticsearchIO {
     @Override
     public PCollectionTuple expand(PCollection<Document> input) {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
-
       checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
 
+      WindowingStrategy<?, ?> originalStrategy = input.getWindowingStrategy();
+
+      PCollection<Document> docResults;
+      PCollection<Document> globalDocs = input.apply(Window.into(new GlobalWindows()));
+
       if (getUseStatefulBatches()) {
-        return input
-            .apply(StatefulBatching.fromSpec(this))
-            .apply(
-                ParDo.of(new BulkIOStatefulFn(this))
-                    .withOutputTags(Write.SUCCESSFUL_WRITES, TupleTagList.of(Write.FAILED_WRITES)));
+        docResults =
+            globalDocs
+                .apply(StatefulBatching.fromSpec(this))
+                .apply(ParDo.of(new BulkIOStatefulFn(this)));
       } else {
-        return input.apply(
-            ParDo.of(new BulkIOBundleFn(this))
-                .withOutputTags(Write.SUCCESSFUL_WRITES, TupleTagList.of(Write.FAILED_WRITES)));
+        docResults = globalDocs.apply(ParDo.of(new BulkIOBundleFn(this)));
+      }
+
+      return docResults
+          .setWindowingStrategyInternal(originalStrategy)
+          .apply(
+              ParDo.of(new ResultFilteringFn())
+                  .withOutputTags(Write.SUCCESSFUL_WRITES, TupleTagList.of(Write.FAILED_WRITES)));
+    }
+
+    private static class ResultFilteringFn extends DoFn<Document, Document> {
+      @Override
+      public Duration getAllowedTimestampSkew() {
+        return Duration.millis(Long.MAX_VALUE);
+      }
+
+      @ProcessElement
+      public void processElement(@Element Document doc, MultiOutputReceiver out) {
+        if (doc.getHasError()) {
+          out.get(Write.FAILED_WRITES).outputWithTimestamp(doc, doc.getTimestamp());
+        } else {
+          out.get(Write.SUCCESSFUL_WRITES).outputWithTimestamp(doc, doc.getTimestamp());
+        }
       }
     }
 
@@ -2248,11 +2313,10 @@ public class ElasticsearchIO {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext context, BoundedWindow w) throws Exception {
+      public void processElement(ProcessContext context) throws Exception {
         // the element KV pair is a pair of raw_doc + resulting Bulk API formatted newline-json
         // based on DocToBulk settings
-        Document summary = context.element();
-        addAndMaybeFlush(summary, context, w);
+        addAndMaybeFlush(context.element(), context);
       }
     }
 
@@ -2266,9 +2330,9 @@ public class ElasticsearchIO {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext c, BoundedWindow w) throws Exception {
-        for (Document result : c.element().getValue()) {
-          addAndMaybeFlush(result, c, w);
+      public void processElement(ProcessContext context) throws Exception {
+        for (Document timedDoc : context.element().getValue()) {
+          addAndMaybeFlush(timedDoc, context);
         }
       }
     }
@@ -2281,7 +2345,7 @@ public class ElasticsearchIO {
 
       private BulkIO spec;
       private transient RestClient restClient;
-      private Multimap<BoundedWindow, Document> batch;
+      private transient List<Document> batch;
       long currentBatchSizeBytes;
 
       protected BulkIOBaseFn(BulkIO bulkSpec) {
@@ -2308,8 +2372,14 @@ public class ElasticsearchIO {
 
       @StartBundle
       public void startBundle(StartBundleContext context) {
-        batch = ArrayListMultimap.create();
+        batch = new ArrayList<>();
         currentBatchSizeBytes = 0;
+      }
+
+      @FinishBundle
+      public void finishBundle(FinishBundleContext context)
+          throws IOException, InterruptedException {
+        flushAndOutputResults(new FinishBundleContextAdapter<>(context));
       }
 
       /**
@@ -2317,8 +2387,7 @@ public class ElasticsearchIO {
        * FinishBundleContext} so that we are able to use a single common invocation to output from.
        */
       interface ContextAdapter {
-        void output(
-            TupleTag<Document> tag, Document document, Instant timestamp, BoundedWindow window);
+        void output(Document timedDoc);
       }
 
       private static final class ProcessContextAdapter<T> implements ContextAdapter {
@@ -2329,11 +2398,8 @@ public class ElasticsearchIO {
         }
 
         @Override
-        public void output(
-            TupleTag<Document> tag, Document document, Instant ignored1, BoundedWindow ignored2) {
-          // Note: window and timestamp are intentionally unused, but required as params to fit the
-          // interface
-          context.output(tag, document);
+        public void output(Document timedDoc) {
+          context.outputWithTimestamp(timedDoc, timedDoc.getTimestamp());
         }
       }
 
@@ -2345,46 +2411,23 @@ public class ElasticsearchIO {
         }
 
         @Override
-        public void output(
-            TupleTag<Document> tag, Document document, Instant timestamp, BoundedWindow window) {
-          context.output(tag, document, timestamp, window);
+        public void output(Document timedDoc) {
+          context.output(timedDoc, timedDoc.getTimestamp(), GlobalWindow.INSTANCE);
         }
-      }
-
-      @FinishBundle
-      public void finishBundle(FinishBundleContext context)
-          throws IOException, InterruptedException {
-        flushAndOutputResults(new FinishBundleContextAdapter<>(context));
       }
 
       private void flushAndOutputResults(ContextAdapter context)
           throws IOException, InterruptedException {
-        // TODO: remove ContextAdapter and Multimap in favour of MultiOutputReceiver when
-        //  https://issues.apache.org/jira/browse/BEAM-1287 is completed
-        Multimap<BoundedWindow, Document> results = flushBatch();
-        for (Entry<BoundedWindow, Document> result : results.entries()) {
-          BoundedWindow outputWindow = result.getKey();
-          Document outputResult = result.getValue();
-          Instant timestamp = outputResult.getTimestamp();
-          if (timestamp == null) {
-            timestamp = outputWindow.maxTimestamp();
-          }
-
-          if (outputResult.getHasError()) {
-            context.output(Write.FAILED_WRITES, outputResult, timestamp, outputWindow);
-          } else {
-            context.output(Write.SUCCESSFUL_WRITES, outputResult, timestamp, outputWindow);
-          }
+        for (Document timedDoc : flushBatch()) {
+          context.output(timedDoc);
         }
       }
 
-      protected void addAndMaybeFlush(
-          Document bulkApiEntity, ProcessContext context, BoundedWindow outputWindow)
+      protected void addAndMaybeFlush(Document doc, ProcessContext context)
           throws IOException, InterruptedException {
 
-        batch.put(outputWindow, bulkApiEntity);
-        currentBatchSizeBytes +=
-            bulkApiEntity.getBulkDirective().getBytes(StandardCharsets.UTF_8).length;
+        batch.add(doc);
+        currentBatchSizeBytes += doc.getBulkDirective().getBytes(StandardCharsets.UTF_8).length;
 
         if (batch.size() >= spec.getMaxBatchSize()
             || currentBatchSizeBytes >= spec.getMaxBatchSizeBytes()) {
@@ -2402,11 +2445,10 @@ public class ElasticsearchIO {
             || t.getCause() instanceof ConnectException;
       }
 
-      private Multimap<BoundedWindow, Document> flushBatch()
-          throws IOException, InterruptedException {
+      private List<Document> flushBatch() throws IOException, InterruptedException {
 
         if (batch.isEmpty()) {
-          return ArrayListMultimap.create();
+          return new ArrayList<>();
         }
 
         LOG.info(
@@ -2416,16 +2458,16 @@ public class ElasticsearchIO {
 
         StringBuilder bulkRequest = new StringBuilder();
         // Create a stable list of input entries, because order is important to keep constant
-        List<Entry<BoundedWindow, Document>> inputEntries = new ArrayList<>(batch.entries());
+        List<Document> inputEntries = new ArrayList<>(batch);
 
         batch.clear();
         currentBatchSizeBytes = 0L;
 
-        for (Entry<BoundedWindow, Document> entry : inputEntries) {
+        for (Document doc : inputEntries) {
           // N.B. we need to ensure that we can iterate in the same order later to match up
           // responses to these bulk directives. ES Bulk response `items` is in the same order
           // as the bulk directives in the request, so order is imperative.
-          bulkRequest.append(entry.getValue().getBulkDirective());
+          bulkRequest.append(doc.getBulkDirective());
         }
 
         Response response = null;
@@ -2467,37 +2509,14 @@ public class ElasticsearchIO {
             createWriteReport(
                 responseEntity, spec.getAllowedResponseErrors(), spec.getThrowWriteErrors());
 
-        return mergeInputsAndResponses(inputEntries, responses);
-      }
-
-      private static Multimap<BoundedWindow, Document> mergeInputsAndResponses(
-          List<Entry<BoundedWindow, Document>> inputs, List<Document> responses) {
-
-        checkArgument(
-            inputs.size() == responses.size(), "inputs and responses must be of same size");
-
-        Multimap<BoundedWindow, Document> results = ArrayListMultimap.create();
-
-        // N.B. the order of responses must always match the order of inputs
-        for (int i = 0; i < inputs.size(); i++) {
-          BoundedWindow outputWindow = inputs.get(i).getKey();
-
-          // Contains raw input document and Bulk directive counterpart only
-          Document inputDoc = inputs.get(i).getValue();
-
-          // Contains stringified JSON response from Elasticsearch and error status only
-          Document outputDoc = responses.get(i);
-
-          // Create a new Document object with all the input fields from inputDoc (i.e. the raw
-          // input JSON string) and all the response fields from ES bulk API for that input document
-          Document merged =
-              inputDoc
-                  .withHasError(outputDoc.getHasError())
-                  .withResponseItemJson(outputDoc.getResponseItemJson());
-          results.put(outputWindow, merged);
-        }
-
-        return results;
+        return Streams.zip(
+                inputEntries.stream(),
+                responses.stream(),
+                (inputTimedDoc, responseDoc) ->
+                    inputTimedDoc
+                        .withHasError(responseDoc.getHasError())
+                        .withResponseItemJson(responseDoc.getResponseItemJson()))
+            .collect(Collectors.toList());
       }
 
       /** retry request based on retry configuration policy. */

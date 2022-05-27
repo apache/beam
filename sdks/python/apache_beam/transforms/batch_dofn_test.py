@@ -22,7 +22,7 @@
 import unittest
 from typing import Iterator
 from typing import List
-from typing import Optional
+from typing import no_type_check
 
 from parameterized import parameterized_class
 
@@ -127,6 +127,19 @@ class BatchDoFnTest(unittest.TestCase):
     with self.assertRaisesRegex(TypeError,
                                 r'BatchDoFnNoInputAnnotation.process_batch'):
       _ = pc | beam.ParDo(BatchDoFnNoInputAnnotation())
+
+  def test_unsupported_dofn_param_raises(self):
+    class BatchDoFnBadParam(beam.DoFn):
+      @no_type_check
+      def process_batch(self, batch: List[int], key=beam.DoFn.KeyParam):
+        yield batch * key
+
+    p = beam.Pipeline()
+    pc = p | beam.Create([1, 2, 3])
+
+    with self.assertRaisesRegex(NotImplementedError,
+                                r'.*BatchDoFnBadParam.*KeyParam'):
+      _ = pc | beam.ParDo(BatchDoFnBadParam())
 
 
 if __name__ == '__main__':

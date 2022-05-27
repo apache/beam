@@ -23,8 +23,8 @@ from typing import Any
 from typing import Iterable
 
 import apache_beam as beam
-import apache_beam.ml.inference.base as base
 from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.ml.inference import base
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -70,6 +70,21 @@ class MockClock(base._Clock):
 class ExtractInferences(beam.DoFn):
   def process(self, prediction_result):
     yield prediction_result.inference
+
+
+class FakeInferenceRunnerNeedsBigBatch(FakeInferenceRunner):
+  def run_inference(self, batch, unused_model):
+    if len(batch) < 100:
+      raise ValueError('Unexpectedly small batch')
+    return batch
+
+
+class FakeLoaderWithBatchArgForwarding(FakeModelLoader):
+  def get_inference_runner(self):
+    return FakeInferenceRunnerNeedsBigBatch()
+
+  def batch_elements_kwargs(self):
+    return {'min_batch_size': 9999}
 
 
 class RunInferenceBaseTest(unittest.TestCase):
@@ -141,6 +156,13 @@ class RunInferenceBaseTest(unittest.TestCase):
     load_model_latency = metric_results['distributions'][0]
     self.assertEqual(load_model_latency.result.count, 1)
     self.assertEqual(load_model_latency.result.mean, 50)
+
+  def test_forwards_batch_args(self):
+    examples = list(range(100))
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(FakeLoaderWithBatchArgForwarding())
+      assert_that(actual, equal_to(examples), label='assert:inferences')
 
 
 if __name__ == '__main__':

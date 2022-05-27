@@ -24,6 +24,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/synthetic"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/test/load"
 )
@@ -52,6 +53,30 @@ func parseSyntheticConfig() synthetic.SourceConfig {
 	}
 }
 
+func init() {
+	register.DoFn2x2[[]byte, func(*[]byte) bool, []byte, []byte]((*ungroupAndReiterateFn)(nil))
+	register.Iter1[[]byte]()
+}
+
+// ungroupAndReiterateFn reiterates given number of times over GBK's output.
+type ungroupAndReiterateFn struct {
+	Iterations int
+}
+
+// TODO use re-iterators once supported.
+
+func (fn *ungroupAndReiterateFn) ProcessElement(key []byte, values func(*[]byte) bool) ([]byte, []byte) {
+	var value []byte
+	for i := 0; i < fn.Iterations; i++ {
+		for values(&value) {
+			if i == fn.Iterations-1 {
+				return key, value
+			}
+		}
+	}
+	return key, []byte{0}
+}
+
 func main() {
 	flag.Parse()
 	beam.Init()
@@ -63,18 +88,9 @@ func main() {
 	src = beam.ParDo(s, &load.RuntimeMonitor{}, src)
 	for i := 0; i < *fanout; i++ {
 		pcoll := beam.GroupByKey(s, src)
-		pcoll = beam.ParDo(s, func(key []byte, values func(*[]byte) bool) ([]byte, []byte) {
-			for i := 0; i < *iterations; i++ {
-				var value []byte
-				for values(&value) {
-					if i == *iterations-1 {
-						return key, value
-					}
-				}
-			}
-			return key, []byte{0}
-		}, pcoll)
+		pcoll = beam.ParDo(s, &ungroupAndReiterateFn{*iterations}, pcoll)
 		pcoll = beam.ParDo(s, &load.RuntimeMonitor{}, pcoll)
+		_ = pcoll
 	}
 
 	presult, err := beamx.RunWithMetrics(ctx, p)
