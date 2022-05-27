@@ -101,7 +101,7 @@ public class FhirIOReadIT {
     pubsub.createSubscription(topicPath, subscriptionPath, 60);
     client.createFhirStore(healthcareDataset, fhirStoreName, version, pubsubTopic);
 
-    // Execute bundles to trigger FHIR notificiations to input topic
+    // Execute bundles to trigger FHIR notifications to input topic
     FhirIOTestUtil.executeFhirBundles(
         client,
         healthcareDataset + "/fhirStores/" + fhirStoreName,
