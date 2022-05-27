@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import java.time.temporal.TemporalAccessor;
-import java.time.format.DateTimeFormatter;
 import static java.util.stream.Collectors.toList;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -43,8 +41,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAccessor;
 import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
@@ -429,7 +429,8 @@ public class TableRowToStorageApiProto {
       case "TIMESTAMP":
         if (value instanceof String) {
           try {
-            TemporalAccessor creationAccessor = DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse((String) value);
+            TemporalAccessor creationAccessor =
+                DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse((String) value);
             return ChronoUnit.MICROS.between(Instant.EPOCH, Instant.from(creationAccessor));
           } catch (DateTimeParseException e) {
             return ChronoUnit.MICROS.between(
