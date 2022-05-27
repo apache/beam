@@ -75,7 +75,7 @@ task copyGolangLicenses(type: Copy) {
 }
 
 task copyJdkOptions(type: Copy) {
-    if (imageJavaVersion == "17") {
+    if (imageJavaVersion == "17" || imageJavaVersion == "11") {
         from "option-jamm.json"
         into "build/target/options"
     }

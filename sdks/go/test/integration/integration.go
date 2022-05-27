@@ -77,6 +77,8 @@ var directFilters = []string{
 	// (BEAM-13075): The direct runner does not currently support multimap side inputs
 	"TestParDoMultiMapSideInput",
 	"TestLargeWordcount_Loopback",
+	// The direct runner does not support self-checkpointing
+	"TestCheckpointing",
 }
 
 var portableFilters = []string{
@@ -87,6 +89,8 @@ var portableFilters = []string{
 	"TestPanes",
 	// TODO(BEAM-12797): Python portable runner times out on Kafka reads.
 	"TestKafkaIO.*",
+	// The portable runner does not support self-checkpointing
+	"TestCheckpointing",
 }
 
 var flinkFilters = []string{
@@ -110,6 +114,8 @@ var samzaFilters = []string{
 	"TestPanes",
 	// TODO(BEAM-13006): Samza doesn't yet support post job metrics, used by WordCount
 	"TestWordCount.*",
+	// The Samza runner does not support self-checkpointing
+	"TestCheckpointing",
 }
 
 var sparkFilters = []string{
@@ -124,6 +130,8 @@ var sparkFilters = []string{
 	"TestPanes",
 	// [BEAM-13921]: Spark doesn't support side inputs to executable stages
 	"TestDebeziumIO_BasicRead",
+	// The spark runner does not support self-checkpointing
+	"TestCheckpointing",
 }
 
 var dataflowFilters = []string{
@@ -143,6 +151,9 @@ var dataflowFilters = []string{
 	// Dataflow doesn't support any test that requires loopback.
 	// Eg. For FileIO examples.
 	".*Loopback.*",
+	// Dataflow does not automatically terminate the TestCheckpointing pipeline when
+	// complete.
+	"TestCheckpointing",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
@@ -151,6 +162,10 @@ var dataflowFilters = []string{
 // t.Run is used, CheckFilters should be called within the t.Run callback, so
 // that sub-tests can be skipped individually.
 func CheckFilters(t *testing.T) {
+	if !ptest.MainCalled() {
+		panic("ptest.Main() has not been called: please override TestMain to ensure that the integration test runs properly.")
+	}
+
 	// Check for sickbaying first.
 	n := t.Name()
 	for _, f := range sickbay {
