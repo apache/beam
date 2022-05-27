@@ -348,6 +348,8 @@ public class TableRowToStorageApiProto {
           return Double.valueOf((String) value);
         } else if (value instanceof Double || value instanceof Float) {
           return ((Number) value).doubleValue();
+        } else if (value instanceof Integer || value instanceof Long) {
+          return ((Number) value).longValue();
         }
         break;
       case "BOOLEAN":
