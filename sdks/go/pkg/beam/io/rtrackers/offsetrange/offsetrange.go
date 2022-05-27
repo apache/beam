@@ -231,13 +231,13 @@ func (tracker *Tracker) IsBounded() bool {
 // RangeEndEstimator provides the estimated end offset of the range. Users must implement this interface to
 // use the offsetrange.GrowableTracker.
 type RangeEndEstimator interface {
-	// Estimate is called to get the end offset in TrySplit() or GetProgress() functions.
+	// Estimate is called to get the end offset in TrySplit() functions.
 	//
 	// The end offset is exclusive for the range. The estimated end is not required to
 	// monotonically increase as it will only be taken into consideration when the
 	// estimated end offset is larger than the current position.
 	// Returning math.MaxInt64 as the estimate implies the largest possible position for the range
-	// is math.MaxInt64 - 1. Return math.MinInt64 if an estimate can not be provided.
+	// is math.MaxInt64 - 1.
 	//
 	// Providing a good estimate is important for an accurate progress signal and will impact
 	// splitting decisions by the runner.
@@ -253,10 +253,16 @@ type GrowableTracker struct {
 	rangeEndEstimator RangeEndEstimator
 }
 
-// NewGrowableTracker is a constructor for an GrowableTracker given a offsetrange.Restriction and RangeEndEstimator.
-// This tracker should be used when dealing with streaming use cases where the end of the restriction is
-// undefined (math.MaxInt64) in this case. Otherwise, this tracker works the same as offsetrange.Tracker, so it is
-// recommended to use that directly for bounded restrictions.
+// NewGrowableTracker creates a GrowableTracker for handling a growable offset range.
+// math.MaxInt64 is used as the end of the range to indicate infinity for an unbounded range.
+//
+// An OffsetRange is considered growable when the end offset could grow (or change)
+// during execution time (e.g. Kafka topic partition offset, appended file, ...).
+//
+// The growable range is marked as done by claiming math.MaxInt64-1.
+//
+// For bounded restrictions, this tracker works the same as offsetrange.Tracker.
+// Use that directly if you have no need of estimating the end of a bound.
 func NewGrowableTracker(rest Restriction, rangeEndEstimator RangeEndEstimator) (*GrowableTracker, error) {
 	if rangeEndEstimator == nil {
 		return nil, fmt.Errorf("param rangeEndEstimator cannot be nil. Implementing offsetrange.RangeEndEstimator may be required")
