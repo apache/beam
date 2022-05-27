@@ -25,11 +25,29 @@ export interface PipelineResult {
   waitUntilFinish(duration?: number): Promise<JobState_Enum>;
 }
 
+export function createRunner(options): Runner {
+  let runnerConstructor: (any) => Runner;
+  if (options.runner == undefined || options.runner == "default") {
+    runnerConstructor = defaultRunner;
+  } else if (options.runner == "direct") {
+    runnerConstructor = require("./direct_runner").directRunner;
+  } else if (options.runner == "universal") {
+    runnerConstructor = require("./universal").universalRunner;
+  } else if (options.runner == "flink") {
+    runnerConstructor = require("./flink").flinkRunner;
+  } else if (options.runner == "dataflow") {
+    runnerConstructor = require("./dataflow").dataflowRunner;
+  } else {
+    throw new Error("Unknown runner: " + options.runner);
+  }
+  return runnerConstructor(options);
+}
+
 /**
  * A Runner is the object that takes a pipeline definition and actually
  * executes, e.g. locally or on a distributed system.
  */
-export class Runner {
+export abstract class Runner {
   /**
    * Runs the transform.
    *
@@ -64,10 +82,27 @@ export class Runner {
     return this.runPipeline(p);
   }
 
-  protected async runPipeline(
+  abstract runPipeline(
     pipeline: Pipeline,
     options?: PipelineOptions
-  ): Promise<PipelineResult> {
-    throw new Error("Not implemented.");
-  }
+  ): Promise<PipelineResult>;
+}
+
+export function defaultRunner(defaultOptions: Object): Runner {
+  return new (class extends Runner {
+    async runPipeline(
+      pipeline: Pipeline,
+      options: Object = {}
+    ): Promise<PipelineResult> {
+      const directRunner =
+        require("./direct_runner").directRunner(defaultOptions);
+      if (directRunner.unsupportedFeatures(pipeline, options).length == 0) {
+        return directRunner.runPipeline(pipeline, options);
+      } else {
+        return require("./universal")
+          .universalRunner(defaultOptions)
+          .runPipeline(pipeline, options);
+      }
+    }
+  })();
 }

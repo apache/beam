@@ -303,6 +303,8 @@ public class StreamingWriteTables<ElementT>
           failedInserts,
           result.get(BatchedStreamingWrite.SUCCESSFUL_ROWS_TAG),
           null,
+          null,
+          null,
           null);
     }
   }

@@ -461,7 +461,7 @@ class TestGCSIO(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.io.gcp.gcsio.auth.get_service_credentials',
-      wraps=lambda: None)
+      wraps=lambda pipeline_options: None)
   @mock.patch('apache_beam.io.gcp.gcsio.get_new_http')
   def test_user_agent_passed(self, get_new_http_mock, get_service_creds_mock):
     client = gcsio.GcsIO()

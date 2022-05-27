@@ -314,7 +314,7 @@ class BigQueryWrapper(object):
 
   The wrapper is used to organize all the BigQuery integration points and
   offer a common place where retry logic for failures can be controlled.
-  In addition it offers various functions used both in sources and sinks
+  In addition, it offers various functions used both in sources and sinks
   (e.g., find and create tables, query a table, etc.).
   """
 
@@ -328,7 +328,7 @@ class BigQueryWrapper(object):
   def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
     self.client = client or bigquery.BigqueryV2(
         http=get_new_http(),
-        credentials=auth.get_service_credentials(),
+        credentials=auth.get_service_credentials(None),
         response_encoding='utf8',
         additional_http_headers={
             "user-agent": "apache-beam-%s" % apache_beam.__version__

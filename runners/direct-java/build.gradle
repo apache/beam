@@ -137,7 +137,7 @@ task needsRunnerTests(type: Test) {
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     // MetricsPusher isn't implemented in direct runner
     excludeCategories "org.apache.beam.sdk.testing.UsesMetricsPusher"
-    excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories "org.apache.beam.sdk.testing.UsesJavaExpansionService"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     // https://issues.apache.org/jira/browse/BEAM-2791
@@ -171,7 +171,7 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
-    excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories "org.apache.beam.sdk.testing.UsesJavaExpansionService"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
     // https://issues.apache.org/jira/browse/BEAM-2791
     excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'

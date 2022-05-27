@@ -689,6 +689,7 @@ func TestAsSplittableUnit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("invalid function: %v", err)
 	}
+
 	multiWindows := []typex.Window{
 		window.IntervalWindow{Start: 10, End: 20},
 		window.IntervalWindow{Start: 11, End: 21},
@@ -1197,6 +1198,103 @@ func TestAsSplittableUnit(t *testing.T) {
 		}
 	})
 
+	t.Run("Checkpoint", func(t *testing.T) {
+		var tests = []struct {
+			name          string
+			fn            *graph.DoFn
+			in            FullValue
+			finishPrimary bool
+			expErr        bool
+			wantResiduals []*FullValue
+		}{
+			{
+				name: "base case",
+				fn:   dfn,
+				in: FullValue{
+					Elm: &FullValue{
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf"},
+							Elm2: false,
+						},
+					},
+					Elm2:      1.0,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+				finishPrimary: true,
+				expErr:        false,
+				wantResiduals: []*FullValue{{
+					Elm: &FullValue{
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf.2", RestSize: true, Val: 1},
+							Elm2: false,
+						},
+					},
+					Elm2:      1.0,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				}},
+			},
+			{
+				name: "unfinished primary",
+				fn:   dfn,
+				in: FullValue{
+					Elm: &FullValue{
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf"},
+							Elm2: false,
+						},
+					},
+					Elm2:      1.0,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+				finishPrimary: false,
+				expErr:        true,
+				wantResiduals: []*FullValue{},
+			},
+		}
+		for _, test := range tests {
+			t.Run(test.name, func(t *testing.T) {
+				// Setup, create transforms, inputs, and desired outputs.
+				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{}}
+				node := &ProcessSizedElementsAndRestrictions{PDo: n}
+				node.rt = &SplittableUnitCheckpointingRTracker{
+					VetRTracker: VetRTracker{Rest: test.in.Elm.(*FullValue).Elm2.(*FullValue).Elm.(*VetRestriction)},
+					primaryDone: test.finishPrimary,
+					isDone:      false,
+				}
+				node.elm = &test.in
+				node.numW = len(test.in.Windows)
+				node.currW = 0
+				// Call from SplittableUnit and check results.
+				su := SplittableUnit(node)
+				if err := node.Up(context.Background()); err != nil {
+					t.Fatalf("ProcessSizedElementsAndRestrictions.Up() failed: %v", err)
+				}
+				gotResiduals, err := su.Checkpoint()
+				if test.expErr {
+					if err == nil {
+						t.Errorf("SplittableUnit.Checkpoint() succeeded when it should have failed")
+					}
+					if len(gotResiduals) != 0 {
+						t.Errorf("SplittableUnit.Checkpoint() got residuals %v, want none", gotResiduals)
+					}
+				} else {
+					if err != nil {
+						t.Fatalf("SplittableUnit.Checkpoint() returned error, got %v", err)
+					}
+					if diff := cmp.Diff(gotResiduals, test.wantResiduals); diff != "" {
+						t.Errorf("SplittableUnit.Checkpoint() has incorrect residual (-got, +want)\n%v", diff)
+					}
+				}
+			})
+		}
+	})
+
 	t.Run("WatermarkEstimation", func(t *testing.T) {
 		tests := []struct {
 			name string
@@ -1477,4 +1575,25 @@ func (rt *SplittableUnitRTracker) TrySplit(_ float64) (interface{}, interface{},
 
 func (rt *SplittableUnitRTracker) GetProgress() (float64, float64) {
 	return rt.Done, rt.Remaining
+}
+
+// SplittableUnitCheckpointingRTracker adds support to the VetRTracker to enable
+// happy path testing of checkpointing.
+type SplittableUnitCheckpointingRTracker struct {
+	VetRTracker
+	primaryDone bool
+	isDone      bool
+}
+
+func (rt *SplittableUnitCheckpointingRTracker) IsDone() bool {
+	return rt.isDone
+}
+
+func (rt *SplittableUnitCheckpointingRTracker) TrySplit(_ float64) (interface{}, interface{}, error) {
+	rest1 := rt.Rest.copy()
+	rest1.ID += ".1"
+	rest2 := rt.Rest.copy()
+	rest2.ID += ".2"
+	rt.isDone = rt.primaryDone
+	return &rest1, &rest2, nil
 }
