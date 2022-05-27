@@ -22,6 +22,7 @@ const os = require("os");
 const net = require("net");
 const path = require("path");
 const childProcess = require("child_process");
+const findGitRoot = require("find-git-root");
 
 // TODO: (Typescript) Why can't the var above be used as a namespace?
 import { ChildProcess } from "child_process";
@@ -47,17 +48,35 @@ export class SubprocessService {
   process: ChildProcess;
   cmd: string;
   args: string[];
+  name: string;
 
-  constructor(cmd: string, args: string[]) {
+  constructor(
+    cmd: string,
+    args: string[],
+    name: string | undefined = undefined
+  ) {
     this.cmd = cmd;
     this.args = args;
+    this.name = name || cmd;
+  }
+
+  static async freePort(): Promise<number> {
+    return new Promise((resolve) => {
+      const srv = net.createServer();
+      srv.listen(0, () => {
+        const port = srv.address().port;
+        srv.close((_) => resolve(port));
+      });
+    });
   }
 
   async start() {
-    // TODO: (Cleanup) Choose a free port.
     const host = "localhost";
-    const port = "7778";
-    console.log(this.args.map((arg) => arg.replace("{{PORT}}", port)));
+    const port = (await SubprocessService.freePort()).toString();
+    console.debug(
+      this.cmd,
+      this.args.map((arg) => arg.replace("{{PORT}}", port))
+    );
     this.process = childProcess.spawn(
       this.cmd,
       this.args.map((arg) => arg.replace("{{PORT}}", port)),
@@ -67,7 +86,11 @@ export class SubprocessService {
     );
 
     try {
+      console.debug(
+        `Waiting for ${this.name} to be available on port ${port}.`
+      );
       await this.portReady(port, host, 10000);
+      console.debug(`Service ${this.name} available.`);
     } catch (error) {
       this.process.kill();
       throw error;
@@ -77,6 +100,7 @@ export class SubprocessService {
   }
 
   async stop() {
+    console.log(`Tearing down ${this.name}.`);
     this.process.kill();
   }
 
@@ -91,9 +115,9 @@ export class SubprocessService {
       try {
         await new Promise<void>((resolve, reject) => {
           const socket = net.createConnection(port, host, () => {
-            resolve();
-            socket.end();
             connected = true;
+            socket.end();
+            resolve();
           });
           socket.on("error", (err) => {
             reject(err);
@@ -123,10 +147,12 @@ export function serviceProviderFromJavaGradleTarget(
   };
 }
 
+const BEAM_CACHE = path.join(os.homedir(), ".apache_beam", "cache");
+
 export class JavaJarService extends SubprocessService {
   static APACHE_REPOSITORY = "https://repo.maven.apache.org/maven2";
   static BEAM_GROUP_ID = "org.apache.beam";
-  static JAR_CACHE = path.join(os.homedir(), ".apache_beam", "cache", "jars");
+  static JAR_CACHE = path.join(BEAM_CACHE, "jars");
 
   constructor(jar: string, args: string[] | undefined = undefined) {
     if (args == undefined) {
@@ -185,16 +211,7 @@ export class JavaJarService extends SubprocessService {
     }
     const gradlePackage = gradleTarget.match(/^:?(.*):[^:]+:?$/)![1];
     const artifactId = "beam-" + gradlePackage.replaceAll(":", "-");
-    // TODO: Do this more robustly, e.g. use the git root.
-    const projectRoot = path.resolve(
-      __dirname,
-      "..",
-      "..",
-      "..",
-      "..",
-      "..",
-      ".."
-    );
+    const projectRoot = path.dirname(findGitRoot(__dirname));
     const localPath = path.join(
       projectRoot,
       gradlePackage.replaceAll(":", path.sep),
@@ -254,5 +271,62 @@ export class JavaJarService extends SubprocessService {
         .filter((s) => s != undefined)
         .join("-") + ".jar"
     );
+  }
+}
+
+export class PythonService extends SubprocessService {
+  static VENV_CACHE = path.join(BEAM_CACHE, "venvs");
+
+  static whichPython(): string {
+    for (const bin of ["python3", "python"]) {
+      try {
+        const result = childProcess.spawnSync(bin, ["--version"]);
+        if (result.status == 0) {
+          return bin;
+        }
+      } catch (err) {
+        // Try the next one.
+      }
+    }
+    throw new Error("Can't find a Python executable.");
+  }
+
+  static beamPython(): string {
+    const projectRoot = path.dirname(findGitRoot(__dirname));
+    // TODO: Package this up with the npm.
+    const bootstrapScript = path.join(
+      projectRoot,
+      "sdks",
+      "java",
+      "extensions",
+      "python",
+      "src",
+      "main",
+      "resources",
+      "org",
+      "apache",
+      "beam",
+      "sdk",
+      "extensions",
+      "python",
+      "bootstrap_beam_venv.py"
+    );
+    console.debug("Invoking Python bootstrap script.");
+    const result = childProcess.spawnSync(
+      PythonService.whichPython(),
+      [bootstrapScript],
+      { encoding: "latin1" }
+    );
+    if (result.status == 0) {
+      console.debug(result.stdout);
+      const lines = result.stdout.trim().split("\n");
+      return lines[lines.length - 1];
+    } else {
+      throw new Error(result.output);
+    }
+  }
+
+  constructor(module: string, args: string[] = []) {
+    super(PythonService.beamPython(), ["-u", "-m", module].concat(args));
   }
 }

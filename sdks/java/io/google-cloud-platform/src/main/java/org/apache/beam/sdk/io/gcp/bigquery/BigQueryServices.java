@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.client.http.AbstractInputStreamContent;
 import com.google.api.core.ApiFuture;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
@@ -68,6 +69,14 @@ public interface BigQueryServices extends Serializable {
     /** Start a BigQuery load job. */
     void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException;
+
+    /** Start a BigQuery load job with stream content. */
+    void startLoadJob(
+        JobReference jobRef,
+        JobConfigurationLoad loadConfig,
+        AbstractInputStreamContent streamContent)
+        throws InterruptedException, IOException;
+
     /** Start a BigQuery extract job. */
     void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
         throws InterruptedException, IOException;

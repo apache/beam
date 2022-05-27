@@ -345,6 +345,10 @@ class Environment(object):
           for k, v in sdk_pipeline_options.items() if v is not None
       }
       options_dict["pipelineUrl"] = proto_pipeline_staged_url
+      # Don't pass impersonate_service_account through to the harness.
+      # Though impersonation should start a job, the workers should
+      # not try to modify their credentials.
+      options_dict.pop('impersonate_service_account', None)
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='options', value=to_json_value(options_dict)))
@@ -557,7 +561,7 @@ class DataflowApplicationClient(object):
     if self.google_cloud_options.no_auth:
       credentials = None
     else:
-      credentials = get_service_credentials()
+      credentials = get_service_credentials(options)
 
     http_client = get_new_http()
     self._client = dataflow.DataflowV1b3(
