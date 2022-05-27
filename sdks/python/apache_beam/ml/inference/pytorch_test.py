@@ -71,12 +71,12 @@ class PytorchLinearRegressionPredictionParams(torch.nn.Module):
   # k1 is the batched input, and prediction_param_array, prediction_param_bool
   # are non-batchable inputs (typically model-related info) used to configure
   # the model before its predict call is invoked
-  def forward(self, k1, prediction_param_array, prediction_param_bool):
+  def forward(self, k1, k2, prediction_param_array, prediction_param_bool):
     if not prediction_param_bool:
       raise ValueError("Expected prediction_param_bool to be True")
     if not torch.all(prediction_param_array):
       raise ValueError("Expected prediction_param_array to be all True")
-    out = self.linear(k1)
+    out = self.linear(k1) + self.linear(k2)
     return out
 
 
@@ -192,15 +192,19 @@ class PytorchRunInferenceTest(unittest.TestCase):
     examples = [
         {
             'k1': torch.from_numpy(np.array([1], dtype="float32")),
+            'k2': torch.from_numpy(np.array([1.5], dtype="float32"))
         },
         {
             'k1': torch.from_numpy(np.array([5], dtype="float32")),
+            'k2': torch.from_numpy(np.array([5.5], dtype="float32"))
         },
         {
             'k1': torch.from_numpy(np.array([-3], dtype="float32")),
+            'k2': torch.from_numpy(np.array([-3.5], dtype="float32"))
         },
         {
             'k1': torch.from_numpy(np.array([10.0], dtype="float32")),
+            'k2': torch.from_numpy(np.array([10.5], dtype="float32"))
         },
     ]
     prediction_params = {
@@ -212,7 +216,8 @@ class PytorchRunInferenceTest(unittest.TestCase):
         PredictionResult(ex, pred) for ex,
         pred in zip(
             examples,
-            torch.Tensor([(example['k1'] * 2.0 + 0.5)
+            torch.Tensor([(example['k1'] * 2.0 + 0.5) +
+                          (example['k2'] * 2.0 + 0.5)
                           for example in examples]).reshape(-1, 1))
     ]
 
@@ -277,15 +282,19 @@ class PytorchRunInferenceTest(unittest.TestCase):
       examples = [
           {
               'k1': torch.from_numpy(np.array([1], dtype="float32")),
+              'k2': torch.from_numpy(np.array([1.5], dtype="float32"))
           },
           {
               'k1': torch.from_numpy(np.array([5], dtype="float32")),
+              'k2': torch.from_numpy(np.array([5.5], dtype="float32"))
           },
           {
               'k1': torch.from_numpy(np.array([-3], dtype="float32")),
+              'k2': torch.from_numpy(np.array([-3.5], dtype="float32"))
           },
           {
               'k1': torch.from_numpy(np.array([10.0], dtype="float32")),
+              'k2': torch.from_numpy(np.array([10.5], dtype="float32"))
           },
       ]
       prediction_params = {
@@ -297,7 +306,8 @@ class PytorchRunInferenceTest(unittest.TestCase):
           PredictionResult(ex, pred) for ex,
           pred in zip(
               examples,
-              torch.Tensor([(example['k1'] * 2.0 + 0.5)
+              torch.Tensor([(example['k1'] * 2.0 + 0.5) +
+                            (example['k2'] * 2.0 + 0.5)
                             for example in examples]).reshape(-1, 1))
       ]
 
