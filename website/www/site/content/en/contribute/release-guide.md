@@ -722,7 +722,7 @@ all major features and bug fixes, and all known issues.
 
 1. Maven artifacts deployed to the staging repository of [repository.apache.org](https://repository.apache.org/content/repositories/)
 1. Source distribution deployed to the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
-1. Website pull request proposed to list the [release](/get-started/downloads/), publish the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/).
+1. Website pull request proposed to list the [release](https://beam.apache.org/get-started/downloads/), publish the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/).
 1. Docker images are published to [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags: {RELEASE}_rc{RC_NUM}.
 
 You can (optionally) also do additional verification by:
@@ -734,7 +734,7 @@ You can (optionally) also do additional verification by:
 1. Pull docker images to make sure they are pullable.
 ```
 docker pull {image_name}
-docker pull apache/beam_python3.5_sdk:2.16.0_rc1
+docker pull apache/beam_python3.7_sdk:2.39.0_rc1
 ```
 
 
@@ -832,11 +832,11 @@ versions to run all of the tests. See Python installation tips in [Developer Wik
   1. Check whether validations succeed by following console output instructions.
   1. Terminate streaming jobs and java injector.
   1. Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on Jenkins.
-    1. Log in to Jenkins.
-    1. Go to https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/.
-    1. Click "Build with Parameters".
-    1. Set `snapshot_version` to `2.xx.0`, and set `snapshot_url` to point to the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
-    1. Click "Build".
+     * Log in to Jenkins.
+     * Go to https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/.
+     * Click "Build with Parameters".
+     * Set `snapshot_version` to `2.xx.0`, and set `snapshot_url` to point to the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
+     * Click "Build".
   1. Sign up [spreadsheet](https://s.apache.org/beam-release-validation).
   1. Vote in the release thread.
 

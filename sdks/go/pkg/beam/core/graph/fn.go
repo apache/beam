@@ -1003,6 +1003,14 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 					"Ensure that all restrictions in an SDF are the same type.",
 					truncateRestrictionName, 0, method.Ret[0].T, restrictionT, createInitialRestrictionName)
 			}
+			processFn := fn.methods[processElementName]
+			if _, exists := processFn.ProcessContinuation(); !exists {
+				err := errors.Errorf("missing return value in %v: return value of type %v is not present",
+					processElementName, reflect.TypeOf((*sdf.ProcessContinuation)(nil)).Elem())
+				return errors.SetTopLevelMsgf(err, "Missing output value in method %v, "+
+					"%v method should return %v when %v method is defined.",
+					processElementName, processElementName, reflect.TypeOf((*sdf.ProcessContinuation)(nil)).Elem(), truncateRestrictionName)
+			}
 		}
 	}
 
@@ -1356,7 +1364,7 @@ func verifyValidNames(fnKind string, fn *Fn, names ...string) error {
 
 	for key := range fn.methods {
 		if !m[key] {
-			return errors.Errorf("%s: unexpected exported method %v present. Valid methods are: %v", fnKind, key, names)
+			return errors.Errorf("%s: unexpected exported method %v present on %v. Valid methods are: %v", fnKind, key, fn.Name(), names)
 		}
 	}
 	return nil

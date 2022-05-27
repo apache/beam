@@ -24,9 +24,7 @@ import * as textio from "../io/textio";
 
 import { PortableRunner } from "../runners/portable_runner/runner";
 
-import * as internal from "../../apache_beam/transforms/internal";
-import { RowCoder } from "../coders/row_coder";
-import { SqlTransform } from "../transforms/sql";
+import { sqlTransform } from "../transforms/sql";
 
 async function main() {
   // python apache_beam/runners/portability/local_job_service_main.py --port 3333
@@ -34,13 +32,13 @@ async function main() {
     environmentType: "LOOPBACK",
     jobEndpoint: "localhost:3333",
   }).run(async (root) => {
-    const lines = root.apply(new beam.Create(["a", "b", "c", "c"]));
+    const lines = root.apply(beam.create(["a", "b", "c", "c"]));
 
     const filtered = await lines
       .map((w) => ({ word: w }))
-      .apply(new internal.WithCoderInternal(RowCoder.fromJSON({ word: "str" })))
+      .apply(beam.withRowCoder({ word: "str" }))
       .asyncApply(
-        new SqlTransform(
+        sqlTransform(
           "SELECT word, count(*) as c from PCOLLECTION group by word"
         )
       );

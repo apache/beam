@@ -236,7 +236,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final String mainInputId;
   private final FnApiStateAccessor<?> stateAccessor;
   private final Map<String, FnDataReceiver<?>> outboundTimerReceivers;
-  private FnApiTimerBundleTracker timerBundleTracker;
+  private final @Nullable FnApiTimerBundleTracker timerBundleTracker;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
   private final ProcessBundleContextBase processContext;
@@ -483,10 +483,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     this.bundleFinalizer = bundleFinalizer;
     this.onTimerContext = new OnTimerContext();
     this.onWindowExpirationContext = new OnWindowExpirationContext<>();
-    this.timerBundleTracker =
-        new FnApiTimerBundleTracker(
-            keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
-    addResetFunction.accept(timerBundleTracker::reset);
 
     this.mainOutputConsumers =
         (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
@@ -737,12 +733,22 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             () -> currentWindow);
 
     // Register as a consumer for each timer.
-    outboundTimerReceivers = new HashMap<>();
-    for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfo :
-        timerFamilyInfos.entrySet()) {
-      String localName = timerFamilyInfo.getKey();
-      Coder<Timer<Object>> timerCoder = timerFamilyInfo.getValue().getValue();
-      outboundTimerReceivers.put(localName, getOutgoingTimersConsumer.apply(localName, timerCoder));
+    this.outboundTimerReceivers = new HashMap<>();
+    if (timerFamilyInfos.isEmpty()) {
+      this.timerBundleTracker = null;
+    } else {
+      this.timerBundleTracker =
+          new FnApiTimerBundleTracker(
+              keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
+      addResetFunction.accept(timerBundleTracker::reset);
+
+      for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfo :
+          timerFamilyInfos.entrySet()) {
+        String localName = timerFamilyInfo.getKey();
+        Coder<Timer<Object>> timerCoder = timerFamilyInfo.getValue().getValue();
+        outboundTimerReceivers.put(
+            localName, getOutgoingTimersConsumer.apply(localName, timerCoder));
+      }
     }
   }
 
@@ -1639,6 +1645,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private <K> void processTimer(
       String timerIdOrTimerFamilyId, TimeDomain timeDomain, Timer<K> timer) {
+    checkNotNull(timerBundleTracker);
     try {
       currentKey = timer.getUserKey();
       Iterator<BoundedWindow> windowIterator =
@@ -1737,7 +1744,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void finishBundle() throws Exception {
-    timerBundleTracker.outputTimers(outboundTimerReceivers::get);
+    if (timerBundleTracker != null) {
+      timerBundleTracker.outputTimers(outboundTimerReceivers::get);
+    }
 
     doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
 
@@ -1813,6 +1822,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public void set(Instant absoluteTime) {
+      checkNotNull(timerBundleTracker);
       // Ensures that the target time is reasonable. For event time timers this means that the time
       // should be prior to window GC time.
       if (TimeDomain.EVENT_TIME.equals(timeDomain)) {
@@ -1829,6 +1839,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public void setRelative() {
+      checkNotNull(timerBundleTracker);
       Instant target;
       if (period.equals(Duration.ZERO)) {
         target = fireTimestamp.plus(offset);
@@ -1845,6 +1856,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public void clear() {
+      checkNotNull(timerBundleTracker);
       timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getClearedTimer());
     }
 
