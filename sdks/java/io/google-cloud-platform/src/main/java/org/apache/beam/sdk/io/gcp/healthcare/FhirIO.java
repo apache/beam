@@ -1591,24 +1591,21 @@ public class FhirIO {
 
     @Override
     public PCollection<HealthcareIOError<String>> getFailedBodies() {
-      return this.failedBundles
-          .apply(
-              "GetBodiesFromBundles",
-              MapElements.via(
-                  new SimpleFunction<
-                      HealthcareIOError<FhirBundleResponse>, HealthcareIOError<String>>() {
-                    @Override
-                    public HealthcareIOError<String> apply(
-                        HealthcareIOError<FhirBundleResponse> input) {
-                      return new HealthcareIOError<>(
-                          input.getDataResource().getFhirBundleParameter().getBundle(),
-                          input.getErrorMessage(),
-                          input.getStackTrace(),
-                          input.getObservedTime(),
-                          input.getStatusCode());
-                    }
-                  }))
-          .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
+      return this.failedBundles.apply(
+          MapElements.via(
+              new SimpleFunction<
+                  HealthcareIOError<FhirBundleResponse>, HealthcareIOError<String>>() {
+                @Override
+                public HealthcareIOError<String> apply(
+                    HealthcareIOError<FhirBundleResponse> input) {
+                  return new HealthcareIOError<>(
+                      input.getDataResource().getFhirBundleParameter().getBundle(),
+                      input.getErrorMessage(),
+                      input.getStackTrace(),
+                      input.getObservedTime(),
+                      input.getStatusCode());
+                }
+              }));
     }
 
     /**
