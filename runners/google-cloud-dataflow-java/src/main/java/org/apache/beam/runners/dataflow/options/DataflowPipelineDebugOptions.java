@@ -332,7 +332,7 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
     private static ShuffleCompressor.Factory NOOP =
         new ShuffleCompressor.Factory() {
           @Override
-          public ShuffleCompressor create() {
+          public ShuffleCompressor create(String datasetId) {
             return null;
           }
         };

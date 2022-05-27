@@ -43,11 +43,13 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
   public ChunkingShuffleBatchReader(
       BatchModeExecutionContext executionContext,
       DataflowOperationContext operationContext,
-      ShuffleReader reader) {
+      ShuffleReader reader,
+      @Nullable ShuffleCompressor shuffleCompressor
+      ) {
     this.reader = reader;
     this.readState = operationContext.newExecutionState("read-shuffle");
     this.tracker = executionContext.getExecutionStateTracker();
-    this.shuffleCompressor = executionContext.getShuffleCompressor();
+    this.shuffleCompressor = shuffleCompressor;
   }
 
   @Override

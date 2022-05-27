@@ -42,8 +42,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A sink that writes to a shuffle dataset.
@@ -55,7 +53,6 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
-  private static final Logger LOG = LoggerFactory.getLogger(ShuffleSink.class);
 
   enum ShuffleKind {
     UNGROUPED,
@@ -185,17 +182,6 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
       this.sortValueCoder = null;
       this.windowedValueCoder = null;
     }
-
-    LOG.info(
-        "Starting ShuffleSink for {} with kind {}, keyCoder = {}, valueCoder = {}, sortKeyCoder = {}, sortValueCoder = {}, windowedValueCoder = {}, elemCoder = {}",
-        operationContext.nameContext(),
-        shuffleKind,
-        keyCoder,
-        valueCoder,
-        sortKeyCoder,
-        sortValueCoder,
-        windowedValueCoder,
-        windowedElemCoder);
   }
 
   /**
@@ -209,7 +195,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
         options,
         operationContext.counterFactory(),
         datasetId,
-        shuffleCompressorFactory.create());
+        shuffleCompressorFactory.create(datasetId));
   }
 
   /** The SinkWriter for a ShuffleSink. */

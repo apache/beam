@@ -22,7 +22,7 @@ import org.apache.beam.runners.dataflow.util.RandomAccessData;
 
 public interface ShuffleCompressor {
   interface Factory {
-    ShuffleCompressor create();
+    ShuffleCompressor create(String datasetId);
   }
 
   /**
