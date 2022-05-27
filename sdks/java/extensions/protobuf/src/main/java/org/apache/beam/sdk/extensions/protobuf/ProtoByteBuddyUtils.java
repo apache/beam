@@ -103,8 +103,9 @@ import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.byt
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.jar.asm.ClassWriter;
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.jar.asm.Label;
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.matcher.ElementMatchers;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -190,15 +191,59 @@ class ProtoByteBuddyUtils {
   private static final String DEFAULT_PROTO_GETTER_PREFIX = "get";
   private static final String DEFAULT_PROTO_SETTER_PREFIX = "set";
 
+  // BEAM-14525: there is a slight difference between 'protoc' and Guava CaseFormat regarding the
+  // camel case conversion
+  // - guava keeps the first character after a number lower case
+  // - protoc makes it upper case
+  // based on
+  // https://github.com/protocolbuffers/protobuf/blob/ec79d0d328c7e6cea15cc27fbeb9b018ca289590/src/google/protobuf/compiler/java/helpers.cc#L173-L208
+  @VisibleForTesting
+  static String convertProtoPropertyNameToJavaPropertyName(String input) {
+    boolean capitalizeNextLetter = true;
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(input));
+    StringBuilder result = new StringBuilder(input.length());
+    for (int i = 0; i < input.length(); i++) {
+      final char c = input.charAt(i);
+      if (Character.isLowerCase(c)) {
+        if (capitalizeNextLetter) {
+          result.append(Character.toUpperCase(c));
+        } else {
+          result.append(c);
+        }
+        capitalizeNextLetter = false;
+      } else if (Character.isUpperCase(c)) {
+        if (i == 0 && !capitalizeNextLetter) {
+          // Force first letter to lower-case unless explicitly told to
+          // capitalize it.
+          result.append(Character.toLowerCase(c));
+        } else {
+          // Capital letters after the first are left as-is.
+          result.append(c);
+        }
+        capitalizeNextLetter = false;
+      } else if ('0' <= c && c <= '9') {
+        result.append(c);
+        capitalizeNextLetter = true;
+      } else {
+        capitalizeNextLetter = true;
+      }
+    }
+    // Add a trailing "_" if the name should be altered.
+    if (input.charAt(input.length() - 1) == '#') {
+      result.append('_');
+    }
+    return result.toString();
+  }
+
   static String protoGetterName(String name, FieldType fieldType) {
-    final String camel = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, name);
+    final String camel = convertProtoPropertyNameToJavaPropertyName(name);
     return DEFAULT_PROTO_GETTER_PREFIX
         + camel
         + PROTO_GETTER_SUFFIX.getOrDefault(fieldType.getTypeName(), "");
   }
 
   static String protoSetterName(String name, FieldType fieldType) {
-    final String camel = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, name);
+    final String camel = convertProtoPropertyNameToJavaPropertyName(name);
     return protoSetterPrefix(fieldType) + camel;
   }
 
