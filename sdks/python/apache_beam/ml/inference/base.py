@@ -86,6 +86,7 @@ class ModelLoader(Generic[T]):
 
   def get_resource_hints(self) -> dict:
     """Returns resource hints for the transform."""
+    return {}
 
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     """Returns kwargs suitable for beam.BatchElements."""
