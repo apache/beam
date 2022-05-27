@@ -25,15 +25,54 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ProtoByteBuddyUtilsTest {
 
+  private static final String PROTO_PROPERTY_WITH_UNDERSCORE = "foo_bar_id";
+  private static final String PROTO_PROPERTY_WITH_NUMBER = "foo2bar_id";
+
+  private static final String JAVA_PROPERTY_FOR_PROTO_PROPERTY_WITH_UNDERSCORE = "FooBarId";
+  private static final String JAVA_PROPERTY_FOR_PROTO_PROPERTY_WITH_NUMBER = "Foo2BarId";
+
   @Test
-  public void testGetterNameCreationFromUsualPropertyName() {
+  public void testGetterNameCreationForProtoPropertyWithUnderscore() {
     Assert.assertEquals(
-        "FooBarId", ProtoByteBuddyUtils.convertProtoPropertyNameToJavaPropertyName("foo_bar_id"));
+        JAVA_PROPERTY_FOR_PROTO_PROPERTY_WITH_UNDERSCORE,
+        ProtoByteBuddyUtils.convertProtoPropertyNameToJavaPropertyName(
+            PROTO_PROPERTY_WITH_UNDERSCORE));
   }
 
   @Test
-  public void testGetterNameCreationFromPropertyNameWithNumber() {
+  public void testGetterNameCreationForProtoPropertyWithNumber() {
     Assert.assertEquals(
-        "Foo2BarId", ProtoByteBuddyUtils.convertProtoPropertyNameToJavaPropertyName("foo2bar_id"));
+        JAVA_PROPERTY_FOR_PROTO_PROPERTY_WITH_NUMBER,
+        ProtoByteBuddyUtils.convertProtoPropertyNameToJavaPropertyName(PROTO_PROPERTY_WITH_NUMBER));
+  }
+
+  @Test
+  public void testGetterExistenceForProtoPropertyWithUnderscore() {
+    try {
+      Assert.assertNotNull(
+          ProtoByteBuddyUtilsMessages.ProtoByteBuddyUtilsMessageWithUnderscore.class.getMethod(
+              "get" + JAVA_PROPERTY_FOR_PROTO_PROPERTY_WITH_UNDERSCORE));
+    } catch (NoSuchMethodException e) {
+      Assert.fail(
+          "Unable to find expected getter method for "
+              + PROTO_PROPERTY_WITH_UNDERSCORE
+              + " -> "
+              + e);
+    }
+  }
+
+  @Test
+  public void testGetterExistenceForProtoPropertyWithNumber() {
+    try {
+      Assert.assertNotNull(
+          ProtoByteBuddyUtilsMessages.ProtoByteBuddyUtilsMessageWithNumber.class.getMethod(
+              "get" + JAVA_PROPERTY_FOR_PROTO_PROPERTY_WITH_NUMBER));
+    } catch (NoSuchMethodException e) {
+      Assert.fail(
+          "Unable to find expected getter method for "
+              + JAVA_PROPERTY_FOR_PROTO_PROPERTY_WITH_NUMBER
+              + " -> "
+              + e);
+    }
   }
 }
