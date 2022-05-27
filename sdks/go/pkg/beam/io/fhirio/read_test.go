@@ -76,8 +76,14 @@ func TestRead(t *testing.T) {
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
 			counterResults := pipelineResult.Metrics().AllMetrics().Counters()
-			if len(counterResults) != 1 || counterResults[0].Result() != int64(len(testResourcePaths)) {
-				t.Error("Only error counter should be incremented and by exactly the amount of test resource ids")
+			if len(counterResults) != 1 {
+				t.Fatal("Only one counter should have been used")
+			}
+			if counterResults[0].Name() != "fhirio/read_resource_error_count" {
+				t.Fatal("Only error counter should have been used")
+			}
+			if counterResults[0].Result() != int64(len(testResourcePaths)) {
+				t.Fatal("Counter should have been incremented by the number of test resource paths")
 			}
 		})
 	}
