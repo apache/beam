@@ -26,8 +26,10 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.any;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -91,7 +93,7 @@ public class LocalFileSystemTest {
   }
 
   @Test
-  public void testCreateException() throws Exception {
+  public void testCreateFilesException() throws Exception {
     File mockParentFile = mock(File.class);
     when(mockParentFile.mkdirs()).thenThrow(new RuntimeException("exception when creating files"));
 
@@ -226,8 +228,6 @@ public class LocalFileSystemTest {
 
   @Test
   public void testMoveWithNonExistingSrcFile() throws Exception {
-    thrown.expect(NoSuchFileException.class);
-
     Path existingSrc = temporaryFolder.newFile().toPath();
     Path nonExistingSrc = temporaryFolder.getRoot().toPath().resolve("non-existent-file.txt");
 
@@ -236,9 +236,37 @@ public class LocalFileSystemTest {
 
     createFileWithContent(existingSrc, "content1");
 
+    thrown.expect(NoSuchFileException.class);
+
     localFileSystem.rename(
         toLocalResourceIds(ImmutableList.of(existingSrc, nonExistingSrc), false /* isDirectory */),
         toLocalResourceIds(ImmutableList.of(destPath1, destPath2), false /* isDirectory */));
+  }
+
+  @Test
+  public void testMoveFilesWithException() throws Exception {
+    Path srcPath1 = temporaryFolder.newFile().toPath();
+    Path srcPath2 = temporaryFolder.newFile().toPath();
+
+    Path destPath1 = temporaryFolder.getRoot().toPath().resolve("nonexistentdir").resolve("dest1");
+    Path destPath2 = srcPath2.resolveSibling("dest2");
+
+    createFileWithContent(srcPath1, "content1");
+    createFileWithContent(srcPath2, "content2");
+
+    try(MockedStatic<java.nio.file.Files> mockFiles =
+        Mockito.mockStatic(java.nio.file.Files.class)) {
+      System.out.println(srcPath1 + " plus " + destPath1);
+
+      mockFiles.when(() -> java.nio.file.Files.move(any(), any(), any(), any())).thenThrow(
+          new RuntimeException("exception while moving files"));
+
+      thrown.expect(RuntimeException.class);
+
+      localFileSystem.rename(
+          toLocalResourceIds(ImmutableList.of(srcPath1, srcPath2), false /* isDirectory */),
+          toLocalResourceIds(ImmutableList.of(destPath1, destPath2), false /* isDirectory */));
+    }
   }
 
   @Test
