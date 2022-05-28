@@ -44,7 +44,6 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalAccessor;
 import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
@@ -429,9 +428,9 @@ public class TableRowToStorageApiProto {
       case "TIMESTAMP":
         if (value instanceof String) {
           try {
-            TemporalAccessor creationAccessor =
-                DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse((String) value);
-            return ChronoUnit.MICROS.between(Instant.EPOCH, Instant.from(creationAccessor));
+            return ChronoUnit.MICROS.between(
+                Instant.EPOCH,
+                Instant.from(DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse((String) value)));
           } catch (DateTimeParseException e) {
             return ChronoUnit.MICROS.between(
                 Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
@@ -453,7 +452,14 @@ public class TableRowToStorageApiProto {
         break;
       case "DATE":
         if (value instanceof String) {
-          return ((Long) LocalDate.parse((String) value).toEpochDay()).intValue();
+          try {
+            return ((Long)
+                    LocalDate.parse((String) value, DateTimeFormatter.ISO_OFFSET_DATE).toEpochDay())
+                .intValue();
+          } catch (DateTimeParseException e) {
+            return ((Long) LocalDate.parse((String) value).toEpochDay()).intValue();
+          }
+
         } else if (value instanceof LocalDate) {
           return ((Long) ((LocalDate) value).toEpochDay()).intValue();
         } else if (value instanceof org.joda.time.LocalDate) {
@@ -489,7 +495,13 @@ public class TableRowToStorageApiProto {
         break;
       case "DATETIME":
         if (value instanceof String) {
-          return CivilTimeEncoder.encodePacked64DatetimeMicros(LocalDateTime.parse((String) value));
+          try {
+            return CivilTimeEncoder.encodePacked64DatetimeMicros(
+                LocalDateTime.parse((String) value, DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+          } catch (DateTimeParseException e) {
+            return CivilTimeEncoder.encodePacked64DatetimeMicros(
+                LocalDateTime.parse((String) value));
+          }
         } else if (value instanceof Number) {
           return ((Number) value).longValue();
         } else if (value instanceof LocalDateTime) {
@@ -500,7 +512,12 @@ public class TableRowToStorageApiProto {
         break;
       case "TIME":
         if (value instanceof String) {
-          return CivilTimeEncoder.encodePacked64TimeMicros(LocalTime.parse((String) value));
+          try {
+            return CivilTimeEncoder.encodePacked64TimeMicros(
+                LocalTime.parse((String) value, DateTimeFormatter.ISO_OFFSET_TIME));
+          } catch (DateTimeParseException e) {
+            return CivilTimeEncoder.encodePacked64TimeMicros(LocalTime.parse((String) value));
+          }
         } else if (value instanceof Number) {
           return ((Number) value).longValue();
         } else if (value instanceof LocalTime) {
