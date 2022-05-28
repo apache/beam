@@ -432,7 +432,12 @@ public class TableRowToStorageApiProto {
                 Instant.EPOCH,
                 Instant.from(DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse((String) value)));
           } catch (DateTimeParseException e) {
-            return ChronoUnit.MICROS.between(Instant.EPOCH, Instant.parse((String) value));
+            try {
+              return ChronoUnit.MICROS.between(Instant.EPOCH, Instant.parse((String) value));
+            } catch (DateTimeParseException e2) {
+              return ChronoUnit.MICROS.between(
+                  Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
+            }
           }
         } else if (value instanceof Instant) {
           return ChronoUnit.MICROS.between(Instant.EPOCH, (Instant) value);
