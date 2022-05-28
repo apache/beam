@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
@@ -64,6 +65,11 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT>
       public StorageApiWritePayload toMessage(T element) {
         Message msg = BeamRowToStorageApiProto.messageFromBeamRow(descriptor, toRow.apply(element));
         return new AutoValue_StorageApiWritePayload(msg.toByteArray(), descriptorHash);
+      }
+
+      @Override
+      public TableRow toTableRow(T element) {
+        return BigQueryUtils.toTableRow(toRow.apply(element));
       }
     };
   }

@@ -363,7 +363,6 @@ public class TableRowToStorageApiProtoIT {
 
     assertEquals(1, actualTableRows.size());
     assertEquals(BASE_TABLE_ROW_EXPECTED, actualTableRows.get(0).get("nestedValue1"));
-    LOG.info("ACTUAL " + actualTableRows.get(0).get("nestedValue2"));
     assertEquals(
         ImmutableList.of(
             BASE_TABLE_ROW_EXPECTED,

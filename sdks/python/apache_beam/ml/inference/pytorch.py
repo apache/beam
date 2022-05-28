@@ -67,7 +67,11 @@ class PytorchInferenceRunner(InferenceRunner):
 
 
 class PytorchModelLoader(ModelLoader):
-  """Loads a Pytorch Model."""
+  """ Implementation of the ModelLoader interface for PyTorch.
+
+      NOTE: This API and its implementation are under development and
+      do not provide backward compatibility guarantees.
+  """
   def __init__(
       self,
       state_dict_path: str,

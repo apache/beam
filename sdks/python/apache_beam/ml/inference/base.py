@@ -36,6 +36,7 @@ from typing import Any
 from typing import Generic
 from typing import Iterable
 from typing import List
+from typing import Mapping
 from typing import TypeVar
 
 import apache_beam as beam
@@ -61,7 +62,7 @@ def _to_microseconds(time_ns: int) -> int:
   return int(time_ns / _NANOSECOND_TO_MICROSECOND)
 
 
-class InferenceRunner():
+class InferenceRunner:
   """Implements running inferences for a framework."""
   def run_inference(self, batch: List[Any], model: Any) -> Iterable[Any]:
     """Runs inferences on a batch of examples and
@@ -87,9 +88,21 @@ class ModelLoader(Generic[T]):
     """Returns an implementation of InferenceRunner for this model."""
     raise NotImplementedError(type(self))
 
+  def get_resource_hints(self) -> dict:
+    """Returns resource hints for the transform."""
+    return {}
+
+  def batch_elements_kwargs(self) -> Mapping[str, Any]:
+    """Returns kwargs suitable for beam.BatchElements."""
+    return {}
+
 
 class RunInference(beam.PTransform):
-  """An extensible transform for running inferences."""
+  """An extensible transform for running inferences.
+  Args:
+      model_loader: An implementation of ModelLoader.
+      clock: A clock implementing get_current_time_in_microseconds.
+  """
   def __init__(self, model_loader: ModelLoader, clock=time):
     self._model_loader = model_loader
     self._clock = clock
@@ -97,11 +110,15 @@ class RunInference(beam.PTransform):
   # TODO(BEAM-14208): Add batch_size back off in the case there
   # are functional reasons large batch sizes cannot be handled.
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
+    resource_hints = self._model_loader.get_resource_hints()
     return (
         pcoll
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
-        | beam.BatchElements()
-        | beam.ParDo(_RunInferenceDoFn(self._model_loader, self._clock)))
+        | beam.BatchElements(**self._model_loader.batch_elements_kwargs())
+        | (
+            beam.ParDo(_RunInferenceDoFn(
+                self._model_loader,
+                self._clock)).with_resource_hints(**resource_hints)))
 
 
 class _MetricsCollector:

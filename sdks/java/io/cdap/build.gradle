@@ -38,6 +38,7 @@ interface for integration with CDAP plugins."""
  */
 
 dependencies {
+    implementation library.java.avro
     implementation library.java.cdap_api
     implementation library.java.cdap_api_commons
     implementation (library.java.cdap_common) {
@@ -45,6 +46,8 @@ dependencies {
     }
     implementation library.java.cdap_etl_api
     implementation library.java.cdap_etl_api_spark
+    implementation library.java.hadoop_common
+    implementation library.java.hadoop_mapreduce_client_core
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
     implementation library.java.guava
@@ -53,6 +56,7 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     testImplementation library.java.cdap_plugin_service_now
     testImplementation library.java.cdap_etl_api
+    testImplementation library.java.hadoop_common
     testImplementation library.java.vendored_guava_26_0_jre
     testImplementation library.java.junit
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")

@@ -140,17 +140,18 @@ func (fn *AnnotationsFn) ProcessElement(v int) int {
 }
 
 func doNothing(_ []byte, _ int) {}
-func TestParDoSideInputValdiation(t *testing.T) {
+func TestParDoSideInputValidation(t *testing.T) {
 	var tests = []struct {
 		name      string
 		wFn       *window.Fn
 		isBounded bool
 	}{
-		{
-			"global window unbounded",
-			window.NewGlobalWindows(),
-			false,
-		},
+		// TODO(BEAM-14501): Re-enable this test case once proper streaming testing support is finished.
+		// {
+		// 	"global window unbounded",
+		// 	window.NewGlobalWindows(),
+		// 	false,
+		// },
 		{
 			"side input session windowed",
 			window.NewSessions(1 * time.Minute),

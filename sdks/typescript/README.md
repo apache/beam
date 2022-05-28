@@ -93,6 +93,12 @@ used in Python. These can be "ordinary" javascript objects (which are passed
 as is) or special DoFnParam objects which provide getters to element-specific
 information (such as the current timestamp, window, or side input) at runtime.
 
+* Rather than introduce multiple-output complexity into the map/do operations
+themselves, producing multiple outputs is done by following with a new
+`Split` primitive that takes a
+`PCollection<{a?: AType, b: BType, ... }>` and produces an object
+`{a: PCollection<AType>, b: PCollection<BType>, ...}`.
+
 * Javascript supports (and encourages) an asynchronous programing model, with
 many libraries requiring use of the async/await paradigm.
 As there is no way (by design) to go from the asyncronous style back to
