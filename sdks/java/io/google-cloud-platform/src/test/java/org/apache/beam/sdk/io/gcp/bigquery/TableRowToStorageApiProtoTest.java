@@ -329,14 +329,14 @@ public class TableRowToStorageApiProtoTest {
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timevalue")
-                  .setNumber(11)
+                  .setNumber(10)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("datetimevalue")
-                  .setNumber(12)
+                  .setNumber(11)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
