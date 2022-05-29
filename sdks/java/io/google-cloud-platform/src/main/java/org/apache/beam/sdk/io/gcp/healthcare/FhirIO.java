@@ -1411,7 +1411,9 @@ public class FhirIO {
               ParDo.of(new ExecuteBundlesFn(this.fhirStore))
                   .withOutputTags(SUCCESSFUL_BUNDLES, TupleTagList.of(FAILED_BUNDLES)));
       bundles.get(SUCCESSFUL_BUNDLES).setCoder(FhirBundleResponseCoder.of());
-      bundles.get(FAILED_BUNDLES).setCoder(HealthcareIOErrorCoder.of(FhirBundleParameterCoder.of()));
+      bundles
+          .get(FAILED_BUNDLES)
+          .setCoder(HealthcareIOErrorCoder.of(FhirBundleParameterCoder.of()));
 
       return ExecuteBundlesResult.in(
           input.getPipeline(), bundles.get(SUCCESSFUL_BUNDLES), bundles.get(FAILED_BUNDLES));
@@ -1480,8 +1482,7 @@ public class FhirIO {
           parseResponse(context, resp);
         } catch (IOException | HealthcareHttpException e) {
           EXECUTE_BUNDLE_ERRORS.inc();
-          context.output(
-              FAILED_BUNDLES, HealthcareIOError.of(context.element(), e));
+          context.output(FAILED_BUNDLES, HealthcareIOError.of(context.element(), e));
         }
       }
 
@@ -1513,7 +1514,8 @@ public class FhirIO {
             if (statusCode / 100 == 2) {
               success++;
               context.output(
-                  SUCCESSFUL_BUNDLES, FhirBundleResponse.of(context.element(), entry.getAsString()));
+                  SUCCESSFUL_BUNDLES,
+                  FhirBundleResponse.of(context.element(), entry.getAsString()));
             } else {
               fail++;
               context.output(
@@ -1579,15 +1581,14 @@ public class FhirIO {
 
     @Override
     public PCollection<String> getSuccessfulBodies() {
-      return this.successfulBundles.apply(
+      return this.successfulBundles
+          .apply(
               MapElements.into(TypeDescriptors.strings())
                   .via(bundleResponse -> bundleResponse.getFhirBundleParameter().getBundle()))
           .setCoder(StringUtf8Coder.of());
     }
 
-    /**
-     * Gets successful FhirBundleResponse from execute bundles operation.
-     */
+    /** Gets successful FhirBundleResponse from execute bundles operation. */
     public PCollection<FhirBundleResponse> getSuccessfulBundles() {
       return this.successfulBundles;
     }
@@ -1628,11 +1629,10 @@ public class FhirIO {
 
     @Override
     public void finishSpecifyingOutput(
-        String transformName, PInput input, PTransform<?, ?> transform) {
-    }
+        String transformName, PInput input, PTransform<?, ?> transform) {}
 
-    private static class GetStringHealthcareIOErrorFn extends
-        DoFn<HealthcareIOError<FhirBundleParameter>, HealthcareIOError<String>> {
+    private static class GetStringHealthcareIOErrorFn
+        extends DoFn<HealthcareIOError<FhirBundleParameter>, HealthcareIOError<String>> {
 
       @ProcessElement
       public void process(ProcessContext context) {
