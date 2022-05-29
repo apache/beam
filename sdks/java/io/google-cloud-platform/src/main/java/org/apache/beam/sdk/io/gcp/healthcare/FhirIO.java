@@ -1514,15 +1514,13 @@ public class FhirIO {
             if (statusCode / 100 == 2) {
               success++;
               context.output(
-                  SUCCESSFUL_BUNDLES,
-                  FhirBundleResponse.of(context.element(), entry.getAsString()));
+                  SUCCESSFUL_BUNDLES, FhirBundleResponse.of(context.element(), entry.toString()));
             } else {
               fail++;
               context.output(
                   FAILED_BUNDLES,
                   HealthcareIOError.of(
-                      context.element(),
-                      HealthcareHttpException.of(statusCode, entry.getAsString())));
+                      context.element(), HealthcareHttpException.of(statusCode, entry.toString())));
             }
           }
           EXECUTE_BUNDLE_RESOURCE_SUCCESS.inc(success);
