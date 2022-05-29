@@ -129,7 +129,9 @@ public class FhirIOWriteIT {
             .collect(Collectors.toList());
 
     ExecuteBundlesResult writeResult =
-        pipeline.apply(Create.of(bundles)).apply(new ExecuteBundles(options.getFhirStore()));
+        pipeline
+            .apply(Create.of(bundles).withCoder(FhirBundleParameterCoder.of()))
+            .apply(new ExecuteBundles(options.getFhirStore()));
 
     PAssert.that(writeResult.getSuccessfulBodies())
         .satisfies(

@@ -1530,7 +1530,7 @@ public class FhirIO {
         } else if (bundleType.equals(BUNDLE_RESPONSE_TYPE_TRANSACTION)) {
           EXECUTE_BUNDLE_RESOURCE_SUCCESS.inc(entries.size());
           context.output(
-              SUCCESSFUL_BUNDLES, FhirBundleResponse.of(context.element(), bundle.getAsString()));
+              SUCCESSFUL_BUNDLES, FhirBundleResponse.of(context.element(), bundle.toString()));
         }
         EXECUTE_BUNDLE_SUCCESS.inc();
         return;
