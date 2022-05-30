@@ -353,6 +353,10 @@ tasks.register("pythonSparkPostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
 }
 
+tasks.register("pythonRunInferenceBenchmarks") {
+  dependsOn(":sdks:python:test-suites:dataflow:inferenceBenchmarkTests")
+}
+
 tasks.register("websitePreCommit") {
   dependsOn(":website:preCommit")
 }

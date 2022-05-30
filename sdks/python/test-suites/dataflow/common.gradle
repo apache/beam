@@ -365,7 +365,7 @@ task validatesContainer() {
   }
 }
 
-// Run RunInference IT tests on DataflowRunner
+// Pytorch RunInference benchmark test
 task torchBenchmarkTests {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
