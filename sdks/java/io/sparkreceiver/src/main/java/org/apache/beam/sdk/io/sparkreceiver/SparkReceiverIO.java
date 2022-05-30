@@ -62,6 +62,8 @@ public class SparkReceiverIO {
 
     abstract @Nullable SerializableFunction<V, Long> getGetOffsetFn();
 
+    abstract @Nullable SparkConsumer<V> getSparkConsumer();
+
     abstract Builder<V> toBuilder();
 
     @Experimental(Experimental.Kind.PORTABILITY)
@@ -78,6 +80,8 @@ public class SparkReceiverIO {
           ProxyReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder);
 
       abstract Builder<V> setGetOffsetFn(SerializableFunction<V, Long> getOffsetFn);
+
+      abstract Builder<V> setSparkConsumer(SparkConsumer<V> sparkConsumer);
 
       abstract Read<V> build();
     }
@@ -101,6 +105,10 @@ public class SparkReceiverIO {
 
     public Read<V> withGetOffsetFn(SerializableFunction<V, Long> getOffsetFn) {
       return toBuilder().setGetOffsetFn(getOffsetFn).build();
+    }
+
+    public Read<V> withSparkConsumer(SparkConsumer<V> sparkConsumer) {
+      return toBuilder().setSparkConsumer(sparkConsumer).build();
     }
 
     @Override

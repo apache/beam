@@ -22,12 +22,12 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.spark.SparkConf;
 import org.apache.spark.streaming.receiver.Receiver;
 import org.slf4j.Logger;
@@ -61,6 +61,7 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
           if (read % 100 == 0) {
             LOG.info("[{}], records read = {}", 0, recordsRead);
           }
+          return null;
         });
 
     return result;
@@ -108,7 +109,7 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
     this.receiver = receiver;
   }
 
-  void initReceiver(Consumer<Object[]> storeConsumer) {
+  void initReceiver(SerializableFunction<Object[], Void> storeConsumer) {
     try {
       new WrappedSupervisor(receiver, new SparkConf(), storeConsumer);
 

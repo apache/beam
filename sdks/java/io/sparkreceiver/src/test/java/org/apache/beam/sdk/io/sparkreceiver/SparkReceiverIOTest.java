@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.sparkreceiver;
 import io.cdap.plugin.hubspot.common.BaseHubspotConfig;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import io.cdap.plugin.hubspot.source.streaming.PullFrequency;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -29,11 +31,15 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.spark.SparkConf;
+import org.apache.spark.streaming.receiver.Receiver;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Test class for {@link SparkReceiverIO}. */
 @RunWith(JUnit4.class)
@@ -53,6 +59,47 @@ public class SparkReceiverIOTest {
           .put("pullFrequency", PullFrequency.MINUTES_15.getName())
           .build();
 
+  private static class CustomSparkConsumer<V> implements SparkConsumer<V> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CustomSparkConsumer.class);
+
+    private static final Queue<Object> queue = new ConcurrentLinkedQueue<>();
+    private Receiver<V> sparkReceiver;
+
+    @Override
+    public V poll() {
+      return (V) queue.poll();
+    }
+
+    @Override
+    public void start(Receiver<V> sparkReceiver) {
+      try {
+        this.sparkReceiver = sparkReceiver;
+        new WrappedSupervisor<>(
+            sparkReceiver,
+            new SparkConf(),
+            objects -> {
+              queue.offer(objects[0]);
+              return null;
+            });
+        sparkReceiver.supervisor().startReceiver();
+      } catch (Exception e) {
+        LOG.error("Can not init Spark Receiver!", e);
+      }
+    }
+
+    @Override
+    public void stop() {
+      queue.clear();
+      sparkReceiver.stop("Stopped");
+    }
+
+    @Override
+    public boolean hasRecords() {
+      return !queue.isEmpty();
+    }
+  }
+
   @Test
   public void testReadFromHubspot() throws Exception {
 
@@ -68,6 +115,7 @@ public class SparkReceiverIOTest {
             .withValueClass(String.class)
             .withValueCoder(StringUtf8Coder.of())
             .withGetOffsetFn(SparkReceiverUtils::getOffsetByHubspotRecord)
+            .withSparkConsumer(new CustomSparkConsumer<>())
             .withSparkReceiverBuilder(receiverBuilder);
 
     PCollection<String> input = p.apply(reader).setCoder(StringUtf8Coder.of());

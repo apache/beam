@@ -92,4 +92,8 @@ public class ProxyReceiverBuilder<X, T extends Receiver<X>> implements Serializa
     currentConstructor.setAccessible(true);
     return (T) currentConstructor.newInstance(constructorArgs);
   }
+
+  public Class<T> getSparkReceiverClass() {
+    return sparkReceiverClass;
+  }
 }

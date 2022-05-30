@@ -17,8 +17,9 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
+import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.util.function.Consumer;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.spark.SparkConf;
 import org.apache.spark.storage.StreamBlockId;
 import org.apache.spark.streaming.receiver.BlockGenerator;
@@ -30,37 +31,38 @@ import scala.collection.Iterator;
 import scala.collection.mutable.ArrayBuffer;
 
 /** Wrapper class for {@link ReceiverSupervisor} that doesn't use Spark Environment. */
-@SuppressWarnings("return.type.incompatible")
-public class WrappedSupervisor extends ReceiverSupervisor {
+@SuppressWarnings({"return.type.incompatible", "UnusedVariable"})
+public class WrappedSupervisor<V> extends ReceiverSupervisor implements Serializable {
 
-  private final Consumer<Object[]> storeConsumer;
+  private final SerializableFunction<Object[], Void> storeFn;
 
-  public WrappedSupervisor(Receiver<?> receiver, SparkConf conf, Consumer<Object[]> consumer) {
+  public WrappedSupervisor(
+      Receiver<?> receiver, SparkConf conf, SerializableFunction<Object[], Void> storeFn) {
     super(receiver, conf);
-    this.storeConsumer = consumer;
+    this.storeFn = storeFn;
   }
 
   @Override
   public void pushSingle(Object o) {
-    storeConsumer.accept(new Object[] {o});
+    storeFn.apply(new Object[] {o});
   }
 
   @Override
   public void pushBytes(
       ByteBuffer byteBuffer, Option<Object> option, Option<StreamBlockId> option1) {
-    storeConsumer.accept(new Object[] {byteBuffer, option, option1});
+    storeFn.apply(new Object[] {byteBuffer, option, option1});
   }
 
   @Override
   public void pushIterator(
       Iterator<?> iterator, Option<Object> option, Option<StreamBlockId> option1) {
-    storeConsumer.accept(new Object[] {iterator, option, option1});
+    storeFn.apply(new Object[] {iterator, option, option1});
   }
 
   @Override
   public void pushArrayBuffer(
       ArrayBuffer<?> arrayBuffer, Option<Object> option, Option<StreamBlockId> option1) {
-    storeConsumer.accept(new Object[] {arrayBuffer, option, option1});
+    storeFn.apply(new Object[] {arrayBuffer, option, option1});
   }
 
   @Override

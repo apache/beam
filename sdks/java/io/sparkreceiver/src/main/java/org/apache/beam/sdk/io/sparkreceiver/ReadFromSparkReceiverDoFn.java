@@ -18,20 +18,14 @@
 package org.apache.beam.sdk.io.sparkreceiver;
 
 import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.splittabledofn.GrowableOffsetRangeTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
-import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
-import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
+import org.apache.beam.sdk.transforms.splittabledofn.*;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.spark.SparkConf;
 import org.apache.spark.streaming.receiver.Receiver;
@@ -47,22 +41,23 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
 
   private final SerializableFunction<Instant, WatermarkEstimator<Instant>>
       createWatermarkEstimatorFn;
-  private Queue<V> availableRecordsQueue;
   private ProxyReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder;
   private Receiver<V> sparkReceiver;
   private final SerializableFunction<V, Long> getOffsetFn;
+  private SparkConsumer<V> sparkConsumer;
 
   public ReadFromSparkReceiverDoFn(SparkReceiverIO.ReadFromSparkReceiverViaSdf<V> transform) {
     createWatermarkEstimatorFn = WatermarkEstimators.Manual::new;
     sparkReceiverBuilder = transform.sparkReceiverRead.getSparkReceiverBuilder();
     getOffsetFn = transform.sparkReceiverRead.getGetOffsetFn();
-  }
-
-  private void initReceiver(Consumer<Object[]> storeConsumer, Receiver<V> sparkReceiver) {
-    try {
-      new WrappedSupervisor(sparkReceiver, new SparkConf(), storeConsumer);
-    } catch (Exception e) {
-      LOG.error("Can not init Spark Receiver!", e);
+    if (!isOffsetable()) {
+      sparkConsumer = transform.sparkReceiverRead.getSparkConsumer();
+      try {
+        sparkReceiver = sparkReceiverBuilder.build();
+        sparkConsumer.start(sparkReceiver);
+      } catch (Exception e) {
+        LOG.error("Can not build Spark Receiver", e);
+      }
     }
   }
 
@@ -97,11 +92,15 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
 
     @Override
     public long estimate() {
-      if (sparkReceiver instanceof HasOffset) {
+      if (isOffsetable()) {
         return ((HasOffset) sparkReceiver).getEndOffset();
       }
       return Long.MAX_VALUE;
     }
+  }
+
+  private boolean isOffsetable() {
+    return HasOffset.class.isAssignableFrom(sparkReceiverBuilder.getSparkReceiverClass());
   }
 
   @NewTracker
@@ -109,7 +108,7 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
       @Element SparkReceiverSourceDescriptor sourceDescriptor,
       @Restriction OffsetRange restriction) {
     return new GrowableOffsetRangeTracker(
-        restriction.getFrom(), new SparkReceiverLatestOffsetEstimator());
+        restriction.getFrom(), new SparkReceiverLatestOffsetEstimator()) {};
   }
 
   @GetRestrictionCoder
@@ -125,6 +124,59 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
   @Teardown
   public void teardown() throws Exception {
     // Closeables close
+    LOG.debug("Teardown");
+    if (!isOffsetable()) {
+      sparkConsumer.stop();
+    }
+  }
+
+  private static class SparkConsumerWithOffset<V> implements SparkConsumer<V> {
+    private final Queue<V> recordsQueue = new ConcurrentLinkedQueue<>();
+    private Receiver<V> sparkReceiver;
+    private final Long startOffset;
+
+    public SparkConsumerWithOffset(Long startOffset) {
+      this.startOffset = startOffset;
+    }
+
+    @Override
+    public boolean hasRecords() {
+      return !recordsQueue.isEmpty();
+    }
+
+    @Override
+    public V poll() {
+      return recordsQueue.poll();
+    }
+
+    @Override
+    public void start(Receiver<V> sparkReceiver) {
+      this.sparkReceiver = sparkReceiver;
+      initReceiver(
+          objects -> {
+            V record = (V) objects[0];
+            recordsQueue.offer(record);
+            return null;
+          },
+          sparkReceiver);
+      ((HasOffset) sparkReceiver).setStartOffset(startOffset);
+      sparkReceiver.supervisor().startReceiver();
+    }
+
+    @Override
+    public void stop() {
+      sparkReceiver.stop("Stopped");
+      recordsQueue.clear();
+    }
+
+    private void initReceiver(
+        SerializableFunction<Object[], Void> storeConsumer, Receiver<V> sparkReceiver) {
+      try {
+        new WrappedSupervisor<>(sparkReceiver, new SparkConf(), storeConsumer);
+      } catch (Exception e) {
+        LOG.error("Can not init Spark Receiver!", e);
+      }
+    }
   }
 
   @ProcessElement
@@ -134,40 +186,46 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
       WatermarkEstimator watermarkEstimator,
       OutputReceiver<V> receiver) {
 
-    availableRecordsQueue = new ArrayBlockingQueue<>(1000);
-    try {
-      this.sparkReceiver = sparkReceiverBuilder.build();
-      initReceiver(objects -> availableRecordsQueue.offer((V) objects[0]), sparkReceiver);
-    } catch (Exception e) {
-      LOG.error("Can not create new Hubspot Receiver", e);
-    }
-    if (sparkReceiver instanceof HasOffset) {
-      long from = tracker.currentRestriction().getFrom();
-      ((HasOffset) sparkReceiver).setStartOffset(from);
-    }
-    sparkReceiver.supervisor().startReceiver();
-    LOG.info(
-        "Restriction: {}, {}",
-        tracker.currentRestriction().getFrom(),
-        tracker.currentRestriction().getTo());
-    try {
-      TimeUnit.MILLISECONDS.sleep(500);
-    } catch (InterruptedException e) {
-      LOG.error("Interrupted", e);
+    if (isOffsetable()) {
+      try {
+        this.sparkReceiver = sparkReceiverBuilder.build();
+        this.sparkConsumer = new SparkConsumerWithOffset<>(tracker.currentRestriction().getFrom());
+        sparkConsumer.start(sparkReceiver);
+        try {
+          TimeUnit.MILLISECONDS.sleep(500);
+        } catch (InterruptedException e) {
+          LOG.error("Interrupted", e);
+        }
+      } catch (Exception e) {
+        LOG.error("Can not build Spark Receiver", e);
+      }
     }
 
-    while (!availableRecordsQueue.isEmpty()) {
-      V record = availableRecordsQueue.poll();
-      if (!tracker.tryClaim(getOffsetFn.apply(record))) {
-        sparkReceiver.stop("Stopped");
-        availableRecordsQueue.clear();
+    LOG.info("Restriction: {}", tracker.currentRestriction().toString());
+
+    while (sparkConsumer.hasRecords()) {
+      V record = sparkConsumer.poll();
+      Long offset = getOffsetFn.apply(record);
+      if (!tracker.tryClaim(offset)) {
+        if (isOffsetable()) {
+          sparkConsumer.stop();
+        }
+        LOG.info("Process STOP {}", tracker.currentRestriction().toString());
         return ProcessContinuation.stop();
       }
       ((ManualWatermarkEstimator) watermarkEstimator).setWatermark(Instant.now());
       receiver.outputWithTimestamp(record, Instant.now());
     }
-    sparkReceiver.stop("Stopped");
-    availableRecordsQueue.clear();
+    if (isOffsetable()) {
+      sparkConsumer.stop();
+    } else {
+      try {
+        TimeUnit.MILLISECONDS.sleep(200);
+      } catch (InterruptedException e) {
+        LOG.error("Interrupted", e);
+      }
+    }
+    LOG.info("Process RESUME {}", tracker.currentRestriction().toString());
     return ProcessContinuation.resume();
   }
 
