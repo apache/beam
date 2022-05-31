@@ -57,7 +57,9 @@ class SklearnInferenceRunner(InferenceRunner[numpy.ndarray,
     return sum(sys.getsizeof(element) for element in batch)
 
 
-class SklearnModelLoader(ModelLoader[numpy.ndarray, PredictionResult, BaseEstimator]):
+class SklearnModelLoader(ModelLoader[numpy.ndarray,
+                                     PredictionResult,
+                                     BaseEstimator]):
   """ Implementation of the ModelLoader interface for scikit learn.
 
       NOTE: This API and its implementation are under development and
