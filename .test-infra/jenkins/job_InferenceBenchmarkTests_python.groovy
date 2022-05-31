@@ -39,6 +39,7 @@ def inferenceBenchmarkJob = { scope ->
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_Inference_Python_Benchmarks_Dataflow',
     'Run Inference Benchmarks',
+    'Inference benchmarks on Dataflow',
     this
     ) {
       inferenceBenchmarkJob(delegate)
