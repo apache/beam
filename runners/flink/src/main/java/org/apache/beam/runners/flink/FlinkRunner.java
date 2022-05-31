@@ -99,7 +99,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
     JobExecutionResult result;
     try {
-      LOG.info("Starting execution of Flink program.");
+      //LOG.info("Starting execution of Flink program.");
       result = env.executePipeline();
     } catch (Exception e) {
       LOG.error("Pipeline execution failed", e);
