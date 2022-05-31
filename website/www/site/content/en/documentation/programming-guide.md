@@ -6518,6 +6518,11 @@ unbounded restrictions finish processing at the next SDF-initiated checkpoint or
 You are able to override this default behavior by defining the appropriate method on the restriction
 provider.
 
+{{< paragraph class="language-go" >}}
+Note: Once the pipeline drain starts and truncate restriction transform is triggered, the `sdf.ProcessContinuation`
+will not be rescheduled.
+{{< /paragraph >}}
+
 {{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_Truncate >}}
 {{< /highlight >}}
@@ -6527,7 +6532,7 @@ provider.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-11106.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" watermarkestimation_customestimator >}}
 {{< /highlight >}}
 
 ### 12.7. Bundle finalization {#bundle-finalization}
