@@ -58,7 +58,7 @@ _SECOND_TO_MICROSECOND = 1_000_000
 T = TypeVar('T')
 
 
-class InferenceRunner():
+class InferenceRunner:
   """Implements running inferences for a framework."""
   def run_inference(self, batch: List[Any], model: Any,
                     **kwargs) -> Iterable[Any]:
@@ -85,14 +85,26 @@ class ModelLoader(Generic[T]):
     """Returns an implementation of InferenceRunner for this model."""
     raise NotImplementedError(type(self))
 
+  def get_resource_hints(self) -> dict:
+    """Returns resource hints for the transform."""
+    return {}
+
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     """Returns kwargs suitable for beam.BatchElements."""
     return {}
 
 
 class RunInference(beam.PTransform):
-  """An extensible transform for running inferences."""
-  def __init__(self, model_loader: ModelLoader, clock=None, **kwargs):
+  """An extensible transform for running inferences.
+  Args:
+      model_loader: An implementation of ModelLoader.
+      clock: A clock implementing get_current_time_in_microseconds.
+  """
+  def __init__(
+      self,
+      model_loader: ModelLoader,
+      clock: Optional["_Clock"] = None,
+      **kwargs):
     self._model_loader = model_loader
     self._kwargs = kwargs
     self._clock = clock
@@ -100,12 +112,15 @@ class RunInference(beam.PTransform):
   # TODO(BEAM-14208): Add batch_size back off in the case there
   # are functional reasons large batch sizes cannot be handled.
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
+    resource_hints = self._model_loader.get_resource_hints()
     return (
         pcoll
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
         | beam.BatchElements(**self._model_loader.batch_elements_kwargs())
-        | beam.ParDo(
-            _RunInferenceDoFn(self._model_loader, self._clock), **self._kwargs))
+        | (
+            beam.ParDo(
+                _RunInferenceDoFn(self._model_loader, self._clock),
+                **self._kwargs).with_resource_hints(**resource_hints)))
 
 
 class _MetricsCollector:
@@ -159,7 +174,8 @@ class _MetricsCollector:
 
 class _RunInferenceDoFn(beam.DoFn):
   """A DoFn implementation generic to frameworks."""
-  def __init__(self, model_loader: ModelLoader, clock=None):
+  def __init__(
+      self, model_loader: ModelLoader, clock: Optional["_Clock"] = None):
     self._model_loader = model_loader
     self._inference_runner = model_loader.get_inference_runner()
     self._shared_model_handle = shared.Shared()

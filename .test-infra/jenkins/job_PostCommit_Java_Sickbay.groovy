@@ -15,27 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Internal;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
-/**
- * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
- *
- * <p>An interface to access a field of a class.
- *
- * <p>Implementations of this interface are generated at runtime to map object fields to Row fields.
- */
-@Internal
-public interface FieldValueGetter<ObjectT, ValueT> extends Serializable {
-  @Nullable
-  ValueT get(ObjectT object);
+// This job runs the Java sickbay tests.
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Sickbay',
+    'Run Java Sickbay', 'Java Sickbay Tests', this) {
 
-  default @Nullable Object getRaw(ObjectT object) {
-    return get(object);
-  }
+      description('Run Java Sickbay Tests')
 
-  String name();
-}
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+
+      publishers {
+        archiveJunit('**/build/test-results/**/*.xml')
+      }
+
+      // Execute shell command to run sickbay tests.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':javaPostCommitSickbay')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
+    }
