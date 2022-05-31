@@ -43,13 +43,10 @@ class PytorchInferenceRunner(InferenceRunner):
 
   def _convert_to_device(self, examples: torch.Tensor) -> torch.Tensor:
     """
-    examples, which may or may not be attached to GPU during creation time, need
-    to match the device that was set during during PytorchModelLoader
-    initialization.
+    Converts samples to a style matching given device.
 
-    For example, a user may pass in device='GPU', and a
-    torch.Tensor([1, 2], device='cuda') example, but if GPU is not detected in
-    the environment, then we have to convert the example back to CPU.
+    Note: A user may pass in device='GPU' but if GPU is not detected in the
+    environment it must be converted back to CPU.
     """
     if examples.device != self._device:
       examples = examples.to(self._device)

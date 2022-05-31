@@ -42,6 +42,49 @@ try:
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
 
+TWO_FEATURES_EXAMPLES = [
+    torch.from_numpy(np.array([1, 5], dtype="float32")),
+    torch.from_numpy(np.array([3, 10], dtype="float32")),
+    torch.from_numpy(np.array([-14, 0], dtype="float32")),
+    torch.from_numpy(np.array([0.5, 0.5], dtype="float32")),
+]
+
+TWO_FEATURES_PREDICTIONS = [
+    PredictionResult(ex, pred) for ex,
+    pred in zip(
+        TWO_FEATURES_EXAMPLES,
+        torch.Tensor(
+            [f1 * 2.0 + f2 * 3 + 0.5
+             for f1, f2 in TWO_FEATURES_EXAMPLES]).reshape(-1, 1))
+]
+
+KWARGS_TORCH_EXAMPLES = [
+    {
+        'k1': torch.from_numpy(np.array([1], dtype="float32")),
+        'k2': torch.from_numpy(np.array([1.5], dtype="float32"))
+    },
+    {
+        'k1': torch.from_numpy(np.array([5], dtype="float32")),
+        'k2': torch.from_numpy(np.array([5.5], dtype="float32"))
+    },
+    {
+        'k1': torch.from_numpy(np.array([-3], dtype="float32")),
+        'k2': torch.from_numpy(np.array([-3.5], dtype="float32"))
+    },
+    {
+        'k1': torch.from_numpy(np.array([10.0], dtype="float32")),
+        'k2': torch.from_numpy(np.array([10.5], dtype="float32"))
+    },
+]
+
+KWARGS_TORCH_PREDICTIONS = [
+    PredictionResult(ex, pred) for ex,
+    pred in zip(
+        KWARGS_TORCH_EXAMPLES,
+        torch.Tensor([(example['k1'] * 2.0 + 0.5) + (example['k2'] * 2.0 + 0.5)
+                      for example in KWARGS_TORCH_EXAMPLES]).reshape(-1, 1))
+]
+
 
 def _compare_prediction_result(x, y):
   if isinstance(x.example, dict):
@@ -63,14 +106,19 @@ class PytorchLinearRegression(torch.nn.Module):
     return out
 
 
-class PytorchLinearRegressionPredictionParams(torch.nn.Module):
+class PytorchLinearRegressionKwargsPredictionParams(torch.nn.Module):
+  """
+  A linear model with kwargs inputs and non-batchable input params.
+
+  Note: k1 and k2 are batchable inputs passed in as a kwargs.
+  prediction_param_array, prediction_param_bool are non-batchable inputs
+  (typically model-related info) used to configure the model before its predict
+  call is invoked
+  """
   def __init__(self, input_dim, output_dim):
     super().__init__()
     self.linear = torch.nn.Linear(input_dim, output_dim)
 
-  # k1 is the batched input, and prediction_param_array, prediction_param_bool
-  # are non-batchable inputs (typically model-related info) used to configure
-  # the model before its predict call is invoked
   def forward(self, k1, k2, prediction_param_array, prediction_param_bool):
     if not prediction_param_bool:
       raise ValueError("Expected prediction_param_bool to be True")
@@ -82,12 +130,6 @@ class PytorchLinearRegressionPredictionParams(torch.nn.Module):
 
 @pytest.mark.uses_pytorch
 class PytorchRunInferenceTest(unittest.TestCase):
-  def setUp(self):
-    self.tmpdir = tempfile.mkdtemp()
-
-  def tearDown(self):
-    shutil.rmtree(self.tmpdir)
-
   def test_inference_runner_single_tensor_feature(self):
     examples = [
         torch.from_numpy(np.array([1], dtype="float32")),
@@ -115,20 +157,6 @@ class PytorchRunInferenceTest(unittest.TestCase):
       self.assertEqual(actual, expected)
 
   def test_inference_runner_multiple_tensor_features(self):
-    examples = [
-        torch.from_numpy(np.array([1, 5], dtype="float32")),
-        torch.from_numpy(np.array([3, 10], dtype="float32")),
-        torch.from_numpy(np.array([-14, 0], dtype="float32")),
-        torch.from_numpy(np.array([0.5, 0.5], dtype="float32")),
-    ]
-    expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
-            examples,
-            torch.Tensor([f1 * 2.0 + f2 * 3 + 0.5
-                          for f1, f2 in examples]).reshape(-1, 1))
-    ]
-
     model = PytorchLinearRegression(input_dim=2, output_dim=1)
     model.load_state_dict(
         OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
@@ -136,38 +164,25 @@ class PytorchRunInferenceTest(unittest.TestCase):
     model.eval()
 
     inference_runner = PytorchInferenceRunner(torch.device('cpu'))
-    predictions = inference_runner.run_inference(examples, model)
-    for actual, expected in zip(predictions, expected_predictions):
+    predictions = inference_runner.run_inference(TWO_FEATURES_EXAMPLES, model)
+    for actual, expected in zip(predictions, TWO_FEATURES_PREDICTIONS):
       self.assertEqual(actual, expected)
 
   def test_inference_runner_kwargs(self):
-    examples = [
-        {
-            'k1': torch.from_numpy(np.array([1], dtype="float32")),
-            'k2': torch.from_numpy(np.array([1.5], dtype="float32"))
-        },
-        {
-            'k1': torch.from_numpy(np.array([5], dtype="float32")),
-            'k2': torch.from_numpy(np.array([5.5], dtype="float32"))
-        },
-        {
-            'k1': torch.from_numpy(np.array([-3], dtype="float32")),
-            'k2': torch.from_numpy(np.array([-3.5], dtype="float32"))
-        },
-        {
-            'k1': torch.from_numpy(np.array([10.0], dtype="float32")),
-            'k2': torch.from_numpy(np.array([10.5], dtype="float32"))
-        },
-    ]
-    expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
-            examples,
-            torch.Tensor([(example['k1'] * 2.0 + 0.5) +
-                          (example['k2'] * 2.0 + 0.5)
-                          for example in examples]).reshape(-1, 1))
-    ]
+    """
+    This tests for inputs that are passed as a dictionary from key to tensor
+    instead of a standard non-kwarg input.
 
+    Example:
+    Typical input format is
+    input = torch.tensor([1, 2, 3])
+
+    But Pytorch syntax allows inputs to have the form
+    input = {
+      'k1' : torch.tensor([1, 2, 3]),
+      'k2' : torch.tensor([4, 5, 6])
+    }
+    """
     class PytorchLinearRegressionMultipleArgs(torch.nn.Module):
       def __init__(self, input_dim, output_dim):
         super().__init__()
@@ -184,44 +199,24 @@ class PytorchRunInferenceTest(unittest.TestCase):
     model.eval()
 
     inference_runner = PytorchInferenceRunner(torch.device('cpu'))
-    predictions = inference_runner.run_inference(examples, model)
-    for actual, expected in zip(predictions, expected_predictions):
+    predictions = inference_runner.run_inference(KWARGS_TORCH_EXAMPLES, model)
+    for actual, expected in zip(predictions, KWARGS_TORCH_PREDICTIONS):
       self.assertTrue(_compare_prediction_result(actual, expected))
 
-  def test_inference_runner_prediction_params(self):
-    examples = [
-        {
-            'k1': torch.from_numpy(np.array([1], dtype="float32")),
-            'k2': torch.from_numpy(np.array([1.5], dtype="float32"))
-        },
-        {
-            'k1': torch.from_numpy(np.array([5], dtype="float32")),
-            'k2': torch.from_numpy(np.array([5.5], dtype="float32"))
-        },
-        {
-            'k1': torch.from_numpy(np.array([-3], dtype="float32")),
-            'k2': torch.from_numpy(np.array([-3.5], dtype="float32"))
-        },
-        {
-            'k1': torch.from_numpy(np.array([10.0], dtype="float32")),
-            'k2': torch.from_numpy(np.array([10.5], dtype="float32"))
-        },
-    ]
+  def test_inference_runner_kwargs_prediction_params(self):
+    """
+    This tests for non-batchable input arguments. Since we do the batching
+    for the user, we have to distinguish between the inputs that should be
+    batched and the ones that should not be batched.
+    """
     prediction_params = {
         'prediction_param_array': torch.from_numpy(
             np.array([1, 2], dtype="float32")),
         'prediction_param_bool': True
     }
-    expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
-            examples,
-            torch.Tensor([(example['k1'] * 2.0 + 0.5) +
-                          (example['k2'] * 2.0 + 0.5)
-                          for example in examples]).reshape(-1, 1))
-    ]
 
-    model = PytorchLinearRegressionPredictionParams(input_dim=1, output_dim=1)
+    model = PytorchLinearRegressionKwargsPredictionParams(
+        input_dim=1, output_dim=1)
     model.load_state_dict(
         OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
                      ('linear.bias', torch.Tensor([0.5]))]))
@@ -229,8 +224,10 @@ class PytorchRunInferenceTest(unittest.TestCase):
 
     inference_runner = PytorchInferenceRunner(torch.device('cpu'))
     predictions = inference_runner.run_inference(
-        batch=examples, model=model, prediction_params=prediction_params)
-    for actual, expected in zip(predictions, expected_predictions):
+        batch=KWARGS_TORCH_EXAMPLES,
+        model=model,
+        prediction_params=prediction_params)
+    for actual, expected in zip(predictions, KWARGS_TORCH_PREDICTIONS):
       self.assertEqual(actual, expected)
 
   def test_num_bytes(self):
@@ -246,19 +243,17 @@ class PytorchRunInferenceTest(unittest.TestCase):
     self.assertEqual(
         'RunInferencePytorch', inference_runner.get_metrics_namespace())
 
+
+@pytest.mark.uses_pytorch
+class PytorchRunInferencePipelineTest(unittest.TestCase):
+  def setUp(self):
+    self.tmpdir = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.tmpdir)
+
   def test_pipeline_local_model_simple(self):
     with TestPipeline() as pipeline:
-      examples = torch.from_numpy(
-          np.array([1, 5, 3, 10, -14, 0, 0.5, 0.5],
-                   dtype="float32")).reshape(-1, 2)
-      expected_predictions = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(
-              examples,
-              torch.Tensor([f1 * 2.0 + f2 * 3 + 0.5
-                            for f1, f2 in examples]).reshape(-1, 1))
-      ]
-
       state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
                                 ('linear.bias', torch.Tensor([0.5]))])
       path = os.path.join(self.tmpdir, 'my_state_dict_path')
@@ -271,45 +266,20 @@ class PytorchRunInferenceTest(unittest.TestCase):
               'input_dim': 2, 'output_dim': 1
           })
 
-      pcoll = pipeline | 'start' >> beam.Create(examples)
+      pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
       predictions = pcoll | RunInference(model_loader)
       assert_that(
           predictions,
-          equal_to(expected_predictions, equals_fn=_compare_prediction_result))
+          equal_to(
+              TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
 
-  def test_pipeline_local_model_prediction_params(self):
+  def test_pipeline_local_model_kwargs_prediction_params(self):
     with TestPipeline() as pipeline:
-      examples = [
-          {
-              'k1': torch.from_numpy(np.array([1], dtype="float32")),
-              'k2': torch.from_numpy(np.array([1.5], dtype="float32"))
-          },
-          {
-              'k1': torch.from_numpy(np.array([5], dtype="float32")),
-              'k2': torch.from_numpy(np.array([5.5], dtype="float32"))
-          },
-          {
-              'k1': torch.from_numpy(np.array([-3], dtype="float32")),
-              'k2': torch.from_numpy(np.array([-3.5], dtype="float32"))
-          },
-          {
-              'k1': torch.from_numpy(np.array([10.0], dtype="float32")),
-              'k2': torch.from_numpy(np.array([10.5], dtype="float32"))
-          },
-      ]
       prediction_params = {
           'prediction_param_array': torch.from_numpy(
               np.array([1, 2], dtype="float32")),
           'prediction_param_bool': True
       }
-      expected_predictions = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(
-              examples,
-              torch.Tensor([(example['k1'] * 2.0 + 0.5) +
-                            (example['k2'] * 2.0 + 0.5)
-                            for example in examples]).reshape(-1, 1))
-      ]
 
       state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
                                 ('linear.bias', torch.Tensor([0.5]))])
@@ -318,12 +288,12 @@ class PytorchRunInferenceTest(unittest.TestCase):
 
       model_loader = PytorchModelLoader(
           state_dict_path=path,
-          model_class=PytorchLinearRegressionPredictionParams,
+          model_class=PytorchLinearRegressionKwargsPredictionParams,
           model_params={
               'input_dim': 1, 'output_dim': 1
           })
 
-      pcoll = pipeline | 'start' >> beam.Create(examples)
+      pcoll = pipeline | 'start' >> beam.Create(KWARGS_TORCH_EXAMPLES)
       prediction_params_side_input = (
           pipeline | 'create side' >> beam.Create(prediction_params))
       predictions = pcoll | RunInference(
@@ -331,7 +301,8 @@ class PytorchRunInferenceTest(unittest.TestCase):
           prediction_params=beam.pvalue.AsDict(prediction_params_side_input))
       assert_that(
           predictions,
-          equal_to(expected_predictions, equals_fn=_compare_prediction_result))
+          equal_to(
+              KWARGS_TORCH_PREDICTIONS, equals_fn=_compare_prediction_result))
 
   def test_pipeline_gcs_model(self):
     with TestPipeline() as pipeline:
