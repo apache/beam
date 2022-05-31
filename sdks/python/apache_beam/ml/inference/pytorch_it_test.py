@@ -26,6 +26,7 @@ import uuid
 
 import pytest
 
+import pandas as pd
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -36,18 +37,18 @@ except ImportError as e:
   torch = None
 
 _EXPECTED_OUTPUTS = {
-    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005001.JPEG': '681',
-    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005002.JPEG': '333',
-    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005003.JPEG': '711',
-    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005004.JPEG': '286',
-    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005005.JPEG': '433',
-    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005006.JPEG': '290',
-    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005007.JPEG': '890',
-    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005008.JPEG': '592',
-    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005009.JPEG': '406',
-    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005010.JPEG': '996',
-    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005011.JPEG': '327',
-    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005012.JPEG': '573'
+    'gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005001.JPEG': '681',
+    'gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005002.JPEG': '333',
+    'gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005003.JPEG': '711',
+    'gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005004.JPEG': '286',
+    'gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005005.JPEG': '433',
+    'gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005006.JPEG': '290',
+    'gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005007.JPEG': '890',
+    'gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005008.JPEG': '592',
+    'gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005009.JPEG': '406',
+    'gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005010.JPEG': '996',
+    'gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005011.JPEG': '327',
+    'gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005012.JPEG': '573'
 }
 
 
@@ -65,19 +66,18 @@ def process_outputs(filepath):
 class PyTorchInference(unittest.TestCase):
   @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
-  def test_predictions_output_file(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
-    output_file_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/outputs'
+  def test_torch_run_inference_imagenet_mobilenetv2(self):
+    test_pipeline = TestPipeline(is_integration_test=False)
+    # text files containing absolute path to the imagenet validation data on GCS
+    file_of_image_names = 'gs://apache-beam-ml/testing/inputs/it_mobilenetv2_imagenet_validation_inputs.txt'  # disable: line-too-long
+    output_file_dir = 'gs://apache-beam-ml/testing/predictions'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
-    file_of_image_names = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/imagenet_samples.csv'
-    base_output_files_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs'
 
-    model_state_dict_path = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/models/mobilenet_v2.pt'
+    model_state_dict_path = 'gs://apache-beam-ml/models/imagenet_classification_mobilenet_v2.pt'
     extra_opts = {
         'input': file_of_image_names,
         'output': output_file,
         'model_state_dict_path': model_state_dict_path,
-        'images_dir': base_output_files_dir,
     }
     pytorch_image_classification.run(
         test_pipeline.get_full_options_as_args(**extra_opts),
@@ -92,30 +92,24 @@ class PyTorchInference(unittest.TestCase):
 
   @pytest.mark.uses_pytorch
   @pytest.mark.inference_benchmark
-  def test_imagenet_benchmark(self):
+  def test_torch_imagenet_mobilenetv2_benchmark(self):
     test_pipeline = TestPipeline(is_integration_test=True)
-    output_file_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/outputs'
+    # text files containing absolute path to the imagenet validation data on GCS
+    file_of_image_names = 'gs://apache-beam-ml/testing/inputs/imagenet_validation_inputs.txt'
+    output_file_dir = 'gs://apache-beam-ml/testing/outputs'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
-    file_of_image_names = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/imagenet_samples.csv'
-    base_output_files_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs'
 
-    model_state_dict_path = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/models/mobilenet_v2.pt'
+    model_state_dict_path = 'gs://apache-beam-ml/models/imagenet_classification_mobilenet_v2.pt'
     extra_opts = {
         'input': file_of_image_names,
         'output': output_file,
         'model_state_dict_path': model_state_dict_path,
-        'images_dir': base_output_files_dir,
     }
     pytorch_image_classification.run(
         test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
 
     self.assertEqual(FileSystems().exists(output_file), True)
-    predictions = process_outputs(filepath=output_file)
-
-    for prediction in predictions:
-      filename, prediction = prediction.split(',')
-      self.assertEqual(_EXPECTED_OUTPUTS[filename], prediction)
 
 
 if __name__ == '__main__':
