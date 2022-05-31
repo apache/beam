@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package harnessopts defines user-facing entrypoints into Beam hooks 
+// Package harnessopts defines user-facing entrypoints into Beam hooks
 // affecting the SDK harness. Call these functions at any time before
 // submitting your pipeline to a runner, for that pipeline's workers to be affected.
 package harnessopts

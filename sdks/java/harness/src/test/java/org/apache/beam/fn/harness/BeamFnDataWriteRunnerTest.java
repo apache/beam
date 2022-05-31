@@ -130,7 +130,8 @@ public class BeamFnDataWriteRunnerTest {
 
           @Override
           public void onCompleted() {}
-        });
+        },
+        false);
   }
 
   @Test

@@ -41,6 +41,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This transform reads from Cloud Spanner using the {@link com.google.cloud.spanner.BatchClient}.
@@ -52,6 +54,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 abstract class BatchSpannerRead
     extends PTransform<PCollection<ReadOperation>, PCollection<Struct>> {
+  private static final Logger LOG = LoggerFactory.getLogger(BatchSpannerRead.class);
 
   public static BatchSpannerRead create(
       SpannerConfig spannerConfig,
@@ -195,6 +198,8 @@ abstract class BatchSpannerRead
       spannerAccessor = SpannerAccessor.getOrCreate(config);
       projectId =
           this.config.getProjectId() == null
+                  || this.config.getProjectId().get() == null
+                  || this.config.getProjectId().get().isEmpty()
               ? SpannerOptions.getDefaultProjectId()
               : this.config.getProjectId().get();
     }
@@ -218,7 +223,6 @@ abstract class BatchSpannerRead
       BatchReadOnlyTransaction batchTx =
           spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
 
-      serviceCallMetric.call("ok");
       Partition p = c.element();
       try (ResultSet resultSet = batchTx.execute(p)) {
         while (resultSet.next()) {
@@ -227,7 +231,10 @@ abstract class BatchSpannerRead
         }
       } catch (SpannerException e) {
         serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
+        LOG.error("Error while processing element", e);
+        throw (e);
       }
+      serviceCallMetric.call("ok");
     }
 
     private ServiceCallMetric createServiceCallMetric(

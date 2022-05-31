@@ -37,9 +37,11 @@ def get_mean_delay_at_top_airports(airline_df):
       'departure_airport': 'airport'
   }).airport.value_counts()
   total = arr + dep
-  # Note we keep all to include duplicates.
-  # This ensures the result is deterministic
-  top_airports = total.nlargest(10, keep='all')
+  # Note we keep all to include duplicates - this ensures the result is
+  # deterministic.
+  # NaNs can be included in the output in pandas 1.4.0 and above, so we
+  # explicitly drop them.
+  top_airports = total.nlargest(10, keep='all').dropna()
   at_top_airports = airline_df['arrival_airport'].isin(
       top_airports.index.values)
   return airline_df[at_top_airports].mean()
@@ -58,23 +60,24 @@ def run_flight_delay_pipeline(
     pipeline, start_date=None, end_date=None, output=None):
   query = f"""
   SELECT
-    date,
-    airline,
-    departure_airport,
-    arrival_airport,
-    departure_delay,
-    arrival_delay
-  FROM `bigquery-samples.airline_ontime_data.flights`
-  WHERE date >= '{start_date}' AND date <= '{end_date}'
+    FlightDate AS date,
+    IATA_CODE_Reporting_Airline AS airline,
+    Origin AS departure_airport,
+    Dest AS arrival_airport,
+    DepDelay AS departure_delay,
+    ArrDelay AS arrival_delay
+  FROM `apache-beam-testing.airline_ontime_data.flights`
+  WHERE
+    FlightDate >= '{start_date}' AND FlightDate <= '{end_date}' AND
+    DepDelay IS NOT NULL AND ArrDelay IS NOT NULL
   """
 
   # Import this here to avoid pickling the main session.
   import time
-  import datetime
   from apache_beam import window
 
   def to_unixtime(s):
-    return time.mktime(datetime.datetime.strptime(s, "%Y-%m-%d").timetuple())
+    return time.mktime(s.timetuple())
 
   # The pipeline will be run on exiting the with block.
   with pipeline as p:

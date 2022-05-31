@@ -24,8 +24,13 @@ import 'package:provider/provider.dart';
 
 class OutputTabs extends StatelessWidget {
   final TabController tabController;
+  final bool showGraph;
 
-  const OutputTabs({Key? key, required this.tabController}) : super(key: key);
+  const OutputTabs({
+    Key? key,
+    required this.tabController,
+    required this.showGraph,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -46,12 +51,12 @@ class OutputTabs extends StatelessWidget {
               isSelected: tabController.index == 1,
               value: state.result?.log ?? '',
             ),
-            // Not supported yet
-            // OutputTab(
-            //   name: appLocale.graph,
-            //   isSelected: tabController.index == 2,
-            //   value: '',
-            // ),
+            if (showGraph)
+              OutputTab(
+                name: appLocale.graph,
+                isSelected: tabController.index == 2,
+                value: state.result?.graph ?? '',
+              ),
           ],
         ),
       );

@@ -20,9 +20,9 @@ class PythonTestProperties {
   // Indicates all supported Python versions.
   // This must be sorted in ascending order.
   final static List<String> ALL_SUPPORTED_VERSIONS = [
-    '3.6',
     '3.7',
-    '3.8'
+    '3.8',
+    '3.9'
   ]
   final static List<String> SUPPORTED_CONTAINER_TASKS = ALL_SUPPORTED_VERSIONS.collect {
     "py${it.replace('.', '')}"

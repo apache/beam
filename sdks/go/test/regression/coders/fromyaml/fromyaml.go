@@ -218,6 +218,19 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 		}
 		return pass
 
+	case "beam:coder:nullable:v1":
+		if elem.Elm == nil || eg.Value == nil {
+			got, want = elem.Elm, eg.Value
+		} else {
+			got = string(elem.Elm.([]byte))
+			switch egv := eg.Value.(type) {
+			case string:
+				want = egv
+			case []byte:
+				want = string(egv)
+			}
+		}
+
 	case "beam:coder:iterable:v1":
 		pass := true
 		gotrv := reflect.ValueOf(elem.Elm)

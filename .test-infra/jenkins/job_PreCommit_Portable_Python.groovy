@@ -43,12 +43,12 @@ builder.build {
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:python:test-suites:portable:py36:preCommitPy36')
+      tasks(':sdks:python:test-suites:portable:py37:preCommitPy37')
       commonJobProperties.setGradleSwitches(delegate)
     }
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:python:test-suites:portable:py38:preCommitPy38')
+      tasks(':sdks:python:test-suites:portable:py39:preCommitPy39')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

@@ -481,6 +481,25 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     return nameContext.userName() == null ? null : stateNameMap.get(nameContext.userName());
   }
 
+  private static class ScopedReadStateSupplier implements Supplier<Closeable> {
+    private final ExecutionState readState;
+    private final @Nullable ExecutionStateTracker stateTracker;
+
+    ScopedReadStateSupplier(
+        DataflowOperationContext operationContext, ExecutionStateTracker stateTracker) {
+      this.readState = operationContext.newExecutionState("windmill-read");
+      this.stateTracker = stateTracker;
+    }
+
+    @Override
+    public Closeable get() {
+      if (stateTracker == null) {
+        return null;
+      }
+      return stateTracker.enterState(readState);
+    }
+  }
+
   class StepContext extends DataflowExecutionContext.DataflowStepContext
       implements StreamingModeStepContext {
 
@@ -493,23 +512,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     public StepContext(DataflowOperationContext operationContext) {
       super(operationContext.nameContext());
-      this.stateFamily =
-          StreamingModeExecutionContext.this.getStateFamily(operationContext.nameContext());
+      this.stateFamily = getStateFamily(operationContext.nameContext());
 
       this.scopedReadStateSupplier =
-          new Supplier<Closeable>() {
-            private ExecutionState readState = operationContext.newExecutionState("windmill-read");
-
-            @Override
-            public Closeable get() {
-              ExecutionStateTracker tracker =
-                  StreamingModeExecutionContext.this.getExecutionStateTracker();
-              if (tracker == null) {
-                return null;
-              }
-              return tracker.enterState(readState);
-            }
-          };
+          new ScopedReadStateSupplier(operationContext, getExecutionStateTracker());
     }
 
     /** Update the {@code stateReader} used by this {@code StepContext}. */

@@ -750,6 +750,9 @@ class Sink(HasDisplayData):
   documentation at
   ``https://beam.apache.org/documentation/sdks/python-custom-io#creating-sinks``
   """
+  # Whether Beam should skip writing any shards if all are empty.
+  skip_if_empty = False
+
   def initialize_write(self):
     """Initializes the sink before writing begins.
 
@@ -1148,11 +1151,13 @@ class WriteImpl(ptransform.PTransform):
           | 'Extract' >> core.FlatMap(lambda x: x[1]))
     # PreFinalize should run before FinalizeWrite, and the two should not be
     # fused.
-    pre_finalize_coll = do_once | 'PreFinalize' >> core.FlatMap(
-        _pre_finalize,
-        self.sink,
-        AsSingleton(init_result_coll),
-        AsIter(write_result_coll))
+    pre_finalize_coll = (
+        do_once
+        | 'PreFinalize' >> core.FlatMap(
+            _pre_finalize,
+            self.sink,
+            AsSingleton(init_result_coll),
+            AsIter(write_result_coll)))
     return do_once | 'FinalizeWrite' >> core.FlatMap(
         _finalize_write,
         self.sink,
@@ -1217,11 +1222,12 @@ def _finalize_write(
   write_results = list(write_results)
   extra_shards = []
   if len(write_results) < min_shards:
-    _LOGGER.debug(
-        'Creating %s empty shard(s).', min_shards - len(write_results))
-    for _ in range(min_shards - len(write_results)):
-      writer = sink.open_writer(init_result, str(uuid.uuid4()))
-      extra_shards.append(writer.close())
+    if write_results or not sink.skip_if_empty:
+      _LOGGER.debug(
+          'Creating %s empty shard(s).', min_shards - len(write_results))
+      for _ in range(min_shards - len(write_results)):
+        writer = sink.open_writer(init_result, str(uuid.uuid4()))
+        extra_shards.append(writer.close())
   outputs = sink.finalize_write(
       init_result, write_results + extra_shards, pre_finalize_results)
   if outputs:
@@ -1665,9 +1671,8 @@ class SDFBoundedSourceReader(PTransform):
         current_restriction = restriction_tracker.current_restriction()
         assert isinstance(current_restriction, _SDFBoundedSourceRestriction)
 
-        result = current_restriction.source().read(
+        return current_restriction.source().read(
             current_restriction.range_tracker())
-        return result
 
     return SDFBoundedSourceDoFn(self._data_to_display)
 

@@ -17,11 +17,16 @@ package runnerlib
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
 	"os"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/metricsx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
@@ -34,22 +39,6 @@ import (
 func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobOptions, async bool) (*universalPipelineResult, error) {
 	// (1) Prepare job to obtain artifact staging instructions.
 	presult := &universalPipelineResult{}
-
-	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
-	if err != nil {
-		return presult, errors.WithContextf(err, "connecting to job service")
-	}
-	defer cc.Close()
-	client := jobpb.NewJobServiceClient(cc)
-
-	prepID, artifactEndpoint, st, err := Prepare(ctx, client, p, opt)
-	if err != nil {
-		return presult, err
-	}
-
-	log.Infof(ctx, "Prepared job with id: %v and staging token: %v", prepID, st)
-
-	// (2) Stage artifacts.
 
 	bin := opt.Worker
 	if bin == "" {
@@ -70,6 +59,26 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 	} else {
 		log.Infof(ctx, "Using specified worker binary: '%v'", bin)
 	}
+	// Update pipeline's Go environment to refer to the correct binary.
+	if err := UpdateGoEnvironmentWorker(bin, p); err != nil {
+		return presult, err
+	}
+
+	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
+	if err != nil {
+		return presult, errors.WithContextf(err, "connecting to job service")
+	}
+	defer cc.Close()
+	client := jobpb.NewJobServiceClient(cc)
+
+	prepID, artifactEndpoint, st, err := Prepare(ctx, client, p, opt)
+	if err != nil {
+		return presult, err
+	}
+
+	log.Infof(ctx, "Prepared job with id: %v and staging token: %v", prepID, st)
+
+	// (2) Stage artifacts.
 
 	token, err := Stage(ctx, prepID, artifactEndpoint, bin, st)
 	if err != nil {
@@ -102,6 +111,31 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 		return presult, presultErr
 	}
 	return res, err
+}
+
+// UpdateGoEnvironmentWorker sets the worker artifact payload in
+// the default environment.
+func UpdateGoEnvironmentWorker(worker string, p *pipepb.Pipeline) error {
+	fd, err := os.Open(worker)
+	if err != nil {
+		return err
+	}
+	defer fd.Close()
+
+	sha256W := sha256.New()
+	n, err := io.Copy(sha256W, fd)
+	if err != nil {
+		return errors.WithContextf(err, "unable to read worker binary %v, only read %d bytes", worker, n)
+	}
+	hash := hex.EncodeToString(sha256W.Sum(nil))
+	pyld := protox.MustEncode(&pipepb.ArtifactFilePayload{
+		Path:   worker,
+		Sha256: hash,
+	})
+	if err := graphx.UpdateDefaultEnvWorkerType(graphx.URNArtifactFileType, pyld, p); err != nil {
+		return err
+	}
+	return nil
 }
 
 type universalPipelineResult struct {

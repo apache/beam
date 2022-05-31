@@ -21,13 +21,13 @@ import java.util.stream.Collectors
 
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
-  enableStrictDependencies:true,
+  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.runners.spark',
   archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName),
   classesTriggerCheckerBugs: [
     'SparkAssignWindowFn': 'https://github.com/typetools/checker-framework/issues/3793',
-    'SparkCombineFn': 'https://github.com/typetools/checker-framework/issues/3793',
-    'WindowingHelpers': 'https://github.com/typetools/checker-framework/issues/3793',
+    'SparkCombineFn'     : 'https://github.com/typetools/checker-framework/issues/3793',
+    'WindowingHelpers'   : 'https://github.com/typetools/checker-framework/issues/3793',
   ],
 )
 
@@ -48,82 +48,64 @@ configurations {
   examplesJavaIntegrationTest
 }
 
+def sparkTestProperties(overrides = [:]) {
+  def defaults = ["--runner": "TestSparkRunner"]
+  [
+      "spark.sql.shuffle.partitions": "4",
+      "spark.ui.enabled"            : "false",
+      "spark.ui.showConsoleProgress": "false",
+      "beamTestPipelineOptions"     :
+          JsonOutput.toJson((defaults + overrides).collect { k, v -> "$k=$v" })
+  ]
+}
+
 def hadoopVersions = [
-    "285": "2.8.5",
-    "292": "2.9.2",
-    "2101": "2.10.1",
-    "321": "3.2.1",
+  "285" : "2.8.5",
+  "292" : "2.9.2",
+  "2101": "2.10.1",
+  "321" : "3.2.1",
 ]
 
-hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
+hadoopVersions.each { kv -> configurations.create("hadoopVersion$kv.key") }
 
-/*
- * Copy & merge source overrides into build directory.
- */
-def sourceOverridesBase = "${project.buildDir}/source-overrides/src"
-
-def copySourceOverrides = tasks.register('copySourceOverrides', Copy) {
-  it.from main_source_overrides
-  it.into "${sourceOverridesBase}/main/java"
-  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
-}
-compileJava.dependsOn copySourceOverrides
-
-def copyResourcesOverrides = tasks.register('copyResourcesOverrides', Copy) {
-  it.from main_resources_overrides
-  it.into "${sourceOverridesBase}/main/resources"
-  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
-}
-processResources.dependsOn copyResourcesOverrides
-
-def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) {
-  it.from test_source_overrides
-  it.into "${sourceOverridesBase}/test/java"
-  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
-}
-compileTestJava.dependsOn copyTestSourceOverrides
-
-def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Copy) {
-  it.from test_resources_overrides
-  it.into "${sourceOverridesBase}/test/resources"
-  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
-}
-processTestResources.dependsOn copyTestResourcesOverrides
-
-/*
- * We have to explicitly set all directories here to make sure each
- * version of Spark has the correct overrides set.
- */
 def sourceBase = "${project.projectDir}/../src"
-sourceSets {
-  main {
-    java {
-      srcDirs = ["${sourceBase}/main/java", "${sourceOverridesBase}/main/java"]
-    }
-    resources {
-      srcDirs = ["${sourceBase}/main/resources", "${sourceOverridesBase}/main/resources"]
-    }
+def sourceBaseCopy = "${project.buildDir}/sourcebase/src"
+
+def useCopiedSourceSet = { scope, type, trigger ->
+  def taskName = "copy${scope.capitalize()}${type.capitalize()}"
+  trigger.dependsOn tasks.register(taskName, Copy) {
+    from "$sourceBase/$scope/$type"
+    into "$sourceBaseCopy/$scope/$type"
+    duplicatesStrategy DuplicatesStrategy.INCLUDE
   }
-  test {
-    java {
-      srcDirs = ["${sourceBase}/test/java", "${sourceOverridesBase}/test/java"]
+  // append copied sources to srcDirs
+  sourceSets."$scope"."$type".srcDirs "$sourceBaseCopy/$scope/$type"
+}
+
+if (copySourceBase) {
+  // Copy source base into build directory.
+  // While this is not necessary, having multiple source sets referencing the same shared base will typically confuse an IDE and harm developer experience.
+  // The copySourceBase flag can be swapped without any implications and allows to pick a main version that is actively worked on.
+  useCopiedSourceSet("main", "java", compileJava)
+  useCopiedSourceSet("main", "resources", processResources)
+  useCopiedSourceSet("test", "java", compileTestJava)
+  useCopiedSourceSet("test", "resources", processTestResources)
+} else {
+  // append shared base sources to srcDirs
+  sourceSets {
+    main {
+      java.srcDirs "${sourceBase}/main/java"
+      resources.srcDirs "${sourceBase}/main/resources"
     }
-    resources {
-      srcDirs = ["${sourceBase}/test/resources", "${sourceOverridesBase}/test/resources"]
+    test {
+      java.srcDirs "${sourceBase}/test/java"
+      resources.srcDirs "${sourceBase}/test/resources"
     }
   }
 }
 
 test {
-  systemProperty "beam.spark.test.reuseSparkContext", "true"
-  systemProperty "spark.sql.shuffle.partitions", "4"
-  systemProperty "spark.ui.enabled", "false"
-  systemProperty "spark.ui.showConsoleProgress", "false"
-  systemProperty "beamTestPipelineOptions", """[
-                    "--runner=TestSparkRunner",
-                    "--streaming=false",
-                    "--enableSparkMetricSinks=true"
-                  ]"""
+  systemProperties sparkTestProperties()
   systemProperty "log4j.configuration", "log4j-test.properties"
   // Change log level to debug:
   // systemProperty "org.slf4j.simpleLogger.defaultLogLevel", "debug"
@@ -134,17 +116,10 @@ test {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
 
-  // Only one SparkContext may be running in a JVM (SPARK-2243)
-  forkEvery 1
   maxParallelForks 4
-  useJUnit {
-    excludeCategories "org.apache.beam.runners.spark.StreamingTest"
-    excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
-  }
-  filter {
-    // BEAM-11653 MetricsSinkTest is failing with Spark 3
-    excludeTestsMatching 'org.apache.beam.runners.spark.aggregators.metrics.sink.SparkMetricsSinkTest'
-  }
+
+  // easily re-run all tests (to deal with flaky tests / SparkContext leaks)
+  if(project.hasProperty("rerun-tests")) { 	outputs.upToDateWhen {false} }
 }
 
 dependencies {
@@ -171,7 +146,7 @@ dependencies {
   provided "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
   provided "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
   provided "org.apache.spark:spark-catalyst_$spark_scala_version:$spark_version"
-  if(project.property("spark_scala_version").equals("2.11")){
+  if (project.property("spark_scala_version").equals("2.11")) {
     compileOnly "org.scala-lang:scala-library:2.11.12"
     runtimeOnly library.java.jackson_module_scala_2_11
   } else {
@@ -208,8 +183,10 @@ dependencies {
   validatesRunner project(":sdks:java:io:hadoop-format").sourceSets.test.output
   validatesRunner project(path: ":examples:java", configuration: "testRuntimeMigration")
   validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
-  hadoopVersions.each {kv ->
+  hadoopVersions.each { kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
+    // Force paranamer 2.8 to avoid issues when using Scala 2.12
+    "hadoopVersion$kv.key" "com.thoughtworks.paranamer:paranamer:2.8"
   }
 }
 
@@ -227,7 +204,7 @@ configurations.validatesRunner {
 }
 
 
-hadoopVersions.each {kv ->
+hadoopVersions.each { kv ->
   configurations."hadoopVersion$kv.key" {
     // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
     exclude group: "org.slf4j", module: "slf4j-jdk14"
@@ -237,37 +214,26 @@ hadoopVersions.each {kv ->
   }
 }
 
-task validatesRunnerBatch(type: Test) {
+def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
-  def pipelineOptions = JsonOutput.toJson([
-          "--runner=TestSparkRunner",
-          "--streaming=false",
-          "--enableSparkMetricSinks=false",
-  ])
-  systemProperty "beamTestPipelineOptions", pipelineOptions
-  systemProperty "beam.spark.test.reuseSparkContext", "true"
-  systemProperty "spark.ui.enabled", "false"
-  systemProperty "spark.ui.showConsoleProgress", "false"
+  systemProperties sparkTestProperties(["--enableSparkMetricSinks":"false"])
 
   classpath = configurations.validatesRunner
   testClassesDirs = files(
-            project(":sdks:java:core").sourceSets.test.output.classesDirs,
-            project(":runners:core-java").sourceSets.test.output.classesDirs,
-        )
-  testClassesDirs += files(project.sourceSets.test.output.classesDirs)
+    project(":sdks:java:core").sourceSets.test.output.classesDirs,
+    project(":runners:core-java").sourceSets.test.output.classesDirs,
+  )
 
-  // Only one SparkContext may be running in a JVM (SPARK-2243)
-  forkEvery 1
   maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-    includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
     // Should be run only in a properly configured SDK harness environment
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
     // Unbounded
@@ -279,7 +245,7 @@ task validatesRunnerBatch(type: Test) {
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     // Ordering
@@ -289,14 +255,14 @@ task validatesRunnerBatch(type: Test) {
   jvmArgs '-Xmx3g'
 }
 
-task validatesRunnerStreaming(type: Test) {
+def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
   def pipelineOptions = JsonOutput.toJson([
-          "--runner=TestSparkRunner",
-          "--forceStreaming=true",
-          "--enableSparkMetricSinks=true",
+    "--runner=TestSparkRunner",
+    "--forceStreaming=true",
+    "--enableSparkMetricSinks=true",
   ])
   systemProperty "beamTestPipelineOptions", pipelineOptions
 
@@ -309,35 +275,21 @@ task validatesRunnerStreaming(type: Test) {
   useJUnit {
     includeCategories 'org.apache.beam.runners.spark.StreamingTest'
   }
-  filter {
-    // BEAM-11653 MetricsSinkTest is failing with Spark 3
-    excludeTestsMatching 'org.apache.beam.runners.spark.aggregators.metrics.sink.SparkMetricsSinkTest'
-  }
 }
 
-task validatesStructuredStreamingRunnerBatch(type: Test) {
+tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
-  def pipelineOptions = JsonOutput.toJson([
-          "--runner=SparkStructuredStreamingRunner",
-          "--testMode=true",
-          "--streaming=false",
-  ])
-  systemProperty "beamTestPipelineOptions", pipelineOptions
-  systemProperty "spark.sql.shuffle.partitions", "4"
-  systemProperty "spark.ui.enabled", "false"
-  systemProperty "spark.ui.showConsoleProgress", "false"
+  systemProperties sparkTestProperties(["--runner":"SparkStructuredStreamingRunner", "--testMode":"true"])
 
   classpath = configurations.validatesRunner
   testClassesDirs = files(
-          project(":sdks:java:core").sourceSets.test.output.classesDirs,
-          project(":runners:core-java").sourceSets.test.output.classesDirs,
+    project(":sdks:java:core").sourceSets.test.output.classesDirs,
+    project(":runners:core-java").sourceSets.test.output.classesDirs,
   )
   testClassesDirs += files(project.sourceSets.test.output.classesDirs)
 
-  // Only one SparkContext may be running in a JVM (SPARK-2243)
-  forkEvery 1
   maxParallelForks 4
   // Increase memory heap in order to avoid OOM errors
   jvmArgs '-Xmx7g'
@@ -365,7 +317,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
@@ -384,7 +336,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   }
 }
 
-task validatesRunner {
+tasks.register("validatesRunner") {
   group = "Verification"
   description "Validates Spark runner"
   dependsOn validatesRunnerBatch
@@ -397,58 +349,44 @@ task validatesRunner {
 // Generates :runners:spark:*:runQuickstartJavaSpark task
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
 
-task hadoopVersionsTest(group: "Verification") {
-  def taskNames = hadoopVersions.keySet().stream()
-      .map{num -> "hadoopVersion${num}Test"}
-      .collect(Collectors.toList())
-  dependsOn taskNames
+tasks.register("hadoopVersionsTest") {
+  group = "Verification"
+  dependsOn hadoopVersions.collect{k,v -> "hadoopVersion${k}Test"}
 }
 
-task examplesIntegrationTest(type: Test) {
+tasks.register("examplesIntegrationTest", Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
-  def pipelineOptions = JsonOutput.toJson([
-          "--runner=TestSparkRunner",
-          "--enableSparkMetricSinks=true",
-          "--tempLocation=${tempLocation}",
-          "--tempRoot=${tempLocation}",
-          "--project=${gcpProject}",
+  systemProperties sparkTestProperties([
+      "--tempLocation": "${tempLocation}",
+      "--tempRoot"    : "${tempLocation}",
+      "--project"     : "${gcpProject}"
   ])
-  systemProperty "beamTestPipelineOptions", pipelineOptions
-  systemProperty "beam.spark.test.reuseSparkContext", "true"
-  systemProperty "spark.ui.enabled", "false"
-  systemProperty "spark.ui.showConsoleProgress", "false"
 
   include '**/*IT.class'
-  exclude '**/WindowedWordCountIT.class' // Failed to read from sharded output
-  exclude '**/AutoCompleteIT.class' // Failed to serialize and deserialize property 'bigQuerySchema'
-  exclude '**/TrafficMaxLaneFlowIT.class' // Failed to serialize and deserialize property 'bigQuerySchema'
-  exclude '**/TrafficRoutesIT.class' // Property [windowDuration] is marked with contradictory annotations.
   maxParallelForks 4
   classpath = configurations.validatesRunner
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
-  useJUnit { }
+  useJUnit {
+    filter {
+      // TODO (BEAM-14019) Fix integration Tests to run with SparkRunner: Failed to read from sharded output
+      excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInStreamingStaticSharding'
+      excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
+    }
+  }
   jvmArgs '-Xmx3g'
 }
 
-hadoopVersions.each {kv ->
-  task "hadoopVersion${kv.key}Test"(type: Test, group: "Verification") {
+hadoopVersions.each { kv ->
+  tasks.register("hadoopVersion${kv.key}Test", Test) {
+    group = "Verification"
     description = "Runs Spark tests with Hadoop version $kv.value"
     classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
-    systemProperty "beam.spark.test.reuseSparkContext", "true"
-    systemProperty "spark.sql.shuffle.partitions", "4"
-    systemProperty "spark.ui.enabled", "false"
-    systemProperty "spark.ui.showConsoleProgress", "false"
-    systemProperty "beamTestPipelineOptions", """[
-                    "--runner=TestSparkRunner",
-                    "--streaming=false",
-                    "--enableSparkMetricSinks=true"
-                  ]"""
-    // Only one SparkContext may be running in a JVM (SPARK-2243)
-    forkEvery 1
-    maxParallelForks 4
+    systemProperties sparkTestProperties()
+
     include "**/*Test.class"
+    maxParallelForks 4
     useJUnit {
       excludeCategories "org.apache.beam.runners.spark.StreamingTest"
       excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"

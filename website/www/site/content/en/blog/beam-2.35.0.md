@@ -74,6 +74,7 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 * Fixed data loss when writing to DynamoDB without setting deduplication key names (Java)
   ([BEAM-13009](https://issues.apache.org/jira/browse/BEAM-13009)).
 * Go SDK Examples now have types and functions registered. (Go) ([BEAM-5378](https://issues.apache.org/jira/browse/BEAM-5378))
+* Fixed data loss when using Python WriteToFiles in streaming pipeline ([BEAM-12950](https://issues.apache.org/jira/browse/BEAM-12950)).
 
 ## Known Issues
 
@@ -106,6 +107,7 @@ Daniel Oliveira
 daria.malkova
 darshan-sj
 David Huntsperger
+David Prieto Rivera
 Dmitrii Kuzin
 dpcollins-google
 dprieto

@@ -52,6 +52,7 @@ dependencies {
     // BEAM-13781: gax-grpc's gRPC version was older than Beam declared
     exclude group: 'io.grpc', module: 'grpc-netty-shaded'
   }
+  implementation library.java.gax_grpc_test
   implementation library.java.gax_httpjson
   permitUnusedDeclared library.java.gax_httpjson // BEAM-8755
   implementation library.java.google_api_client
@@ -67,6 +68,13 @@ dependencies {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
     exclude group: 'io.grpc', module: 'grpc-grpclb'
   }
+  // google_cloud_bigtable_client_core declares old google-cloud-bigtable for
+  // Java7 compatibility. The old google-cloud-bigtable is not compatible with
+  // newer version of GAX. Declaring newer google-cloud-bigtable so that Beam
+  // users receive newer google-cloud-bigtable. Beam doesn't directly use this
+  // artifact.
+  implementation library.java.google_cloud_bigtable
+  permitUnusedDeclared library.java.google_cloud_bigtable
   implementation library.java.google_cloud_core
   implementation(library.java.google_cloud_core_grpc) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
@@ -87,6 +95,8 @@ dependencies {
   implementation library.java.grpc_auth
   implementation library.java.grpc_core
   permitUnusedDeclared library.java.grpc_core // BEAM-11761
+  implementation library.java.grpc_census
+  permitUnusedDeclared library.java.grpc_census // BEAM-11761
   implementation library.java.grpc_context
   permitUnusedDeclared library.java.grpc_context // BEAM-11761
   implementation library.java.grpc_grpclb
@@ -97,6 +107,8 @@ dependencies {
   implementation library.java.grpc_protobuf
   implementation library.java.grpc_stub
   permitUnusedDeclared library.java.grpc_stub // BEAM-11761
+  implementation library.java.grpc_xds
+  permitUnusedDeclared library.java.grpc_xds // BEAM-11761
   implementation library.java.grpc_google_cloud_pubsub_v1
   implementation library.java.grpc_google_cloud_pubsublite_v1
   permitUnusedDeclared library.java.grpc_google_cloud_pubsublite_v1 // BEAM-11761
@@ -108,6 +120,8 @@ dependencies {
   implementation library.java.http_core
   implementation library.java.jackson_core
   implementation library.java.jackson_databind
+  implementation library.java.jackson_datatype_joda
+  implementation library.java.jackson_datatype_jsr310
   implementation library.java.joda_time
   implementation library.java.junit
   implementation library.java.netty_handler
@@ -132,8 +146,8 @@ dependencies {
   implementation library.java.arrow_memory_core
   implementation library.java.arrow_vector
 
+  implementation 'com.google.http-client:google-http-client-gson:1.41.2'
   implementation "org.threeten:threetenbp:1.4.4"
-  implementation "io.opencensus:opencensus-api:0.30.0"
 
   testImplementation library.java.arrow_memory_netty
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
@@ -146,6 +160,7 @@ dependencies {
   testImplementation library.java.powermock
   testImplementation library.java.powermock_mockito
   testImplementation library.java.joda_time
+  testImplementation library.java.google_cloud_spanner_test
   testRuntimeOnly library.java.slf4j_jdk14
 }
 
@@ -179,7 +194,9 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   exclude '**/BigQueryIOStorageQueryIT.class'
   exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/BigQueryIOStorageWriteIT.class'
   exclude '**/BigQueryToTableIT.class'
+  exclude '**/BigQueryIOJsonTest.class'
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs

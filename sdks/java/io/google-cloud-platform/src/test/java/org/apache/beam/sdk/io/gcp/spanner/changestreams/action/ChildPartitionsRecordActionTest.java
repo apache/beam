@@ -37,8 +37,8 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestTransactionAnswer;
-import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -53,7 +53,7 @@ public class ChildPartitionsRecordActionTest {
   private InTransactionContext transaction;
   private ChangeStreamMetrics metrics;
   private ChildPartitionsRecordAction action;
-  private RestrictionTracker<OffsetRange, Long> tracker;
+  private RestrictionTracker<TimestampRange, Timestamp> tracker;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
 
   @Before
@@ -86,7 +86,7 @@ public class ChildPartitionsRecordActionTest {
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.tryClaim(10L)).thenReturn(true);
+    when(tracker.tryClaim(startTimestamp)).thenReturn(true);
     when(transaction.getPartition("childPartition1")).thenReturn(null);
     when(transaction.getPartition("childPartition2")).thenReturn(null);
 
@@ -137,7 +137,7 @@ public class ChildPartitionsRecordActionTest {
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.tryClaim(10L)).thenReturn(true);
+    when(tracker.tryClaim(startTimestamp)).thenReturn(true);
     when(transaction.getPartition("childPartition1")).thenReturn(mock(Struct.class));
     when(transaction.getPartition("childPartition2")).thenReturn(mock(Struct.class));
 
@@ -167,7 +167,7 @@ public class ChildPartitionsRecordActionTest {
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.tryClaim(10L)).thenReturn(true);
+    when(tracker.tryClaim(startTimestamp)).thenReturn(true);
     when(transaction.getPartition(childPartitionToken)).thenReturn(null);
 
     final Optional<ProcessContinuation> maybeContinuation =
@@ -207,7 +207,7 @@ public class ChildPartitionsRecordActionTest {
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.tryClaim(10L)).thenReturn(true);
+    when(tracker.tryClaim(startTimestamp)).thenReturn(true);
     when(transaction.getPartition(childPartitionToken)).thenReturn(mock(Struct.class));
 
     final Optional<ProcessContinuation> maybeContinuation =
@@ -232,7 +232,7 @@ public class ChildPartitionsRecordActionTest {
                 new ChildPartition("childPartition2", partitionToken)),
             null);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.tryClaim(10L)).thenReturn(false);
+    when(tracker.tryClaim(startTimestamp)).thenReturn(false);
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(partition, record, tracker, watermarkEstimator);

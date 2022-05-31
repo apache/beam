@@ -97,6 +97,7 @@ class S3WritableByteChannel implements WritableByteChannel {
             .sseCustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
             .ssekmsKeyId(config.getSSEKMSKeyId())
             .sseCustomerKeyMD5(config.getSSECustomerKey().getMD5())
+            .bucketKeyEnabled(config.getBucketKeyEnabled())
             .build();
     CreateMultipartUploadResponse response;
     try {

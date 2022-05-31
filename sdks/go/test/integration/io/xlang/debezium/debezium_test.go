@@ -17,8 +17,11 @@ package debezium
 
 import (
 	"context"
+	"flag"
+	"log"
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/debeziumio"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
@@ -31,9 +34,11 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 )
 
+var expansionAddr string // Populate with expansion address labelled "debeziumio".
+
 func checkFlags(t *testing.T) {
-	if *integration.IoExpansionAddr == "" {
-		t.Skip("No IO expansion address provided.")
+	if expansionAddr == "" {
+		t.Skip("No DebeziumIo expansion address provided.")
 	}
 }
 
@@ -84,10 +89,22 @@ func TestDebeziumIO_BasicRead(t *testing.T) {
 		"database.include.list=inventory",
 		"include.schema.changes=false",
 	}
-	read := ReadPipeline(*integration.IoExpansionAddr, username, password, dbname, host, port, debeziumio.PostgreSQL, 1, connectionProperties)
+	read := ReadPipeline(expansionAddr, username, password, dbname, host, port, debeziumio.PostgreSQL, 1, connectionProperties)
 	ptest.RunAndValidate(t, read)
 }
 
 func TestMain(m *testing.M) {
-	ptest.Main(m)
+	flag.Parse()
+	beam.Init()
+
+	services := integration.NewExpansionServices()
+	defer func() { services.Shutdown() }()
+	addr, err := services.GetAddr("debeziumio")
+	if err != nil {
+		log.Printf("skipping missing expansion service: %v", err)
+	} else {
+		expansionAddr = addr
+	}
+
+	ptest.MainRet(m)
 }

@@ -28,16 +28,17 @@ from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.recording_manager import RecordingManager
 from apache_beam.runners.interactive.sql.sql_chain import SqlNode
+from apache_beam.runners.interactive.testing.mock_env import isolated_env
 
 # The module name is also a variable in module.
 _module_name = 'apache_beam.runners.interactive.interactive_environment_test'
 
 
+@isolated_env
 class InteractiveEnvironmentTest(unittest.TestCase):
   def setUp(self):
     self._p = beam.Pipeline()
     self._var_in_class_instance = 'a var in class instance'
-    ie.new_env()
 
   def assertVariableWatched(self, variable_name, variable_val):
     self.assertTrue(self._is_variable_watched(variable_name, variable_val))
@@ -164,8 +165,7 @@ class InteractiveEnvironmentTest(unittest.TestCase):
       mocked_atexit.assert_called_once()
 
   def test_cleanup_invoked_when_new_env_replace_not_none_env(self):
-    ie._interactive_beam_env = None
-    ie.new_env()
+    ie._interactive_beam_env = self.current_env
     with patch('apache_beam.runners.interactive.interactive_environment'
                '.InteractiveEnvironment.cleanup') as mocked_cleanup:
       ie.new_env()
@@ -211,7 +211,6 @@ class InteractiveEnvironmentTest(unittest.TestCase):
         env.get_cache_manager(dummy_pipeline, create_if_absent=True))
 
   def test_track_user_pipeline_cleanup_non_inspectable_pipeline(self):
-    ie.new_env()
     dummy_pipeline_1 = beam.Pipeline()
     dummy_pipeline_2 = beam.Pipeline()
     dummy_pipeline_3 = beam.Pipeline()
@@ -259,36 +258,24 @@ class InteractiveEnvironmentTest(unittest.TestCase):
     self.assertSetEqual(ie.current_env().computed_pcollections, {not_evicted})
 
   def test_set_get_recording_manager(self):
-    ie._interactive_beam_env = None
-    ie.new_env()
-
     p = beam.Pipeline()
     rm = RecordingManager(p)
     ie.current_env().set_recording_manager(rm, p)
     self.assertIs(rm, ie.current_env().get_recording_manager(p))
 
   def test_recording_manager_create_if_absent(self):
-    ie._interactive_beam_env = None
-    ie.new_env()
-
     p = beam.Pipeline()
     self.assertFalse(ie.current_env().get_recording_manager(p))
     self.assertTrue(
         ie.current_env().get_recording_manager(p, create_if_absent=True))
 
   def test_evict_recording_manager(self):
-    ie._interactive_beam_env = None
-    ie.new_env()
-
     p = beam.Pipeline()
     self.assertFalse(ie.current_env().get_recording_manager(p))
     self.assertTrue(
         ie.current_env().get_recording_manager(p, create_if_absent=True))
 
   def test_describe_all_recordings(self):
-    ie._interactive_beam_env = None
-    ie.new_env()
-
     self.assertFalse(ie.current_env().describe_all_recordings())
 
     p1 = beam.Pipeline()

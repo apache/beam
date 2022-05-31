@@ -21,9 +21,11 @@ import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
@@ -85,7 +87,8 @@ public abstract class PTransformRunnerFactoryTestContext
               @Override
               public BeamFnDataOutboundAggregator createOutboundAggregator(
                   ApiServiceDescriptor apiServiceDescriptor,
-                  Supplier<String> processBundleRequestIdSupplier) {
+                  Supplier<String> processBundleRequestIdSupplier,
+                  boolean collectElementsIfNoFlushes) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
             })
@@ -135,7 +138,8 @@ public abstract class PTransformRunnerFactoryTestContext
               public void afterBundleCommit(Instant callbackExpiry, Callback callback) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
-            });
+            })
+        .runnerCapabilities(new HashSet<>());
   }
 
   /** A builder to create a context for tests. */
@@ -168,6 +172,8 @@ public abstract class PTransformRunnerFactoryTestContext
     Builder coders(Map<String, RunnerApi.Coder> value);
 
     Builder windowingStrategies(Map<String, RunnerApi.WindowingStrategy> value);
+
+    Builder runnerCapabilities(Set<String> value);
 
     Builder pCollectionConsumers(Map<String, List<FnDataReceiver<?>>> value);
 

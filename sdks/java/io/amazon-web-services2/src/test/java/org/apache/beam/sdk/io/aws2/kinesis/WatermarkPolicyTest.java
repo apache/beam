@@ -18,23 +18,27 @@
 package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.joda.time.Duration.standardSeconds;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 /** Tests {@link WatermarkPolicy}. */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(Instant.class)
 public class WatermarkPolicyTest {
   private static final Instant NOW = Instant.now();
+
+  @After
+  public void resetJodaTime() {
+    // Some tests set the time source for joda time to a fixed timestamp.
+    // This makes sure time is reset to the system time source afterwards.
+    DateTimeUtils.setCurrentMillisSystem();
+  }
 
   @Test
   public void shouldAdvanceWatermarkWithTheArrivalTimeFromKinesisRecords() {
@@ -43,8 +47,8 @@ public class WatermarkPolicyTest {
     KinesisRecord a = mock(KinesisRecord.class);
     KinesisRecord b = mock(KinesisRecord.class);
 
-    Instant time1 = NOW.minus(Duration.standardSeconds(30L));
-    Instant time2 = NOW.minus(Duration.standardSeconds(20L));
+    Instant time1 = NOW.minus(standardSeconds(30L));
+    Instant time2 = NOW.minus(standardSeconds(20L));
     when(a.getApproximateArrivalTimestamp()).thenReturn(time1);
     when(b.getApproximateArrivalTimestamp()).thenReturn(time2);
 
@@ -62,9 +66,9 @@ public class WatermarkPolicyTest {
     KinesisRecord b = mock(KinesisRecord.class);
     KinesisRecord c = mock(KinesisRecord.class);
 
-    Instant time1 = NOW.minus(Duration.standardSeconds(30L));
-    Instant time2 = NOW.minus(Duration.standardSeconds(20L));
-    Instant time3 = NOW.minus(Duration.standardSeconds(40L));
+    Instant time1 = NOW.minus(standardSeconds(30L));
+    Instant time2 = NOW.minus(standardSeconds(20L));
+    Instant time3 = NOW.minus(standardSeconds(40L));
     when(a.getApproximateArrivalTimestamp()).thenReturn(time1);
     when(b.getApproximateArrivalTimestamp()).thenReturn(time2);
     // time3 is before time2
@@ -86,28 +90,23 @@ public class WatermarkPolicyTest {
         WatermarkPolicyFactory.withCustomWatermarkPolicy(standardWatermarkParams)
             .createWatermarkPolicy();
 
-    mockStatic(Instant.class);
-
-    Instant time1 = NOW.minus(Duration.standardSeconds(500)); // returned when update is called
-    Instant time2 =
-        NOW.minus(
-            Duration.standardSeconds(498)); // returned when getWatermark is called the first time
-    Instant time3 = NOW; // returned when getWatermark is called the second time
-    Instant arrivalTime = NOW.minus(Duration.standardSeconds(510));
     Duration watermarkIdleTimeThreshold =
         standardWatermarkParams.getWatermarkIdleDurationThreshold();
 
-    when(Instant.now()).thenReturn(time1).thenReturn(time2).thenReturn(time3);
-
     KinesisRecord a = mock(KinesisRecord.class);
+    Instant arrivalTime = NOW.minus(standardSeconds(510));
     when(a.getApproximateArrivalTimestamp()).thenReturn(arrivalTime);
 
+    DateTimeUtils.setCurrentMillisFixed(NOW.minus(standardSeconds(500)).getMillis());
     policy.update(a);
 
     // returns the latest event time when the watermark
+    DateTimeUtils.setCurrentMillisFixed(NOW.minus(standardSeconds(498)).getMillis());
     assertThat(policy.getWatermark()).isEqualTo(arrivalTime);
+
     // advance the watermark to [NOW - watermark idle time threshold]
-    assertThat(policy.getWatermark()).isEqualTo(time3.minus(watermarkIdleTimeThreshold));
+    DateTimeUtils.setCurrentMillisFixed(NOW.getMillis());
+    assertThat(policy.getWatermark()).isEqualTo(NOW.minus(watermarkIdleTimeThreshold));
   }
 
   @Test
@@ -115,14 +114,13 @@ public class WatermarkPolicyTest {
     WatermarkPolicy policy =
         WatermarkPolicyFactory.withProcessingTimePolicy().createWatermarkPolicy();
 
-    mockStatic(Instant.class);
+    Instant time1 = NOW.minus(standardSeconds(5));
+    Instant time2 = NOW.minus(standardSeconds(4));
 
-    Instant time1 = NOW.minus(Duration.standardSeconds(5));
-    Instant time2 = NOW.minus(Duration.standardSeconds(4));
-
-    when(Instant.now()).thenReturn(time1).thenReturn(time2);
-
+    DateTimeUtils.setCurrentMillisFixed(time1.getMillis());
     assertThat(policy.getWatermark()).isEqualTo(time1);
+
+    DateTimeUtils.setCurrentMillisFixed(time2.getMillis());
     assertThat(policy.getWatermark()).isEqualTo(time2);
   }
 
@@ -139,8 +137,8 @@ public class WatermarkPolicyTest {
     KinesisRecord a = mock(KinesisRecord.class);
     KinesisRecord b = mock(KinesisRecord.class);
 
-    Instant time1 = NOW.minus(Duration.standardSeconds(30L));
-    Instant time2 = NOW.minus(Duration.standardSeconds(20L));
+    Instant time1 = NOW.minus(standardSeconds(30L));
+    Instant time2 = NOW.minus(standardSeconds(20L));
     when(a.getApproximateArrivalTimestamp()).thenReturn(time1);
     when(b.getApproximateArrivalTimestamp()).thenReturn(time2);
 
@@ -148,5 +146,19 @@ public class WatermarkPolicyTest {
     assertThat(policy.getWatermark()).isEqualTo(time1.plus(Duration.standardMinutes(1)));
     policy.update(b);
     assertThat(policy.getWatermark()).isEqualTo(time2.plus(Duration.standardMinutes(1)));
+  }
+
+  @Test
+  public void shouldUpdateWatermarkParameters() {
+    SerializableFunction<KinesisRecord, Instant> fn = input -> Instant.now();
+    Duration idleDurationThreshold = Duration.standardSeconds(30);
+
+    WatermarkParameters parameters =
+        WatermarkParameters.create()
+            .withTimestampFn(fn)
+            .withWatermarkIdleDurationThreshold(idleDurationThreshold);
+
+    assertThat(parameters.getTimestampFn()).isEqualTo(fn);
+    assertThat(parameters.getWatermarkIdleDurationThreshold()).isEqualTo(idleDurationThreshold);
   }
 }

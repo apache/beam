@@ -85,6 +85,7 @@ class UserScoreIT(unittest.TestCase):
         self.test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
 
+  @pytest.mark.no_xdist
   @pytest.mark.examples_postcommit
   def test_userscore_output_checksum_on_small_input(self):
     # Small dataset to prevent Out of Memory when running in local runners

@@ -23,6 +23,7 @@ import (
 	"os"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
@@ -59,16 +60,25 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	}
 
 	log.Infof(ctx, "Staging worker binary: %v", bin)
-
-	if err := StageFile(ctx, opts.Project, workerURL, bin); err != nil {
+	hash, err := stageFile(ctx, opts.Project, workerURL, bin)
+	if err != nil {
 		return presult, err
 	}
 	log.Infof(ctx, "Staged worker binary: %v", workerURL)
 
+	if err := graphx.UpdateDefaultEnvWorkerType(
+		graphx.URNArtifactURLType,
+		protox.MustEncode(&pipepb.ArtifactUrlPayload{
+			Url:    workerURL,
+			Sha256: hash,
+		}), raw); err != nil {
+		return presult, err
+	}
+
 	if opts.WorkerJar != "" {
 		log.Infof(ctx, "Staging Dataflow worker jar: %v", opts.WorkerJar)
 
-		if err := StageFile(ctx, opts.Project, jarURL, opts.WorkerJar); err != nil {
+		if _, err := stageFile(ctx, opts.Project, jarURL, opts.WorkerJar); err != nil {
 			return presult, err
 		}
 		log.Infof(ctx, "Staged worker jar: %v", jarURL)
@@ -99,7 +109,7 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	if err != nil {
 		return presult, err
 	}
-	upd, err := Submit(ctx, client, opts.Project, opts.Region, job)
+	upd, err := Submit(ctx, client, opts.Project, opts.Region, job, opts.Update)
 	// When in async mode, if we get a 409 because we've already submitted an actively running job with the same name
 	// just return the existing job as a convenience
 	if gErr, ok := err.(*googleapi.Error); async && ok && gErr.Code == 409 {

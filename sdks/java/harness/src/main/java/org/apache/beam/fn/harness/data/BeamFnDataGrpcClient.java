@@ -84,11 +84,14 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
 
   @Override
   public BeamFnDataOutboundAggregator createOutboundAggregator(
-      ApiServiceDescriptor apiServiceDescriptor, Supplier<String> processBundleRequestIdSupplier) {
+      ApiServiceDescriptor apiServiceDescriptor,
+      Supplier<String> processBundleRequestIdSupplier,
+      boolean collectElementsIfNoFlushes) {
     return new BeamFnDataOutboundAggregator(
         options,
         processBundleRequestIdSupplier,
-        getClientFor(apiServiceDescriptor).getOutboundObserver());
+        getClientFor(apiServiceDescriptor).getOutboundObserver(),
+        collectElementsIfNoFlushes);
   }
 
   private BeamFnDataGrpcMultiplexer2 getClientFor(

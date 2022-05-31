@@ -117,17 +117,26 @@ func makeParentMap(xforms map[string]*pipepb.PTransform) map[string]string {
 // for composite transforms.
 func computeCompositeInputOutput(xforms map[string]*pipepb.PTransform) map[string]*pipepb.PTransform {
 	ret := reflectx.ShallowClone(xforms).(map[string]*pipepb.PTransform)
+	// Precompute the transforms that consume each PCollection as input.
+	primitiveXformsForInput := make(map[string][]string)
+	for id, pt := range xforms {
+		if len(pt.GetSubtransforms()) == 0 {
+			for _, col := range pt.GetInputs() {
+				primitiveXformsForInput[col] = append(primitiveXformsForInput[col], id)
+			}
+		}
+	}
 
 	seen := make(map[string]bool)
 	for id := range xforms {
-		walk(id, ret, seen)
+		walk(id, ret, seen, primitiveXformsForInput)
 	}
 	return ret
 }
 
 // walk traverses the structure recursively to compute the input/output
 // maps of composite transforms. Update the transform map.
-func walk(id string, ret map[string]*pipepb.PTransform, seen map[string]bool) {
+func walk(id string, ret map[string]*pipepb.PTransform, seen map[string]bool, primitiveXformsForInput map[string][]string) {
 	t := ret[id]
 	if seen[id] || len(t.Subtransforms) == 0 {
 		return
@@ -142,7 +151,7 @@ func walk(id string, ret map[string]*pipepb.PTransform, seen map[string]bool) {
 	out := make(map[string]bool)
 	local := map[string]bool{id: true}
 	for _, sid := range t.Subtransforms {
-		walk(sid, ret, seen)
+		walk(sid, ret, seen, primitiveXformsForInput)
 		inout(ret[sid], in, out)
 		local[sid] = true
 	}
@@ -152,7 +161,7 @@ func walk(id string, ret map[string]*pipepb.PTransform, seen map[string]bool) {
 	// external to this composite. So we must check the inputs in the rest of
 	// the graph, and ensure they're counted.
 	extIn := make(map[string]bool)
-	externalIns(local, ret, extIn, out)
+	externalIns(local, primitiveXformsForInput, extIn, out)
 
 	upd := ShallowClonePTransform(t)
 	upd.Inputs = diff(in, out)
@@ -201,19 +210,15 @@ func diffAndMerge(out, in, extIn map[string]bool) map[string]string {
 }
 
 // externalIns checks the unseen non-composite graph
-func externalIns(counted map[string]bool, xforms map[string]*pipepb.PTransform, extIn, out map[string]bool) {
-	for id, pt := range xforms {
-		// Ignore other composites or already counted transforms.
-		if counted[id] || len(pt.GetSubtransforms()) != 0 {
-			continue
-		}
-		// Check this PTransform's inputs for anything output by something
-		// the current composite.
-		for col := range out {
-			for _, incol := range pt.GetInputs() {
-				if col == incol {
-					extIn[col] = true
-				}
+func externalIns(counted map[string]bool, primitiveXformsForInput map[string][]string, extIn, out map[string]bool) {
+	// For this composite's output PCollections.
+	for col := range out {
+		// See if any transforms are using it.
+		for _, id := range primitiveXformsForInput[col] {
+			if !counted[id] {
+				// And if they're part of the composite
+				// Ensure the collections is in the set of outputs for the composite.
+				extIn[col] = true
 			}
 		}
 	}
@@ -256,10 +261,7 @@ func (s idSorted) Less(i, j int) bool {
 	// We can ignore the errors here due to the regex check.
 	iN, _ := strconv.Atoi(iM[2])
 	jN, _ := strconv.Atoi(jM[2])
-	if iN < jN {
-		return true
-	}
-	return false
+	return iN < jN
 }
 
 func separateCompsAndLeaves(xforms map[string]*pipepb.PTransform) (comp, leaf []string) {

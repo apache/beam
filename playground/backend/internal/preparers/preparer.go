@@ -15,6 +15,13 @@
 
 package preparers
 
+import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/validators"
+	"fmt"
+	"sync"
+)
+
 // Preparer is used to make preparations with file with code.
 type Preparer struct {
 	Prepare func(args ...interface{}) error
@@ -47,4 +54,30 @@ func (builder *PreparersBuilder) Build() *Preparers {
 
 func (builder *PreparersBuilder) AddPreparer(newPreparer Preparer) {
 	*builder.preparers.functions = append(*builder.preparers.functions, newPreparer)
+}
+
+// GetPreparers returns slice of preparers.Preparer according to sdk
+func GetPreparers(sdk pb.Sdk, filepath string, valResults *sync.Map) (*[]Preparer, error) {
+	isUnitTest, ok := valResults.Load(validators.UnitTestValidatorName)
+	if !ok {
+		return nil, fmt.Errorf("GetPreparers:: No information about unit test validation result")
+	}
+	builder := NewPreparersBuilder(filepath)
+	switch sdk {
+	case pb.Sdk_SDK_JAVA:
+		isKata, ok := valResults.Load(validators.KatasValidatorName)
+		if !ok {
+			return nil, fmt.Errorf("GetPreparers:: No information about katas validation result")
+		}
+		GetJavaPreparers(builder, isUnitTest.(bool), isKata.(bool))
+	case pb.Sdk_SDK_GO:
+		GetGoPreparers(builder, isUnitTest.(bool))
+	case pb.Sdk_SDK_PYTHON:
+		GetPythonPreparers(builder, isUnitTest.(bool))
+	case pb.Sdk_SDK_SCIO:
+		GetScioPreparers(builder)
+	default:
+		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
+	}
+	return builder.Build().GetPreparers(), nil
 }

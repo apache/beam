@@ -75,7 +75,7 @@ import sys
 import warnings
 
 if sys.version_info.major == 3:
-  if sys.version_info.minor <= 5 or sys.version_info.minor >= 9:
+  if sys.version_info.minor <= 6 or sys.version_info.minor >= 10:
     warnings.warn(
         'This version of Apache Beam has not been sufficiently tested on '
         'Python %s.%s. You may encounter bugs or missing features.' %

@@ -333,7 +333,7 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   git checkout ${RC_TAG}
 
-  ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
+  ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}rc${RC_NUM}
 
   wipe_local_clone_dir
 fi
@@ -363,6 +363,7 @@ if [[ $confirmation = "y" ]]; then
   git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
+  # TODO(BEAM-9980): Don't hardcode py version in this file.
   cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
@@ -383,11 +384,15 @@ if [[ $confirmation = "y" ]]; then
 
   echo "..........Copying generated javadoc into beam-site.........."
   cp -r ${GENERATE_JAVADOC} javadoc/${RELEASE}
-  cp -r ${GENERATE_JAVADOC} javadoc/current
+  # Update current symlink to point to the latest release
+  unlink javadoc/current
+  ln -s ${RELEASE} javadoc/current
 
   echo "............Copying generated pydoc into beam-site.........."
   cp -r ${GENERATED_PYDOC} pydoc/${RELEASE}
-  cp -r ${GENERATED_PYDOC} pydoc/current
+  # Update current symlink to point to the latest release
+  unlink pydoc/current
+  ln -s ${RELEASE} pydoc/current
 
   git add -A
   git commit -m "Update beam-site for release ${RELEASE}." -m "Content generated from commit ${RELEASE_COMMIT}."

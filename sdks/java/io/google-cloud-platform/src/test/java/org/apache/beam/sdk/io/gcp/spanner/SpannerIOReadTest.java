@@ -34,6 +34,7 @@ import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.ResultSets;
+import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
@@ -41,6 +42,7 @@ import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spanner.Type;
 import com.google.cloud.spanner.Value;
 import com.google.protobuf.ByteString;
+import io.grpc.Status.Code;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -49,6 +51,7 @@ import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.Read;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.testing.PAssert;
@@ -205,6 +208,16 @@ public class SpannerIOReadTest implements Serializable {
             .withServiceFactory(serviceFactory));
   }
 
+  @Test
+  public void runReadTestWithNullProject() throws Exception {
+    runReadTest(
+        SpannerConfig.create()
+            .withProjectId((String) null)
+            .withInstanceId("123")
+            .withDatabaseId("aaa")
+            .withServiceFactory(serviceFactory));
+  }
+
   private void runReadTest(SpannerConfig spannerConfig) throws Exception {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
@@ -293,7 +306,57 @@ public class SpannerIOReadTest implements Serializable {
   }
 
   @Test
-  public void testQueryMetrics() throws Exception {
+  public void testQueryMetricsFail() throws Exception {
+    Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
+    TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
+
+    SpannerConfig spannerConfig = getSpannerConfig();
+
+    pipeline.apply(
+        "read q",
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withQuery("SELECT * FROM users")
+            .withQueryName("queryName")
+            .withTimestampBound(timestampBound));
+
+    FakeBatchTransactionId id = new FakeBatchTransactionId("runQueryTest");
+    when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
+
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
+        .thenReturn(mockBatchTx);
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
+        .thenReturn(mockBatchTx);
+
+    Partition fakePartition =
+        FakePartitionFactory.createFakeQueryPartition(ByteString.copyFromUtf8("one"));
+
+    when(mockBatchTx.partitionQuery(
+            any(PartitionOptions.class),
+            eq(Statement.of("SELECT * FROM users")),
+            any(ReadQueryUpdateTransactionOption.class)))
+        .thenReturn(Arrays.asList(fakePartition));
+    when(mockBatchTx.execute(any(Partition.class)))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 1"));
+    try {
+      pipeline.run();
+    } catch (PipelineExecutionException e) {
+      if (e.getCause() instanceof SpannerException
+          && ((SpannerException) e.getCause()).getErrorCode().getGrpcStatusCode()
+              == Code.DEADLINE_EXCEEDED) {
+        // expected
+      } else {
+        throw e;
+      }
+    }
+    verifyMetricWasSet("test", "aaa", "123", "deadline_exceeded", null, 1);
+    verifyMetricWasSet("test", "aaa", "123", "ok", null, 0);
+  }
+
+  @Test
+  public void testQueryMetricsSucceed() throws Exception {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
 
@@ -324,23 +387,74 @@ public class SpannerIOReadTest implements Serializable {
             any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition, fakePartition));
     when(mockBatchTx.execute(any(Partition.class)))
-        .thenThrow(
-            SpannerExceptionFactory.newSpannerException(
-                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 1"))
-        .thenThrow(
-            SpannerExceptionFactory.newSpannerException(
-                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 2"))
         .thenReturn(
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
-            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 6)));
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 4)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)))
+        .thenReturn(
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 4)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
 
     pipeline.run();
-    verifyMetricWasSet("test", "aaa", "123", "deadline_exceeded", null, 2);
+    verifyMetricWasSet("test", "aaa", "123", "deadline_exceeded", null, 0);
     verifyMetricWasSet("test", "aaa", "123", "ok", null, 2);
   }
 
   @Test
-  public void testReadMetrics() throws Exception {
+  public void testReadMetricsFail() throws Exception {
+    Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
+    TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
+
+    SpannerConfig spannerConfig = getSpannerConfig();
+
+    pipeline.apply(
+        "read q",
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withTable("users")
+            .withColumns("id", "name")
+            .withTimestampBound(timestampBound));
+
+    FakeBatchTransactionId id = new FakeBatchTransactionId("runReadTest");
+    when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
+
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
+        .thenReturn(mockBatchTx);
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
+        .thenReturn(mockBatchTx);
+
+    Partition fakePartition =
+        FakePartitionFactory.createFakeReadPartition(ByteString.copyFromUtf8("one"));
+
+    when(mockBatchTx.partitionRead(
+            any(PartitionOptions.class),
+            eq("users"),
+            eq(KeySet.all()),
+            eq(Arrays.asList("id", "name")),
+            any(ReadQueryUpdateTransactionOption.class)))
+        .thenReturn(Arrays.asList(fakePartition));
+    when(mockBatchTx.execute(any(Partition.class)))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 1"));
+    try {
+      pipeline.run();
+    } catch (PipelineExecutionException e) {
+      if (e.getCause() instanceof SpannerException
+          && ((SpannerException) e.getCause()).getErrorCode().getGrpcStatusCode()
+              == Code.DEADLINE_EXCEEDED) {
+        // expected
+      } else {
+        throw e;
+      }
+    }
+    verifyMetricWasSet("test", "aaa", "123", "deadline_exceeded", null, 1);
+    verifyMetricWasSet("test", "aaa", "123", "ok", null, 0);
+  }
+
+  @Test
+  public void testReadMetricsSucceed() throws Exception {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
 
@@ -373,19 +487,12 @@ public class SpannerIOReadTest implements Serializable {
             any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition, fakePartition, fakePartition));
     when(mockBatchTx.execute(any(Partition.class)))
-        .thenThrow(
-            SpannerExceptionFactory.newSpannerException(
-                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 1"))
-        .thenThrow(
-            SpannerExceptionFactory.newSpannerException(
-                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 2"))
         .thenReturn(
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 4)),
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
 
     pipeline.run();
-    verifyMetricWasSet("test", "aaa", "123", "deadline_exceeded", null, 2);
     verifyMetricWasSet("test", "aaa", "123", "ok", null, 3);
   }
 

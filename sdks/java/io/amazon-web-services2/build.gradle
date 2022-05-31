@@ -28,45 +28,51 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services 2"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
+def excludeNetty = {
+  exclude group: "io.netty", module: "*" // exclude more recent Netty version
+}
+
 dependencies {
   implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.error_prone_annotations
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation library.java.aws_java_sdk2_apache_client
-  implementation library.java.aws_java_sdk2_auth
-  implementation library.java.aws_java_sdk2_cloudwatch
-  implementation library.java.aws_java_sdk2_dynamodb
-  implementation library.java.aws_java_sdk2_kinesis
-  implementation library.java.aws_java_sdk2_sdk_core
-  implementation library.java.aws_java_sdk2_aws_core
-  implementation library.java.aws_java_sdk2_sns
-  implementation library.java.aws_java_sdk2_sqs
-  implementation library.java.aws_java_sdk2_s3
-  implementation library.java.aws_java_sdk2_sts
-  implementation library.java.aws_java_sdk2_http_client_spi
-  implementation library.java.aws_java_sdk2_regions
-  implementation library.java.aws_java_sdk2_utils
+  implementation library.java.aws_java_sdk2_cloudwatch, excludeNetty
+  implementation library.java.aws_java_sdk2_dynamodb, excludeNetty
+  implementation library.java.aws_java_sdk2_kinesis, excludeNetty
+  implementation library.java.aws_java_sdk2_s3, excludeNetty
+  implementation library.java.aws_java_sdk2_sns, excludeNetty
+  implementation library.java.aws_java_sdk2_sqs, excludeNetty
+  implementation library.java.aws_java_sdk2_sts, excludeNetty
+  implementation library.java.aws_java_sdk2_aws_core, excludeNetty
+  implementation library.java.aws_java_sdk2_sdk_core, excludeNetty
+  implementation library.java.aws_java_sdk2_auth, excludeNetty
+  implementation library.java.aws_java_sdk2_regions, excludeNetty
+  implementation library.java.aws_java_sdk2_utils, excludeNetty
+  implementation library.java.aws_java_sdk2_http_client_spi, excludeNetty
+  implementation library.java.aws_java_sdk2_apache_client, excludeNetty
+  implementation library.java.aws_java_sdk2_netty_client, excludeNetty
+  implementation "software.amazon.kinesis:amazon-kinesis-client:2.3.4", excludeNetty
+  implementation library.java.netty_all // force version of netty used by Beam
+  permitUnusedDeclared library.java.netty_all
   implementation library.java.jackson_core
   implementation library.java.jackson_annotations
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation "software.amazon.kinesis:amazon-kinesis-client:2.3.4"
+  implementation library.java.protobuf_java
   implementation "commons-lang:commons-lang:2.6"
   implementation library.java.commons_lang3
-  implementation library.java.http_core
   implementation library.java.commons_codec
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:io:kinesis", configuration: "testRuntimeMigration")
   testImplementation "io.findify:s3mock_2.12:0.2.6"
+  testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:1.3.5'
   testImplementation library.java.mockito_core
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
-  testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6' // later versions conflict with s3mock
   testImplementation library.java.hamcrest
-  testImplementation library.java.powermock
-  testImplementation library.java.powermock_mockito
   testImplementation "org.assertj:assertj-core:3.11.1"
+  testImplementation library.java.testcontainers_localstack
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

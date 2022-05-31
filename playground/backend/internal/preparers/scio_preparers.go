@@ -15,9 +15,13 @@
 
 package preparers
 
+import "beam.apache.org/playground/backend/internal/utils"
+
 const (
 	scioPublicClassNamePattern = "object (.*?) [{]"
-	scioPackagePattern         = `^package [\w]+`
+	scioPackagePattern         = `^package .*$`
+	scioExampleImport          = `^import com.spotify.scio.examples.*$`
+	emptyStr                   = ""
 )
 
 //ScioPreparersBuilder facet of PreparersBuilder
@@ -33,8 +37,8 @@ func (builder *PreparersBuilder) ScioPreparers() *ScioPreparersBuilder {
 //WithFileNameChanger adds preparer to change source code file name
 func (builder *ScioPreparersBuilder) WithFileNameChanger() *ScioPreparersBuilder {
 	changeNamePreparer := Preparer{
-		Prepare: changeScioFileName,
-		Args:    []interface{}{builder.filePath},
+		Prepare: utils.ChangeTestFileName,
+		Args:    []interface{}{builder.filePath, scioPublicClassNamePattern},
 	}
 	builder.AddPreparer(changeNamePreparer)
 	return builder
@@ -50,20 +54,20 @@ func (builder *ScioPreparersBuilder) WithPackageRemover() *ScioPreparersBuilder 
 	return builder
 }
 
-// GetScioPreparers returns preparation methods that should be applied to Scio code
-func GetScioPreparers(builder *PreparersBuilder) {
-	builder.ScioPreparers().WithPackageRemover().WithFileNameChanger()
+//WithImportRemover adds preparer to remove examples import from the code
+func (builder *ScioPreparersBuilder) WithImportRemover() *ScioPreparersBuilder {
+	removeImportPreparer := Preparer{
+		Prepare: replace,
+		Args:    []interface{}{builder.filePath, scioExampleImport, emptyStr},
+	}
+	builder.AddPreparer(removeImportPreparer)
+	return builder
 }
 
-func changeScioFileName(args ...interface{}) error {
-	filePath := args[0].(string)
-	className, err := getPublicClassName(filePath, scioPublicClassNamePattern)
-	if err != nil {
-		return err
-	}
-	err = renameSourceCodeFile(filePath, className)
-	if err != nil {
-		return err
-	}
-	return nil
+// GetScioPreparers returns preparation methods that should be applied to Scio code
+func GetScioPreparers(builder *PreparersBuilder) {
+	builder.ScioPreparers().
+		WithPackageRemover().
+		WithImportRemover().
+		WithFileNameChanger()
 }

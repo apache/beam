@@ -63,9 +63,6 @@ deps:
   pymongo:
     owners: yichi
 
-  oauth2client:
-    owners:
-
   proto-google-cloud-pubsub-v1:
     owners:
 

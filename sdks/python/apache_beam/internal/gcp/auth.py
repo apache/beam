@@ -23,15 +23,17 @@ import logging
 import socket
 import threading
 
-from oauth2client.client import GoogleCredentials
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
-from apache_beam.utils import retry
-
-# Protect against environments where apitools library is not available.
+# google.auth is only available when Beam is installed with the gcp extra.
 try:
-  from apitools.base.py.credentials_lib import GceAssertionCredentials
+  from google.auth import impersonated_credentials
+  import google.auth
+  import google_auth_httplib2
+  _GOOGLE_AUTH_AVAILABLE = True
 except ImportError:
-  GceAssertionCredentials = None
+  _GOOGLE_AUTH_AVAILABLE = False
 
 # When we are running in GCE, we can authenticate with VM credentials.
 is_running_in_gce = False
@@ -42,17 +44,15 @@ executing_project = None
 
 _LOGGER = logging.getLogger(__name__)
 
-if GceAssertionCredentials is not None:
-
-  class _GceAssertionCredentials(GceAssertionCredentials):
-    """GceAssertionCredentials with retry wrapper.
-
-    For internal use only; no backwards-compatibility guarantees.
-    """
-    @retry.with_exponential_backoff(
-        retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-    def _do_refresh_request(self, http_request):
-      return super()._do_refresh_request(http_request)
+CLIENT_SCOPES = [
+    'https://www.googleapis.com/auth/bigquery',
+    'https://www.googleapis.com/auth/cloud-platform',
+    'https://www.googleapis.com/auth/devstorage.full_control',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/datastore',
+    'https://www.googleapis.com/auth/spanner.admin',
+    'https://www.googleapis.com/auth/spanner.data'
+]
 
 
 def set_running_in_gce(worker_executing_project):
@@ -73,16 +73,50 @@ def set_running_in_gce(worker_executing_project):
   executing_project = worker_executing_project
 
 
-def get_service_credentials():
+def get_service_credentials(pipeline_options):
   """For internal use only; no backwards-compatibility guarantees.
 
   Get credentials to access Google services.
+  Args:
+    pipeline_options: Pipeline options, used in creating credentials
+      like impersonated credentials.
 
   Returns:
-    A ``oauth2client.client.OAuth2Credentials`` object or None if credentials
+    A ``google.auth.credentials.Credentials`` object or None if credentials
     not found. Returned object is thread-safe.
   """
-  return _Credentials.get_service_credentials()
+  return _Credentials.get_service_credentials(pipeline_options)
+
+
+if _GOOGLE_AUTH_AVAILABLE:
+
+  class _ApitoolsCredentialsAdapter:
+    """For internal use only; no backwards-compatibility guarantees.
+
+    Adapter allowing use of google-auth credentials with apitools, which
+    normally expects credentials from the oauth2client library. This allows
+    upgrading the auth library used by Beam without simultaneously upgrading
+    all the GCP client libraries (a much larger change).
+    """
+    def __init__(self, google_auth_credentials):
+      self._google_auth_credentials = google_auth_credentials
+
+    def authorize(self, http):
+      """Return an http client authorized with the google-auth credentials.
+
+      Args:
+        http: httplib2.Http, an http object to be used to make the refresh
+          request.
+
+      Returns:
+        google_auth_httplib2.AuthorizedHttp: An authorized http client.
+      """
+      return google_auth_httplib2.AuthorizedHttp(
+          self._google_auth_credentials, http=http)
+
+    def __getattr__(self, attr):
+      """Delegate attribute access to underlying google-auth credentials."""
+      return getattr(self._google_auth_credentials, attr)
 
 
 class _Credentials(object):
@@ -91,10 +125,7 @@ class _Credentials(object):
   _credentials = None
 
   @classmethod
-  def get_service_credentials(cls):
-    if cls._credentials_init:
-      return cls._credentials
-
+  def get_service_credentials(cls, pipeline_options):
     with cls._credentials_lock:
       if cls._credentials_init:
         return cls._credentials
@@ -107,36 +138,55 @@ class _Credentials(object):
       _LOGGER.info(
           "socket default timeout is %s seconds.", socket.getdefaulttimeout())
 
-      cls._credentials = cls._get_service_credentials()
+      cls._credentials = cls._get_service_credentials(pipeline_options)
       cls._credentials_init = True
 
     return cls._credentials
 
   @staticmethod
-  def _get_service_credentials():
-    if is_running_in_gce:
-      # We are currently running as a GCE taskrunner worker.
-      return _GceAssertionCredentials(user_agent='beam-python-sdk/1.0')
+  def _get_service_credentials(pipeline_options):
+    if not _GOOGLE_AUTH_AVAILABLE:
+      _LOGGER.warning(
+          'Unable to find default credentials because the google-auth library '
+          'is not available. Install the gcp extra (apache_beam[gcp]) to use '
+          'Google default credentials. Connecting anonymously.')
+      return None
+
+    try:
+      credentials, _ = google.auth.default(scopes=CLIENT_SCOPES)  # pylint: disable=c-extension-no-member
+      credentials = _Credentials._add_impersonation_credentials(
+          credentials, pipeline_options)
+      credentials = _ApitoolsCredentialsAdapter(credentials)
+      logging.debug(
+          'Connecting using Google Application Default '
+          'Credentials.')
+      return credentials
+    except Exception as e:
+      _LOGGER.warning(
+          'Unable to find default credentials to use: %s\n'
+          'Connecting anonymously.',
+          e)
+      return None
+
+  @staticmethod
+  def _add_impersonation_credentials(credentials, pipeline_options):
+    if isinstance(pipeline_options, PipelineOptions):
+      gcs_options = pipeline_options.view_as(GoogleCloudOptions)
+      impersonate_service_account = gcs_options.impersonate_service_account
+    elif isinstance(pipeline_options, dict):
+      impersonate_service_account = pipeline_options.get(
+          'impersonate_service_account')
     else:
-      client_scopes = [
-          'https://www.googleapis.com/auth/bigquery',
-          'https://www.googleapis.com/auth/cloud-platform',
-          'https://www.googleapis.com/auth/devstorage.full_control',
-          'https://www.googleapis.com/auth/userinfo.email',
-          'https://www.googleapis.com/auth/datastore',
-          'https://www.googleapis.com/auth/spanner.admin',
-          'https://www.googleapis.com/auth/spanner.data'
-      ]
-      try:
-        credentials = GoogleCredentials.get_application_default()
-        credentials = credentials.create_scoped(client_scopes)
-        logging.debug(
-            'Connecting using Google Application Default '
-            'Credentials.')
-        return credentials
-      except Exception as e:
-        _LOGGER.warning(
-            'Unable to find default credentials to use: %s\n'
-            'Connecting anonymously.',
-            e)
-        return None
+      return credentials
+    if impersonate_service_account:
+      _LOGGER.info('Impersonating: %s', impersonate_service_account)
+      impersonate_accounts = impersonate_service_account.split(',')
+      target_principal = impersonate_accounts[-1]
+      delegate_to = impersonate_accounts[0:-1]
+      credentials = impersonated_credentials.Credentials(
+          source_credentials=credentials,
+          target_principal=target_principal,
+          delegates=delegate_to,
+          target_scopes=CLIENT_SCOPES,
+      )
+    return credentials

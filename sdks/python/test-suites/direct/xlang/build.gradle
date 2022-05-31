@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+// TODO(BEAM-9980): Move this definition into common.gradle.
+
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(publish: false, exportJavadoc: false)
 

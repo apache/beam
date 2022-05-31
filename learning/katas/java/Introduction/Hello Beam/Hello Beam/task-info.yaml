@@ -22,8 +22,8 @@ files:
 - name: src/org/apache/beam/learning/katas/intro/hello/Task.java
   visible: true
   placeholders:
-  - offset: 1552
-    length: 39
+  - offset: 1799
+    length: 46
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/intro/hello/TaskTest.java
   visible: false

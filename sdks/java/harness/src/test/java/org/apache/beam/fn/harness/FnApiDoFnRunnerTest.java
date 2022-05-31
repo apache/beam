@@ -861,7 +861,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       private Supplier<String> processBundleRequestIdSupplier;
 
       public TestBeamFnDataOutboundAggregator(Supplier<String> bundleIdSupplier) {
-        super(PipelineOptionsFactory.create(), bundleIdSupplier, null);
+        super(PipelineOptionsFactory.create(), bundleIdSupplier, null, false);
         this.timers = new HashMap<>();
         this.dataOutput = new HashMap<>();
         this.processBundleRequestIdSupplier = bundleIdSupplier;

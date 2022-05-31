@@ -14,7 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 import unittest
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -113,7 +115,13 @@ class _AbstractFrameTest(unittest.TestCase):
     self._run_test(wrapper, arg, **kwargs)
 
   def _run_test(
-      self, func, *args, distributed=True, nonparallel=False, check_proxy=True):
+      self,
+      func,
+      *args,
+      distributed=True,
+      nonparallel=False,
+      check_proxy=True,
+      lenient_dtype_check=False):
     """Verify that func(*args) produces the same result in pandas and in Beam.
 
     Args:
@@ -130,7 +138,14 @@ class _AbstractFrameTest(unittest.TestCase):
             This option should NOT be set to False in tests added for new
             operations if at all possible. Instead make sure the new operation
             produces the correct proxy. This flag only exists as an escape hatch
-            until existing failures can be addressed (BEAM-12379)."""
+            until existing failures can be addressed (BEAM-12379).
+        lenient_dtype_check (bool): Whether or not to check that numeric columns
+            are still numeric between actual and proxy. i.e. verify that they
+            are at least int64 or float64, and not necessarily have the exact
+            same dtype. This may need to be set to True for some non-deferred
+            operations, where the dtype of the values in the proxy are not known
+            ahead of time, causing int64 to float64 coercion issues.
+    """
     # Compute expected value
     expected = func(*args)
 
@@ -169,11 +184,18 @@ class _AbstractFrameTest(unittest.TestCase):
         else:
           expected = expected.sort_values(list(expected.columns))
           actual = actual.sort_values(list(actual.columns))
-
       if isinstance(expected, pd.Series):
-        pd.testing.assert_series_equal(expected, actual)
+        if lenient_dtype_check:
+          pd.testing.assert_series_equal(
+              expected.astype('Float64'), actual.astype('Float64'))
+        else:
+          pd.testing.assert_series_equal(expected, actual)
       elif isinstance(expected, pd.DataFrame):
-        pd.testing.assert_frame_equal(expected, actual)
+        if lenient_dtype_check:
+          pd.testing.assert_frame_equal(
+              expected.astype('Float64'), actual.astype('Float64'))
+        else:
+          pd.testing.assert_frame_equal(expected, actual)
       else:
         raise ValueError(
             f"Expected value is a {type(expected)},"
@@ -202,10 +224,18 @@ class _AbstractFrameTest(unittest.TestCase):
 
       if isinstance(expected, pd.core.generic.NDFrame):
         if isinstance(expected, pd.Series):
-          self.assertEqual(actual.dtype, proxy.dtype)
+          if lenient_dtype_check:
+            self.assertEqual(
+                actual.astype('Float64').dtype, proxy.astype('Float64').dtype)
+          else:
+            self.assertEqual(actual.dtype, proxy.dtype)
           self.assertEqual(actual.name, proxy.name)
         elif isinstance(expected, pd.DataFrame):
-          pd.testing.assert_series_equal(actual.dtypes, proxy.dtypes)
+          if lenient_dtype_check:
+            pd.testing.assert_series_equal(
+                actual.astype('Float64').dtypes, proxy.astype('Float64').dtypes)
+          else:
+            pd.testing.assert_series_equal(actual.dtypes, proxy.dtypes)
 
         else:
           raise ValueError(
@@ -213,10 +243,16 @@ class _AbstractFrameTest(unittest.TestCase):
               "not a Series or DataFrame.")
 
         self.assertEqual(actual.index.names, proxy.index.names)
+
         for i in range(actual.index.nlevels):
-          self.assertEqual(
-              actual.index.get_level_values(i).dtype,
-              proxy.index.get_level_values(i).dtype)
+          if lenient_dtype_check:
+            self.assertEqual(
+                actual.astype('Float64').index.get_level_values(i).dtype,
+                proxy.astype('Float64').index.get_level_values(i).dtype)
+          else:
+            self.assertEqual(
+                actual.index.get_level_values(i).dtype,
+                proxy.index.get_level_values(i).dtype)
 
 
 class DeferredFrameTest(_AbstractFrameTest):
@@ -623,6 +659,16 @@ class DeferredFrameTest(_AbstractFrameTest):
         df2,
         nonparallel=True,
         check_proxy=False)
+
+  def test_swaplevel(self):
+    df = pd.DataFrame(
+        {"Grade": ["A", "B", "A", "C"]},
+        index=[
+            ["Final exam", "Final exam", "Coursework", "Coursework"],
+            ["History", "Geography", "History", "Geography"],
+            ["January", "February", "March", "April"],
+        ])
+    self._run_test(lambda df: df.swaplevel(), df)
 
   def test_value_counts_with_nans(self):
     # similar to doctests that verify value_counts, but include nan values to
@@ -1284,6 +1330,269 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda s: s.pipe(s_times, 2), s)
     self._run_test(lambda s: s.pipe((s_times_shuffled, 's'), 2), s)
 
+  def test_unstack_pandas_series_not_multiindex(self):
+    # Pandas should throw a ValueError if performing unstack
+    # on a Series without MultiIndex
+    s = pd.Series([1, 2, 3, 4], index=['one', 'two', 'three', 'four'])
+    with self.assertRaises((AttributeError, ValueError)):
+      self._run_test(lambda s: s.unstack(), s)
+
+  def test_unstack_non_categorical_index(self):
+    index = pd.MultiIndex.from_tuples([('one', 'a'), ('one', 'b'), ('two', 'a'),
+                                       ('two', 'b')])
+    index = index.set_levels(
+        index.levels[0].astype(pd.CategoricalDtype(['one', 'two'])), level=0)
+    s = pd.Series(np.arange(1.0, 5.0), index=index)
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"unstack\(\) is only supported on DataFrames if"):
+      self._run_test(lambda s: s.unstack(level=-1), s)
+
+  def _unstack_get_categorical_index(self):
+    index = pd.MultiIndex.from_tuples([('one', 'a'), ('one', 'b'), ('two', 'a'),
+                                       ('two', 'b')])
+    index = index.set_levels(
+        index.levels[0].astype(pd.CategoricalDtype(['one', 'two'])), level=0)
+    index = index.set_levels(
+        index.levels[1].astype(pd.CategoricalDtype(['a', 'b'])), level=1)
+    return index
+
+  def test_unstack_pandas_example1(self):
+    index = self._unstack_get_categorical_index()
+    s = pd.Series(np.arange(1.0, 5.0), index=index)
+    self._run_test(lambda s: s.unstack(level=-1), s)
+
+  def test_unstack_pandas_example2(self):
+    index = self._unstack_get_categorical_index()
+    s = pd.Series(np.arange(1.0, 5.0), index=index)
+    self._run_test(lambda s: s.unstack(level=0), s)
+
+  def test_unstack_pandas_example3(self):
+    index = self._unstack_get_categorical_index()
+    s = pd.Series(np.arange(1.0, 5.0), index=index)
+    df = s.unstack(level=0)
+    if PD_VERSION < (1, 2):
+      with self.assertRaisesRegex(
+          frame_base.WontImplementError,
+          r"unstack\(\) is not supported when using pandas < 1.2.0"):
+        self._run_test(lambda df: df.unstack(), df)
+    else:
+      self._run_test(lambda df: df.unstack(), df)
+
+  @unittest.skipIf(
+      PD_VERSION < (1, 4),
+      "Cannot set dtype of index to boolean for pandas<1.4")
+  def test_unstack_bool(self):
+    index = pd.MultiIndex.from_tuples([(True, 'a'), (True, 'b'), (False, 'a'),
+                                       (False, 'b')])
+    index = index.set_levels(index.levels[0].astype('boolean'), level=0)
+    index = index.set_levels(
+        index.levels[1].astype(pd.CategoricalDtype(['a', 'b'])), level=1)
+    s = pd.Series(np.arange(1.0, 5.0), index=index)
+    self._run_test(lambda s: s.unstack(level=0), s)
+
+  def test_unstack_series_multiple_index_levels(self):
+    tuples = list(
+        zip(
+            *[
+                ["bar", "bar", "bar", "bar", "baz", "baz", "baz", "baz"],
+                ["one", "one", "two", "two", "one", "one", "two", "two"],
+                ["A", "B", "A", "B", "A", "B", "A", "B"],
+            ]))
+    index = pd.MultiIndex.from_tuples(
+        tuples, names=["first", "second", "third"])
+    index = index.set_levels(
+        index.levels[0].astype(pd.CategoricalDtype(['bar', 'baz'])), level=0)
+    index = index.set_levels(
+        index.levels[1].astype(pd.CategoricalDtype(['one', 'two'])), level=1)
+    index = index.set_levels(
+        index.levels[2].astype(pd.CategoricalDtype(['A', 'B'])), level=2)
+    df = pd.Series(np.random.randn(8), index=index)
+    self._run_test(lambda df: df.unstack(level=['first', 'third']), df)
+
+  def test_unstack_series_multiple_index_and_column_levels(self):
+    columns = pd.MultiIndex.from_tuples(
+        [
+            ("A", "cat", "long"),
+            ("B", "cat", "long"),
+            ("A", "dog", "short"),
+            ("B", "dog", "short"),
+        ],
+        names=["exp", "animal", "hair_length"],
+    )
+    index = pd.MultiIndex.from_product(
+        [['one', 'two'], ['a', 'b'], ['bar', 'baz']],
+        names=["first", "second", "third"])
+    index = index.set_levels(
+        index.levels[0].astype(pd.CategoricalDtype(['one', 'two'])), level=0)
+    index = index.set_levels(
+        index.levels[1].astype(pd.CategoricalDtype(['a', 'b'])), level=1)
+    index = index.set_levels(
+        index.levels[2].astype(pd.CategoricalDtype(['bar', 'baz'])), level=2)
+    df = pd.DataFrame(np.random.randn(8, 4), index=index, columns=columns)
+    df = df.stack(level=["animal", "hair_length"])
+    self._run_test(lambda df: df.unstack(level=['second', 'third']), df)
+    self._run_test(lambda df: df.unstack(level=['second']), df)
+
+  def test_pivot_non_categorical(self):
+    df = pd.DataFrame({
+        'foo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'bar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'baz': [1, 2, 3, 4, 5, 6],
+        'zoo': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"pivot\(\) of non-categorical type is not supported"):
+      self._run_test(
+          lambda df: df.pivot(index='foo', columns='bar', values='baz'), df)
+
+  def test_pivot_pandas_example1(self):
+    # Simple test 1
+    df = pd.DataFrame({
+        'foo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'bar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'baz': [1, 2, 3, 4, 5, 6],
+        'zoo': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+    df['bar'] = df['bar'].astype(
+        pd.CategoricalDtype(categories=['A', 'B', 'C']))
+    self._run_test(
+        lambda df: df.pivot(index='foo', columns='bar', values='baz'), df)
+    self._run_test(
+        lambda df: df.pivot(index=['foo'], columns='bar', values='baz'), df)
+
+  def test_pivot_pandas_example3(self):
+    # Multiple values
+    df = pd.DataFrame({
+        'foo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'bar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'baz': [1, 2, 3, 4, 5, 6],
+        'zoo': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+    df['bar'] = df['bar'].astype(
+        pd.CategoricalDtype(categories=['A', 'B', 'C']))
+    self._run_test(
+        lambda df: df.pivot(index='foo', columns='bar', values=['baz', 'zoo']),
+        df)
+    self._run_test(
+        lambda df: df.pivot(
+            index='foo', columns=['bar'], values=['baz', 'zoo']),
+        df)
+
+  def test_pivot_pandas_example4(self):
+    # Multiple columns
+    df = pd.DataFrame({
+        "lev1": [1, 1, 1, 2, 2, 2],
+        "lev2": [1, 1, 2, 1, 1, 2],
+        "lev3": [1, 2, 1, 2, 1, 2],
+        "lev4": [1, 2, 3, 4, 5, 6],
+        "values": [0, 1, 2, 3, 4, 5]
+    })
+    df['lev2'] = df['lev2'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['lev3'] = df['lev3'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['values'] = df['values'].astype('Int64')
+    self._run_test(
+        lambda df: df.pivot(
+            index="lev1", columns=["lev2", "lev3"], values="values"),
+        df)
+
+  def test_pivot_pandas_example5(self):
+    # Multiple index
+    df = pd.DataFrame({
+        "lev1": [1, 1, 1, 2, 2, 2],
+        "lev2": [1, 1, 2, 1, 1, 2],
+        "lev3": [1, 2, 1, 2, 1, 2],
+        "lev4": [1, 2, 3, 4, 5, 6],
+        "values": [0, 1, 2, 3, 4, 5]
+    })
+    df['lev3'] = df['lev3'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    # Cast to nullable Int64 because Beam doesn't do the correct conversion to
+    # float64
+    df['values'] = df['values'].astype('Int64')
+    if PD_VERSION < (1, 4):
+      with self.assertRaisesRegex(
+          frame_base.WontImplementError,
+          r"pivot\(\) is not supported when pandas<1.4 and index is a Multi"):
+        self._run_test(
+            lambda df: df.pivot(
+                index=["lev1", "lev2"], columns=["lev3"], values="values"),
+            df)
+    else:
+      self._run_test(
+          lambda df: df.pivot(
+              index=["lev1", "lev2"], columns=["lev3"], values="values"),
+          df)
+
+  def test_pivot_pandas_example6(self):
+    # Value error when there are duplicates
+    df = pd.DataFrame({
+        "foo": ['one', 'one', 'two', 'two'],
+        "bar": ['A', 'A', 'B', 'C'],
+        "baz": [1, 2, 3, 4]
+    })
+    df['bar'] = df['bar'].astype(
+        pd.CategoricalDtype(categories=['A', 'B', 'C']))
+    self._run_error_test(
+        lambda df: df.pivot(index='foo', columns='bar', values='baz'),
+        df,
+        construction_time=False)
+
+  def test_pivot_no_index_provided_on_single_level_index(self):
+    # Multiple columns, no index value provided
+    df = pd.DataFrame({
+        "lev1": [1, 1, 1, 2, 2, 2],
+        "lev2": [1, 1, 2, 1, 1, 2],
+        "lev3": [1, 2, 1, 2, 1, 2],
+        "lev4": [1, 2, 3, 4, 5, 6],
+        "values": [0, 1, 2, 3, 4, 5]
+    })
+    df['lev2'] = df['lev2'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['lev3'] = df['lev3'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['values'] = df['values'].astype('Int64')
+    self._run_test(
+        lambda df: df.pivot(columns=["lev2", "lev3"], values="values"), df)
+
+  def test_pivot_no_index_provided_on_multiindex(self):
+    # Multiple columns, no index value provided
+    tuples = list(
+        zip(
+            *[
+                ["bar", "bar", "bar", "baz", "baz", "baz"],
+                [
+                    "one",
+                    "two",
+                    "three",
+                    "one",
+                    "two",
+                    "three",
+                ],
+            ]))
+    index = pd.MultiIndex.from_tuples(tuples, names=["first", "second"])
+    df = pd.DataFrame({
+        "lev1": [1, 1, 1, 2, 2, 2],
+        "lev2": [1, 1, 2, 1, 1, 2],
+        "lev3": [1, 2, 1, 2, 1, 2],
+        "lev4": [1, 2, 3, 4, 5, 6],
+        "values": [0, 1, 2, 3, 4, 5]
+    },
+                      index=index)
+    df['lev2'] = df['lev2'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['lev3'] = df['lev3'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['values'] = df['values'].astype('float64')
+    df['lev1'] = df['lev1'].astype('int64')
+    df['lev4'] = df['lev4'].astype('int64')
+    if PD_VERSION < (1, 4):
+      with self.assertRaisesRegex(
+          frame_base.WontImplementError,
+          r"pivot\(\) is not supported when pandas<1.4 and index is a Multi"):
+        self._run_test(lambda df: df.pivot(columns=["lev2", "lev3"]), df)
+    else:
+      self._run_test(
+          lambda df: df.pivot(columns=["lev2", "lev3"]),
+          df,
+          lenient_dtype_check=True)
+
 
 # pandas doesn't support kurtosis on GroupBys:
 # https://github.com/pandas-dev/pandas/issues/40139
@@ -1293,6 +1602,12 @@ ALL_GROUPING_AGGREGATIONS = sorted(
 
 class GroupByTest(_AbstractFrameTest):
   """Tests for DataFrame/Series GroupBy operations."""
+  @staticmethod
+  def median_sum_fn(x):
+    with warnings.catch_warnings():
+      warnings.filterwarnings("ignore", message="Mean of empty slice")
+      return (x.foo + x.bar).median()
+
   @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_groupby_agg(self, agg_type):
     if agg_type == 'describe' and PD_VERSION < (1, 2):
@@ -1415,10 +1730,6 @@ class GroupByTest(_AbstractFrameTest):
 
   def test_groupby_apply(self):
     df = GROUPBY_DF
-
-    def median_sum_fn(x):
-      return (x.foo + x.bar).median()
-
     # Note this is the same as DataFrameGroupBy.describe. Using it here is
     # just a convenient way to test apply() with a user fn that returns a Series
     describe = lambda df: df.describe()
@@ -1426,17 +1737,17 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(lambda df: df.groupby('group').foo.apply(describe), df)
     self._run_test(
         lambda df: df.groupby('group')[['foo', 'bar']].apply(describe), df)
-    self._run_test(lambda df: df.groupby('group').apply(median_sum_fn), df)
+    self._run_test(lambda df: df.groupby('group').apply(self.median_sum_fn), df)
     self._run_test(
         lambda df: df.set_index('group').foo.groupby(level=0).apply(describe),
         df)
-    self._run_test(lambda df: df.groupby(level=0).apply(median_sum_fn), df)
+    self._run_test(lambda df: df.groupby(level=0).apply(self.median_sum_fn), df)
     self._run_test(lambda df: df.groupby(lambda x: x % 3).apply(describe), df)
     self._run_test(
         lambda df: df.bar.groupby(lambda x: x % 3).apply(describe), df)
     self._run_test(
         lambda df: df.set_index(['str', 'group', 'bool']).groupby(
-            level='group').apply(median_sum_fn),
+            level='group').apply(self.median_sum_fn),
         df)
 
   def test_groupby_apply_preserves_column_order(self):
@@ -1522,9 +1833,7 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(
         lambda df: df.groupby(level=level).sum(numeric_only=True), df)
     self._run_test(
-        lambda df: df.groupby(level=level).apply(
-            lambda x: (x.foo + x.bar).median()),
-        df)
+        lambda df: df.groupby(level=level).apply(self.median_sum_fn), df)
 
   @unittest.skipIf(PD_VERSION < (1, 1), "drop_na added in pandas 1.1.0")
   def test_groupby_count_na(self):
@@ -1584,9 +1893,6 @@ class GroupByTest(_AbstractFrameTest):
   def test_groupby_series_apply(self):
     df = GROUPBY_DF
 
-    def median_sum_fn(x):
-      return (x.foo + x.bar).median()
-
     # Note this is the same as DataFrameGroupBy.describe. Using it here is
     # just a convenient way to test apply() with a user fn that returns a Series
     describe = lambda df: df.describe()
@@ -1594,7 +1900,8 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(lambda df: df.groupby(df.group).foo.apply(describe), df)
     self._run_test(
         lambda df: df.groupby(df.group)[['foo', 'bar']].apply(describe), df)
-    self._run_test(lambda df: df.groupby(df.group).apply(median_sum_fn), df)
+    self._run_test(
+        lambda df: df.groupby(df.group).apply(self.median_sum_fn), df)
 
   def test_groupby_multiindex_keep_nans(self):
     # Due to https://github.com/pandas-dev/pandas/issues/36470
@@ -1950,9 +2257,55 @@ class BeamSpecificTest(unittest.TestCase):
   """Tests for functionality that's specific to the Beam DataFrame API.
 
   These features don't exist in pandas so we must verify them independently."""
-  def assert_frame_data_equivalent(self, actual, expected):
+  def assert_frame_data_equivalent(
+      self, actual, expected, check_column_subset=False, extra_col_value=0):
     """Verify that actual is the same as expected, ignoring the index and order
-    of the data."""
+    of the data.
+
+    Note: In order to perform non-deferred column operations in Beam, we have
+    to enumerate all possible categories of data, even if they are ultimately
+    unobserved. The default Pandas implementation on the other hand does not
+    produce unobserved columns. This means when conducting tests, we need to
+    account for the fact that the Beam result may be a superset of that of the
+    Pandas result.
+
+    If ``check_column_subset`` is `True`, we verify that all of the columns in
+    the Dataframe returned from the Pandas implementation is contained in the
+    Dataframe created from the Beam implementation.
+
+    We also check if all columns that exist in the Beam implementation but
+    not in the Pandas implementation are all equal to the ``extra_col_value``
+    to ensure that they were not erroneously populated.
+    """
+    if check_column_subset:
+      if isinstance(expected, pd.DataFrame):
+        expected_cols = set(expected.columns)
+        actual_cols = set(actual.columns)
+        # Verifying that expected columns is a subset of the actual columns
+        if not set(expected_cols).issubset(set(actual_cols)):
+          raise AssertionError(
+              f"Expected columns:\n{expected.columns}\n is not a"
+              f"subset of {actual.columns}.")
+
+        # Verifying that columns that don't exist in expected
+        # but do in actual, are all equal to `extra_col_value` (default of 0)
+        extra_columns = actual_cols - expected_cols
+        if extra_columns:
+          actual_extra_only = actual[list(extra_columns)]
+
+          if np.isnan(extra_col_value):
+            extra_cols_all_match = actual_extra_only.isna().all().all()
+          else:
+            extra_cols_all_match = actual_extra_only.eq(
+                extra_col_value).all().all()
+          if not extra_cols_all_match:
+            raise AssertionError(
+                f"Extra columns:{extra_columns}\n should all "
+                f"be {extra_col_value}, but got \n{actual_extra_only}.")
+
+        # Filtering actual to contain only columns in expected
+        actual = actual[expected.columns]
+
     def sort_and_drop_index(df):
       if isinstance(df, pd.Series):
         df = df.sort_values()
@@ -2029,6 +2382,59 @@ class BeamSpecificTest(unittest.TestCase):
     # Verify that the result is the same as conventional duplicated
     self.assert_frame_data_equivalent(result, df.duplicated())
 
+  def test_get_dummies_not_categoricaldtype(self):
+    # Should not work because series is not a CategoricalDtype type
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"get_dummies\(\) of non-categorical type is not supported"):
+      s = pd.Series(['a ,b', 'a', 'a, d'])
+      self._evaluate(lambda s: s.str.get_dummies(','), s)
+
+    # bool series do not work because they are not a CategoricalDtype type
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"get_dummies\(\) of non-categorical type is not supported"):
+      s = pd.Series([True, False, False, True])
+      self._evaluate(lambda s: s.str.get_dummies(), s)
+
+  def test_get_dummies_comma_separator(self):
+    s = pd.Series(['a ,b', 'a', 'a, d', 'c'])
+    s = s.astype(pd.CategoricalDtype(categories=['a ,b', 'c', 'b', 'a,d']))
+    result = self._evaluate(lambda s: s.str.get_dummies(','), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(','), check_column_subset=True)
+
+  def test_get_dummies_pandas_doc_example1(self):
+    s = pd.Series(['a|b', 'a', 'a|c'])
+    s = s.astype(pd.CategoricalDtype(categories=['a|b', 'a', 'a|c']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
+
+  def test_get_dummies_pandas_doc_example2(self):
+    # Shouldn't still work even though np.nan is not considered a category
+    # because we automatically create a nan column
+    s = pd.Series(['a|b', np.nan, 'a|c'])
+    s = s.astype(pd.CategoricalDtype(categories=['a|b', 'a|c']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
+
+  def test_get_dummies_pass_nan_as_category(self):
+    # Explicitly pass 'nan' as a category
+    s = pd.Series(['a|b', 'b|c', 'a|c', 'c', 'd'])
+    s = s.astype(pd.CategoricalDtype(categories=['a', 'b', 'c', 'nan']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
+
+  def test_get_dummies_bools_casted_to_string(self):
+    s = pd.Series([True, False, False, True]).astype('str')
+    s = s.astype(pd.CategoricalDtype(categories=['True', 'False']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
+
   def test_nsmallest_any(self):
     df = pd.DataFrame({
         'population': [
@@ -2098,6 +2504,23 @@ class BeamSpecificTest(unittest.TestCase):
     # keep='any' should produce the same result as keep='first',
     # but not necessarily with the same index
     self.assert_frame_data_equivalent(result, df.population.nlargest(3))
+
+  def test_pivot_pandas_example2(self):
+    # Simple test 2
+    df = pd.DataFrame({
+        'foo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'bar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'baz': [1, 2, 3, 4, 5, 6],
+        'zoo': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+    df['bar'] = df['bar'].astype(
+        pd.CategoricalDtype(categories=['A', 'B', 'C']))
+    result = self._evaluate(lambda df: df.pivot(index='foo', columns='bar'), df)
+    # When there are multiple values, dtypes default to object.
+    # Thus, need to convert to numeric with pd.to_numeric
+    self.assert_frame_data_equivalent(
+        result['baz'].apply(pd.to_numeric),
+        df.pivot(index='foo', columns='bar')['baz'])
 
   def test_sample(self):
     df = pd.DataFrame({
@@ -2246,6 +2669,117 @@ class BeamSpecificTest(unittest.TestCase):
     # (as computed using the Bernoulli distribution) is about 0.0012%.
     expected = num_samples * target_prob
     self.assertTrue(expected / 3 < result < expected * 2, (expected, result))
+
+  def test_split_pandas_examples_no_expand(self):
+    # if expand=False (default), then no need to cast dtype to be
+    # CategoricalDtype.
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+    result = self._evaluate(lambda s: s.str.split(), s)
+    self.assert_frame_data_equivalent(result, s.str.split())
+
+    result = self._evaluate(lambda s: s.str.rsplit(), s)
+    self.assert_frame_data_equivalent(result, s.str.rsplit())
+
+    result = self._evaluate(lambda s: s.str.split(n=2), s)
+    self.assert_frame_data_equivalent(result, s.str.split(n=2))
+
+    result = self._evaluate(lambda s: s.str.rsplit(n=2), s)
+    self.assert_frame_data_equivalent(result, s.str.rsplit(n=2))
+
+    result = self._evaluate(lambda s: s.str.split(pat="/"), s)
+    self.assert_frame_data_equivalent(result, s.str.split(pat="/"))
+
+  def test_split_pandas_examples_expand_not_categorical(self):
+    # When expand=True, there is exception because series is not categorical
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"split\(\) of non-categorical type is not supported"):
+      self._evaluate(lambda s: s.str.split(expand=True), s)
+
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"rsplit\(\) of non-categorical type is not supported"):
+      self._evaluate(lambda s: s.str.rsplit(expand=True), s)
+
+  def test_split_pandas_examples_expand_pat_is_string_literal1(self):
+    # When expand=True and pattern is treated as a string literal
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+    s = s.astype(
+        pd.CategoricalDtype(
+            categories=[
+                'this is a regular sentence',
+                'https://docs.python.org/3/tutorial/index.html'
+            ]))
+    result = self._evaluate(lambda s: s.str.split(expand=True), s)
+    self.assert_frame_data_equivalent(result, s.str.split(expand=True))
+
+    result = self._evaluate(lambda s: s.str.rsplit("/", n=1, expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.rsplit("/", n=1, expand=True))
+
+  @unittest.skipIf(PD_VERSION < (1, 4), "regex arg is new in pandas 1.4")
+  def test_split_pandas_examples_expand_pat_is_string_literal2(self):
+    # when regex is None (default) regex pat is string literal if len(pat) == 1
+    s = pd.Series(['foojpgbar.jpg']).astype('category')
+    s = s.astype(pd.CategoricalDtype(categories=["foojpgbar.jpg"]))
+    result = self._evaluate(lambda s: s.str.split(r".", expand=True), s)
+    self.assert_frame_data_equivalent(result, s.str.split(r".", expand=True))
+
+    # When regex=False, pat is interpreted as the string itself
+    result = self._evaluate(
+        lambda s: s.str.split(r"\.jpg", regex=False, expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", regex=False, expand=True))
+
+  @unittest.skipIf(PD_VERSION < (1, 4), "regex arg is new in pandas 1.4")
+  def test_split_pandas_examples_expand_pat_is_regex(self):
+    # when regex is None (default) regex pat is compiled if len(pat) != 1
+    s = pd.Series(["foo and bar plus baz"])
+    s = s.astype(pd.CategoricalDtype(categories=["foo and bar plus baz"]))
+    result = self._evaluate(lambda s: s.str.split(r"and|plus", expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"and|plus", expand=True))
+
+    s = pd.Series(['foojpgbar.jpg']).astype('category')
+    s = s.astype(pd.CategoricalDtype(categories=["foojpgbar.jpg"]))
+    result = self._evaluate(lambda s: s.str.split(r"\.jpg", expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", expand=True))
+
+    # When regex=True, pat is interpreted as a regex
+    result = self._evaluate(
+        lambda s: s.str.split(r"\.jpg", regex=True, expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", regex=True, expand=True))
+
+    # A compiled regex can be passed as pat
+    result = self._evaluate(
+        lambda s: s.str.split(re.compile(r"\.jpg"), expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(re.compile(r"\.jpg"), expand=True))
+
+  @unittest.skipIf(PD_VERSION < (1, 4), "regex arg is new in pandas 1.4")
+  def test_split_pat_is_regex(self):
+    # regex=True, but expand=False
+    s = pd.Series(['foojpgbar.jpg']).astype('category')
+    s = s.astype(pd.CategoricalDtype(categories=["foojpgbar.jpg"]))
+    result = self._evaluate(
+        lambda s: s.str.split(r"\.jpg", regex=True, expand=False), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", regex=True, expand=False))
 
 
 class AllowNonParallelTest(unittest.TestCase):

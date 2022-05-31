@@ -31,7 +31,10 @@ from typing import Sequence
 
 import numpy as np
 
+from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
+from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
+from apache_beam.typehints.schemas import SchemaTypeRegistry
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.typehints.schemas import typing_from_runner_api
@@ -91,12 +94,39 @@ class SchemaTest(unittest.TestCase):
 
     test_cases = all_primitives + \
                  basic_array_types + \
-                 basic_map_types + \
-                 selected_schemas
+                 basic_map_types
 
     for test_case in test_cases:
       self.assertEqual(
-          test_case, typing_from_runner_api(typing_to_runner_api(test_case)))
+          test_case,
+          typing_from_runner_api(
+              typing_to_runner_api(
+                  test_case, schema_registry=SchemaTypeRegistry()),
+              schema_registry=SchemaTypeRegistry()))
+
+    # Break out NamedTuple types since they require special verification
+    for test_case in selected_schemas:
+      self.assert_namedtuple_equivalent(
+          test_case,
+          typing_from_runner_api(
+              typing_to_runner_api(
+                  test_case, schema_registry=SchemaTypeRegistry()),
+              schema_registry=SchemaTypeRegistry()))
+
+  def assert_namedtuple_equivalent(self, actual, expected):
+    # Two types are only considered equal if they are literally the same
+    # object (i.e. `actual == expected` is the same as `actual is expected` in
+    # this case).
+    # That's a much stricter check than we need, and it's necessarily not true
+    # if types are pickled/unpickled. Here we just verify the features of the
+    # types that actually matter to us.
+
+    self.assertTrue(match_is_named_tuple(expected))
+    self.assertTrue(match_is_named_tuple(actual))
+
+    self.assertEqual(actual.__annotations__, expected.__annotations__)
+
+    self.assertEqual(dir(actual), dir(expected))
 
   def test_proto_survives_typing_roundtrip(self):
     all_nonoptional_primitives = [
@@ -180,7 +210,11 @@ class SchemaTest(unittest.TestCase):
 
     for test_case in test_cases:
       self.assertEqual(
-          test_case, typing_to_runner_api(typing_from_runner_api(test_case)))
+          test_case,
+          typing_to_runner_api(
+              typing_from_runner_api(
+                  test_case, schema_registry=SchemaTypeRegistry()),
+              schema_registry=SchemaTypeRegistry()))
 
   def test_unknown_primitive_maps_to_any(self):
     self.assertEqual(
@@ -205,6 +239,22 @@ class SchemaTest(unittest.TestCase):
     self.assertEqual(
         schema_pb2.FieldType(atomic_type=schema_pb2.DOUBLE),
         typing_to_runner_api(float))
+
+  def test_python_callable_maps_to_logical_type(self):
+    from apache_beam.utils.python_callable import PythonCallableWithSource
+    self.assertEqual(
+        schema_pb2.FieldType(
+            logical_type=schema_pb2.LogicalType(
+                urn=common_urns.python_callable.urn,
+                representation=typing_to_runner_api(str))),
+        typing_to_runner_api(PythonCallableWithSource))
+    self.assertEqual(
+        typing_from_runner_api(
+            schema_pb2.FieldType(
+                logical_type=schema_pb2.LogicalType(
+                    urn=common_urns.python_callable.urn,
+                    representation=typing_to_runner_api(str)))),
+        PythonCallableWithSource)
 
   def test_trivial_example(self):
     MyCuteClass = NamedTuple(
@@ -281,13 +331,18 @@ class SchemaTest(unittest.TestCase):
         fields=[
             schema_pb2.Field(
                 name="type_with_no_typeinfo", type=schema_pb2.FieldType())
-        ])
+        ],
+        id="helpful-error-uuid",
+    )
 
     # Should raise an exception referencing the problem field
     self.assertRaisesRegex(
         ValueError,
         "type_with_no_typeinfo",
-        lambda: named_tuple_from_schema(schema_proto))
+        lambda: named_tuple_from_schema(
+            schema_proto,
+            # bypass schema cache
+            schema_registry=SchemaTypeRegistry()))
 
 
 if __name__ == '__main__':

@@ -19,3 +19,6 @@
 const kExampleParam = 'example';
 const kIsEditable = 'enabled';
 const kSourceCode = 'code';
+const kContextLine = 'line';
+
+const kQuickStartCategoryName = 'quick start';

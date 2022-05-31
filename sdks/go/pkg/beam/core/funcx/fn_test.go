@@ -13,21 +13,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//lint:file-ignore ST1008 test cases with error returns out of place are intended
+
 package funcx
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 type foo struct {
 	i int
+}
+
+type nonConcreteType struct {
+	Ghi func(string) string
+}
+
+type illegalEmitType struct {
+	Abc string
+	Def nonConcreteType
 }
 
 func (m foo) Do(context.Context, int, string) (string, int, error) {
@@ -86,6 +99,16 @@ func TestNew(t *testing.T) {
 			Param: []FnParamKind{FnPane, FnWindow, FnEventTime, FnType, FnValue},
 		},
 		{
+			Name:  "good8",
+			Fn:    func(typex.PaneInfo, typex.Window, typex.EventTime, reflect.Type, typex.BundleFinalization, []byte) {},
+			Param: []FnParamKind{FnPane, FnWindow, FnEventTime, FnType, FnBundleFinalization, FnValue},
+		},
+		{
+			Name:  "good9",
+			Fn:    func(typex.PaneInfo, typex.Window, typex.EventTime, sdf.WatermarkEstimator, reflect.Type, []byte) {},
+			Param: []FnParamKind{FnPane, FnWindow, FnEventTime, FnWatermarkEstimator, FnType, FnValue},
+		},
+		{
 			Name:  "good-method",
 			Fn:    foo{1}.Do,
 			Param: []FnParamKind{FnContext, FnValue, FnValue},
@@ -96,6 +119,12 @@ func TestNew(t *testing.T) {
 			Fn:    func(context.Context, typex.EventTime, reflect.Type, func(int)) error { return nil },
 			Param: []FnParamKind{FnContext, FnEventTime, FnType, FnEmit},
 			Ret:   []ReturnKind{RetError},
+		},
+		{
+			Name:  "sdf",
+			Fn:    func(sdf.RTracker, func(int)) (sdf.ProcessContinuation, error) { return nil, nil },
+			Param: []FnParamKind{FnRTracker, FnEmit},
+			Ret:   []ReturnKind{RetProcessContinuation, RetError},
 		},
 		{
 			Name: "errContextParam: after input",
@@ -163,6 +192,16 @@ func TestNew(t *testing.T) {
 			Err: errReflectTypePrecedence,
 		},
 		{
+			Name: "errReflectTypePrecedence: after bundle finalizer",
+			Fn:   func(typex.PaneInfo, typex.Window, typex.EventTime, typex.BundleFinalization, reflect.Type, []byte) {},
+			Err:  errReflectTypePrecedence,
+		},
+		{
+			Name: "errEventTimeParamPrecedence: after watermark estimator",
+			Fn:   func(typex.PaneInfo, typex.Window, sdf.WatermarkEstimator, typex.EventTime, reflect.Type, []byte) {},
+			Err:  errEventTimeParamPrecedence,
+		},
+		{
 			Name: "errInputPrecedence- Iter before after output",
 			Fn:   func(int, func(int), func(*int) bool, func(*int, *string) bool) {},
 			Err:  errInputPrecedence,
@@ -192,11 +231,67 @@ func TestNew(t *testing.T) {
 			Err: errErrorPrecedence,
 		},
 		{
+			Name: "errBundleFinalizationPrecedence",
+			Fn:   func(typex.PaneInfo, typex.Window, typex.EventTime, reflect.Type, []byte, typex.BundleFinalization) {},
+			Err:  errBundleFinalizationPrecedence,
+		},
+		{
+			Name: "errWatermarkEstimatorParamPrecedence",
+			Fn:   func(typex.PaneInfo, typex.Window, typex.EventTime, reflect.Type, sdf.WatermarkEstimator) {},
+			Err:  errWatermarkEstimatorParamPrecedence,
+		},
+		{
 			Name: "errEventTimeRetPrecedence",
 			Fn: func() (string, typex.EventTime) {
 				return "", mtime.ZeroTimestamp
 			},
 			Err: errEventTimeRetPrecedence,
+		},
+		{
+			Name: "errProcessContinuationPrecedence",
+			Fn: func() (string, sdf.ProcessContinuation, int, error) {
+				return "", nil, 0, nil
+			},
+			Err: errProcessContinuationPrecedence,
+		},
+		{
+			Name: "errIllegalParametersInEmit - malformed emit struct",
+			Fn:   func(context.Context, typex.EventTime, reflect.Type, func(nonConcreteType)) error { return nil },
+			Err:  errors.New(errIllegalParametersInEmit),
+		},
+		{
+			Name: "errIllegalParametersInEmit - malformed emit nested in struct",
+			Fn:   func(context.Context, typex.EventTime, reflect.Type, func(illegalEmitType)) error { return nil },
+			Err:  errors.New(errIllegalParametersInEmit),
+		},
+		{
+			Name: "errIllegalParametersInEmit - malformed emit nested in map value",
+			Fn: func(context.Context, typex.EventTime, reflect.Type, func(map[string]nonConcreteType)) error {
+				return nil
+			},
+			Err: errors.New(errIllegalParametersInEmit),
+		},
+		{
+			Name: "errIllegalParametersInEmit - malformed emit nested in slice",
+			Fn: func(context.Context, typex.EventTime, reflect.Type, func([]nonConcreteType)) error {
+				return nil
+			},
+			Err: errors.New(errIllegalParametersInEmit),
+		},
+		{
+			Name: "errIllegalParametersInIter - malformed Iter",
+			Fn:   func(int, func(*nonConcreteType) bool, func(*int, *string) bool) {},
+			Err:  errors.New(errIllegalParametersInIter),
+		},
+		{
+			Name: "errIllegalParametersInIter - malformed ReIter",
+			Fn:   func(int, func() func(*nonConcreteType) bool, func(*int, *string) bool) {},
+			Err:  errors.New(errIllegalParametersInReIter),
+		},
+		{
+			Name: "errIllegalParametersInMultiMap - malformed MultiMap",
+			Fn:   func(int, func(string) func(*nonConcreteType) bool) {},
+			Err:  errors.New(errIllegalParametersInMultiMap),
 		},
 	}
 
@@ -383,6 +478,94 @@ func TestWindow(t *testing.T) {
 			}
 			if pos != test.Pos {
 				t.Errorf("Window(%v) - pos: got %v, want %v", params, pos, test.Pos)
+			}
+		})
+	}
+}
+
+func TestBundleFinalization(t *testing.T) {
+	tests := []struct {
+		Name   string
+		Params []FnParamKind
+		Pos    int
+		Exists bool
+	}{
+		{
+			Name:   "bundleFinalization input",
+			Params: []FnParamKind{FnContext, FnBundleFinalization},
+			Pos:    1,
+			Exists: true,
+		},
+		{
+			Name:   "no bundleFinalization input",
+			Params: []FnParamKind{FnContext, FnEventTime},
+			Pos:    -1,
+			Exists: false,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.Name, func(t *testing.T) {
+			// Create a Fn with a filled params list.
+			params := make([]FnParam, len(test.Params))
+			for i, kind := range test.Params {
+				params[i].Kind = kind
+				params[i].T = nil
+			}
+			fn := &Fn{Param: params}
+
+			// Validate we get expected results for pane function.
+			pos, exists := fn.BundleFinalization()
+			if exists != test.Exists {
+				t.Errorf("BundleFinalization(%v) - exists: got %v, want %v", params, exists, test.Exists)
+			}
+			if pos != test.Pos {
+				t.Errorf("BundleFinalization(%v) - pos: got %v, want %v", params, pos, test.Pos)
+			}
+		})
+	}
+}
+
+func TestWatermarkEstimator(t *testing.T) {
+	tests := []struct {
+		Name   string
+		Params []FnParamKind
+		Pos    int
+		Exists bool
+	}{
+		{
+			Name:   "watermarkEstimator input",
+			Params: []FnParamKind{FnContext, FnWatermarkEstimator},
+			Pos:    1,
+			Exists: true,
+		},
+		{
+			Name:   "no watermarkEstimator input",
+			Params: []FnParamKind{FnContext, FnEventTime},
+			Pos:    -1,
+			Exists: false,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.Name, func(t *testing.T) {
+			// Create a Fn with a filled params list.
+			params := make([]FnParam, len(test.Params))
+			for i, kind := range test.Params {
+				params[i].Kind = kind
+				params[i].T = nil
+			}
+			fn := &Fn{Param: params}
+
+			// Validate we get expected results for pane function.
+			pos, exists := fn.WatermarkEstimator()
+			if exists != test.Exists {
+				t.Errorf("WatermarkEstimator(%v) - exists: got %v, want %v", params, exists, test.Exists)
+			}
+			if pos != test.Pos {
+				t.Errorf("WatermarkEstimator(%v) - pos: got %v, want %v", params, pos, test.Pos)
 			}
 		})
 	}

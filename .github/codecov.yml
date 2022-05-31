@@ -29,12 +29,16 @@ coverage:
   status:
     project:
       python:
+        flags: 
+          - python
         target: auto
         threshold: 5%
         base: auto
         paths:
           - "sdks/python"
       go:
+        flags: 
+          - go
         target: auto
         threshold: 5%
         base: auto
@@ -59,3 +63,9 @@ ignore:
   - "**/*_test.py"
   - "**/*_test_py3*.py"
   - "**/*_microbenchmark.py"
+  - "sdks/go/pkg/beam/register/register.go"
+
+# See https://docs.codecov.com/docs/flags for options.
+flag_management:
+  default_rules: # the rules that will be followed for any flag added, generally
+    carryforward: true # recommended for multi-lang mono-repos.

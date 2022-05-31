@@ -25,6 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.mockito.Mockito;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -34,7 +35,7 @@ import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 class S3TestUtils {
   private static S3FileSystemConfiguration.Builder configBuilder(String scheme) {
     S3Options options = PipelineOptionsFactory.as(S3Options.class);
-    options.setAwsRegion("us-west-1");
+    options.setAwsRegion(Region.US_WEST_1);
     options.setS3UploadBufferSizeBytes(5_242_880);
     return S3FileSystemConfiguration.builderFrom(options).setScheme(scheme);
   }
@@ -45,14 +46,14 @@ class S3TestUtils {
 
   static S3Options s3Options() {
     S3Options options = PipelineOptionsFactory.as(S3Options.class);
-    options.setAwsRegion("us-west-1");
+    options.setAwsRegion(Region.US_WEST_1);
     options.setS3UploadBufferSizeBytes(MINIMUM_UPLOAD_BUFFER_SIZE_BYTES);
     return options;
   }
 
   static S3Options s3OptionsWithPathStyleAccessEnabled() {
     S3Options options = PipelineOptionsFactory.as(S3Options.class);
-    options.setAwsRegion("us-west-1");
+    options.setAwsRegion(Region.US_WEST_1);
     options.setS3UploadBufferSizeBytes(MINIMUM_UPLOAD_BUFFER_SIZE_BYTES);
     options.setS3ClientFactoryClass(PathStyleAccessS3ClientBuilderFactory.class);
     return options;
@@ -97,7 +98,11 @@ class S3TestUtils {
   static S3FileSystemConfiguration s3ConfigWithSSEKMSKeyId(String scheme) {
     String ssekmsKeyId =
         "arn:aws:kms:eu-west-1:123456789012:key/dc123456-7890-ABCD-EF01-234567890ABC";
-    return configBuilder(scheme).setSSEAlgorithm("aws:kms").setSSEKMSKeyId(ssekmsKeyId).build();
+    return configBuilder(scheme)
+        .setSSEAlgorithm("aws:kms")
+        .setSSEKMSKeyId(ssekmsKeyId)
+        .setBucketKeyEnabled(true)
+        .build();
   }
 
   static S3Options s3OptionsWithSSEKMSKeyId() {
@@ -106,6 +111,7 @@ class S3TestUtils {
         "arn:aws:kms:eu-west-1:123456789012:key/dc123456-7890-ABCD-EF01-234567890ABC";
     options.setSSEKMSKeyId(ssekmsKeyId);
     options.setSSEAlgorithm("aws:kms");
+    options.setBucketKeyEnabled(true);
     return options;
   }
 

@@ -41,6 +41,7 @@ class InteractiveEnvironmentInspector(object):
     self._anonymous = {}
     self._inspectable_pipelines = set()
     self._ignore_synthetic = ignore_synthetic
+    self._clusters = {}
 
   @property
   def inspectables(self):
@@ -135,6 +136,34 @@ class InteractiveEnvironmentInspector(object):
       dataframe = ib.collect(value, include_window_info=include_window_info)
       return dataframe.to_json(orient='table')
     return {}
+
+  @as_json
+  def list_clusters(self):
+    """Retrieves information for all clusters as a json.
+
+    The json object maps a unique obfuscated identifier of a cluster to
+    the corresponding cluster_name, project, region, master_url, dashboard,
+    and pipelines. Furthermore, copies the mapping to self._clusters.
+    """
+    from apache_beam.runners.interactive import interactive_environment as ie
+
+    clusters = ie.current_env().clusters
+    all_cluster_data = {}
+    for meta, dcm in clusters.dataproc_cluster_managers.items():
+      all_cluster_data[obfuscate(meta)] = {
+          'cluster_name': meta.cluster_name,
+          'project': meta.project_id,
+          'region': meta.region,
+          'master_url': meta.master_url,
+          'dashboard': meta.dashboard,
+          'pipelines': [str(id(p)) for p in dcm.pipelines]
+      }
+    self._clusters = all_cluster_data
+    return all_cluster_data
+
+  def get_cluster_master_url(self, identifier: str) -> str:
+    """Returns the master_url corresponding to the obfuscated identifier."""
+    return self._clusters[identifier]['master_url']  # Guaranteed to exist.
 
 
 def inspect(ignore_synthetic=True):

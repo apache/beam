@@ -32,6 +32,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle;
 import org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -95,7 +96,7 @@ public class PerKeyOrderingTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesPerKeyOrderedDelivery.class})
+  @Category({ValidatesRunner.class, UsesPerKeyOrderedDelivery.class, UsesStatefulParDo.class})
   public void testSingleCallOrderingWithShuffle() {
     // Here we test that the output of a single process call in a DoFn will be output in order
     List<Integer> perKeyElements =
@@ -136,7 +137,7 @@ public class PerKeyOrderingTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesPerKeyOrderInBundle.class})
+  @Category({ValidatesRunner.class, UsesPerKeyOrderInBundle.class, UsesStatefulParDo.class})
   public void testSingleCallOrderingWithoutShuffle() {
     // Here we test that the output of a single process call in a DoFn will be output in order
     List<Long> perKeyElements =
@@ -219,7 +220,7 @@ public class PerKeyOrderingTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesPerKeyOrderedDelivery.class})
+  @Category({ValidatesRunner.class, UsesPerKeyOrderedDelivery.class, UsesStatefulParDo.class})
   public void testMultipleStatefulOrderingWithShuffle() {
     // Here we test that the output of a single process call in a DoFn will be output in order
     List<Long> perKeyElements =
@@ -281,7 +282,7 @@ public class PerKeyOrderingTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesPerKeyOrderInBundle.class})
+  @Category({ValidatesRunner.class, UsesPerKeyOrderInBundle.class, UsesStatefulParDo.class})
   public void testMultipleStatefulOrderingWithoutShuffle() {
     List<Integer> perKeyElements =
         Lists.newArrayList(-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 123456789);

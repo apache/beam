@@ -13,70 +13,42 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
-
-import pytz
 from datetime import datetime
-from task import apply_transform
-from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.test_stream import TestStream
-from apache_beam.transforms import window
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.testing.util import assert_that, equal_to, equal_to_per_window
+
 from test_helper import failed, passed, get_file_output, test_is_not_empty
 
 
 def test_output():
-    options = PipelineOptions()
-    options.view_as(StandardOptions).streaming = True
-    test_pipeline = TestPipeline(options=options)
+  answers = ["1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "1, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)",
+             "0, window(start=2021-03-01T00:00:00Z, end=2021-03-02T00:00:00Z)"]
 
-    events = ( test_pipeline
-               | TestStream()
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 1, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 2, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 3, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 4, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 5, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 5, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 6, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 7, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 8, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 9, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 10, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 10, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 11, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 12, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 13, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 14, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 15, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 15, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 16, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 17, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 18, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 19, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 20, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 20, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 25, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to_infinity())
+  output = get_file_output()
 
-    results = apply_transform(events)
-
-    answers = {
-        window.IntervalWindow(datetime(2021, 3, 1, 0, 0, 0, 0, tzinfo=pytz.UTC).timestamp(),
-                              datetime(2021, 3, 2, 0, 0, 0, 0, tzinfo=pytz.UTC).timestamp()): [1, 1, 1, 1, 1,
-                                                                                               1, 1, 1, 1, 1,
-                                                                                               1, 1, 1, 1, 1,
-                                                                                               1, 1, 1, 1, 1, 0],
-    }
-
-    assert_that(results,
-                equal_to_per_window(answers),
-                label='count assert per window')
-
-    test_pipeline.run()
+  if all(elem in output for elem in answers) and all(elem in answers for elem in output):
+    passed()
+  else:
+    failed("Try using an early trigger with the AfterWatermark trigger.")
 
 
 if __name__ == '__main__':
-    test_is_not_empty()
-    test_output()
+  test_is_not_empty()
+  test_output()

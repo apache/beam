@@ -17,12 +17,18 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.it;
 
-import static org.apache.beam.sdk.values.TypeDescriptors.strings;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.SpannerException;
+import com.google.cloud.spanner.Statement;
 import com.google.gson.Gson;
 import java.util.Collections;
 import java.util.Map;
@@ -33,9 +39,11 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.lang3.tuple.Pair;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -54,9 +62,9 @@ public class SpannerChangeStreamIT {
   private static String instanceId;
   private static String projectId;
   private static String databaseId;
-  private static String tableName;
+  private static String metadataTableName;
+  private static String changeStreamTableName;
   private static String changeStreamName;
-  private static Gson gson;
   private static DatabaseClient databaseClient;
 
   @BeforeClass
@@ -64,10 +72,10 @@ public class SpannerChangeStreamIT {
     projectId = ENV.getProjectId();
     instanceId = ENV.getInstanceId();
     databaseId = ENV.getDatabaseId();
-    tableName = ENV.createSingersTable();
-    changeStreamName = ENV.createChangeStreamFor(tableName);
+    metadataTableName = ENV.getMetadataTableName();
+    changeStreamTableName = ENV.createSingersTable();
+    changeStreamName = ENV.createChangeStreamFor(changeStreamTableName);
     databaseClient = ENV.getDatabaseClient();
-    gson = new Gson();
   }
 
   @Before
@@ -104,9 +112,10 @@ public class SpannerChangeStreamIT {
                     .withSpannerConfig(spannerConfig)
                     .withChangeStreamName(changeStreamName)
                     .withMetadataDatabase(databaseId)
+                    .withMetadataTable(metadataTableName)
                     .withInclusiveStartAt(startAt)
                     .withInclusiveEndAt(endAt))
-            .apply(MapElements.into(strings()).via(SpannerChangeStreamIT::modsToString));
+            .apply(ParDo.of(new ModsToString()));
 
     // Each row is composed by the following data
     // <mod type, singer id, old first name, old last name, new first name, new last name>
@@ -128,6 +137,26 @@ public class SpannerChangeStreamIT {
             "DELETE,4,Updated First Name 4,Updated Last Name 4,null,null",
             "DELETE,5,Updated First Name 5,Updated Last Name 5,null,null");
     pipeline.run().waitUntilFinish();
+
+    assertMetadataTableHasBeenDropped();
+  }
+
+  private static void assertMetadataTableHasBeenDropped() {
+    try (ResultSet resultSet =
+        databaseClient
+            .singleUse()
+            .executeQuery(Statement.of("SELECT * FROM " + metadataTableName))) {
+      resultSet.next();
+      fail(
+          "The metadata table "
+              + metadataTableName
+              + " should had been dropped, but it still exists");
+    } catch (SpannerException e) {
+      assertEquals(ErrorCode.INVALID_ARGUMENT, e.getErrorCode());
+      assertTrue(
+          "Error message must contain \"Table not found\"",
+          e.getMessage().contains("Table not found"));
+    }
   }
 
   private static Pair<Timestamp, Timestamp> insertRows(int n) {
@@ -160,7 +189,7 @@ public class SpannerChangeStreamIT {
   private static Timestamp insertRow(int singerId) {
     return databaseClient.write(
         Collections.singletonList(
-            Mutation.newInsertBuilder(tableName)
+            Mutation.newInsertBuilder(changeStreamTableName)
                 .set("SingerId")
                 .to(singerId)
                 .set("FirstName")
@@ -173,7 +202,7 @@ public class SpannerChangeStreamIT {
   private static Timestamp updateRow(int singerId) {
     return databaseClient.write(
         Collections.singletonList(
-            Mutation.newUpdateBuilder(tableName)
+            Mutation.newUpdateBuilder(changeStreamTableName)
                 .set("SingerId")
                 .to(singerId)
                 .set("FirstName")
@@ -185,28 +214,44 @@ public class SpannerChangeStreamIT {
 
   private static Timestamp deleteRow(int singerId) {
     return databaseClient.write(
-        Collections.singletonList(Mutation.delete(tableName, Key.of(singerId))));
+        Collections.singletonList(Mutation.delete(changeStreamTableName, Key.of(singerId))));
   }
 
-  private static String modsToString(DataChangeRecord record) {
-    final Mod mod = record.getMods().get(0);
-    final Map<String, String> keys = gson.fromJson(mod.getKeysJson(), Map.class);
-    final Map<String, String> oldValues =
-        Optional.ofNullable(mod.getOldValuesJson())
-            .map(nonNullValues -> gson.fromJson(nonNullValues, Map.class))
-            .orElseGet(Collections::emptyMap);
-    final Map<String, String> newValues =
-        Optional.ofNullable(mod.getNewValuesJson())
-            .map(nonNullValues -> gson.fromJson(nonNullValues, Map.class))
-            .orElseGet(Collections::emptyMap);
+  private static class ModsToString extends DoFn<DataChangeRecord, String> {
 
-    return String.join(
-        ",",
-        record.getModType().toString(),
-        keys.get("SingerId"),
-        oldValues.get("FirstName"),
-        oldValues.get("LastName"),
-        newValues.get("FirstName"),
-        newValues.get("LastName"));
+    private transient Gson gson;
+
+    @Setup
+    public void setup() {
+      gson = new Gson();
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element DataChangeRecord record, OutputReceiver<String> outputReceiver) {
+      final Mod mod = record.getMods().get(0);
+      final Map<String, String> keys = gson.fromJson(mod.getKeysJson(), Map.class);
+      final Map<String, String> oldValues =
+          Optional.ofNullable(mod.getOldValuesJson())
+              .map(nonNullValues -> gson.fromJson(nonNullValues, Map.class))
+              .orElseGet(Collections::emptyMap);
+      final Map<String, String> newValues =
+          Optional.ofNullable(mod.getNewValuesJson())
+              .map(nonNullValues -> gson.fromJson(nonNullValues, Map.class))
+              .orElseGet(Collections::emptyMap);
+
+      final String modsAsString =
+          String.join(
+              ",",
+              record.getModType().toString(),
+              keys.get("SingerId"),
+              oldValues.get("FirstName"),
+              oldValues.get("LastName"),
+              newValues.get("FirstName"),
+              newValues.get("LastName"));
+      final Instant timestamp = new Instant(record.getRecordTimestamp().toSqlTimestamp());
+
+      outputReceiver.outputWithTimestamp(modsAsString, timestamp);
+    }
   }
 }

@@ -17,16 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
-
-import io.opencensus.common.Scope;
-import io.opencensus.trace.AttributeValue;
-import io.opencensus.trace.Tracer;
-import io.opencensus.trace.Tracing;
 import java.io.Serializable;
-import java.util.Optional;
+import java.math.BigDecimal;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ChildPartitionsRecordAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.DataChangeRecordAction;
@@ -41,7 +34,9 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadata
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ReadChangeStreamPartitionRangeTracker;
-import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -67,12 +62,13 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
   private static final long serialVersionUID = -7574596218085711975L;
   private static final Logger LOG = LoggerFactory.getLogger(ReadChangeStreamPartitionDoFn.class);
-  private static final Tracer TRACER = Tracing.getTracer();
+  private static final double AUTOSCALING_SIZE_MULTIPLIER = 2.0D;
 
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
   private final ChangeStreamMetrics metrics;
+  private final ThroughputEstimator throughputEstimator;
 
   private transient QueryChangeStreamAction queryChangeStreamAction;
 
@@ -89,16 +85,19 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    * @param mapperFactory the {@link MapperFactory} to construct {@link ChangeStreamRecordMapper}s
    * @param actionFactory the {@link ActionFactory} to construct actions
    * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
+   * @param throughputEstimator an estimator to calculate local throughput.
    */
   public ReadChangeStreamPartitionDoFn(
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       ActionFactory actionFactory,
-      ChangeStreamMetrics metrics) {
+      ChangeStreamMetrics metrics,
+      ThroughputEstimator throughputEstimator) {
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
     this.metrics = metrics;
+    this.throughputEstimator = throughputEstimator;
   }
 
   @GetInitialWatermarkEstimatorState
@@ -114,29 +113,24 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
   /**
    * The restriction for a partition will be defined from the start and end timestamp to query the
-   * partition for. These timestamps are converted to microseconds. The {@link OffsetRange}
-   * restriction represents a closed-open interval, while the start / end timestamps represent a
-   * closed-closed interval, so we add 1 microsecond to the end timestamp to convert it to
-   * closed-open.
+   * partition for. The {@link TimestampRange} restriction represents a closed-open interval, while
+   * the start / end timestamps represent a closed-closed interval, so we add 1 nanosecond to the
+   * end timestamp to convert it to closed-open.
    *
    * <p>In this function we also update the partition state to {@link
    * PartitionMetadata.State#RUNNING}.
    *
    * @param partition the partition to be queried
-   * @return the offset range from the partition start timestamp to the partition end timestamp + 1
-   *     microsecond
+   * @return the timestamp range from the partition start timestamp to the partition end timestamp +
+   *     1 nanosecond
    */
   @GetInitialRestriction
-  public OffsetRange initialRestriction(@Element PartitionMetadata partition) {
+  public TimestampRange initialRestriction(@Element PartitionMetadata partition) {
     final String token = partition.getPartitionToken();
     final com.google.cloud.Timestamp startTimestamp = partition.getStartTimestamp();
-    final long startMicros = TimestampConverter.timestampToMicros(startTimestamp);
-    // Offset range represents closed-open interval
-    final long endMicros =
-        Optional.ofNullable(partition.getEndTimestamp())
-            .map(TimestampConverter::timestampToMicros)
-            .map(micros -> micros + 1)
-            .orElse(TimestampConverter.MAX_MICROS + 1);
+    // Range represents closed-open interval
+    final com.google.cloud.Timestamp endTimestamp =
+        TimestampUtils.next(partition.getEndTimestamp());
     final com.google.cloud.Timestamp partitionScheduledAt = partition.getScheduledAt();
     final com.google.cloud.Timestamp partitionRunningAt =
         daoFactory.getPartitionMetadataDao().updateToRunning(token);
@@ -148,13 +142,33 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
               partitionRunningAt.toSqlTimestamp().getTime()));
     }
 
-    return new OffsetRange(startMicros, endMicros);
+    metrics.incActivePartitionReadCounter();
+    return TimestampRange.of(startTimestamp, endTimestamp);
+  }
+
+  @GetSize
+  public double getSize(@Element PartitionMetadata partition, @Restriction TimestampRange range)
+      throws Exception {
+    final BigDecimal timeGapInSeconds =
+        BigDecimal.valueOf(newTracker(partition, range).getProgress().getWorkRemaining());
+    final BigDecimal throughput = BigDecimal.valueOf(this.throughputEstimator.get());
+    LOG.debug(
+        "Reported getSize() - remaining work: " + timeGapInSeconds + " throughput:" + throughput);
+    // Cap it at Double.MAX_VALUE to avoid an overflow.
+    return timeGapInSeconds
+        .multiply(throughput)
+        // The multiplier is required because the job tries to reach the minimum number of workers
+        // and this leads to a very high cpu utilization. The multiplier would increase the reported
+        // size and help to reduce the cpu usage. In the future, this can become a custom parameter.
+        .multiply(BigDecimal.valueOf(AUTOSCALING_SIZE_MULTIPLIER))
+        .min(BigDecimal.valueOf(Double.MAX_VALUE))
+        .doubleValue();
   }
 
   @NewTracker
   public ReadChangeStreamPartitionRangeTracker newTracker(
-      @Element PartitionMetadata partition, @Restriction OffsetRange offsetRange) {
-    return new ReadChangeStreamPartitionRangeTracker(partition, offsetRange);
+      @Element PartitionMetadata partition, @Restriction TimestampRange range) {
+    return new ReadChangeStreamPartitionRangeTracker(partition, range);
   }
 
   /**
@@ -184,7 +198,9 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             partitionMetadataMapper,
             dataChangeRecordAction,
             heartbeatRecordAction,
-            childPartitionsRecordAction);
+            childPartitionsRecordAction,
+            metrics,
+            throughputEstimator);
   }
 
   /**
@@ -205,26 +221,17 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   @ProcessElement
   public ProcessContinuation processElement(
       @Element PartitionMetadata partition,
-      RestrictionTracker<OffsetRange, Long> tracker,
+      RestrictionTracker<TimestampRange, com.google.cloud.Timestamp> tracker,
       OutputReceiver<DataChangeRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       BundleFinalizer bundleFinalizer) {
 
     final String token = partition.getPartitionToken();
-    try (Scope scope =
-        TRACER
-            .spanBuilder("ReadChangeStreamPartitionDoFn.processElement")
-            .setRecordEvents(true)
-            .startScopedSpan()) {
-      TRACER
-          .getCurrentSpan()
-          .putAttribute(PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(token));
 
-      LOG.debug(
-          "[" + token + "] Processing element with restriction " + tracker.currentRestriction());
+    LOG.debug(
+        "[" + token + "] Processing element with restriction " + tracker.currentRestriction());
 
-      return queryChangeStreamAction.run(
-          partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
-    }
+    return queryChangeStreamAction.run(
+        partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
   }
 }

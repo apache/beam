@@ -111,6 +111,7 @@ public class S3WritableByteChannelTest {
         toMd5(options.getSSECustomerKey()),
         options.getSSEKMSKeyId(),
         options.getS3UploadBufferSizeBytes(),
+        options.getBucketKeyEnabled(),
         writeReadOnlyBuffer);
   }
 
@@ -127,6 +128,7 @@ public class S3WritableByteChannelTest {
         toMd5(config.getSSECustomerKey()),
         config.getSSEKMSKeyId(),
         config.getS3UploadBufferSizeBytes(),
+        config.getBucketKeyEnabled(),
         writeReadOnlyBuffer);
   }
 
@@ -138,6 +140,7 @@ public class S3WritableByteChannelTest {
       String sseCustomerKeyMd5,
       String ssekmsKeyId,
       long s3UploadBufferSizeBytes,
+      boolean bucketKeyEnabled,
       boolean writeReadOnlyBuffer)
       throws IOException {
     CreateMultipartUploadResponse.Builder builder =
@@ -154,6 +157,7 @@ public class S3WritableByteChannelTest {
       sseAlgorithm = ServerSideEncryption.AWS_KMS;
       builder.serverSideEncryption(sseAlgorithm);
     }
+    builder.bucketKeyEnabled(bucketKeyEnabled);
     CreateMultipartUploadResponse createMultipartUploadResponse = builder.build();
     doReturn(createMultipartUploadResponse)
         .when(mockS3Client)
@@ -165,6 +169,7 @@ public class S3WritableByteChannelTest {
         mockS3Client.createMultipartUpload(createMultipartUploadRequest);
     assertEquals(sseAlgorithm, mockCreateMultipartUploadResponse1.serverSideEncryption());
     assertEquals(sseCustomerKeyMd5, mockCreateMultipartUploadResponse1.sseCustomerKeyMD5());
+    assertEquals(bucketKeyEnabled, mockCreateMultipartUploadResponse1.bucketKeyEnabled());
 
     UploadPartResponse.Builder uploadPartResponseBuilder =
         UploadPartResponse.builder().eTag("etag");

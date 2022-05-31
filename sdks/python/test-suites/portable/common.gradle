@@ -121,6 +121,28 @@ def createProcessWorker = tasks.register("createProcessWorker") {
   }
 }
 
+// Requirements file is created during the runtime.
+tasks.register("portableLocalRunnerTestWithRequirementsFile") {
+  dependsOn 'setupVirtualenv'
+  dependsOn ":sdks:python:container:py${pythonVersionSuffix}:docker"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', """
+          . ${envdir}/bin/activate \\
+          && cd ${pythonRootDir} \\
+          && pip install -e . \\
+          && cd apache_beam/runners/portability \\
+          && python requirements_cache_it_test.py \\
+              --runner=PortableRunner \\
+              --job_endpoint=embed \\
+              --environment_type="DOCKER"
+          """
+    }
+  }
+}
+
 def createSamzaRunnerTestTask(String workerType) {
   def taskName = "samzaCompatibilityMatrix${workerType}"
   def jobServerJar = "${rootDir}/runners/samza/job-server/build/libs/beam-runners-samza-job-server-${version}.jar"
@@ -172,11 +194,11 @@ createSparkRunnerTestTask('DOCKER')
 createSparkRunnerTestTask('PROCESS')
 createSparkRunnerTestTask('LOOPBACK')
 
-task sparkValidatesRunner() {
+tasks.register("sparkValidatesRunner") {
   dependsOn 'sparkCompatibilityMatrixLOOPBACK'
 }
 
-project.task("preCommitPy${pythonVersionSuffix}") {
+project.tasks.register("preCommitPy${pythonVersionSuffix}") {
   dependsOn = [":sdks:python:container:py${pythonVersionSuffix}:docker",
                ":runners:flink:${latestFlinkVersion}:job-server:shadowJar",
                'portableWordCountFlinkRunnerBatch',
@@ -188,7 +210,8 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}") {
                "postCommitPy${pythonVersionSuffix}IT",
                ':runners:spark:2:job-server:shadowJar',
                'portableLocalRunnerJuliaSetWithSetupPy',
-               'portableWordCountSparkRunnerBatch']
+               'portableWordCountSparkRunnerBatch',
+               'portableLocalRunnerTestWithRequirementsFile']
 }
 
 project.tasks.register("flinkExamples") {
@@ -361,7 +384,7 @@ addTestJavaJarCreator("FlinkRunner", tasks.getByPath(":runners:flink:${latestFli
 addTestJavaJarCreator("SparkRunner", tasks.getByPath(":runners:spark:2:job-server:shadowJar"))
 
 def addTestFlinkUberJar(boolean saveMainSession) {
-  project.tasks.create(name: "testUberJarFlinkRunner${saveMainSession ? 'SaveMainSession' : ''}") {
+  project.tasks.register("testUberJarFlinkRunner${saveMainSession ? 'SaveMainSession' : ''}") {
     dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
     dependsOn ":runners:flink:${latestFlinkVersion}:job-server:miniCluster"
     dependsOn pythonContainerTask
@@ -390,11 +413,11 @@ def addTestFlinkUberJar(boolean saveMainSession) {
 addTestFlinkUberJar(false)
 addTestFlinkUberJar(true)
 
-task testPipelineJarSparkRunner() {
+tasks.register("testPipelineJarSparkRunner") {
   dependsOn testJavaJarCreatorSparkRunner
 }
 
-task testPipelineJarFlinkRunner() {
+tasks.register("testPipelineJarFlinkRunner") {
   dependsOn testJavaJarCreatorFlinkRunner
   dependsOn testUberJarFlinkRunner
   dependsOn testUberJarFlinkRunnerSaveMainSession

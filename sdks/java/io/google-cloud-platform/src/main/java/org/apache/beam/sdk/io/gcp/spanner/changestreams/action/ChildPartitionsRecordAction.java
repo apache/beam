@@ -17,23 +17,16 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State.CREATED;
 
 import com.google.cloud.Timestamp;
-import io.opencensus.common.Scope;
-import io.opencensus.trace.AttributeValue;
-import io.opencensus.trace.Tracer;
-import io.opencensus.trace.Tracing;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -52,7 +45,6 @@ import org.slf4j.LoggerFactory;
 public class ChildPartitionsRecordAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(ChildPartitionsRecordAction.class);
-  private static final Tracer TRACER = Tracing.getTracer();
   private final PartitionMetadataDao partitionMetadataDao;
   private final ChangeStreamMetrics metrics;
 
@@ -112,35 +104,28 @@ public class ChildPartitionsRecordAction {
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       ChildPartitionsRecord record,
-      RestrictionTracker<OffsetRange, Long> tracker,
+      RestrictionTracker<TimestampRange, Timestamp> tracker,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     final String token = partition.getPartitionToken();
-    try (Scope scope =
-        TRACER.spanBuilder("ChildPartitionsRecordAction").setRecordEvents(true).startScopedSpan()) {
-      TRACER
-          .getCurrentSpan()
-          .putAttribute(PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(token));
 
-      LOG.debug("[" + token + "] Processing child partition record " + record);
+    LOG.debug("[" + token + "] Processing child partition record " + record);
 
-      final Timestamp startTimestamp = record.getStartTimestamp();
-      final Instant startInstant = new Instant(startTimestamp.toSqlTimestamp().getTime());
-      final long startMicros = TimestampConverter.timestampToMicros(startTimestamp);
-      if (!tracker.tryClaim(startMicros)) {
-        LOG.debug(
-            "[" + token + "] Could not claim queryChangeStream(" + startTimestamp + "), stopping");
-        return Optional.of(ProcessContinuation.stop());
-      }
-      watermarkEstimator.setWatermark(startInstant);
-
-      for (ChildPartition childPartition : record.getChildPartitions()) {
-        processChildPartition(partition, record, childPartition);
-      }
-
-      LOG.debug("[" + token + "] Child partitions action completed successfully");
-      return Optional.empty();
+    final Timestamp startTimestamp = record.getStartTimestamp();
+    final Instant startInstant = new Instant(startTimestamp.toSqlTimestamp().getTime());
+    if (!tracker.tryClaim(startTimestamp)) {
+      LOG.debug(
+          "[" + token + "] Could not claim queryChangeStream(" + startTimestamp + "), stopping");
+      return Optional.of(ProcessContinuation.stop());
     }
+    watermarkEstimator.setWatermark(startInstant);
+
+    for (ChildPartition childPartition : record.getChildPartitions()) {
+      processChildPartition(partition, record, childPartition);
+    }
+
+    LOG.debug("[" + token + "] Child partitions action completed successfully");
+    return Optional.empty();
   }
 
   // Unboxing of runInTransaction result will not produce a null value, we can ignore it
@@ -148,58 +133,46 @@ public class ChildPartitionsRecordAction {
   private void processChildPartition(
       PartitionMetadata partition, ChildPartitionsRecord record, ChildPartition childPartition) {
 
-    try (Scope scope =
-        TRACER
-            .spanBuilder("ChildPartitionsRecordAction.processChildPartition")
-            .setRecordEvents(true)
-            .startScopedSpan()) {
-      TRACER
-          .getCurrentSpan()
-          .putAttribute(
-              PARTITION_ID_ATTRIBUTE_LABEL,
-              AttributeValue.stringAttributeValue(partition.getPartitionToken()));
+    final String partitionToken = partition.getPartitionToken();
+    final String childPartitionToken = childPartition.getToken();
+    final boolean isSplit = isSplit(childPartition);
+    LOG.debug(
+        "["
+            + partitionToken
+            + "] Processing child partition"
+            + (isSplit ? " split" : " merge")
+            + " event");
 
-      final String partitionToken = partition.getPartitionToken();
-      final String childPartitionToken = childPartition.getToken();
-      final boolean isSplit = isSplit(childPartition);
+    final PartitionMetadata row =
+        toPartitionMetadata(
+            record.getStartTimestamp(),
+            partition.getEndTimestamp(),
+            partition.getHeartbeatMillis(),
+            childPartition);
+    LOG.debug("[" + partitionToken + "] Inserting child partition token " + childPartitionToken);
+    final Boolean insertedRow =
+        partitionMetadataDao
+            .runInTransaction(
+                transaction -> {
+                  if (transaction.getPartition(childPartitionToken) == null) {
+                    transaction.insert(row);
+                    return true;
+                  } else {
+                    return false;
+                  }
+                })
+            .getResult();
+    if (insertedRow && isSplit) {
+      metrics.incPartitionRecordSplitCount();
+    } else if (insertedRow) {
+      metrics.incPartitionRecordMergeCount();
+    } else {
       LOG.debug(
           "["
               + partitionToken
-              + "] Processing child partition"
-              + (isSplit ? " split" : " merge")
-              + " event");
-
-      final PartitionMetadata row =
-          toPartitionMetadata(
-              record.getStartTimestamp(),
-              partition.getEndTimestamp(),
-              partition.getHeartbeatMillis(),
-              childPartition);
-      LOG.debug("[" + partitionToken + "] Inserting child partition token " + childPartitionToken);
-      final Boolean insertedRow =
-          partitionMetadataDao
-              .runInTransaction(
-                  transaction -> {
-                    if (transaction.getPartition(childPartitionToken) == null) {
-                      transaction.insert(row);
-                      return true;
-                    } else {
-                      return false;
-                    }
-                  })
-              .getResult();
-      if (insertedRow && isSplit) {
-        metrics.incPartitionRecordSplitCount();
-      } else if (insertedRow) {
-        metrics.incPartitionRecordMergeCount();
-      } else {
-        LOG.debug(
-            "["
-                + partitionToken
-                + "] Child token "
-                + childPartitionToken
-                + " already exists, skipping...");
-      }
+              + "] Child token "
+              + childPartitionToken
+              + " already exists, skipping...");
     }
   }
 
@@ -209,21 +182,17 @@ public class ChildPartitionsRecordAction {
 
   private PartitionMetadata toPartitionMetadata(
       Timestamp startTimestamp,
-      @Nullable Timestamp endTimestamp,
+      Timestamp endTimestamp,
       long heartbeatMillis,
       ChildPartition childPartition) {
-    // FIXME: The backend only supports microsecond granularity. Remove when fixed.
-    final Timestamp truncatedStartTimestamp = TimestampConverter.truncateNanos(startTimestamp);
-    final Timestamp truncatedEndTimestamp =
-        Optional.ofNullable(endTimestamp).map(TimestampConverter::truncateNanos).orElse(null);
     return PartitionMetadata.newBuilder()
         .setPartitionToken(childPartition.getToken())
         .setParentTokens(childPartition.getParentTokens())
-        .setStartTimestamp(truncatedStartTimestamp)
-        .setEndTimestamp(truncatedEndTimestamp)
+        .setStartTimestamp(startTimestamp)
+        .setEndTimestamp(endTimestamp)
         .setHeartbeatMillis(heartbeatMillis)
         .setState(CREATED)
-        .setWatermark(truncatedStartTimestamp)
+        .setWatermark(startTimestamp)
         .build();
   }
 }

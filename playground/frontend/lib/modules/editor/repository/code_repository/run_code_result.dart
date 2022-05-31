@@ -47,6 +47,7 @@ class RunCodeResult {
   final String? pipelineUuid;
   final String? output;
   final String? log;
+  final String? graph;
   final String? errorMessage;
 
   RunCodeResult({
@@ -55,6 +56,7 @@ class RunCodeResult {
     this.output,
     this.log,
     this.errorMessage,
+    this.graph,
   });
 
   bool get isFinished {
@@ -70,11 +72,12 @@ class RunCodeResult {
           status == other.status &&
           output == other.output &&
           log == other.log &&
+          graph == other.graph &&
           errorMessage == other.errorMessage;
 
   @override
   int get hashCode =>
-      hashValues(pipelineUuid, status, output, log, errorMessage);
+      hashValues(pipelineUuid, status, output, log, errorMessage, graph);
 
   @override
   String toString() {

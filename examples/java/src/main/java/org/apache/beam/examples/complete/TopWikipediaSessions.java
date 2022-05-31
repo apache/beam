@@ -17,6 +17,19 @@
  */
 package org.apache.beam.examples.complete;
 
+// beam-playground:
+//   name: TopWikipediaSessions
+//   description: An example that reads Wikipedia edit data from Cloud Storage and computes
+//     the user with the longest string of edits separated by no more than an hour within
+//     each month.
+//   multifile: true
+//   pipeline_options: --output output.txt
+//   context_line: 84
+//   categories:
+//     - Combiners
+//     - Options
+//     - Windowing
+
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.math.BigDecimal;

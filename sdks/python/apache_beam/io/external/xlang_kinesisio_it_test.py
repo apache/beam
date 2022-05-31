@@ -267,10 +267,10 @@ class KinesisHelper:
         )
         time.sleep(2)
         break
-      except:  # pylint: disable=bare-except
+      except Exception as e:
         if i == retries - 1:
           logging.error('Could not create kinesis stream')
-          raise
+          raise e
 
     # Wait for the stream to be active
     self.get_first_shard_id(stream_name)
@@ -290,7 +290,10 @@ class KinesisHelper:
       time.sleep(2)
       if i == retries - 1:
         logging.error('Could not initialize kinesis stream')
-        raise
+        raise RuntimeError(
+            "Unable to initialize Kinesis Stream %s. Status: %s",
+            stream['StreamDescription']['StreamName'],
+            stream['StreamDescription']['StreamStatus'])
       stream = self.kinesis_client.describe_stream(StreamName=stream_name)
 
     return stream['StreamDescription']['Shards'][0]['ShardId']

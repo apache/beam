@@ -27,13 +27,21 @@
     height: 60px;
   }
   .margin {
-    margin-top: 84px;
-    margin-bottom: 84px;
+    margin-top: 0px;
+    margin-bottom: 30px;
     @media (max-width: $mobile) {
       margin-top: 0;
-      margin-bottom: 64px;
+      margin-bottom: 30px;
     }
   }
+
+  .row-image {
+    display: block;
+    @media (max-width: 1024px) {
+     display: none;
+    }
+  }
+
   .row {
     display: flex;
     justify-content: space-between;
@@ -56,6 +64,10 @@
     }
     .first_logo {
       margin-right: 18px;
+    }
+    #last_logo {
+      margin-left: 18px;
+      width: 55px;
     }
     .column {
       display: flex;

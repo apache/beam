@@ -1,10 +1,8 @@
 ---
 title: "Cloud Dataflow"
-categories:
-  - Commercial
-  - Cloud & Data Analytics
 icon: /images/logo_google_cloud.png
 hasNav: true
+cardDescription: "Google Cloud Dataflow is a fully managed service for executing Apache Beam pipelines within the Google Cloud Platform ecosystem."
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

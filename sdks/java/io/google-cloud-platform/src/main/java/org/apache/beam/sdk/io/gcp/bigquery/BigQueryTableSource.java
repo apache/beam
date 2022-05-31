@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -70,14 +71,16 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
     if (tableSizeBytes.get() == null) {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       TableReference tableRef = tableDef.getTableReference(bqOptions);
-      Table table = bqServices.getDatasetService(bqOptions).getTable(tableRef);
-      Long numBytes = table.getNumBytes();
-      if (table.getStreamingBuffer() != null
-          && table.getStreamingBuffer().getEstimatedBytes() != null) {
-        numBytes += table.getStreamingBuffer().getEstimatedBytes().longValue();
-      }
+      try (DatasetService datasetService = bqServices.getDatasetService(bqOptions)) {
+        Table table = datasetService.getTable(tableRef);
+        Long numBytes = table.getNumBytes();
+        if (table.getStreamingBuffer() != null
+            && table.getStreamingBuffer().getEstimatedBytes() != null) {
+          numBytes += table.getStreamingBuffer().getEstimatedBytes().longValue();
+        }
 
-      tableSizeBytes.compareAndSet(null, numBytes);
+        tableSizeBytes.compareAndSet(null, numBytes);
+      }
     }
     return tableSizeBytes.get();
   }
