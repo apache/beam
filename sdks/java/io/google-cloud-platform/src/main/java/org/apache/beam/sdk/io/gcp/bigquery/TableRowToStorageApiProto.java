@@ -62,6 +62,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Days;
+import java.time.ZoneId;
 
 /**
  * Utility methods for converting JSON {@link TableRow} objects to dynamic protocol message, for use
@@ -69,7 +70,8 @@ import org.joda.time.Days;
  */
 public class TableRowToStorageApiProto {
   // Custom formatter that accepts "2022-05-09 18:04:59.123456"
-  private static DateTimeFormatter DATETIME_SPACE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
+  private static DateTimeFormatter DATETIME_SPACE_FORMATTER =
+      DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSSSSS").withZone(ZoneId.systemDefault());
 
   public static class SchemaConversionException extends Exception {
     SchemaConversionException(String msg) {
@@ -431,10 +433,10 @@ public class TableRowToStorageApiProto {
       case "TIMESTAMP":
         if (value instanceof String) {
           try {
-            // '2011-12-03T10:15:30+01:00' '2011-12-03T10:15:30'
-            return ChronoUnit.MICROS.between(
-                Instant.EPOCH,
-                Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse((String) value)));
+              // '2011-12-03T10:15:30+01:00' '2011-12-03T10:15:30'
+              return ChronoUnit.MICROS.between(
+                  Instant.EPOCH,
+                  Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse((String) value)));
           } catch (DateTimeParseException e2) {
             try {
               // "12345667"

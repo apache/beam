@@ -584,7 +584,7 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV("1970-01-01T00:00:00.000+01:00"),
                   new TableCell().setV("2019-08-16-08:00"),
                   new TableCell().setV("1234567"),
-                  new TableCell().setV("2019-08-16 00:52:07.123456"),
+                  new TableCell().setV("1970-01-01 00:00:00.000343"),
                   new TableCell().setV("2019-08-16 00:52:07.123456")));
 
   private static final TableRow BASE_TABLE_ROW_NO_F =
@@ -610,7 +610,7 @@ public class TableRowToStorageApiProtoTest {
           .set("datetimeISOValue", "1970-01-01T00:00:00.000+01:00")
           .set("dateISOValue", "2019-08-16-08:00")
           .set("timestampValueLong", "1234567")
-          .set("timestampValueSpace", "2019-08-16 00:52:07.123456")
+          .set("timestampValueSpace", "1970-01-01 00:00:00.000343")
           .set("datetimeValueSpace", "2019-08-16 00:52:07.123456");
 
   private static final Map<String, Object> BASE_ROW_EXPECTED_PROTO_VALUES =
@@ -639,9 +639,9 @@ public class TableRowToStorageApiProtoTest {
           .put("timeisovalue", 3497124416L)
           .put("datetimeisovalue", 138630961515462656L)
           .put("dateisovalue", 18124)
-          .put("timestampvaluelong", "1234567")
-          .put("timestampvaluespace", "2019-08-16 00:52:07.123456")
-          .put("datetimeValueSpace", "2019-08-16 00:52:07.123456")
+          .put("timestampvaluelong", 1234567000L)
+          .put("timestampvaluespace", 28800000343L)
+          .put("datetimevaluespace", 142111881387172416L)
           .build();
 
   private static final Map<String, Object> BASE_ROW_NO_F_EXPECTED_PROTO_VALUES =
@@ -669,9 +669,9 @@ public class TableRowToStorageApiProtoTest {
           .put("timeisovalue", 3497124416L)
           .put("datetimeisovalue", 138630961515462656L)
           .put("dateisovalue", 18124)
-          .put("timestampvaluelong", "1234567")
-          .put("timestampvaluespace", "2019-08-16 00:52:07.123456")
-          .put("datetimevaluespace", "2019-08-16 00:52:07.123456")
+          .put("timestampvaluelong", 1234567000L)
+          .put("timestampvaluespace", 28800000343L)
+          .put("datetimevaluespace", 142111881387172416L)
           .build();
 
   private void assertBaseRecord(DynamicMessage msg, boolean withF) {
