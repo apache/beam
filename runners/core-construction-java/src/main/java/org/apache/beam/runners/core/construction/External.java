@@ -115,7 +115,7 @@ public class External {
         Endpoints.ApiServiceDescriptor endpoint,
         ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex,
-        Map<String, Coder> outputCoders) {
+        Map<String, Coder<?>> outputCoders) {
       super(urn, payload, endpoint, clientFactory, namespaceIndex, outputCoders);
     }
 
@@ -135,7 +135,7 @@ public class External {
           getOutputCoders());
     }
 
-    public SingleOutputExpandableTransform<InputT, OutputT> withOutputCoder(Coder outputCoder) {
+    public SingleOutputExpandableTransform<InputT, OutputT> withOutputCoder(Coder<?> outputCoder) {
       return new SingleOutputExpandableTransform<>(
           getUrn(),
           getPayload(),
@@ -155,7 +155,7 @@ public class External {
         Endpoints.ApiServiceDescriptor endpoint,
         ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex,
-        Map<String, Coder> outputCoders) {
+        Map<String, Coder<?>> outputCoders) {
       super(urn, payload, endpoint, clientFactory, namespaceIndex, outputCoders);
     }
 
@@ -170,7 +170,8 @@ public class External {
       return pCollectionTuple;
     }
 
-    public MultiOutputExpandableTransform<InputT> withOutputCoder(Map<String, Coder> outputCoders) {
+    public MultiOutputExpandableTransform<InputT> withOutputCoder(
+        Map<String, Coder<?>> outputCoders) {
       return new MultiOutputExpandableTransform<>(
           getUrn(),
           getPayload(),
@@ -189,13 +190,13 @@ public class External {
     private final Endpoints.ApiServiceDescriptor endpoint;
     private final ExpansionServiceClientFactory clientFactory;
     private final Integer namespaceIndex;
-    private final Map<String, Coder> outputCoders;
+    private final Map<String, Coder<?>> outputCoders;
 
     private transient RunnerApi.@Nullable Components expandedComponents;
     private transient RunnerApi.@Nullable PTransform expandedTransform;
     private transient @Nullable List<String> expandedRequirements;
     private transient @Nullable Map<PCollection, String> externalPCollectionIdMap;
-    private transient @Nullable Map<Coder, String> externalCoderIdMap;
+    private transient @Nullable Map<Coder<?>, String> externalCoderIdMap;
 
     ExpandableTransform(
         String urn,
@@ -203,7 +204,7 @@ public class External {
         Endpoints.ApiServiceDescriptor endpoint,
         ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex,
-        Map<String, Coder> outputCoders) {
+        Map<String, Coder<?>> outputCoders) {
       this.urn = urn;
       this.payload = payload;
       this.endpoint = endpoint;
@@ -315,7 +316,7 @@ public class External {
               });
       externalPCollectionIdMap = externalPCollectionIdMapBuilder.build();
 
-      Map<Coder, String> externalCoderIdMapBuilder = new HashMap<>();
+      Map<Coder<?>, String> externalCoderIdMapBuilder = new HashMap<>();
       expandedComponents
           .getPcollectionsMap()
           .forEach(
@@ -323,7 +324,7 @@ public class External {
                 try {
                   String coderId = pCol.getCoderId();
                   if (isJavaSDKCompatible(expandedComponents, coderId)) {
-                    Coder coder = rehydratedComponents.getCoder(coderId);
+                    Coder<?> coder = rehydratedComponents.getCoder(coderId);
                     externalCoderIdMapBuilder.putIfAbsent(coder, coderId);
                   }
                 } catch (IOException e) {
@@ -450,7 +451,7 @@ public class External {
       return externalPCollectionIdMap;
     }
 
-    Map<Coder, String> getExternalCoderIdMap() {
+    Map<Coder<?>, String> getExternalCoderIdMap() {
       return externalCoderIdMap;
     }
 
@@ -474,7 +475,7 @@ public class External {
       return namespaceIndex;
     }
 
-    Map<String, Coder> getOutputCoders() {
+    Map<String, Coder<?>> getOutputCoders() {
       return outputCoders;
     }
   }
