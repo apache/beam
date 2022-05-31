@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
-import java.io.Serializable;
 import java.nio.ByteBuffer;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.spark.SparkConf;
