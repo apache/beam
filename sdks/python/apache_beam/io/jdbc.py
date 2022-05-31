@@ -323,6 +323,7 @@ class ReadFromJdbc(ExternalTransform):
                             read_query=query,
                             fetch_size=fetch_size,
                             output_parallelization=output_parallelization,
+                            autosharding=None,
                         ))),
         ),
         expansion_service or default_io_expansion_service(classpath),
