@@ -192,6 +192,8 @@ func (tracker *Tracker) TrySplit(fraction float64) (primary, residual interface{
 	}
 
 	// Use Ceil to always round up from float split point.
+	// Use Max to make sure the split point is greater than the current claimed work since
+	// claimed work belongs to the primary.
 	splitPt := tracker.claimed + int64(math.Max(math.Ceil(fraction*float64(tracker.rest.End-tracker.claimed)), 1))
 	if splitPt >= tracker.rest.End {
 		return tracker.rest, nil, nil
