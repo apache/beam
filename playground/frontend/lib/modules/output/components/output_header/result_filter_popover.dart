@@ -24,7 +24,6 @@ import 'package:playground/modules/output/components/output_header/result_filter
 
 const kPopoverWidth = 240.0;
 const kPopoverPadding = 50.0;
-const kDisplayText = 'Display at this tab';
 
 class ResultFilterPopover extends StatelessWidget {
   const ResultFilterPopover({Key? key}) : super(key: key);
@@ -43,7 +42,7 @@ class ResultFilterPopover extends StatelessWidget {
             child: Wrap(
               runSpacing: kMdSpacing,
               children: [
-                const Text('Display at this tab'),
+                Text(appLocale.displayAtThisTab),
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: kSmSpacing,
