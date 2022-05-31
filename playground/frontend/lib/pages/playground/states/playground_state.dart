@@ -102,7 +102,7 @@ class PlaygroundState with ChangeNotifier {
     _source = example.source ?? '';
     _result = null;
     _executionTime = null;
-    outputResult = '';
+    setOutputResult('');
     notifyListeners();
   }
 
@@ -120,6 +120,11 @@ class PlaygroundState with ChangeNotifier {
     notifyListeners();
   }
 
+  setOutputResult(String outputs) {
+    outputResult = outputs;
+    notifyListeners();
+  }
+
   clearOutput() {
     _result = null;
     notifyListeners();
@@ -130,7 +135,7 @@ class PlaygroundState with ChangeNotifier {
     _pipelineOptions = selectedExample?.pipelineOptions ?? '';
     resetKey = DateTime.now();
     _executionTime = null;
-    outputResult = '';
+    setOutputResult('');
     notifyListeners();
   }
 
@@ -169,7 +174,10 @@ class PlaygroundState with ChangeNotifier {
       );
       _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;
-        outputResult = _result!.log! + _result!.output!;
+        String log = event.log ?? '';
+        String output = event.output ?? '';
+        setOutputResult(log + output);
+
         if (event.isFinished && onFinish != null) {
           onFinish();
           _executionTime?.close();
@@ -192,7 +200,7 @@ class PlaygroundState with ChangeNotifier {
       log: (_result?.log ?? '') + kExecutionCancelledText,
       graph: _result?.graph,
     );
-    outputResult = _result!.log! + _result!.output!;
+    setOutputResult(_result!.log! + _result!.output!);
     _executionTime?.close();
     notifyListeners();
   }
@@ -211,7 +219,7 @@ class PlaygroundState with ChangeNotifier {
       log: kCachedResultsLog + logs,
       graph: _selectedExample!.graph,
     );
-    outputResult = _result!.log! + _result!.output!;
+    setOutputResult(_result!.log! + _result!.output!);
     _executionTime?.close();
     notifyListeners();
   }
@@ -250,16 +258,16 @@ class PlaygroundState with ChangeNotifier {
 
     switch (type) {
       case OutputType.all:
-        outputResult = log + output;
+        setOutputResult(log + output);
         break;
       case OutputType.log:
-        outputResult = log;
+        setOutputResult(log);
         break;
       case OutputType.output:
-        outputResult = output;
+        setOutputResult(output);
         break;
-      case OutputType.graph:
-        outputResult = log + output;
+      default:
+        setOutputResult(log + output);
         break;
     }
   }
