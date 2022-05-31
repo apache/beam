@@ -398,7 +398,6 @@ func TestGrowableTracker_SplitBeforeStart(t *testing.T) {
 // that TrySplit always splits at the nearest integer greater than the given
 // fraction.
 func TestGrowableTracker_Splits(t *testing.T) {
-	// rangeEndEstimator := offsetRangeEndEstimator{EstimateRangeEnd: 10}
 	tests := []struct {
 		rest              Restriction
 		claimed           int64
