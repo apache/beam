@@ -433,16 +433,15 @@ public class TableRowToStorageApiProto {
       case "TIMESTAMP":
         if (value instanceof String) {
           try {
-            // "12345667"
-            ChronoUnit.MICROS.between(
-                Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
-          } catch (NumberFormatException e3) {
+            // '2011-12-03T10:15:30+01:00' '2011-12-03T10:15:30'
+            return ChronoUnit.MICROS.between(
+                Instant.EPOCH, Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse((String) value)));
+          } catch (DateTimeParseException e) {
             try {
-              // '2011-12-03T10:15:30+01:00' '2011-12-03T10:15:30'
+              // "12345667"
               return ChronoUnit.MICROS.between(
-                  Instant.EPOCH,
-                  Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse((String) value)));
-            } catch (DateTimeParseException e2) {
+                  Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
+            } catch (NumberFormatException e2) {
               // "yyyy-MM-dd HH:mm:ss.SSSSSS"
               return ChronoUnit.MICROS.between(
                   Instant.EPOCH, Instant.from(DATETIME_SPACE_FORMATTER.parse((String) value)));
