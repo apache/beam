@@ -289,6 +289,9 @@ if __name__ == '__main__':
             # IPython>=8 is not compatible with Python<=3.7
             'ipython>=7,<8;python_version<="3.7"',
             'ipython>=8,<9;python_version>"3.7"',
+            # Transitive IPython dep. Skipped the version due to
+            # https://github.com/ipython/traitlets/pull/739.
+            'traitlets!=5.2.2',
             'ipykernel>=6,<7',
             'ipywidgets>=7.6.5,<8',
             # Skip version 6.1.13 due to
