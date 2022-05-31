@@ -41,6 +41,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
@@ -62,7 +63,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Days;
-import java.time.ZoneId;
 
 /**
  * Utility methods for converting JSON {@link TableRow} objects to dynamic protocol message, for use
@@ -433,20 +433,19 @@ public class TableRowToStorageApiProto {
       case "TIMESTAMP":
         if (value instanceof String) {
           try {
+            // "12345667"
+            return ChronoUnit.MICROS.between(
+                Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
+          } catch (NumberFormatException e3) {
+            try {
               // '2011-12-03T10:15:30+01:00' '2011-12-03T10:15:30'
               return ChronoUnit.MICROS.between(
                   Instant.EPOCH,
                   Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse((String) value)));
-          } catch (DateTimeParseException e2) {
-            try {
-              // "12345667"
-              return ChronoUnit.MICROS.between(
-                  Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
-            } catch (NumberFormatException e3) {
+            } catch (DateTimeParseException e2) {
               // "yyyy-MM-dd HH:mm:ss.SSSSSS"
               return ChronoUnit.MICROS.between(
-                  Instant.EPOCH,
-                  Instant.from(DATETIME_SPACE_FORMATTER.parse((String) value)));
+                  Instant.EPOCH, Instant.from(DATETIME_SPACE_FORMATTER.parse((String) value)));
             }
           }
         } else if (value instanceof Instant) {
@@ -467,9 +466,8 @@ public class TableRowToStorageApiProto {
       case "DATE":
         if (value instanceof String) {
           // '2011-12-03+01:00'; '2011-12-03'
-            return ((Long)
-                          LocalDate.parse((String) value, DateTimeFormatter.ISO_DATE).toEpochDay())
-                  .intValue();
+          return ((Long) LocalDate.parse((String) value, DateTimeFormatter.ISO_DATE).toEpochDay())
+              .intValue();
         } else if (value instanceof LocalDate) {
           return ((Long) ((LocalDate) value).toEpochDay()).intValue();
         } else if (value instanceof org.joda.time.LocalDate) {
@@ -525,8 +523,8 @@ public class TableRowToStorageApiProto {
       case "TIME":
         if (value instanceof String) {
           // '10:15:30+01:00'; '10:15:30'
-              return CivilTimeEncoder.encodePacked64TimeMicros(
-                  LocalTime.parse((String) value, DateTimeFormatter.ISO_TIME));
+          return CivilTimeEncoder.encodePacked64TimeMicros(
+              LocalTime.parse((String) value, DateTimeFormatter.ISO_TIME));
         } else if (value instanceof Number) {
           return ((Number) value).longValue();
         } else if (value instanceof LocalTime) {
