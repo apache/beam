@@ -86,6 +86,9 @@ public class TableRowToStorageApiProtoTest {
                   .add(new TableFieldSchema().setType("TIME").setName("timeISOValue"))
                   .add(new TableFieldSchema().setType("DATETIME").setName("datetimeISOValue"))
                   .add(new TableFieldSchema().setType("DATE").setName("dateISOValue"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueLong"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpace"))
+                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValueSpace"))
                   .build());
 
   private static final TableSchema BASE_TABLE_SCHEMA_NO_F =
@@ -115,6 +118,9 @@ public class TableRowToStorageApiProtoTest {
                   .add(new TableFieldSchema().setType("TIME").setName("timeISOValue"))
                   .add(new TableFieldSchema().setType("DATETIME").setName("datetimeISOValue"))
                   .add(new TableFieldSchema().setType("DATE").setName("dateISOValue"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueLong"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpace"))
+                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValueSpace"))
                   .build());
 
   private static final DescriptorProto BASE_TABLE_SCHEMA_PROTO =
@@ -259,6 +265,27 @@ public class TableRowToStorageApiProtoTest {
                   .setType(Type.TYPE_INT32)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluelong")
+                  .setNumber(21)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluespace")
+                  .setNumber(22)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("datetimevaluespace")
+                  .setNumber(23)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
           .build();
 
   private static final DescriptorProto BASE_TABLE_SCHEMA_NO_F_PROTO =
@@ -394,6 +421,27 @@ public class TableRowToStorageApiProtoTest {
                   .setName("dateisovalue")
                   .setNumber(19)
                   .setType(Type.TYPE_INT32)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluelong")
+                  .setNumber(20)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluespace")
+                  .setNumber(21)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("datetimevaluespace")
+                  .setNumber(21)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .build();
@@ -534,7 +582,10 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV("1970-01-01T00:00:00.000+01:00"),
                   new TableCell().setV("00:52:07.123456-07:00"),
                   new TableCell().setV("1970-01-01T00:00:00.000+01:00"),
-                  new TableCell().setV("2019-08-16-08:00")));
+                  new TableCell().setV("2019-08-16-08:00"),
+                  new TableCell().setV("1234567"),
+                  new TableCell().setV("2019-08-16 00:52:07.123456"),
+                  new TableCell().setV("2019-08-16 00:52:07.123456")));
 
   private static final TableRow BASE_TABLE_ROW_NO_F =
       new TableRow()
@@ -557,7 +608,10 @@ public class TableRowToStorageApiProtoTest {
           .set("timestampISOValue", "1970-01-01T00:00:00.000+01:00")
           .set("timeISOValue", "00:52:07.123456-07:00")
           .set("datetimeISOValue", "1970-01-01T00:00:00.000+01:00")
-          .set("dateISOValue", "2019-08-16-08:00");
+          .set("dateISOValue", "2019-08-16-08:00")
+          .set("timestampValueLong", "1234567")
+          .set("timestampValueSpace", "2019-08-16 00:52:07.123456")
+          .set("datetimeValueSpace", "2019-08-16 00:52:07.123456");
 
   private static final Map<String, Object> BASE_ROW_EXPECTED_PROTO_VALUES =
       ImmutableMap.<String, Object>builder()
@@ -585,6 +639,9 @@ public class TableRowToStorageApiProtoTest {
           .put("timeisovalue", 3497124416L)
           .put("datetimeisovalue", 138630961515462656L)
           .put("dateisovalue", 18124)
+          .put("timestampvaluelong", "1234567")
+          .put("timestampvaluespace", "2019-08-16 00:52:07.123456")
+          .put("datetimeValueSpace", "2019-08-16 00:52:07.123456")
           .build();
 
   private static final Map<String, Object> BASE_ROW_NO_F_EXPECTED_PROTO_VALUES =
@@ -612,6 +669,9 @@ public class TableRowToStorageApiProtoTest {
           .put("timeisovalue", 3497124416L)
           .put("datetimeisovalue", 138630961515462656L)
           .put("dateisovalue", 18124)
+          .put("timestampvaluelong", "1234567")
+          .put("timestampvaluespace", "2019-08-16 00:52:07.123456")
+          .put("datetimevaluespace", "2019-08-16 00:52:07.123456")
           .build();
 
   private void assertBaseRecord(DynamicMessage msg, boolean withF) {

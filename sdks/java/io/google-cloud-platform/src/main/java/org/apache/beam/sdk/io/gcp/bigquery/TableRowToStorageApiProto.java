@@ -68,6 +68,9 @@ import org.joda.time.Days;
  * with the Storage write API.
  */
 public class TableRowToStorageApiProto {
+  // Custom formatter that accepts "2022-05-09 18:04:59.123456"
+  private static DateTimeFormatter DATETIME_SPACE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
+
   public static class SchemaConversionException extends Exception {
     SchemaConversionException(String msg) {
       super(msg);
@@ -428,15 +431,20 @@ public class TableRowToStorageApiProto {
       case "TIMESTAMP":
         if (value instanceof String) {
           try {
+            // '2011-12-03T10:15:30+01:00' '2011-12-03T10:15:30'
             return ChronoUnit.MICROS.between(
                 Instant.EPOCH,
-                Instant.from(DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse((String) value)));
-          } catch (DateTimeParseException e) {
+                Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse((String) value)));
+          } catch (DateTimeParseException e2) {
             try {
-              return ChronoUnit.MICROS.between(Instant.EPOCH, Instant.parse((String) value));
-            } catch (DateTimeParseException e2) {
+              // "12345667"
               return ChronoUnit.MICROS.between(
                   Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
+            } catch (NumberFormatException e3) {
+              // "yyyy-MM-dd HH:mm:ss.SSSSSS"
+              return ChronoUnit.MICROS.between(
+                  Instant.EPOCH,
+                  Instant.from(DATETIME_SPACE_FORMATTER.parse((String) value)));
             }
           }
         } else if (value instanceof Instant) {
@@ -456,14 +464,10 @@ public class TableRowToStorageApiProto {
         break;
       case "DATE":
         if (value instanceof String) {
-          try {
+          // '2011-12-03+01:00'; '2011-12-03'
             return ((Long)
-                    LocalDate.parse((String) value, DateTimeFormatter.ISO_OFFSET_DATE).toEpochDay())
-                .intValue();
-          } catch (DateTimeParseException e) {
-            return ((Long) LocalDate.parse((String) value).toEpochDay()).intValue();
-          }
-
+                          LocalDate.parse((String) value, DateTimeFormatter.ISO_DATE).toEpochDay())
+                  .intValue();
         } else if (value instanceof LocalDate) {
           return ((Long) ((LocalDate) value).toEpochDay()).intValue();
         } else if (value instanceof org.joda.time.LocalDate) {
@@ -500,11 +504,19 @@ public class TableRowToStorageApiProto {
       case "DATETIME":
         if (value instanceof String) {
           try {
-            return CivilTimeEncoder.encodePacked64DatetimeMicros(
-                LocalDateTime.parse((String) value, DateTimeFormatter.ISO_OFFSET_DATE_TIME));
-          } catch (DateTimeParseException e) {
+            // '2011-12-03T10:15:30'
             return CivilTimeEncoder.encodePacked64DatetimeMicros(
                 LocalDateTime.parse((String) value));
+          } catch (DateTimeParseException e) {
+            try {
+              // '2011-12-03T10:15:30+07'
+              return CivilTimeEncoder.encodePacked64DatetimeMicros(
+                  LocalDateTime.parse((String) value, DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+            } catch (DateTimeParseException e2) {
+              // '2011-12-03 10:15:30'
+              return CivilTimeEncoder.encodePacked64DatetimeMicros(
+                  LocalDateTime.parse((String) value, DATETIME_SPACE_FORMATTER));
+            }
           }
         } else if (value instanceof Number) {
           return ((Number) value).longValue();
@@ -516,12 +528,9 @@ public class TableRowToStorageApiProto {
         break;
       case "TIME":
         if (value instanceof String) {
-          try {
-            return CivilTimeEncoder.encodePacked64TimeMicros(
-                LocalTime.parse((String) value, DateTimeFormatter.ISO_OFFSET_TIME));
-          } catch (DateTimeParseException e) {
-            return CivilTimeEncoder.encodePacked64TimeMicros(LocalTime.parse((String) value));
-          }
+          // '10:15:30+01:00'; '10:15:30'
+              return CivilTimeEncoder.encodePacked64TimeMicros(
+                  LocalTime.parse((String) value, DateTimeFormatter.ISO_TIME));
         } else if (value instanceof Number) {
           return ((Number) value).longValue();
         } else if (value instanceof LocalTime) {
