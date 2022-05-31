@@ -52,7 +52,7 @@ func (fn *readResourceFn) Setup() {
 	fn.readResourceLatencyMs = beam.NewDistribution(fn.String(), baseMetricPrefix+"read_resource_latency_ms")
 }
 
-func (fn *readResourceFn) ProcessElement(ctx context.Context, resourcePath string, emitResource func(string), emitDeadLetter func(string)) {
+func (fn *readResourceFn) ProcessElement(ctx context.Context, resourcePath string, emitResource, emitDeadLetter func(string)) {
 	timeBeforeReadRequest := time.Now()
 	response, err := fn.client.readResource(resourcePath)
 	fn.readResourceLatencyMs.Update(ctx, time.Now().Sub(timeBeforeReadRequest).Milliseconds())
