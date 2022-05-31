@@ -181,25 +181,20 @@ class ReadAllFromAvro(PTransform):
         name and the value being the actual data. If False, it only returns
         the data.
     """
-    self._source_from_file = partial(
+    source_from_file = partial(
         _create_avro_source, min_bundle_size=min_bundle_size)
-    self._desired_bundle_size = desired_bundle_size
-    self._min_bundle_size = min_bundle_size
-    self._with_filename = with_filename
-    self.label = label
-
-  def _set_read_all_files(self):
-    """Helper function to set _read_all_files PTransform in constructor."""
-    return filebasedsource.ReadAllFiles(
+    self._read_all_files = filebasedsource.ReadAllFiles(
         True,
         CompressionTypes.AUTO,
-        self._desired_bundle_size,
-        self._min_bundle_size,
-        self._source_from_file,
-        self._with_filename)
+        desired_bundle_size,
+        min_bundle_size,
+        source_from_file,
+        with_filename)
+
+    self.label = label
 
   def expand(self, pvalue):
-    return pvalue | self.label >> self._set_read_all_files()
+    return pvalue | self.label >> self._read_all_files
 
 
 class ReadAllFromAvroContinuously(ReadAllFromAvro):
@@ -214,37 +209,52 @@ class ReadAllFromAvroContinuously(ReadAllFromAvro):
   guarantees. Due to the limitation on Reshuffle, current implementation does
   not scale.
   """
+  _ARGS_FOR_MATCH = (
+      'interval',
+      'has_deduplication',
+      'start_timestamp',
+      'stop_timestamp',
+      'match_updated_files',
+      'apply_windowing')
+  _ARGS_FOR_READ = (
+      'min_bundle_size',
+      'desired_bundle_size',
+      'use_fastavro',
+      'with_filename',
+      'label')
+
   def __init__(self, file_pattern, label='ReadAllFilesContinuously', **kwargs):
     """Initialize the ``ReadAllFromAvroContinuously`` transform.
 
-    Accepts args for constructor args of both ``ReadAllFromAvro`` and
-    ``apache_beam.io.fileio.MatchContinuously``.
+    Accepts args for constructor args of both :class:`ReadAllFromAvro` and
+    :class:`~apache_beam.io.fileio.MatchContinuously`.
     """
     kwargs_for_match = {
         k: v
-        for (k, v) in kwargs.items()
-        if k in filebasedsource.ReadAllFilesContinuously.ARGS_FOR_MATCH
+        for (k, v) in kwargs.items() if k in self._ARGS_FOR_MATCH
     }
     kwargs_for_read = {
         k: v
-        for (k, v) in kwargs.items()
-        if k not in filebasedsource.ReadAllFilesContinuously.ARGS_FOR_MATCH
+        for (k, v) in kwargs.items() if k in self._ARGS_FOR_READ
     }
-    super().__init__(label=label, **kwargs_for_read)
+    kwargs_additinal = {
+        k: v
+        for (k, v) in kwargs.items()
+        if k not in self._ARGS_FOR_MATCH and k not in self._ARGS_FOR_READ
+    }
+    super().__init__(label=label, **kwargs_for_read, **kwargs_additinal)
     self._file_pattern = file_pattern
     self._kwargs_for_match = kwargs_for_match
 
-  def _set_read_all_files(self):
-    """Overwrites ``ReadAllFromText._set_read_all_files``."""
-    return filebasedsource.ReadAllFilesContinuously(
-        self._file_pattern,
-        True,
-        CompressionTypes.AUTO,
-        self._desired_bundle_size,
-        self._min_bundle_size,
-        self._source_from_file,
-        self._with_filename,
-        **self._kwargs_for_match)
+  def expand(self, pbegin):
+    # Importing locally to prevent circular dependency issues.
+    from apache_beam.io.fileio import MatchContinuously
+
+    # TODO(BEAM-14497) always reshuffle once gbk always trigger works.
+    return (
+        pbegin
+        | MatchContinuously(self._file_pattern, **self._kwargs_for_match)
+        | 'ReadAllFiles' >> self._read_all_files._disable_reshuffle())
 
 
 class _AvroUtils(object):
