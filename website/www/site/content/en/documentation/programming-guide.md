@@ -6264,7 +6264,7 @@ The watermark state is a user-defined object which is used to create a `Watermar
 `WatermarkEstimatorProvider`. The simplest watermark state could be a `timestamp`.
 
 The watermark estimator provider lets SDF authors define how to initialize the watermark state and
-create a watermark estimator. In [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.ProcessElement.html)  and [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#ParDo)
+create a watermark estimator. In [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.ProcessElement.html) and [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#ParDo)
 this is the `DoFn`. [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.WatermarkEstimatorProvider)
 has a dedicated `WatermarkEstimatorProvider` type.
 
