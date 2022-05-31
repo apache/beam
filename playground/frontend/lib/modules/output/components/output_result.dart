@@ -36,7 +36,7 @@ class _OutputResultState extends State<OutputResult> {
 
   @override
   void didUpdateWidget(OutputResult oldWidget) {
-    WidgetsBinding.instance?.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients &&
           !widget.isSelected &&
           oldWidget.text != widget.text) {
@@ -51,8 +51,8 @@ class _OutputResultState extends State<OutputResult> {
     return SingleChildScrollView(
       controller: _scrollController,
       child: Scrollbar(
-        isAlwaysShown: true,
-        showTrackOnHover: true,
+        thumbVisibility: true,
+        trackVisibility: true,
         controller: _scrollController,
         child: Padding(
           padding: const EdgeInsets.all(kXlSpacing),

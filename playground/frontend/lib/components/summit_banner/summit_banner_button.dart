@@ -16,36 +16,29 @@
  * limitations under the License.
  */
 
+import 'package:aligned_dialog/aligned_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:playground/components/summit_banner/banner_description.dart';
 import 'package:playground/constants/assets.dart';
-import 'package:playground/constants/params.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-const kTryPlaygroundButtonWidth = 200.0;
-const kTryPlaygroundButtonHeight = 40.0;
-
-class EmbeddedActions extends StatelessWidget {
-  const EmbeddedActions({Key? key}) : super(key: key);
+class SummitBanner extends StatelessWidget {
+  const SummitBanner({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(kMdSpacing),
-      child: SizedBox(
-        width: kTryPlaygroundButtonWidth,
-        height: kTryPlaygroundButtonHeight,
-        child: ElevatedButton.icon(
-          icon: SvgPicture.asset(kLinkIconAsset),
-          label: Text(AppLocalizations.of(context)!.tryInPlayground),
-          onPressed: () {
-            final exampleId = Uri.base.queryParameters[kExampleParam];
-            launchUrl(Uri.parse('/?$kExampleParam=$exampleId'));
-          },
-        ),
-      ),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onHover: (_) {
+        showAlignedDialog(
+          context: context,
+          builder: (dialogContext) => const BannerDescription(),
+          followerAnchor: Alignment.topRight,
+          targetAnchor: Alignment.topRight,
+          barrierColor: Colors.transparent,
+        );
+      },
+      child: SvgPicture.asset(kSummitBannerAsset),
     );
   }
 }
