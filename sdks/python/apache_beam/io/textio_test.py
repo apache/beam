@@ -1382,7 +1382,7 @@ class TextSinkTest(unittest.TestCase):
     if not name:
       name = tempfile.template
     file_name = tempfile.NamedTemporaryFile(
-        delete=False, prefix=name, dir=self.tempdir, suffix=suffix).name
+        delete=True, prefix=name, dir=self.tempdir, suffix=suffix).name
     return file_name
 
   def _write_lines(self, sink, lines):
@@ -1573,6 +1573,24 @@ class TextSinkTest(unittest.TestCase):
 
     self.assertEqual(sorted(read_result[:-1]), sorted(self.lines))
     self.assertEqual(read_result[-1], footer_text.encode('utf-8'))
+
+  def test_write_empty(self):
+    with TestPipeline() as p:
+      # pylint: disable=expression-not-assigned
+      p | beam.core.Create([]) | WriteToText(self.path)
+
+    outputs = glob.glob(self.path + '*')
+    self.assertEqual(len(outputs), 1)
+    with open(outputs[0], 'rb') as f:
+      self.assertEqual(list(f.read().splitlines()), [])
+
+  def test_write_empty_skipped(self):
+    with TestPipeline() as p:
+      # pylint: disable=expression-not-assigned
+      p | beam.core.Create([]) | WriteToText(self.path, skip_if_empty=True)
+
+    outputs = list(glob.glob(self.path + '*'))
+    self.assertEqual(outputs, [])
 
 
 if __name__ == '__main__':

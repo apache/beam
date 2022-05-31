@@ -30,7 +30,7 @@ import { PipelineContext } from "../internal/pipeline";
 import { deserializeFn } from "../internal/serialize";
 import { Coder, Context as CoderContext } from "../coders/coders";
 import { Window, Instant, PaneInfo, WindowedValue } from "../values";
-import { ParDo, DoFn, ParDoParam } from "../transforms/pardo";
+import { parDo, DoFn, ParDoParam, SplitOptions } from "../transforms/pardo";
 import { WindowFn } from "../transforms/window";
 
 import {
@@ -445,42 +445,37 @@ class IdentityParDoOperator implements IOperator {
 
 class SplittingDoFnOperator implements IOperator {
   constructor(
-    private splitter: (any) => string,
-    private receivers: { [key: string]: Receiver }
+    private receivers: { [key: string]: Receiver },
+    private options: SplitOptions
   ) {}
 
   async startBundle() {}
 
   process(wvalue: WindowedValue<unknown>) {
-    const tag = this.splitter(wvalue.value);
-    const receiver = this.receivers[tag];
-    if (receiver) {
-      return receiver.receive(wvalue);
-    } else {
-      // TODO: (API) Make this configurable.
+    const result = new ProcessResultBuilder();
+    const keys = Object.keys(wvalue.value as object);
+    if (this.options.exclusive && keys.length != 1) {
       throw new Error(
-        "Unexpected tag '" +
-          tag +
-          "' for " +
-          wvalue.value +
-          " not in " +
-          [...Object.keys(this.receivers)]
+        "Multiple keys for exclusively split element: " + wvalue.value
       );
     }
-  }
-
-  async finishBundle() {}
-}
-
-class Splitting2DoFnOperator implements IOperator {
-  constructor(private receivers: { [key: string]: Receiver }) {}
-
-  async startBundle() {}
-
-  process(wvalue: WindowedValue<unknown>) {
-    const result = new ProcessResultBuilder();
-    // TODO: (API) Should I exactly one instead of allowing a union?
-    for (const tag of Object.keys(wvalue.value as object)) {
+    for (let tag of keys) {
+      if (!this.options.knownTags!.includes(tag)) {
+        if (this.options.unknownTagBehavior == "rename") {
+          tag = this.options.unknownTagName!;
+        } else if (this.options.unknownTagBehavior == "ignore") {
+          continue;
+        } else {
+          throw new Error(
+            "Unexpected tag '" +
+              tag +
+              "' for " +
+              wvalue.value +
+              " not in " +
+              this.options.knownTags
+          );
+        }
+      }
       const receiver = this.receivers[tag];
       if (receiver) {
         result.add(
@@ -490,16 +485,6 @@ class Splitting2DoFnOperator implements IOperator {
             timestamp: wvalue.timestamp,
             pane: wvalue.pane,
           })
-        );
-      } else {
-        // TODO: (API) Make this configurable.
-        throw new Error(
-          "Unexpected tag '" +
-            tag +
-            "' for " +
-            wvalue.value +
-            " not in " +
-            [...Object.keys(this.receivers)]
         );
       }
     }
@@ -558,7 +543,7 @@ class AssignTimestampsParDoOperator implements IOperator {
 }
 
 registerOperatorConstructor(
-  ParDo.urn,
+  parDo.urn,
   (transformId: string, transform: PTransform, context: OperatorContext) => {
     const receiver = context.getReceiver(
       onlyElement(Object.values(transform.outputs))
@@ -590,22 +575,13 @@ registerOperatorConstructor(
       );
     } else if (spec.doFn?.urn == urns.SPLITTING_JS_DOFN_URN) {
       return new SplittingDoFnOperator(
-        deserializeFn(spec.doFn.payload!).splitter,
         Object.fromEntries(
           Object.entries(transform.outputs).map(([tag, pcId]) => [
             tag,
             context.getReceiver(pcId),
           ])
-        )
-      );
-    } else if (spec.doFn?.urn == urns.SPLITTING2_JS_DOFN_URN) {
-      return new Splitting2DoFnOperator(
-        Object.fromEntries(
-          Object.entries(transform.outputs).map(([tag, pcId]) => [
-            tag,
-            context.getReceiver(pcId),
-          ])
-        )
+        ),
+        deserializeFn(spec.doFn.payload!)
       );
     } else {
       throw new Error("Unknown DoFn type: " + spec);

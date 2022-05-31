@@ -23,7 +23,12 @@ import { GeneralObjectCoder } from "../coders/js_coders";
 import { PCollection } from "../pvalue";
 import { Pipeline } from "../internal/pipeline";
 import { serializeFn } from "../internal/serialize";
-import { PTransform, extractName } from "./transform";
+import {
+  PTransform,
+  PTransformClass,
+  withName,
+  extractName,
+} from "./transform";
 import { PaneInfo, Instant, Window, WindowedValue } from "../values";
 
 export interface DoFn<InputT, OutputT, ContextT = undefined> {
@@ -40,46 +45,36 @@ export interface DoFn<InputT, OutputT, ContextT = undefined> {
 // TODO: (API) Do we need an AsyncDoFn (and async[Flat]Map) to be able to call
 // async functions in the body of the fns. Or can they always be Async?
 // The latter seems to have perf issues.
-// (For PTransforms, it's a major usability issue, but maybe we can always
+// (For PTransformClasss, it's a major usability issue, but maybe we can always
 // await when calling user code.  OTOH, I don't know what the performance
 // impact would be for creating promises for every element of every operation
 // which is typically a very performance critical spot to optimize.)
 
-export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
-  PCollection<InputT>,
-  PCollection<OutputT>
-> {
-  private doFn: DoFn<InputT, OutputT, ContextT>;
-  private context: ContextT;
-  // static urn: string = runnerApi.StandardPTransforms_Primitives.PAR_DO.urn;
-  // TODO: (Cleanup) use above line, not below line.
-  static urn: string = "beam:transform:pardo:v1";
-  // TODO: (Typescript) Can the arg be optional iff ContextT is undefined?
-  constructor(
-    doFn: DoFn<InputT, OutputT, ContextT>,
-    contextx: ContextT = undefined!
-  ) {
-    super(() => "ParDo(" + extractName(doFn) + ")");
-    this.doFn = doFn;
-    this.context = contextx;
-  }
-
-  expandInternal(
+// TODO: (Typescript) Can the context arg be optional iff ContextT is undefined?
+export function parDo<
+  InputT,
+  OutputT,
+  ContextT extends Object | undefined = undefined
+>(
+  doFn: DoFn<InputT, OutputT, ContextT>,
+  context: ContextT = undefined!
+): PTransform<PCollection<InputT>, PCollection<OutputT>> {
+  function expandInternal(
     input: PCollection<InputT>,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform
   ) {
     // Extract and populate side inputs from the context.
-    var context;
     const sideInputs = {};
-    if (typeof this.context == "object") {
-      context = Object.create(this.context as Object);
+    var contextCopy;
+    if (typeof context == "object") {
+      contextCopy = Object.create(context as Object) as any;
       const components = pipeline.context.components;
-      for (const [name, value] of Object.entries(this.context)) {
+      for (const [name, value] of Object.entries(context)) {
         if (value instanceof SideInputParam) {
           const inputName = "side." + name;
           transformProto.inputs[inputName] = value.pcoll.getId();
-          context[name] = copySideInputWithId(value, inputName);
+          contextCopy[name] = copySideInputWithId(value, inputName);
           const mainWindowingStrategyId =
             components.pcollections[input.getId()].windowingStrategyId;
           const sideWindowingStrategyId =
@@ -109,23 +104,23 @@ export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
             },
           };
         } else {
-          context[name] = value;
+          contextCopy[name] = value;
         }
       }
     } else {
-      context = this.context;
+      contextCopy = context;
     }
 
     // Now finally construct the proto.
     transformProto.spec = runnerApi.FunctionSpec.create({
-      urn: ParDo.urn,
+      urn: parDo.urn,
       payload: runnerApi.ParDoPayload.toBinary(
         runnerApi.ParDoPayload.create({
           doFn: runnerApi.FunctionSpec.create({
             urn: urns.SERIALIZED_JS_DOFN_INFO,
             payload: serializeFn({
-              doFn: this.doFn,
-              context: context,
+              doFn: doFn,
+              context: contextCopy,
             }),
           }),
           sideInputs: sideInputs,
@@ -140,89 +135,68 @@ export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
       new GeneralObjectCoder()
     );
   }
+
+  return withName(`parDo(${extractName(doFn)})`, expandInternal);
 }
 
+// TODO: (Cleanup) use runnerApi.StandardPTransformClasss_Primitives.PAR_DO.urn.
+parDo.urn = "beam:transform:pardo:v1";
+
+export type SplitOptions = {
+  knownTags?: string[];
+  unknownTagBehavior?: "error" | "ignore" | "rename" | undefined;
+  unknownTagName?: string;
+  exclusive?: boolean;
+};
+
+/**
+ * Splits a single PCollection of objects, with keys k, into an object of
+ * PCollections, with the same keys k, where each PCollection consists of the
+ * values associated with that key. That is,
+ *
+ * PCollection<{a: T, b: U, ...}> maps to {a: PCollection<T>, b: PCollection<U>, ...}
+ */
 // TODO: (API) Consider as top-level method.
 // TODO: Naming.
-// TODO: Allow default?  Technically splitter can be implemented/wrapped to produce such.
-// TODO: Can we enforce splitter's output with the typing system to lie in targets?
-// TODO: (Optionally?) delete the switched-on field.
-// TODO: (API) Consider doing
-//     [{a: aValue}, {g: bValue}, ...] => a: [aValue, ...], b: [bValue, ...]
-// instead of
-//     [{key: 'a', aValueFields}, {key: 'b', bValueFields}, ...] =>
-//          a: [{key: 'a', aValueFields}, ...], b: [{key: 'b', aValueFields}, ...],
-// (implemented below as Split2).
-export class Split<T> extends PTransform<
-  PCollection<T>,
-  { [key: string]: PCollection<T> }
-> {
-  private tags: string[];
-  constructor(private splitter: (T) => string, ...tags: string[]) {
-    super("Split(" + tags + ")");
-    this.tags = tags;
-  }
-  expandInternal(
+export function split<T extends { [key: string]: unknown }>(
+  tags: string[],
+  options: SplitOptions = {}
+): PTransform<PCollection<T>, { [P in keyof T]: PCollection<T[P]> }> {
+  function expandInternal(
     input: PCollection<T>,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform
   ) {
+    if (options.exclusive === undefined) {
+      options.exclusive = true;
+    }
+    if (options.unknownTagBehavior === undefined) {
+      options.unknownTagBehavior = "error";
+    }
+    if (
+      options.unknownTagBehavior == "rename" &&
+      !tags.includes(options.unknownTagName!)
+    ) {
+      tags.push(options.unknownTagName!);
+    }
+    if (options.knownTags === undefined) {
+      options.knownTags = tags;
+    }
+
     transformProto.spec = runnerApi.FunctionSpec.create({
-      urn: ParDo.urn,
+      urn: parDo.urn,
       payload: runnerApi.ParDoPayload.toBinary(
         runnerApi.ParDoPayload.create({
           doFn: runnerApi.FunctionSpec.create({
             urn: urns.SPLITTING_JS_DOFN_URN,
-            payload: serializeFn({ splitter: this.splitter }),
+            payload: serializeFn(options),
           }),
         })
       ),
     });
 
-    const this_ = this;
     return Object.fromEntries(
-      this_.tags.map((tag) => [
-        tag,
-        pipeline.createPCollectionInternal<T>(
-          pipeline.context.getPCollectionCoderId(input)
-        ),
-      ])
-    );
-  }
-}
-
-// TODO: (Typescript) Is it possible to type that this takes
-// PCollection<{a: T, b: U, ...}> to {a: PCollection<T>, b: PCollection<U>, ...}
-// Seems to requires a cast inside expandInternal. But at least the cast is contained there.
-export class Split2<T extends { [key: string]: unknown }> extends PTransform<
-  PCollection<T>,
-  { [P in keyof T]: PCollection<T[P]> }
-> {
-  private tags: string[];
-  constructor(...tags: string[]) {
-    super("Split2(" + tags + ")");
-    this.tags = tags;
-  }
-  expandInternal(
-    input: PCollection<T>,
-    pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
-  ) {
-    transformProto.spec = runnerApi.FunctionSpec.create({
-      urn: ParDo.urn,
-      payload: runnerApi.ParDoPayload.toBinary(
-        runnerApi.ParDoPayload.create({
-          doFn: runnerApi.FunctionSpec.create({
-            urn: urns.SPLITTING2_JS_DOFN_URN,
-            payload: new Uint8Array(),
-          }),
-        })
-      ),
-    });
-
-    const this_ = this;
-    return Object.fromEntries(
-      this_.tags.map((tag) => [
+      tags.map((tag) => [
         tag,
         pipeline.createPCollectionInternal<T[typeof tag]>(
           pipeline.context.getPCollectionCoderId(input)
@@ -230,6 +204,8 @@ export class Split2<T extends { [key: string]: unknown }> extends PTransform<
       ])
     ) as { [P in keyof T]: PCollection<T[P]> };
   }
+
+  return withName(`Split(${tags})`, expandInternal);
 }
 
 /*
@@ -238,15 +214,11 @@ export class Split2<T extends { [key: string]: unknown }> extends PTransform<
  * special `lookup` method to retrieve the relevant value associated with the
  * currently-being-processed element.
  */
-export abstract class ParDoParam<T> {
-  readonly parDoParamName: string;
-
+export class ParDoParam<T> {
   // Provided externally.
   private provider: ParamProvider | undefined;
 
-  constructor(parDoParamName: string) {
-    this.parDoParamName = parDoParamName;
-  }
+  constructor(readonly parDoParamName: string) {}
 
   // TODO: Nameing "get" seems to be special.
   lookup(): T {
@@ -266,23 +238,17 @@ export interface ParamProvider {
   provide<T>(param: ParDoParam<T>): T;
 }
 
-export class WindowParam extends ParDoParam<Window> {
-  constructor() {
-    super("window");
-  }
+export function windowParam(): ParDoParam<Window> {
+  return new ParDoParam<Window>("window");
 }
 
-export class TimestampParam extends ParDoParam<Instant> {
-  constructor() {
-    super("timestamp");
-  }
+export function timestampParam(): ParDoParam<Instant> {
+  return new ParDoParam<Instant>("timestamp");
 }
 
 // TODO: Naming. Should this be PaneParam?
-export class PaneInfoParam extends ParDoParam<PaneInfo> {
-  constructor() {
-    super("paneinfo");
-  }
+export function paneInfoParam(): ParDoParam<PaneInfo> {
+  return new ParDoParam<PaneInfo>("paneinfo");
 }
 
 interface SideInputAccessor<PCollT, AccessorT, ValueT> {
@@ -330,35 +296,32 @@ function copySideInputWithId<PCollT, AccessorT, ValueT>(
   return copy;
 }
 
-export class IterableSideInput<T> extends SideInputParam<
-  T,
-  Iterable<T>,
-  Iterable<T>
-> {
-  constructor(pcoll: PCollection<T>) {
-    super(pcoll, {
-      accessPattern: "beam:side_input:iterable:v1",
-      toValue: (iter: Iterable<T>) => iter,
-    });
-  }
+export function iterableSideInput<T>(
+  pcoll: PCollection<T>
+): SideInputParam<T, Iterable<T>, Iterable<T>> {
+  return new SideInputParam<T, Iterable<T>, Iterable<T>>(pcoll, {
+    accessPattern: "beam:side_input:iterable:v1",
+    toValue: (iter: Iterable<T>) => iter,
+  });
 }
 
-export class SingletonSideInput<T> extends SideInputParam<T, Iterable<T>, T> {
-  constructor(pcoll: PCollection<T>, defaultValue: T | undefined = undefined) {
-    super(pcoll, {
-      accessPattern: "beam:side_input:iterable:v1",
-      toValue: (iter: Iterable<T>) => {
-        const asArray = Array.from(iter);
-        if (asArray.length == 0 && defaultValue != undefined) {
-          return defaultValue;
-        } else if (asArray.length == 1) {
-          return asArray[0];
-        } else {
-          throw new Error("Expected a single element, got " + asArray.length);
-        }
-      },
-    });
-  }
+export function singletonSideInput<T>(
+  pcoll: PCollection<T>,
+  defaultValue: T | undefined = undefined
+): SideInputParam<T, Iterable<T>, T> {
+  return new SideInputParam<T, Iterable<T>, T>(pcoll, {
+    accessPattern: "beam:side_input:iterable:v1",
+    toValue: (iter: Iterable<T>) => {
+      const asArray = Array.from(iter);
+      if (asArray.length == 0 && defaultValue != undefined) {
+        return defaultValue;
+      } else if (asArray.length == 1) {
+        return asArray[0];
+      } else {
+        throw new Error("Expected a single element, got " + asArray.length);
+      }
+    },
+  });
 }
 
 // TODO: (Extension) Map side inputs.

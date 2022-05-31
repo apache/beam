@@ -140,13 +140,42 @@ dependencies {
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.args4j
-  implementation "org.apache.flink:flink-clients_2.12:$flink_version"
-  // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in implementation
-  // configuration (https://issues.apache.org/jira/browse/BEAM-11732).
-  permitUnusedDeclared "org.apache.flink:flink-clients_2.12:$flink_version"
+
+  // Flink 1.15 shades all remaining scala dependencies and therefor does not depend on a specific version of Scala anymore
+  if (flink_version.compareTo("1.15") >= 0) {
+    implementation "org.apache.flink:flink-clients:$flink_version"
+    // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in implementation
+    // configuration (https://issues.apache.org/jira/browse/BEAM-11732).
+    permitUnusedDeclared "org.apache.flink:flink-clients:$flink_version"
+
+    implementation "org.apache.flink:flink-streaming-java:$flink_version"
+    // RocksDB state backend (included in the Flink distribution)
+    provided "org.apache.flink:flink-statebackend-rocksdb:$flink_version"
+    testImplementation "org.apache.flink:flink-statebackend-rocksdb:$flink_version"
+    testImplementation "org.apache.flink:flink-streaming-java:$flink_version:tests"
+    testImplementation "org.apache.flink:flink-test-utils:$flink_version"
+
+    miniCluster "org.apache.flink:flink-runtime-web:$flink_version"
+  } else {
+    implementation "org.apache.flink:flink-clients_2.12:$flink_version"
+    // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in implementation
+    // configuration (https://issues.apache.org/jira/browse/BEAM-11732).
+    permitUnusedDeclared "org.apache.flink:flink-clients_2.12:$flink_version"
+
+    implementation "org.apache.flink:flink-streaming-java_2.12:$flink_version"
+    // RocksDB state backend (included in the Flink distribution)
+    provided "org.apache.flink:flink-statebackend-rocksdb_2.12:$flink_version"
+    testImplementation "org.apache.flink:flink-statebackend-rocksdb_2.12:$flink_version"
+    testImplementation "org.apache.flink:flink-streaming-java_2.12:$flink_version:tests"
+    testImplementation "org.apache.flink:flink-test-utils_2.12:$flink_version"
+
+    miniCluster "org.apache.flink:flink-runtime-web_2.12:$flink_version"
+  }
+
   implementation "org.apache.flink:flink-core:$flink_version"
   implementation "org.apache.flink:flink-metrics-core:$flink_version"
   implementation "org.apache.flink:flink-java:$flink_version"
+
   if (flink_version.compareTo("1.14") >= 0) {
     implementation "org.apache.flink:flink-runtime:$flink_version"
     implementation "org.apache.flink:flink-optimizer:$flink_version"
@@ -157,10 +186,6 @@ dependencies {
     implementation "org.apache.flink:flink-optimizer_2.12:$flink_version"
     testImplementation "org.apache.flink:flink-runtime_2.12:$flink_version:tests"
   }
-  implementation "org.apache.flink:flink-streaming-java_2.12:$flink_version"
-  // RocksDB state backend (included in the Flink distribution)
-  provided "org.apache.flink:flink-statebackend-rocksdb_2.12:$flink_version"
-  testImplementation "org.apache.flink:flink-statebackend-rocksdb_2.12:$flink_version"
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
@@ -172,14 +197,11 @@ dependencies {
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation library.java.jackson_dataformat_yaml
   testImplementation "org.apache.flink:flink-core:$flink_version:tests"
-  testImplementation "org.apache.flink:flink-streaming-java_2.12:$flink_version:tests"
-  testImplementation "org.apache.flink:flink-test-utils_2.12:$flink_version"
   testImplementation project(":sdks:java:harness")
   testRuntimeOnly library.java.slf4j_simple
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   validatesRunner project(project.path)
-  miniCluster "org.apache.flink:flink-runtime-web_2.12:$flink_version"
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
@@ -198,7 +220,13 @@ class ValidatesRunnerConfig {
   String name
   boolean streaming
   boolean checkpointing
+  ArrayList<String> sickbayTests
 }
+
+def sickbayTests = [
+        // TODO(BEAM-13573)
+        'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
+]
 
 def createValidatesRunnerTask(Map m) {
   def config = m as ValidatesRunnerConfig
@@ -257,27 +285,29 @@ def createValidatesRunnerTask(Map m) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
       }
       filter {
+        for (String test : config.sickbayTests) {
+          excludeTestsMatching test
+        }
+
         // https://issues.apache.org/jira/browse/BEAM-12039
         excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testDiscardingMode'
         // https://issues.apache.org/jira/browse/BEAM-12037
         excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
         // https://issues.apache.org/jira/browse/BEAM-12038
         excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
-        // TODO(BEAM-13573)
-        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew'
       }
     }
   }
 }
 
-createValidatesRunnerTask(name: "validatesRunnerBatch", streaming: false)
-createValidatesRunnerTask(name: "validatesRunnerStreaming", streaming: true)
+createValidatesRunnerTask(name: "validatesRunnerBatch", streaming: false, sickbayTests: sickbayTests)
+createValidatesRunnerTask(name: "validatesRunnerStreaming", streaming: true, sickbayTests: sickbayTests)
 // We specifically have a variant which runs with checkpointing enabled for the
 // tests that require it since running a checkpoint variant is significantly
 // slower since we have to wait shutdownSourcesAfterIdleMs before the source
 // can shutdown because of https://issues.apache.org/jira/browse/FLINK-2491
 // not supporting checkpointing when an operator has been shutdown.
-createValidatesRunnerTask(name: "validatesRunnerStreamingCheckpointing", streaming: true, checkpointing: true)
+createValidatesRunnerTask(name: "validatesRunnerStreamingCheckpointing", streaming: true, checkpointing: true, sickbayTests: sickbayTests)
 
 tasks.register('validatesRunner') {
   group = 'Verification'
@@ -285,6 +315,23 @@ tasks.register('validatesRunner') {
   dependsOn validatesRunnerBatch
   dependsOn validatesRunnerStreaming
   dependsOn validatesRunnerStreamingCheckpointing
+}
+
+tasks.register("validatesRunnerSickbay", Test) {
+  group = "Verification"
+  description "Validates Flink runner (Sickbay Tests)"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestFlinkRunner",
+  ])
+
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+
+  filter {
+    for (String test : sickbayTests) {
+      includeTestsMatching test
+    }
+  }
 }
 
 // Generates :runners:flink:1.13:runQuickstartJavaFlinkLocal
