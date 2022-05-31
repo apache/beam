@@ -598,6 +598,7 @@ public class TableRowToStorageApiProtoTest {
           .set("floatValue", "2.817")
           .set("boolValue", "true")
           .set("booleanValue", "true")
+          // UTC time
           .set("timestampValue", "1970-01-01T00:00:00.000043Z")
           .set("timeValue", "00:52:07.123456")
           .set("datetimeValue", "2019-08-16T00:52:07.123456")
@@ -610,6 +611,7 @@ public class TableRowToStorageApiProtoTest {
           .set("datetimeISOValue", "1970-01-01T00:00:00.000+01:00")
           .set("dateISOValue", "2019-08-16-08:00")
           .set("timestampValueLong", "1234567")
+          // Local time
           .set("timestampValueSpace", "1970-01-01 00:00:00.000343")
           .set("datetimeValueSpace", "2019-08-16 00:52:07.123456");
 
