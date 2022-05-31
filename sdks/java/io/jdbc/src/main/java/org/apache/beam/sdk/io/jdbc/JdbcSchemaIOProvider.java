@@ -130,9 +130,6 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
             readRows =
                 readRows.withOutputParallelization(config.getBoolean("outputParallelization"));
           }
-          if (config.getBoolean("autosharding") != null && config.getBoolean("autosharding")) {
-            readRows = readRows.withAutosharding();
-          }
           return input.apply(readRows);
         }
       };
@@ -143,11 +140,15 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
       return new PTransform<PCollection<Row>, PDone>() {
         @Override
         public PDone expand(PCollection<Row> input) {
-          return input.apply(
+          JdbcIO.Write<Row> writeRows = 
               JdbcIO.<Row>write()
                   .withDataSourceConfiguration(getDataSourceConfiguration())
                   .withStatement(generateWriteStatement(input.getSchema()))
-                  .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter()));
+                  .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter());
+          if (config.getBoolean("autosharding") != null && config.getBoolean("autosharding")) {
+            writeRows = writeRows.withAutoSharding();
+          }
+          return input.apply(writeRows);
         }
       };
     }
