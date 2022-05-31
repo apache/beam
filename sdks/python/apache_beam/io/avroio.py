@@ -217,11 +217,7 @@ class ReadAllFromAvroContinuously(ReadAllFromAvro):
       'match_updated_files',
       'apply_windowing')
   _ARGS_FOR_READ = (
-      'min_bundle_size',
-      'desired_bundle_size',
-      'use_fastavro',
-      'with_filename',
-      'label')
+      'min_bundle_size', 'desired_bundle_size', 'use_fastavro', 'with_filename')
 
   def __init__(self, file_pattern, label='ReadAllFilesContinuously', **kwargs):
     """Initialize the ``ReadAllFromAvroContinuously`` transform.
