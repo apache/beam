@@ -504,19 +504,13 @@ public class TableRowToStorageApiProto {
       case "DATETIME":
         if (value instanceof String) {
           try {
-            // '2011-12-03T10:15:30'
+            // '2011-12-03T10:15:30+07' '2011-12-03T10:15:30'
             return CivilTimeEncoder.encodePacked64DatetimeMicros(
-                LocalDateTime.parse((String) value));
-          } catch (DateTimeParseException e) {
-            try {
-              // '2011-12-03T10:15:30+07'
-              return CivilTimeEncoder.encodePacked64DatetimeMicros(
-                  LocalDateTime.parse((String) value, DateTimeFormatter.ISO_OFFSET_DATE_TIME));
-            } catch (DateTimeParseException e2) {
-              // '2011-12-03 10:15:30'
-              return CivilTimeEncoder.encodePacked64DatetimeMicros(
-                  LocalDateTime.parse((String) value, DATETIME_SPACE_FORMATTER));
-            }
+                LocalDateTime.parse((String) value, DateTimeFormatter.ISO_DATE_TIME));
+          } catch (DateTimeParseException e2) {
+            // '2011-12-03 10:15:30'
+            return CivilTimeEncoder.encodePacked64DatetimeMicros(
+                LocalDateTime.parse((String) value, DATETIME_SPACE_FORMATTER));
           }
         } else if (value instanceof Number) {
           return ((Number) value).longValue();
