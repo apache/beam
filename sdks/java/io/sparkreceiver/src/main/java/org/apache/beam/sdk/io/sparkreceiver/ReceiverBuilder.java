@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
+import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import javax.annotation.Nullable;
@@ -33,12 +34,10 @@ import org.apache.spark.streaming.receiver.Receiver;
   "return.type.incompatible",
   "dereference.of.nullable"
 })
-public class ReceiverBuilder<X, T extends Receiver<X>> {
+public class ReceiverBuilder<X, T extends Receiver<X>> implements Serializable {
 
   private final Class<T> sparkReceiverClass;
-  private @Nullable Constructor<?> currentConstructor;
   private @Nullable Object[] constructorArgs;
-  private @Nullable T receiver;
 
   public ReceiverBuilder(Class<T> sparkReceiverClass) {
     this.sparkReceiverClass = sparkReceiverClass;
@@ -46,14 +45,30 @@ public class ReceiverBuilder<X, T extends Receiver<X>> {
 
   /** Method for specifying constructor arguments for corresponding {@link #sparkReceiverClass}. */
   public ReceiverBuilder<X, T> withConstructorArgs(Object... args) {
+    this.constructorArgs = args;
+    return this;
+  }
+
+  /**
+   * @return Proxy for given {@param receiver} that doesn't use Spark environment and uses Apache
+   *     Beam mechanisms instead.
+   */
+  public T build()
+      throws InvocationTargetException, InstantiationException, IllegalAccessException {
+
+    if (constructorArgs == null) {
+      throw new IllegalStateException(
+          "It is not possible to build a Receiver proxy without setting the obligatory parameters.");
+    }
+    Constructor<?> currentConstructor = null;
     for (Constructor<?> constructor : sparkReceiverClass.getDeclaredConstructors()) {
       Class<?>[] paramTypes = constructor.getParameterTypes();
-      if (paramTypes.length != args.length) {
+      if (paramTypes.length != constructorArgs.length) {
         continue;
       }
       boolean matches = true;
-      for (int i = 0; i < args.length; i++) {
-        Object arg = args[i];
+      for (int i = 0; i < constructorArgs.length; i++) {
+        Object arg = constructorArgs[i];
         if (arg == null) {
           throw new IllegalArgumentException("All args must be not null!");
         }
@@ -68,29 +83,16 @@ public class ReceiverBuilder<X, T extends Receiver<X>> {
       }
       if (matches) {
         currentConstructor = constructor;
-        this.constructorArgs = args;
-        return this;
       }
     }
-    throw new IllegalArgumentException("Can not find appropriate constructor for given args");
-  }
-
-  /**
-   * @return {@link Receiver} that doesn't use Spark environment and uses Apache Beam mechanisms
-   *     instead.
-   */
-  public T build()
-      throws InvocationTargetException, InstantiationException, IllegalAccessException {
-
-    if (currentConstructor == null || constructorArgs == null) {
-      throw new IllegalStateException(
-          "It is not possible to build a Receiver without setting the obligatory parameters.");
-    }
-    if (receiver != null) {
-      throw new IllegalStateException("Receiver already built.");
+    if (currentConstructor == null) {
+      throw new IllegalStateException("Can not find appropriate constructor!");
     }
     currentConstructor.setAccessible(true);
-    this.receiver = (T) currentConstructor.newInstance(constructorArgs);
-    return this.receiver;
+    return (T) currentConstructor.newInstance(constructorArgs);
+  }
+
+  public Class<T> getSparkReceiverClass() {
+    return sparkReceiverClass;
   }
 }

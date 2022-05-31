@@ -70,7 +70,12 @@ public class ReceiverBuilderTest {
       Receiver<String> receiver =
           receiverBuilder.withConstructorArgs(StorageLevel.DISK_ONLY()).build();
       new WrappedSupervisor(
-          receiver, new SparkConf(), args -> customStoreConsumerWasUsed.set(true));
+          receiver,
+          new SparkConf(),
+          args -> {
+            customStoreConsumerWasUsed.set(true);
+            return null;
+          });
 
       receiver.onStart();
       assertTrue(receiver.supervisor() instanceof WrappedSupervisor);
