@@ -140,7 +140,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
       return new PTransform<PCollection<Row>, PDone>() {
         @Override
         public PDone expand(PCollection<Row> input) {
-          JdbcIO.Write<Row> writeRows = 
+          JdbcIO.Write<Row> writeRows =
               JdbcIO.<Row>write()
                   .withDataSourceConfiguration(getDataSourceConfiguration())
                   .withStatement(generateWriteStatement(input.getSchema()))
