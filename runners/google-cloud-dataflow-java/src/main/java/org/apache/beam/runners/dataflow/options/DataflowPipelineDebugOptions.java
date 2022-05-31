@@ -32,6 +32,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Internal. Options used to control execution of the Dataflow SDK for debugging and testing
@@ -332,7 +333,7 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
     private static ShuffleCompressor.Factory NOOP =
         new ShuffleCompressor.Factory() {
           @Override
-          public ShuffleCompressor create(String datasetId) {
+          public @Nullable ShuffleCompressor create(String datasetId) {
             return null;
           }
         };

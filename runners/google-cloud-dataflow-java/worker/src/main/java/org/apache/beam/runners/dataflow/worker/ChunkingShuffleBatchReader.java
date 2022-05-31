@@ -38,7 +38,7 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
   private ExecutionStateTracker tracker;
   private ExecutionState readState;
 
-  private final ShuffleCompressor shuffleCompressor;
+  private final @Nullable ShuffleCompressor shuffleCompressor;
 
   public ChunkingShuffleBatchReader(
       BatchModeExecutionContext executionContext,

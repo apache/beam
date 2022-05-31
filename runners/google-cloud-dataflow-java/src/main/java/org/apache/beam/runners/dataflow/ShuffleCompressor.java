@@ -20,10 +20,11 @@ package org.apache.beam.runners.dataflow;
 import java.io.Closeable;
 import java.nio.ByteBuffer;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface ShuffleCompressor extends Closeable {
   interface Factory {
-    ShuffleCompressor create(String datasetId);
+    @Nullable ShuffleCompressor create(String datasetId);
   }
 
   /**
