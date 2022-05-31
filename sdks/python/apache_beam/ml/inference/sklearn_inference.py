@@ -23,6 +23,7 @@ from typing import Iterable
 from typing import List
 
 import numpy
+from sklearn.base import BaseEstimator
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.api import PredictionResult
@@ -43,9 +44,9 @@ class ModelFileType(enum.Enum):
 
 class SklearnInferenceRunner(InferenceRunner[numpy.ndarray,
                                              PredictionResult,
-                                             Any]):
+                                             BaseEstimator]):
   def run_inference(self, batch: List[numpy.ndarray],
-                    model: Any) -> Iterable[PredictionResult]:
+                    model: BaseEstimator) -> Iterable[PredictionResult]:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
@@ -56,7 +57,7 @@ class SklearnInferenceRunner(InferenceRunner[numpy.ndarray,
     return sum(sys.getsizeof(element) for element in batch)
 
 
-class SklearnModelLoader(ModelLoader[numpy.ndarray, PredictionResult, Any]):
+class SklearnModelLoader(ModelLoader[numpy.ndarray, PredictionResult, BaseEstimator]):
   """ Implementation of the ModelLoader interface for scikit learn.
 
       NOTE: This API and its implementation are under development and
@@ -69,7 +70,7 @@ class SklearnModelLoader(ModelLoader[numpy.ndarray, PredictionResult, Any]):
     self._model_file_type = model_file_type
     self._model_uri = model_uri
 
-  def load_model(self):
+  def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
     file = FileSystems.open(self._model_uri, 'rb')
     if self._model_file_type == ModelFileType.PICKLE:
