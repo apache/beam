@@ -194,7 +194,7 @@ export class Worker {
       this.bundleProcessors.set(descriptorId, []);
     }
     const processor = this.bundleProcessors.get(descriptorId)?.pop();
-    if (processor !== null && processor !== undefined) {
+    if (processor) {
       return processor;
     } else {
       return new BundleProcessor(
@@ -321,7 +321,7 @@ export class BundleProcessor {
   }
 
   getStateProvider() {
-    if (this.stateProvider === null || this.stateProvider === undefined) {
+    if (!this.stateProvider) {
       if (typeof this.getStateChannel === "function") {
         this.stateProvider = new CachingStateProvider(
           new GrpcStateProvider(

@@ -73,8 +73,6 @@ export class ParamProviderImpl implements ParamProvider {
       if (
         typeof value === "object" &&
         value !== null &&
-        value !== undefined &&
-        value["parDoParamName"] !== null &&
         value["parDoParamName"] !== undefined
       ) {
         result[name] = Object.create(value);

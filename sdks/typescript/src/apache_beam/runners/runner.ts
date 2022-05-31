@@ -28,7 +28,6 @@ export interface PipelineResult {
 export function createRunner(options): Runner {
   let runnerConstructor: (any) => Runner;
   if (
-    options.runner === null ||
     options.runner === undefined ||
     options.runner === "default"
   ) {
