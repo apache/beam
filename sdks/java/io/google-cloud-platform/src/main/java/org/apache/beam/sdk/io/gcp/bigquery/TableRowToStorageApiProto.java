@@ -70,6 +70,8 @@ import org.joda.time.Days;
  */
 public class TableRowToStorageApiProto {
   // Custom formatter that accepts "2022-05-09 18:04:59.123456"
+  // The old dremel parser accepts this format, and so does insertall. We need to accept it
+  // for backwards compatibility.
   private static DateTimeFormatter DATETIME_SPACE_FORMATTER =
       DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSSSSS").withZone(ZoneId.systemDefault());
 
