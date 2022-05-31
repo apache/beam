@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
@@ -760,8 +761,8 @@ func (fn *GoodSdf) CreateTracker(RestT) *RTrackerT {
 	return &RTrackerT{}
 }
 
-func (fn *GoodSdf) ProcessElement(*RTrackerT, int) int {
-	return 0
+func (fn *GoodSdf) ProcessElement(*RTrackerT, int) (int, sdf.ProcessContinuation) {
+	return 0, sdf.StopProcessing()
 }
 
 func (fn *GoodSdf) TruncateRestriction(*RTrackerT, int) RestT {
@@ -788,8 +789,8 @@ func (fn *GoodSdfKv) CreateTracker(RestT) *RTrackerT {
 	return &RTrackerT{}
 }
 
-func (fn *GoodSdfKv) ProcessElement(*RTrackerT, int, int) int {
-	return 0
+func (fn *GoodSdfKv) ProcessElement(*RTrackerT, int, int) (int, sdf.ProcessContinuation) {
+	return 0, sdf.StopProcessing()
 }
 
 func (fn *GoodSdfKv) TruncateRestriction(*RTrackerT, int, int) RestT {

@@ -1003,6 +1003,14 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 					"Ensure that all restrictions in an SDF are the same type.",
 					truncateRestrictionName, 0, method.Ret[0].T, restrictionT, createInitialRestrictionName)
 			}
+			processFn := fn.methods[processElementName]
+			if _, exists := processFn.ProcessContinuation(); !exists {
+				err := errors.Errorf("mismatched output type in method %v, return %v: got: %v, want: %v",
+					processElementName, len(processFn.Ret)-1, method.Ret[len(processFn.Ret)-1].T, reflect.TypeOf((*sdf.ProcessContinuation)(nil)).Elem())
+				return errors.SetTopLevelMsgf(err, "Mismatched output type in method %v, "+
+					"return value at index %v. Got: %v, Want: %v (from method %v).",
+					processElementName, len(processFn.Ret)-1, method.Ret[len(processFn.Ret)-1].T, reflect.TypeOf((*sdf.ProcessContinuation)(nil)).Elem(), truncateRestrictionName)
+			}
 		}
 	}
 

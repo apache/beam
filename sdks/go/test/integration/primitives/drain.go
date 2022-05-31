@@ -85,8 +85,8 @@ func (fn *TruncateFn) TruncateRestriction(rt *sdf.LockRTracker, _ []byte) offset
 	log.Debug(context.Background(), "triggering the truncate restriction")
 	start := rt.GetRestriction().(offsetrange.Restriction).Start
 	prevEnd := rt.GetRestriction().(offsetrange.Restriction).End
-	newEnd := start + 2
-	log.Infof(context.Background(), "truncating {Start:%v, End:%v} to {Start:%v, End:%v}", start, prevEnd, start, newEnd)
+	newEnd := start + 20
+	log.Infof(context.Background(), "TRUNCATING: truncating {Start:%v, End:%v} to {Start:%v, End:%v}", start, prevEnd, start, newEnd)
 	return offsetrange.Restriction{
 		Start: start,
 		End:   newEnd,
@@ -103,7 +103,7 @@ func (fn *TruncateFn) ProcessElement(rt *sdf.LockRTracker, p []byte, emit func(i
 			// Successful claim, emit the value and move on.
 			log.Infof(context.Background(), "claimed pos: %v", position)
 			emit(position)
-			log.Infof(context.Background(), "RT: %+v", rt)
+			log.Infof(context.Background(), "claimed pos: %v, Rest: {Start: %v, End: %v}", position, rt.GetRestriction().(offsetrange.Restriction).Start, rt.GetRestriction().(offsetrange.Restriction).End)
 			position++
 			counter++
 		} else if rt.GetError() != nil || rt.IsDone() {

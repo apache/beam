@@ -21,7 +21,6 @@ package offsetrange
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -30,7 +29,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 func init() {
@@ -173,7 +171,6 @@ func (tracker *Tracker) TryClaim(rawPos interface{}) bool {
 	}
 
 	tracker.claimed = pos
-
 	if pos >= tracker.rest.End {
 		tracker.stopped = true
 		return false
@@ -217,7 +214,7 @@ func (tracker *Tracker) GetProgress() (done, remaining float64) {
 
 // IsDone returns true if the most recent claimed element is past the end of the restriction.
 func (tracker *Tracker) IsDone() bool {
-	return tracker.err == nil && (tracker.claimed >= tracker.rest.End || tracker.rest.Start == tracker.rest.End)
+	return tracker.err == nil && (tracker.claimed+1 >= tracker.rest.End || tracker.rest.Start >= tracker.rest.End)
 }
 
 // GetRestriction returns a copy of the tracker's underlying offsetrange.Restriction.
@@ -233,7 +230,6 @@ func (tracker *Tracker) IsBounded() bool {
 
 // RangeEndEstimator provides the estimated end offset of the range. Users must implement this interface to
 // use the offsetrange.GrowableTracker.
-//
 type RangeEndEstimator interface {
 	// Estimate is called to get the end offset in TrySplit() or GetProgress() functions.
 	//
@@ -257,10 +253,13 @@ type GrowableTracker struct {
 	rangeEndEstimator RangeEndEstimator
 }
 
-// NewGrowableTracker is a constructor for an GrowableTracker given a start and RangeEndEstimator.
+// NewGrowableTracker is a constructor for an GrowableTracker given a offsetrange.Restriction and RangeEndEstimator.
+// This tracker should be used when dealing with streaming use cases where the end of the restriction is
+// undefined (math.MaxInt64) in this case. Otherwise, this tracker works the same as offsetrange.Tracker, so it is
+// recommended to use that directly for bounded restrictions.
 func NewGrowableTracker(rest Restriction, rangeEndEstimator RangeEndEstimator) (*GrowableTracker, error) {
 	if rangeEndEstimator == nil {
-		return nil, fmt.Errorf("param rangeEndEstimator cannot be nil. Implementing offsetrange.RangeEndEstimator may be required.")
+		return nil, fmt.Errorf("param rangeEndEstimator cannot be nil. Implementing offsetrange.RangeEndEstimator may be required")
 	}
 	return &GrowableTracker{*NewTracker(Restriction{Start: rest.Start, End: rest.End}), rangeEndEstimator}, nil
 }
@@ -285,44 +284,25 @@ func max(x, y int64) int64 {
 // TrySplit splits at the nearest integer greater than the given fraction of the remainder. If the
 // fraction given is outside of the [0, 1] range, it is clamped to 0 or 1.
 func (tracker *GrowableTracker) TrySplit(fraction float64) (primary, residual interface{}, err error) {
-	log.Infof(context.Background(), "TrySplit(%f)", fraction)
-	log.Infof(context.Background(), "Current Tracker: %#v", tracker)
 	if tracker.stopped || tracker.IsDone() {
-		log.Infof(context.Background(), "Done in TrySplit(%f)", fraction)
 		return tracker.rest, nil, nil
 	}
-	if fraction == 0.0 {
-		log.Infof(context.Background(), "Done in TrySplit(%f)", fraction)
-		residual = Restriction{Start: tracker.rest.Start, End: tracker.rest.End}
-		tracker.rest.End = tracker.rest.Start
-		return tracker.rest, residual, nil
-		// return nil, tracker.rest, nil
-	}
+
 	// If current tracking range is no longer growable, split it as a normal range.
-	if tracker.End() != math.MaxInt64 || tracker.Start() == tracker.End() {
-		log.Infof(context.Background(), "Doing the normal OffsetTracker TrySplit(%f)", fraction)
+	if tracker.End() != math.MaxInt64 {
 		return tracker.Tracker.TrySplit(fraction)
 	}
 
 	// If current range has been done, there is no more space to split.
-	if tracker.attempted != -1 && tracker.attempted == math.MaxInt64 {
+	if tracker.attempted == math.MaxInt64 {
 		return nil, nil, nil
 	}
 
-	var cur int64
-	if tracker.attempted != -1 {
-		cur = tracker.attempted
-	} else {
-		cur = tracker.Start() - 1
-	}
-
+	cur := max(tracker.attempted, tracker.Start()-1)
 	estimatedEnd := max(tracker.rangeEndEstimator.Estimate(), cur+1)
 
 	splitPt := cur + int64(math.Ceil(math.Max(1, float64(estimatedEnd-cur)*(fraction))))
 	if splitPt > estimatedEnd {
-		return tracker.rest, nil, nil
-	}
-	if splitPt <= tracker.rest.End {
 		return tracker.rest, nil, nil
 	}
 	residual = Restriction{Start: splitPt, End: tracker.End()}
@@ -332,41 +312,17 @@ func (tracker *GrowableTracker) TrySplit(fraction float64) (primary, residual in
 
 // GetProgress reports progress based on the claimed size and unclaimed sizes of the restriction.
 func (tracker *GrowableTracker) GetProgress() (done, remaining float64) {
-	// If current tracking range is no longer growable, split it as a normal range.
-	if tracker.End() != math.MaxInt64 || tracker.End() == tracker.Start() {
+	// If current tracking range is no longer growable, get its progress as a normal range.
+	if tracker.End() != math.MaxInt64 {
 		return tracker.Tracker.GetProgress()
 	}
 
-	estimatedEnd := tracker.rangeEndEstimator.Estimate()
-
-	if tracker.attempted == -1 {
-		done = 0
-		remaining = math.Max(float64(estimatedEnd)-float64(tracker.Start()), 0)
-		return
-	}
-
 	done = float64((tracker.claimed + 1) - tracker.Start())
-	remaining = math.Max(float64(estimatedEnd-(tracker.attempted)), 0)
-	return
+	remaining = float64(tracker.End() - (tracker.claimed + 1))
+	return done, remaining
 }
 
 // IsBounded checks if the current restriction is bounded or not.
 func (tracker *GrowableTracker) IsBounded() bool {
-	if tracker.attempted != -1 && tracker.attempted == math.MaxInt64 {
-		return true
-	}
-	if tracker.End() == math.MaxInt64 {
-		return false
-	}
-	return true
-}
-
-func (tracker *GrowableTracker) IsDone() bool {
-	if tracker.rest.Start >= tracker.rest.End {
-		return true
-	}
-	if tracker.claimed >= tracker.rest.End {
-		return true
-	}
-	return false
+	return tracker.End() != math.MaxInt64
 }
