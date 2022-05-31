@@ -21,15 +21,16 @@ package fhirio
 import (
 	"context"
 	"io"
-	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*readResourceFn)(nil)))
+	register.DoFn4x0[context.Context, string, func(string), func(string)]((*readResourceFn)(nil))
+	register.Emitter1[string]()
 }
 
 type readResourceFn struct {
