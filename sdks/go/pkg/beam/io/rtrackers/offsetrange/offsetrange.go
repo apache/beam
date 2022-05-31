@@ -196,6 +196,9 @@ func (tracker *Tracker) TrySplit(fraction float64) (primary, residual interface{
 	if splitPt >= tracker.rest.End {
 		return tracker.rest, nil, nil
 	}
+	if splitPt < tracker.rest.Start {
+		splitPt = tracker.rest.Start
+	}
 	residual = Restriction{splitPt, tracker.rest.End}
 	tracker.rest.End = splitPt
 	return tracker.rest, residual, nil
@@ -208,9 +211,11 @@ func (tracker *Tracker) GetProgress() (done, remaining float64) {
 	return
 }
 
-// IsDone returns true if the most recent claimed element is past the end of the restriction.
+// IsDone returns true if the most recent claimed element is past the end of the restriction
+// or if the restriction represents no work to be done (aka the start of the restriction is
+// greater than or equal to the end).
 func (tracker *Tracker) IsDone() bool {
-	return tracker.err == nil && tracker.claimed >= tracker.rest.End
+	return tracker.err == nil && (tracker.claimed >= tracker.rest.End || tracker.rest.Start >= tracker.rest.End)
 }
 
 // GetRestriction returns a copy of the tracker's underlying offsetrange.Restriction.
