@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import java.io.IOException;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -140,5 +141,7 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
   }
 
   @Override
-  public void close() {}
+  public void close() throws IOException {
+    batchReader.close();
+  }
 }

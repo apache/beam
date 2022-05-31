@@ -44,8 +44,7 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
       BatchModeExecutionContext executionContext,
       DataflowOperationContext operationContext,
       ShuffleReader reader,
-      @Nullable ShuffleCompressor shuffleCompressor
-      ) {
+      @Nullable ShuffleCompressor shuffleCompressor) {
     this.reader = reader;
     this.readState = operationContext.newExecutionState("read-shuffle");
     this.tracker = executionContext.getExecutionStateTracker();
@@ -124,6 +123,14 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
       return ByteString.EMPTY;
     } else {
       return UnsafeByteOperations.unsafeWrap(slice);
+    }
+  }
+
+  @Override
+  public void close() throws IOException {
+    reader.close();
+    if (shuffleCompressor != null) {
+      shuffleCompressor.close();
     }
   }
 }

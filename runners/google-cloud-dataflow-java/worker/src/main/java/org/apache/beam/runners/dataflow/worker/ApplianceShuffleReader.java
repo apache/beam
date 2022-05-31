@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import java.io.Closeable;
 import java.io.IOException;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
@@ -31,7 +30,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationConte
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public final class ApplianceShuffleReader implements ShuffleReader, Closeable {
+public final class ApplianceShuffleReader implements ShuffleReader {
   static {
     ShuffleLibrary.load();
   }

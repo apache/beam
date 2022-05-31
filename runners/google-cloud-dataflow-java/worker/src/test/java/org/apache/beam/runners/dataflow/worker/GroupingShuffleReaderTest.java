@@ -33,6 +33,7 @@ import static org.junit.Assert.fail;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.Position;
+import com.google.protobuf.ByteString;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.DataOutputStream;
@@ -617,7 +618,8 @@ public class GroupingShuffleReaderTest {
     // Note that TestShuffleReader start/end positions are in the
     // space of keys not the positions (TODO: should probably always
     // use positions instead).
-    String stop = encodeBase64URLSafeString(fabricatePosition(kNumRecords).getPosition());
+    String stop =
+        encodeBase64URLSafeString(fabricatePosition(kNumRecords).getPosition().toByteArray());
     TestOperationContext operationContext = TestOperationContext.create();
     GroupingShuffleReader<Integer, Integer> groupingShuffleReader =
         new GroupingShuffleReader<>(
@@ -742,11 +744,12 @@ public class GroupingShuffleReaderTest {
 
   private Position makeShufflePosition(int shard, byte[] key) throws Exception {
     return new Position()
-        .setShufflePosition(encodeBase64URLSafeString(fabricatePosition(shard, key).getPosition()));
+        .setShufflePosition(
+            encodeBase64URLSafeString(fabricatePosition(shard, key).getPosition().toByteArray()));
   }
 
-  private Position makeShufflePosition(byte[] position) throws Exception {
-    return new Position().setShufflePosition(encodeBase64URLSafeString(position));
+  private Position makeShufflePosition(ByteString position) throws Exception {
+    return new Position().setShufflePosition(encodeBase64URLSafeString(position.toByteArray()));
   }
 
   @Test
@@ -813,7 +816,7 @@ public class GroupingShuffleReaderTest {
           iter.requestDynamicSplit(splitRequestAtPosition(makeShufflePosition(kSecondShard, null)));
       assertNotNull(dynamicSplitResult);
       assertEquals(
-          encodeBase64URLSafeString(fabricatePosition(kSecondShard).getPosition()),
+          encodeBase64URLSafeString(fabricatePosition(kSecondShard).getPosition().toByteArray()),
           positionFromSplitResult(dynamicSplitResult).getShufflePosition());
 
       for (; iter.advance(); ++i) {
@@ -906,7 +909,7 @@ public class GroupingShuffleReaderTest {
 
       // Cannot split since all input was consumed.
       Position proposedSplitPosition = new Position();
-      String stop = encodeBase64URLSafeString(fabricatePosition(0).getPosition());
+      String stop = encodeBase64URLSafeString(fabricatePosition(0).getPosition().toByteArray());
       proposedSplitPosition.setShufflePosition(stop);
       assertNull(
           iter.requestDynamicSplit(
@@ -936,7 +939,8 @@ public class GroupingShuffleReaderTest {
     // Note that TestShuffleReader start/end positions are in the
     // space of keys not the positions (TODO: should probably always
     // use positions instead).
-    String stop = encodeBase64URLSafeString(fabricatePosition(kNumRecords).getPosition());
+    String stop =
+        encodeBase64URLSafeString(fabricatePosition(kNumRecords).getPosition().toByteArray());
     TestOperationContext operationContext = TestOperationContext.create();
     GroupingShuffleReader<Integer, Integer> groupingShuffleReader =
         new GroupingShuffleReader<>(

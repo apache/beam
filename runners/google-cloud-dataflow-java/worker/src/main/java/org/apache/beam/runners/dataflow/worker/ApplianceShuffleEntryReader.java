@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import java.io.IOException;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.BatchingShuffleEntryReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.CachingShuffleBatchReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleBatchReader;
@@ -41,7 +42,13 @@ public class ApplianceShuffleEntryReader implements ShuffleEntryReader {
     applianceShuffleReader = new ApplianceShuffleReader(shuffleReaderConfig, operationContext);
 
     ShuffleBatchReader batchReader =
-        new ChunkingShuffleBatchReader(executionContext, operationContext, applianceShuffleReader, executionContext.getShuffleCompressor(applianceShuffleReader.getDatasetId()));
+        new ChunkingShuffleBatchReader(
+            executionContext,
+            operationContext,
+            applianceShuffleReader,
+            executionContext
+                .getShuffleCompressorFactory()
+                .create(applianceShuffleReader.getDatasetId()));
 
     if (cache) {
       // Limit the size of the cache.
@@ -58,8 +65,9 @@ public class ApplianceShuffleEntryReader implements ShuffleEntryReader {
   }
 
   @Override
-  public void close() {
+  public void close() throws IOException {
     applianceShuffleReader.close();
+    entryReader.close();
   }
 
   public String getDatasetId() {

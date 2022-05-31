@@ -316,8 +316,8 @@ public class BatchModeExecutionContext
             + "for each side input, and a SideInputReader provided via getSideInputReader");
   }
 
-  public ShuffleCompressor getShuffleCompressor(String datasetId) {
-    return shuffleCompressorFactory.create(datasetId);
+  public ShuffleCompressor.Factory getShuffleCompressorFactory() {
+    return shuffleCompressorFactory;
   }
 
   // TODO: Expose a keyed sub-cache which allows one to store all cached values in their

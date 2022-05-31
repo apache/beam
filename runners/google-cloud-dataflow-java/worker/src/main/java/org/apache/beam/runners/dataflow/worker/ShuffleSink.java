@@ -23,7 +23,6 @@ import java.util.Arrays;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.ShuffleCompressor;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
@@ -110,8 +109,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     this.operationContext = operationContext;
     this.writeState = operationContext.newExecutionState("write-shuffle");
     this.tracker = executionContext.getExecutionStateTracker();
-    this.shuffleCompressorFactory =
-        options.as(DataflowPipelineDebugOptions.class).getShuffleCompressorFactory();
+    this.shuffleCompressorFactory = executionContext.getShuffleCompressorFactory();
 
     initCoder(coder);
   }
@@ -209,7 +207,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     // How many bytes were written to a given shuffle session.
     private final Counter<Long, ?> perDatasetBytesCounter;
     private final RandomAccessData chunk;
-    private final ShuffleCompressor shuffleCompressor;
+    private final @Nullable ShuffleCompressor shuffleCompressor;
     private boolean closed = false;
 
     ShuffleSinkWriter(
@@ -322,6 +320,9 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
       try (Closeable trackedCloseState = tracker.enterState(writeState)) {
         outputChunk();
         writer.close();
+        if (this.shuffleCompressor != null) {
+          this.shuffleCompressor.close();
+        }
       } finally {
         closed = true;
       }

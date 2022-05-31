@@ -17,10 +17,11 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import java.io.Closeable;
 import java.nio.ByteBuffer;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
 
-public interface ShuffleCompressor {
+public interface ShuffleCompressor extends Closeable {
   interface Factory {
     ShuffleCompressor create(String datasetId);
   }
