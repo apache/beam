@@ -434,8 +434,7 @@ public class TableRowToStorageApiProto {
         if (value instanceof String) {
           try {
             // "12345667"
-            return ChronoUnit.MICROS.between(
-                Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
+            return ChronoUnit.MICROS.between(Instant.EPOCH, Instant.parse((String) value));
           } catch (NumberFormatException e3) {
             try {
               // '2011-12-03T10:15:30+01:00' '2011-12-03T10:15:30'
