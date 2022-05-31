@@ -197,3 +197,81 @@ func TestGetJobOptions_DockerNoImage(t *testing.T) {
 		t.Fatalf("getContainerImage() = %q, want %q", got, want)
 	}
 }
+
+func TestGetJobOptions_TransformMapping(t *testing.T) {
+	*labels = `{"label1": "val1", "label2": "val2"}`
+	*stagingLocation = "gs://testStagingLocation"
+	*autoscalingAlgorithm = "NONE"
+	*minCPUPlatform = "testPlatform"
+	*flexRSGoal = "FLEXRS_SPEED_OPTIMIZED"
+
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+
+	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
+	*jobopts.JobName = "testJob"
+
+	*update = true
+	*transformMapping = `{"transformOne": "transformTwo"}`
+	opts, err := getJobOptions(context.Background())
+	if err != nil {
+		t.Errorf("getJobOptions() returned error, got %v", err)
+	}
+	if opts == nil {
+		t.Fatal("getJobOptions() got nil, want struct")
+	}
+	if got, ok := opts.TransformNameMapping["transformOne"]; !ok || got != "transformTwo" {
+		t.Errorf("mismatch in transform mapping got %v, want %v", got, "transformTwo")
+	}
+
+}
+
+func TestGetJobOptions_TransformMappingNoUpdate(t *testing.T) {
+	*labels = `{"label1": "val1", "label2": "val2"}`
+	*stagingLocation = "gs://testStagingLocation"
+	*autoscalingAlgorithm = "NONE"
+	*minCPUPlatform = "testPlatform"
+	*flexRSGoal = "FLEXRS_SPEED_OPTIMIZED"
+
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+
+	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
+	*jobopts.JobName = "testJob"
+
+	*update = false
+	*transformMapping = `{"transformOne": "transformTwo"}`
+
+	opts, err := getJobOptions(context.Background())
+	if err == nil {
+		t.Error("getJobOptions() returned error nil, want an error")
+	}
+	if opts != nil {
+		t.Errorf("getJobOptions() returned JobOptions when it should not have, got %#v, want nil", opts)
+	}
+}
+
+func TestGetJobOptions_InvalidMapping(t *testing.T) {
+	*labels = `{"label1": "val1", "label2": "val2"}`
+	*stagingLocation = "gs://testStagingLocation"
+	*autoscalingAlgorithm = "NONE"
+	*minCPUPlatform = "testPlatform"
+	*flexRSGoal = "FLEXRS_SPEED_OPTIMIZED"
+
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+
+	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
+	*jobopts.JobName = "testJob"
+
+	*update = true
+	*transformMapping = "not a JSON-encoded string"
+
+	opts, err := getJobOptions(context.Background())
+	if err == nil {
+		t.Error("getJobOptions() returned error nil, want an error")
+	}
+	if opts != nil {
+		t.Errorf("getJobOptions() returned JobOptions when it should not have, got %#v, want nil", opts)
+	}
+}

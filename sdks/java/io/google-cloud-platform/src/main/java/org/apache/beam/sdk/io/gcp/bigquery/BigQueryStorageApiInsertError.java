@@ -15,18 +15,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
+package org.apache.beam.sdk.io.gcp.bigquery;
 
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.DefaultCoder;
+import com.google.api.services.bigquery.model.TableRow;
+import javax.annotation.Nullable;
 
-/**
- * Represents the type of modification applied in the {@link DataChangeRecord}. It can be one of the
- * following: INSERT, UPDATE or DELETE.
- */
-@DefaultCoder(AvroCoder.class)
-public enum ModType {
-  INSERT,
-  UPDATE,
-  DELETE
+public class BigQueryStorageApiInsertError {
+  private TableRow row;
+
+  private @Nullable String errorMessage;
+
+  public BigQueryStorageApiInsertError(TableRow row) {
+    this.row = row;
+  }
+
+  public BigQueryStorageApiInsertError(TableRow row, @Nullable String errorMessage) {
+    this.row = row;
+    this.errorMessage = errorMessage;
+  }
+
+  public TableRow getRow() {
+    return row;
+  }
+
+  @Nullable
+  public String getErrorMessage() {
+    return errorMessage;
+  }
+
+  @Override
+  public String toString() {
+    return "BigQueryStorageApiInsertError{"
+        + "row="
+        + row
+        + ", errorMessage='"
+        + errorMessage
+        + '\''
+        + '}';
+  }
 }

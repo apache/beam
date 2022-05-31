@@ -57,6 +57,11 @@ class SklearnInferenceRunner(InferenceRunner[numpy.ndarray,
 
 
 class SklearnModelLoader(ModelLoader[numpy.ndarray, PredictionResult, Any]):
+  """ Implementation of the ModelLoader interface for scikit learn.
+
+      NOTE: This API and its implementation are under development and
+      do not provide backward compatibility guarantees.
+  """
   def __init__(
       self,
       model_file_type: ModelFileType = ModelFileType.PICKLE,

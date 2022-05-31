@@ -858,19 +858,19 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
   # to determine error types and messages to try for retriables.
   @parameterized.expand([
       param(
-          exception_type=exceptions.Forbidden,
+          exception_type=exceptions.Forbidden if exceptions else None,
           error_reason='rateLimitExceeded'),
       param(
-          exception_type=exceptions.DeadlineExceeded,
+          exception_type=exceptions.DeadlineExceeded if exceptions else None,
           error_reason='somereason'),
       param(
-          exception_type=exceptions.ServiceUnavailable,
+          exception_type=exceptions.ServiceUnavailable if exceptions else None,
           error_reason='backendError'),
       param(
-          exception_type=exceptions.InternalServerError,
+          exception_type=exceptions.InternalServerError if exceptions else None,
           error_reason='internalError'),
       param(
-          exception_type=exceptions.InternalServerError,
+          exception_type=exceptions.InternalServerError if exceptions else None,
           error_reason='backendError'),
   ])
   @mock.patch('time.sleep')
@@ -934,7 +934,7 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
           exception_type=ConnectionError,
           error_message='some py connection error'),
       param(
-          exception_type=exceptions.BadGateway,
+          exception_type=exceptions.BadGateway if exceptions else None,
           error_message='some badgateway error'),
   ])
   @mock.patch('time.sleep')
@@ -980,28 +980,31 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
           exception_type=retry.PermanentException,
           error_args=('nonretriable', )),
       param(
-          exception_type=exceptions.BadRequest,
+          exception_type=exceptions.BadRequest if exceptions else None,
           error_args=(
               'forbidden morbidden', [{
                   'reason': 'nonretriablereason'
               }])),
       param(
-          exception_type=exceptions.BadRequest,
+          exception_type=exceptions.BadRequest if exceptions else None,
           error_args=('BAD REQUEST!', [{
               'reason': 'nonretriablereason'
           }])),
       param(
-          exception_type=exceptions.MethodNotAllowed,
+          exception_type=exceptions.MethodNotAllowed if exceptions else None,
           error_args=(
               'method not allowed!', [{
                   'reason': 'nonretriablereason'
               }])),
       param(
-          exception_type=exceptions.MethodNotAllowed,
+          exception_type=exceptions.MethodNotAllowed if exceptions else None,
           error_args=('method not allowed!', 'args')),
-      param(exception_type=exceptions.Unknown, error_args=('unknown!', 'args')),
       param(
-          exception_type=exceptions.Aborted, error_args=('abortet!', 'abort')),
+          exception_type=exceptions.Unknown if exceptions else None,
+          error_args=('unknown!', 'args')),
+      param(
+          exception_type=exceptions.Aborted if exceptions else None,
+          error_args=('abortet!', 'abort')),
   ])
   @mock.patch('time.sleep')
   @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
@@ -1041,28 +1044,31 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
           exception_type=retry.PermanentException,
           error_args=('nonretriable', )),
       param(
-          exception_type=exceptions.BadRequest,
+          exception_type=exceptions.BadRequest if exceptions else None,
           error_args=(
               'forbidden morbidden', [{
                   'reason': 'nonretriablereason'
               }])),
       param(
-          exception_type=exceptions.BadRequest,
+          exception_type=exceptions.BadRequest if exceptions else None,
           error_args=('BAD REQUEST!', [{
               'reason': 'nonretriablereason'
           }])),
       param(
-          exception_type=exceptions.MethodNotAllowed,
+          exception_type=exceptions.MethodNotAllowed if exceptions else None,
           error_args=(
               'method not allowed!', [{
                   'reason': 'nonretriablereason'
               }])),
       param(
-          exception_type=exceptions.MethodNotAllowed,
+          exception_type=exceptions.MethodNotAllowed if exceptions else None,
           error_args=('method not allowed!', 'args')),
-      param(exception_type=exceptions.Unknown, error_args=('unknown!', 'args')),
       param(
-          exception_type=exceptions.Aborted, error_args=('abortet!', 'abort')),
+          exception_type=exceptions.Unknown if exceptions else None,
+          error_args=('unknown!', 'args')),
+      param(
+          exception_type=exceptions.Aborted if exceptions else None,
+          error_args=('abortet!', 'abort')),
       param(
           exception_type=requests.exceptions.ConnectionError,
           error_args=('some connection error', )),
@@ -1073,7 +1079,7 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
           exception_type=ConnectionError,
           error_args=('some py connection error', )),
       param(
-          exception_type=exceptions.BadGateway,
+          exception_type=exceptions.BadGateway if exceptions else None,
           error_args=('some badgateway error', )),
   ])
   @mock.patch('time.sleep')

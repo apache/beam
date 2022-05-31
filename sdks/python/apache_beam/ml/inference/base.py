@@ -29,9 +29,7 @@ no expectation that these interfaces will not change.
 """
 
 import logging
-import os
 import pickle
-import platform
 import sys
 import time
 from typing import Any
@@ -50,13 +48,20 @@ try:
 except ImportError:
   resource = None  # type: ignore[assignment]
 
-_MICROSECOND_TO_MILLISECOND = 1000
-_NANOSECOND_TO_MICROSECOND = 1000
-_SECOND_TO_MICROSECOND = 1_000_000
+_NANOSECOND_TO_MILLISECOND = 1_000_000
+_NANOSECOND_TO_MICROSECOND = 1_000
 
 ModelT = TypeVar('ModelT')
 ExampleT = TypeVar('ExampleT')
 PredictionT = TypeVar('PredictionT')
+
+
+def _to_milliseconds(time_ns: int) -> int:
+  return int(time_ns / _NANOSECOND_TO_MILLISECOND)
+
+
+def _to_microseconds(time_ns: int) -> int:
+  return int(time_ns / _NANOSECOND_TO_MICROSECOND)
 
 
 class InferenceRunner(Generic[ExampleT, PredictionT, ModelT]):
@@ -87,6 +92,10 @@ class ModelLoader(Generic[ExampleT, PredictionT, ModelT]):
     """Returns an implementation of InferenceRunner for this model."""
     raise NotImplementedError(type(self))
 
+  def get_resource_hints(self) -> dict:
+    """Returns resource hints for the transform."""
+    return {}
+
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     """Returns kwargs suitable for beam.BatchElements."""
     return {}
@@ -94,9 +103,13 @@ class ModelLoader(Generic[ExampleT, PredictionT, ModelT]):
 
 class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                                    beam.PCollection[PredictionT]]):
-  """An extensible transform for running inferences."""
+  """An extensible transform for running inferences.
+  Args:
+      model_loader: An implementation of ModelLoader.
+      clock: A clock implementing get_current_time_in_microseconds.
+  """
   def __init__(
-      self, model_loader: ModelLoader[ExampleT, PredictionT, Any], clock=None):
+      self, model_loader: ModelLoader[ExampleT, PredictionT, Any], clock=time):
     self._model_loader = model_loader
     self._clock = clock
 
@@ -104,11 +117,15 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
   # are functional reasons large batch sizes cannot be handled.
   def expand(
       self, pcoll: beam.PCollection[ExampleT]) -> beam.PCollection[PredictionT]:
+    resource_hints = self._model_loader.get_resource_hints()
     return (
         pcoll
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
         | beam.BatchElements(**self._model_loader.batch_elements_kwargs())
-        | beam.ParDo(_RunInferenceDoFn(self._model_loader, self._clock)))
+        | (
+            beam.ParDo(_RunInferenceDoFn(
+                self._model_loader,
+                self._clock)).with_resource_hints(**resource_hints)))
 
 
 class _MetricsCollector:
@@ -163,24 +180,21 @@ class _MetricsCollector:
 class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   """A DoFn implementation generic to frameworks."""
   def __init__(
-      self, model_loader: ModelLoader[ExampleT, PredictionT, Any], clock=None):
+      self, model_loader: ModelLoader[ExampleT, PredictionT, Any], clock):
     self._model_loader = model_loader
     self._shared_model_handle = shared.Shared()
     self._clock = clock
-    if not clock:
-      self._clock = _ClockFactory.make_clock()
     self._model = None
 
   def _load_model(self):
     def load():
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
-      start_time = self._clock.get_current_time_in_microseconds()
+      start_time = _to_milliseconds(self._clock.time_ns())
       model = self._model_loader.load_model()
-      end_time = self._clock.get_current_time_in_microseconds()
+      end_time = _to_milliseconds(self._clock.time_ns())
       memory_after = _get_current_process_memory_in_bytes()
-      load_model_latency_ms = ((end_time - start_time) /
-                               _MICROSECOND_TO_MILLISECOND)
+      load_model_latency_ms = end_time - start_time
       model_byte_size = memory_after - memory_before
       self._metrics_collector.cache_load_model_metrics(
           load_model_latency_ms, model_byte_size)
@@ -206,13 +220,13 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       examples = batch
       keys = None
 
-    start_time = self._clock.get_current_time_in_microseconds()
+    start_time = _to_microseconds(self._clock.time_ns())
     result_generator = self._inference_runner.run_inference(
         examples, self._model)
     predictions = list(result_generator)
 
-    inference_latency = self._clock.get_current_time_in_microseconds(
-    ) - start_time
+    end_time = _to_microseconds(self._clock.time_ns())
+    inference_latency = end_time - start_time
     num_bytes = self._inference_runner.get_num_bytes(examples)
     num_elements = len(batch)
     self._metrics_collector.update(num_elements, num_bytes, inference_latency)
@@ -245,33 +259,3 @@ def _get_current_process_memory_in_bytes():
         'Resource module is not available for current platform, '
         'memory usage cannot be fetched.')
   return 0
-
-
-def _is_windows() -> bool:
-  return platform.system() == 'Windows' or os.name == 'nt'
-
-
-def _is_cygwin() -> bool:
-  return platform.system().startswith('CYGWIN_NT')
-
-
-class _Clock(object):
-  def get_current_time_in_microseconds(self) -> int:
-    return int(time.time() * _SECOND_TO_MICROSECOND)
-
-
-class _FineGrainedClock(_Clock):
-  def get_current_time_in_microseconds(self) -> int:
-    return int(
-        time.clock_gettime_ns(time.CLOCK_REALTIME) /  # type: ignore[attr-defined]
-        _NANOSECOND_TO_MICROSECOND)
-
-
-#TODO(BEAM-14255): Research simplifying the internal clock and just using time.
-class _ClockFactory(object):
-  @staticmethod
-  def make_clock() -> _Clock:
-    if (hasattr(time, 'clock_gettime_ns') and not _is_windows() and
-        not _is_cygwin()):
-      return _FineGrainedClock()
-    return _Clock()

@@ -15,18 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.DefaultCoder;
+import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
-/**
- * Represents the type of modification applied in the {@link DataChangeRecord}. It can be one of the
- * following: INSERT, UPDATE or DELETE.
- */
-@DefaultCoder(AvroCoder.class)
-public enum ModType {
-  INSERT,
-  UPDATE,
-  DELETE
-}
+// This job runs the Java sickbay tests.
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Sickbay',
+    'Run Java Sickbay', 'Java Sickbay Tests', this) {
+
+      description('Run Java Sickbay Tests')
+
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+
+      publishers {
+        archiveJunit('**/build/test-results/**/*.xml')
+      }
+
+      // Execute shell command to run sickbay tests.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':javaPostCommitSickbay')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
+    }
