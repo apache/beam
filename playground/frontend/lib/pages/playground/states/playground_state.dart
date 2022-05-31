@@ -25,6 +25,7 @@ import 'package:playground/modules/editor/repository/code_repository/code_reposi
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/examples/models/outputs_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 const kTitleLength = 15;
@@ -47,6 +48,8 @@ class PlaygroundState with ChangeNotifier {
   String _pipelineOptions = '';
   DateTime? resetKey;
   StreamController<int>? _executionTime;
+  OutputType? selectedOutputFilterType;
+  String? outputResult;
 
   PlaygroundState({
     SDK sdk = SDK.java,
@@ -58,6 +61,8 @@ class PlaygroundState with ChangeNotifier {
     _sdk = sdk;
     _source = _selectedExample?.source ?? '';
     _codeRepository = codeRepository;
+    selectedOutputFilterType = OutputType.all;
+    outputResult = '';
   }
 
   String get examplesTitle {
@@ -97,6 +102,7 @@ class PlaygroundState with ChangeNotifier {
     _source = example.source ?? '';
     _result = null;
     _executionTime = null;
+    outputResult = '';
     notifyListeners();
   }
 
@@ -109,6 +115,11 @@ class PlaygroundState with ChangeNotifier {
     _source = source;
   }
 
+  setSelectedOutputFilterType(OutputType type) {
+    selectedOutputFilterType = type;
+    notifyListeners();
+  }
+
   clearOutput() {
     _result = null;
     notifyListeners();
@@ -119,6 +130,7 @@ class PlaygroundState with ChangeNotifier {
     _pipelineOptions = selectedExample?.pipelineOptions ?? '';
     resetKey = DateTime.now();
     _executionTime = null;
+    outputResult = '';
     notifyListeners();
   }
 
@@ -157,6 +169,7 @@ class PlaygroundState with ChangeNotifier {
       );
       _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;
+        outputResult = _result!.log! + _result!.output!;
         if (event.isFinished && onFinish != null) {
           onFinish();
           _executionTime?.close();
@@ -179,6 +192,7 @@ class PlaygroundState with ChangeNotifier {
       log: (_result?.log ?? '') + kExecutionCancelledText,
       graph: _result?.graph,
     );
+    outputResult = _result!.log! + _result!.output!;
     _executionTime?.close();
     notifyListeners();
   }
@@ -197,6 +211,7 @@ class PlaygroundState with ChangeNotifier {
       log: kCachedResultsLog + logs,
       graph: _selectedExample!.graph,
     );
+    outputResult = _result!.log! + _result!.output!;
     _executionTime?.close();
     notifyListeners();
   }
@@ -227,5 +242,25 @@ class PlaygroundState with ChangeNotifier {
     );
 
     return streamController;
+  }
+
+  filterOutput(OutputType type) {
+    var output = result?.output ?? '';
+    var log = result?.log ?? '';
+
+    switch (type) {
+      case OutputType.all:
+        outputResult = log + output;
+        break;
+      case OutputType.log:
+        outputResult = log;
+        break;
+      case OutputType.output:
+        outputResult = output;
+        break;
+      case OutputType.graph:
+        outputResult = log + output;
+        break;
+    }
   }
 }
