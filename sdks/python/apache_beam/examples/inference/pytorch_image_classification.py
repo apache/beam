@@ -40,8 +40,9 @@ from torchvision import transforms
 
 
 def read_image(image_file_name: str,
-               path_to_dir: str) -> Tuple[str, Image.Image]:
-  image_file_name = os.path.join(path_to_dir, image_file_name)
+               path_to_dir: str = None) -> Tuple[str, Image.Image]:
+  if path_to_dir is not None:
+    image_file_name = os.path.join(path_to_dir, image_file_name)
   with FileSystems().open(image_file_name, 'r') as file:
     data = Image.open(io.BytesIO(file.read())).convert('RGB')
     return image_file_name, data
@@ -63,8 +64,6 @@ def preprocess_image(data: Image) -> torch.Tensor:
 
 
 class PostProcessor(beam.DoFn):
-  "Output filename and prediction"
-
   def process(
       self, element: Union[PredictionResult, Tuple[Any, PredictionResult]]
   ) -> Iterable[str]:
@@ -97,7 +96,9 @@ def run_pipeline(options: PipelineOptions, args=None):
         filename_value_pair
         | 'PyTorch RunInference' >> RunInference(model_loader)
         | 'Process output' >> beam.ParDo(PostProcessor()))
-    predictions | "Write output to GCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
+
+    if args.output:
+      predictions | "Write output to GCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
         args.output,
         shard_name_template='',
         append_trailing_newlines=True)
@@ -119,9 +120,13 @@ def parse_known_args(argv):
   parser.add_argument(
       '--model_state_dict_path',
       dest='model_state_dict_path',
+      required=True,
       help='Path to load the model.')
   parser.add_argument(
-      '--images_dir', required=True, help='Path to the images folder')
+      '--images_dir',
+      default=None,
+      help='Path to the directory where images are stored.'
+      'This is not required if the --input has absolute path to the images.')
   return parser.parse_known_args(argv)
 
 
