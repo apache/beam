@@ -263,7 +263,7 @@ func TestTracker_TrySplit(t *testing.T) {
 			rest:     Restriction{Start: 0, End: 10},
 			claimed:  5,
 			fraction: -0.5,
-			splitPt:  5,
+			splitPt:  6,
 		},
 		{
 			rest:     Restriction{Start: 0, End: 10},
