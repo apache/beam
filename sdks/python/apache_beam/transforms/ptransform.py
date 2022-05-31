@@ -49,6 +49,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Generic
 from typing import List
 from typing import Mapping
 from typing import Optional
@@ -99,6 +100,8 @@ __all__ = [
 _LOGGER = logging.getLogger(__name__)
 
 T = TypeVar('T')
+InputT = TypeVar('InputT')
+OutputT = TypeVar('OutputT')
 PTransformT = TypeVar('PTransformT', bound='PTransform')
 ConstructorFn = Callable[
     ['beam_runner_api_pb2.PTransform', Optional[Any], 'PipelineContext'], Any]
@@ -328,7 +331,7 @@ class _ZipPValues(object):
         self.visit(p, sibling, pairs, context)
 
 
-class PTransform(WithTypeHints, HasDisplayData):
+class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
   """A transform object used to modify one or more PCollections.
 
   Subclasses must define an expand() method that will be used when the transform
@@ -522,7 +525,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     transform.label = new_label
     return transform
 
-  def expand(self, input_or_inputs):
+  def expand(self, input_or_inputs: InputT) -> OutputT:
     raise NotImplementedError
 
   def __str__(self):
