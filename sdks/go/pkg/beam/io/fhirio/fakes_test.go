@@ -15,12 +15,7 @@
 
 package fhirio
 
-import (
-	"net/http"
-	"testing"
-
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
-)
+import "net/http"
 
 type fakeFhirStoreClient struct {
 	fakeReadResources func(string) (*http.Response, error)
@@ -41,21 +36,4 @@ func (*fakeReaderCloser) Close() error {
 
 func (m *fakeReaderCloser) Read(b []byte) (int, error) {
 	return m.fakeRead(b)
-}
-
-func validateCounters(t *testing.T, counterResults []metrics.CounterResult, expected []struct {
-	string
-	int64
-}) {
-	if len(counterResults) != len(expected) {
-		t.Fatalf("counterResults got length %v, expected %v", len(counterResults), len(expected))
-	}
-	for i := 0; i < len(counterResults); i++ {
-		if counterResults[i].Name() != expected[i].string {
-			t.Fatalf("counterResults[i].Name() is '%v', expected '%v'", counterResults[i].Name(), expected[i].string)
-		}
-		if counterResults[i].Result() != expected[i].int64 {
-			t.Fatalf("counterResults[i].Result() is %v, expected %v", counterResults[i].Result(), expected[i].int64)
-		}
-	}
 }
