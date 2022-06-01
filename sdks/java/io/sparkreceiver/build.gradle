@@ -34,7 +34,7 @@ interface for streaming integration with CDAP plugins."""
 
 dependencies {
     implementation library.java.commons_lang2_6
-    implementation library.java.scala
+    implementation "org.scala-lang:scala-library:2.11.12"
     implementation library.java.spark_streaming
     implementation library.java.spark_core
     implementation project(path: ":sdks:java:core", configuration: "shadow")
