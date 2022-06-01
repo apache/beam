@@ -356,7 +356,22 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   def isRelease(Project project) {
-    return project.hasProperty('isRelease')
+    return parseBooleanProperty(project, 'isRelease');
+  }
+
+  /**
+   * Parses -Pprop as true for use as a flag, and otherwise uses Groovy's toBoolean
+   */
+  def parseBooleanProperty(Project project, String property) {
+    if (!project.hasProperty(property)) {
+      return false;
+    }
+
+    if (project.getProperty(property) == "") {
+      return true;
+    }
+
+    return project.getProperty(property).toBoolean();
   }
 
   def defaultArchivesBaseName(Project p) {
@@ -929,7 +944,7 @@ class BeamModulePlugin implements Plugin<Project> {
           'org.checkerframework.checker.nullness.NullnessChecker'
         ]
 
-        if (project.findProperty('enableCheckerFramework') || project.jenkins.isCIBuild) {
+        if (parseBooleanProperty(project, 'enableCheckerFramework') || project.jenkins.isCIBuild) {
           skipCheckerFramework = false
         } else {
           skipCheckerFramework = true
