@@ -191,19 +191,18 @@ class DataInputOperation(RunnerIOOperation):
     self.started = False
 
   def setup(self):
-    with self.scoped_start_state:
-      super().setup()
-      # We must do this manually as we don't have a spec or spec.output_coders.
-      self.receivers = [
-          operations.ConsumerSet.create(
-              self.counter_factory,
-              self.name_context.step_name,
-              0,
-              self.consumer,
-              self.windowed_coder,
-              self.get_output_batch_converter(),
-              self._get_runtime_performance_hints())
-      ]
+    super().setup()
+    # We must do this manually as we don't have a spec or spec.output_coders.
+    self.receivers = [
+        operations.ConsumerSet.create(
+            self.counter_factory,
+            self.name_context.step_name,
+            0,
+            self.consumer,
+            self.windowed_coder,
+            self.get_output_batch_converter(),
+            self._get_runtime_performance_hints())
+    ]
 
   def start(self):
     # type: () -> None

@@ -196,7 +196,9 @@ func (tracker *Tracker) TrySplit(fraction float64) (primary, residual interface{
 	}
 
 	// Use Ceil to always round up from float split point.
-	splitPt := tracker.claimed + int64(math.Ceil(fraction*float64(tracker.rest.End-tracker.claimed)))
+	// Use Max to make sure the split point is greater than the current claimed work since
+	// claimed work belongs to the primary.
+	splitPt := tracker.claimed + int64(math.Max(math.Ceil(fraction*float64(tracker.rest.End-tracker.claimed)), 1))
 	if splitPt >= tracker.rest.End {
 		return tracker.rest, nil, nil
 	}
@@ -212,7 +214,7 @@ func (tracker *Tracker) GetProgress() (done, remaining float64) {
 	return
 }
 
-// IsDone returns true if the most recent claimed element is past the end of the restriction.
+// IsDone returns true if the most recent claimed element is at or past the end of the restriction
 func (tracker *Tracker) IsDone() bool {
 	return tracker.err == nil && (tracker.claimed+1 >= tracker.rest.End || tracker.rest.Start >= tracker.rest.End)
 }

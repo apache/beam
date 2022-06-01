@@ -27,6 +27,7 @@ import java.util.UUID;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ClassUtils;
 import org.apache.beam.runners.core.construction.External;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
@@ -72,6 +73,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   private @Nullable Object @NonNull [] argsArray;
   private @Nullable Row providedKwargsRow;
 
+  Map<String, Coder<?>> outputCoders;
+
   private PythonExternalTransform(String fullyQualifiedName, String expansionService) {
     this.fullyQualifiedName = fullyQualifiedName;
     this.expansionService = expansionService;
@@ -82,6 +85,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     this.typeHints.put(
         PythonCallableSource.class, Schema.FieldType.logicalType(new PythonCallable()));
     argsArray = new Object[] {};
+    this.outputCoders = new HashMap<>();
   }
 
   /**
@@ -188,6 +192,39 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
           String.format("typehint for arg type %s already exists", argType));
     }
     typeHints.put(argType, fieldType);
+    return this;
+  }
+
+  /**
+   * Specifies the keys and {@link Coder}s of the output {@link PCollection}s produced by this
+   * transform.
+   *
+   * @param outputCoders a mapping from output keys to {@link Coder}s.
+   * @return updated wrapper for the cross-language transform.
+   */
+  public PythonExternalTransform<InputT, OutputT> withOutputCoders(
+      Map<String, Coder<?>> outputCoders) {
+    if (this.outputCoders.size() > 0) {
+      throw new IllegalArgumentException("Output coders were already specified");
+    }
+    this.outputCoders.putAll(outputCoders);
+    return this;
+  }
+
+  /**
+   * Specifies the {@link Coder} of the output {@link PCollection}s produced by this transform.
+   * Should only be used if this transform produces a single output.
+   *
+   * @param outputCoder output {@link Coder} of the transform.
+   * @return updated wrapper for the cross-language transform.
+   */
+  public PythonExternalTransform<InputT, OutputT> withOutputCoder(Coder<?> outputCoder) {
+    if (this.outputCoders.size() > 0) {
+      throw new IllegalArgumentException("Output coders were already specified");
+    }
+
+    // Output key should not matter when only specifying a single output.
+    this.outputCoders.put("random_output_key", outputCoder);
     return this;
   }
 
@@ -369,7 +406,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
                 "beam:transforms:python:fully_qualified_named",
                 payload.toByteArray(),
                 expansionService)
-            .withMultiOutputs();
+            .withMultiOutputs()
+            .withOutputCoder(this.outputCoders);
     PCollectionTuple outputs;
     if (input instanceof PCollection) {
       outputs = ((PCollection<?>) input).apply(transform);
