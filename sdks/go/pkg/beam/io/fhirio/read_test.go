@@ -25,7 +25,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
-func TestRead(t *testing.T) {
+func TestRead_Errors(t *testing.T) {
 	testCases := []struct {
 		name           string
 		client         fhirStoreClient
@@ -75,16 +75,12 @@ func TestRead(t *testing.T) {
 				return strings.Contains(errorMsg, testCase.containedError)
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
-			counterResults := pipelineResult.Metrics().AllMetrics().Counters()
-			if len(counterResults) != 1 {
-				t.Fatal("Only one counter should have been used")
-			}
-			if counterResults[0].Name() != "fhirio/read_resource_error_count" {
-				t.Fatal("Only error counter should have been used")
-			}
-			if counterResults[0].Result() != int64(len(testResourcePaths)) {
-				t.Fatal("Counter should have been incremented by the number of test resource paths")
-			}
+			validateCounters(t, pipelineResult.Metrics().AllMetrics().Counters(), []struct {
+				string
+				int64
+			}{
+				{"fhirio/read_resource_error_count", int64(len(testResourcePaths))},
+			})
 		})
 	}
 }
