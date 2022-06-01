@@ -809,7 +809,9 @@ class BatchLoads<DestinationT, ElementT>
         empty,
         null,
         new TupleTag<>("successfulInserts"),
-        successfulWrites);
+        successfulWrites,
+        null,
+        null);
   }
 
   @Override

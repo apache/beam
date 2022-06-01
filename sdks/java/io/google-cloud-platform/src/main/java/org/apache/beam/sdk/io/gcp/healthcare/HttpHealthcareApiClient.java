@@ -37,6 +37,7 @@ import com.google.api.services.healthcare.v1.model.DicomStore;
 import com.google.api.services.healthcare.v1.model.Empty;
 import com.google.api.services.healthcare.v1.model.ExportResourcesRequest;
 import com.google.api.services.healthcare.v1.model.FhirStore;
+import com.google.api.services.healthcare.v1.model.GoogleCloudHealthcareV1FhirBigQueryDestination;
 import com.google.api.services.healthcare.v1.model.GoogleCloudHealthcareV1FhirGcsDestination;
 import com.google.api.services.healthcare.v1.model.GoogleCloudHealthcareV1FhirGcsSource;
 import com.google.api.services.healthcare.v1.model.Hl7V2Store;
@@ -49,6 +50,7 @@ import com.google.api.services.healthcare.v1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1.model.Message;
 import com.google.api.services.healthcare.v1.model.NotificationConfig;
 import com.google.api.services.healthcare.v1.model.Operation;
+import com.google.api.services.healthcare.v1.model.SchemaConfig;
 import com.google.api.services.healthcare.v1.model.SearchResourcesRequest;
 import com.google.api.services.storage.StorageScopes;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -509,6 +511,28 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     gcsDst.setUriPrefix(gcsDestinationPrefix);
     ExportResourcesRequest exportRequest = new ExportResourcesRequest();
     exportRequest.setGcsDestination(gcsDst);
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .fhirStores()
+        .export(fhirStore, exportRequest)
+        .execute();
+  }
+
+  @Override
+  public Operation exportFhirResourceToBigQuery(String fhirStore, String bigQueryDatasetUri)
+      throws IOException {
+    final GoogleCloudHealthcareV1FhirBigQueryDestination bigQueryDestination =
+        new GoogleCloudHealthcareV1FhirBigQueryDestination();
+    bigQueryDestination.setDatasetUri(bigQueryDatasetUri);
+
+    final SchemaConfig schemaConfig = new SchemaConfig();
+    schemaConfig.setSchemaType("ANALYTICS");
+    bigQueryDestination.setSchemaConfig(schemaConfig);
+
+    final ExportResourcesRequest exportRequest = new ExportResourcesRequest();
+    exportRequest.setBigqueryDestination(bigQueryDestination);
     return client
         .projects()
         .locations()

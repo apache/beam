@@ -208,7 +208,7 @@ func (fn *readFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, file
 		// scanning to the byte just before the restriction and then reading
 		// until the next newline, leaving the reader at the start of a new
 		// line past restriction.Start.
-		i -= 1
+		i--
 		n, err := rd.Discard(int(i)) // Scan to just before restriction.
 		if err == io.EOF {
 			return errors.Errorf("TextIO restriction lies outside the file being read. "+
