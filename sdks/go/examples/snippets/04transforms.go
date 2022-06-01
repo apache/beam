@@ -96,7 +96,7 @@ type weDoFn struct{}
 
 // [START bundlefinalization_simplecallback]
 
-func (fn *splittableDoFn) ProcessElement(element string, bf beam.BundleFinalization) {
+func (fn *splittableDoFn) ProcessElement(bf beam.BundleFinalization, element string) {
 	// ... produce output ...
 
 	bf.RegisterCallback(5*time.Minute, func() error {
