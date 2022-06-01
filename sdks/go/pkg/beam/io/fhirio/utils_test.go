@@ -16,9 +16,10 @@
 package fhirio
 
 import (
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"net/http"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 )
 
 type fakeFhirStoreClient struct {
