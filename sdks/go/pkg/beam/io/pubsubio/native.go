@@ -142,7 +142,8 @@ func (r *PubSubRead) ProcessElement(rt *sdf.LockRTracker, _ []byte, emit func([]
 // name exists for the given topic, the DoFn will read from that subscription; otherwise,
 // a new subscription with the given subscription name will be created and read from.
 //
-// This feature is experimental. Please use the cross-language implementation Read() instead.
+// This feature is experimental and subject to change, including its behavior and function signature.
+// Please use the cross-language implementation Read() instead.
 func NativeRead(s beam.Scope, project, topic, subscription string) beam.PCollection {
 	s = s.Scope("pubsubio.NativeRead")
 
@@ -201,7 +202,8 @@ func NewPubSubWrite(ctx context.Context, projectID, topic string) (*PubSubWrite,
 // NativeWrite publishes elements from a PCollection of byte slices to a PubSub topic.
 // If the topic does not exist at pipeline construction time, the function will panic.
 //
-// This feature is experimental. Please use the cross-language implementation Write() instead.
+// This feature is experimental and subject to change, including its behavior and function signature.
+// Please use the cross-language implementation Write() instead.
 func NativeWrite(s beam.Scope, col beam.PCollection, project, topic string) {
 	s = s.Scope("pubsubio.NativeWrite")
 
