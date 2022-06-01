@@ -331,9 +331,8 @@ func (tracker *GrowableTracker) GetProgress() (done, remaining float64) {
 		return done, remaining
 	}
 
-	totalWork := float64(max(estimatedEnd, tracker.attempted) - tracker.Start())
-	remaining = math.Max(0, float64(estimatedEnd-tracker.attempted))
-	done = totalWork - remaining
+	remaining = math.Max(0, float64(estimatedEnd)-float64(tracker.attempted))
+	done = float64((tracker.claimed + 1) - tracker.rest.Start)
 	return done, remaining
 }
 
