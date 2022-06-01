@@ -35,6 +35,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -45,14 +46,16 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class JulHandlerPrintStreamAdapterFactory {
-  private static final AtomicBoolean outputWarning = new AtomicBoolean(false);
+  private static final AtomicBoolean OUTPUT_WARNING = new AtomicBoolean(false);
+
+  @VisibleForTesting
+  static final String LOGGING_DISCLAIMER =
+      String.format(
+          "Please use a logger instead of System.out or System.err.%n"
+              + "Please switch to using org.slf4j.Logger.%n"
+              + "See: https://cloud.google.com/dataflow/pipelines/logging");
 
   private static class JulHandlerPrintStream extends PrintStream {
-    private static final String LOGGING_DISCLAIMER =
-        String.format(
-            "Please use a logger instead of System.out or System.err.%n"
-                + "Please switch to using org.slf4j.Logger.%n"
-                + "See: https://cloud.google.com/dataflow/pipelines/logging");
     // This limits the number of bytes which we buffer in case we don't have a flush.
     private static final int BUFFER_LIMIT = 1 << 10; // 1024 chars
 
@@ -61,10 +64,18 @@ class JulHandlerPrintStreamAdapterFactory {
 
     private final Handler handler;
     private final String loggerName;
-    private final StringBuilder buffer;
     private final Level messageLevel;
+
+    @GuardedBy("this")
+    private final StringBuilder buffer;
+
+    @GuardedBy("this")
     private final CharsetDecoder decoder;
+
+    @GuardedBy("this")
     private final CharBuffer decoded;
+
+    @GuardedBy("this")
     private ByteArrayOutputStream carryOverBytes;
 
     private JulHandlerPrintStream(
@@ -127,6 +138,10 @@ class JulHandlerPrintStreamAdapterFactory {
 
     @Override
     public void write(byte[] a, int offset, int length) {
+      if (length == 0) {
+        return;
+      }
+
       ByteBuffer incoming = ByteBuffer.wrap(a, offset, length);
       assert incoming.hasArray();
 
@@ -148,7 +163,7 @@ class JulHandlerPrintStreamAdapterFactory {
             }
           }
 
-          // Publish chunks while we are hitting the buffer limit
+          // Append chunks while we are hitting the decoded buffer limit
           while (decoder.decode(incoming, decoded, false).isOverflow()) {
             decoded.flip();
             buffer.append(decoded);
@@ -388,7 +403,7 @@ class JulHandlerPrintStreamAdapterFactory {
         return;
       }
       if (logger.isLoggable(messageLevel)) {
-        if (outputWarning.compareAndSet(false, true)) {
+        if (OUTPUT_WARNING.compareAndSet(false, true)) {
           LogRecord log = new LogRecord(Level.WARNING, LOGGING_DISCLAIMER);
           log.setLoggerName(loggerName);
           handler.publish(log);
@@ -413,8 +428,7 @@ class JulHandlerPrintStreamAdapterFactory {
     }
   }
 
-  @VisibleForTesting
   static void reset() {
-    outputWarning.set(false);
+    OUTPUT_WARNING.set(false);
   }
 }

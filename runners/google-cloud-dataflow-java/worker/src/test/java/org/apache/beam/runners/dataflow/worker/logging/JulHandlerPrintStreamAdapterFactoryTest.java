@@ -20,8 +20,8 @@ package org.apache.beam.runners.dataflow.worker.logging;
 import static org.apache.beam.runners.dataflow.worker.LogRecordMatcher.hasLogItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.blankOrNullString;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
@@ -171,7 +171,10 @@ public class JulHandlerPrintStreamAdapterFactoryTest {
     for (LogRecord logRecord : handler.getLogs()) {
       actualMessages.append(logRecord.getMessage());
     }
-    assertThat(actualMessages.toString(), containsString(msg + newlineMsg));
+
+    assertThat(
+        actualMessages.toString(),
+        equalTo(JulHandlerPrintStreamAdapterFactory.LOGGING_DISCLAIMER + msg + newlineMsg));
   }
 
   @Test
