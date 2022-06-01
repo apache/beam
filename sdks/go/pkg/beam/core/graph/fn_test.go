@@ -161,6 +161,7 @@ func TestNewDoFnSdf(t *testing.T) {
 		}{
 			{dfn: &GoodSdf{}, main: MainSingle},
 			{dfn: &GoodSdfKv{}, main: MainKv},
+			{dfn: &GoodIgnoreOtherExportedMethods{}, main: MainSingle},
 		}
 
 		for _, test := range tests {
@@ -205,7 +206,6 @@ func TestNewDoFnSdf(t *testing.T) {
 			{dfn: &BadSdfRestTCreateTracker{}},
 			{dfn: &BadSdfRestTTruncateRestriction{}},
 			// Validate other types
-			{dfn: &BadSdfRestSizeReturn{}},
 			{dfn: &BadSdfCreateTrackerReturn{}},
 			{dfn: &BadSdfMismatchedRTracker{}},
 			{dfn: &BadSdfMissingRTracker{}},
@@ -321,6 +321,7 @@ func TestNewCombineFn(t *testing.T) {
 			{cfn: &GoodWErrorCombineFn{}},
 			{cfn: &GoodWContextCombineFn{}},
 			{cfn: &GoodCombineFnUnexportedExtraMethod{}},
+			{cfn: &GoodCombineFnExtraExportedMethod{}},
 		}
 
 		for _, test := range tests {
@@ -363,7 +364,6 @@ func TestNewCombineFn(t *testing.T) {
 			{cfn: &BadCombineFnInvalidExtractOutput1{}},
 			{cfn: &BadCombineFnInvalidExtractOutput2{}},
 			{cfn: &BadCombineFnInvalidExtractOutput3{}},
-			{cfn: &BadCombineFnExtraExportedMethod{}},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.cfn).String(), func(t *testing.T) {
@@ -798,6 +798,14 @@ func (fn *GoodSdfKv) TruncateRestriction(*RTrackerT, int, int) RestT {
 	return RestT{}
 }
 
+type GoodIgnoreOtherExportedMethods struct {
+	*GoodSdf
+}
+
+func (fn *GoodIgnoreOtherExportedMethods) IgnoreOtherExportedMethods(int, RestT) int {
+	return 0
+}
+
 type WatermarkEstimatorT struct{}
 
 func (e *WatermarkEstimatorT) CurrentWatermark() time.Time {
@@ -1071,14 +1079,6 @@ func (fn *BadWatermarkEstimatingNonSdf) CreateWatermarkEstimator() *WatermarkEst
 
 // Examples of other type validation that needs to be done.
 
-type BadSdfRestSizeReturn struct {
-	*GoodSdf
-}
-
-func (fn *BadSdfRestSizeReturn) BadSdfRestSizeReturn(int, RestT) int {
-	return 0
-}
-
 type BadRTrackerT struct{} // Fails to implement RTracker interface.
 
 type BadSdfCreateTrackerReturn struct {
@@ -1314,6 +1314,14 @@ func (fn *GoodCombineFnUnexportedExtraMethod) unexportedExtraMethod(context.Cont
 	return ""
 }
 
+type GoodCombineFnExtraExportedMethod struct {
+	*GoodCombineFn
+}
+
+func (fn *GoodCombineFnExtraExportedMethod) ExtraMethod(string) int {
+	return 0
+}
+
 // Examples of incorrect CombineFn signatures.
 // Embedding *GoodCombineFn avoids repetitive MergeAccumulators signatures when desired.
 // The immediately following examples are relating to accumulator mismatches.
@@ -1461,15 +1469,5 @@ type BadCombineFnInvalidExtractOutput3 struct {
 }
 
 func (fn *BadCombineFnInvalidExtractOutput3) ExtractOutput(context.Context, MyAccum, int) int {
-	return 0
-}
-
-// Other CombineFn Errors
-
-type BadCombineFnExtraExportedMethod struct {
-	*GoodCombineFn
-}
-
-func (fn *BadCombineFnExtraExportedMethod) ExtraMethod(string) int {
 	return 0
 }

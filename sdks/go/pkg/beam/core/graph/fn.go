@@ -123,32 +123,23 @@ func NewFn(fn interface{}) (*Fn, error) {
 				methods[name] = f
 			}
 		}
-		// TODO(lostluck): Consider moving this into the reflectx package.
-		for i := 0; i < val.Type().NumMethod(); i++ {
-			m := val.Type().Method(i)
-			if m.PkgPath != "" {
-				continue // skip: unexported
-			}
-			if m.Name == "String" {
-				continue // skip: harmless
-			}
-			if _, ok := methods[m.Name]; ok {
+		for mName := range lifecycleMethods {
+			if _, ok := methods[mName]; ok {
 				continue // skip : already wrapped
+			}
+			m, ok := val.Type().MethodByName(mName)
+			if !ok {
+				continue // skip: doesn't exist
 			}
 
 			// CAVEAT(herohde) 5/22/2017: The type val.Type.Method.Type is not
 			// the same as val.Method.Type: the former has the explicit receiver.
 			// We'll use the receiver-less version.
-
-			// TODO(herohde) 5/22/2017: Alternatively, it looks like we could
-			// serialize each method, call them explicitly and avoid struct
-			// registration.
-
-			f, err := funcx.New(reflectx.MakeFunc(val.Method(i).Interface()))
+			f, err := funcx.New(reflectx.MakeFunc(val.Method(m.Index).Interface()))
 			if err != nil {
-				return nil, errors.Wrapf(err, "method %v invalid", m.Name)
+				return nil, errors.Wrapf(err, "method %v invalid", mName)
 			}
-			methods[m.Name] = f
+			methods[mName] = f
 		}
 		return &Fn{Recv: fn, methods: methods, annotations: annotations}, nil
 
