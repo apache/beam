@@ -25,6 +25,7 @@ from typing import List
 from typing import Union
 
 import numpy
+from sklearn.base import BaseEstimator
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.api import PredictionResult
@@ -43,10 +44,14 @@ class ModelFileType(enum.Enum):
   JOBLIB = 2
 
 
-class SklearnInferenceRunner(InferenceRunner):
+class SklearnInferenceRunner(InferenceRunner[Union[numpy.ndarray,
+                                                   pandas.DataFrame],
+                                             PredictionResult,
+                                             BaseEstimator]):
   def run_inference(
-      self, batch: List[Union[numpy.ndarray, pandas.DataFrame]],
-      model: Any) -> Iterable[PredictionResult]:
+      self,
+      batch: List[Union[numpy.ndarray, pandas.DataFrame]],
+      model: BaseEstimator) -> Iterable[PredictionResult]:
     if isinstance(batch[0], numpy.ndarray):
       return SklearnInferenceRunner._predict_np_array(batch, model)
     elif isinstance(batch[0], pandas.DataFrame):
@@ -81,7 +86,9 @@ class SklearnInferenceRunner(InferenceRunner):
       return sum(df.memory_usage(deep=True).sum() for df in batch)
 
 
-class SklearnModelLoader(ModelLoader):
+class SklearnModelLoader(ModelLoader[numpy.ndarray,
+                                     PredictionResult,
+                                     BaseEstimator]):
   """ Implementation of the ModelLoader interface for scikit learn.
 
       NOTE: This API and its implementation are under development and
@@ -93,9 +100,8 @@ class SklearnModelLoader(ModelLoader):
       model_uri: str = ''):
     self._model_file_type = model_file_type
     self._model_uri = model_uri
-    self._inference_runner = SklearnInferenceRunner()
 
-  def load_model(self):
+  def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
     file = FileSystems.open(self._model_uri, 'rb')
     if self._model_file_type == ModelFileType.PICKLE:
@@ -111,4 +117,4 @@ class SklearnModelLoader(ModelLoader):
     raise AssertionError('Unsupported serialization type.')
 
   def get_inference_runner(self) -> SklearnInferenceRunner:
-    return self._inference_runner
+    return SklearnInferenceRunner()
