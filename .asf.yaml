@@ -28,6 +28,11 @@ github:
     - python
     - sql
     - streaming
+  features:
+    # Enable issue management
+    issues: true
+    # Enable projects for project management boards
+    projects: true
 
   enabled_merge_buttons:
     squash: true
