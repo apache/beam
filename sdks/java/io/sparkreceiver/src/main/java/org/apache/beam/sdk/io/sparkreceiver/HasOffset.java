@@ -17,9 +17,14 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
+import org.apache.spark.streaming.receiver.Receiver;
+
+/** Interface for any Spark {@link Receiver} that supports reading from and to some offset. */
 public interface HasOffset {
 
+  /** @param offset inclusive start offset from which the reading should be started. */
   void setStartOffset(Long offset);
 
+  /** @return exclusive end offset to which the reading from current page will occur. */
   Long getEndOffset();
 }

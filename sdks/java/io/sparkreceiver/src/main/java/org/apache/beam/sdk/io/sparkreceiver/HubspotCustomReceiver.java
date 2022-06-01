@@ -27,7 +27,6 @@ import java.util.Iterator;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.receiver.Receiver;
@@ -41,15 +40,13 @@ public class HubspotCustomReceiver extends Receiver<String> implements HasOffset
   private static final String RECEIVER_THREAD_NAME = "hubspot_api_listener";
   private final HubspotStreamingSourceConfig config;
   private String startOffset = null;
-  private final AtomicBoolean isStopped = new AtomicBoolean(false);
   private Long endOffset = Long.MAX_VALUE;
 
-  HubspotCustomReceiver(HubspotStreamingSourceConfig config) throws IOException {
+  HubspotCustomReceiver(HubspotStreamingSourceConfig config) {
     super(StorageLevel.MEMORY_AND_DISK_2());
     this.config = config;
   }
 
-  /** @param startOffset inclusive start offset from which the reading should be started. */
   @Override
   public void setStartOffset(Long startOffset) {
     if (startOffset != null) {
@@ -59,10 +56,6 @@ public class HubspotCustomReceiver extends Receiver<String> implements HasOffset
 
   public HubspotStreamingSourceConfig getConfig() {
     return config;
-  }
-
-  public Long getOffset() {
-    return startOffset != null ? Long.valueOf(startOffset) : null;
   }
 
   @Override
@@ -77,15 +70,8 @@ public class HubspotCustomReceiver extends Receiver<String> implements HasOffset
   public void onStop() {
     // There is nothing we can do here as the thread calling receive()
     // is designed to stop by itself if isStopped() returns false
-    isStopped.set(true);
   }
 
-  //  @Override
-  //  public boolean isStopped() {
-  //    return isStopped.get();
-  //  }
-
-  /** @return exclusive end offset to which the reading from current page will occur. */
   @Override
   public Long getEndOffset() {
     return endOffset;

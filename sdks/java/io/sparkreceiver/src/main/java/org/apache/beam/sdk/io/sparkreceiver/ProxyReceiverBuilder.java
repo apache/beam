@@ -36,7 +36,6 @@ import org.apache.spark.streaming.receiver.Receiver;
 })
 public class ProxyReceiverBuilder<X, T extends Receiver<X>> implements Serializable {
 
-  //  private static final Logger LOG = LoggerFactory.getLogger(ProxyReceiverBuilder.class);
   private final Class<T> sparkReceiverClass;
   private @Nullable Object[] constructorArgs;
 

@@ -20,6 +20,10 @@ package org.apache.beam.sdk.io.sparkreceiver;
 import java.io.Serializable;
 import org.apache.spark.streaming.receiver.Receiver;
 
+/**
+ * Interface for start/stop reading from some Spark {@link Receiver} into some place and poll from
+ * it.
+ */
 public interface SparkConsumer<V> extends Serializable {
 
   boolean hasRecords();

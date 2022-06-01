@@ -115,7 +115,7 @@ public class SparkReceiverIOTest {
         SparkReceiverIO.<String>read()
             .withValueClass(String.class)
             .withValueCoder(StringUtf8Coder.of())
-            .withGetOffsetFn(SparkReceiverUtils::getOffsetByHubspotRecord)
+            .withGetOffsetFn(CdapPluginMappingUtils::getOffsetByHubspotRecord)
             .withSparkReceiverBuilder(receiverBuilder);
 
     PCollection<String> input = p.apply(reader).setCoder(StringUtf8Coder.of());
@@ -149,7 +149,7 @@ public class SparkReceiverIOTest {
         SparkReceiverIO.<String>read()
             .withValueClass(String.class)
             .withValueCoder(StringUtf8Coder.of())
-            .withGetOffsetFn(SparkReceiverUtils::getOffsetByHubspotRecord)
+            .withGetOffsetFn(CdapPluginMappingUtils::getOffsetByHubspotRecord)
             .withSparkConsumer(new CustomSparkConsumer<>())
             .withSparkReceiverBuilder(receiverBuilder);
 
