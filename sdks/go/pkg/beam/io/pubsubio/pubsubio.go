@@ -26,6 +26,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
@@ -46,6 +47,8 @@ func init() {
 	register.Function2x1(marshalMessageFn)
 	register.Function2x0(wrapInMessage)
 	register.Function2x0(wrapInMessage)
+	register.DoFn3x2[*sdf.LockRTracker, []byte, func([]byte), sdf.ProcessContinuation, error](&PubSubRead{})
+	register.DoFn1x1[[]byte, error](&PubSubWrite{})
 	register.Emitter1[[]byte]()
 	register.Emitter1[*pb.PubsubMessage]()
 }
