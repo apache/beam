@@ -503,6 +503,43 @@ func TestNewFn_SplittableDoFn(t *testing.T) {
 	}
 }
 
+func TestNewFn_CombineFn(t *testing.T) {
+	userFn := &GoodCombineFn{}
+	fn, err := NewFn(userFn)
+	if err != nil {
+		t.Errorf("NewFn(%T) failed:\n%v", userFn, err)
+	}
+	cfn, err := AsCombineFn(fn)
+	if err != nil {
+		t.Errorf("AsCombineFn(%v) failed:\n%v", fn.Name(), err)
+	}
+	// Check that we get expected values for all the methods.
+	if got, want := cfn.Name(), "GoodCombineFn"; !strings.HasSuffix(got, want) {
+		t.Errorf("(%v).Name() = %q, want suffix %q", cfn.Name(), got, want)
+	}
+	if cfn.SetupFn() == nil {
+		t.Errorf("(%v).SetupFn() == nil, want value", cfn.Name())
+	}
+	if cfn.CreateAccumulatorFn() == nil {
+		t.Errorf("(%v).CreateAccumulatorFn() == nil, want value", cfn.Name())
+	}
+	if cfn.AddInputFn() == nil {
+		t.Errorf("(%v).AddInputFn() == nil, want value", cfn.Name())
+	}
+	if cfn.MergeAccumulatorsFn() == nil {
+		t.Errorf("(%v).MergeAccumulatorsFn() == nil, want value", cfn.Name())
+	}
+	if cfn.ExtractOutputFn() == nil {
+		t.Errorf("(%v).ExtractOutputFn() == nil, want value", cfn.Name())
+	}
+	if cfn.CompactFn() == nil {
+		t.Errorf("(%v).CompactFn() == nil, want value", cfn.Name())
+	}
+	if cfn.TeardownFn() == nil {
+		t.Errorf("(%v).TeardownFn() == nil, want value", cfn.Name())
+	}
+}
+
 // Do not copy. The following types are for testing signatures only.
 // They are not working examples.
 // Keep all test functions Above this point.
@@ -1391,6 +1428,8 @@ type MyAccum struct{}
 
 type GoodCombineFn struct{}
 
+func (fn *GoodCombineFn) Setup() {}
+
 func (fn *GoodCombineFn) MergeAccumulators(MyAccum, MyAccum) MyAccum {
 	return MyAccum{}
 }
@@ -1406,6 +1445,12 @@ func (fn *GoodCombineFn) AddInput(MyAccum, int) MyAccum {
 func (fn *GoodCombineFn) ExtractOutput(MyAccum) int64 {
 	return 0
 }
+
+func (fn *GoodCombineFn) Compact(MyAccum) MyAccum {
+	return MyAccum{}
+}
+
+func (fn *GoodCombineFn) Teardown() {}
 
 type GoodWErrorCombineFn struct{}
 
