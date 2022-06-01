@@ -515,9 +515,7 @@ class TestReadFromBigQuery(unittest.TestCase):
   @parameterized.expand([
       param(exception_type=exceptions.BadRequest, error_message='invalidQuery'),
       param(exception_type=exceptions.NotFound, error_message='notFound'),
-      param(
-          exception_type=exceptions.Forbidden,
-          error_message='responseTooLarge')
+      param(exception_type=exceptions.Forbidden, error_message='responseTooLarge')
   ])
   def test_query_job_exception(self, exception_type, error_message):
 
