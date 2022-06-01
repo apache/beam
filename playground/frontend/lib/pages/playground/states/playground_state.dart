@@ -200,7 +200,9 @@ class PlaygroundState with ChangeNotifier {
       log: (_result?.log ?? '') + kExecutionCancelledText,
       graph: _result?.graph,
     );
-    setOutputResult(_result!.log! + _result!.output!);
+    String log = _result?.log ?? '';
+    String output = _result?.output ?? '';
+    setOutputResult(log + output);
     _executionTime?.close();
     notifyListeners();
   }

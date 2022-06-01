@@ -70,21 +70,21 @@ class _OutputTabState extends State<OutputTab> {
           Text(widget.name),
           widget.hasFilter
               ? GestureDetector(
-            onTap: () {
-              showAlignedDialog(
-                context: context,
-                builder: (dialogContext) => const ResultFilterPopover(),
-                followerAnchor: Alignment.topLeft,
-                targetAnchor: Alignment.topLeft,
-                barrierColor: Colors.transparent,
-              );
-            },
-            child: Icon(
-              Icons.filter_alt_outlined,
-              size: kIconSizeSm,
-              color: ThemeColors.of(context).primary,
-            ),
-          )
+                  onTap: () {
+                    showAlignedDialog(
+                      context: context,
+                      builder: (dialogContext) => const ResultFilterPopover(),
+                      followerAnchor: Alignment.topLeft,
+                      targetAnchor: Alignment.topLeft,
+                      barrierColor: Colors.transparent,
+                    );
+                  },
+                  child: Icon(
+                    Icons.filter_alt_outlined,
+                    size: kIconSizeSm,
+                    color: ThemeColors.of(context).primary,
+                  ),
+                )
               : const SizedBox(),
           if (hasNewContent)
             Container(
