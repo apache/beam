@@ -171,8 +171,9 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
           reader.close();
           return ProcessContinuation.stop();
         }
-        LOG.warn("From time {}", tracker.currentRestriction().getFrom());
-        LOG.warn("To time {}", tracker.currentRestriction().getTo());
+        LOG.info("From time {}", tracker.currentRestriction().getFrom());
+        LOG.info("Current time {}", currentTimestamp);
+        LOG.info("To time {}", tracker.currentRestriction().getTo());
 
         if (pulsarSourceDescriptor.getEndMessageId() != null) {
           MessageId currentMsgId = message.getMessageId();
@@ -238,7 +239,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
     @Override
     public long estimate() {
       Message<byte[]> msg = memoizedBacklog.get();
-      LOG.warn("LatestMsgTime {}", msg.getPublishTime());
+      LOG.info("LatestMsgTime {}", msg.getPublishTime());
       return msg.getPublishTime();
     }
   }
