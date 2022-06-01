@@ -496,20 +496,30 @@ func TestGrowableTracker_Progress(t *testing.T) {
 	tests := []struct {
 		tracker         GrowableTracker
 		done, remaining float64
+		estimator       int64
 	}{
 		{
 			tracker:   GrowableTracker{Tracker{rest: Restriction{Start: 0, End: math.MaxInt64}, claimed: 20, attempted: 20}, &estimator},
 			done:      21,
-			remaining: math.MaxInt64 - 20,
+			remaining: 0,
+			estimator: 0,
 		},
 		{
 			tracker:   GrowableTracker{Tracker{rest: Restriction{Start: 0, End: 20}, claimed: 15, attempted: 15}, &estimator},
 			done:      16,
 			remaining: 4,
+			estimator: 0,
+		},
+		{
+			tracker:   GrowableTracker{Tracker{rest: Restriction{Start: 0, End: math.MaxInt64}, claimed: 20, attempted: 20}, &estimator},
+			done:      21,
+			remaining: math.MaxInt64 - 20,
+			estimator: math.MaxInt64,
 		},
 	}
 
 	for _, test := range tests {
+		estimator.EstimateRangeEnd = test.estimator
 		done, remaining := test.tracker.GetProgress()
 		if got, want := done, test.done; got != want {
 			t.Errorf("wrong amount of work done, got: %v, want: %v", got, want)
