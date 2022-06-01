@@ -56,7 +56,7 @@ func (fn *readResourceFn) Setup() {
 func (fn *readResourceFn) ProcessElement(ctx context.Context, resourcePath string, emitResource, emitDeadLetter func(string)) {
 	timeBeforeReadRequest := time.Now()
 	response, err := fn.client.readResource(resourcePath)
-	fn.readResourceLatencyMs.Update(ctx, time.Now().Sub(timeBeforeReadRequest).Milliseconds())
+	fn.readResourceLatencyMs.Update(ctx, time.Since(timeBeforeReadRequest).Milliseconds())
 
 	if err != nil {
 		fn.readResourceErrors.Inc(ctx, 1)
