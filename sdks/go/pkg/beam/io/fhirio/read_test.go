@@ -25,7 +25,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
-func TestRead_Errors(t *testing.T) {
+func TestRead(t *testing.T) {
 	testCases := []struct {
 		name           string
 		client         fhirStoreClient
@@ -75,12 +75,21 @@ func TestRead_Errors(t *testing.T) {
 				return strings.Contains(errorMsg, testCase.containedError)
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
-			validateCounters(t, pipelineResult.Metrics().AllMetrics().Counters(), []struct {
-				string
-				int64
-			}{
-				{"fhirio/read_resource_error_count", int64(len(testResourcePaths))},
-			})
+			counterResults := pipelineResult.Metrics().AllMetrics().Counters()
+			if counterResult := counterResults[0]; len(counterResults) == 1 {
+				expectedCounterName := "fhirio/read_resource_error_count"
+				if counterResult.Name() != expectedCounterName {
+					t.Fatalf("counterResult.Name() is '%v', expected '%v'", counterResult.Name(), expectedCounterName)
+				}
+
+				expectedCounterResult := int64(len(testResourcePaths))
+				if counterResult.Result() != expectedCounterResult {
+					t.Fatalf("counterResult.Result() is %v, expected %v", counterResult.Result(), expectedCounterResult)
+				}
+			} else {
+				t.Fatalf("counterResults got length %v, expected %v", len(counterResults), 1)
+			}
+
 		})
 	}
 }

@@ -19,7 +19,6 @@
 package fhirio
 
 import (
-	"bytes"
 	"context"
 	"net/http"
 
@@ -29,9 +28,8 @@ import (
 )
 
 const (
+	UserAgent        = "apache-beam-io-google-cloud-platform-healthcare/" + core.SdkVersion
 	baseMetricPrefix = "fhirio/"
-	storePathSuffix  = "/fhirStores/"
-	userAgent        = "apache-beam-io-google-cloud-platform-healthcare/" + core.SdkVersion
 )
 
 type fhirStoreClient interface {
@@ -39,38 +37,19 @@ type fhirStoreClient interface {
 }
 
 type fhirStoreClientImpl struct {
-	storeService           *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService
-	storeManagementService *healthcare.ProjectsLocationsDatasetsFhirStoresService
+	service *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService
 }
 
 func newFhirStoreClient() *fhirStoreClientImpl {
-	healthcareService, err := healthcare.NewService(context.Background(), option.WithUserAgent(userAgent))
+	healthcareService, err := healthcare.NewService(context.Background(), option.WithUserAgent(UserAgent))
 	if err != nil {
 		panic("Failed to initialize Google Cloud Healthcare Service. Reason: " + err.Error())
 	}
 	return &fhirStoreClientImpl{
-		storeService:           healthcare.NewProjectsLocationsDatasetsFhirStoresFhirService(healthcareService),
-		storeManagementService: healthcare.NewProjectsLocationsDatasetsFhirStoresService(healthcareService),
+		service: healthcare.NewProjectsLocationsDatasetsFhirStoresFhirService(healthcareService),
 	}
-}
-
-func (c *fhirStoreClientImpl) createStore(dataset, storeName, fhirVersion string) (*healthcare.FhirStore, error) {
-	fhirStore := &healthcare.FhirStore{
-		DisableReferentialIntegrity: true,
-		EnableUpdateCreate:          true,
-		Version:                     fhirVersion,
-	}
-	return c.storeManagementService.Create(dataset, fhirStore).FhirStoreId(storeName).Do()
-}
-
-func (c *fhirStoreClientImpl) deleteStore(dataset, storeName string) (*healthcare.Empty, error) {
-	return c.storeManagementService.Delete(dataset + storePathSuffix + storeName).Do()
 }
 
 func (c *fhirStoreClientImpl) readResource(resourcePath string) (*http.Response, error) {
-	return c.storeService.Read(resourcePath).Do()
-}
-
-func (c *fhirStoreClientImpl) executeBundle(dataset, storeName string, bundle []byte) (*http.Response, error) {
-	return c.storeService.ExecuteBundle(dataset+storePathSuffix+storeName, bytes.NewReader(bundle)).Do()
+	return c.service.Read(resourcePath).Do()
 }
