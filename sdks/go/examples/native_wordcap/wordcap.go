@@ -40,8 +40,8 @@ import (
 )
 
 var (
-	input            = flag.String("input", os.ExpandEnv("$USER-wordcap"), "Pubsub input topic.")
-	subscriptionName = flag.String("subscription_id", os.ExpandEnv("$USER-native-wordcap"), "PubSub subscription name (optional.)")
+	input          = flag.String("input", os.ExpandEnv("$USER-wordcap"), "Pubsub input topic.")
+	subscriptionId = flag.String("subscription_id", os.ExpandEnv("$USER-native-wordcap"), "PubSub subscription name (optional.)")
 )
 
 var (
@@ -70,7 +70,7 @@ func main() {
 		log.Fatal(ctx, err)
 	}
 
-	log.Infof(ctx, "Running streaming native wordcap with subscription: %v")
+	log.Infof(ctx, "Running streaming native wordcap with subscription: %v", *subscriptionId)
 
 	p := beam.NewPipeline()
 	s := p.Root()
@@ -78,7 +78,7 @@ func main() {
 	bytesCol := beam.ParDo(s, stringx.ToBytes, stringCol)
 	pubsubio.NativeWrite(s, bytesCol, project, *input)
 
-	col := pubsubio.NativeRead(s, project, *input, "native-sub")
+	col := pubsubio.NativeRead(s, project, *input, *subscriptionId)
 	str := beam.ParDo(s, stringx.FromBytes, col)
 	cap := beam.ParDo(s, strings.ToUpper, str)
 	debug.Print(s, cap)
