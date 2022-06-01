@@ -311,11 +311,6 @@ func (o *offsetRangeEndEstimator) Estimate() int64 {
 	return o.EstimateRangeEnd
 }
 
-// SetEstimateRangeEnd sets the estimated end for unbounded offset range.
-func (o *offsetRangeEndEstimator) SetEstimateRangeEnd(rangeEnd int64) {
-	o.EstimateRangeEnd = rangeEnd
-}
-
 // TestNewGrowableTracker_Bad tests the behavior of NewGrowableTracker when wrong arguments are passed.
 func TestNewGrowableTracker_Bad(t *testing.T) {
 	rest := Restriction{Start: 0, End: math.MaxInt64}
@@ -375,7 +370,7 @@ func TestGrowableTracker_SplitBeforeStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating new GrowableTracker: %v", err)
 	}
-	estimator.SetEstimateRangeEnd(10)
+	estimator.EstimateRangeEnd = 10
 	gotP, gotR, err := tracker.TrySplit(0)
 	if err != nil {
 		t.Fatalf("error in tracker.TrySplit(0): %v", err)
@@ -488,7 +483,7 @@ func TestGrowableTracker_IsBounded(t *testing.T) {
 		t.Errorf("GrowableTracker should've been unbounded.")
 	}
 
-	estimator.SetEstimateRangeEnd(16)
+	estimator.EstimateRangeEnd = 16
 	tracker.TrySplit(0.5)
 	if !tracker.IsBounded() {
 		t.Errorf("tracker should've been bounded after split")
