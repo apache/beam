@@ -263,7 +263,7 @@ func TestTracker_TrySplit(t *testing.T) {
 			rest:     Restriction{Start: 0, End: 10},
 			claimed:  5,
 			fraction: -0.5,
-			splitPt:  5,
+			splitPt:  6,
 		},
 		{
 			rest:     Restriction{Start: 0, End: 10},
@@ -281,6 +281,75 @@ func TestTracker_TrySplit(t *testing.T) {
 			if !ok {
 				t.Fatalf("tracker failed on initial claim: %v", test.claimed)
 			}
+			gotP, gotR, err := rt.TrySplit(test.fraction)
+			if err != nil {
+				t.Fatalf("tracker failed on split: %v", err)
+			}
+			var wantP interface{} = Restriction{Start: test.rest.Start, End: test.splitPt}
+			var wantR interface{} = Restriction{Start: test.splitPt, End: test.rest.End}
+			if test.splitPt == test.rest.End {
+				wantR = nil // When residuals are empty we should get nil.
+			}
+			if !cmp.Equal(gotP, wantP) {
+				t.Errorf("split got incorrect primary: got: %v, want: %v", gotP, wantP)
+			}
+			if !cmp.Equal(gotR, wantR) {
+				t.Errorf("split got incorrect residual: got: %v, want: %v", gotR, wantR)
+			}
+		})
+	}
+}
+
+// TestTracker_TrySplit_WithoutClaiming tests that TrySplit follows its contract
+// when no TryClaim calls have been made, meaning that
+// splits don't lose any elements, split fractions are clamped to 0 or 1, and
+// that TrySplit always splits at the nearest integer greater than the given
+// fraction.
+func TestTracker_TrySplit_WithoutClaiming(t *testing.T) {
+	tests := []struct {
+		rest     Restriction
+		claimed  int64
+		fraction float64
+		// Index where we want the split to happen. This will be the end
+		// (exclusive) of the primary and first element of the residual.
+		splitPt int64
+	}{
+		{
+			rest:     Restriction{Start: 0, End: 1},
+			fraction: 0.5,
+			splitPt:  0,
+		},
+		{
+			rest:     Restriction{Start: 0, End: 1},
+			fraction: 0.0,
+			splitPt:  0,
+		},
+		{
+			rest:     Restriction{Start: 0, End: 5},
+			fraction: 0.5,
+			splitPt:  2,
+		},
+		{
+			rest:     Restriction{Start: 5, End: 10},
+			fraction: 0.5,
+			splitPt:  7,
+		},
+		{
+			rest:     Restriction{Start: 5, End: 10},
+			fraction: -0.5,
+			splitPt:  5,
+		},
+		{
+			rest:     Restriction{Start: 5, End: 10},
+			fraction: 1.5,
+			splitPt:  10,
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(fmt.Sprintf("(split at %v of [%v, %v])",
+			test.fraction, test.rest.Start, test.rest.End), func(t *testing.T) {
+			rt := NewTracker(test.rest)
 			gotP, gotR, err := rt.TrySplit(test.fraction)
 			if err != nil {
 				t.Fatalf("tracker failed on split: %v", err)

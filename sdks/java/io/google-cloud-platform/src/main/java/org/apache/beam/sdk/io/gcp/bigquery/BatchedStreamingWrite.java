@@ -59,13 +59,11 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** PTransform to perform batched streaming BigQuery write. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class BatchedStreamingWrite<ErrorT, ElementT>
     extends PTransform<PCollection<KV<String, TableRowInfo<ElementT>>>, PCollectionTuple> {
   private static final TupleTag<Void> mainOutputTag = new TupleTag<>("mainOutput");
@@ -79,8 +77,8 @@ class BatchedStreamingWrite<ErrorT, ElementT>
   private final boolean skipInvalidRows;
   private final boolean ignoreUnknownValues;
   private final boolean ignoreInsertIds;
-  private final SerializableFunction<ElementT, TableRow> toTableRow;
-  private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
+  private final @Nullable SerializableFunction<ElementT, TableRow> toTableRow;
+  private final @Nullable SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
   private final Set<String> allowedMetricUrns;
 
   /** Tracks bytes written, exposed as "ByteCount" Counter. */
@@ -98,8 +96,8 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
-      SerializableFunction<ElementT, TableRow> toTableRow,
-      SerializableFunction<ElementT, TableRow> toFailsafeTableRow) {
+      @Nullable SerializableFunction<ElementT, TableRow> toTableRow,
+      @Nullable SerializableFunction<ElementT, TableRow> toFailsafeTableRow) {
     this.bqServices = bqServices;
     this.retryPolicy = retryPolicy;
     this.failedOutputTag = failedOutputTag;
@@ -123,8 +121,8 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
-      SerializableFunction<ElementT, TableRow> toTableRow,
-      SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
+      @Nullable SerializableFunction<ElementT, TableRow> toTableRow,
+      @Nullable SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
       boolean batchViaStateful) {
     this.bqServices = bqServices;
     this.retryPolicy = retryPolicy;
@@ -212,10 +210,11 @@ class BatchedStreamingWrite<ErrorT, ElementT>
   private class BatchAndInsertElements extends DoFn<KV<String, TableRowInfo<ElementT>>, Void> {
 
     /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
-    private transient Map<String, List<FailsafeValueInSingleWindow<TableRow, TableRow>>> tableRows;
+    private transient @Nullable Map<String, List<FailsafeValueInSingleWindow<TableRow, TableRow>>>
+        tableRows = null;
 
     /** The list of unique ids for each BigQuery table row. */
-    private transient Map<String, List<String>> uniqueIdsForTableRows;
+    private transient @Nullable Map<String, List<String>> uniqueIdsForTableRows = null;
 
     private transient @Nullable DatasetService datasetService;
 
@@ -235,11 +234,14 @@ class BatchedStreamingWrite<ErrorT, ElementT>
 
     /** Accumulates the input into JsonTableRows and uniqueIdsForTableRows. */
     @ProcessElement
+    @RequiresNonNull({"tableRows", "uniqueIdsForTableRows", "toTableRow", "toFailsafeTableRow"})
     public void processElement(
         @Element KV<String, TableRowInfo<ElementT>> element,
         @Timestamp Instant timestamp,
         BoundedWindow window,
         PaneInfo pane) {
+      Map<String, List<FailsafeValueInSingleWindow<TableRow, TableRow>>> tableRows = this.tableRows;
+      Map<String, List<String>> uniqueIdsForTableRows = this.uniqueIdsForTableRows;
       String tableSpec = element.getKey();
       TableRow tableRow = toTableRow.apply(element.getValue().tableRow);
       TableRow failsafeTableRow = toFailsafeTableRow.apply(element.getValue().tableRow);
@@ -253,7 +255,10 @@ class BatchedStreamingWrite<ErrorT, ElementT>
 
     /** Writes the accumulated rows into BigQuery with streaming API. */
     @FinishBundle
+    @RequiresNonNull({"tableRows", "uniqueIdsForTableRows"})
     public void finishBundle(FinishBundleContext context) throws Exception {
+      Map<String, List<FailsafeValueInSingleWindow<TableRow, TableRow>>> tableRows = this.tableRows;
+      Map<String, List<String>> uniqueIdsForTableRows = this.uniqueIdsForTableRows;
       List<ValueInSingleWindow<ErrorT>> failedInserts = Lists.newArrayList();
       List<ValueInSingleWindow<TableRow>> successfulInserts = Lists.newArrayList();
       BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
@@ -364,7 +369,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       DatasetService datasetService,
       TableReference tableReference,
       List<FailsafeValueInSingleWindow<TableRow, TableRow>> tableRows,
-      List<String> uniqueIds,
+      @Nullable List<String> uniqueIds,
       List<ValueInSingleWindow<ErrorT>> failedInserts,
       List<ValueInSingleWindow<TableRow>> successfulInserts)
       throws InterruptedException {
