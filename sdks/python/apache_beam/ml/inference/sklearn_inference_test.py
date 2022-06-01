@@ -16,8 +16,10 @@
 #
 
 # pytype: skip-file
-
+import io
+import math
 import os
+import pandas
 import pickle
 import platform
 import shutil
@@ -27,7 +29,12 @@ import unittest
 
 import joblib
 import numpy
+from sklearn import linear_model
 from sklearn import svm
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
 
 import apache_beam as beam
 from apache_beam.ml.inference import api
@@ -45,6 +52,20 @@ def _compare_prediction_result(a, b):
   return a.inference == b.inference and example_equal
 
 
+def _compare_dataframe_predictions(a_in, b_in):
+  keys_equal = True
+  if isinstance(a_in, tuple):
+    a_key, a = a_in
+    b_key, b = b_in
+    keys_equal = a_key == b_key
+  else:
+    a = a_in
+    b = b_in
+  example_equal = pandas.DataFrame.equals(a.example, b.example)
+  inference_equal = math.floor(a.inference) == math.floor(b.inference)
+  return inference_equal and example_equal and keys_equal
+
+
 class FakeModel:
   def __init__(self):
     self.total_predict_calls = 0
@@ -60,6 +81,44 @@ def build_model():
   model = svm.SVC()
   model.fit(x, y)
   return model
+
+
+def pandas_dataframe():
+  csv_string = (
+      'category_1,number_1,category_2,number_2,label,number_3\n'
+      'red,4,frog,5,6,7\n'
+      'blue,3,horse,8,9,10\n'
+      'red,0,cow,1,2,3\n'
+      'blue,4,frog,1,1,1\n'
+      'red,1,horse,4,2,3')
+  csv_string_io = io.StringIO(csv_string)
+  return pandas.read_csv(csv_string_io)
+
+
+def build_pandas_pipeline():
+  """Builds a common type of pandas pipeline with preprocessing."""
+  categorical_columns = ['category_1', 'category_2']
+  numerical_columns = ['number_1', 'number_2', 'number_3']
+
+  categorical_transformer = OneHotEncoder(handle_unknown='ignore')
+  numerical_transformer = StandardScaler()
+
+  preprocessor = ColumnTransformer(
+      transformers=[
+          ("numerical", numerical_transformer, numerical_columns),
+          ("categorical", categorical_transformer, categorical_columns),
+      ])
+  pipeline = Pipeline(
+      steps=[("preprocessor",
+              preprocessor), ("classifier", linear_model.SGDRegressor())])
+  data = pandas_dataframe()
+  labels = data['label']
+  pipeline.fit(data, labels)
+  return pipeline
+
+
+def convert_inference_to_floor(prediction_result):
+  return math.floor(prediction_result.inference)
 
 
 class SkLearnRunInferenceTest(unittest.TestCase):
@@ -171,6 +230,53 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         model_loader = SklearnModelLoader(
             model_uri=file.name, model_file_type=None)
         model_loader.load_model()
+
+  @unittest.skipIf(platform.system() == 'Windows', 'BEAM-14359')
+  def test_pipeline_pandas(self):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(build_pandas_pipeline(), file)
+    with TestPipeline() as pipeline:
+      data_frame = pandas_dataframe()
+
+      pcoll = pipeline | 'start' >> beam.Create([data_frame])
+      actual = pcoll | api.RunInference(
+          SklearnModelLoader(model_uri=temp_file_name))
+
+      splits = [data_frame.loc[[i]] for i in data_frame.index]
+      expected = [
+          api.PredictionResult(splits[0], 5),
+          api.PredictionResult(splits[1], 8),
+          api.PredictionResult(splits[2], 1),
+          api.PredictionResult(splits[3], 1),
+          api.PredictionResult(splits[4], 2),
+      ]
+      assert_that(
+          actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
+
+  @unittest.skipIf(platform.system() == 'Windows', 'BEAM-14359')
+  def test_pipeline_pandas_with_keys(self):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(build_pandas_pipeline(), file)
+    with TestPipeline() as pipeline:
+      data_frame = pandas_dataframe()
+      keys = [str(i) for i in range(5)]
+      splits = [data_frame.loc[[i]] for i in data_frame.index]
+      keyed_rows = [(key, value) for key, value in zip(keys, splits)]
+
+      pcoll = pipeline | 'start' >> beam.Create(keyed_rows)
+      actual = pcoll | api.RunInference(
+          SklearnModelLoader(model_uri=temp_file_name))
+      expected = [
+          ('0', api.PredictionResult(splits[0], 5)),
+          ('1', api.PredictionResult(splits[1], 8)),
+          ('2', api.PredictionResult(splits[2], 1)),
+          ('3', api.PredictionResult(splits[3], 1)),
+          ('4', api.PredictionResult(splits[4], 2)),
+      ]
+      assert_that(
+          actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
 
 
 if __name__ == '__main__':

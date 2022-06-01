@@ -16,11 +16,13 @@
 #
 
 import enum
+import pandas
 import pickle
 import sys
 from typing import Any
 from typing import Iterable
 from typing import List
+from typing import Union
 
 import numpy
 
@@ -42,16 +44,41 @@ class ModelFileType(enum.Enum):
 
 
 class SklearnInferenceRunner(InferenceRunner):
-  def run_inference(self, batch: List[numpy.ndarray],
-                    model: Any) -> Iterable[PredictionResult]:
+  def run_inference(
+      self, batch: List[Union[numpy.ndarray, pandas.DataFrame]],
+      model: Any) -> Iterable[PredictionResult]:
+    if isinstance(batch[0], numpy.ndarray):
+      return SklearnInferenceRunner._predict_np_array(batch, model)
+    elif isinstance(batch[0], pandas.DataFrame):
+      return SklearnInferenceRunner._predict_pandas_dataframe(batch, model)
+
+  @staticmethod
+  def _predict_np_array(batch: List[numpy.ndarray],
+                        model: Any) -> Iterable[PredictionResult]:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
-  def get_num_bytes(self, batch: List[numpy.ndarray]) -> int:
+  @staticmethod
+  def _predict_pandas_dataframe(batch: List[pandas.DataFrame],
+                                model: Any) -> Iterable[PredictionResult]:
+    # vectorize data for better performance
+    vectorized_batch = pandas.concat(batch, axis=0)
+    predictions = model.predict(vectorized_batch)
+    splits = [vectorized_batch.loc[[i]] for i in vectorized_batch.index]
+    return [
+        PredictionResult(example, inference) for example,
+        inference in zip(splits, predictions)
+    ]
+
+  def get_num_bytes(
+      self, batch: List[Union[numpy.ndarray, pandas.DataFrame]]) -> int:
     """Returns the number of bytes of data for a batch."""
-    return sum(sys.getsizeof(element) for element in batch)
+    if isinstance(batch[0], numpy.ndarray):
+      return sum(sys.getsizeof(element) for element in batch)
+    elif isinstance(batch[0], pandas.DataFrame):
+      return sum(df.memory_usage(deep=True).sum() for df in batch)
 
 
 class SklearnModelLoader(ModelLoader):
