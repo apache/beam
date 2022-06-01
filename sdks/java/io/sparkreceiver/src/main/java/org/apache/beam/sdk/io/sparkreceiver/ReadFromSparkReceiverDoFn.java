@@ -38,6 +38,8 @@ import org.slf4j.LoggerFactory;
 public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescriptor, V> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReadFromSparkReceiverDoFn.class);
+  private static final int START_POLL_TIMEOUT_MS = 500;
+  private static final int CONTINUE_POLL_TIMEOUT_MS = 300;
 
   private final SerializableFunction<Instant, WatermarkEstimator<Instant>>
       createWatermarkEstimatorFn;
@@ -161,6 +163,11 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
           sparkReceiver);
       ((HasOffset) sparkReceiver).setStartOffset(startOffset);
       sparkReceiver.supervisor().startReceiver();
+      try {
+        TimeUnit.MILLISECONDS.sleep(START_POLL_TIMEOUT_MS);
+      } catch (InterruptedException e) {
+        LOG.error("Interrupted", e);
+      }
     }
 
     @Override
@@ -172,7 +179,7 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
     private void initReceiver(
         SerializableFunction<Object[], Void> storeConsumer, Receiver<V> sparkReceiver) {
       try {
-        new WrappedSupervisor<>(sparkReceiver, new SparkConf(), storeConsumer);
+        new WrappedSupervisor(sparkReceiver, new SparkConf(), storeConsumer);
       } catch (Exception e) {
         LOG.error("Can not init Spark Receiver!", e);
       }
@@ -191,17 +198,10 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
         this.sparkReceiver = sparkReceiverBuilder.build();
         this.sparkConsumer = new SparkConsumerWithOffset<>(tracker.currentRestriction().getFrom());
         sparkConsumer.start(sparkReceiver);
-        try {
-          TimeUnit.MILLISECONDS.sleep(500);
-        } catch (InterruptedException e) {
-          LOG.error("Interrupted", e);
-        }
       } catch (Exception e) {
         LOG.error("Can not build Spark Receiver", e);
       }
     }
-
-    LOG.info("Restriction: {}", tracker.currentRestriction().toString());
 
     while (sparkConsumer.hasRecords()) {
       V record = sparkConsumer.poll();
@@ -210,7 +210,8 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
         if (isOffsetable()) {
           sparkConsumer.stop();
         }
-        LOG.info("Process STOP {}", tracker.currentRestriction().toString());
+        LOG.debug(
+            "ProcessContinuation.stop for restriction {}", tracker.currentRestriction().toString());
         return ProcessContinuation.stop();
       }
       ((ManualWatermarkEstimator) watermarkEstimator).setWatermark(Instant.now());
@@ -220,12 +221,12 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
       sparkConsumer.stop();
     } else {
       try {
-        TimeUnit.MILLISECONDS.sleep(200);
+        TimeUnit.MILLISECONDS.sleep(CONTINUE_POLL_TIMEOUT_MS);
       } catch (InterruptedException e) {
         LOG.error("Interrupted", e);
       }
     }
-    LOG.info("Process RESUME {}", tracker.currentRestriction().toString());
+    LOG.info("Current restriction: {}", tracker.currentRestriction().toString());
     return ProcessContinuation.resume();
   }
 

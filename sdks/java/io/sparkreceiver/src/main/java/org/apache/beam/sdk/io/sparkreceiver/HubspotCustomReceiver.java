@@ -93,7 +93,6 @@ public class HubspotCustomReceiver extends Receiver<String> implements HasOffset
 
   private void receive() {
     try {
-      LOG.info("OFFSET = {}", startOffset);
       HubspotPagesIterator hubspotPagesIterator = new HubspotPagesIterator(config, startOffset);
 
       while (!isStopped()) {

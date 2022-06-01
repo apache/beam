@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.sparkreceiver;
 
 import io.cdap.plugin.hubspot.common.BaseHubspotConfig;
+import io.cdap.plugin.hubspot.source.streaming.HubspotReceiver;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import io.cdap.plugin.hubspot.source.streaming.PullFrequency;
 import java.util.Queue;
@@ -75,7 +76,7 @@ public class SparkReceiverIOTest {
     public void start(Receiver<V> sparkReceiver) {
       try {
         this.sparkReceiver = sparkReceiver;
-        new WrappedSupervisor<>(
+        new WrappedSupervisor(
             sparkReceiver,
             new SparkConf(),
             objects -> {
@@ -101,7 +102,7 @@ public class SparkReceiverIOTest {
   }
 
   @Test
-  public void testReadFromHubspot() throws Exception {
+  public void testReadFromHubspotWithOffset() {
 
     HubspotStreamingSourceConfig pluginConfig =
         new ConfigWrapper<>(HubspotStreamingSourceConfig.class)
@@ -110,6 +111,40 @@ public class SparkReceiverIOTest {
 
     ProxyReceiverBuilder<String, HubspotCustomReceiver> receiverBuilder =
         new ProxyReceiverBuilder<>(HubspotCustomReceiver.class).withConstructorArgs(pluginConfig);
+    SparkReceiverIO.Read<String> reader =
+        SparkReceiverIO.<String>read()
+            .withValueClass(String.class)
+            .withValueCoder(StringUtf8Coder.of())
+            .withGetOffsetFn(SparkReceiverUtils::getOffsetByHubspotRecord)
+            .withSparkReceiverBuilder(receiverBuilder);
+
+    PCollection<String> input = p.apply(reader).setCoder(StringUtf8Coder.of());
+
+    input
+        .apply(
+            "globalwindow",
+            Window.<String>into(new GlobalWindows())
+                .triggering(
+                    Repeatedly.forever(
+                        AfterProcessingTime.pastFirstElementInPane()
+                            .plusDelayOf(Duration.standardSeconds(30))))
+                .discardingFiredPanes())
+        .apply(
+            "Write to file", TextIO.write().withWindowedWrites().to(HUBSPOT_CONTACTS_OUTPUT_TXT));
+
+    p.run().waitUntilFinish(Duration.standardSeconds(30));
+  }
+
+  @Test
+  public void testReadFromHubspotWithoutOffset() {
+
+    HubspotStreamingSourceConfig pluginConfig =
+        new ConfigWrapper<>(HubspotStreamingSourceConfig.class)
+            .withParams(TEST_HUBSPOT_PARAMS_MAP)
+            .build();
+
+    ProxyReceiverBuilder<String, HubspotReceiver> receiverBuilder =
+        new ProxyReceiverBuilder<>(HubspotReceiver.class).withConstructorArgs(pluginConfig);
     SparkReceiverIO.Read<String> reader =
         SparkReceiverIO.<String>read()
             .withValueClass(String.class)
