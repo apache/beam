@@ -39,6 +39,8 @@ import numpy as np
 from apache_beam import coders
 from apache_beam.typehints import typehints
 
+__all__ = ['BatchConverter']
+
 B = TypeVar('B')
 E = TypeVar('E')
 

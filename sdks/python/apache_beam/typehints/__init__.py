@@ -29,3 +29,10 @@ except ImportError:
   pass
 else:
   from apache_beam.typehints.pandas_type_compatibility import *
+
+try:
+  import pyarrow as _
+except ImportError:
+  pass
+else:
+  from apache_beam.typehints.arrow_type_compatibility import *
