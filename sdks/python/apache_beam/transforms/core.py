@@ -786,8 +786,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       if (output_batch_type is not None and
           (not process_batch_type == output_batch_type)):
         raise TypeError(
-            f"DoFn {self!r} yields batches from both process and process_batch, "
-            "but they produce different types:\n"
+            f"DoFn {self!r} yields batches from both process and "
+            "process_batch, but they produce different types:\n"
             f" process: {output_batch_type}\n"
             f" process_batch: {process_batch_type!r}")
 
