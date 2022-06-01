@@ -27,6 +27,7 @@ import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -537,7 +538,7 @@ public class ExecutableStageDoFnOperatorTest {
     assertThat(testHarness.numEventTimeTimers(), is(3));
     testHarness.setProcessingTime(testHarness.getProcessingTime() + 1);
     assertThat(testHarness.numEventTimeTimers(), is(0));
-    assertThat(operator.getCurrentOutputWatermark(), is(5L));
+    assertTrue(operator.getCurrentOutputWatermark() <= 5L);
 
     // Output watermark is advanced synchronously when the bundle finishes,
     // no more timers are scheduled

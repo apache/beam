@@ -16,6 +16,7 @@
 
 import re
 import unittest
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -184,9 +185,17 @@ class _AbstractFrameTest(unittest.TestCase):
           expected = expected.sort_values(list(expected.columns))
           actual = actual.sort_values(list(actual.columns))
       if isinstance(expected, pd.Series):
-        pd.testing.assert_series_equal(expected, actual)
+        if lenient_dtype_check:
+          pd.testing.assert_series_equal(
+              expected.astype('Float64'), actual.astype('Float64'))
+        else:
+          pd.testing.assert_series_equal(expected, actual)
       elif isinstance(expected, pd.DataFrame):
-        pd.testing.assert_frame_equal(expected, actual)
+        if lenient_dtype_check:
+          pd.testing.assert_frame_equal(
+              expected.astype('Float64'), actual.astype('Float64'))
+        else:
+          pd.testing.assert_frame_equal(expected, actual)
       else:
         raise ValueError(
             f"Expected value is a {type(expected)},"
@@ -217,18 +226,14 @@ class _AbstractFrameTest(unittest.TestCase):
         if isinstance(expected, pd.Series):
           if lenient_dtype_check:
             self.assertEqual(
-                pd.to_numeric(actual, errors='coerce').dtype,
-                pd.to_numeric(proxy, errors='coerce').dtype)
+                actual.astype('Float64').dtype, proxy.astype('Float64').dtype)
           else:
             self.assertEqual(actual.dtype, proxy.dtype)
           self.assertEqual(actual.name, proxy.name)
         elif isinstance(expected, pd.DataFrame):
           if lenient_dtype_check:
             pd.testing.assert_series_equal(
-                actual.apply(pd.to_numeric, downcast='float',
-                             errors='ignore').dtypes,
-                proxy.apply(pd.to_numeric, downcast='float',
-                            errors='ignore').dtypes)
+                actual.astype('Float64').dtypes, proxy.astype('Float64').dtypes)
           else:
             pd.testing.assert_series_equal(actual.dtypes, proxy.dtypes)
 
@@ -242,10 +247,8 @@ class _AbstractFrameTest(unittest.TestCase):
         for i in range(actual.index.nlevels):
           if lenient_dtype_check:
             self.assertEqual(
-                actual.apply(pd.to_numeric, downcast='float',
-                             errors='ignore').index.get_level_values(i).dtype,
-                proxy.apply(pd.to_numeric, downcast='float',
-                            errors='ignore').index.get_level_values(i).dtype)
+                actual.astype('Float64').index.get_level_values(i).dtype,
+                proxy.astype('Float64').index.get_level_values(i).dtype)
           else:
             self.assertEqual(
                 actual.index.get_level_values(i).dtype,
@@ -1431,6 +1434,165 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.unstack(level=['second', 'third']), df)
     self._run_test(lambda df: df.unstack(level=['second']), df)
 
+  def test_pivot_non_categorical(self):
+    df = pd.DataFrame({
+        'foo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'bar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'baz': [1, 2, 3, 4, 5, 6],
+        'zoo': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"pivot\(\) of non-categorical type is not supported"):
+      self._run_test(
+          lambda df: df.pivot(index='foo', columns='bar', values='baz'), df)
+
+  def test_pivot_pandas_example1(self):
+    # Simple test 1
+    df = pd.DataFrame({
+        'foo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'bar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'baz': [1, 2, 3, 4, 5, 6],
+        'zoo': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+    df['bar'] = df['bar'].astype(
+        pd.CategoricalDtype(categories=['A', 'B', 'C']))
+    self._run_test(
+        lambda df: df.pivot(index='foo', columns='bar', values='baz'), df)
+    self._run_test(
+        lambda df: df.pivot(index=['foo'], columns='bar', values='baz'), df)
+
+  def test_pivot_pandas_example3(self):
+    # Multiple values
+    df = pd.DataFrame({
+        'foo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'bar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'baz': [1, 2, 3, 4, 5, 6],
+        'zoo': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+    df['bar'] = df['bar'].astype(
+        pd.CategoricalDtype(categories=['A', 'B', 'C']))
+    self._run_test(
+        lambda df: df.pivot(index='foo', columns='bar', values=['baz', 'zoo']),
+        df)
+    self._run_test(
+        lambda df: df.pivot(
+            index='foo', columns=['bar'], values=['baz', 'zoo']),
+        df)
+
+  def test_pivot_pandas_example4(self):
+    # Multiple columns
+    df = pd.DataFrame({
+        "lev1": [1, 1, 1, 2, 2, 2],
+        "lev2": [1, 1, 2, 1, 1, 2],
+        "lev3": [1, 2, 1, 2, 1, 2],
+        "lev4": [1, 2, 3, 4, 5, 6],
+        "values": [0, 1, 2, 3, 4, 5]
+    })
+    df['lev2'] = df['lev2'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['lev3'] = df['lev3'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['values'] = df['values'].astype('Int64')
+    self._run_test(
+        lambda df: df.pivot(
+            index="lev1", columns=["lev2", "lev3"], values="values"),
+        df)
+
+  def test_pivot_pandas_example5(self):
+    # Multiple index
+    df = pd.DataFrame({
+        "lev1": [1, 1, 1, 2, 2, 2],
+        "lev2": [1, 1, 2, 1, 1, 2],
+        "lev3": [1, 2, 1, 2, 1, 2],
+        "lev4": [1, 2, 3, 4, 5, 6],
+        "values": [0, 1, 2, 3, 4, 5]
+    })
+    df['lev3'] = df['lev3'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    # Cast to nullable Int64 because Beam doesn't do the correct conversion to
+    # float64
+    df['values'] = df['values'].astype('Int64')
+    if PD_VERSION < (1, 4):
+      with self.assertRaisesRegex(
+          frame_base.WontImplementError,
+          r"pivot\(\) is not supported when pandas<1.4 and index is a Multi"):
+        self._run_test(
+            lambda df: df.pivot(
+                index=["lev1", "lev2"], columns=["lev3"], values="values"),
+            df)
+    else:
+      self._run_test(
+          lambda df: df.pivot(
+              index=["lev1", "lev2"], columns=["lev3"], values="values"),
+          df)
+
+  def test_pivot_pandas_example6(self):
+    # Value error when there are duplicates
+    df = pd.DataFrame({
+        "foo": ['one', 'one', 'two', 'two'],
+        "bar": ['A', 'A', 'B', 'C'],
+        "baz": [1, 2, 3, 4]
+    })
+    df['bar'] = df['bar'].astype(
+        pd.CategoricalDtype(categories=['A', 'B', 'C']))
+    self._run_error_test(
+        lambda df: df.pivot(index='foo', columns='bar', values='baz'),
+        df,
+        construction_time=False)
+
+  def test_pivot_no_index_provided_on_single_level_index(self):
+    # Multiple columns, no index value provided
+    df = pd.DataFrame({
+        "lev1": [1, 1, 1, 2, 2, 2],
+        "lev2": [1, 1, 2, 1, 1, 2],
+        "lev3": [1, 2, 1, 2, 1, 2],
+        "lev4": [1, 2, 3, 4, 5, 6],
+        "values": [0, 1, 2, 3, 4, 5]
+    })
+    df['lev2'] = df['lev2'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['lev3'] = df['lev3'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['values'] = df['values'].astype('Int64')
+    self._run_test(
+        lambda df: df.pivot(columns=["lev2", "lev3"], values="values"), df)
+
+  def test_pivot_no_index_provided_on_multiindex(self):
+    # Multiple columns, no index value provided
+    tuples = list(
+        zip(
+            *[
+                ["bar", "bar", "bar", "baz", "baz", "baz"],
+                [
+                    "one",
+                    "two",
+                    "three",
+                    "one",
+                    "two",
+                    "three",
+                ],
+            ]))
+    index = pd.MultiIndex.from_tuples(tuples, names=["first", "second"])
+    df = pd.DataFrame({
+        "lev1": [1, 1, 1, 2, 2, 2],
+        "lev2": [1, 1, 2, 1, 1, 2],
+        "lev3": [1, 2, 1, 2, 1, 2],
+        "lev4": [1, 2, 3, 4, 5, 6],
+        "values": [0, 1, 2, 3, 4, 5]
+    },
+                      index=index)
+    df['lev2'] = df['lev2'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['lev3'] = df['lev3'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['values'] = df['values'].astype('float64')
+    df['lev1'] = df['lev1'].astype('int64')
+    df['lev4'] = df['lev4'].astype('int64')
+    if PD_VERSION < (1, 4):
+      with self.assertRaisesRegex(
+          frame_base.WontImplementError,
+          r"pivot\(\) is not supported when pandas<1.4 and index is a Multi"):
+        self._run_test(lambda df: df.pivot(columns=["lev2", "lev3"]), df)
+    else:
+      self._run_test(
+          lambda df: df.pivot(columns=["lev2", "lev3"]),
+          df,
+          lenient_dtype_check=True)
+
 
 # pandas doesn't support kurtosis on GroupBys:
 # https://github.com/pandas-dev/pandas/issues/40139
@@ -1440,6 +1602,12 @@ ALL_GROUPING_AGGREGATIONS = sorted(
 
 class GroupByTest(_AbstractFrameTest):
   """Tests for DataFrame/Series GroupBy operations."""
+  @staticmethod
+  def median_sum_fn(x):
+    with warnings.catch_warnings():
+      warnings.filterwarnings("ignore", message="Mean of empty slice")
+      return (x.foo + x.bar).median()
+
   @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_groupby_agg(self, agg_type):
     if agg_type == 'describe' and PD_VERSION < (1, 2):
@@ -1562,10 +1730,6 @@ class GroupByTest(_AbstractFrameTest):
 
   def test_groupby_apply(self):
     df = GROUPBY_DF
-
-    def median_sum_fn(x):
-      return (x.foo + x.bar).median()
-
     # Note this is the same as DataFrameGroupBy.describe. Using it here is
     # just a convenient way to test apply() with a user fn that returns a Series
     describe = lambda df: df.describe()
@@ -1573,17 +1737,17 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(lambda df: df.groupby('group').foo.apply(describe), df)
     self._run_test(
         lambda df: df.groupby('group')[['foo', 'bar']].apply(describe), df)
-    self._run_test(lambda df: df.groupby('group').apply(median_sum_fn), df)
+    self._run_test(lambda df: df.groupby('group').apply(self.median_sum_fn), df)
     self._run_test(
         lambda df: df.set_index('group').foo.groupby(level=0).apply(describe),
         df)
-    self._run_test(lambda df: df.groupby(level=0).apply(median_sum_fn), df)
+    self._run_test(lambda df: df.groupby(level=0).apply(self.median_sum_fn), df)
     self._run_test(lambda df: df.groupby(lambda x: x % 3).apply(describe), df)
     self._run_test(
         lambda df: df.bar.groupby(lambda x: x % 3).apply(describe), df)
     self._run_test(
         lambda df: df.set_index(['str', 'group', 'bool']).groupby(
-            level='group').apply(median_sum_fn),
+            level='group').apply(self.median_sum_fn),
         df)
 
   def test_groupby_apply_preserves_column_order(self):
@@ -1669,9 +1833,7 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(
         lambda df: df.groupby(level=level).sum(numeric_only=True), df)
     self._run_test(
-        lambda df: df.groupby(level=level).apply(
-            lambda x: (x.foo + x.bar).median()),
-        df)
+        lambda df: df.groupby(level=level).apply(self.median_sum_fn), df)
 
   @unittest.skipIf(PD_VERSION < (1, 1), "drop_na added in pandas 1.1.0")
   def test_groupby_count_na(self):
@@ -1731,9 +1893,6 @@ class GroupByTest(_AbstractFrameTest):
   def test_groupby_series_apply(self):
     df = GROUPBY_DF
 
-    def median_sum_fn(x):
-      return (x.foo + x.bar).median()
-
     # Note this is the same as DataFrameGroupBy.describe. Using it here is
     # just a convenient way to test apply() with a user fn that returns a Series
     describe = lambda df: df.describe()
@@ -1741,7 +1900,8 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(lambda df: df.groupby(df.group).foo.apply(describe), df)
     self._run_test(
         lambda df: df.groupby(df.group)[['foo', 'bar']].apply(describe), df)
-    self._run_test(lambda df: df.groupby(df.group).apply(median_sum_fn), df)
+    self._run_test(
+        lambda df: df.groupby(df.group).apply(self.median_sum_fn), df)
 
   def test_groupby_multiindex_keep_nans(self):
     # Due to https://github.com/pandas-dev/pandas/issues/36470
@@ -2344,6 +2504,23 @@ class BeamSpecificTest(unittest.TestCase):
     # keep='any' should produce the same result as keep='first',
     # but not necessarily with the same index
     self.assert_frame_data_equivalent(result, df.population.nlargest(3))
+
+  def test_pivot_pandas_example2(self):
+    # Simple test 2
+    df = pd.DataFrame({
+        'foo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'bar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'baz': [1, 2, 3, 4, 5, 6],
+        'zoo': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+    df['bar'] = df['bar'].astype(
+        pd.CategoricalDtype(categories=['A', 'B', 'C']))
+    result = self._evaluate(lambda df: df.pivot(index='foo', columns='bar'), df)
+    # When there are multiple values, dtypes default to object.
+    # Thus, need to convert to numeric with pd.to_numeric
+    self.assert_frame_data_equivalent(
+        result['baz'].apply(pd.to_numeric),
+        df.pivot(index='foo', columns='bar')['baz'])
 
   def test_sample(self):
     df = pd.DataFrame({

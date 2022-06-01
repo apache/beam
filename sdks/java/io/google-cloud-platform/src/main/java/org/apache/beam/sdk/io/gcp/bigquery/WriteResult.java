@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -32,27 +33,28 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** The result of a {@link BigQueryIO.Write} transform. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public final class WriteResult implements POutput {
   private final Pipeline pipeline;
-  private final TupleTag<TableRow> failedInsertsTag;
-  private final PCollection<TableRow> failedInserts;
-  private final TupleTag<BigQueryInsertError> failedInsertsWithErrTag;
-  private final PCollection<BigQueryInsertError> failedInsertsWithErr;
-  private final PCollection<TableRow> successfulInserts;
-  private final TupleTag<TableDestination> successfulBatchInsertsTag;
-  private final PCollection<TableDestination> successfulBatchInserts;
+  private final @Nullable TupleTag<TableRow> failedInsertsTag;
+  private final @Nullable PCollection<TableRow> failedInserts;
+  private final @Nullable TupleTag<BigQueryInsertError> failedInsertsWithErrTag;
+  private final @Nullable PCollection<BigQueryInsertError> failedInsertsWithErr;
+  private final @Nullable PCollection<TableRow> successfulInserts;
+  private final @Nullable TupleTag<TableDestination> successfulBatchInsertsTag;
+  private final @Nullable PCollection<TableDestination> successfulBatchInserts;
+  private final @Nullable TupleTag<BigQueryStorageApiInsertError> failedStorageApiInsertsTag;
+  private final @Nullable PCollection<BigQueryStorageApiInsertError> failedStorageApiInserts;
 
   /** Creates a {@link WriteResult} in the given {@link Pipeline}. */
   static WriteResult in(
       Pipeline pipeline,
-      TupleTag<TableRow> failedInsertsTag,
-      PCollection<TableRow> failedInserts,
+      @Nullable TupleTag<TableRow> failedInsertsTag,
+      @Nullable PCollection<TableRow> failedInserts,
       @Nullable PCollection<TableRow> successfulInserts,
       @Nullable TupleTag<TableDestination> successfulBatchInsertsTag,
-      @Nullable PCollection<TableDestination> successfulBatchInserts) {
+      @Nullable PCollection<TableDestination> successfulBatchInserts,
+      @Nullable TupleTag<BigQueryStorageApiInsertError> failedStorageApiInsertsTag,
+      @Nullable PCollection<BigQueryStorageApiInsertError> failedStorageApiInserts) {
     return new WriteResult(
         pipeline,
         failedInsertsTag,
@@ -61,7 +63,9 @@ public final class WriteResult implements POutput {
         null,
         successfulInserts,
         successfulBatchInsertsTag,
-        successfulBatchInserts);
+        successfulBatchInserts,
+        failedStorageApiInsertsTag,
+        failedStorageApiInserts);
   }
 
   static WriteResult withExtendedErrors(
@@ -70,7 +74,16 @@ public final class WriteResult implements POutput {
       PCollection<BigQueryInsertError> failedInserts,
       PCollection<TableRow> successfulInserts) {
     return new WriteResult(
-        pipeline, null, null, failedInsertsTag, failedInserts, successfulInserts, null, null);
+        pipeline,
+        null,
+        null,
+        failedInsertsTag,
+        failedInserts,
+        successfulInserts,
+        null,
+        null,
+        null,
+        null);
   }
 
   @Override
@@ -78,13 +91,18 @@ public final class WriteResult implements POutput {
     ImmutableMap.Builder<TupleTag<?>, PValue> output = ImmutableMap.builder();
 
     if (failedInsertsTag != null) {
-      output.put(failedInsertsTag, failedInserts);
-    } else {
-      output.put(failedInsertsWithErrTag, failedInsertsWithErr);
+      output.put(failedInsertsTag, Preconditions.checkArgumentNotNull(failedInserts));
+    } else if (failedInsertsWithErrTag != null) {
+      output.put(failedInsertsWithErrTag, Preconditions.checkArgumentNotNull(failedInsertsWithErr));
+    }
+    if (failedStorageApiInsertsTag != null) {
+      output.put(
+          failedStorageApiInsertsTag, Preconditions.checkArgumentNotNull(failedStorageApiInserts));
     }
 
-    if (successfulBatchInserts != null) {
-      output.put(successfulBatchInsertsTag, successfulBatchInserts);
+    if (successfulBatchInsertsTag != null) {
+      output.put(
+          successfulBatchInsertsTag, Preconditions.checkArgumentNotNull(successfulBatchInserts));
     }
 
     return output.build();
@@ -92,13 +110,15 @@ public final class WriteResult implements POutput {
 
   private WriteResult(
       Pipeline pipeline,
-      TupleTag<TableRow> failedInsertsTag,
-      PCollection<TableRow> failedInserts,
-      TupleTag<BigQueryInsertError> failedInsertsWithErrTag,
-      PCollection<BigQueryInsertError> failedInsertsWithErr,
-      PCollection<TableRow> successfulInserts,
-      TupleTag<TableDestination> successfulInsertsTag,
-      PCollection<TableDestination> successfulBatchInserts) {
+      @Nullable TupleTag<TableRow> failedInsertsTag,
+      @Nullable PCollection<TableRow> failedInserts,
+      @Nullable TupleTag<BigQueryInsertError> failedInsertsWithErrTag,
+      @Nullable PCollection<BigQueryInsertError> failedInsertsWithErr,
+      @Nullable PCollection<TableRow> successfulInserts,
+      @Nullable TupleTag<TableDestination> successfulInsertsTag,
+      @Nullable PCollection<TableDestination> successfulBatchInserts,
+      @Nullable TupleTag<BigQueryStorageApiInsertError> failedStorageApiInsertsTag,
+      @Nullable PCollection<BigQueryStorageApiInsertError> failedStorageApiInserts) {
     this.pipeline = pipeline;
     this.failedInsertsTag = failedInsertsTag;
     this.failedInserts = failedInserts;
@@ -107,6 +127,8 @@ public final class WriteResult implements POutput {
     this.successfulInserts = successfulInserts;
     this.successfulBatchInsertsTag = successfulInsertsTag;
     this.successfulBatchInserts = successfulBatchInserts;
+    this.failedStorageApiInsertsTag = failedStorageApiInsertsTag;
+    this.failedStorageApiInserts = failedStorageApiInserts;
   }
 
   /**
@@ -118,7 +140,9 @@ public final class WriteResult implements POutput {
         successfulBatchInsertsTag != null,
         "Cannot use getSuccessfulTableLoads because this WriteResult was not "
             + "configured to produce them.  Note: only batch loads produce successfulTableLoads.");
-
+    if (successfulBatchInserts == null) {
+      throw new IllegalStateException("Unexpected null successfulBatchInserts collection.");
+    }
     return successfulBatchInserts;
   }
 
@@ -127,9 +151,10 @@ public final class WriteResult implements POutput {
    * streaming insert API.
    */
   public PCollection<TableRow> getSuccessfulInserts() {
-    checkArgument(
-        successfulInserts != null,
-        "Retrieving successful inserts is only supported for streaming inserts.");
+    if (successfulInserts == null) {
+      throw new IllegalStateException(
+          "Retrieving successful inserts is only supported for streaming inserts.");
+    }
     return successfulInserts;
   }
 
@@ -145,6 +170,9 @@ public final class WriteResult implements POutput {
         failedInsertsTag != null,
         "Cannot use getFailedInserts as this WriteResult uses extended errors"
             + " information. Use getFailedInsertsWithErr instead");
+    if (failedInserts == null) {
+      throw new IllegalStateException("Unexpected null failedInserts collection.");
+    }
     return failedInserts;
   }
 
@@ -160,7 +188,20 @@ public final class WriteResult implements POutput {
         failedInsertsWithErrTag != null,
         "Cannot use getFailedInsertsWithErr as this WriteResult does not use"
             + " extended errors. Use getFailedInserts instead");
+    if (failedInsertsWithErr == null) {
+      throw new IllegalStateException("Unexpected null failedInsertsWithErr collection.");
+    }
     return failedInsertsWithErr;
+  }
+
+  public PCollection<BigQueryStorageApiInsertError> getFailedStorageApiInserts() {
+    checkArgument(
+        failedStorageApiInsertsTag != null,
+        "Cannot use getFailedStorageApiInserts as this insert didn't use the storage API.");
+    if (failedStorageApiInserts == null) {
+      throw new IllegalStateException("Unexpected null failedStorageApiInserts collection.");
+    }
+    return failedStorageApiInserts;
   }
 
   @Override

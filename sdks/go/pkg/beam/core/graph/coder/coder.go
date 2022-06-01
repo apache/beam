@@ -395,6 +395,7 @@ func NewKV(components []*Coder) *Coder {
 	}
 }
 
+// NewN returns a coder for Nullable.
 func NewN(component *Coder) *Coder {
 	coders := []*Coder{component}
 	checkCodersNotNil(coders)
@@ -405,6 +406,7 @@ func NewN(component *Coder) *Coder {
 	}
 }
 
+// IsNullable returns true iff the coder is for Nullable.
 func IsNullable(c *Coder) bool {
 	return c.Kind == Nullable
 }

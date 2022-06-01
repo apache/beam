@@ -269,7 +269,7 @@ class WriteTables<DestinationT>
       } else if (tempTable) {
         // In this case, we are writing to a temp table and always need to create it.
         // WRITE_TRUNCATE is set so that we properly handle retries of this pane.
-        writeDisposition = WriteDisposition.WRITE_TRUNCATE;
+        writeDisposition = WriteDisposition.WRITE_APPEND;
         createDisposition = CreateDisposition.CREATE_IF_NEEDED;
       }
 
@@ -286,6 +286,7 @@ class WriteTables<DestinationT>
               writeDisposition,
               createDisposition,
               schemaUpdateOptions);
+
       pendingJobs.add(
           new PendingJobData(
               window,
@@ -354,7 +355,6 @@ class WriteTables<DestinationT>
                                   BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
                           pendingJob.tableDestination.getTableDescription());
                     }
-
                     Result result =
                         new AutoValue_WriteTables_Result(
                             BigQueryHelpers.toJsonString(pendingJob.tableReference),
@@ -451,6 +451,7 @@ class WriteTables<DestinationT>
         .apply(GroupByKey.create())
         .apply(Values.create())
         .apply(ParDo.of(new GarbageCollectTemporaryFiles()));
+
     return writeTablesOutputs.get(mainOutputTag);
   }
 

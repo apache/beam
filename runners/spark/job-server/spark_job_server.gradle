@@ -1,3 +1,4 @@
+import groovy.json.JsonOutput
 import org.apache.beam.gradle.BeamModulePlugin
 
 /*
@@ -83,7 +84,12 @@ runShadow {
     jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
 }
 
-def portableValidatesRunnerTask(String name, boolean streaming, boolean docker) {
+def sickbayTests = [
+        // TODO(BEAM-13498)
+        'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
+]
+
+def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, ArrayList<String> sickbayTests) {
   def pipelineOptions = []
   def testCategories
   def testFilter
@@ -185,8 +191,10 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker) 
       testFilter = {
         // TODO (BEAM-10094)
         excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
-        // TODO(BEAM-13498)
-        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew'
+
+        for (String test : sickbayTests) {
+          excludeTestsMatching test
+        }
       }
     }
   }
@@ -209,14 +217,31 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker) 
     )
 }
 
-project.ext.validatesPortableRunnerDocker= portableValidatesRunnerTask("Docker", false, true)
-project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false, false)
-project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false)
+project.ext.validatesPortableRunnerDocker= portableValidatesRunnerTask("Docker", false, true, sickbayTests)
+project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false, false, sickbayTests)
+project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false, sickbayTests)
 
 tasks.register("validatesPortableRunner") {
   dependsOn validatesPortableRunnerDocker
   dependsOn validatesPortableRunnerBatch
   dependsOn validatesPortableRunnerStreaming
+}
+
+tasks.register("validatesRunnerSickbay", Test) {
+  group = "Verification"
+  description "Validates Spark runner (Sickbay Tests)"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestSparkRunner",
+  ])
+
+  classpath = configurations.validatesPortableRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+
+  filter {
+    for (String test : sickbayTests) {
+      includeTestsMatching test
+    }
+  }
 }
 
 def jobPort = BeamModulePlugin.getRandomPort()

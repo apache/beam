@@ -210,6 +210,11 @@ import org.slf4j.LoggerFactory;
  * above transforms. In such a case, all the Cloud Datastore API calls are directed to the Emulator.
  *
  * @see PipelineRunner
+ *     <h3>Updates to the connector code</h3>
+ *     For any updates to this connector, please consider involving corresponding code reviewers
+ *     mentioned <a
+ *     href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
+ *     here</a>.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)

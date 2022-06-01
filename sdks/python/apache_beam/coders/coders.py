@@ -627,12 +627,23 @@ class NullableCoder(FastCoder):
     # type: () -> bool
     return self._value_coder.is_deterministic()
 
+  def as_deterministic_coder(self, step_label, error_message=None):
+    if self.is_deterministic():
+      return self
+    else:
+      deterministic_value_coder = self._value_coder.as_deterministic_coder(
+          step_label, error_message)
+      return NullableCoder(deterministic_value_coder)
+
   def __eq__(self, other):
     return (
         type(self) == type(other) and self._value_coder == other._value_coder)
 
   def __hash__(self):
     return hash(type(self)) + hash(self._value_coder)
+
+  def __repr__(self):
+    return 'NullableCoder[%s]' % self._value_coder
 
 
 Coder.register_structured_urn(common_urns.coders.NULLABLE.urn, NullableCoder)

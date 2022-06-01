@@ -195,6 +195,20 @@ async function processPull(
     for (const approver of approvers) {
       const labelOfReviewer = prState.getLabelForReviewer(approver);
       if (labelOfReviewer) {
+        if (
+          (await github.checkIfCommitter(pull.user.login)) ||
+          (await prState.isAnyAssignedReviewerCommitter()) ||
+          (await github.checkIfCommitter(approver))
+        ) {
+          console.log(
+            "Author or reviewer is committer, not forwarding to another committer"
+          );
+          // Cache this result so we don't need to keep looking it up.
+          prState.committerAssigned = true;
+          await stateClient.writePrState(pull.number, prState);
+          return;
+        }
+
         console.log(`Assigning a committer for label ${labelOfReviewer}`);
         let reviewersState = await stateClient.getReviewersForLabelState(
           labelOfReviewer
@@ -225,6 +239,8 @@ async function processPull(
         return;
       }
     }
+    // If none of the approvers were assigned to the pr, no-op.
+    return;
   }
 
   let checkState = await getChecksStatus(REPO_OWNER, REPO, pull.head.sha);

@@ -22,28 +22,27 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.range.ByteKey;
+import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.Latest;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.StreamEntryID;
@@ -278,7 +277,6 @@ public class RedisIO {
 
       return input
           .apply(Create.of(keyPattern()))
-          .apply(ParDo.of(new ReadKeysWithPattern(connectionConfiguration())))
           .apply(
               RedisIO.readKeyPatterns()
                   .withConnectionConfiguration(connectionConfiguration())
@@ -357,7 +355,7 @@ public class RedisIO {
       checkArgument(connectionConfiguration() != null, "withConnectionConfiguration() is required");
       PCollection<KV<String, String>> output =
           input
-              .apply(ParDo.of(new ReadFn(connectionConfiguration(), batchSize())))
+              .apply(ParDo.of(new ReadFn(connectionConfiguration())))
               .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
       if (outputParallelization()) {
         output = output.apply(new Reparallelize());
@@ -366,12 +364,13 @@ public class RedisIO {
     }
   }
 
-  private abstract static class BaseReadFn<T> extends DoFn<String, T> {
-    protected final RedisConnectionConfiguration connectionConfiguration;
+  @DoFn.BoundedPerElement
+  private static class ReadFn extends DoFn<String, KV<String, String>> {
 
+    protected final RedisConnectionConfiguration connectionConfiguration;
     transient Jedis jedis;
 
-    BaseReadFn(RedisConnectionConfiguration connectionConfiguration) {
+    ReadFn(RedisConnectionConfiguration connectionConfiguration) {
       this.connectionConfiguration = connectionConfiguration;
     }
 
@@ -384,95 +383,33 @@ public class RedisIO {
     public void teardown() {
       jedis.close();
     }
-  }
 
-  private static class ReadKeysWithPattern extends BaseReadFn<String> {
-
-    ReadKeysWithPattern(RedisConnectionConfiguration connectionConfiguration) {
-      super(connectionConfiguration);
+    @GetInitialRestriction
+    public ByteKeyRange getInitialRestriction() {
+      return ByteKeyRange.of(ByteKey.of(0x00), ByteKey.EMPTY);
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(
+        ProcessContext c, RestrictionTracker<ByteKeyRange, ByteKey> tracker) {
+      ByteKey cursor = tracker.currentRestriction().getStartKey();
+      RedisCursor redisCursor = RedisCursor.byteKeyToRedisCursor(cursor, jedis.dbSize(), true);
       ScanParams scanParams = new ScanParams();
       scanParams.match(c.element());
-
-      String cursor = ScanParams.SCAN_POINTER_START;
-      boolean finished = false;
-      while (!finished) {
-        ScanResult<String> scanResult = jedis.scan(cursor, scanParams);
-        List<String> keys = scanResult.getResult();
-        for (String k : keys) {
-          c.output(k);
-        }
-        cursor = scanResult.getCursor();
-        if (cursor.equals(ScanParams.SCAN_POINTER_START)) {
-          finished = true;
-        }
-      }
-    }
-  }
-
-  /** A {@link DoFn} requesting Redis server to get key/value pairs. */
-  private static class ReadFn extends BaseReadFn<KV<String, String>> {
-    transient @Nullable Multimap<BoundedWindow, String> bundles = null;
-    @Nullable AtomicInteger batchCount = null;
-    private final int batchSize;
-
-    ReadFn(RedisConnectionConfiguration connectionConfiguration, int batchSize) {
-      super(connectionConfiguration);
-      this.batchSize = batchSize;
-    }
-
-    @StartBundle
-    public void startBundle() {
-      bundles = ArrayListMultimap.create();
-      batchCount = new AtomicInteger();
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow window) {
-      String key = c.element();
-      bundles.put(window, key);
-      if (batchCount.incrementAndGet() > getBatchSize()) {
-        Multimap<BoundedWindow, KV<String, String>> kvs = fetchAndFlush();
-        for (BoundedWindow w : kvs.keySet()) {
-          for (KV<String, String> kv : kvs.get(w)) {
-            c.output(kv);
+      while (tracker.tryClaim(cursor)) {
+        ScanResult<String> scanResult = jedis.scan(redisCursor.getCursor(), scanParams);
+        if (scanResult.getResult().size() > 0) {
+          String[] keys = scanResult.getResult().toArray(new String[scanResult.getResult().size()]);
+          List<String> results = jedis.mget(keys);
+          for (int i = 0; i < results.size(); i++) {
+            if (results.get(i) != null) {
+              c.output(KV.of(keys[i], results.get(i)));
+            }
           }
         }
+        redisCursor = RedisCursor.of(scanResult.getCursor(), jedis.dbSize(), false);
+        cursor = RedisCursor.redisCursorToByteKey(redisCursor);
       }
-    }
-
-    @FinishBundle
-    public void finishBundle(FinishBundleContext context) {
-      Multimap<BoundedWindow, KV<String, String>> kvs = fetchAndFlush();
-      for (BoundedWindow w : kvs.keySet()) {
-        for (KV<String, String> kv : kvs.get(w)) {
-          context.output(kv, w.maxTimestamp(), w);
-        }
-      }
-    }
-
-    private int getBatchSize() {
-      return batchSize;
-    }
-
-    private Multimap<BoundedWindow, KV<String, String>> fetchAndFlush() {
-      Multimap<BoundedWindow, KV<String, String>> kvs = ArrayListMultimap.create();
-      for (BoundedWindow w : bundles.keySet()) {
-        String[] keys = new String[bundles.get(w).size()];
-        bundles.get(w).toArray(keys);
-        List<String> results = jedis.mget(keys);
-        for (int i = 0; i < results.size(); i++) {
-          if (results.get(i) != null) {
-            kvs.put(w, KV.of(keys[i], results.get(i)));
-          }
-        }
-      }
-      bundles = ArrayListMultimap.create();
-      batchCount.set(0);
-      return kvs;
     }
   }
 
@@ -497,7 +434,9 @@ public class RedisIO {
                         }
                       })
                   .withSideInputs(empty));
-      return materialized.apply(Reshuffle.viaRandomKey());
+      /* Redis Scan may return a given element multiple times, so we use the Latest.perKey() transform to remove duplicates,
+      see "Scan guarantees" in https://redis.io/commands/scan */
+      return materialized.apply(Latest.perKey());
     }
   }
 

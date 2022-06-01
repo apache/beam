@@ -27,17 +27,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
-	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*sourceFn)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*SourceConfig)(nil)).Elem())
+	register.DoFn3x1[*sdf.LockRTracker, SourceConfig, func([]byte, []byte), error]((*sourceFn)(nil))
+	register.Emitter2[[]byte, []byte]()
 }
 
 // Source creates a synthetic source transform that emits randomly
@@ -130,7 +130,7 @@ func (fn *sourceFn) Setup() {
 // form of KV<[]byte, []byte>.
 func (fn *sourceFn) ProcessElement(rt *sdf.LockRTracker, config SourceConfig, emit func([]byte, []byte)) error {
 	generator := rand.New(rand.NewSource(0))
-	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i) == true; i++ {
+	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i); i++ {
 		key := make([]byte, config.KeySize)
 		val := make([]byte, config.ValueSize)
 		generator.Seed(i)
@@ -191,7 +191,7 @@ func DefaultSourceConfig() *SourceConfigBuilder {
 // Valid values are in the range of [1, ...] and the default value is 1. Values
 // of 0 (and below) are invalid as they result in sources that emit no elements.
 func (b *SourceConfigBuilder) NumElements(val int) *SourceConfigBuilder {
-	b.cfg.NumElements = val
+	b.cfg.NumElements = int64(val)
 	return b
 }
 
@@ -210,7 +210,7 @@ func (b *SourceConfigBuilder) NumElements(val int) *SourceConfigBuilder {
 // of 0 (and below) are invalid as they would result in dropping elements that
 // are expected to be emitted.
 func (b *SourceConfigBuilder) InitialSplits(val int) *SourceConfigBuilder {
-	b.cfg.InitialSplits = val
+	b.cfg.InitialSplits = int64(val)
 	return b
 }
 
@@ -219,7 +219,7 @@ func (b *SourceConfigBuilder) InitialSplits(val int) *SourceConfigBuilder {
 //
 // Valid values are in the range of [1, ...] and the default value is 8.
 func (b *SourceConfigBuilder) KeySize(val int) *SourceConfigBuilder {
-	b.cfg.KeySize = val
+	b.cfg.KeySize = int64(val)
 	return b
 }
 
@@ -228,7 +228,7 @@ func (b *SourceConfigBuilder) KeySize(val int) *SourceConfigBuilder {
 //
 // Valid values are in the range of [1, ...] and the default value is 8.
 func (b *SourceConfigBuilder) ValueSize(val int) *SourceConfigBuilder {
-	b.cfg.ValueSize = val
+	b.cfg.ValueSize = int64(val)
 	return b
 }
 
@@ -237,7 +237,7 @@ func (b *SourceConfigBuilder) ValueSize(val int) *SourceConfigBuilder {
 //
 // Valid values are in the range of [0, ...] and the default value is 0.
 func (b *SourceConfigBuilder) NumHotKeys(val int) *SourceConfigBuilder {
-	b.cfg.NumHotKeys = val
+	b.cfg.NumHotKeys = int64(val)
 	return b
 }
 
@@ -299,10 +299,10 @@ func (b *SourceConfigBuilder) BuildFromJSON(jsonData []byte) SourceConfig {
 // synthetic source. It should be created via a SourceConfigBuilder, not by
 // directly initializing it (the fields are public to allow encoding).
 type SourceConfig struct {
-	NumElements    int     `json:"num_records"`
-	InitialSplits  int     `json:"initial_splits"`
-	KeySize        int     `json:"key_size"`
-	ValueSize      int     `json:"value_size"`
-	NumHotKeys     int     `json:"num_hot_keys"`
-	HotKeyFraction float64 `json:"hot_key_fraction"`
+	NumElements    int64   `json:"num_records" beam:"num_records"`
+	InitialSplits  int64   `json:"initial_splits" beam:"initial_splits"`
+	KeySize        int64   `json:"key_size" beam:"key_size"`
+	ValueSize      int64   `json:"value_size" beam:"value_size"`
+	NumHotKeys     int64   `json:"num_hot_keys" beam:"num_hot_keys"`
+	HotKeyFraction float64 `json:"hot_key_fraction" beam:"hot_key_fraction"`
 }

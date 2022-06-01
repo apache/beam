@@ -115,6 +115,15 @@ static def pipelineOptionsStringCrossPlatformHandling(String[] options) {
   }
 }
 
+def sickbayTests = [
+        // https://issues.apache.org/jira/browse/BEAM-2791
+        'org.apache.beam.sdk.testing.UsesLoopingTimer',
+        // https://issues.apache.org/jira/browse/BEAM-8035
+        'org.apache.beam.sdk.transforms.WatchTest.testMultiplePollsWithManyResults',
+        // https://issues.apache.org/jira/browse/BEAM-6354
+        'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
+]
+
 task needsRunnerTests(type: Test) {
   group = "Verification"
   description = "Runs tests that require a runner to validate that piplines/transforms work correctly"
@@ -131,17 +140,22 @@ task needsRunnerTests(type: Test) {
   testClassesDirs += files(project(":runners:core-java").sourceSets.test.output.classesDirs)
   testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit {
+
+    filter {
+      for (String test : sickbayTests) {
+        excludeTestsMatching test
+      }
+    }
+
     includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
     // Should be run only in a properly configured SDK harness environment
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     // MetricsPusher isn't implemented in direct runner
     excludeCategories "org.apache.beam.sdk.testing.UsesMetricsPusher"
-    excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories "org.apache.beam.sdk.testing.UsesJavaExpansionService"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-    // https://issues.apache.org/jira/browse/BEAM-2791
-    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
   }
   testLogging {
     outputs.upToDateWhen {false}
@@ -171,10 +185,30 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
-    excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories "org.apache.beam.sdk.testing.UsesJavaExpansionService"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
     // https://issues.apache.org/jira/browse/BEAM-2791
     excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
+  }
+}
+
+tasks.register("validatesRunnerSickbay", Test) {
+  group = "Verification"
+  description "Validates Direct runner (Sickbay Tests)"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=DirectRunner",
+  ])
+
+  classpath = configurations.needsRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+
+  filter {
+    for (String test : sickbayTests) {
+      includeTestsMatching test
+    }
+
+    // https://issues.apache.org/jira/browse/BEAM-4191
+    includeTestsMatching 'org.apache.beam.runners.direct.WatermarkManagerTest.updateWatermarkWithDifferentWindowedValueInstances'
   }
 }
 

@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.value.AutoValue;
+import com.google.auto.value.extension.memoized.Memoized;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -157,6 +158,52 @@ public class AutoValueSchemaTest {
 
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
+  abstract static class MemoizedAutoValue implements SimpleSchema {
+    @Override
+    public abstract String getStr();
+
+    @Override
+    public abstract byte getaByte();
+
+    @Override
+    public abstract short getaShort();
+
+    @Override
+    public abstract int getAnInt();
+
+    @Override
+    public abstract long getaLong();
+
+    @Override
+    public abstract boolean isaBoolean();
+
+    @Override
+    public abstract DateTime getDateTime();
+
+    @Override
+    @SuppressWarnings("mutable")
+    public abstract byte[] getBytes();
+
+    @Override
+    public abstract ByteBuffer getByteBuffer();
+
+    @Override
+    public abstract Instant getInstant();
+
+    @Override
+    public abstract BigDecimal getBigDecimal();
+
+    @Override
+    public abstract StringBuilder getStringBuilder();
+
+    @Memoized
+    public String getMemoizedString() {
+      return "";
+    }
+  }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
   abstract static class SimpleAutoValueWithBuilder implements SimpleSchema {
     @Override
     public abstract String getStr();
@@ -222,6 +269,81 @@ public class AutoValueSchemaTest {
       abstract Builder setStringBuilder(StringBuilder stringBuilder);
 
       abstract SimpleAutoValueWithBuilder build();
+    }
+  }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  abstract static class MemoizedAutoValueWithBuilder implements SimpleSchema {
+    @Override
+    public abstract String getStr();
+
+    @Override
+    public abstract byte getaByte();
+
+    @Override
+    public abstract short getaShort();
+
+    @Override
+    public abstract int getAnInt();
+
+    @Override
+    public abstract long getaLong();
+
+    @Override
+    public abstract boolean isaBoolean();
+
+    @Override
+    public abstract DateTime getDateTime();
+
+    @Override
+    @SuppressWarnings("mutable")
+    public abstract byte[] getBytes();
+
+    @Override
+    public abstract ByteBuffer getByteBuffer();
+
+    @Override
+    public abstract Instant getInstant();
+
+    @Override
+    public abstract BigDecimal getBigDecimal();
+
+    @Override
+    public abstract StringBuilder getStringBuilder();
+
+    @Memoized
+    public String getMemoizedString() {
+      return "";
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setStr(String str);
+
+      abstract Builder setaByte(byte aByte);
+
+      abstract Builder setaShort(short aShort);
+
+      abstract Builder setAnInt(int anInt);
+
+      abstract Builder setaLong(long aLong);
+
+      abstract Builder setaBoolean(boolean aBoolean);
+
+      abstract Builder setDateTime(DateTime dateTime);
+
+      abstract Builder setBytes(byte[] bytes);
+
+      abstract Builder setByteBuffer(ByteBuffer byteBuffer);
+
+      abstract Builder setInstant(Instant instant);
+
+      abstract Builder setBigDecimal(BigDecimal bigDecimal);
+
+      abstract Builder setStringBuilder(StringBuilder stringBuilder);
+
+      abstract MemoizedAutoValueWithBuilder build();
     }
   }
 
@@ -305,6 +427,35 @@ public class AutoValueSchemaTest {
   }
 
   @Test
+  public void testToRowConstructorMemoized() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    MemoizedAutoValue value =
+        new AutoValue_AutoValueSchemaTest_MemoizedAutoValue(
+            "string",
+            (byte) 1,
+            (short) 2,
+            (int) 3,
+            (long) 4,
+            true,
+            DATE,
+            BYTE_ARRAY,
+            ByteBuffer.wrap(BYTE_ARRAY),
+            DATE.toInstant(),
+            BigDecimal.ONE,
+            STRING_BUILDER);
+    Row row = registry.getToRowFunction(MemoizedAutoValue.class).apply(value);
+    verifyRow(row);
+  }
+
+  @Test
+  public void testFromRowConstructorMemoized() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row = createSimpleRow("string");
+    MemoizedAutoValue value = registry.getFromRowFunction(MemoizedAutoValue.class).apply(row);
+    verifyAutoValue(value);
+  }
+
+  @Test
   public void testToRowBuilder() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     SimpleAutoValueWithBuilder value =
@@ -348,6 +499,38 @@ public class AutoValueSchemaTest {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     SerializableUtils.ensureSerializableRoundTrip(
         registry.getFromRowFunction(SimpleAutoValueWithBuilder.class));
+  }
+
+  @Test
+  public void testToRowBuilderMemoized() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    MemoizedAutoValueWithBuilder value =
+        new AutoValue_AutoValueSchemaTest_MemoizedAutoValueWithBuilder.Builder()
+            .setStr("string")
+            .setaByte((byte) 1)
+            .setaShort((short) 2)
+            .setAnInt((int) 3)
+            .setaLong((long) 4)
+            .setaBoolean(true)
+            .setDateTime(DATE)
+            .setBytes(BYTE_ARRAY)
+            .setByteBuffer(ByteBuffer.wrap(BYTE_ARRAY))
+            .setInstant(DATE.toInstant())
+            .setBigDecimal(BigDecimal.ONE)
+            .setStringBuilder(STRING_BUILDER)
+            .build();
+
+    Row row = registry.getToRowFunction(MemoizedAutoValueWithBuilder.class).apply(value);
+    verifyRow(row);
+  }
+
+  @Test
+  public void testFromRowBuilderMemoized() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row = createSimpleRow("string");
+    MemoizedAutoValueWithBuilder value =
+        registry.getFromRowFunction(MemoizedAutoValueWithBuilder.class).apply(row);
+    verifyAutoValue(value);
   }
 
   // Test nested classes.
