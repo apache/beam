@@ -1367,7 +1367,7 @@ same type. It can be called with `register.Combiner1[T](&CustomCombiner{})` wher
 is the type of the input/accumulator/output.
 
 Combiner2 should be used when your accumulator, input, and output are 2 distinct
-types. It can be called with `register.Combiner2[T1, T2]`(&CustomCombiner{}) where
+types. It can be called with `register.Combiner2[T1, T2](&CustomCombiner{})` where
 `T1` is the type of the accumulator and `T2` is the other type.
 
 Combiner3 should be used when your accumulator, input, and output are 3 distinct
@@ -1822,8 +1822,8 @@ needs to be determined at runtime (and not hard-coded). Such values might be
 determined by the input data, or depend on a different branch of your pipeline.
 
 {{< paragraph class="language-go" >}}
-All side input iters should be registered using a generic `register.IterX[...]`
-function. This optimizes runtime execution of the iter.
+All side input iterables should be registered using a generic `register.IterX[...]`
+function. This optimizes runtime execution of the iterable.
 {{< /paragraph >}}
 
 #### 4.4.1. Passing side inputs to ParDo {#side-inputs-pardo}
