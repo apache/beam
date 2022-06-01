@@ -23,7 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
-func TestDrain1(t *testing.T) {
+func TestDrain(t *testing.T) {
 	integration.CheckFilters(t)
 
 	p, s := beam.NewPipelineWithRoot()
