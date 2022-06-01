@@ -20,11 +20,13 @@ package graph
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func TestNewDoFn(t *testing.T) {
@@ -376,6 +378,129 @@ func TestNewCombineFn(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestNewFn_DoFn(t *testing.T) {
+	// Validate wrap fallthrough
+	reflectx.RegisterStructWrapper(reflect.TypeOf((*GoodDoFn)(nil)).Elem(), func(fn interface{}) map[string]reflectx.Func {
+		gdf := fn.(*GoodDoFn)
+		return map[string]reflectx.Func{
+			processElementName: reflectx.MakeFunc1x1(func(v int) int {
+				return gdf.ProcessElement(v)
+			}),
+		}
+	})
+
+	userFn := &GoodDoFn{}
+	fn, err := NewFn(userFn)
+	if err != nil {
+		t.Errorf("NewFn(%T) failed:\n%v", userFn, err)
+	}
+	dofn, err := AsDoFn(fn, MainSingle)
+	if err != nil {
+		t.Errorf("AsDoFn(%v, MainSingle) failed:\n%v", fn.Name(), err)
+	}
+	// Check that we get expected values for all the methods.
+	if got, want := dofn.Name(), "GoodDoFn"; !strings.HasSuffix(got, want) {
+		t.Errorf("(%v).Name() = %q, want suffix %q", dofn.Name(), got, want)
+	}
+	if dofn.SetupFn() == nil {
+		t.Errorf("(%v).SetupFn() == nil, want value", dofn.Name())
+	}
+	if dofn.StartBundleFn() == nil {
+		t.Errorf("(%v).StartBundleFn() == nil, want value", dofn.Name())
+	}
+	if dofn.ProcessElementFn() == nil {
+		t.Errorf("(%v).ProcessElementFn() == nil, want value", dofn.Name())
+	}
+	if dofn.FinishBundleFn() == nil {
+		t.Errorf("(%v).FinishBundleFn() == nil, want value", dofn.Name())
+	}
+	if dofn.TeardownFn() == nil {
+		t.Errorf("(%v).TeardownFn() == nil, want value", dofn.Name())
+	}
+	if dofn.IsSplittable() {
+		t.Errorf("(%v).IsSplittable() = true, want false", dofn.Name())
+	}
+}
+
+func TestNewFn_SplittableDoFn(t *testing.T) {
+	userFn := &GoodStatefulWatermarkEstimating{}
+	fn, err := NewFn(userFn)
+	if err != nil {
+		t.Errorf("NewFn(%T) failed:\n%v", userFn, err)
+	}
+	dofn, err := AsDoFn(fn, MainSingle)
+	if err != nil {
+		t.Errorf("AsDoFn(%v, MainKv) failed:\n%v", fn.Name(), err)
+	}
+	// Check that we get expected values for all the methods.
+	if dofn.SetupFn() == nil {
+		t.Errorf("(%v).SetupFn() == nil, want value", dofn.Name())
+	}
+	if dofn.StartBundleFn() == nil {
+		t.Errorf("(%v).StartBundleFn() == nil, want value", dofn.Name())
+	}
+	if dofn.ProcessElementFn() == nil {
+		t.Errorf("(%v).ProcessElementFn() == nil, want value", dofn.Name())
+	}
+	if dofn.FinishBundleFn() == nil {
+		t.Errorf("(%v).FinishBundleFn() == nil, want value", dofn.Name())
+	}
+	if dofn.TeardownFn() == nil {
+		t.Errorf("(%v).TeardownFn() == nil, want value", dofn.Name())
+	}
+
+	if !dofn.IsSplittable() {
+		t.Fatalf("(%v).IsSplittable() = false, want true", dofn.Name())
+	}
+	sdofn := (*SplittableDoFn)(dofn)
+
+	if got, want := sdofn.Name(), "GoodStatefulWatermarkEstimating"; !strings.HasSuffix(got, want) {
+		t.Errorf("(%v).Name() = %q, want suffix %q", sdofn.Name(), got, want)
+	}
+	if sdofn.CreateInitialRestrictionFn() == nil {
+		t.Errorf("(%v).CreateInitialRestrictionFn() == nil, want value", sdofn.Name())
+	}
+	if sdofn.CreateTrackerFn() == nil {
+		t.Errorf("(%v).CreateTrackerFn() == nil, want value", sdofn.Name())
+	}
+	if sdofn.RestrictionSizeFn() == nil {
+		t.Errorf("(%v).RestrictionSizeFn() == nil, want value", sdofn.Name())
+	}
+	if got, want := sdofn.RestrictionT(), reflect.TypeOf(RestT{}); got != want {
+		t.Errorf("(%v).RestrictionT() == %v, want %v", sdofn.Name(), got, want)
+	}
+	if sdofn.SplitRestrictionFn() == nil {
+		t.Errorf("(%v).SplitRestrictionFn() == nil, want value", sdofn.Name())
+	}
+	if !sdofn.HasTruncateRestriction() {
+		t.Fatalf("(%v).HasTruncateRestriction() = false, want true", dofn.Name())
+	}
+	if sdofn.TruncateRestrictionFn() == nil {
+		t.Errorf("(%v).TruncateRestrictionFn() == nil, want value", sdofn.Name())
+	}
+	if !sdofn.IsWatermarkEstimating() {
+		t.Fatalf("(%v).IsWatermarkEstimating() = false, want true", dofn.Name())
+	}
+	if sdofn.CreateWatermarkEstimatorFn() == nil {
+		t.Errorf("(%v).CreateWatermarkEstimatorFn() == nil, want value", sdofn.Name())
+	}
+	if !sdofn.IsStatefulWatermarkEstimating() {
+		t.Fatalf("(%v).IsStatefulWatermarkEstimating() = false, want true", dofn.Name())
+	}
+	if sdofn.InitialWatermarkEstimatorStateFn() == nil {
+		t.Errorf("(%v).InitialWatermarkEstimatorStateFn() == nil, want value", sdofn.Name())
+	}
+	if sdofn.WatermarkEstimatorStateFn() == nil {
+		t.Errorf("(%v).WatermarkEstimatorStateFn() == nil, want value", sdofn.Name())
+	}
+	if got, want := sdofn.WatermarkEstimatorT(), reflect.TypeOf(&WatermarkEstimatorT{}); got != want {
+		t.Errorf("(%v).WatermarkEstimatorT() == %v, want %v", sdofn.Name(), got, want)
+	}
+	if got, want := sdofn.WatermarkEstimatorStateT(), reflectx.Int; got != want {
+		t.Errorf("(%v).WatermarkEstimatorT() == %v, want %v", sdofn.Name(), got, want)
+	}
 }
 
 // Do not copy. The following types are for testing signatures only.

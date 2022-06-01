@@ -441,9 +441,6 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 	if fn.Fn != nil {
 		fn.methods[processElementName] = fn.Fn
 	}
-	if err := verifyValidNames("graph.AsDoFn", fn, doFnNames...); err != nil {
-		return nil, err
-	}
 
 	if _, ok := fn.methods[processElementName]; !ok {
 		err := errors.Errorf("failed to find %v method", processElementName)
@@ -1286,9 +1283,6 @@ func AsCombineFn(fn *Fn) (*CombineFn, error) {
 	if fn.Fn != nil {
 		fn.methods[mergeAccumulatorsName] = fn.Fn
 	}
-	if err := verifyValidNames(fnKind, fn, setupName, createAccumulatorName, addInputName, mergeAccumulatorsName, extractOutputName, compactName, teardownName); err != nil {
-		return nil, err
-	}
 
 	mergeFn, ok := fn.methods[mergeAccumulatorsName]
 	if !ok {
@@ -1342,20 +1336,6 @@ func validateSignature(fnKind, methodName string, fn *Fn, accumType reflect.Type
 		sig := sigFunc(fx, accumType)
 		if err := funcx.Satisfy(fx, sig); err != nil {
 			return &verifyMethodError{fnKind, methodName, err, fn, accumType, sig}
-		}
-	}
-	return nil
-}
-
-func verifyValidNames(fnKind string, fn *Fn, names ...string) error {
-	m := make(map[string]bool)
-	for _, name := range names {
-		m[name] = true
-	}
-
-	for key := range fn.methods {
-		if !m[key] {
-			return errors.Errorf("%s: unexpected exported method %v present on %v. Valid methods are: %v", fnKind, key, fn.Name(), names)
 		}
 	}
 	return nil
