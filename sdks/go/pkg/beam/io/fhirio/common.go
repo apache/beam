@@ -19,6 +19,7 @@
 package fhirio
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 
