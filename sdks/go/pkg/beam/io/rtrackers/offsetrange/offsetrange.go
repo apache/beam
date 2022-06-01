@@ -210,11 +210,9 @@ func (tracker *Tracker) GetProgress() (done, remaining float64) {
 	return
 }
 
-// IsDone returns true if the most recent claimed element is past the end of the restriction
-// or if the restriction represents no work to be done (aka the start of the restriction is
-// greater than or equal to the end).
+// IsDone returns true if the most recent claimed element is at or past the end of the restriction
 func (tracker *Tracker) IsDone() bool {
-	return tracker.err == nil && (tracker.claimed >= tracker.rest.End || tracker.rest.Start >= tracker.rest.End)
+	return tracker.err == nil && (tracker.claimed+1) >= tracker.rest.End
 }
 
 // GetRestriction returns a copy of the tracker's underlying offsetrange.Restriction.
