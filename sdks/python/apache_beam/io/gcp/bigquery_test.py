@@ -487,10 +487,6 @@ class TestReadFromBigQuery(unittest.TestCase):
         temp_dataset.projectId, temp_dataset.datasetId, mock.ANY)
 
   @parameterized.expand([
-      param(exception_type=exceptions.Conflict, error_message='duplicate'),
-      param(
-          exception_type=exceptions.InternalServerError,
-          error_message='internalError'),
       param(exception_type=exceptions.Forbidden, error_message='accessDenied'),
       param(
           exception_type=exceptions.ServiceUnavailable,
@@ -521,16 +517,10 @@ class TestReadFromBigQuery(unittest.TestCase):
       param(exception_type=exceptions.NotFound, error_message='notFound'),
       param(
           exception_type=exceptions.Forbidden,
-          error_message='responseTooLarge'),
-      param(
-          exception_type=exceptions.ServiceUnavailable,
-          error_message='backendError'),
+          error_message='responseTooLarge')
   ])
   def test_query_job_exception(self, exception_type, error_message):
-<<<<<<< Updated upstream
 
-=======
->>>>>>> Stashed changes
     with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
                            'estimate_size') as mock_estimate,\
       mock.patch.object(BigQueryWrapper,
@@ -555,14 +545,7 @@ class TestReadFromBigQuery(unittest.TestCase):
 
   @parameterized.expand([
       param(exception_type=exceptions.BadRequest, error_message='invalid'),
-      param(exception_type=exceptions.NotFound, error_message='notFound'),
-      param(exception_type=exceptions.Forbidden, error_message='accessDenied'),
-      param(
-          exception_type=exceptions.ServiceUnavailable,
-          error_message='backendError'),
-      param(
-          exception_type=exceptions.InternalServerError,
-          error_message='internalError'),
+      param(exception_type=exceptions.Forbidden, error_message='accessDenied')
   ])
   def test_read_export_exception(self, exception_type, error_message):
 
@@ -939,13 +922,9 @@ class TestWriteToBigQuery(unittest.TestCase):
 
   @parameterized.expand([
       param(exception_type=exceptions.Forbidden, error_message='accessDenied'),
-      param(exception_type=exceptions.NotFound, error_message='notFound'),
       param(
           exception_type=exceptions.ServiceUnavailable,
-          error_message='backendError'),
-      param(
-          exception_type=exceptions.InternalServerError,
-          error_message='internalError'),
+          error_message='backendError')
   ])
   def test_load_job_exception(self, exception_type, error_message):
 
