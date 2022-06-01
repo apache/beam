@@ -62,6 +62,7 @@ import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -80,9 +81,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class BatchLoads<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
   private static final Logger LOG = LoggerFactory.getLogger(BatchLoads.class);
@@ -141,12 +139,12 @@ class BatchLoads<DestinationT, ElementT>
   private int maxFilesPerPartition;
   private long maxBytesPerPartition;
   private int numFileShards;
-  private Duration triggeringFrequency;
+  private @Nullable Duration triggeringFrequency;
   private ValueProvider<String> customGcsTempLocation;
-  private ValueProvider<String> loadJobProjectId;
+  private @Nullable ValueProvider<String> loadJobProjectId;
   private final Coder<ElementT> elementCoder;
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
-  private final String kmsKey;
+  private final @Nullable String kmsKey;
   private final boolean clusteringEnabled;
   private final String tempDataset;
 
@@ -242,7 +240,8 @@ class BatchLoads<DestinationT, ElementT>
   }
 
   @Override
-  public void validate(PipelineOptions options) {
+  public void validate(@Nullable PipelineOptions maybeOptions) {
+    PipelineOptions options = Preconditions.checkArgumentNotNull(maybeOptions);
     // We will use a BigQuery load job -- validate the temp location.
     String tempLocation;
     if (customGcsTempLocation == null) {
@@ -274,6 +273,7 @@ class BatchLoads<DestinationT, ElementT>
 
   // Expand the pipeline when the user has requested periodically-triggered file writes.
   private WriteResult expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
+    Duration triggeringFrequency = Preconditions.checkStateNotNull(this.triggeringFrequency);
     Pipeline p = input.getPipeline();
     final PCollectionView<String> loadJobIdPrefixView = createJobIdPrefixView(p, JobType.LOAD);
     final PCollectionView<String> tempLoadJobIdPrefixView =
