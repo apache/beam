@@ -34,17 +34,17 @@ import org.apache.spark.streaming.receiver.Receiver;
   "return.type.incompatible",
   "dereference.of.nullable"
 })
-public class ProxyReceiverBuilder<X, T extends Receiver<X>> implements Serializable {
+public class ReceiverBuilder<X, T extends Receiver<X>> implements Serializable {
 
   private final Class<T> sparkReceiverClass;
   private @Nullable Object[] constructorArgs;
 
-  public ProxyReceiverBuilder(Class<T> sparkReceiverClass) {
+  public ReceiverBuilder(Class<T> sparkReceiverClass) {
     this.sparkReceiverClass = sparkReceiverClass;
   }
 
   /** Method for specifying constructor arguments for corresponding {@link #sparkReceiverClass}. */
-  public ProxyReceiverBuilder<X, T> withConstructorArgs(Object... args) {
+  public ReceiverBuilder<X, T> withConstructorArgs(Object... args) {
     this.constructorArgs = args;
     return this;
   }

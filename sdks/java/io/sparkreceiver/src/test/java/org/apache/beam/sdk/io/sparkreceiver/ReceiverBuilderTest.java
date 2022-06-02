@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceReceiver;
-import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSourceConfig;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.spark.SparkConf;
+import org.apache.spark.storage.StorageLevel;
+import org.apache.spark.streaming.receiver.Receiver;
 import org.apache.spark.streaming.receiver.ReceiverSupervisor;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -31,60 +30,60 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Test class for {@link ProxyReceiverBuilder}. */
+/** Test class for {@link ReceiverBuilder}. */
 @RunWith(JUnit4.class)
-public class ProxyReceiverBuilderTest {
+public class ReceiverBuilderTest {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ProxyReceiverBuilderTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ReceiverBuilderTest.class);
 
-  private static final String SALESFORCE_CONFIG_JSON_STRING =
-      "{\n"
-          + "\"pushTopicName\": \"topicName\",\n"
-          + "\"sObjectName\": \"sObject\",\n"
-          + "\"datetimeAfter\": \"datetime\",\n"
-          + "\"consumerKey\": \"key\",\n"
-          + "\"consumerSecret\": \"secret\",\n"
-          + "\"username\": \"user\",\n"
-          + "\"password\": \"password\",\n"
-          + "\"loginUrl\": \"https://www.google.com\",\n"
-          + "\"referenceName\": \"reference\"\n"
-          + "}";
   public static final String TEST_MESSAGE = "testMessage";
 
+  private static class CustomReceiver extends Receiver<String> {
+
+    public CustomReceiver(StorageLevel storageLevel) {
+      super(storageLevel);
+    }
+
+    @Override
+    public void onStart() {
+      LOG.info("Receiver onStart()");
+    }
+
+    @Override
+    public void onStop() {
+      LOG.info("Receiver onStop()");
+    }
+  }
+
   /**
-   * If this test passed, then object for Salesforce {@link
+   * If this test passed, then object for Custom {@link
    * org.apache.spark.streaming.receiver.Receiver} was created successfully, and the corresponding
    * {@link ReceiverSupervisor} was wrapped into {@link WrappedSupervisor}.
    */
   @Test
-  public void testCreatingSparkReceiverForSalesforce() {
+  public void testCreatingCustomSparkReceiver() {
     try {
-      SalesforceStreamingSourceConfig config =
-          new ConfigWrapper<>(SalesforceStreamingSourceConfig.class)
-              .fromJsonString(SALESFORCE_CONFIG_JSON_STRING)
-              .build();
-      assertNotNull(config);
 
-      AtomicBoolean customStoreWasUsed = new AtomicBoolean(false);
-      ProxyReceiverBuilder<?, SalesforceReceiver> receiverBuilder =
-          CdapPluginMappingUtils.getSparkReceiverBuilderForSalesforce(config);
-      SalesforceReceiver receiver = receiverBuilder.build();
+      AtomicBoolean customStoreConsumerWasUsed = new AtomicBoolean(false);
+      ReceiverBuilder<String, CustomReceiver> receiverBuilder =
+          new ReceiverBuilder<>(CustomReceiver.class);
+      Receiver<String> receiver =
+          receiverBuilder.withConstructorArgs(StorageLevel.DISK_ONLY()).build();
       new WrappedSupervisor(
           receiver,
           new SparkConf(),
           args -> {
-            customStoreWasUsed.set(true);
+            customStoreConsumerWasUsed.set(true);
             return null;
           });
 
-      assertNotNull(receiver);
       receiver.onStart();
       assertTrue(receiver.supervisor() instanceof WrappedSupervisor);
 
       receiver.store(TEST_MESSAGE);
-      assertTrue(customStoreWasUsed.get());
+      assertTrue(customStoreConsumerWasUsed.get());
     } catch (Exception e) {
-      LOG.error("Can not get proxy", e);
+      LOG.error("Can not get receiver", e);
     }
   }
 }
