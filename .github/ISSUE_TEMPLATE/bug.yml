@@ -31,6 +31,10 @@ body:
     attributes:
       label: What happened?
       description: Please describe your issue, including the version of Beam and any other languages or tools being used.
+      placeholder: |
+          Please include steps to reproduce your issue.
+
+          If this isn't a bug and you have a question or support request, please email user@apache.beam.com with a description of the problem instead of opening this issue.
     validations:
       required: true
   - type: dropdown
