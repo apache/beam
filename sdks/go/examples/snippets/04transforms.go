@@ -167,6 +167,23 @@ func (fn *weDoFn) ProcessElement(e *CustomWatermarkEstimator, element string) {
 
 // [END watermarkestimation_customestimator]
 
+// [START sdf_truncate]
+
+// TruncateRestriction is a transform that is triggered when pipeline starts to drain. It helps to finish a
+// pipeline quicker by truncating the restriction.
+func (fn *splittableDoFn) TruncateRestriction(rt *sdf.LockRTracker, element string) offsetrange.Restriction {
+	start := rt.GetRestriction().(offsetrange.Restriction).Start
+	prevEnd := rt.GetRestriction().(offsetrange.Restriction).End
+	// truncate the restriction by half.
+	newEnd := prevEnd / 2
+	return offsetrange.Restriction{
+		Start: start,
+		End:   newEnd,
+	}
+}
+
+// [END sdf_truncate]
+
 // [START cogroupbykey_output_helpers]
 
 func formatCoGBKResults(key string, emailIter, phoneIter func(*string) bool) string {
