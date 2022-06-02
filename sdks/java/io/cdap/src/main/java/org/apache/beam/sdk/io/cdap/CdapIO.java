@@ -25,6 +25,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO;
 import org.apache.beam.sdk.io.sparkreceiver.CdapPluginMappingUtils;
+import org.apache.beam.sdk.io.sparkreceiver.ProxyReceiverBuilder;
 import org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIO;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -122,10 +123,11 @@ public class CdapIO {
       getCdapPlugin().prepareRun(getPluginConfig());
 
       if (getCdapPlugin().isUnbounded()) {
-        Receiver<V> sparkReceiver = CdapPluginMappingUtils.getSparkReceiver(getPluginConfig());
+        ProxyReceiverBuilder<V, Receiver<V>> sparkReceiverBuilder =
+            CdapPluginMappingUtils.getSparkReceiverBuilder(getPluginConfig());
         SparkReceiverIO.Read<V> reader =
             SparkReceiverIO.<V>read()
-                .withSparkReceiver(sparkReceiver)
+                .withSparkReceiverBuilder(sparkReceiverBuilder)
                 .withValueCoder(getValueCoder())
                 .withValueClass(getValueClass());
         PCollection<V> values = input.apply(reader).setCoder(getValueCoder());

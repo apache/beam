@@ -35,6 +35,7 @@ import io.cdap.cdap.etl.api.SubmitterLifecycle;
 import io.cdap.cdap.etl.api.action.SettableArguments;
 import io.cdap.cdap.etl.api.batch.BatchContext;
 import io.cdap.cdap.etl.api.lineage.field.FieldOperation;
+import java.io.Serializable;
 import java.net.URL;
 import java.sql.Timestamp;
 import java.util.List;
@@ -43,7 +44,7 @@ import javax.annotation.Nullable;
 
 /** Class for Batch, Sink and Stream CDAP wrapper classes that use it to provide common details. */
 @SuppressWarnings({"TypeParameterUnusedInFormals", "nullness"})
-public abstract class BatchContextImpl implements BatchContext {
+public abstract class BatchContextImpl implements BatchContext, Serializable {
 
   private final FailureCollectorWrapper failureCollector = new FailureCollectorWrapper();
 

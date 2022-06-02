@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
-import java.io.Serializable;
 import java.nio.ByteBuffer;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.spark.SparkConf;
@@ -32,8 +31,7 @@ import scala.collection.Iterator;
 import scala.collection.mutable.ArrayBuffer;
 
 /** Wrapper class for {@link ReceiverSupervisor} that doesn't use Spark Environment. */
-@SuppressWarnings({"return.type.incompatible", "UnusedVariable"})
-public class WrappedSupervisor extends ReceiverSupervisor implements Serializable {
+public class WrappedSupervisor extends ReceiverSupervisor {
 
   private final SerializableFunction<Object[], Void> storeFn;
 

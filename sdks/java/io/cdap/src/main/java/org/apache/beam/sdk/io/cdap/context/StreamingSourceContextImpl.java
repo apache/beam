@@ -26,7 +26,7 @@ import org.apache.tephra.TransactionFailureException;
 
 /** Class for creating context object of different CDAP classes with stream source type. */
 public class StreamingSourceContextImpl extends BatchContextImpl
-        implements StreamingSourceContext, Serializable {
+    implements StreamingSourceContext, Serializable {
 
   @Override
   public void registerLineage(String referenceName, @Nullable Schema schema)

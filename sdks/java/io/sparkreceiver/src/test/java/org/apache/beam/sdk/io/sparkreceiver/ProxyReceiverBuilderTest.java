@@ -66,7 +66,9 @@ public class ProxyReceiverBuilderTest {
       assertNotNull(config);
 
       AtomicBoolean customStoreWasUsed = new AtomicBoolean(false);
-      SalesforceReceiver receiver = CdapPluginMappingUtils.getSparkReceiverForSalesforce(config);
+      ProxyReceiverBuilder<?, SalesforceReceiver> receiverBuilder =
+          CdapPluginMappingUtils.getSparkReceiverBuilderForSalesforce(config);
+      SalesforceReceiver receiver = receiverBuilder.build();
       new WrappedSupervisor(
           receiver,
           new SparkConf(),

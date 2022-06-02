@@ -35,7 +35,6 @@ import java.util.Map;
 import org.apache.beam.sdk.io.cdap.context.BatchContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
-import org.apache.beam.sdk.io.cdap.context.StreamingSourceContextImpl;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.slf4j.Logger;
@@ -70,7 +69,7 @@ public class CdapPlugin<T extends SubmitterLifecycle> implements Serializable {
   private final Class<?> cdapPluginClass;
   private final BatchContextImpl context;
 
-  private Configuration hadoopConf;
+  private transient Configuration hadoopConf;
   private Boolean isUnbounded;
 
   protected Class<?> formatClass;

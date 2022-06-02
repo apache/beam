@@ -23,9 +23,7 @@ import io.cdap.plugin.hubspot.source.streaming.HubspotReceiver;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceReceiver;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSourceConfig;
-import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
-import org.apache.spark.streaming.receiver.Receiver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,39 +51,29 @@ public class CdapPluginMappingUtils {
     return 0L;
   }
 
-  public static Receiver getSparkReceiver(PluginConfig config) {
+  public static ProxyReceiverBuilder getSparkReceiverBuilder(PluginConfig config) {
     if (config instanceof SalesforceStreamingSourceConfig) {
-      return getSparkReceiverForSalesforce((SalesforceStreamingSourceConfig) config);
+      return getSparkReceiverBuilderForSalesforce((SalesforceStreamingSourceConfig) config);
     } else if (config instanceof HubspotStreamingSourceConfig) {
-      return getSparkReceiverForHubspot((HubspotStreamingSourceConfig) config);
+      return getSparkReceiverBuilderForHubspot((HubspotStreamingSourceConfig) config);
     } else {
       return null;
     }
   }
 
-  public static SalesforceReceiver getSparkReceiverForSalesforce(
+  public static ProxyReceiverBuilder<?, SalesforceReceiver> getSparkReceiverBuilderForSalesforce(
       SalesforceStreamingSourceConfig config) {
     ProxyReceiverBuilder<String, SalesforceReceiver> builder =
         new ProxyReceiverBuilder<>(SalesforceReceiver.class);
 
-    try {
-      return builder
-          .withConstructorArgs(config.getAuthenticatorCredentials(), config.getPushTopicName())
-          .build();
-    } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
-      LOG.error("Can not build proxy Spark Receiver", e);
-    }
-    return null;
+    return builder.withConstructorArgs(
+        config.getAuthenticatorCredentials(), config.getPushTopicName());
   }
 
-  public static HubspotReceiver getSparkReceiverForHubspot(HubspotStreamingSourceConfig config) {
+  public static ProxyReceiverBuilder<?, HubspotReceiver> getSparkReceiverBuilderForHubspot(
+      HubspotStreamingSourceConfig config) {
     ProxyReceiverBuilder<String, HubspotReceiver> builder =
         new ProxyReceiverBuilder<>(HubspotReceiver.class);
-    try {
-      return builder.withConstructorArgs(config).build();
-    } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
-      LOG.error("Can not build proxy Spark Receiver", e);
-    }
-    return null;
+    return builder.withConstructorArgs(config);
   }
 }

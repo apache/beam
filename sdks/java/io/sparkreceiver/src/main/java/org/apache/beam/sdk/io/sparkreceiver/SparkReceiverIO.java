@@ -33,7 +33,6 @@ import org.apache.spark.streaming.receiver.Receiver;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Streaming sources for Spark {@link Receiver}. */
-@SuppressWarnings("rawtypes")
 public class SparkReceiverIO {
 
   public static <V> Read<V> read() {
@@ -43,7 +42,6 @@ public class SparkReceiverIO {
   /** A {@link PTransform} to read from Spark {@link Receiver}. */
   @AutoValue
   @AutoValue.CopyAnnotations
-  @SuppressWarnings({"UnnecessaryParentheses", "UnusedVariable"})
   public abstract static class Read<V> extends PTransform<PBegin, PCollection<V>> {
 
     abstract @Nullable ProxyReceiverBuilder<V, ? extends Receiver<V>> getSparkReceiverBuilder();
@@ -125,21 +123,16 @@ public class SparkReceiverIO {
     public PCollection<V> expand(PBegin input) {
       return input
           .apply(Impulse.create())
-          .apply(ParDo.of(new GenerateSparkReceiverSourceDescriptor(sparkReceiverRead)))
+          .apply(ParDo.of(new GenerateSparkReceiverSourceDescriptor()))
           .apply(ParDo.of(new ReadFromSparkReceiverDoFn<>(this)))
           .setCoder(valueCoder);
     }
   }
 
-  @SuppressWarnings("UnusedVariable")
   static class GenerateSparkReceiverSourceDescriptor
       extends DoFn<byte[], SparkReceiverSourceDescriptor> {
 
-    private final SparkReceiverIO.Read read;
-
-    GenerateSparkReceiverSourceDescriptor(SparkReceiverIO.Read read) {
-      this.read = read;
-    }
+    GenerateSparkReceiverSourceDescriptor() {}
 
     @ProcessElement
     public void processElement(OutputReceiver<SparkReceiverSourceDescriptor> receiver) {

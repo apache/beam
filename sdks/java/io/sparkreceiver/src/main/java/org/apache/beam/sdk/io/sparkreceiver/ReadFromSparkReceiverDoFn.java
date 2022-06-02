@@ -25,7 +25,12 @@ import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.splittabledofn.*;
+import org.apache.beam.sdk.transforms.splittabledofn.GrowableOffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.spark.SparkConf;
 import org.apache.spark.streaming.receiver.Receiver;
@@ -34,7 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @UnboundedPerElement
-@SuppressWarnings({"rawtypes", "nullness", "UnusedVariable"})
 public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescriptor, V> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReadFromSparkReceiverDoFn.class);
@@ -186,7 +190,7 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
   public ProcessContinuation processElement(
       @Element SparkReceiverSourceDescriptor sourceDescriptor,
       RestrictionTracker<OffsetRange, Long> tracker,
-      WatermarkEstimator watermarkEstimator,
+      WatermarkEstimator<Instant> watermarkEstimator,
       OutputReceiver<V> receiver) {
 
     if (receiverHasOffset()) {

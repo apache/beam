@@ -33,7 +33,6 @@ import org.apache.spark.streaming.receiver.Receiver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("FutureReturnValueIgnored")
 public class HubspotCustomReceiver extends Receiver<String> implements HasOffset {
 
   private static final Logger LOG = LoggerFactory.getLogger(HubspotCustomReceiver.class);
@@ -59,6 +58,7 @@ public class HubspotCustomReceiver extends Receiver<String> implements HasOffset
   }
 
   @Override
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void onStart() {
     ThreadFactory namedThreadFactory =
         new ThreadFactoryBuilder().setNameFormat(RECEIVER_THREAD_NAME + "-%d").build();
