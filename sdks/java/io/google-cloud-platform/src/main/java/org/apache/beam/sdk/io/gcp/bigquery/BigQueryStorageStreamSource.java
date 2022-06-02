@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.fromJsonString;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.FailedPreconditionException;
@@ -44,15 +44,14 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing a single stream in a read session. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageStreamSource.class);
@@ -67,7 +66,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     return new BigQueryStorageStreamSource<>(
         readSession,
         readStream,
-        toJsonString(checkNotNull(tableSchema, "tableSchema")),
+        toJsonString(Preconditions.checkArgumentNotNull(tableSchema, "tableSchema")),
         parseFn,
         outputCoder,
         bqServices);
@@ -96,12 +95,12 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
-    this.readSession = checkNotNull(readSession, "readSession");
-    this.readStream = checkNotNull(readStream, "stream");
-    this.jsonTableSchema = checkNotNull(jsonTableSchema, "jsonTableSchema");
-    this.parseFn = checkNotNull(parseFn, "parseFn");
-    this.outputCoder = checkNotNull(outputCoder, "outputCoder");
-    this.bqServices = checkNotNull(bqServices, "bqServices");
+    this.readSession = Preconditions.checkArgumentNotNull(readSession, "readSession");
+    this.readStream = Preconditions.checkArgumentNotNull(readStream, "stream");
+    this.jsonTableSchema = Preconditions.checkArgumentNotNull(jsonTableSchema, "jsonTableSchema");
+    this.parseFn = Preconditions.checkArgumentNotNull(parseFn, "parseFn");
+    this.outputCoder = Preconditions.checkArgumentNotNull(outputCoder, "outputCoder");
+    this.bqServices = Preconditions.checkArgumentNotNull(bqServices, "bqServices");
   }
 
   @Override
@@ -152,9 +151,9 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private final TableSchema tableSchema;
 
     private BigQueryStorageStreamSource<T> source;
-    private BigQueryServerStream<ReadRowsResponse> responseStream;
-    private Iterator<ReadRowsResponse> responseIterator;
-    private T current;
+    private @Nullable BigQueryServerStream<ReadRowsResponse> responseStream = null;
+    private @Nullable Iterator<ReadRowsResponse> responseIterator = null;
+    private @Nullable T current = null;
     private long currentOffset;
 
     // Values used for progress reporting.
@@ -165,8 +164,8 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private long rowsConsumedFromCurrentResponse;
     private long totalRowsInCurrentResponse;
 
-    private TableReference tableReference;
-    private ServiceCallMetric serviceCallMetric;
+    private @Nullable TableReference tableReference;
+    private @Nullable ServiceCallMetric serviceCallMetric;
 
     private BigQueryStorageStreamReader(
         BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
@@ -194,19 +193,22 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
       tableReference = BigQueryUtils.toTableReference(source.readSession.getTable());
       serviceCallMetric = BigQueryUtils.readCallMetric(tableReference);
+      LOG.info("Started BigQuery Storage API read from stream {}.", source.readStream.getName());
       responseStream = storageClient.readRows(request, source.readSession.getTable());
       responseIterator = responseStream.iterator();
-      LOG.info("Started BigQuery Storage API read from stream {}.", source.readStream.getName());
       return readNextRecord();
     }
 
     @Override
     public synchronized boolean advance() throws IOException {
+      Preconditions.checkStateNotNull(responseIterator);
       currentOffset++;
       return readNextRecord();
     }
 
+    @RequiresNonNull("responseIterator")
     private synchronized boolean readNextRecord() throws IOException {
+      Iterator<ReadRowsResponse> responseIterator = this.responseIterator;
       while (reader.readyForNextReadResponse()) {
         if (!responseIterator.hasNext()) {
           fractionConsumed = 1d;
@@ -235,17 +237,17 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         totalRowsInCurrentResponse = response.getRowCount();
         rowsConsumedFromCurrentResponse = 0L;
 
-        Preconditions.checkArgument(
+        checkArgument(
             totalRowsInCurrentResponse >= 0,
             "Row count from current response (%s) must be non-negative.",
             totalRowsInCurrentResponse);
 
-        Preconditions.checkArgument(
+        checkArgument(
             0f <= progressAtResponseStart && progressAtResponseStart <= 1f,
             "Progress at response start (%s) is not in the range [0.0, 1.0].",
             progressAtResponseStart);
 
-        Preconditions.checkArgument(
+        checkArgument(
             0f <= progressAtResponseEnd && progressAtResponseEnd <= 1f,
             "Progress at response end (%s) is not in the range [0.0, 1.0].",
             progressAtResponseEnd);
@@ -275,11 +277,18 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
     @Override
     public T getCurrent() throws NoSuchElementException {
+      if (current == null) {
+        throw new NoSuchElementException();
+      }
       return current;
     }
 
     @Override
     public synchronized void close() {
+      // Because superclass cannot have preconditions around these variables, cannot use
+      // @RequiresNonNull
+      Preconditions.checkStateNotNull(storageClient);
+      Preconditions.checkStateNotNull(reader);
       storageClient.close();
       reader.close();
     }
@@ -290,7 +299,11 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    public BoundedSource<T> splitAtFraction(double fraction) {
+    public @Nullable BoundedSource<T> splitAtFraction(double fraction) {
+      // Because superclass cannot have preconditions around these variables, cannot use
+      // @RequiresNonNull
+      Preconditions.checkStateNotNull(responseStream);
+      BigQueryServerStream<ReadRowsResponse> responseStream = this.responseStream;
       Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls").inc();
       LOG.debug(
           "Received BigQuery Storage API split request for stream {} at fraction {}.",
