@@ -26,7 +26,6 @@ import uuid
 
 import pytest
 
-import pandas as pd
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 

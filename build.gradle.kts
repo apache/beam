@@ -328,7 +328,6 @@ tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
   dependsOn(":sdks:python:test-suites:direct:py39:inferencePostCommitIT")
-
 }
 
 task("python37SickbayPostCommit") {
