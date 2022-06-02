@@ -98,7 +98,7 @@ final kNewExampleShortcut = Shortcut(
   actionIntent: const NewExampleIntent(),
   name: kNewExampleText,
   createAction: (_) => CallbackAction(
-    onInvoke: (_) => launch('/'),
+    onInvoke: (_) => launchUrl(Uri.parse('/')),
   ),
 );
 

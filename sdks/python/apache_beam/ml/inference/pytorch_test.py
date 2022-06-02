@@ -42,6 +42,11 @@ try:
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
 
+try:
+  from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+except ImportError:
+  GCSFileSystem = None  # type: ignore
+
 TWO_FEATURES_EXAMPLES = [
     torch.from_numpy(np.array([1, 5], dtype="float32")),
     torch.from_numpy(np.array([3, 10], dtype="float32")),
@@ -304,6 +309,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           equal_to(
               KWARGS_TORCH_PREDICTIONS, equals_fn=_compare_prediction_result))
 
+  @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_gcs_model(self):
     with TestPipeline() as pipeline:
       examples = torch.from_numpy(
@@ -316,7 +322,8 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
                             for example in examples]).reshape(-1, 1))
       ]
 
-      gs_pth = 'gs://apache-beam-ml/pytorch_lin_reg_model_2x+0.5_state_dict.pth'
+      gs_pth = 'gs://apache-beam-ml/models/' \
+          'pytorch_lin_reg_model_2x+0.5_state_dict.pth'
       model_loader = PytorchModelLoader(
           state_dict_path=gs_pth,
           model_class=PytorchLinearRegression,

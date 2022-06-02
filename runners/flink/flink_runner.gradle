@@ -207,6 +207,7 @@ dependencies {
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(":sdks:java:fn-execution")
   implementation library.java.jackson_databind
+  runtimeOnly library.java.jackson_jaxb_annotations
   implementation "org.apache.flink:flink-annotations:$flink_version"
   examplesJavaIntegrationTest project(project.path)
   examplesJavaIntegrationTest project(":examples:java")
