@@ -28,7 +28,7 @@ import java.io.Serializable;
  * function definition (such as {@code def foo(x): ...}).
  *
  * <p>Any lines preceding the function definition are first evaluated to provide context in which to
- * define the function which can be useful to declare inports or any other needed values, e.g.
+ * define the function which can be useful to declare imports or any other needed values, e.g.
  *
  * <pre>
  * import math
