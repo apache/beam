@@ -28,6 +28,7 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.transforms.fully_qualified_named_transform import PYTHON_FULLY_QUALIFIED_NAMED_TRANSFORM_URN
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
+from apache_beam.utils import python_callable
 
 
 class FullyQualifiedNamedTransformTest(unittest.TestCase):
@@ -105,6 +106,38 @@ class FullyQualifiedNamedTransformTest(unittest.TestCase):
                 }),
                 expansion_service.ExpansionServiceServicer()),
             equal_to(['xay', 'xby', 'xcy']))
+
+  def test_callable_transform(self):
+    with FullyQualifiedNamedTransform.with_filter('*'):
+      with beam.Pipeline() as p:
+        assert_that(
+            p | beam.Create(['a', 'b', 'c'])
+            | FullyQualifiedNamedTransform(
+                '__callable__',  # the next argument is a callable to be applied
+                (
+                  python_callable.PythonCallableWithSource(
+                      'lambda pcoll, x: '
+                      'pcoll | __import__("apache_beam").Map(lambda e: e + x)'),
+                  'x'  # arguments passed to the callable
+                ),
+                {}),
+            equal_to(['ax', 'bx', 'cx']))
+
+  def test_constructor_transform(self):
+    with FullyQualifiedNamedTransform.with_filter('*'):
+      with beam.Pipeline() as p:
+        assert_that(
+            p | beam.Create(['a', 'b', 'c'])
+            | FullyQualifiedNamedTransform(
+                '__constructor__',  # the next argument constructs a PTransform
+                (),
+                {
+                'source': python_callable.PythonCallableWithSource(
+                    'lambda x: __import__("apache_beam").Map(lambda e: e + x)'),
+                'x': 'x'  # arguments passed to the above constructor
+                }
+                ),
+            equal_to(['ax', 'bx', 'cx']))
 
   def test_glob_filter(self):
     with FullyQualifiedNamedTransform.with_filter('*'):
