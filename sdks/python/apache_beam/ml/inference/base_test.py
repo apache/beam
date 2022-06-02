@@ -39,7 +39,7 @@ class FakeInferenceRunner(base.InferenceRunner):
   def __init__(self, clock=None):
     self._mock_clock = clock
 
-  def run_inference(self, batch: Any, model: Any, **kwargs) -> Iterable[Any]:
+  def run_inference(self, batch: Any, model: Any) -> Iterable[Any]:
     if self._mock_clock:
       self._mock_clock.current_time += 3000
     for example in batch:
@@ -87,6 +87,18 @@ class FakeLoaderWithBatchArgForwarding(FakeModelLoader):
     return {'min_batch_size': 9999}
 
 
+class FakeInferenceRunnerKwargs(FakeInferenceRunner):
+  def run_inference(self, batch, unused_model, **kwargs):
+    if not kwargs.get('key'):
+      raise ValueError('key should be True')
+    return batch
+
+
+class FakeLoaderWithKwargs(FakeModelLoader):
+  def get_inference_runner(self):
+    return FakeInferenceRunnerKwargs()
+
+
 class RunInferenceBaseTest(unittest.TestCase):
   def test_run_inference_impl_simple_examples(self):
     with TestPipeline() as pipeline:
@@ -104,6 +116,15 @@ class RunInferenceBaseTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
       actual = pcoll | base.RunInference(FakeModelLoader())
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_kwargs(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      kwargs = {'key': True}
+      actual = pcoll | base.RunInference(
+          FakeLoaderWithKwargs(), clock=None, **kwargs)
+      assert_that(actual, equal_to(examples), label='assert:inferences')
 
   def test_counted_metrics(self):
     pipeline = TestPipeline()
