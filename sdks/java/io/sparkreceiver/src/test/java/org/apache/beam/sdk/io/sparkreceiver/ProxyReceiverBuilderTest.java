@@ -66,20 +66,20 @@ public class ProxyReceiverBuilderTest {
       assertNotNull(config);
 
       AtomicBoolean customStoreWasUsed = new AtomicBoolean(false);
-      SalesforceReceiver reciever = CdapPluginMappingUtils.getSparkReceiverForSalesforce(config);
+      SalesforceReceiver receiver = CdapPluginMappingUtils.getSparkReceiverForSalesforce(config);
       new WrappedSupervisor(
-          reciever,
+          receiver,
           new SparkConf(),
           args -> {
             customStoreWasUsed.set(true);
             return null;
           });
 
-      assertNotNull(reciever);
-      reciever.onStart();
-      assertTrue(reciever.supervisor() instanceof WrappedSupervisor);
+      assertNotNull(receiver);
+      receiver.onStart();
+      assertTrue(receiver.supervisor() instanceof WrappedSupervisor);
 
-      reciever.store(TEST_MESSAGE);
+      receiver.store(TEST_MESSAGE);
       assertTrue(customStoreWasUsed.get());
     } catch (Exception e) {
       LOG.error("Can not get proxy", e);
