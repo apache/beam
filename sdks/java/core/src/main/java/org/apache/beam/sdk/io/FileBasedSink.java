@@ -1196,7 +1196,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
-      return Arrays.asList(windowCoder);
+      return Arrays.asList(windowCoder, destinationCoder);
     }
 
     @Override
