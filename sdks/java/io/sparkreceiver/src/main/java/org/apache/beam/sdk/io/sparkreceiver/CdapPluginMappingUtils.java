@@ -51,7 +51,7 @@ public class CdapPluginMappingUtils {
     return 0L;
   }
 
-  public static ProxyReceiverBuilder getSparkReceiverBuilder(PluginConfig config) {
+  public static ReceiverBuilder getSparkReceiverBuilder(PluginConfig config) {
     if (config instanceof SalesforceStreamingSourceConfig) {
       return getSparkReceiverBuilderForSalesforce((SalesforceStreamingSourceConfig) config);
     } else if (config instanceof HubspotStreamingSourceConfig) {
@@ -61,19 +61,18 @@ public class CdapPluginMappingUtils {
     }
   }
 
-  public static ProxyReceiverBuilder<?, SalesforceReceiver> getSparkReceiverBuilderForSalesforce(
+  public static ReceiverBuilder<?, SalesforceReceiver> getSparkReceiverBuilderForSalesforce(
       SalesforceStreamingSourceConfig config) {
-    ProxyReceiverBuilder<String, SalesforceReceiver> builder =
-        new ProxyReceiverBuilder<>(SalesforceReceiver.class);
+    ReceiverBuilder<String, SalesforceReceiver> builder =
+        new ReceiverBuilder<>(SalesforceReceiver.class);
 
     return builder.withConstructorArgs(
         config.getAuthenticatorCredentials(), config.getPushTopicName());
   }
 
-  public static ProxyReceiverBuilder<?, HubspotReceiver> getSparkReceiverBuilderForHubspot(
+  public static ReceiverBuilder<?, HubspotReceiver> getSparkReceiverBuilderForHubspot(
       HubspotStreamingSourceConfig config) {
-    ProxyReceiverBuilder<String, HubspotReceiver> builder =
-        new ProxyReceiverBuilder<>(HubspotReceiver.class);
+    ReceiverBuilder<String, HubspotReceiver> builder = new ReceiverBuilder<>(HubspotReceiver.class);
     return builder.withConstructorArgs(config);
   }
 }

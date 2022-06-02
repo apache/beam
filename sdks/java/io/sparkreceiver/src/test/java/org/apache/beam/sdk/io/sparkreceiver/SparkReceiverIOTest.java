@@ -109,8 +109,8 @@ public class SparkReceiverIOTest {
             .withParams(TEST_HUBSPOT_PARAMS_MAP)
             .build();
 
-    ProxyReceiverBuilder<String, HubspotCustomReceiver> receiverBuilder =
-        new ProxyReceiverBuilder<>(HubspotCustomReceiver.class).withConstructorArgs(pluginConfig);
+    ReceiverBuilder<String, HubspotCustomReceiver> receiverBuilder =
+        new ReceiverBuilder<>(HubspotCustomReceiver.class).withConstructorArgs(pluginConfig);
     SparkReceiverIO.Read<String> reader =
         SparkReceiverIO.<String>read()
             .withValueClass(String.class)
@@ -143,8 +143,8 @@ public class SparkReceiverIOTest {
             .withParams(TEST_HUBSPOT_PARAMS_MAP)
             .build();
 
-    ProxyReceiverBuilder<String, HubspotReceiver> receiverBuilder =
-        new ProxyReceiverBuilder<>(HubspotReceiver.class).withConstructorArgs(pluginConfig);
+    ReceiverBuilder<String, HubspotReceiver> receiverBuilder =
+        new ReceiverBuilder<>(HubspotReceiver.class).withConstructorArgs(pluginConfig);
     SparkReceiverIO.Read<String> reader =
         SparkReceiverIO.<String>read()
             .withValueClass(String.class)

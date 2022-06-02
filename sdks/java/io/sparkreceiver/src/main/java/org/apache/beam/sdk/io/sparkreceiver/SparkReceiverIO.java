@@ -44,7 +44,7 @@ public class SparkReceiverIO {
   @AutoValue.CopyAnnotations
   public abstract static class Read<V> extends PTransform<PBegin, PCollection<V>> {
 
-    abstract @Nullable ProxyReceiverBuilder<V, ? extends Receiver<V>> getSparkReceiverBuilder();
+    abstract @Nullable ReceiverBuilder<V, ? extends Receiver<V>> getSparkReceiverBuilder();
 
     abstract @Nullable Class<V> getValueClass();
 
@@ -65,7 +65,7 @@ public class SparkReceiverIO {
       abstract Builder<V> setValueCoder(Coder<V> valueCoder);
 
       abstract Builder<V> setSparkReceiverBuilder(
-          ProxyReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder);
+          ReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder);
 
       abstract Builder<V> setGetOffsetFn(SerializableFunction<V, Long> getOffsetFn);
 
@@ -83,7 +83,7 @@ public class SparkReceiverIO {
     }
 
     public Read<V> withSparkReceiverBuilder(
-        ProxyReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder) {
+        ReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder) {
       return toBuilder().setSparkReceiverBuilder(sparkReceiverBuilder).build();
     }
 

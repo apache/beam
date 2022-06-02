@@ -48,7 +48,7 @@ public class ReadFromSparkReceiverDoFn<V> extends DoFn<SparkReceiverSourceDescri
   private final SerializableFunction<Instant, WatermarkEstimator<Instant>>
       createWatermarkEstimatorFn;
   private final SerializableFunction<V, Long> getOffsetFn;
-  private final ProxyReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder;
+  private final ReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder;
   private Receiver<V> sparkReceiver;
   private SparkConsumer<V> sparkConsumer;
 
