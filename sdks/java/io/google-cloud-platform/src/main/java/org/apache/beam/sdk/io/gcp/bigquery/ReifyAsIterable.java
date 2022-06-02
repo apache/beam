@@ -26,21 +26,19 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * This transforms turns a side input into a singleton PCollection that can be used as the main
  * input for another transform.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ReifyAsIterable<T> extends PTransform<PCollection<T>, PCollection<Iterable<T>>> {
   @Override
   public PCollection<Iterable<T>> expand(PCollection<T> input) {
     final PCollectionView<Iterable<T>> view = input.apply(View.asIterable());
     return input
         .getPipeline()
-        .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
+        .apply(Create.<@Nullable Void>of((@Nullable Void) null).withCoder(VoidCoder.of()))
         .apply(
             ParDo.of(
                     new DoFn<Void, Iterable<T>>() {

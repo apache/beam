@@ -23,10 +23,8 @@ import java.io.Serializable;
 import org.apache.avro.Schema;
 import org.apache.avro.io.DatumWriter;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable {
   private RowWriterFactory() {}
 
@@ -101,14 +99,14 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
 
     private final SerializableFunction<AvroWriteRequest<ElementT>, AvroT> toAvro;
     private final SerializableFunction<Schema, DatumWriter<AvroT>> writerFactory;
-    private final SerializableFunction<TableSchema, Schema> schemaFactory;
-    private final DynamicDestinations<?, DestinationT> dynamicDestinations;
+    private final @Nullable SerializableFunction<TableSchema, Schema> schemaFactory;
+    private final @Nullable DynamicDestinations<?, DestinationT> dynamicDestinations;
 
     private AvroRowWriterFactory(
         SerializableFunction<AvroWriteRequest<ElementT>, AvroT> toAvro,
         SerializableFunction<Schema, DatumWriter<AvroT>> writerFactory,
-        SerializableFunction<TableSchema, Schema> schemaFactory,
-        DynamicDestinations<?, DestinationT> dynamicDestinations) {
+        @Nullable SerializableFunction<TableSchema, Schema> schemaFactory,
+        @Nullable DynamicDestinations<?, DestinationT> dynamicDestinations) {
       this.toAvro = toAvro;
       this.writerFactory = writerFactory;
       this.schemaFactory = schemaFactory;
@@ -129,7 +127,18 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
     @Override
     BigQueryRowWriter<ElementT> createRowWriter(String tempFilePrefix, DestinationT destination)
         throws Exception {
+      if (dynamicDestinations == null) {
+        throw new IllegalStateException(
+            "createRowWriter called when dynamicDestinations is null; forgot to call prepare()?");
+      }
+      if (schemaFactory == null) {
+        throw new IllegalStateException(
+            "createRowWriter called when schemaFactory is null; forgot to call prepare()?");
+      }
       TableSchema tableSchema = dynamicDestinations.getSchema(destination);
+      if (tableSchema == null) {
+        throw new IllegalStateException("dynamicDestinations.getSchema returned null");
+      }
       Schema avroSchema = schemaFactory.apply(tableSchema);
       return new AvroRowWriter<>(tempFilePrefix, avroSchema, toAvro, writerFactory);
     }

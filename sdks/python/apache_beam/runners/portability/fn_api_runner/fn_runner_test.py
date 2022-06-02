@@ -293,6 +293,22 @@ class FnApiRunnerTest(unittest.TestCase):
                                  9*9                        # [ 9, 14)
                                  ]))
 
+  def test_pardo_large_input(self):
+    try:
+      utils.check_compiled('apache_beam.coders.coder_impl')
+    except RuntimeError:
+      self.skipTest(
+          'BEAM-14410: FnRunnerTest with non-trivial inputs flakes in '
+          'non-cython environments')
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array(range(5000),
+                                 dtype=np.int64)).with_output_types(np.int64)
+          | beam.Map(lambda e: e * 2)
+          | beam.Map(lambda e: e + 3))
+      assert_that(res, equal_to([(i * 2) + 3 for i in range(5000)]))
+
   def test_pardo_side_outputs(self):
     def tee(elem, *tags):
       for tag in tags:

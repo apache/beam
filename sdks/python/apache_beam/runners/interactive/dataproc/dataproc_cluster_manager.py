@@ -136,6 +136,11 @@ class DataprocClusterManager:
                     'https://www.googleapis.com/auth/cloud-platform'
                 ]
             },
+            'master_config': {
+                # There must be 1 and only 1 instance of master.
+                'num_instances': 1
+            },
+            'worker_config': {},
             'endpoint_config': {
                 'enable_http_port_access': True
             }
@@ -145,6 +150,21 @@ class DataprocClusterManager:
                 '.', '_')
         }
     }
+
+    # Additional gce_cluster_config.
+    gce_cluster_config = cluster['config']['gce_cluster_config']
+    if self.cluster_metadata.subnetwork:
+      gce_cluster_config['subnetwork_uri'] = self.cluster_metadata.subnetwork
+
+    # Additional InstanceGroupConfig for master and workers.
+    master_config = cluster['config']['master_config']
+    worker_config = cluster['config']['worker_config']
+    if self.cluster_metadata.num_workers:
+      worker_config['num_instances'] = self.cluster_metadata.num_workers
+    if self.cluster_metadata.machine_type:
+      master_config['machine_type_uri'] = self.cluster_metadata.machine_type
+      worker_config['machine_type_uri'] = self.cluster_metadata.machine_type
+
     self.create_cluster(cluster)
 
   def cleanup(self) -> None:
