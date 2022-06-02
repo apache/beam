@@ -433,7 +433,8 @@ class _TextSink(filebasedsink.FileBasedSink):
                coder=coders.ToBytesCoder(),  # type: coders.Coder
                compression_type=CompressionTypes.AUTO,
                header=None,
-               footer=None):
+               footer=None,
+               skip_if_empty=False):
     """Initialize a _TextSink.
 
     Args:
@@ -467,6 +468,7 @@ class _TextSink(filebasedsink.FileBasedSink):
         append_trailing_newlines is set, '\n' will be added.
       footer: String to write at the end of file as a footer. If not None and
         append_trailing_newlines is set, '\n' will be added.
+      skip_if_empty: Don't write any shards if the PCollection is empty.
 
     Returns:
       A _TextSink object usable for writing.
@@ -478,7 +480,8 @@ class _TextSink(filebasedsink.FileBasedSink):
         shard_name_template=shard_name_template,
         coder=coder,
         mime_type='text/plain',
-        compression_type=compression_type)
+        compression_type=compression_type,
+        skip_if_empty=skip_if_empty)
     self._append_trailing_newlines = append_trailing_newlines
     self._header = header
     self._footer = footer
@@ -715,7 +718,8 @@ class WriteToText(PTransform):
       coder=coders.ToBytesCoder(),  # type: coders.Coder
       compression_type=CompressionTypes.AUTO,
       header=None,
-      footer=None):
+      footer=None,
+      skip_if_empty=False):
     r"""Initialize a :class:`WriteToText` transform.
 
     Args:
@@ -754,6 +758,7 @@ class WriteToText(PTransform):
       footer (str): String to write at the end of file as a footer.
         If not :data:`None` and **append_trailing_newlines** is set, ``\n`` will
         be added.
+      skip_if_empty: Don't write any shards if the PCollection is empty.
     """
 
     self._sink = _TextSink(
@@ -765,7 +770,8 @@ class WriteToText(PTransform):
         coder,
         compression_type,
         header,
-        footer)
+        footer,
+        skip_if_empty)
 
   def expand(self, pcoll):
     return pcoll | Write(self._sink)

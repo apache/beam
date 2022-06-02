@@ -19,74 +19,82 @@
 import * as runnerApi from "../proto/beam_runner_api";
 import * as urns from "../internal/urns";
 
-import { PTransform, withName } from "./transform";
+import {
+  PTransform,
+  PTransformClass,
+  withName,
+  extractName,
+} from "./transform";
 import { PCollection, Root } from "../pvalue";
 import { Pipeline } from "../internal/pipeline";
 import { Coder } from "../coders/coders";
 import { BytesCoder, KVCoder, IterableCoder } from "../coders/required_coders";
-import { ParDo } from "./pardo";
+import { parDo } from "./pardo";
 import { GeneralObjectCoder } from "../coders/js_coders";
+import { RowCoder } from "../coders/row_coder";
 import { KV } from "../values";
 import { CombineFn } from "./group_and_combine";
 
 /**
- * `Impulse` is the basic *source* primitive `PTransform`. It receives a Beam
+ * `Impulse` is the basic *source* primitive `PTransformClass`. It receives a Beam
  * Root as input, and returns a `PCollection` of `Uint8Array` with a single
  * element with length=0 (i.e. the empty byte array: `new Uint8Array("")`).
  *
  * `Impulse` is used to start the execution of a pipeline with a single element
  * that can trigger execution of a source or SDF.
  */
-export class Impulse extends PTransform<Root, PCollection<Uint8Array>> {
-  // static urn: string = runnerApi.StandardPTransforms_Primitives.IMPULSE.urn;
-  // TODO: (Cleanup) use above line, not below line.
-  static urn: string = "beam:transform:impulse:v1";
-
-  constructor() {
-    super("Impulse"); // TODO: (Unique names) pass null/nothing and get from reflection
-  }
-
-  expandInternal(
+export function impulse(): PTransform<Root, PCollection<Uint8Array>> {
+  function expandInternal(
     input: Root,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform
-  ): PCollection<Uint8Array> {
+  ) {
     transformProto.spec = runnerApi.FunctionSpec.create({
-      urn: Impulse.urn,
+      urn: impulse.urn,
       payload: urns.IMPULSE_BUFFER,
     });
+    transformProto.environmentId = "";
     return pipeline.createPCollectionInternal(new BytesCoder());
   }
+
+  return withName("impulse", expandInternal);
 }
 
-// TODO: (API) Should we offer a method on PCollection to do this?
-export class WithCoderInternal<T> extends PTransform<
-  PCollection<T>,
-  PCollection<T>
-> {
-  constructor(private coder: Coder<T>) {
-    super("WithCoderInternal(" + coder + ")");
-  }
-  expandInternal(
-    input: PCollection<T>,
-    pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
-  ) {
-    // IDENTITY rather than Flatten for better fusion.
-    transformProto.spec = {
-      urn: ParDo.urn,
-      payload: runnerApi.ParDoPayload.toBinary(
-        runnerApi.ParDoPayload.create({
-          doFn: runnerApi.FunctionSpec.create({
-            urn: urns.IDENTITY_DOFN_URN,
-            payload: undefined!,
-          }),
-        })
-      ),
-    };
+impulse.urn = "beam:transform:impulse:v1";
 
-    return pipeline.createPCollectionInternal<T>(this.coder);
-  }
+// TODO: (API) Should we offer a method on PCollection to do this?
+export function withCoderInternal<T>(
+  coder: Coder<T>
+): PTransform<PCollection<T>, PCollection<T>> {
+  return withName(
+    `withCoderInternal(${extractName(coder)})`,
+    (
+      input: PCollection<T>,
+      pipeline: Pipeline,
+      transformProto: runnerApi.PTransform
+    ) => {
+      // IDENTITY rather than Flatten for better fusion.
+      transformProto.spec = {
+        urn: parDo.urn,
+        payload: runnerApi.ParDoPayload.toBinary(
+          runnerApi.ParDoPayload.create({
+            doFn: runnerApi.FunctionSpec.create({
+              urn: urns.IDENTITY_DOFN_URN,
+              payload: undefined!,
+            }),
+          })
+        ),
+      };
+
+      return pipeline.createPCollectionInternal<T>(coder);
+    }
+  );
+}
+
+export function withRowCoder<T extends Object>(
+  exemplar: T
+): PTransform<PCollection<T>, PCollection<T>> {
+  return withCoderInternal(RowCoder.fromJSON(exemplar));
 }
 
 /**
@@ -100,15 +108,11 @@ export class WithCoderInternal<T> extends PTransform<
  * `GroupByKey` operations are used under the hood to execute combines,
  * streaming triggers, stateful transforms, etc.
  */
-export class GroupByKey<K, V> extends PTransform<
+export function groupByKey<K, V>(): PTransform<
   PCollection<KV<K, V>>,
   PCollection<KV<K, Iterable<V>>>
 > {
-  // static urn: string = runnerApi.StandardPTransforms_Primitives.GROUP_BY_KEY.urn;
-  // TODO: (Cleanup) use above line, not below line.
-  static urn: string = "beam:transform:group_by_key:v1";
-
-  expandInternal(
+  function expandInternal(
     input: PCollection<KV<K, V>>,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform
@@ -123,17 +127,18 @@ export class GroupByKey<K, V> extends PTransform<
     if (inputCoderProto.spec!.urn != KVCoder.URN) {
       return input
         .apply(
-          new WithCoderInternal(
+          withCoderInternal(
             new KVCoder(new GeneralObjectCoder(), new GeneralObjectCoder())
           )
         )
-        .apply(new GroupByKey());
+        .apply(groupByKey());
     }
 
     transformProto.spec = runnerApi.FunctionSpec.create({
-      urn: GroupByKey.urn,
+      urn: groupByKey.urn,
       payload: undefined!,
     });
+    transformProto.environmentId = "";
 
     // TODO: (Cleanup) warn about BsonObjectCoder and (non)deterministic key ordering?
     const keyCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[0]);
@@ -142,7 +147,12 @@ export class GroupByKey<K, V> extends PTransform<
     const outputCoder = new KVCoder(keyCoder, iterableValueCoder);
     return pipeline.createPCollectionInternal(outputCoder);
   }
+
+  return withName("groupByKey", expandInternal);
 }
+
+// TODO: (Cleanup) runnerApi.StandardPTransformClasss_Primitives.GROUP_BY_KEY.urn.
+groupByKey.urn = "beam:transform:group_by_key:v1";
 
 /**
  * This transform is used to perform aggregations over groups of elements.
@@ -157,28 +167,24 @@ export class GroupByKey<K, V> extends PTransform<
  * before a `GroupByKey` and after the `GroupByKey`. The partial aggregations
  * help reduce the original data into a single aggregator per key per worker.
  */
-export class CombinePerKey<K, InputT, AccT, OutputT> extends PTransform<
-  PCollection<KV<K, InputT>>,
-  PCollection<KV<K, OutputT>>
-> {
-  constructor(private combineFn: CombineFn<InputT, AccT, OutputT>) {
-    super();
+export function combinePerKey<K, InputT, AccT, OutputT>(
+  combineFn: CombineFn<InputT, AccT, OutputT>
+): PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
+  function expandInternal(input: PCollection<KV<any, InputT>>) {
+    return input //
+      .apply(groupByKey())
+      .map(
+        withName("applyCombine", (kv) => ({
+          key: kv.key,
+          value: combineFn.extractOutput(
+            kv.value.reduce(
+              combineFn.addInput.bind(combineFn),
+              combineFn.createAccumulator()
+            )
+          ),
+        }))
+      );
   }
 
-  // Let the runner do the combiner lifting, when possible, handling timestamps,
-  // windowing, and triggering as needed.
-  expand(input: PCollection<KV<any, InputT>>) {
-    const combineFn = this.combineFn;
-    return input.apply(new GroupByKey()).map(
-      withName("applyCombine", (kv) => ({
-        key: kv.key,
-        value: combineFn.extractOutput(
-          kv.value.reduce(
-            combineFn.addInput.bind(combineFn),
-            combineFn.createAccumulator()
-          )
-        ),
-      }))
-    );
-  }
+  return withName(`combinePerKey(${extractName(combineFn)})`, expandInternal);
 }

@@ -223,7 +223,7 @@ class TestBigQueryWrapper(unittest.TestCase):
     self.assertTrue(client.datasets.Delete.called)
 
   @unittest.skipIf(
-      google and not hasattr(google.cloud, '_http'),
+      google and not hasattr(google.cloud, '_http'),  # pylint: disable=c-extension-no-member
       'Dependencies not installed')
   @mock.patch('time.sleep', return_value=None)
   @mock.patch('google.cloud._http.JSONConnection.http')

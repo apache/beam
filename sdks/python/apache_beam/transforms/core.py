@@ -2087,6 +2087,9 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   """:func:`Filter` is a :func:`FlatMap` with its callable filtering out
   elements.
 
+  Filter accepts a function that keeps elements that return True, and filters
+  out the remaining elements.
+
   Args:
     fn (``Callable[..., bool]``): a callable object. First argument will be an
       element.

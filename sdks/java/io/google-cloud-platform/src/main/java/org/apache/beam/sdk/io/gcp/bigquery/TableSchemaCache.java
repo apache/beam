@@ -93,6 +93,7 @@ public class TableSchemaCache {
                 .build());
     this.minSchemaRefreshFrequency = minSchemaRefreshFrequency;
     this.stopped = false;
+    this.clearing = false;
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")

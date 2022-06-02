@@ -748,9 +748,17 @@ class GoogleCloudOptions(PipelineOptions):
         '--enable_artifact_caching',
         default=False,
         action='store_true',
-        help=
-        'When true, artifacts will be cached across job submissions in the GCS '
-        'staging bucket')
+        help='When true, artifacts will be cached across job submissions in '
+        'the GCS staging bucket')
+    parser.add_argument(
+        '--impersonate_service_account',
+        default=None,
+        help='All API requests will be made as the given service account or '
+        'target service account in an impersonation delegation chain '
+        'instead of the currently selected account. You can specify '
+        'either a single service account as the impersonator, or a '
+        'comma-separated list of service accounts to create an '
+        'impersonation delegation chain.')
 
   def _create_default_gcs_bucket(self):
     try:
@@ -1350,7 +1358,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.12', '1.13', '1.14']
+  PUBLISHED_FLINK_VERSIONS = ['1.12', '1.13', '1.14', '1.15']
 
   @classmethod
   def _add_argparse_args(cls, parser):
