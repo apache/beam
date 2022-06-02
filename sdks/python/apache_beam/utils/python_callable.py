@@ -95,6 +95,7 @@ class PythonCallableWithSource(object):
     else:
       raise ValueError("Unable to identify callable from %r" % source)
 
+    # pylint: disable=exec-used
     exec_globals = {}
     exec('\n'.join(lines), exec_globals)
     return exec_globals[name]
