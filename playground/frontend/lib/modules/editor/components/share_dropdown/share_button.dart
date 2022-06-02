@@ -18,38 +18,41 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:playground/components/dropdown_button/dropdown_button.dart';
 import 'package:playground/config/theme.dart';
-import 'package:playground/constants/assets.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
-import 'package:provider/provider.dart';
+import 'package:playground/modules/editor/components/share_dropdown/share_dropdown_body.dart';
 
-class ToggleThemeButton extends StatelessWidget {
-  const ToggleThemeButton({Key? key}) : super(key: key);
+const _kShareDropdownHeight = 140.0;
+const _kShareDropdownWidth = 460.0;
+const _kButtonColorOpacity = 0.2;
+
+class ShareButton extends StatelessWidget {
+  const ShareButton({super.key});
 
   @override
   Widget build(BuildContext context) {
     final appLocale = AppLocalizations.of(context)!;
+    final parentThemeData = ThemeColors.of(context);
 
-    return Consumer<ThemeSwitchNotifier>(builder: (context, notifier, child) {
-      final text = notifier.isDarkMode ? appLocale.lightMode : appLocale.darkMode;
+    final themeData = parentThemeData.copyWith(
+      background: parentThemeData.secondaryBackground,
+      dropdownButton: parentThemeData.primary.withOpacity(_kButtonColorOpacity),
+    );
 
-      return Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: kSmSpacing,
-          horizontal: kMdSpacing,
+    return ThemeColorsProvider(
+      data: themeData,
+      child: AppDropdownButton(
+        buttonText: Text(appLocale.shareMyCode),
+        showArrow: false,
+        leading: Icon(
+          Icons.share_outlined,
+          color: ThemeColors.of(context).primary,
         ),
-        child: TextButton.icon(
-          icon: SvgPicture.asset(kThemeIconAsset),
-          label: Text(text),
-          onPressed: () {
-            notifier.toggleTheme();
-            AnalyticsService.get(context)
-                .trackClickToggleTheme(!notifier.isDarkMode);
-          },
-        ),
-      );
-    });
+        height: _kShareDropdownHeight,
+        width: _kShareDropdownWidth,
+        dropdownAlign: DropdownAlignment.right,
+        createDropdown: (close) => const ShareDropdownBody(),
+      ),
+    );
   }
 }

@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-const kExampleParam = 'example';
-const kIsEditableParam = 'editable';
-const kSnippetIdParam = 'snippetId';
-const kSourceCode = 'code';
-const kContextLine = 'line';
-const kIsEmbedded = 'embedded';
+class GetSnippetRequestWrapper {
+  final String id;
 
-const kQuickStartCategoryName = 'quick start';
+  const GetSnippetRequestWrapper({
+    required this.id,
+  });
+}

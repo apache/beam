@@ -17,39 +17,33 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/config/theme.dart';
-import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
+import 'package:playground/pages/playground/states/examples_state.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
-class ToggleThemeButton extends StatelessWidget {
-  const ToggleThemeButton({Key? key}) : super(key: key);
+class ShareTabBody extends StatelessWidget {
+  final List<Widget> children;
+
+  const ShareTabBody({
+    super.key,
+    required this.children,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final appLocale = AppLocalizations.of(context)!;
-
-    return Consumer<ThemeSwitchNotifier>(builder: (context, notifier, child) {
-      final text = notifier.isDarkMode ? appLocale.lightMode : appLocale.darkMode;
-
-      return Padding(
+    return Consumer2<ExampleState, PlaygroundState>(
+      builder: (context, exampleState, playgroundState, child) => Padding(
         padding: const EdgeInsets.symmetric(
-          vertical: kSmSpacing,
-          horizontal: kMdSpacing,
+          horizontal: kXlSpacing,
         ),
-        child: TextButton.icon(
-          icon: SvgPicture.asset(kThemeIconAsset),
-          label: Text(text),
-          onPressed: () {
-            notifier.toggleTheme();
-            AnalyticsService.get(context)
-                .trackClickToggleTheme(!notifier.isDarkMode);
-          },
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: children,
+          ),
         ),
-      );
-    });
+      ),
+    );
   }
 }

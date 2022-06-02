@@ -17,40 +17,35 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/output/components/output_header/output_placements.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
-import 'output_tabs.dart';
+const _width = 180.0;
 
-class OutputHeader extends StatelessWidget {
+class ShareTabsHeaders extends StatelessWidget {
   final TabController tabController;
-  final bool showOutputPlacements;
-  final bool showGraph;
 
-  const OutputHeader({
-    Key? key,
+  const ShareTabsHeaders({
+    super.key,
     required this.tabController,
-    this.showOutputPlacements = true,
-    this.showGraph = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 50,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: kXlSpacing,
-          vertical: kZeroSpacing,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            OutputTabs(tabController: tabController, showGraph: showGraph),
-            showOutputPlacements ? const OutputPlacements() : const SizedBox(),
+    final appLocale = AppLocalizations.of(context)!;
+
+    return Consumer<PlaygroundState>(builder: (context, state, child) {
+      return SizedBox(
+        width: _width,
+        child: TabBar(
+          controller: tabController,
+          tabs: [
+            Text(appLocale.link),
+            Text(appLocale.embed),
           ],
         ),
-      ),
-    );
+      );
+    });
   }
 }

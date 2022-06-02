@@ -16,11 +16,17 @@
  * limitations under the License.
  */
 
-const kExampleParam = 'example';
-const kIsEditableParam = 'editable';
-const kSnippetIdParam = 'snippetId';
-const kSourceCode = 'code';
-const kContextLine = 'line';
-const kIsEmbedded = 'embedded';
+import 'package:playground/modules/examples/repositories/models/shared_file_model.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
-const kQuickStartCategoryName = 'quick start';
+class SaveSnippetRequestWrapper {
+  final List<SharedFile> files;
+  final SDK sdk;
+  final String pipelineOptions;
+
+  const SaveSnippetRequestWrapper({
+    required this.files,
+    required this.sdk,
+    required this.pipelineOptions,
+  });
+}

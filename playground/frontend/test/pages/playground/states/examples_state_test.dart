@@ -148,7 +148,7 @@ void main() {
       'then loadExampleInfo should return example immediately',
       () async {
         expect(
-          await state.loadExampleInfo(exampleMock1, SDK.java),
+          await state.loadExampleInfo(exampleMock1),
           exampleMock1,
         );
       },
@@ -169,7 +169,7 @@ void main() {
 
         // test assertion
         expect(
-          await state.loadExampleInfo(exampleWithoutSourceMock, SDK.java),
+          await state.loadExampleInfo(exampleWithoutSourceMock),
           exampleWithAllAdditionsMock,
         );
       },

@@ -16,11 +16,32 @@
  * limitations under the License.
  */
 
-const kExampleParam = 'example';
-const kIsEditableParam = 'editable';
-const kSnippetIdParam = 'snippetId';
-const kSourceCode = 'code';
-const kContextLine = 'line';
-const kIsEmbedded = 'embedded';
+import 'package:flutter/material.dart';
+import 'package:playground/constants/sizes.dart';
 
-const kQuickStartCategoryName = 'quick start';
+const kHeaderHeight = 50.0;
+
+class TabHeader extends StatelessWidget {
+  final TabController tabController;
+  final Widget tabsWidget;
+
+  const TabHeader({
+    super.key,
+    required this.tabController,
+    required this.tabsWidget,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 50,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: kXlSpacing,
+          vertical: kZeroSpacing,
+        ),
+        child: tabsWidget,
+      ),
+    );
+  }
+}

@@ -26,6 +26,8 @@ import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/repositories/example_client/grpc_example_client.dart';
 import 'package:playground/modules/examples/repositories/example_repository.dart';
 import 'package:playground/modules/output/models/output_placement_state.dart';
+import 'package:playground/modules/sdk/components/sdk_selector.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/feedback_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
@@ -102,21 +104,25 @@ class PlaygroundPageProviders extends StatelessWidget {
     ExampleState exampleState,
     PlaygroundState playgroundState,
   ) async {
-    final example = _getEmbeddedExample();
+    if (_getSnippetId().isNotEmpty) {
+      _loadSnippet(playgroundState, exampleState);
+      return;
+    }
 
-    if (example.path.isEmpty) {
+    final madeUpExample = _getEmbeddedExample();
+
+    if (madeUpExample.path.isEmpty) {
       String source = Uri.base.queryParameters[kSourceCode] ?? '';
-      example.setSource(source);
-      playgroundState.setExample(example);
+      madeUpExample.setSource(source);
+      playgroundState.setExample(madeUpExample);
     } else {
       final loadedExample = await exampleState.getExample(
-        example.path,
-        playgroundState.sdk,
+        madeUpExample.path,
+        madeUpExample.sdk,
       );
 
       final exampleWithInfo = await exampleState.loadExampleInfo(
         loadedExample,
-        playgroundState.sdk,
       );
 
       playgroundState.setExample(exampleWithInfo);
@@ -127,6 +133,7 @@ class PlaygroundPageProviders extends StatelessWidget {
     final examplePath = Uri.base.queryParameters[kExampleParam];
 
     return ExampleModel(
+      sdk: SDK.tryParseExamplePath(examplePath) ?? SDK.java,
       name: 'Embedded_Example',
       path: examplePath ?? '',
       description: '',
@@ -140,6 +147,11 @@ class PlaygroundPageProviders extends StatelessWidget {
   ) async {
     await exampleState.loadDefaultExamplesIfNot();
 
+    if (_getSnippetId().isNotEmpty) {
+      _loadSnippet(playgroundState, exampleState);
+      return;
+    }
+
     final example = await _getExample(exampleState, playgroundState);
 
     if (example == null) {
@@ -148,10 +160,21 @@ class PlaygroundPageProviders extends StatelessWidget {
 
     final exampleWithInfo = await exampleState.loadExampleInfo(
       example,
-      playgroundState.sdk,
     );
 
     playgroundState.setExample(exampleWithInfo);
+  }
+
+  String _getSnippetId() {
+    return Uri.base.queryParameters[kSnippetIdParam] ?? '';
+  }
+
+  void _loadSnippet(
+    PlaygroundState playgroundState,
+    ExampleState exampleState,
+  ) {
+    exampleState.loadSharedExample(_getSnippetId());
+    playgroundState.setExample(exampleState.sharedExample!);
   }
 
   Future<ExampleModel?> _getExample(
@@ -159,6 +182,28 @@ class PlaygroundPageProviders extends StatelessWidget {
     PlaygroundState playground,
   ) async {
     final examplePath = Uri.base.queryParameters[kExampleParam];
+    final snippetId = Uri.base.queryParameters[kSnippetIdParam];
+
+    if (exampleState.defaultExamplesMap.isEmpty) {
+      exampleState.loadDefaultExamples();
+    }
+
+    if (snippetId?.isNotEmpty ?? false) {
+      exampleState.loadSharedExample(snippetId!);
+      final sharedExample = exampleState.sharedExample;
+
+      if (sharedExample == null) {
+        return ExampleModel(
+          sdk: SDK.java,
+          name: kEmptyExampleName,
+          path: '',
+          description: '',
+          type: ExampleType.example,
+        );
+      }
+      playground.setExample(sharedExample);
+      return sharedExample;
+    }
 
     if (examplePath?.isEmpty ?? true) {
       return exampleState.defaultExamplesMap[playground.sdk];

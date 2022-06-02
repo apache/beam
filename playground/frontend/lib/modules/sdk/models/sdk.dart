@@ -28,6 +28,33 @@ enum SDK {
   go,
   python,
   scio,
+  ;
+
+  /// A temporary solution while we wait for the backend to add
+  /// sdk in example responses.
+  static SDK? tryParseExamplePath(String? path) {
+    if (path == null) {
+      return null;
+    }
+
+    if (path.startsWith('SDK_JAVA')) {
+      return java;
+    }
+
+    if (path.startsWith('SDK_GO')) {
+      return go;
+    }
+
+    if (path.startsWith('SDK_PYTHON')) {
+      return python;
+    }
+
+    if (path.startsWith('SDK_SCIO')) {
+      return scio;
+    }
+
+    return null;
+  }
 }
 
 extension SDKToString on SDK {

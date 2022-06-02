@@ -16,11 +16,26 @@
  * limitations under the License.
  */
 
-const kExampleParam = 'example';
-const kIsEditableParam = 'editable';
-const kSnippetIdParam = 'snippetId';
-const kSourceCode = 'code';
-const kContextLine = 'line';
-const kIsEmbedded = 'embedded';
+import 'package:flutter/material.dart';
+import 'package:playground/config/theme.dart';
+import 'package:playground/constants/sizes.dart';
 
-const kQuickStartCategoryName = 'quick start';
+/// Replaces the Flutter's Divider which is buggy with HTML renderer,
+/// see https://github.com/flutter/flutter/issues/46339
+class HorizontalDivider extends StatelessWidget {
+  final double? indent;
+
+  const HorizontalDivider({
+    super.key,
+    this.indent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: kDividerHeight,
+      margin: EdgeInsets.fromLTRB(indent ?? 0, 0, indent ?? 0, 0),
+      color: ThemeColors.of(context).divider,
+    );
+  }
+}

@@ -51,7 +51,6 @@ class ExpansionPanelItem extends StatelessWidget {
               AnalyticsService.get(context).trackSelectExample(example);
               final exampleWithInfo = await exampleState.loadExampleInfo(
                 example,
-                playgroundState.sdk,
               );
               playgroundState.setExample(exampleWithInfo);
             }
