@@ -309,7 +309,7 @@ limitations under the License.
 &lt;p>The Apache Beam community is looking for feedback on these materials to improve them over time. If you deliver a presentation based on these materials, we&amp;rsquo;d love to hear from you on the &lt;a href="mailto:user@beam.apache.org">&lt;code>user@beam.apache.org&lt;/code>&lt;/a> mailing list. Please share your thoughts, questions you were asked, and (if available and appropriate) a link to the recording of your talk so the rest of the Apache Beam community can benefit from it.&lt;/p>
 &lt;h2 id="contributing-new-content">Contributing new content&lt;/h2>
 &lt;p>The Apache Beam community is always looking for new core content and contributions!&lt;/p>
-&lt;p>If you are interested in contributing new content, we recommend you first search the &lt;a href="https://issues.apache.org/jira/browse/BEAM">Apache Beam JIRA&lt;/a> to see if your idea currently has an open JIRA item. If it does not, send an email to the &lt;a href="mailto:user@beam.apache.org">&lt;code>user@beam.apache.org&lt;/code>&lt;/a> mailing list or open a new issue in the &lt;a href="https://issues.apache.org/jira/browse/BEAM">Apache Beam JIRA&lt;/a> using the &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20website">website&lt;/a> component. Based on community submissions or contributions, the Beam community collaboratively reviews or creates new content and then adds it to this shared space for everyone to use.&lt;/p>
+&lt;p>If you are interested in contributing new content, we recommend you first search the &lt;a href="https://github.com/apache/beam/issues">Apache Beam repo&lt;/a> to see if your idea currently has an open issue. If it does not, send an email to the &lt;a href="mailto:user@beam.apache.org">&lt;code>user@beam.apache.org&lt;/code>&lt;/a> mailing list or open a new issue in the &lt;a href="https://github.com/apache/beam/issues/new/choose">Apache Beam repo&lt;/a> using the website component. Based on community submissions or contributions, the Beam community collaboratively reviews or creates new content and then adds it to this shared space for everyone to use.&lt;/p>
 &lt;h2 id="corrections-and-updates">Corrections and updates&lt;/h2>
 &lt;p>If you encounter missing, incorrect, or out of date material, please make a comment in the presentation or send an email to the &lt;a href="mailto:user@beam.apache.org">&lt;code>user@beam.apache.org&lt;/code>&lt;/a> mailing list.&lt;/p></description></item><item><title>Community: Beam Twitter handle</title><link>/community/twitter-handle/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/twitter-handle/</guid><description>
 &lt;!--
@@ -535,11 +535,11 @@ under the License.
 &lt;/div>
 &lt;/td>
 &lt;td>
-&lt;a href=https://issues.apache.org/jira/browse/BEAM>Apache Beam Jira Tracker&lt;/a>
+&lt;a href=https://github.com/apache/beam/issues/new>Apache Beam Issues&lt;/a>
 &lt;/td>
 &lt;td>
 &lt;div>
-&lt;a href=https://issues.apache.org/jira/secure/Signup!default.jspa>To create an issue you need a Jira account. Open one here.&lt;/a>
+&amp;#8208;
 &lt;/div>
 &lt;/td>
 &lt;/tr>
@@ -914,8 +914,8 @@ limitations under the License.
 &lt;img src="/images/ellipse-mobile.svg" class="reverse mobile" alt="elipse icon">
 &lt;/div>
 &lt;div class="list-item-description">
-&lt;p class="beam-title">Create a Jira account&lt;/p>
-&lt;p class="beam-description">Create a &lt;a target="_blank" href="https://issues.apache.org/jira/secure/Signup!default.jspa" target="_blank">Jira account&lt;/a> and send an email to &lt;a href="mailto:dev@beam.apache.org">dev@beam.apache.org&lt;/a> to request comitter permissions.&lt;/p>
+&lt;p class="beam-title">Create an Issue&lt;/p>
+&lt;p class="beam-description">Create an &lt;a target="_blank" href="https://github.com/apache/beam/issues/new">issue&lt;/a> for any bugs you find or features you’d like to see added.&lt;/p>
 &lt;/div>
 &lt;/div>
 &lt;div class="list-item">

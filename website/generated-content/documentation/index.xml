@@ -11089,15 +11089,18 @@ reference documentation.&lt;/p>
 &lt;ol>
 &lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.restriction_trackers.html#apache_beam.io.restriction_trackers.OffsetRestrictionTracker">OffsetRangeTracker&lt;/a>&lt;/li>
 &lt;/ol>
+&lt;p>Go also has a built-in &lt;code>RestrictionTracker&lt;/code> type:&lt;/p>
+&lt;ol>
+&lt;li>&lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange">OffsetRangeTracker&lt;/a>&lt;/li>
+&lt;/ol>
 &lt;p>The watermark state is a user-defined object which is used to create a &lt;code>WatermarkEstimator&lt;/code> from a
 &lt;code>WatermarkEstimatorProvider&lt;/code>. The simplest watermark state could be a &lt;code>timestamp&lt;/code>.&lt;/p>
 &lt;p>The watermark estimator provider lets SDF authors define how to initialize the watermark state and
-create a watermark estimator. In &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.ProcessElement.html">Java&lt;/a>
+create a watermark estimator. In &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.ProcessElement.html">Java&lt;/a> and &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#ParDo">Go&lt;/a>
 this is the &lt;code>DoFn&lt;/code>. &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.WatermarkEstimatorProvider">Python&lt;/a>
 has a dedicated &lt;code>WatermarkEstimatorProvider&lt;/code> type.&lt;/p>
 &lt;p>The watermark estimator tracks the watermark when an element-restriction pair is in progress.
-For APIs details, read the &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimator.html">Java&lt;/a>
-and &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.iobase.html#apache_beam.io.iobase.WatermarkEstimator">Python&lt;/a>
+For APIs details, read the &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimator.html">Java&lt;/a>, &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.iobase.html#apache_beam.io.iobase.WatermarkEstimator">Python&lt;/a>, and &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf#WatermarkEstimator">Go&lt;/a>
 reference documentation.&lt;/p>
 &lt;p>There are some built-in &lt;code>WatermarkEstimator&lt;/code> implementations in Java:&lt;/p>
 &lt;ol>
@@ -11111,6 +11114,11 @@ reference documentation.&lt;/p>
 &lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.ManualWatermarkEstimator">ManualWatermarkEstimator&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.MonotonicWatermarkEstimator">MonotonicWatermarkEstimator&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.WalltimeWatermarkEstimator">WalltimeWatermarkEstimator&lt;/a>&lt;/li>
+&lt;/ol>
+&lt;p>The following &lt;code>WatermarkEstimator&lt;/code> types are implemented in Go:&lt;/p>
+&lt;ol>
+&lt;li>&lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf#TimestampObservingWatermarkEstimator">TimestampObservingEstimator&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf#WallTimeWatermarkEstimator">WalltimeWatermarkEstimator&lt;/a>&lt;/li>
 &lt;/ol>
 &lt;p>To define an SDF, you must choose whether the SDF is bounded (default) or
 unbounded and define a way to initialize an initial restriction for an element. The distinction is
@@ -11681,6 +11689,8 @@ pipeline may never stop. By default, bounded restrictions process the remainder 
 unbounded restrictions finish processing at the next SDF-initiated checkpoint or runner-initiated split.
 You are able to override this default behavior by defining the appropriate method on the restriction
 provider.&lt;/p>
+&lt;p class="language-go">Note: Once the pipeline drain starts and truncate restriction transform is triggered, the &lt;code>sdf.ProcessContinuation&lt;/code>
+will not be rescheduled.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -11716,7 +11726,18 @@ provider.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">11106.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// TruncateRestriction is a transform that is triggered when pipeline starts to drain. It helps to finish a
+&lt;/span>&lt;span class="c1">// pipeline quicker by truncating the restriction.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">splittableDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">TruncateRestriction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">rt&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">sdf&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">LockRTracker&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">element&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">start&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">rt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">GetRestriction&lt;/span>&lt;span class="p">().(&lt;/span>&lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span>&lt;span class="p">).&lt;/span>&lt;span class="nx">Start&lt;/span>
+&lt;span class="nx">prevEnd&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">rt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">GetRestriction&lt;/span>&lt;span class="p">().(&lt;/span>&lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span>&lt;span class="p">).&lt;/span>&lt;span class="nx">End&lt;/span>
+&lt;span class="c1">// truncate the restriction by half.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">newEnd&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">prevEnd&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="mi">2&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span>&lt;span class="p">{&lt;/span>
+&lt;span class="nx">Start&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">start&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">End&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">newEnd&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="bundle-finalization">12.7. Bundle finalization&lt;/h3>
@@ -11760,7 +11781,7 @@ use case.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">splittableDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ProcessElement&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">element&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">bf&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">BundleFinalization&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">splittableDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ProcessElement&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">bf&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">BundleFinalization&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">rt&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">sdf&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">LockRTracker&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">element&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
 &lt;span class="c1">// ... produce output ...
 &lt;/span>&lt;span class="c1">&lt;/span>
 &lt;span class="nx">bf&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterCallback&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">5&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minute&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="kt">error&lt;/span> &lt;span class="p">{&lt;/span>
@@ -13195,10 +13216,10 @@ HL7v2IO
 &lt;/tr>
 &lt;/table>
 &lt;h1 id="in-progress-io-transforms">In-Progress I/O Transforms&lt;/h1>
-&lt;p>This table contains I/O transforms that are currently planned or in-progress. Status information can be found on the JIRA issue, or on the GitHub PR linked to by the JIRA issue (if there is one).&lt;/p>
+&lt;p>This table contains I/O transforms that are currently planned or in-progress. Status information can be found on the GitHub Issue issue, or on the GitHub PR linked to by the GitHub Issue issue (if there is one).&lt;/p>
 &lt;table class="table table-bordered">
 &lt;tr>
-&lt;th>Name&lt;/th>&lt;th>Language&lt;/th>&lt;th>JIRA&lt;/th>
+&lt;th>Name&lt;/th>&lt;th>Language&lt;/th>&lt;th>Issue or JIRA&lt;/th>
 &lt;/tr>
 &lt;tr>
 &lt;td>Apache DistributedLog&lt;/td>&lt;td>Java&lt;/td>
