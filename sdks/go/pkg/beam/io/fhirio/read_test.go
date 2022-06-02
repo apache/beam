@@ -76,18 +76,20 @@ func TestRead(t *testing.T) {
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
 			counterResults := pipelineResult.Metrics().AllMetrics().Counters()
-			if counterResult := counterResults[0]; len(counterResults) == 1 {
-				expectedCounterName := "fhirio/read_resource_error_count"
-				if counterResult.Name() != expectedCounterName {
-					t.Fatalf("counterResult.Name() is '%v', expected '%v'", counterResult.Name(), expectedCounterName)
-				}
 
-				expectedCounterResult := int64(len(testResourcePaths))
-				if counterResult.Result() != expectedCounterResult {
-					t.Fatalf("counterResult.Result() is %v, expected %v", counterResult.Result(), expectedCounterResult)
-				}
-			} else {
+			if len(counterResults) != 1 {
 				t.Fatalf("counterResults got length %v, expected %v", len(counterResults), 1)
+			}
+			counterResult := counterResults[0]
+
+			expectedCounterName := "fhirio/read_resource_error_count"
+			if counterResult.Name() != expectedCounterName {
+				t.Fatalf("counterResult.Name() is '%v', expected '%v'", counterResult.Name(), expectedCounterName)
+			}
+
+			expectedCounterResult := int64(len(testResourcePaths))
+			if counterResult.Result() != expectedCounterResult {
+				t.Fatalf("counterResult.Result() is %v, expected %v", counterResult.Result(), expectedCounterResult)
 			}
 
 		})
