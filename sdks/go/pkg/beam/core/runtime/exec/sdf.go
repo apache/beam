@@ -437,6 +437,10 @@ func (n *ProcessSizedElementsAndRestrictions) Up(ctx context.Context) error {
 	return n.PDo.Up(ctx)
 }
 
+func (n *ProcessSizedElementsAndRestrictions) AttachFinalizer(bf *bundleFinalizer) {
+	n.PDo.bf = bf
+}
+
 // StartBundle calls the ParDo's StartBundle method.
 func (n *ProcessSizedElementsAndRestrictions) StartBundle(ctx context.Context, id string, data DataContext) error {
 	return n.PDo.StartBundle(ctx, id, data)
@@ -948,6 +952,10 @@ func (n *SdfFallback) Up(ctx context.Context) error {
 		return addContext(err)
 	}
 	return n.PDo.Up(ctx)
+}
+
+func (n *SdfFallback) AttachFinalizer(bf *bundleFinalizer) {
+	n.PDo.bf = bf
 }
 
 // StartBundle calls the ParDo's StartBundle method.
