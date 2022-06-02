@@ -30,7 +30,9 @@ from apache_beam.ml.inference.base import InferenceRunner
 from apache_beam.ml.inference.base import ModelLoader
 
 
-class PytorchInferenceRunner(InferenceRunner):
+class PytorchInferenceRunner(InferenceRunner[torch.Tensor,
+                                             PredictionResult,
+                                             torch.nn.Module]):
   """
   This class runs Pytorch inferences with the run_inference method. It also has
   other methods to get the bytes of a batch of Tensors as well as the namespace
@@ -49,10 +51,10 @@ class PytorchInferenceRunner(InferenceRunner):
     the inference call.
     """
 
-    batch = torch.stack(batch)
-    if batch.device != self._device:
-      batch = batch.to(self._device)
-    predictions = model(batch)
+    torch_batch = torch.stack(batch)
+    if torch_batch.device != self._device:
+      torch_batch = torch_batch.to(self._device)
+    predictions = model(torch_batch)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: List[torch.Tensor]) -> int:
@@ -66,8 +68,14 @@ class PytorchInferenceRunner(InferenceRunner):
     return 'RunInferencePytorch'
 
 
-class PytorchModelLoader(ModelLoader):
-  """Loads a Pytorch Model."""
+class PytorchModelLoader(ModelLoader[torch.Tensor,
+                                     PredictionResult,
+                                     torch.nn.Module]):
+  """ Implementation of the ModelLoader interface for PyTorch.
+
+      NOTE: This API and its implementation are under development and
+      do not provide backward compatibility guarantees.
+  """
   def __init__(
       self,
       state_dict_path: str,
@@ -75,10 +83,13 @@ class PytorchModelLoader(ModelLoader):
       model_params: Dict[str, Any],
       device: str = 'CPU'):
     """
-    state_dict_path: path to the saved dictionary of the model state.
-    model_class: class of the Pytorch model that defines the model structure.
-    device: the device on which you wish to run the model. If ``device = GPU``
-        then device will be cuda if it is available. Otherwise, it will be cpu.
+    Initializes a PytorchModelLoader
+    :param state_dict_path: path to the saved dictionary of the model state.
+    :param model_class: class of the Pytorch model that defines the model
+    structure.
+    :param device: the device on which you wish to run the model. If
+    ``device = GPU`` then a GPU device will be used if it is available.
+    Otherwise, it will be CPU.
 
     See https://pytorch.org/tutorials/beginner/saving_loading_models.html
     for details
@@ -89,18 +100,17 @@ class PytorchModelLoader(ModelLoader):
     else:
       self._device = torch.device('cpu')
     self._model_class = model_class
-    self.model_params = model_params
-    self._inference_runner = PytorchInferenceRunner(device=self._device)
+    self._model_params = model_params
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
-    model = self._model_class(**self.model_params)
+    model = self._model_class(**self._model_params)
     model.to(self._device)
     file = FileSystems.open(self._state_dict_path, 'rb')
     model.load_state_dict(torch.load(file))
     model.eval()
     return model
 
-  def get_inference_runner(self) -> InferenceRunner:
+  def get_inference_runner(self) -> PytorchInferenceRunner:
     """Returns a Pytorch implementation of InferenceRunner."""
-    return self._inference_runner
+    return PytorchInferenceRunner(device=self._device)

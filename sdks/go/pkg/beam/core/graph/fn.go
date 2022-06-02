@@ -122,31 +122,24 @@ func NewFn(fn interface{}) (*Fn, error) {
 				}
 				methods[name] = f
 			}
-			return &Fn{Recv: fn, methods: methods, annotations: annotations}, nil
 		}
-		// TODO(lostluck): Consider moving this into the reflectx package.
-		for i := 0; i < val.Type().NumMethod(); i++ {
-			m := val.Type().Method(i)
-			if m.PkgPath != "" {
-				continue // skip: unexported
+		for mName := range lifecycleMethods {
+			if _, ok := methods[mName]; ok {
+				continue // skip : already wrapped
 			}
-			if m.Name == "String" {
-				continue // skip: harmless
+			m, ok := val.Type().MethodByName(mName)
+			if !ok {
+				continue // skip: doesn't exist
 			}
 
 			// CAVEAT(herohde) 5/22/2017: The type val.Type.Method.Type is not
 			// the same as val.Method.Type: the former has the explicit receiver.
 			// We'll use the receiver-less version.
-
-			// TODO(herohde) 5/22/2017: Alternatively, it looks like we could
-			// serialize each method, call them explicitly and avoid struct
-			// registration.
-
-			f, err := funcx.New(reflectx.MakeFunc(val.Method(i).Interface()))
+			f, err := funcx.New(reflectx.MakeFunc(val.Method(m.Index).Interface()))
 			if err != nil {
-				return nil, errors.Wrapf(err, "method %v invalid", m.Name)
+				return nil, errors.Wrapf(err, "method %v invalid", mName)
 			}
-			methods[m.Name] = f
+			methods[mName] = f
 		}
 		return &Fn{Recv: fn, methods: methods, annotations: annotations}, nil
 
@@ -167,6 +160,7 @@ const (
 	splitRestrictionName         = "SplitRestriction"
 	restrictionSizeName          = "RestrictionSize"
 	createTrackerName            = "CreateTracker"
+	truncateRestrictionName      = "TruncateRestriction"
 
 	createWatermarkEstimatorName       = "CreateWatermarkEstimator"
 	initialWatermarkEstimatorStateName = "InitialWatermarkEstimatorState"
@@ -192,6 +186,7 @@ var doFnNames = []string{
 	restrictionSizeName,
 	createTrackerName,
 	createWatermarkEstimatorName,
+	truncateRestrictionName,
 	initialWatermarkEstimatorStateName,
 	watermarkEstimatorStateName,
 }
@@ -202,6 +197,12 @@ var requiredSdfNames = []string{
 	restrictionSizeName,
 	createTrackerName,
 }
+
+var optionalSdfNames = []string{
+	truncateRestrictionName,
+}
+
+var sdfNames = append(append([]string{}, requiredSdfNames...), optionalSdfNames...)
 
 var watermarkEstimationNames = []string{
 	createWatermarkEstimatorName,
@@ -312,6 +313,17 @@ func (f *SplittableDoFn) Name() string {
 // RestrictionT returns the restriction type from the SDF.
 func (f *SplittableDoFn) RestrictionT() reflect.Type {
 	return f.CreateInitialRestrictionFn().Ret[0].T
+}
+
+// HasTruncateRestriction returns whether the DoFn implements a custom truncate restriction function.
+func (f *SplittableDoFn) HasTruncateRestriction() bool {
+	_, ok := f.methods[truncateRestrictionName]
+	return ok
+}
+
+// TruncateRestrictionFn returns the "TruncateRestriction" function, if present.
+func (f *SplittableDoFn) TruncateRestrictionFn() *funcx.Fn {
+	return f.methods[truncateRestrictionName]
 }
 
 // IsWatermarkEstimating returns whether the DoFn implements a custom watermark estimator.
@@ -428,9 +440,6 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 	}
 	if fn.Fn != nil {
 		fn.methods[processElementName] = fn.Fn
-	}
-	if err := verifyValidNames("graph.AsDoFn", fn, doFnNames...); err != nil {
-		return nil, err
 	}
 
 	if _, ok := fn.methods[processElementName]; !ok {
@@ -843,11 +852,18 @@ func validateSdfSigNumbers(fn *Fn, num int) error {
 		splitRestrictionName:         num + 1,
 		restrictionSizeName:          num + 1,
 		createTrackerName:            1,
+		truncateRestrictionName:      num + 1,
+	}
+	optionalSdfs := map[string]bool{
+		truncateRestrictionName: true,
 	}
 	returnNum := 1 // TODO(BEAM-3301): Enable optional error params in SDF methods.
 
-	for _, name := range requiredSdfNames {
-		method := fn.methods[name]
+	for _, name := range sdfNames {
+		method, ok := fn.methods[name]
+		if !ok && optionalSdfs[name] {
+			continue
+		}
 		if len(method.Param) != paramNums[name] {
 			err := errors.Errorf("unexpected number of params in method %v. got: %v, want: %v",
 				name, len(method.Param), paramNums[name])
@@ -950,6 +966,42 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 		}
 	}
 
+	rTrackerImplT := fn.methods[createTrackerName].Ret[0].T
+
+	for _, name := range optionalSdfNames {
+		method, ok := fn.methods[name]
+		if !ok {
+			continue
+		}
+		switch name {
+		case truncateRestrictionName:
+			if method.Param[0].T != rTrackerImplT {
+				err := errors.Errorf("mismatched restriction tracker type in method %v, param %v. got: %v, want: %v",
+					truncateRestrictionName, 0, method.Param[0].T, rTrackerImplT)
+				return errors.SetTopLevelMsgf(err, "Mismatched restriction tracker type in method %v, "+
+					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
+					"Ensure that restriction tracker is the first parameter.",
+					truncateRestrictionName, 0, method.Param[0].T, rTrackerImplT, createTrackerName)
+			}
+			if method.Ret[0].T != restrictionT {
+				err := errors.Errorf("invalid output type in method %v, return %v. got: %v, want: %v",
+					truncateRestrictionName, 0, method.Ret[0].T, restrictionT)
+				return errors.SetTopLevelMsgf(err, "Invalid output type in method %v, "+
+					"return value at index %v. Got: %v, Want: %v (from method %v). "+
+					"Ensure that all restrictions in an SDF are the same type.",
+					truncateRestrictionName, 0, method.Ret[0].T, restrictionT, createInitialRestrictionName)
+			}
+			processFn := fn.methods[processElementName]
+			if _, exists := processFn.ProcessContinuation(); !exists {
+				err := errors.Errorf("missing return value in %v: return value of type %v is not present",
+					processElementName, reflect.TypeOf((*sdf.ProcessContinuation)(nil)).Elem())
+				return errors.SetTopLevelMsgf(err, "Missing output value in method %v, "+
+					"%v method should return %v when %v method is defined.",
+					processElementName, processElementName, reflect.TypeOf((*sdf.ProcessContinuation)(nil)).Elem(), truncateRestrictionName)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -984,6 +1036,17 @@ func validateIsWatermarkEstimating(fn *Fn, isSdf bool) (bool, error) {
 		return false, errors.Errorf("watermark estimation method %v is defined on non-splittable DoFn. Watermark"+
 			"estimation is only valid on splittable DoFns", createWatermarkEstimatorName)
 	}
+
+	processFn := fn.methods[processElementName]
+	if pos, ok := processFn.WatermarkEstimator(); ok && !isWatermarkEstimating {
+		err := errors.Errorf("method %v has sdf.WatermarkEstimator as param %v, expected none",
+			processElementName, pos)
+		return false, errors.SetTopLevelMsgf(err, "Method %v has an sdf.WatermarkEstimator parameter at index %v, "+
+			"but is not part of a watermark estimating DoFn. sdf.WatermarkEstimator is invalid in %v in "+
+			"non-watermark estimating DoFns.",
+			processElementName, pos, processElementName)
+	}
+
 	return isWatermarkEstimating, nil
 }
 
@@ -1030,6 +1093,16 @@ func validateWatermarkSig(fn *Fn, numMainIn int) error {
 		return errors.SetTopLevelMsgf(err, "invalid output type in method %v, "+
 			"return value at index %v (type: %v). Output of method %v must implement sdf.WatermarkEstimator.",
 			createWatermarkEstimatorName, 0, method.Ret[0].T, createWatermarkEstimatorName)
+	}
+
+	processFn := fn.methods[processElementName]
+	pos, _ := processFn.WatermarkEstimator()
+	if pos != -1 && method.Ret[0].T != processFn.Param[pos].T {
+		err := errors.Errorf("mismatched output type in method %v, return %v: got: %v, want: %v",
+			watermarkEstimatorStateName, 0, method.Ret[0].T, processFn.Param[pos].T)
+		return errors.SetTopLevelMsgf(err, "Mismatched output type in method %v, "+
+			"return value at index %v. Got: %v, Want: %v (from method %v).",
+			watermarkEstimatorStateName, 0, method.Ret[0].T, processFn.Param[pos].T, processElementName)
 	}
 
 	return nil
@@ -1210,9 +1283,6 @@ func AsCombineFn(fn *Fn) (*CombineFn, error) {
 	if fn.Fn != nil {
 		fn.methods[mergeAccumulatorsName] = fn.Fn
 	}
-	if err := verifyValidNames(fnKind, fn, setupName, createAccumulatorName, addInputName, mergeAccumulatorsName, extractOutputName, compactName, teardownName); err != nil {
-		return nil, err
-	}
 
 	mergeFn, ok := fn.methods[mergeAccumulatorsName]
 	if !ok {
@@ -1266,20 +1336,6 @@ func validateSignature(fnKind, methodName string, fn *Fn, accumType reflect.Type
 		sig := sigFunc(fx, accumType)
 		if err := funcx.Satisfy(fx, sig); err != nil {
 			return &verifyMethodError{fnKind, methodName, err, fn, accumType, sig}
-		}
-	}
-	return nil
-}
-
-func verifyValidNames(fnKind string, fn *Fn, names ...string) error {
-	m := make(map[string]bool)
-	for _, name := range names {
-		m[name] = true
-	}
-
-	for key := range fn.methods {
-		if !m[key] {
-			return errors.Errorf("%s: unexpected exported method %v present. Valid methods are: %v", fnKind, key, names)
 		}
 	}
 	return nil

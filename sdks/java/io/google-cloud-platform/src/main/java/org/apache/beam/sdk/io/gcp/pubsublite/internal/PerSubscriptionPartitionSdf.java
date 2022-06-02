@@ -26,14 +26,12 @@ import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedMessage> {
   private static final Logger LOG = LoggerFactory.getLogger(PerSubscriptionPartitionSdf.class);
-  private final Duration maxSleepTime;
   private final ManagedBacklogReaderFactory backlogReaderFactory;
   private final SubscriptionPartitionProcessorFactory processorFactory;
   private final SerializableFunction<SubscriptionPartition, InitialOffsetReader>
@@ -43,14 +41,12 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
   private final SerializableFunction<SubscriptionPartition, BlockingCommitter> committerFactory;
 
   PerSubscriptionPartitionSdf(
-      Duration maxSleepTime,
       ManagedBacklogReaderFactory backlogReaderFactory,
       SerializableFunction<SubscriptionPartition, InitialOffsetReader> offsetReaderFactory,
       SerializableBiFunction<TopicBacklogReader, OffsetByteRange, TrackerWithProgress>
           trackerFactory,
       SubscriptionPartitionProcessorFactory processorFactory,
       SerializableFunction<SubscriptionPartition, BlockingCommitter> committerFactory) {
-    this.maxSleepTime = maxSleepTime;
     this.backlogReaderFactory = backlogReaderFactory;
     this.processorFactory = processorFactory;
     this.offsetReaderFactory = offsetReaderFactory;
@@ -89,7 +85,7 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
     LOG.debug("Starting process for {} at {}", subscriptionPartition, Instant.now());
     SubscriptionPartitionProcessor processor =
         processorFactory.newProcessor(subscriptionPartition, tracker, receiver);
-    ProcessContinuation result = processor.runFor(maxSleepTime);
+    ProcessContinuation result = processor.run();
     LOG.debug("Starting commit for {} at {}", subscriptionPartition, Instant.now());
     // TODO(dpcollins-google): Move commits to a bundle finalizer for drain correctness
     processor

@@ -97,18 +97,14 @@ class FlinkPipelineExecutionEnvironment {
 
     FlinkPipelineTranslator translator;
     if (options.isStreaming()) {
-      this.flinkStreamEnv =
-          FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-              options, options.getFilesToStage());
+      this.flinkStreamEnv = FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
       if (hasUnboundedOutput && !flinkStreamEnv.getCheckpointConfig().isCheckpointingEnabled()) {
         LOG.warn(
             "UnboundedSources present which rely on checkpointing, but checkpointing is disabled.");
       }
       translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options);
     } else {
-      this.flinkBatchEnv =
-          FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-              options, options.getFilesToStage());
+      this.flinkBatchEnv = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
     }
 

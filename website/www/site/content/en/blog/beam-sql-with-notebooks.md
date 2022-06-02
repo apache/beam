@@ -604,8 +604,9 @@ To run SQL on Dataflow is very simple, you just need to add the option
 
 ```
 %%beam_sql -o data_by_state -r DataflowRunner
-SELECT partition_date, state, confirmed_cases, deaths
+SELECT partition_date, state, SUM(confirmed_cases) as confirmed_cases, SUM(deaths) as deaths
 FROM covid_data
+GROUP BY partition_date, state
 ```
 
 Different from previous `beam_sql` magic executions, you won’t see the result

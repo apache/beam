@@ -43,6 +43,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.header.internals.RecordHeaders;
@@ -52,7 +53,9 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
@@ -61,11 +64,19 @@ public class ReadFromKafkaDoFnTest {
 
   private final TopicPartition topicPartition = new TopicPartition("topic", 0);
 
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
   private final SimpleMockKafkaConsumer consumer =
       new SimpleMockKafkaConsumer(OffsetResetStrategy.NONE, topicPartition);
 
   private final ReadFromKafkaDoFn<String, String> dofnInstance =
       new ReadFromKafkaDoFn(makeReadSourceDescriptor(consumer));
+
+  private final ExceptionMockKafkaConsumer exceptionConsumer =
+      new ExceptionMockKafkaConsumer(OffsetResetStrategy.NONE, topicPartition);
+
+  private final ReadFromKafkaDoFn<String, String> exceptionDofnInstance =
+      new ReadFromKafkaDoFn<>(makeReadSourceDescriptor(exceptionConsumer));
 
   private ReadSourceDescriptors<String, String> makeReadSourceDescriptor(
       Consumer kafkaMockConsumer) {
@@ -80,6 +91,36 @@ public class ReadFromKafkaDoFnTest {
               }
             })
         .withBootstrapServers("bootstrap_server");
+  }
+
+  private static class ExceptionMockKafkaConsumer extends MockConsumer<byte[], byte[]> {
+
+    private final TopicPartition topicPartition;
+
+    public ExceptionMockKafkaConsumer(
+        OffsetResetStrategy offsetResetStrategy, TopicPartition topicPartition) {
+      super(offsetResetStrategy);
+      this.topicPartition = topicPartition;
+    }
+
+    @Override
+    public synchronized long position(TopicPartition partition) {
+      throw new KafkaException("PositionException");
+    }
+
+    @Override
+    public synchronized void seek(TopicPartition partition, long offset) {
+      throw new KafkaException("SeekException");
+    }
+
+    @Override
+    public synchronized Map<String, List<PartitionInfo>> listTopics() {
+      return ImmutableMap.of(
+          topicPartition.topic(),
+          ImmutableList.of(
+              new PartitionInfo(
+                  topicPartition.topic(), topicPartition.partition(), null, null, null)));
+    }
   }
 
   private static class SimpleMockKafkaConsumer extends MockConsumer<byte[], byte[]> {
@@ -318,6 +359,15 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
+  public void testInitialRestrictionWithException() throws Exception {
+    thrown.expect(KafkaException.class);
+    thrown.expectMessage("PositionException");
+
+    exceptionDofnInstance.initialRestriction(
+        KafkaSourceDescriptor.of(topicPartition, null, null, null, null, ImmutableList.of()));
+  }
+
+  @Test
   public void testProcessElement() throws Exception {
     MockOutputReceiver receiver = new MockOutputReceiver();
     consumer.setNumOfRecordsPerPoll(3L);
@@ -388,5 +438,20 @@ public class ReadFromKafkaDoFnTest {
             null,
             (OutputReceiver) receiver);
     assertEquals(ProcessContinuation.stop(), result);
+  }
+
+  @Test
+  public void testProcessElementWithException() throws Exception {
+    thrown.expect(KafkaException.class);
+    thrown.expectMessage("SeekException");
+
+    MockOutputReceiver receiver = new MockOutputReceiver();
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
+
+    exceptionDofnInstance.processElement(
+        KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null),
+        tracker,
+        null,
+        (OutputReceiver) receiver);
   }
 }

@@ -23,6 +23,7 @@ from typing import Iterable
 from typing import List
 
 import numpy
+from sklearn.base import BaseEstimator
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.api import PredictionResult
@@ -41,29 +42,37 @@ class ModelFileType(enum.Enum):
   JOBLIB = 2
 
 
-class SklearnInferenceRunner(InferenceRunner):
-  def run_inference(self, batch: List[numpy.array],
-                    model: Any) -> Iterable[numpy.array]:
+class SklearnInferenceRunner(InferenceRunner[numpy.ndarray,
+                                             PredictionResult,
+                                             BaseEstimator]):
+  def run_inference(self, batch: List[numpy.ndarray],
+                    model: BaseEstimator) -> Iterable[PredictionResult]:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
-  def get_num_bytes(self, batch: List[numpy.array]) -> int:
+  def get_num_bytes(self, batch: List[numpy.ndarray]) -> int:
     """Returns the number of bytes of data for a batch."""
     return sum(sys.getsizeof(element) for element in batch)
 
 
-class SklearnModelLoader(ModelLoader):
+class SklearnModelLoader(ModelLoader[numpy.ndarray,
+                                     PredictionResult,
+                                     BaseEstimator]):
+  """ Implementation of the ModelLoader interface for scikit learn.
+
+      NOTE: This API and its implementation are under development and
+      do not provide backward compatibility guarantees.
+  """
   def __init__(
       self,
       model_file_type: ModelFileType = ModelFileType.PICKLE,
       model_uri: str = ''):
     self._model_file_type = model_file_type
     self._model_uri = model_uri
-    self._inference_runner = SklearnInferenceRunner()
 
-  def load_model(self):
+  def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
     file = FileSystems.open(self._model_uri, 'rb')
     if self._model_file_type == ModelFileType.PICKLE:
@@ -71,11 +80,12 @@ class SklearnModelLoader(ModelLoader):
     elif self._model_file_type == ModelFileType.JOBLIB:
       if not joblib:
         raise ImportError(
-            'Could not import joblib in this execution'
-            ' environment. For help with managing dependencies on Python workers see https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'
+            'Could not import joblib in this execution environment. '
+            'For help with managing dependencies on Python workers.'
+            'see https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'  # pylint: disable=line-too-long
         )
       return joblib.load(file)
     raise AssertionError('Unsupported serialization type.')
 
   def get_inference_runner(self) -> SklearnInferenceRunner:
-    return self._inference_runner
+    return SklearnInferenceRunner()

@@ -61,7 +61,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.joda.time.Duration;
 import org.junit.After;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -195,13 +194,7 @@ public class ReadWriteIT {
         pipeline.apply(
             "readMessages",
             PubsubLiteIO.read(
-                SubscriberOptions.newBuilder()
-                    .setSubscriptionPath(subscriptionPath)
-                    // setMinBundleTimeout INTENDED FOR TESTING ONLY
-                    // This sacrifices efficiency to make tests run faster. Do not use this in a
-                    // real pipeline!
-                    .setMinBundleTimeout(Duration.standardSeconds(5))
-                    .build()));
+                SubscriberOptions.newBuilder().setSubscriptionPath(subscriptionPath).build()));
     return messages;
     // TODO(BEAM-13230): Fix and re-enable
     // Deduplicate messages based on the uuids added in PubsubLiteIO.addUuids() when writing.
@@ -227,7 +220,6 @@ public class ReadWriteIT {
   }
 
   @Test
-  @Ignore("BEAM-14253")
   public void testReadWrite() throws Exception {
     pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
     pipeline.getOptions().as(TestPipelineOptions.class).setBlockOnRun(false);

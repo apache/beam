@@ -137,7 +137,14 @@ tasks.rat {
 
     // Ignore LICENSES copied onto containers
     "sdks/java/container/license_scripts/manual_licenses",
-    "sdks/python/container/license_scripts/manual_licenses"
+    "sdks/python/container/license_scripts/manual_licenses",
+
+    // Ignore autogenrated proto files.
+    "sdks/typescript/src/apache_beam/proto/**/*.ts",
+
+    // Ignore typesciript package management.
+    "sdks/typescript/package-lock.json",
+    "sdks/typescript/node_modules/**/*",
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -198,6 +205,14 @@ tasks.register("javaPostCommit") {
   dependsOn(":sdks:java:extensions:ml:postCommit")
   dependsOn(":sdks:java:io:kafka:kafkaVersionsCompatibilityTest")
   dependsOn(":sdks:java:io:neo4j:integrationTest")
+}
+
+tasks.register("javaPostCommitSickbay") {
+  dependsOn(":runners:samza:validatesRunnerSickbay")
+  dependsOn(":runners:flink:validatesRunnerSickbay")
+  dependsOn(":runners:spark:validatesRunnerSickbay")
+  dependsOn(":runners:direct-java:validatesRunnerSickbay")
+  dependsOn(":runners:portability:java:validatesRunnerSickbay")
 }
 
 tasks.register("javaHadoopVersionsTest") {
