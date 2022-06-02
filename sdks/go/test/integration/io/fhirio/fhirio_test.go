@@ -30,32 +30,45 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/fhirio"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 	"google.golang.org/api/healthcare/v1"
 	"google.golang.org/api/option"
 )
 
-const testFhirVersion = "R4"
+const (
+	datasetPathFmt  = "projects/%s/locations/%s/datasets/apache-beam-integration-testing"
+	testFhirVersion = "R4"
+)
 
 var (
+	gcpProject             string
+	gcpRegion              string
 	testDataDir            = fmt.Sprintf("../../../../data/healthcare/%s/", testFhirVersion)
-	gcpProject             = flag.String("project", "apache-beam-testing", "GCP Project")
-	healthcareDataset      = fmt.Sprintf("projects/%s/locations/us-central1/datasets/apache-beam-integration-testing", *gcpProject)
 	storeService           *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService
 	storeManagementService *healthcare.ProjectsLocationsDatasetsFhirStoresService
 )
+
+func checkFlags(t *testing.T) {
+	if gcpProject == "" || gcpRegion == "" {
+		t.Skip("GCP flags not provided.")
+	}
+}
 
 // Sets up a test fhir store by creating and populating data to it for testing
 // purposes. It returns the name of the created store path, a slice of the
 // resource paths to be used in tests, and a function to teardown what has been
 // set up.
 func setupFhirStore(t *testing.T) (string, []string, func()) {
+	t.Helper()
 	if storeService == nil || storeManagementService == nil {
 		t.Fatal("Healthcare Services were not initialized")
 	}
 
+	healthcareDataset := fmt.Sprintf(datasetPathFmt, gcpProject, gcpRegion)
 	createdFhirStore, err := createStore(healthcareDataset, testFhirVersion)
 	if err != nil {
 		t.Fatal("Test store failed to be created")
@@ -149,6 +162,8 @@ func extractResourcePathFrom(resourceLocationUrl string) (string, error) {
 
 func TestRead_Success(t *testing.T) {
 	integration.CheckFilters(t)
+	checkFlags(t)
+
 	_, testResourcePaths, teardownFhirStore := setupFhirStore(t)
 	defer teardownFhirStore()
 
@@ -158,6 +173,8 @@ func TestRead_Success(t *testing.T) {
 
 func TestRead_InvalidResourcePath(t *testing.T) {
 	integration.CheckFilters(t)
+	checkFlags(t)
+
 	fhirStorePath, _, teardownFhirStore := setupFhirStore(t)
 	defer teardownFhirStore()
 
@@ -166,10 +183,17 @@ func TestRead_InvalidResourcePath(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+	beam.Init()
+
 	healthcareService, err := healthcare.NewService(context.Background(), option.WithUserAgent(fhirio.UserAgent))
 	if err == nil {
 		storeService = healthcare.NewProjectsLocationsDatasetsFhirStoresFhirService(healthcareService)
 		storeManagementService = healthcare.NewProjectsLocationsDatasetsFhirStoresService(healthcareService)
 	}
-	ptest.Main(m)
+
+	beam.PipelineOptions.LoadOptionsFromFlags(nil)
+	gcpProject = beam.PipelineOptions.Get("project")
+	gcpRegion = beam.PipelineOptions.Get("region")
+	ptest.MainRet(m)
 }
