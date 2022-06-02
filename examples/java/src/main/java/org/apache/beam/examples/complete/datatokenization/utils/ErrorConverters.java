@@ -23,7 +23,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -40,6 +39,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.format.DateTimeFormat;
@@ -61,8 +62,7 @@ public class ErrorConverters {
 
     public abstract String csvDelimiter();
 
-    @Nullable
-    public abstract Duration windowDuration();
+    public abstract @Nullable Duration windowDuration();
 
     @SuppressWarnings("argument.type.incompatible")
     @Override
@@ -133,7 +133,7 @@ public class ErrorConverters {
           TIMESTAMP_FORMATTER.print(context.timestamp().toDateTime(DateTimeZone.UTC));
 
       outputRow.add(timestamp);
-      outputRow.add(failsafeElement.getErrorMessage());
+      outputRow.add(MoreObjects.firstNonNull(failsafeElement.getErrorMessage(), ""));
 
       // Only set the payload if it's populated on the message.
       if (message != null) {
@@ -207,6 +207,7 @@ public class ErrorConverters {
           TIMESTAMP_FORMATTER.print(context.timestamp().toDateTime(DateTimeZone.UTC));
 
       // Build the table row
+      @SuppressWarnings("nullness") // TableRow.set not annotated but does accept nulls
       final TableRow failedRow =
           new TableRow()
               .set("timestamp", timestamp)
@@ -262,8 +263,7 @@ public class ErrorConverters {
 
     public abstract SerializableFunction<FailsafeElement<T, V>, String> translateFunction();
 
-    @Nullable
-    public abstract Duration windowDuration();
+    public abstract @Nullable Duration windowDuration();
 
     @Override
     @SuppressWarnings("argument.type.incompatible")
