@@ -38,4 +38,3 @@ notifications:
   commits: commits@beam.apache.org
   issues: github@beam.apache.org
   pullrequests: github@beam.apache.org
-  jira_options: link worklog
