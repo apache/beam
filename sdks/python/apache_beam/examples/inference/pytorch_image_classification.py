@@ -32,7 +32,7 @@ import torchvision
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.api import PredictionResult
 from apache_beam.ml.inference.api import RunInference
-from apache_beam.ml.inference.pytorch import PytorchModelLoader
+from apache_beam.ml.inference.pytorch_inference import PytorchModelLoader
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from PIL import Image
