@@ -18,14 +18,17 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 
 /** FhirBundleParameter represents a FHIR bundle in JSON format to be executed on a FHIR store. */
-@DefaultCoder(FhirBundleParameterCoder.class)
+@DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class FhirBundleParameter {
+public abstract class FhirBundleParameter implements Serializable {
 
   static Builder builder() {
     return new AutoValue_FhirBundleParameter.Builder();
@@ -40,6 +43,7 @@ public abstract class FhirBundleParameter {
   /** FHIR R4 bundle resource object as a string. */
   public abstract String getBundle();
 
+  @SchemaCreate
   public static FhirBundleParameter of(@Nullable String metadata, String bundle) {
 
     return FhirBundleParameter.builder()

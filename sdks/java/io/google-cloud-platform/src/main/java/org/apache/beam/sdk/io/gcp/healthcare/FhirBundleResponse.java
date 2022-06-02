@@ -18,11 +18,16 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 
+@DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class FhirBundleResponse {
+public abstract class FhirBundleResponse implements Serializable {
 
   static FhirBundleResponse.Builder builder() {
     return new AutoValue_FhirBundleResponse.Builder();
@@ -37,6 +42,7 @@ public abstract class FhirBundleResponse {
    */
   public abstract String getResponse();
 
+  @SchemaCreate
   public static FhirBundleResponse of(
       FhirBundleParameter fhirBundleParameter, @Nullable String response) {
     return FhirBundleResponse.builder()

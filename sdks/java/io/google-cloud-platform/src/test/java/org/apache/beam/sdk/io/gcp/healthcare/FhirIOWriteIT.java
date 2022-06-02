@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.ExecuteBundles;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.ExecuteBundlesResult;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
@@ -130,7 +131,7 @@ public class FhirIOWriteIT {
 
     ExecuteBundlesResult writeResult =
         pipeline
-            .apply(Create.of(bundles).withCoder(FhirBundleParameterCoder.of()))
+            .apply(Create.of(bundles).withCoder(SerializableCoder.of(FhirBundleParameter.class)))
             .apply(new ExecuteBundles(options.getFhirStore()));
 
     PAssert.that(writeResult.getSuccessfulBodies())

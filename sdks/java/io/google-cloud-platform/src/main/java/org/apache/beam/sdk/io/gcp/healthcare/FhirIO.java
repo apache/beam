@@ -45,6 +45,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileIO;
@@ -965,7 +966,7 @@ public class FhirIO {
               .apply(
                   MapElements.into(TypeDescriptor.of(FhirBundleParameter.class))
                       .via(FhirBundleParameter::of))
-              .setCoder(FhirBundleParameterCoder.of())
+              .setCoder(SerializableCoder.of(FhirBundleParameter.class))
               .apply(new ExecuteBundles(this.getFhirStore()));
       }
     }
@@ -1399,10 +1400,10 @@ public class FhirIO {
           input.apply(
               ParDo.of(new ExecuteBundlesFn(this.fhirStore))
                   .withOutputTags(SUCCESSFUL_BUNDLES, TupleTagList.of(FAILED_BUNDLES)));
-      bundles.get(SUCCESSFUL_BUNDLES).setCoder(FhirBundleResponseCoder.of());
+      bundles.get(SUCCESSFUL_BUNDLES).setCoder(SerializableCoder.of(FhirBundleResponse.class));
       bundles
           .get(FAILED_BUNDLES)
-          .setCoder(HealthcareIOErrorCoder.of(FhirBundleParameterCoder.of()));
+          .setCoder(HealthcareIOErrorCoder.of(SerializableCoder.of(FhirBundleParameter.class)));
 
       return ExecuteBundlesResult.in(
           input.getPipeline(), bundles.get(SUCCESSFUL_BUNDLES), bundles.get(FAILED_BUNDLES));
