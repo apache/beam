@@ -123,8 +123,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       examples = [1, 5, 3, 10]
       pcoll = pipeline | 'start' >> beam.Create(examples)
       kwargs = {'key': True}
-      actual = pcoll | base.RunInference(
-          FakeLoaderWithKwargs(), clock=None, **kwargs)
+      actual = pcoll | base.RunInference(FakeLoaderWithKwargs(), **kwargs)
       assert_that(actual, equal_to(examples), label='assert:inferences')
 
   def test_counted_metrics(self):
