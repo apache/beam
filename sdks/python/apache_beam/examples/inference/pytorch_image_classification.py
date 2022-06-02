@@ -28,7 +28,6 @@ from typing import Union
 
 import apache_beam as beam
 import torch
-import torchvision
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.api import PredictionResult
 from apache_beam.ml.inference.api import RunInference
@@ -37,6 +36,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from PIL import Image
 from torchvision import transforms
+from torchvision.models.mobilenetv2 import MobileNetV2
 
 
 def read_image(image_file_name: str,
@@ -50,7 +50,7 @@ def read_image(image_file_name: str,
 
 def preprocess_image(data: Image) -> torch.Tensor:
   image_size = (224, 224)
-  # to use pretrained models in torch with imagenet weights,
+  # to use models in torch with imagenet weights,
   # normalize the images using the below values.
   # ref: https://pytorch.org/vision/stable/models.html#
   normalize = transforms.Normalize(
@@ -74,11 +74,15 @@ class PostProcessor(beam.DoFn):
 
 def run_pipeline(options: PipelineOptions, args=None):
   """Sets up PyTorch RunInference pipeline"""
-  # class definition of the model.
-  model_class = torchvision.models.mobilenet_v2
+  # reference to the class definition of the model.
+  model_class = MobileNetV2
   # params for model class constructor. These values will be used in
   # RunInference API to instantiate the model object.
-  model_params = {'pretrained': False}
+  model_params = {'num_classes': 1000}  # imagenet has 1000 classes.
+  # for this example, the pretrained weights are downloaded from
+  # "https://download.pytorch.org/models/mobilenet_v2-b0353104.pth"
+  # and saved on GCS bucket gs://apache-beam-ml/models/imagenet_classification_mobilenet_v2.pt,
+  # which will be used to load the model state_dict in the RunInference API.
   model_loader = PytorchModelLoader(
       state_dict_path=args.model_state_dict_path,
       model_class=model_class,
