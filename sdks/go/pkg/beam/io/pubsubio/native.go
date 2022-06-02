@@ -24,15 +24,17 @@ import (
 	"cloud.google.com/go/pubsub"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/pubsubx"
 )
 
 // PubSubRead is a structural DoFn representing a read from a given subscription ID.
 type PubSubRead struct {
-	ProjectID    string
-	Subscription string
-	Client       *pubsub.Client
+	ProjectID         string
+	Subscription      string
+	Client            *pubsub.Client
+	ProcessedMessages []*pubsub.Message
 }
 
 // NewPubSubRead inserts an unbounded read from a PubSub topic into the pipeline. If an existing subscription
@@ -83,7 +85,15 @@ func (r *PubSubRead) SplitRestriction(_ []byte, rest string) []string {
 // ProcessElement initializes a PubSub client if one has not been created already, reads from the PubSub subscription,
 // and emits elements as it reads them. If no messages are available, the DoFn will schedule itself to resume processing
 // later. If polling the subscription returns an error, the error will be logged and the DoFn will not reschedule itself.
-func (r *PubSubRead) ProcessElement(rt *sdf.LockRTracker, _ []byte, emit func([]byte)) (sdf.ProcessContinuation, error) {
+func (r *PubSubRead) ProcessElement(bf beam.BundleFinalization, rt *sdf.LockRTracker, _ []byte, emit func([]byte, typex.EventTime)) (sdf.ProcessContinuation, error) {
+	// Register finalization callback
+	bf.RegisterCallback(5*time.Minute, func() error {
+		for _, m := range r.ProcessedMessages {
+			m.Ack()
+		}
+		return nil
+	})
+
 	// Initialize PubSub client if one has not been created already
 	if r.Client == nil {
 		client, err := pubsub.NewClient(context.Background(), r.ProjectID)
@@ -127,7 +137,8 @@ func (r *PubSubRead) ProcessElement(rt *sdf.LockRTracker, _ []byte, emit func([]
 					log.Debug(context.Background(), "stopping bundle processing")
 					return sdf.StopProcessing(), nil
 				}
-				emit(m.Data)
+				r.ProcessedMessages = append(r.ProcessedMessages, m)
+				emit(m.Data, typex.EventTime(m.PublishTime.UnixMilli()))
 			default:
 				log.Debug(context.Background(), "cancelling receive context, scheduling resumption")
 				cFn()

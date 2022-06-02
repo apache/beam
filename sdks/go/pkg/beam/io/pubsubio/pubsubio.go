@@ -47,7 +47,7 @@ func init() {
 	register.Function2x1(marshalMessageFn)
 	register.Function2x0(wrapInMessage)
 	register.Function2x0(wrapInMessage)
-	register.DoFn3x2[*sdf.LockRTracker, []byte, func([]byte), sdf.ProcessContinuation, error](&PubSubRead{})
+	register.DoFn4x2[beam.BundleFinalization, *sdf.LockRTracker, []byte, func([]byte, typex.EventTime), sdf.ProcessContinuation, error](&PubSubRead{})
 	register.DoFn1x1[[]byte, error](&PubSubWrite{})
 	register.Emitter1[[]byte]()
 	register.Emitter1[*pb.PubsubMessage]()
