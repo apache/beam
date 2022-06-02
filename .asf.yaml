@@ -34,6 +34,10 @@ github:
     # Enable projects for project management boards
     projects: true
 
+  # Give some users issue triage permissions
+  collaborators:
+    - damccorm
+
   enabled_merge_buttons:
     squash: true
     merge: true
