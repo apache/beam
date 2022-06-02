@@ -20,13 +20,11 @@ package org.apache.beam.sdk.io.cdap.context;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.DatasetManagementException;
 import io.cdap.cdap.etl.api.streaming.StreamingSourceContext;
-import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.tephra.TransactionFailureException;
 
 /** Class for creating context object of different CDAP classes with stream source type. */
-public class StreamingSourceContextImpl extends BatchContextImpl
-    implements StreamingSourceContext, Serializable {
+public class StreamingSourceContextImpl extends BatchContextImpl implements StreamingSourceContext {
 
   @Override
   public void registerLineage(String referenceName, @Nullable Schema schema)

@@ -24,7 +24,10 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 public class BatchSinkContextImpl extends BatchContextImpl implements BatchSinkContext {
 
   @Override
-  public void addOutput(Output output) {}
+  public void addOutput(Output output) {
+    this.outputFormatProvider =
+        ((Output.OutputFormatProviderOutput) output).getOutputFormatProvider();
+  }
 
   @Override
   public boolean isPreviewEnabled() {

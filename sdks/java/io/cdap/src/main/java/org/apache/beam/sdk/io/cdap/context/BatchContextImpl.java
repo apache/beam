@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.cdap.context;
 
 import io.cdap.cdap.api.data.DatasetInstantiationException;
 import io.cdap.cdap.api.data.batch.InputFormatProvider;
+import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.Dataset;
 import io.cdap.cdap.api.dataset.DatasetManagementException;
@@ -38,6 +39,7 @@ import io.cdap.cdap.etl.api.lineage.field.FieldOperation;
 import java.io.Serializable;
 import java.net.URL;
 import java.sql.Timestamp;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -54,10 +56,20 @@ public abstract class BatchContextImpl implements BatchContext, Serializable {
    */
   protected InputFormatProvider inputFormatProvider;
 
+  /**
+   * This should be set after {@link SubmitterLifecycle#prepareRun(Object)} call with passing this
+   * context object as a param.
+   */
+  protected OutputFormatProvider outputFormatProvider;
+
   private final Timestamp startTime = new Timestamp(System.currentTimeMillis());
 
   public InputFormatProvider getInputFormatProvider() {
     return inputFormatProvider;
+  }
+
+  public OutputFormatProvider getOutputFormatProvider() {
+    return outputFormatProvider;
   }
 
   @Override
@@ -137,7 +149,31 @@ public abstract class BatchContextImpl implements BatchContext, Serializable {
 
   @Override
   public SettableArguments getArguments() {
-    return null;
+    return new SettableArguments() {
+      @Override
+      public boolean has(String name) {
+        return false;
+      }
+
+      @Nullable
+      @Override
+      public String get(String name) {
+        return null;
+      }
+
+      @Override
+      public void set(String name, String value) {}
+
+      @Override
+      public Map<String, String> asMap() {
+        return null;
+      }
+
+      @Override
+      public Iterator<Map.Entry<String, String>> iterator() {
+        return null;
+      }
+    };
   }
 
   @Override

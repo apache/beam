@@ -38,8 +38,14 @@ import io.cdap.plugin.hubspot.source.batch.HubspotInputFormatProvider;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSource;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import io.cdap.plugin.hubspot.source.streaming.PullFrequency;
+import io.cdap.plugin.hubspot.sink.batch.HubspotBatchSink;
+import io.cdap.plugin.hubspot.sink.batch.HubspotOutputFormat;
+import io.cdap.plugin.hubspot.sink.batch.SinkHubspotConfig;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceBatchSource;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceSourceConfig;
+import io.cdap.plugin.servicenow.source.ServiceNowInputFormat;
+import io.cdap.plugin.servicenow.source.ServiceNowSource;
+import io.cdap.plugin.servicenow.source.ServiceNowSourceConfig;
 import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSource;
 import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSourceConfig;
 import io.cdap.plugin.zendesk.source.batch.ZendeskInputFormat;
@@ -55,11 +61,13 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
 import org.apache.beam.sdk.io.cdap.context.StreamingSourceContextImpl;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
@@ -69,6 +77,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -93,6 +102,8 @@ public class CdapIOTest {
 
   private static final String HUBSPOT_CONTACTS_OUTPUT_TXT =
       "src/test/resources/hubspot-contacts-output.txt";
+
+  private static final String TEST_LOCKS_DIR_PATH = "src/test/resources";
 
   private static final ImmutableMap<String, Object> TEST_SALESFORCE_PARAMS_MAP =
       ImmutableMap.<String, Object>builder()
@@ -121,6 +132,23 @@ public class CdapIOTest {
           .put("objectsToPull", "Groups")
           .build();
 
+  private static final ImmutableMap<String, Object> TEST_SERVICE_NOW_PARAMS_MAP =
+      ImmutableMap.<String, Object>builder()
+          .put("referenceName", "referenceName")
+          .put("queryMode", "Table")
+          .put("tableName", "x_817050_testapp_testlabel")
+          .put("clientId", System.getenv("SERVICE_NOW_CLIENT_ID"))
+          .put("clientSecret", System.getenv("SERVICE_NOW_CLIENT_SECRET"))
+          .put("user", System.getenv("SERVICE_NOW_USER"))
+          .put("password", System.getenv("SERVICE_NOW_PASSWORD"))
+          .put("restApiEndpoint", System.getenv("SERVICE_NOW_API_ENDPOINT"))
+          .put("valueType", "Actual")
+          .build();
+  private static final long NUM_OF_TEST_SERVICE_NOW_RECORDS =
+      Long.parseLong(System.getenv("NUM_OF_TEST_SERVICE_NOW_RECORDS"));
+  private static final String SERVICE_NOW_TEST_RECORDS_PREFIX =
+      System.getenv("SERVICE_NOW_TEST_RECORDS_PREFIX");
+
   private static final long NUM_OF_TEST_HUBSPOT_CONTACTS =
       Long.parseLong(System.getenv("HUBSPOT_CONTACTS_NUM"));
   private static final ImmutableMap<String, Object> TEST_HUBSPOT_PARAMS_MAP =
@@ -131,6 +159,28 @@ public class CdapIOTest {
           .put("apiKey", System.getenv("HUBSPOT_TOKEN"))
           .put("pullFrequency", PullFrequency.MINUTES_15.getName())
           .build();
+
+  private static final ImmutableMap<String, Object> TEST_HUBSPOT_COMPANIES_PARAMS_MAP =
+      ImmutableMap.<String, Object>builder()
+          .put("apiServerUrl", BaseHubspotConfig.DEFAULT_API_SERVER_URL)
+          .put("objectType", "Companies")
+          .put("referenceName", "COmpanies")
+          .put("apiKey", System.getenv("HUBSPOT_TOKEN"))
+          .build();
+
+  private static final String TEST_HUBSPOT_COMPANY =
+      "{\n"
+          + "  \"properties\": [\n"
+          + "    {\n"
+          + "      \"name\": \"name\",\n"
+          + "      \"value\": \"A company name\"\n"
+          + "    },\n"
+          + "    {\n"
+          + "      \"name\": \"description\",\n"
+          + "      \"value\": \"A company description\"\n"
+          + "    }\n"
+          + "  ]\n"
+          + "}";
 
   public static class JsonElementCoder extends CustomCoder<JsonElement> {
     private static final JsonElementCoder CODER = new JsonElementCoder();
@@ -191,14 +241,61 @@ public class CdapIOTest {
             });
     p.run();
 
-    assertEquals(ZendeskInputFormat.class, reader.getCdapPlugin().formatClass);
+    assertEquals(ZendeskInputFormat.class, reader.getCdapPlugin().getFormatClass());
 
-    Configuration hadoopConf = reader.getCdapPlugin().getHadoopConf();
+    Configuration hadoopConf = reader.getCdapPlugin().getHadoopConfiguration();
     String configJson = hadoopConf.get(ZendeskBatchSourceConstants.PROPERTY_CONFIG_JSON);
     ZendeskBatchSourceConfig configFromJson =
         GSON.fromJson(configJson, ZendeskBatchSourceConfig.class);
 
     assertEquals(pluginConfig.getAdminEmail(), configFromJson.getAdminEmail());
+  }
+
+  @Test
+  public void testReadFromServiceNow() {
+
+    ServiceNowSourceConfig pluginConfig =
+        new ConfigWrapper<>(ServiceNowSourceConfig.class)
+            .withParams(TEST_SERVICE_NOW_PARAMS_MAP)
+            .build();
+
+    CdapIO.Read<NullWritable, StructuredRecord> reader =
+        CdapIO.<NullWritable, StructuredRecord>read()
+            .withCdapPluginClass(ServiceNowSource.class)
+            .withPluginConfig(pluginConfig)
+            .withKeyClass(NullWritable.class)
+            .withValueClass(StructuredRecord.class);
+
+    assertNotNull(reader.getPluginConfig());
+    assertNotNull(reader.getCdapPlugin());
+    assertFalse(reader.getCdapPlugin().isUnbounded());
+    assertEquals(BatchSourceContextImpl.class, reader.getCdapPlugin().getContext().getClass());
+
+    PCollection<KV<NullWritable, StructuredRecord>> input =
+        p.apply(reader)
+            .setCoder(
+                KvCoder.of(
+                    NullableCoder.of(WritableCoder.of(NullWritable.class)),
+                    SerializableCoder.of(StructuredRecord.class)));
+
+    PAssert.that(input)
+        .satisfies(
+            (iterable) -> {
+              List<KV<NullWritable, StructuredRecord>> list =
+                  (List<KV<NullWritable, StructuredRecord>>) iterable;
+              assertEquals(NUM_OF_TEST_SERVICE_NOW_RECORDS, list.size());
+              for (int i = 0; i < list.size(); i++) {
+                StructuredRecord record = list.get(0).getValue();
+                assertNotNull(record);
+                String recordName = record.get("name");
+                assertNotNull(recordName);
+                assertTrue(recordName.startsWith(SERVICE_NOW_TEST_RECORDS_PREFIX));
+              }
+              return null;
+            });
+    p.run();
+
+    assertEquals(ServiceNowInputFormat.class, reader.getCdapPlugin().getFormatClass());
   }
 
   @Test
@@ -248,13 +345,56 @@ public class CdapIOTest {
             });
     p.run();
 
-    assertEquals(HubspotInputFormat.class, reader.getCdapPlugin().formatClass);
+    assertEquals(HubspotInputFormat.class, reader.getCdapPlugin().getFormatClass());
 
-    Configuration hadoopConf = reader.getCdapPlugin().getHadoopConf();
+    Configuration hadoopConf = reader.getCdapPlugin().getHadoopConfiguration();
     String configJson = hadoopConf.get(HubspotInputFormatProvider.PROPERTY_CONFIG_JSON);
     SourceHubspotConfig configFromJson = GSON.fromJson(configJson, SourceHubspotConfig.class);
 
     assertEquals(pluginConfig.getObjectType(), configFromJson.getObjectType());
+  }
+
+  @Test
+  public void testWriteToHubspotBatch() {
+
+    SinkHubspotConfig sinkConfig =
+        new ConfigWrapper<>(SinkHubspotConfig.class)
+            .withParams(TEST_HUBSPOT_COMPANIES_PARAMS_MAP)
+            .build();
+
+    CdapIO.Write<NullWritable, String> writer =
+        CdapIO.<NullWritable, String>write()
+            .withCdapPluginClass(HubspotBatchSink.class)
+            .withPluginConfig(sinkConfig)
+            .withKeyClass(NullWritable.class)
+            .withValueClass(String.class)
+            .withLocksDirPath(TEST_LOCKS_DIR_PATH);
+
+    assertNotNull(writer.getPluginConfig());
+    assertNotNull(writer.getCdapPlugin());
+    assertFalse(writer.getCdapPlugin().isUnbounded());
+    assertEquals(BatchSinkContextImpl.class, writer.getCdapPlugin().getContext().getClass());
+
+    p.apply(
+            Create.of(KV.of(NullWritable.get(), TEST_HUBSPOT_COMPANY))
+                .withCoder(
+                    KvCoder.of(
+                        NullableCoder.of(WritableCoder.of(NullWritable.class)),
+                        StringUtf8Coder.of())))
+        .setTypeDescriptor(
+            TypeDescriptors.kvs(
+                new TypeDescriptor<NullWritable>() {}, new TypeDescriptor<String>() {}))
+        .apply(writer);
+
+    p.run();
+
+    assertEquals(HubspotOutputFormat.class, writer.getCdapPlugin().getFormatClass());
+
+    Configuration hadoopConf = writer.getCdapPlugin().getHadoopConfiguration();
+    String configJson = hadoopConf.get("cdap.Hubspot.sink.config");
+    SinkHubspotConfig configFromJson = GSON.fromJson(configJson, SinkHubspotConfig.class);
+
+    assertEquals(sinkConfig.getObjectType(), configFromJson.getObjectType());
   }
 
   @Test
