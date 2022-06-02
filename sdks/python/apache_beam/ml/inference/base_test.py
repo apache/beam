@@ -39,7 +39,8 @@ class FakeInferenceRunner(base.InferenceRunner[int, int, FakeModel]):
   def __init__(self, clock=None):
     self._fake_clock = clock
 
-  def run_inference(self, batch: List[int], model: FakeModel) -> Iterable[int]:
+  def run_inference(self, batch: List[int], model: FakeModel,
+                    **kwargs) -> Iterable[int]:
     if self._fake_clock:
       self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
     for example in batch:
