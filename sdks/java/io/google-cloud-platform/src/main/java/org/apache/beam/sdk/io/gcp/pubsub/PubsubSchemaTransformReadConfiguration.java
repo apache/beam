@@ -92,6 +92,13 @@ public abstract class PubsubSchemaTransformReadConfiguration {
   public abstract String getTimestampAttribute();
 
   /**
+   * When reading from Cloud Pub/Sub where unique record identifiers are provided as Pub/Sub message
+   * attributes, specifies the name of the attribute containing the unique identifier.
+   */
+  @Nullable
+  public abstract String getIdAttribute();
+
+  /**
    * The topic from which to read Pub/Sub messages.
    *
    * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
@@ -144,6 +151,12 @@ public abstract class PubsubSchemaTransformReadConfiguration {
      * attributes, specifies the name of the attribute that contains the timestamp.
      */
     public abstract Builder setTimestampAttribute(String value);
+
+    /**
+     * When reading from Cloud Pub/Sub where unique record identifiers are provided as Pub/Sub
+     * message attributes, specifies the name of the attribute containing the unique identifier.
+     */
+    public abstract Builder setIdAttribute(String value);
 
     /**
      * The topic from which to read Pub/Sub messages.
