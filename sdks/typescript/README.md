@@ -62,7 +62,7 @@ encoding is used when we don't have sufficient type information.
 
 * We have added additional methods to the PCollection object, notably `map`
 and `flatmap`, [rather than only allowing apply](https://www.mail-archive.com/dev@beam.apache.org/msg06035.html).
-In addition, `apply` can accept a function argument `(PColletion) => ...` as
+In addition, `apply` can accept a function argument `(PCollection) => ...` as
 well as a PTransform subclass, which treats this callable as if it were a
 PTransform's expand.
 
@@ -93,6 +93,12 @@ used in Python. These can be "ordinary" javascript objects (which are passed
 as is) or special DoFnParam objects which provide getters to element-specific
 information (such as the current timestamp, window, or side input) at runtime.
 
+* Rather than introduce multiple-output complexity into the map/do operations
+themselves, producing multiple outputs is done by following with a new
+`Split` primitive that takes a
+`PCollection<{a?: AType, b: BType, ... }>` and produces an object
+`{a: PCollection<AType>, b: PCollection<BType>, ...}`.
+
 * Javascript supports (and encourages) an asynchronous programing model, with
 many libraries requiring use of the async/await paradigm.
 As there is no way (by design) to go from the asyncronous style back to
@@ -102,7 +108,7 @@ We currently offer asynchronous variants of `PValue.apply(...)` (in addition
 to the synchronous ones, as they are easier to chain) as well as making
 `Runner.run` asynchronous. TBD to do this for all user callbacks as well.
 
-An example pipeline can be found at https://github.com/robertwb/beam-javascript/blob/javascript/sdks/node-ts/src/apache_beam/examples/wordcount.ts
+An example pipeline can be found at https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/examples/wordcount.ts
 
 ## TODO
 

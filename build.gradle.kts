@@ -207,6 +207,14 @@ tasks.register("javaPostCommit") {
   dependsOn(":sdks:java:io:neo4j:integrationTest")
 }
 
+tasks.register("javaPostCommitSickbay") {
+  dependsOn(":runners:samza:validatesRunnerSickbay")
+  dependsOn(":runners:flink:validatesRunnerSickbay")
+  dependsOn(":runners:spark:validatesRunnerSickbay")
+  dependsOn(":runners:direct-java:validatesRunnerSickbay")
+  dependsOn(":runners:portability:java:validatesRunnerSickbay")
+}
+
 tasks.register("javaHadoopVersionsTest") {
   dependsOn(":sdks:java:io:hadoop-common:hadoopVersionsTest")
   dependsOn(":sdks:java:io:hadoop-file-system:hadoopVersionsTest")

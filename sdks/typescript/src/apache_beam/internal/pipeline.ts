@@ -21,13 +21,13 @@ import equal from "fast-deep-equal";
 import * as runnerApi from "../proto/beam_runner_api";
 import * as fnApi from "../proto/beam_fn_api";
 import {
-  PTransform,
-  AsyncPTransform,
+  PTransformClass,
+  AsyncPTransformClass,
   extractName,
 } from "../transforms/transform";
-import { GlobalWindows } from "../transforms/windowings";
+import { globalWindows } from "../transforms/windowings";
 import * as pvalue from "../pvalue";
-import { WindowInto } from "../transforms/window";
+import { createWindowingStrategyProto } from "../transforms/window";
 import * as environments from "./environments";
 import { Coder, globalRegistry as globalCoderRegistry } from "../coders/coders";
 
@@ -45,18 +45,14 @@ export class PipelineContext {
     const this_ = this;
     if (this.coders[coderId] == undefined) {
       const coderProto = this.components.coders[coderId];
-      const coderConstructor = globalCoderRegistry().get(coderProto.spec!.urn);
-      const components = (coderProto.componentCoderIds || []).map(
-        this_.getCoder.bind(this_)
+      const components: Coder<unknown>[] = (
+        coderProto.componentCoderIds || []
+      ).map(this_.getCoder.bind(this_));
+      this.coders[coderId] = globalCoderRegistry().getCoder(
+        coderProto.spec!.urn,
+        coderProto.spec!.payload,
+        ...components
       );
-      if (coderProto.spec!.payload?.length) {
-        this.coders[coderId] = new coderConstructor(
-          coderProto.spec!.payload,
-          ...components
-        );
-      } else {
-        this.coders[coderId] = new coderConstructor(...components);
-      }
     }
     return this.coders[coderId];
   }
@@ -132,13 +128,13 @@ export class Pipeline {
       environments.defaultJsEnvironment();
     this.context = new PipelineContext(this.proto.components!);
     this.proto.components!.windowingStrategies[this.globalWindowing] =
-      WindowInto.createWindowingStrategy(this, new GlobalWindows());
+      createWindowingStrategyProto(this, globalWindows());
   }
 
   preApplyTransform<
     InputT extends pvalue.PValue<any>,
     OutputT extends pvalue.PValue<any>
-  >(transform: AsyncPTransform<InputT, OutputT>, input: InputT) {
+  >(transform: AsyncPTransformClass<InputT, OutputT>, input: InputT) {
     const this_ = this;
     const transformId = this.context.createUniqueName("transform");
     let parent: runnerApi.PTransform | undefined = undefined;
@@ -168,7 +164,7 @@ export class Pipeline {
   applyTransform<
     InputT extends pvalue.PValue<any>,
     OutputT extends pvalue.PValue<any>
-  >(transform: PTransform<InputT, OutputT>, input: InputT) {
+  >(transform: PTransformClass<InputT, OutputT>, input: InputT) {
     const { id: transformId, proto: transformProto } = this.preApplyTransform(
       transform,
       input
@@ -186,7 +182,7 @@ export class Pipeline {
   async asyncApplyTransform<
     InputT extends pvalue.PValue<any>,
     OutputT extends pvalue.PValue<any>
-  >(transform: AsyncPTransform<InputT, OutputT>, input: InputT) {
+  >(transform: AsyncPTransformClass<InputT, OutputT>, input: InputT) {
     const { id: transformId, proto: transformProto } = this.preApplyTransform(
       transform,
       input
@@ -205,7 +201,7 @@ export class Pipeline {
     InputT extends pvalue.PValue<any>,
     OutputT extends pvalue.PValue<any>
   >(
-    transform: AsyncPTransform<InputT, OutputT>,
+    transform: AsyncPTransformClass<InputT, OutputT>,
     transformProto: runnerApi.PTransform,
     result: OutputT
   ) {

@@ -36,13 +36,12 @@ export class ExternalWorkerPool {
   server: grpc.Server;
   workers: Map<string, Worker> = new Map();
 
-  // TODO: (Cleanup) Choose a free port.
-  constructor(address: string = "localhost:5555") {
+  constructor(address: string = "localhost:0") {
     this.address = address;
   }
 
-  start() {
-    console.log("Starting the workers at ", this.address);
+  async start(): Promise<string> {
+    console.log("Starting loopback workers at ", this.address);
     const this_ = this;
 
     this.server = new grpc.Server();
@@ -87,23 +86,35 @@ export class ExternalWorkerPool {
       },
     };
 
-    this.server.bindAsync(
-      this.address,
-      grpc.ServerCredentials.createInsecure(),
-      (err: Error | null, port: number) => {
-        if (err) {
-          console.error(`Server error: ${err.message}`);
-        } else {
-          console.log(`Server bound on port: ${port}`);
-          this_.server.start();
-        }
-      }
-    );
-
     this.server.addService(beamFnExternalWorkerPoolDefinition, workerService);
+
+    return new Promise((resolve, reject) => {
+      this.server.bindAsync(
+        this.address,
+        grpc.ServerCredentials.createInsecure(),
+        (err: Error | null, port: number) => {
+          if (err) {
+            reject(`Error starting loopback service: ${err.message}`);
+          } else {
+            console.log(`Server bound on port: ${port}`);
+            this_.address = `localhost:${port}`;
+            this_.server.start();
+            resolve(this_.address);
+          }
+        }
+      );
+    });
   }
 
-  stop() {
+  async stop(timeoutMs = 100) {
+    console.debug("Shutting down external workers.");
+    // Let the runner attempt to gracefully shut these down.
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (this.workers.size) {
+        await new Promise((r) => setTimeout(r, timeoutMs / 10));
+      }
+    }
     this.server.forceShutdown();
   }
 }

@@ -17,6 +17,7 @@ package dataflowlib
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -153,6 +154,42 @@ func TestValidateWorkerSettings(t *testing.T) {
 			}
 			if !reflect.DeepEqual(test.expected, test.opts) {
 				t.Fatalf("expected job options: %v, got job options: %v", test.expected, test.opts)
+			}
+		})
+	}
+}
+
+func TestCurrentStateMessage(t *testing.T) {
+	tests := []struct {
+		state   string
+		term    bool
+		want    string
+		wantErr error
+	}{
+		{state: "JOB_STATE_DONE", want: "Job JorbID-09876 succeeded!", term: true},
+		{state: "JOB_STATE_DRAINED", want: "Job JorbID-09876 drained", term: true},
+		{state: "JOB_STATE_UPDATED", want: "Job JorbID-09876 updated", term: true},
+		{state: "JOB_STATE_CANCELLED", want: "Job JorbID-09876 cancelled", term: true},
+		{state: "JOB_STATE_RUNNING", want: "Job still running ...", term: false},
+		{state: "JOB_STATE_FAILED", wantErr: fmt.Errorf("Job JorbID-09876 failed"), term: true},
+		{state: "Ossiphrage", want: "Job state: Ossiphrage ...", term: false},
+	}
+	for _, test := range tests {
+		t.Run(test.state, func(t *testing.T) {
+			const jobID = "JorbID-09876"
+			term, got, err := currentStateMessage(test.state, jobID)
+			if term != test.term {
+				termGot, termWant := "false (continues)", "true (terminal)"
+				if !test.term {
+					termGot, termWant = termWant, termGot
+				}
+				t.Errorf("currentStateMessage(%v, %q) = %v, want %v", test.state, jobID, termGot, termWant)
+			}
+			if err != nil && err.Error() != test.wantErr.Error() {
+				t.Errorf("currentStateMessage(%v, %q) = %v, want %v", test.state, jobID, err, test.wantErr)
+			}
+			if got != test.want {
+				t.Errorf("currentStateMessage(%v, %q) = %v, want %v", test.state, jobID, got, test.want)
 			}
 		})
 	}

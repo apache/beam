@@ -166,6 +166,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setWindowedWrites(false)
         .setMaxNumWritersPerBundle(DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
         .setSideInputs(sink.getDynamicDestinations().getSideInputs())
+        .setSkipIfEmpty(false)
         .build();
   }
 
@@ -182,6 +183,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract boolean getWindowedWrites();
 
   abstract int getMaxNumWritersPerBundle();
+
+  abstract boolean getSkipIfEmpty();
 
   abstract List<PCollectionView<?>> getSideInputs();
 
@@ -204,6 +207,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setMaxNumWritersPerBundle(
         int maxNumWritersPerBundle);
+
+    abstract Builder<UserT, DestinationT, OutputT> setSkipIfEmpty(boolean skipIfEmpty);
 
     abstract Builder<UserT, DestinationT, OutputT> setSideInputs(
         List<PCollectionView<?>> sideInputs);
@@ -252,6 +257,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public WriteFiles<UserT, DestinationT, OutputT> withMaxNumWritersPerBundle(
       int maxNumWritersPerBundle) {
     return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
+  }
+
+  /** Set this sink to skip writing any files if the PCollection is empty. */
+  public WriteFiles<UserT, DestinationT, OutputT> withSkipIfEmpty(boolean skipIfEmpty) {
+    return toBuilder().setSkipIfEmpty(skipIfEmpty).build();
   }
 
   public WriteFiles<UserT, DestinationT, OutputT> withSideInputs(
@@ -315,6 +325,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    */
   public WriteFiles<UserT, DestinationT, OutputT> withNoSpilling() {
     return toBuilder().setMaxNumWritersPerBundle(-1).build();
+  }
+
+  public WriteFiles<UserT, DestinationT, OutputT> withSkipIfEmpty() {
+    return toBuilder().setSkipIfEmpty(true).build();
   }
 
   @Override
@@ -1034,6 +1048,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         }
         List<FileResult<DestinationT>> fileResults = Lists.newArrayList(c.element());
         LOG.info("Finalizing {} file results", fileResults.size());
+        if (fileResults.isEmpty() && getSkipIfEmpty()) {
+          return;
+        }
         DestinationT defaultDest = getDynamicDestinations().getDefaultDestination();
         List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames =
             fileResults.isEmpty()

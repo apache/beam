@@ -17,7 +17,7 @@
  */
 
 import * as beam from "../../apache_beam";
-import { GlobalWindows } from "../../apache_beam/transforms/windowings";
+import { globalWindows } from "../../apache_beam/transforms/windowings";
 import * as internal from "../transforms/internal";
 
 import * as assert from "assert";
@@ -28,55 +28,39 @@ function callAssertDeepEqual(a, b) {
 }
 
 // TODO: (Naming)
-export class AssertDeepEqual extends beam.PTransform<
-  beam.PCollection<any>,
-  void
-> {
-  expected: any[];
-
-  constructor(expected: any[]) {
-    super("AssertDeepEqual");
-    this.expected = expected;
-  }
-
-  expand(pcoll: beam.PCollection<any>) {
-    const expected = this.expected;
+export function assertDeepEqual<T>(
+  expected: T[]
+): beam.PTransform<beam.PCollection<T>, void> {
+  return function assertDeepEqual(pcoll: beam.PCollection<T>) {
     pcoll.apply(
-      new Assert("Assert", (actual) => {
-        const actualArray: any[] = [...actual];
+      assertContentsSatisfies((actual: T[]) => {
+        const actualArray: T[] = [...actual];
         expected.sort();
         actualArray.sort();
         callAssertDeepEqual(actualArray, expected);
       })
     );
-  }
+  };
 }
 
-export class Assert extends beam.PTransform<beam.PCollection<any>, void> {
-  check: (actual: any[]) => void;
-
-  constructor(name: string, check: (actual: any[]) => void) {
-    super(name);
-    this.check = check;
-  }
-
-  expand(pcoll: beam.PCollection<any>) {
-    const check = this.check;
+export function assertContentsSatisfies<T>(
+  check: (actual: T[]) => void
+): beam.PTransform<beam.PCollection<T>, void> {
+  function expand(pcoll: beam.PCollection<T>) {
     // We provide some value here to ensure there is at least one element
     // so the DoFn gets invoked.
     const singleton = pcoll
       .root()
-      .apply(new beam.Impulse())
+      .apply(beam.impulse())
       .map((_) => ({ tag: "expected" }));
     // CoGBK.
     const tagged = pcoll
       .map((e) => ({ tag: "actual", value: e }))
-      .apply(new beam.WindowInto(new GlobalWindows()));
+      .apply(beam.windowInto(globalWindows()));
     beam
       .P([singleton, tagged])
-      .apply(new beam.Flatten())
-      .map((e) => ({ key: 0, value: e }))
-      .apply(new internal.GroupByKey()) // TODO: GroupBy.
+      .apply(beam.flatten())
+      .apply(beam.groupBy((e) => 0))
       .map(
         beam.withName("extractActual", (kv) => {
           const actual: any[] =
@@ -86,6 +70,11 @@ export class Assert extends beam.PTransform<beam.PCollection<any>, void> {
         })
       );
   }
+
+  return beam.withName(
+    `assertContentsSatisfies(${beam.extractName(check)})`,
+    expand
+  );
 }
 
 import { requireForSerialization } from "../serialization";

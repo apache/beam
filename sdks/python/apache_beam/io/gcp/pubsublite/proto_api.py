@@ -37,7 +37,6 @@ class ReadFromPubSubLite(PTransform):
   def __init__(
       self,
       subscription_path,
-      min_bundle_timeout=None,
       deduplicate=None,
       expansion_service=None,
   ):
@@ -46,17 +45,12 @@ class ReadFromPubSubLite(PTransform):
     Args:
       subscription_path: Pub/Sub Lite Subscription in the form
           projects/<project>/locations/<location>/subscriptions/<subscription>
-      min_bundle_timeout: The minimum wall time to pass before allowing
-          bundle closure. Setting this to too small of a value will result in
-          increased compute costs and lower throughput per byte. Immediate
-          timeouts (0) may be useful for testing.
       deduplicate: Whether to deduplicate messages based on the value of
           the 'x-goog-pubsublite-dataflow-uuid' attribute. Defaults to False.
     """
     super().__init__()
     self._source = _ReadExternal(
         subscription_path=subscription_path,
-        min_bundle_timeout=min_bundle_timeout,
         deduplicate=deduplicate,
         expansion_service=expansion_service,
     )
