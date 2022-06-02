@@ -6532,7 +6532,7 @@ will not be rescheduled.
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/04transforms.go" watermarkestimation_customestimator >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" sdf_truncate >}}
 {{< /highlight >}}
 
 ### 12.7. Bundle finalization {#bundle-finalization}
