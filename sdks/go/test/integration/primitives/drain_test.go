@@ -25,7 +25,6 @@ import (
 
 func TestDrain(t *testing.T) {
 	integration.CheckFilters(t)
-
 	p, s := beam.NewPipelineWithRoot()
 	Drain(s)
 	_, err := ptest.RunWithMetrics(p)

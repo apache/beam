@@ -16,14 +16,17 @@
 package primitives
 
 import (
-	"context"
-	"math"
-	"reflect"
-	"time"
-
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
+	"math"
+	"reflect"
+)
+
+import (
+	"context"
+	"time"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
@@ -31,31 +34,36 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*TruncateFn)(nil)).Elem())
 }
 
+// RangeEstimator implements the offsetrange.RangeEndEstimator interface.
+// It provides the estimated end for a restriction.
 type RangeEstimator struct {
-	End int64
+	end int64
 }
 
+// Estimate returns the estimated end.
 func (r *RangeEstimator) Estimate() int64 {
-	return r.End
+	return r.end
 }
 
+// SetEstimate sets the estimated end.
 func (r *RangeEstimator) SetEstimate(estimate int64) {
-	r.End = estimate
+	r.end = estimate
 }
 
+// TruncateFn is an SDF.
 type TruncateFn struct {
 	Estimator RangeEstimator
 }
 
 // CreateInitialRestriction creates an initial restriction
-func (fn *TruncateFn) CreateInitialRestriction(b []byte) offsetrange.Restriction {
+func (fn *TruncateFn) CreateInitialRestriction(_ []byte) offsetrange.Restriction {
 	return offsetrange.Restriction{
 		Start: int64(1),
 		End:   int64(math.MaxInt64),
 	}
 }
 
-// CreateTracker wraps the fiven restriction into a LockRTracker type.
+// CreateTracker wraps the given restriction into a LockRTracker type.
 func (fn *TruncateFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
 	fn.Estimator = RangeEstimator{int64(10)}
 	tracker, err := offsetrange.NewGrowableTracker(rest, &fn.Estimator)
@@ -75,12 +83,10 @@ func (fn *TruncateFn) SplitRestriction(_ []byte, rest offsetrange.Restriction) [
 	return rest.EvenSplits(2)
 }
 
+// TruncateRestriction truncates the restriction during drain.
 func (fn *TruncateFn) TruncateRestriction(rt *sdf.LockRTracker, _ []byte) offsetrange.Restriction {
-	log.Debug(context.Background(), "triggering the truncate restriction")
 	start := rt.GetRestriction().(offsetrange.Restriction).Start
-	prevEnd := rt.GetRestriction().(offsetrange.Restriction).End
 	newEnd := start + 20
-	log.Infof(context.Background(), "TRUNCATING: truncating {Start:%v, End:%v} to {Start:%v, End:%v}", start, prevEnd, start, newEnd)
 	return offsetrange.Restriction{
 		Start: start,
 		End:   newEnd,
@@ -88,9 +94,8 @@ func (fn *TruncateFn) TruncateRestriction(rt *sdf.LockRTracker, _ []byte) offset
 }
 
 // ProcessElement continually gets the start position of the restriction and emits the element as it is.
-func (fn *TruncateFn) ProcessElement(rt *sdf.LockRTracker, p []byte, emit func(int64)) sdf.ProcessContinuation {
+func (fn *TruncateFn) ProcessElement(rt *sdf.LockRTracker, _ []byte, emit func(int64)) sdf.ProcessContinuation {
 	position := rt.GetRestriction().(offsetrange.Restriction).Start
-
 	counter := 0
 	for {
 		if rt.TryClaim(position) {
@@ -116,6 +121,7 @@ func (fn *TruncateFn) ProcessElement(rt *sdf.LockRTracker, p []byte, emit func(i
 	}
 }
 
+// Drain tests the SDF truncation during drain.
 func Drain(s beam.Scope) {
 	beam.Init()
 	s.Scope("truncate")
