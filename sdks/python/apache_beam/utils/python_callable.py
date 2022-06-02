@@ -29,6 +29,18 @@ class PythonCallableWithSource(object):
   Proxy object to Store a callable object with its string form (source code).
   The string form is used when the object is encoded and transferred to foreign
   SDKs (non-Python SDKs).
+
+  Supported formats include fully-qualified names such as `math.sin`,
+  expressions such as `lambda x: x * x` or `str.upper`, and multi-line function
+  definitions such as `def foo(x): ...`. If the source string contains multiple
+  lines then lines prior to the last will be evaluated to provide the context
+  in which to evaluate the expression, for example::
+
+      import math
+
+      lambda x: x - math.sin(x)
+
+  is a valid chunk of source code.
   """
   def __init__(self, source):
     # type: (str) -> None
@@ -65,7 +77,10 @@ class PythonCallableWithSource(object):
 
   @staticmethod
   def load_from_script(source):
-    lines = [line for line in source.split('\n') if line.strip()]
+    lines = [
+        line for line in source.split('\n')
+        if line.strip() and line.strip()[0] != '#'
+    ]
     common_indent = min(len(line) - len(line.lstrip()) for line in lines)
     lines = [line[common_indent:] for line in lines]
 
