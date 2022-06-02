@@ -64,7 +64,6 @@ def process_outputs(filepath):
     'Test depends on torch, torchvision and pillow')
 class PyTorchInference(unittest.TestCase):
   @pytest.mark.uses_pytorch
-  @pytest.mark.it_postcommit
   def test_torch_run_inference_imagenet_mobilenetv2(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # text files containing absolute path to the imagenet validation data on GCS

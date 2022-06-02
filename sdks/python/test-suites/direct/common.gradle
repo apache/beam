@@ -202,7 +202,7 @@ task torchTests {
       def argMap = [
           "test_opts": testOpts,
           "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
-          "collect": "uses_pytorch and it_postcommit",
+          "collect": "uses_pytorch",
           "runner": "TestDirectRunner"
       ]
       def cmdArgs = mapToArgString(argMap)
