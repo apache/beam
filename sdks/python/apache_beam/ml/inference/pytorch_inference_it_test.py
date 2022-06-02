@@ -89,6 +89,27 @@ class PyTorchInference(unittest.TestCase):
       filename, prediction = prediction.split(',')
       self.assertEqual(_EXPECTED_OUTPUTS[filename], prediction)
 
+  @pytest.mark.uses_pytorch
+  @pytest.mark.inference_benchmark
+  def test_torch_imagenet_mobilenetv2_benchmark(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    # text files containing absolute path to the imagenet validation data on GCS
+    file_of_image_names = 'gs://apache-beam-ml/testing/inputs/imagenet_validation_inputs.txt'
+    output_file_dir = 'gs://apache-beam-ml/testing/outputs'
+    output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
+
+    model_state_dict_path = 'gs://apache-beam-ml/models/imagenet_classification_mobilenet_v2.pt'
+    extra_opts = {
+        'input': file_of_image_names,
+        'output': output_file,
+        'model_state_dict_path': model_state_dict_path,
+    }
+    pytorch_image_classification.run(
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
+
+    self.assertEqual(FileSystems().exists(output_file), True)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
