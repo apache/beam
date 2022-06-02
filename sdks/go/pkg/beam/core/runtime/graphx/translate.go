@@ -63,9 +63,9 @@ const (
 	URNWindowMappingFixed   = "beam:go:windowmapping:fixed:v1"
 	URNWindowMappingSliding = "beam:go:windowmapping:sliding:v1"
 
-	URNLegacyProgressReporting = "beam:protocol:progress_reporting:v0"
-	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
-	URNWorkerStatus            = "beam:protocol:worker_status:v1"
+	URNProgressReporting = "beam:protocol:progress_reporting:v1"
+	URNMultiCore         = "beam:protocol:multi_core_bundle_processing:v1"
+	URNWorkerStatus      = "beam:protocol:worker_status:v1"
 
 	URNRequiresSplittableDoFn     = "beam:requirement:pardo:splittable_dofn:v1"
 	URNRequiresBundleFinalization = "beam:requirement:pardo:finalization:v1"
@@ -86,7 +86,7 @@ const (
 
 func goCapabilities() []string {
 	capabilities := []string{
-		URNLegacyProgressReporting,
+		URNProgressReporting,
 		URNMultiCore,
 		URNTruncate,
 		URNWorkerStatus,
