@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
@@ -96,7 +97,7 @@ type weDoFn struct{}
 
 // [START bundlefinalization_simplecallback]
 
-func (fn *splittableDoFn) ProcessElement(bf beam.BundleFinalization, element string) {
+func (fn *splittableDoFn) ProcessElement(bf beam.BundleFinalization, rt *sdf.LockRTracker, element string) {
 	// ... produce output ...
 
 	bf.RegisterCallback(5*time.Minute, func() error {
