@@ -42,6 +42,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
@@ -71,9 +72,9 @@ import org.joda.time.Days;
 public class TableRowToStorageApiProto {
   // Custom formatter that accepts "2022-05-09 18:04:59.123456"
   // The old dremel parser accepts this format, and so does insertall. We need to accept it
-  // for backwards compatibility.
+  // for backwards compatibility, and it is based on UTC time.
   private static DateTimeFormatter DATETIME_SPACE_FORMATTER =
-      DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSSSSS").withZone(ZoneId.systemDefault());
+      DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSSSSS").withZone(ZoneOffset.UTC);
 
   public static class SchemaConversionException extends Exception {
     SchemaConversionException(String msg) {
@@ -466,9 +467,8 @@ public class TableRowToStorageApiProto {
         break;
       case "DATE":
         if (value instanceof String) {
-          // '2011-12-03+01:00'; '2011-12-03'
-          return ((Long) LocalDate.parse((String) value, DateTimeFormatter.ISO_DATE).toEpochDay())
-              .intValue();
+          // '2011-12-03'
+          return ((Long) LocalDate.parse((String) value).toEpochDay()).intValue();
         } else if (value instanceof LocalDate) {
           return ((Long) ((LocalDate) value).toEpochDay()).intValue();
         } else if (value instanceof org.joda.time.LocalDate) {
@@ -505,9 +505,8 @@ public class TableRowToStorageApiProto {
       case "DATETIME":
         if (value instanceof String) {
           try {
-            // '2011-12-03T10:15:30+07' '2011-12-03T10:15:30'
-            return CivilTimeEncoder.encodePacked64DatetimeMicros(
-                LocalDateTime.parse((String) value, DateTimeFormatter.ISO_DATE_TIME));
+            // '2011-12-03T10:15:30'
+            return CivilTimeEncoder.encodePacked64DatetimeMicros(LocalDateTime.parse((String) value));
           } catch (DateTimeParseException e2) {
             // '2011-12-03 10:15:30'
             return CivilTimeEncoder.encodePacked64DatetimeMicros(
@@ -523,9 +522,8 @@ public class TableRowToStorageApiProto {
         break;
       case "TIME":
         if (value instanceof String) {
-          // '10:15:30+01:00'; '10:15:30'
-          return CivilTimeEncoder.encodePacked64TimeMicros(
-              LocalTime.parse((String) value, DateTimeFormatter.ISO_TIME));
+          // '10:15:30'
+          return CivilTimeEncoder.encodePacked64TimeMicros(LocalTime.parse((String) value));
         } else if (value instanceof Number) {
           return ((Number) value).longValue();
         } else if (value instanceof LocalTime) {

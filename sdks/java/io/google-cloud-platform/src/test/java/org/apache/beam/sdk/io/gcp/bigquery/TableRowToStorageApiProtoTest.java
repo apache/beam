@@ -115,9 +115,6 @@ public class TableRowToStorageApiProtoTest {
                           .setMode("REPEATED")
                           .setName("arrayValue"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampISOValue"))
-                  .add(new TableFieldSchema().setType("TIME").setName("timeISOValue"))
-                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimeISOValue"))
-                  .add(new TableFieldSchema().setType("DATE").setName("dateISOValue"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueLong"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpace"))
                   .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValueSpace"))
@@ -246,43 +243,22 @@ public class TableRowToStorageApiProtoTest {
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timeisovalue")
+                  .setName("timestampvaluelong")
                   .setNumber(18)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("datetimeisovalue")
+                  .setName("timestampvaluespace")
                   .setNumber(19)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("dateisovalue")
-                  .setNumber(20)
-                  .setType(Type.TYPE_INT32)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluelong")
-                  .setNumber(21)
-                  .setType(Type.TYPE_INT64)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespace")
-                  .setNumber(22)
-                  .setType(Type.TYPE_INT64)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
                   .setName("datetimevaluespace")
-                  .setNumber(23)
+                  .setNumber(20)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
@@ -397,30 +373,9 @@ public class TableRowToStorageApiProtoTest {
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timeisovalue")
-                  .setNumber(16)
-                  .setType(Type.TYPE_INT64)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
                   .setName("timestampisovalue")
                   .setNumber(17)
                   .setType(Type.TYPE_INT64)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("datetimeisovalue")
-                  .setNumber(18)
-                  .setType(Type.TYPE_INT64)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("dateisovalue")
-                  .setNumber(19)
-                  .setType(Type.TYPE_INT32)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
@@ -580,9 +535,6 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV("2312345.4"),
                   new TableCell().setV(REPEATED_BYTES),
                   new TableCell().setV("1970-01-01T00:00:00.000+01:00"),
-                  new TableCell().setV("00:52:07.123456-07:00"),
-                  new TableCell().setV("1970-01-01T00:00:00.000+01:00"),
-                  new TableCell().setV("2019-08-16-08:00"),
                   new TableCell().setV("1234567"),
                   new TableCell().setV("1970-01-01 00:00:00.000343"),
                   new TableCell().setV("2019-08-16 00:52:07.123456")));
@@ -607,11 +559,8 @@ public class TableRowToStorageApiProtoTest {
           .set("bigNumericValue", "2312345.4")
           .set("arrayValue", REPEATED_BYTES)
           .set("timestampISOValue", "1970-01-01T00:00:00.000+01:00")
-          .set("timeISOValue", "00:52:07.123456-07:00")
-          .set("datetimeISOValue", "1970-01-01T00:00:00.000+01:00")
-          .set("dateISOValue", "2019-08-16-08:00")
           .set("timestampValueLong", "1234567")
-          // Local time
+          // UTC time for backwards compatibility
           .set("timestampValueSpace", "1970-01-01 00:00:00.000343")
           .set("datetimeValueSpace", "2019-08-16 00:52:07.123456");
 
@@ -638,9 +587,6 @@ public class TableRowToStorageApiProtoTest {
               BigDecimalByteStringEncoder.encodeToBigNumericByteString(new BigDecimal("2312345.4")))
           .put("arrayvalue", EXPECTED_PROTO_REPEATED_BYTES)
           .put("timestampisovalue", -3600000000L)
-          .put("timeisovalue", 3497124416L)
-          .put("datetimeisovalue", 138630961515462656L)
-          .put("dateisovalue", 18124)
           .put("timestampvaluelong", 1234567000L)
           .put("timestampvaluespace", 28800000343L)
           .put("datetimevaluespace", 142111881387172416L)
@@ -668,12 +614,9 @@ public class TableRowToStorageApiProtoTest {
               BigDecimalByteStringEncoder.encodeToBigNumericByteString(new BigDecimal("2312345.4")))
           .put("arrayvalue", EXPECTED_PROTO_REPEATED_BYTES)
           .put("timestampisovalue", -3600000000L)
-          .put("timeisovalue", 3497124416L)
-          .put("datetimeisovalue", 138630961515462656L)
-          .put("dateisovalue", 18124)
           .put("timestampvaluelong", 1234567000L)
           .put("timestampvaluespace", 28800000343L)
-          .put("datetimevaluespace", 142111881387172416L)
+          .put("datetimevaluespace", 138630961515462656L)
           .build();
 
   private void assertBaseRecord(DynamicMessage msg, boolean withF) {
