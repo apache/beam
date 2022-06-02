@@ -44,7 +44,6 @@ allprojects {
 }
 
 dependencies {
-    implementation library.java.avro
     implementation library.java.cdap_api
     implementation library.java.cdap_api_commons
     implementation (library.java.cdap_common) {
@@ -52,6 +51,7 @@ dependencies {
     }
     implementation library.java.cdap_etl_api
     implementation library.java.cdap_etl_api_spark
+    implementation library.java.cdap_hydrator_common
     implementation library.java.hadoop_common
     implementation library.java.hadoop_mapred
     implementation library.java.jackson_core
@@ -61,6 +61,10 @@ dependencies {
     implementation library.java.spark_streaming
     implementation library.java.tephra
     implementation library.java.vendored_guava_26_0_jre
+    implementation "io.cdap.plugin:salesforce-plugins:1.5.0-SNAPSHOT"
+    implementation "io.cdap.plugin:servicenow-plugins:1.2.0-SNAPSHOT"
+    implementation "io.cdap:hubspot-plugins:1.0.0-SNAPSHOT"
+    implementation "io.cdap.plugin:zendesk-plugins:1.0.0-SNAPSHOT"
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(":sdks:java:io:hadoop-format")
     implementation project(":sdks:java:io:sparkreceiver")
