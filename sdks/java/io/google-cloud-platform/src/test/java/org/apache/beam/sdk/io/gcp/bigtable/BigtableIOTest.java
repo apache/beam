@@ -194,7 +194,7 @@ public class BigtableIOTest {
     defaultWrite = defaultWrite.withBigtableService(service);
     bigtableCoder = p.getCoderRegistry().getCoder(BIGTABLE_WRITE_TYPE);
 
-    config = BigtableConfig.builder().setValidate(true).setBigtableService(service).build();
+    config = BigtableConfig.builder().setValidate(true).setBulkMutationDataflowThrottling(false).setBigtableService(service).build();
   }
 
   private static ByteKey makeByteKey(ByteString key) {
@@ -1561,6 +1561,19 @@ public class BigtableIOTest {
     assertThat(
         options.getBulkOptions(), Matchers.equalTo(bulkOptionsBuilder.setUseBulkApi(true).build()));
     assertThat(options.getRetryOptions(), Matchers.equalTo(retryOptionsBuilder.build()));
+  }
+
+  @Test
+  public void testWriteWithEnabledBulkMutationDataflowThrottling() {
+    BigtableIO.Write write =
+        BigtableIO.write()
+            .withBigtableOptions(BIGTABLE_OPTIONS)
+            .withTableId("table")
+            .withInstanceId("instance")
+            .withProjectId("project")
+            .withBulkMutationDataflowThrottling();
+
+    assertTrue(write.isBulkMutationDataflowThrottlingEnabled());
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////

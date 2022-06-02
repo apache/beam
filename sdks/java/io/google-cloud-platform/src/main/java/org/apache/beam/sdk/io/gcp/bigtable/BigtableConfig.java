@@ -69,6 +69,9 @@ abstract class BigtableConfig implements Serializable {
   /** Bigtable emulator. Used only for testing. */
   abstract @Nullable String getEmulatorHost();
 
+  /** Reporting throttle time to Dataflow flag. */
+  abstract boolean getBulkMutationDataflowThrottling();
+
   abstract Builder toBuilder();
 
   static BigtableConfig.Builder builder() {
@@ -96,6 +99,8 @@ abstract class BigtableConfig implements Serializable {
     abstract Builder setBigtableService(BigtableService bigtableService);
 
     abstract Builder setEmulatorHost(String emulatorHost);
+
+    abstract Builder setBulkMutationDataflowThrottling(boolean isEnabled);
 
     abstract BigtableConfig build();
   }
@@ -142,6 +147,11 @@ abstract class BigtableConfig implements Serializable {
   BigtableConfig withEmulator(String emulatorHost) {
     checkArgument(emulatorHost != null, "emulatorHost can not be null");
     return toBuilder().setEmulatorHost(emulatorHost).build();
+  }
+
+  @VisibleForTesting
+  BigtableConfig withBulkMutationDataflowThrottling(boolean isEnabled) {
+    return toBuilder().setBulkMutationDataflowThrottling(true).build();
   }
 
   void validate() {
