@@ -19,7 +19,6 @@
 import io
 import math
 import os
-import pandas
 import pickle
 import platform
 import shutil
@@ -29,12 +28,13 @@ import unittest
 
 import joblib
 import numpy
+import pandas
 from sklearn import linear_model
 from sklearn import svm
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
 
 import apache_beam as beam
 from apache_beam.ml.inference import api

@@ -16,7 +16,6 @@
 #
 
 import enum
-import pandas
 import pickle
 import sys
 from typing import Any
@@ -25,6 +24,7 @@ from typing import List
 from typing import Union
 
 import numpy
+import pandas
 from sklearn.base import BaseEstimator
 
 from apache_beam.io.filesystems import FileSystems
