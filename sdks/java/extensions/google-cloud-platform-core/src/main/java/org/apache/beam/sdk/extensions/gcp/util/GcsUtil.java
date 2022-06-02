@@ -200,7 +200,8 @@ public class GcsUtil {
     return GLOB_PREFIX.matcher(spec.getObject()).matches();
   }
 
-  private GcsUtil(
+  @VisibleForTesting
+  GcsUtil(
       Storage storageClient,
       HttpRequestInitializer httpRequestInitializer,
       ExecutorService executorService,
@@ -220,7 +221,7 @@ public class GcsUtil {
             .setGrpcEnabled(shouldUseGrpc)
             .build();
     googleCloudStorage =
-        new GoogleCloudStorageImpl(googleCloudStorageOptions, storageClient, credentials);
+        createGoogleCloudStorage(googleCloudStorageOptions, storageClient, credentials);
     this.batchRequestSupplier =
         () -> {
           // Capture reference to this so that the most recent storageClient and initializer
@@ -557,7 +558,7 @@ public class GcsUtil {
     GoogleCloudStorageOptions newGoogleCloudStorageOptions =
         googleCloudStorageOptions.toBuilder().setWriteChannelOptions(wcOptions).build();
     GoogleCloudStorage gcpStorage =
-        new GoogleCloudStorageImpl(
+        createGoogleCloudStorage(
             newGoogleCloudStorageOptions, this.storageClient, this.credentials);
     StorageResourceId resourceId =
         new StorageResourceId(
@@ -597,6 +598,11 @@ public class GcsUtil {
       }
       throw e;
     }
+  }
+
+  GoogleCloudStorage createGoogleCloudStorage(
+      GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
+    return new GoogleCloudStorageImpl(options, storage, credentials);
   }
 
   /** Returns whether the GCS bucket exists and is accessible. */

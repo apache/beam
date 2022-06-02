@@ -642,6 +642,9 @@ class NullableCoder(FastCoder):
   def __hash__(self):
     return hash(type(self)) + hash(self._value_coder)
 
+  def __repr__(self):
+    return 'NullableCoder[%s]' % self._value_coder
+
 
 Coder.register_structured_urn(common_urns.coders.NULLABLE.urn, NullableCoder)
 

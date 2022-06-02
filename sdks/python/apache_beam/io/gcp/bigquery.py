@@ -834,7 +834,10 @@ class _CustomBigQuerySource(BoundedSource):
         self._setup_temporary_dataset(bq)
         self.table_reference = self._execute_query(bq)
 
-      if not self.table_reference.projectId:
+      if isinstance(self.table_reference, vp.ValueProvider):
+        self.table_reference = bigquery_tools.parse_table_reference(
+            self.table_reference.get(), project=self._get_project())
+      elif not self.table_reference.projectId:
         self.table_reference.projectId = self._get_project()
 
       schema, metadata_list = self._export_files(bq)
