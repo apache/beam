@@ -467,7 +467,6 @@ public class TableRowToStorageApiProto {
         break;
       case "DATE":
         if (value instanceof String) {
-          // '2011-12-03'
           return ((Long) LocalDate.parse((String) value).toEpochDay()).intValue();
         } else if (value instanceof LocalDate) {
           return ((Long) ((LocalDate) value).toEpochDay()).intValue();
@@ -522,7 +521,6 @@ public class TableRowToStorageApiProto {
         break;
       case "TIME":
         if (value instanceof String) {
-          // '10:15:30'
           return CivilTimeEncoder.encodePacked64TimeMicros(LocalTime.parse((String) value));
         } else if (value instanceof Number) {
           return ((Number) value).longValue();

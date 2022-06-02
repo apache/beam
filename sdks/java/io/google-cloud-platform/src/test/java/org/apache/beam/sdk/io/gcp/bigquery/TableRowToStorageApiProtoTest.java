@@ -83,9 +83,6 @@ public class TableRowToStorageApiProtoTest {
                           .setMode("REPEATED")
                           .setName("arrayValue"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampISOValue"))
-                  .add(new TableFieldSchema().setType("TIME").setName("timeISOValue"))
-                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimeISOValue"))
-                  .add(new TableFieldSchema().setType("DATE").setName("dateISOValue"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueLong"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpace"))
                   .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValueSpace"))
@@ -588,7 +585,7 @@ public class TableRowToStorageApiProtoTest {
           .put("arrayvalue", EXPECTED_PROTO_REPEATED_BYTES)
           .put("timestampisovalue", -3600000000L)
           .put("timestampvaluelong", 1234567000L)
-          .put("timestampvaluespace", 28800000343L)
+          .put("timestampvaluespace", 343L)
           .put("datetimevaluespace", 142111881387172416L)
           .build();
 
@@ -615,8 +612,8 @@ public class TableRowToStorageApiProtoTest {
           .put("arrayvalue", EXPECTED_PROTO_REPEATED_BYTES)
           .put("timestampisovalue", -3600000000L)
           .put("timestampvaluelong", 1234567000L)
-          .put("timestampvaluespace", 28800000343L)
-          .put("datetimevaluespace", 138630961515462656L)
+          .put("timestampvaluespace", 343L)
+          .put("datetimevaluespace", 142111881387172416L)
           .build();
 
   private void assertBaseRecord(DynamicMessage msg, boolean withF) {
