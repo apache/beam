@@ -114,7 +114,7 @@ class DataflowMetrics extends MetricResults {
       // Metric results have been cached after the job ran.
       return cachedMetricResults;
     }
-    JobMetrics result = dataflowClient.getJobMetrics(dataflowPipelineJob.jobId);
+    JobMetrics result = dataflowClient.getJobMetrics(dataflowPipelineJob.getJobId());
     if (dataflowPipelineJob.getState().isTerminal()) {
       // Add current query result to the cache.
       cachedMetricResults = result;
@@ -276,13 +276,13 @@ class DataflowMetrics extends MetricResults {
 
     private @Nullable String getNonPortableUserStepName(String internalStepName) {
       // If we can't translate internal step names to user step names, we just skip them altogether.
-      if (dataflowPipelineJob.transformStepNames == null) {
+      if (dataflowPipelineJob.getTransformStepNames() == null) {
         return null;
       }
 
       @Nullable
       AppliedPTransform<?, ?, ?> appliedPTransform =
-          dataflowPipelineJob.transformStepNames.inverse().get(internalStepName);
+          dataflowPipelineJob.getTransformStepNames().inverse().get(internalStepName);
       if (appliedPTransform == null) {
         return null;
       }
