@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Pipeline that uses RunInference API to perform classification task on imagenet dataset"""  # pylint: disable=line-too-long
+""""A pipeline that uses RunInference API to perform image classification."""
 
 import argparse
 import io
@@ -48,11 +48,10 @@ def read_image(image_file_name: str,
     return image_file_name, data
 
 
-def preprocess_image(data: Image) -> torch.Tensor:
+def preprocess_image(data: Image.Image) -> torch.Tensor:
   image_size = (224, 224)
-  # to use models in torch with imagenet weights,
-  # normalize the images using the below values.
-  # ref: https://pytorch.org/vision/stable/models.html#
+  # Pre-trained PyTorch models expect input images normalized the
+  # below values ref: https://pytorch.org/vision/stable/models.html#
   normalize = transforms.Normalize(
       mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
   transform = transforms.Compose([
@@ -79,10 +78,6 @@ def run_pipeline(options: PipelineOptions, args=None):
   # params for model class constructor. These values will be used in
   # RunInference API to instantiate the model object.
   model_params = {'num_classes': 1000}  # imagenet has 1000 classes.
-  # for this example, the pretrained weights are downloaded from
-  # "https://download.pytorch.org/models/mobilenet_v2-b0353104.pth"
-  # and saved on GCS bucket gs://apache-beam-ml/models/imagenet_classification_mobilenet_v2.pt,
-  # which will be used to load the model state_dict in the RunInference API.
   model_loader = PytorchModelLoader(
       state_dict_path=args.model_state_dict_path,
       model_class=model_class,
@@ -90,19 +85,19 @@ def run_pipeline(options: PipelineOptions, args=None):
   with beam.Pipeline(options=options) as p:
     filename_value_pair = (
         p
-        | 'Read from csv file' >> beam.io.ReadFromText(
+        | 'ReadImageNames' >> beam.io.ReadFromText(
             args.input, skip_header_lines=1)
-        | 'Parse and read files from the input_file' >> beam.Map(
+        | 'ReadImageData' >> beam.Map(
             partial(read_image, path_to_dir=args.images_dir))
-        | 'Preprocess images' >> beam.MapTuple(
+        | 'PreprocessImages' >> beam.MapTuple(
             lambda file_name, data: (file_name, preprocess_image(data))))
     predictions = (
         filename_value_pair
-        | 'PyTorch RunInference' >> RunInference(model_loader)
-        | 'Process output' >> beam.ParDo(PostProcessor()))
+        | 'PyTorchRunInference' >> RunInference(model_loader)
+        | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 
     if args.output:
-      predictions | "Write output to GCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
+      predictions | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
         args.output,
         shard_name_template='',
         append_trailing_newlines=True)
@@ -114,8 +109,9 @@ def parse_known_args(argv):
   parser.add_argument(
       '--input',
       dest='input',
-      required=True,
-      help='Path to the CSV file containing image names')
+      default='gs://apache-beam-ml/testing/inputs/'
+      'it_mobilenetv2_imagenet_validation_inputs.txt',
+      help='Path to the text file containing image names.')
   parser.add_argument(
       '--output',
       dest='output',
@@ -124,13 +120,14 @@ def parse_known_args(argv):
   parser.add_argument(
       '--model_state_dict_path',
       dest='model_state_dict_path',
-      required=True,
+      default=
+      'gs://apache-beam-ml/models/imagenet_classification_mobilenet_v2.pt',
       help='Path to load the model.')
   parser.add_argument(
       '--images_dir',
       default=None,
       help='Path to the directory where images are stored.'
-      'This is not required if the --input has absolute path to the images.')
+      'Not required if image names in the input file have absolute path.')
   return parser.parse_known_args(argv)
 
 
