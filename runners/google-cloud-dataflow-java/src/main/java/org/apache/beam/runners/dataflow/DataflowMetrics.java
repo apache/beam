@@ -40,6 +40,7 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -276,13 +277,15 @@ class DataflowMetrics extends MetricResults {
 
     private @Nullable String getNonPortableUserStepName(String internalStepName) {
       // If we can't translate internal step names to user step names, we just skip them altogether.
-      if (dataflowPipelineJob.getTransformStepNames() == null) {
+      BiMap<AppliedPTransform<?, ?, ?>, String> transformStepNames =
+          dataflowPipelineJob.getTransformStepNames();
+      if (transformStepNames == null) {
         return null;
       }
 
       @Nullable
       AppliedPTransform<?, ?, ?> appliedPTransform =
-          dataflowPipelineJob.getTransformStepNames().inverse().get(internalStepName);
+          transformStepNames.inverse().get(internalStepName);
       if (appliedPTransform == null) {
         return null;
       }
