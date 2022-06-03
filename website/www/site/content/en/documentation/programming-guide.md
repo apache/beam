@@ -6422,7 +6422,26 @@ resource utilization.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-11104.
+func (fn *splittableDoFn) ProcessElement(rt *sdf.LockRTracker, emit func(Record)) sdf.ProcessContinuation {
+  position := rt.GetRestriction().(offsetrange.Restriction).Start
+  for {
+    records, err := fn.ExternalService.readNextRecords(position)
+    if err == fn.ExternalService.ThrottlingErr {
+      return sdf.ResumeProcessingIn(60 * time.Seconds)
+    }
+    if len(records) == 0 {
+      return sdf.ResumeProcessingIn(10 * time.Seconds)
+    }
+    for _, record := range records {
+      if !rt.TryClaim(position) {
+        return sdf.StopProcessing()
+      }
+      position += 1
+
+      emit(record)
+    }
+  }
+}
 {{< /highlight >}}
 
 ### 12.4. Runner-initiated split {#runner-initiated-split}
