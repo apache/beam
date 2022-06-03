@@ -53,6 +53,7 @@ dependencies {
     exclude group: 'io.grpc', module: 'grpc-netty-shaded'
   }
   implementation library.java.gax_grpc_test
+  implementation library.java.jsonorg
   implementation library.java.gax_httpjson
   permitUnusedDeclared library.java.gax_httpjson // BEAM-8755
   implementation library.java.google_api_client
