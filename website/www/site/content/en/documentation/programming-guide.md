@@ -6422,34 +6422,7 @@ resource utilization.
 {{< /highlight >}}
 
 {{< highlight go >}}
-func (fn *splittableDoFn) ProcessElement(rt *sdf.LockRTracker, emit func(Record)) (sdf.ProcessContinuation, error) {
-  position := rt.GetRestriction().(offsetrange.Restriction).Start
-  for {
-    records, err := fn.ExternalService.readNextRecords(position)
-
-    if err != nil {
-      if err == fn.ExternalService.ThrottlingErr {
-        // Resume at a later time to avoid throttling.
-        return sdf.ResumeProcessingIn(60 * time.Seconds), nil
-      } 
-      return sdf.StopProcessing(), err
-    }
-
-    if len(records) == 0 {
-      // Wait for data to be available.
-      return sdf.ResumeProcessingIn(10 * time.Seconds), nil
-    }
-    for _, record := range records {
-      if !rt.TryClaim(position) {
-        // Records have been claimed, finish processing.
-        return sdf.StopProcessing(), nil
-      }
-      position += 1
-
-      emit(record)
-    }
-  }
-}
+{{< code_sample "sdks/go/examples/snippets/12splittabledofns.go" self_checkpoint>}}
 {{< /highlight >}}
 
 ### 12.4. Runner-initiated split {#runner-initiated-split}
