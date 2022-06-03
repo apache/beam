@@ -132,7 +132,6 @@ export class Worker {
   async process(request) {
     const descriptorId =
       request.request.processBundle.processBundleDescriptorId;
-    console.log("process", request.instructionId, descriptorId);
     try {
       if (!this.processBundleDescriptors.has(descriptorId)) {
         const call = this.controlClient.getProcessBundleDescriptor(
@@ -347,7 +346,7 @@ export class BundleProcessor {
 
   // Put this on a worker thread...
   async process(instructionId: string) {
-    console.log("Processing ", this.descriptor.id, "for", instructionId);
+    console.debug("Processing ", this.descriptor.id, "for", instructionId);
     this.currentBundleId = instructionId;
     // We must await these in reverse topological order.
     for (const o of this.topologicallyOrderedOperators.slice().reverse()) {
