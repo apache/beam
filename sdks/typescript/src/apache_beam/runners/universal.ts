@@ -35,7 +35,7 @@ export function universalRunner(runnerOptions: {
           "apache_beam.runners.portability.local_job_service_main",
           ["--port", "{{PORT}}"]
         )
-      ).runPipeline(pipeline, options);
+      ).runPipeline(pipeline, { directEmbedDockerPython: true, ...options });
     }
   })();
 }
