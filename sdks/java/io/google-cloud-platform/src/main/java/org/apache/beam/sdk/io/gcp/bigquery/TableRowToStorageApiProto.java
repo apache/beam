@@ -41,7 +41,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -505,7 +504,8 @@ public class TableRowToStorageApiProto {
         if (value instanceof String) {
           try {
             // '2011-12-03T10:15:30'
-            return CivilTimeEncoder.encodePacked64DatetimeMicros(LocalDateTime.parse((String) value));
+            return CivilTimeEncoder.encodePacked64DatetimeMicros(
+                LocalDateTime.parse((String) value));
           } catch (DateTimeParseException e2) {
             // '2011-12-03 10:15:30'
             return CivilTimeEncoder.encodePacked64DatetimeMicros(
