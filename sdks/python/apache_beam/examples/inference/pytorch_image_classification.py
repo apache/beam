@@ -21,12 +21,10 @@ import argparse
 import io
 import os
 from functools import partial
-from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Tuple
-from typing import Union
 
 import apache_beam as beam
 import torch
@@ -65,9 +63,7 @@ def preprocess_image(data: Image.Image) -> torch.Tensor:
 
 
 class PostProcessor(beam.DoFn):
-  def process(
-      self, element: Union[PredictionResult, Tuple[Any, PredictionResult]]
-  ) -> Iterable[str]:
+  def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
     filename, prediction_result = element
     prediction = torch.argmax(prediction_result.inference, dim=0)
     yield filename + ',' + str(prediction.item())
@@ -108,7 +104,8 @@ def run_pipeline(
             lambda file_name, data: (file_name, preprocess_image(data))))
     predictions = (
         filename_value_pair
-        | 'PyTorchRunInference' >> RunInference(model_loader)
+        | 'PyTorchRunInference' >> RunInference(model_loader).with_output_types(
+            Tuple[str, PredictionResult])
         | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 
     if args.output:
