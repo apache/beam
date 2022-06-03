@@ -27,7 +27,7 @@ def inferenceBenchmarkJob = { scope ->
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 480)
 
   // Gradle job for this job
-   scope.steps {
+  scope.steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       commonJobProperties.setGradleSwitches(delegate)
