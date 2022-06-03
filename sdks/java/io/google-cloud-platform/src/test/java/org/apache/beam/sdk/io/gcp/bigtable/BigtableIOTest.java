@@ -302,7 +302,7 @@ public class BigtableIOTest {
     FailureBigtableService failureService =
         new FailureBigtableService(FailureOptions.builder().setFailAtStart(true).build());
     BigtableConfig failureConfig =
-        BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
+        BigtableConfig.builder().setValidate(true).setBulkMutationDataflowThrottling(true).setBigtableService(failureService).build();
     final String table = "TEST-TABLE";
     final int numRows = 100;
     makeTableData(failureService, table, numRows);
@@ -324,7 +324,7 @@ public class BigtableIOTest {
     FailureBigtableService failureService =
         new FailureBigtableService(FailureOptions.builder().setFailAtAdvance(true).build());
     BigtableConfig failureConfig =
-        BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
+        BigtableConfig.builder().setValidate(true).setBulkMutationDataflowThrottling(true).setBigtableService(failureService).build();
     final String table = "TEST-TABLE";
     final int numRows = 100;
     makeTableData(failureService, table, numRows);
@@ -796,7 +796,7 @@ public class BigtableIOTest {
     FailureBigtableService failureService =
         new FailureBigtableService(FailureOptions.builder().setFailAtSplit(true).build());
     BigtableConfig failureConfig =
-        BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
+        BigtableConfig.builder().setValidate(true).setBulkMutationDataflowThrottling(true).setBigtableService(failureService).build();
 
     final String table = "TEST-MANY-ROWS-SPLITS-TABLE";
     final int numRows = 1500;
