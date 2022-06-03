@@ -19,6 +19,7 @@ import (
 	"flag"
 	"log"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
@@ -48,10 +49,13 @@ func TestBigQueryIO_BasicWriteRead(t *testing.T) {
 	}
 	t.Logf("Created BigQuery table %v", table)
 
+	createTestRows := &CreateTestRowsFn{seed: time.Now().UnixNano()}
 	write := WritePipeline(expansionAddr, table, createTestRows)
 	ptest.RunAndValidate(t, write)
 	read := ReadPipeline(expansionAddr, table, createTestRows)
 	ptest.RunAndValidate(t, read)
+	readQuery := ReadFromQueryPipeline(expansionAddr, table, createTestRows)
+	ptest.RunAndValidate(t, readQuery)
 
 	t.Logf("Deleting BigQuery table %v", table)
 	err = deleteTempTable(table)

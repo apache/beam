@@ -17,10 +17,10 @@
 package bigquery
 
 import (
+	"fmt"
 	"math/rand"
 	"reflect"
 	"strings"
-	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigqueryio"
@@ -28,9 +28,11 @@ import (
 )
 
 func init() {
-	beam.RegisterFunction(createTestRows)
+	beam.RegisterType(reflect.TypeOf((*CreateTestRowsFn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*TestRow)(nil)))
 	beam.RegisterType(reflect.TypeOf((*RandData)(nil)))
+	beam.RegisterType(reflect.TypeOf((*TestRowPtrs)(nil)))
+	beam.RegisterType(reflect.TypeOf((*RandDataPtrs)(nil)))
 }
 
 const (
@@ -69,9 +71,14 @@ const ddlTestRowSchema = "counter INT64 NOT NULL, " +
 	"word STRING NOT NULL" +
 	"> NOT NULL"
 
-// createTestRows creates a number of TestRows, populating the randomized data.
-func createTestRows(_ []byte, emit func(TestRow)) {
-	rand.Seed(time.Now().UnixNano())
+// CreateTestRowsFn is a DoFn that creates randomized TestRows based on a seed.
+type CreateTestRowsFn struct {
+	seed int64
+}
+
+// ProcessElement creates a number of TestRows, populating the randomized data.
+func (fn *CreateTestRowsFn) ProcessElement(_ []byte, emit func(TestRow)) {
+	rand.Seed(fn.seed)
 	words := shuffleText()
 	for i := 0; i < inputSize; i++ {
 		emit(TestRow{
@@ -85,6 +92,7 @@ func createTestRows(_ []byte, emit func(TestRow)) {
 	}
 }
 
+// WritePipeline creates a pipeline that writes elements created by createFn into a BigQuery table.
 func WritePipeline(expansionAddr, table string, createFn interface{}) *beam.Pipeline {
 	p := beam.NewPipeline()
 	s := p.Root()
@@ -98,6 +106,8 @@ func WritePipeline(expansionAddr, table string, createFn interface{}) *beam.Pipe
 	return p
 }
 
+// ReadPipeline creates a pipeline that reads elements directly from a BigQuery table and asserts
+// that they match elements created by createFn.
 func ReadPipeline(expansionAddr, table string, createFn interface{}) *beam.Pipeline {
 	p := beam.NewPipeline()
 	s := p.Root()
@@ -109,6 +119,49 @@ func ReadPipeline(expansionAddr, table string, createFn interface{}) *beam.Pipel
 		bigqueryio.FromTable(table),
 		bigqueryio.ReadExpansionAddr(expansionAddr))
 	passert.Equals(s, readRows, rows)
+
+	return p
+}
+
+// TestRowPtrs is equivalent to TestRow but all fields are pointers, meant to be used when reading
+// via query.
+type TestRowPtrs struct {
+	Counter   *int64        `beam:"counter"`
+	Rand_data *RandDataPtrs `beam:"rand_data"`
+}
+
+// RandDataPtrs is equivalent to RandData but all fields are pointers, meant to be used when reading
+// via query.
+type RandDataPtrs struct {
+	Flip *bool   `beam:"flip"`
+	Num  *int64  `beam:"num"`
+	Word *string `beam:"word"`
+}
+
+// ReadPipeline creates a pipeline that reads elements from a BigQuery table via a SQL Query, and
+// asserts that they match elements created by createFn.
+func ReadFromQueryPipeline(expansionAddr, table string, createFn interface{}) *beam.Pipeline {
+	p := beam.NewPipeline()
+	s := p.Root()
+
+	// Read from table and compare to generated elements.
+	rows := beam.ParDo(s, createFn, beam.Impulse(s))
+	inType := reflect.TypeOf((*TestRowPtrs)(nil)).Elem()
+	query := fmt.Sprintf("SELECT * FROM `%s`", table)
+	readRows := bigqueryio.Read(s, inType,
+		bigqueryio.FromQuery(query),
+		bigqueryio.ReadExpansionAddr(expansionAddr))
+	castRows := beam.ParDo(s, func(elm TestRowPtrs) TestRow {
+		return TestRow{
+			Counter: *elm.Counter,
+			Rand_data: RandData{
+				Flip: *elm.Rand_data.Flip,
+				Num:  *elm.Rand_data.Num,
+				Word: *elm.Rand_data.Word,
+			},
+		}
+	}, readRows)
+	passert.Equals(s, castRows, rows)
 
 	return p
 }
