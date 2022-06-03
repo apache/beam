@@ -15,8 +15,6 @@
 
 package nativepubsubio
 
-import "math"
-
 // The SubscriptionRTracker maintains a single entry string to keep up with
 // the PubSub subscription being used in the NativeRead SDF.
 type SubscriptionRTracker struct {
@@ -41,7 +39,7 @@ func (s *SubscriptionRTracker) TryClaim(pos interface{}) bool {
 // to the residual in the checkpointing case, marking itself as done to keep the logical checks
 // around SDF data loss happy.
 func (s *SubscriptionRTracker) TrySplit(frac float64) (primary, residual interface{}, err error) {
-	if math.Abs(frac-0.000) < 0.0001 {
+	if frac == 0.0 {
 		resid := s.Subscription
 		s.Subscription = ""
 		s.Done = true
