@@ -22,7 +22,9 @@ import io
 import os
 from functools import partial
 from typing import Any
+from typing import Dict
 from typing import Iterable
+from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -40,7 +42,7 @@ from torchvision.models.mobilenetv2 import MobileNetV2
 
 
 def read_image(image_file_name: str,
-               path_to_dir: str = None) -> Tuple[str, Image.Image]:
+               path_to_dir: Optional[str] = None) -> Tuple[str, Image.Image]:
   if path_to_dir is not None:
     image_file_name = os.path.join(path_to_dir, image_file_name)
   with FileSystems().open(image_file_name, 'r') as file:
@@ -71,17 +73,30 @@ class PostProcessor(beam.DoFn):
     yield filename + ',' + str(prediction.item())
 
 
-def run_pipeline(options: PipelineOptions, args=None):
-  """Sets up PyTorch RunInference pipeline"""
-  # reference to the class definition of the model.
-  model_class = MobileNetV2
-  # params for model class constructor. These values will be used in
-  # RunInference API to instantiate the model object.
-  model_params = {'num_classes': 1000}  # imagenet has 1000 classes.
+def run_pipeline(
+    options: PipelineOptions,
+    model_class: Optional[torch.nn.Module],
+    model_params: Optional[Dict],
+    args=None):
+  """
+  Args:
+    options: options used to set up the pipeline.
+    model_class: Reference to the class definition of the model.
+                If None, MobilenetV2 will be used as default .
+    model_params: Parameters passed to the constructor of the model_class.
+                  These will be used to instantiate the model object in the
+                  RunInference API.
+    args: Command line arguments defined for this example.
+  """
+  if not model_class:
+    model_class = MobileNetV2
+    model_params = {'num_classes': 1000}
+
   model_loader = PytorchModelLoader(
       state_dict_path=args.model_state_dict_path,
       model_class=model_class,
       model_params=model_params)
+
   with beam.Pipeline(options=options) as p:
     filename_value_pair = (
         p
@@ -120,9 +135,10 @@ def parse_known_args(argv):
   parser.add_argument(
       '--model_state_dict_path',
       dest='model_state_dict_path',
-      default=
-      'gs://apache-beam-ml/models/imagenet_classification_mobilenet_v2.pt',
-      help='Path to load the model.')
+      default='gs://apache-beam-ml/'
+      'models/imagenet_classification_mobilenet_v2.pt',
+      help='Path to load the model\'s state_dict. '
+      'Default state_dict would be MobilenetV2.')
   parser.add_argument(
       '--images_dir',
       default=None,
@@ -131,12 +147,16 @@ def parse_known_args(argv):
   return parser.parse_known_args(argv)
 
 
-def run(argv=None, save_main_session=True):
+def run(argv=None, save_main_session=True, model_class=None, model_params=None):
   """Entry point. Defines and runs the pipeline."""
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
-  run_pipeline(pipeline_options, args=known_args)
+  run_pipeline(
+      pipeline_options,
+      args=known_args,
+      model_class=model_class,
+      model_params=model_params)
 
 
 if __name__ == '__main__':
