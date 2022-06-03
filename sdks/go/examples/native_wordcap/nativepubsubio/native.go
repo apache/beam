@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pubsubio
+package nativepubsubio
 
 import (
 	"context"
@@ -25,8 +25,15 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/pubsubx"
 )
+
+func init() {
+	register.DoFn4x2[beam.BundleFinalization, *sdf.LockRTracker, []byte, func(beam.EventTime, []byte), sdf.ProcessContinuation, error](&PubSubRead{})
+	register.DoFn1x1[[]byte, error](&PubSubWrite{})
+	register.Emitter2[beam.EventTime, []byte]()
+}
 
 // PubSubRead is a structural DoFn representing a read from a given subscription ID.
 type PubSubRead struct {
