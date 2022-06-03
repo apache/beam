@@ -218,5 +218,13 @@
   "multifileWarning": "Multifile not supported yet for running in playground. Open it on github.",
   "@multifileWarning": {
     "description": "Multifile not supported text"
+  },
+  "displayAtThisTab": "Display at this tab",
+  "@displayAtThisTab": {
+    "description": "Description for the output filter popover"
+  },
+  "result": "Result",
+  "@result": {
+    "description": "Name for the output tab"
   }
 }
