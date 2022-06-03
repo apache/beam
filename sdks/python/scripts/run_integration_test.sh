@@ -219,11 +219,11 @@ if [[ -z $PIPELINE_OPTS ]]; then
   # pyhamcrest==1.10.0 doesn't work on Py2.
   # See: https://github.com/hamcrest/PyHamcrest/issues/131.
   if [[ -z $REQUIREMENTS_FILE ]]; then
-    echo "pyhamcrest!=1.10.0,<2.0.0" > postcommit_requirements
-    echo "mock<3.0.0" >> postcommit_requirements
-    echo "parameterized>=0.7.1,<0.8.0" >> postcommit_requirements
+    echo "pyhamcrest!=1.10.0,<2.0.0" > postcommit_requirements.txt
+    echo "mock<3.0.0" >> postcommit_requirements.txt
+    echo "parameterized>=0.7.1,<0.8.0" >> postcommit_requirements.txt
   else
-    cp $REQUIREMENTS_FILE postcommit_requirements
+    cp $REQUIREMENTS_FILE postcommit_requirements.txt
   fi
 
   # Options used to run testing pipeline on Cloud Dataflow Service. Also used for
@@ -236,7 +236,7 @@ if [[ -z $PIPELINE_OPTS ]]; then
     "--temp_location=$GCS_LOCATION/temp-it"
     "--output=$GCS_LOCATION/py-it-cloud/output"
     "--sdk_location=$SDK_LOCATION"
-    "--requirements_file=postcommit_requirements"
+    "--requirements_file=postcommit_requirements.txt"
     "--num_workers=$NUM_WORKERS"
     "--sleep_secs=$SLEEP_SECS"
   )
