@@ -40,6 +40,10 @@ import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.ReadStream;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -127,8 +131,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -2925,8 +2927,8 @@ public class BigQueryIO {
 
         // Batch load jobs currently support JSON data insertion only with CSV files
         if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
-          JSONObject schema = new JSONObject(getJsonSchema().get());
-          if (!schema.isEmpty()) {
+          JsonElement schema = JsonParser.parseString(getJsonSchema().get());
+          if (!schema.getAsJsonObject().keySet().isEmpty()) {
             validateNoJsonTypeInSchema(schema);
           }
         }
@@ -3011,20 +3013,25 @@ public class BigQueryIO {
       }
     }
 
-    private void validateNoJsonTypeInSchema(JSONObject schema) {
-      JSONArray fields = schema.getJSONArray("fields");
+    private void validateNoJsonTypeInSchema(JsonElement schema) {
+      JsonElement fields = schema.getAsJsonObject().get("fields");
+      if (!fields.isJsonArray() || fields.getAsJsonArray().isEmpty()) {
+        return;
+      }
 
-      for (int i = 0; i < fields.length(); i++) {
-        JSONObject field = fields.getJSONObject(i);
+      JsonArray fieldArray = fields.getAsJsonArray();
+
+      for (int i = 0; i < fieldArray.size(); i++) {
+        JsonObject field = fieldArray.get(i).getAsJsonObject();
         checkArgument(
-            !field.getString("type").equals("JSON"),
+            !field.get("type").getAsString().equals("JSON"),
             "Found JSON type in TableSchema. JSON data insertion is currently "
                 + "not supported with 'FILE_LOADS' write method. This is supported with the "
                 + "other write methods, however. For more information, visit: "
                 + "https://cloud.google.com/bigquery/docs/reference/standard-sql/"
                 + "json-data#ingest_json_data");
 
-        if (field.getString("type").equals("STRUCT")) {
+        if (field.get("type").getAsString().equals("STRUCT")) {
           validateNoJsonTypeInSchema(field);
         }
       }
