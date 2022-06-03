@@ -13,6 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package nativepubsubio contains a Golang implementation of streaming reads
+// and writes to PubSub. This is not as fully featured as the cross-language
+// pubsubio package present in the Beam Go repository and should not be used
+// in place of it.
 package nativepubsubio
 
 import (

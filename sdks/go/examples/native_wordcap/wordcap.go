@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// streaming_wordcap is a toy streaming pipeline that uses PubSub. It
+// native_wordcap is a toy streaming pipeline that uses PubSub. It
 // does the following:
 //    (1) create a topic and publish a few messages to it
 //    (2) start a streaming pipeline that converts the messages to
