@@ -54,7 +54,7 @@ sdks/python/README.md
 sdks/python/apache_beam/portability/api/*
 sdks/python/nosetests*.xml
 sdks/python/pytest*.xml
-sdks/python/requirements.txt
+sdks/python/postcommit_requirements.txt
 sdks/python/.coverage
 sdks/python/coverage.xml
 
