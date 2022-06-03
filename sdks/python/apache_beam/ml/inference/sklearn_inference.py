@@ -84,7 +84,8 @@ class SklearnInferenceRunner(InferenceRunner[Union[numpy.ndarray,
     if isinstance(batch[0], numpy.ndarray):
       return sum(sys.getsizeof(element) for element in batch)
     elif isinstance(batch[0], pandas.DataFrame):
-      return sum(df.memory_usage(deep=True).sum() for df in batch)
+      data_frames: List[pandas.DataFrame] = batch
+      return sum(df.memory_usage(deep=True).sum() for df in data_frames)
     raise ValueError('Unsupported data type.')
 
 
