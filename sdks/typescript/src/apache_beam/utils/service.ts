@@ -44,11 +44,47 @@ export class ExternalService implements Service {
   async stop() {}
 }
 
+class SubprocessServiceCache {
+  parent?: SubprocessServiceCache;
+  services: Map<string, SubprocessService> = new Map();
+
+  constructor(parent: SubprocessServiceCache | undefined = undefined) {
+    this.parent = parent;
+  }
+
+  put(key: string, service: SubprocessService) {
+    this.services.set(key, service);
+  }
+
+  get(key: string): SubprocessService | undefined {
+    if (this.services.has(key)) {
+      return this.services.get(key);
+    } else if (this.parent) {
+      return this.parent?.get(key);
+    } else {
+      return undefined;
+    }
+  }
+
+  async stopAll() {
+    await Promise.all(
+      [...this.services.values()].map((service) => {
+        service.cached = false;
+        return service.stop();
+      })
+    );
+  }
+}
+
 export class SubprocessService {
+  static cache?: SubprocessServiceCache = undefined;
+
   process: ChildProcess;
   cmd: string;
   args: string[];
   name: string;
+  address?: string;
+  cached: boolean;
 
   constructor(
     cmd: string,
@@ -70,7 +106,25 @@ export class SubprocessService {
     });
   }
 
-  async start() {
+  static createCache(): SubprocessServiceCache {
+    SubprocessService.cache = new SubprocessServiceCache(
+      SubprocessService.cache
+    );
+    return this.cache!;
+  }
+
+  key(): string {
+    return this.cmd + "\0" + this.args.join("\0");
+  }
+
+  async start(): Promise<string> {
+    if (SubprocessService.cache) {
+      const started = SubprocessService.cache.get(this.key());
+      if (started) {
+        this.cached = true;
+        return started.address!;
+      }
+    }
     const host = "localhost";
     const port = (await SubprocessService.freePort()).toString();
     console.debug(
@@ -96,11 +150,23 @@ export class SubprocessService {
       throw error;
     }
 
-    return host + ":" + port;
+    this.address = host + ":" + port;
+
+    if (SubprocessService.cache) {
+      SubprocessService.cache.put(this.key(), this);
+      this.cached = true;
+    } else {
+      this.cached = false;
+    }
+    return this.address!;
   }
 
   async stop() {
+    if (this.cached) {
+      return;
+    }
     console.log(`Tearing down ${this.name}.`);
+    this.address = undefined;
     this.process.kill();
   }
 
@@ -138,12 +204,23 @@ export class SubprocessService {
 export function serviceProviderFromJavaGradleTarget(
   gradleTarget: string,
   args: string[] | undefined = undefined
-): () => Promise<JavaJarService> {
+): () => Promise<Service> {
   return async () => {
-    return new JavaJarService(
-      await JavaJarService.cachedJar(JavaJarService.gradleToJar(gradleTarget)),
-      args
-    );
+    let jar: string;
+    const serviceInfo = serviceOverrideFor(gradleTarget);
+    if (serviceInfo) {
+      if (serviceInfo.match(/^[a-zA-Z0-9.]+:[0-9]+$/)) {
+        return new ExternalService(serviceInfo);
+      } else {
+        jar = serviceInfo;
+      }
+    } else {
+      jar = await JavaJarService.cachedJar(
+        JavaJarService.gradleToJar(gradleTarget)
+      );
+    }
+
+    return new JavaJarService(jar, args, gradleTarget);
   };
 }
 
@@ -154,12 +231,16 @@ export class JavaJarService extends SubprocessService {
   static BEAM_GROUP_ID = "org.apache.beam";
   static JAR_CACHE = path.join(BEAM_CACHE, "jars");
 
-  constructor(jar: string, args: string[] | undefined = undefined) {
-    if (args === null || args === undefined) {
+  constructor(
+    jar: string,
+    args: string[] | undefined = undefined,
+    name: string | undefined = undefined
+  ) {
+    if (!args) {
       // TODO: (Extension) Should filesToStage be set at some higher level?
       args = ["{{PORT}}", "--filesToStage=" + jar];
     }
-    super("java", ["-jar", jar].concat(args));
+    super("java", ["-jar", jar].concat(args), name);
   }
 
   static async cachedJar(
@@ -326,7 +407,54 @@ export class PythonService extends SubprocessService {
     }
   }
 
-  constructor(module: string, args: string[] = []) {
-    super(PythonService.beamPython(), ["-u", "-m", module].concat(args));
+  static forModule(module: string, args: string[] = []): Service {
+    let pythonExecutable: string;
+    let serviceInfo = serviceOverrideFor("python:" + module);
+    if (!serviceInfo) {
+      serviceInfo = serviceOverrideFor("python:*");
+    }
+    if (serviceInfo) {
+      if (serviceInfo.match(/^[a-zA-Z0-9.]+:[0-9]+$/)) {
+        return new ExternalService(serviceInfo);
+      } else {
+        pythonExecutable = serviceInfo;
+      }
+    } else {
+      pythonExecutable = PythonService.beamPython();
+    }
+    return new PythonService(pythonExecutable, module, args);
+  }
+
+  private constructor(
+    pythonExecutablePath: string,
+    module: string,
+    args: string[] = []
+  ) {
+    super(pythonExecutablePath, ["-u", "-m", module].concat(args), module);
+  }
+}
+
+/**
+ * Allows one to specify alternatives for auto-started services by specifying
+ * an environment variable. For example,
+ *
+ * export BEAM_SERVICE_OVERRIDES='{
+ *   "python:apache_beam.runners.portability.expansion_service_main":
+ *       "localhost:port",
+ *   "python:*": "/path/to/dev/venv/bin/python",
+ *   "sdks:java:extensions:sql:expansion-service:shadowJar": "/path/to/jar"
+ * }'
+ *
+ * would use the address localhost:port any time the Python service at
+ * apache_beam.runners.portability.expansion_service_main was requested,
+ * use the binary at /path/to/dev/venv/bin/python for starting up all other
+ * services, and use /path/to/jar when the gradle target
+ * sdks:java:extensions:sql:expansion-service:shadowJar was requested.
+ *
+ * This is primarily for testing.
+ */
+function serviceOverrideFor(name: string): string | undefined {
+  if (process.env.BEAM_SERVICE_OVERRIDES) {
+    return JSON.parse(process.env.BEAM_SERVICE_OVERRIDES)[name];
   }
 }

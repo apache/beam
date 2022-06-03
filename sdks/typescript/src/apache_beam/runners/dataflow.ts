@@ -34,10 +34,10 @@ export function dataflowRunner(runnerOptions: {
     ): Promise<PipelineResult> {
       return new PortableRunner(
         runnerOptions as any,
-        new PythonService("apache_beam.runners.dataflow.dataflow_job_service", [
-          "--port",
-          "{{PORT}}",
-        ])
+        PythonService.forModule(
+          "apache_beam.runners.dataflow.dataflow_job_service",
+          ["--port", "{{PORT}}"]
+        )
       ).runPipeline(pipeline, options);
     }
   })();
