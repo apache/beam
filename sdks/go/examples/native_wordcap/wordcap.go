@@ -28,7 +28,6 @@ import (
 	"os"
 	"strings"
 
-	"cloud.google.com/go/pubsub"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/stringx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/pubsubio"
@@ -40,8 +39,7 @@ import (
 )
 
 var (
-	input          = flag.String("input", os.ExpandEnv("$USER-wordcap"), "Pubsub input topic.")
-	subscriptionId = flag.String("subscription_id", os.ExpandEnv("$USER-native-wordcap"), "PubSub subscription name (optional.)")
+	input = flag.String("input", os.ExpandEnv("$USER-wordcap"), "Pubsub input topic.")
 )
 
 var (
@@ -59,26 +57,18 @@ func main() {
 	ctx := context.Background()
 	project := gcpopts.GetProject(ctx)
 
-	client, err := pubsub.NewClient(ctx, project)
-	if err != nil {
-		log.Fatal(ctx, err)
-	}
-
 	defer pubsubx.CleanupTopic(ctx, project, *input)
-	_, err = pubsubx.EnsureTopic(ctx, client, *input)
+	sub, err := pubsubx.Publish(ctx, project, *input, data...)
 	if err != nil {
 		log.Fatal(ctx, err)
 	}
 
-	log.Infof(ctx, "Running streaming native wordcap with subscription: %v", *subscriptionId)
+	log.Infof(ctx, "Running streaming native wordcap with subscription: %v", sub.ID())
 
 	p := beam.NewPipeline()
 	s := p.Root()
-	stringCol := beam.CreateList(s, data)
-	bytesCol := beam.ParDo(s, stringx.ToBytes, stringCol)
-	pubsubio.NativeWrite(s, bytesCol, project, *input)
 
-	col := pubsubio.NativeRead(s, project, *input, *subscriptionId)
+	col := pubsubio.NativeRead(s, project, *input, sub.ID())
 	str := beam.ParDo(s, stringx.FromBytes, col)
 	cap := beam.ParDo(s, strings.ToUpper, str)
 	debug.Print(s, cap)

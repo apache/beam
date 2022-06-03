@@ -24,7 +24,6 @@ import (
 	"cloud.google.com/go/pubsub"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/pubsubx"
 )
@@ -85,12 +84,13 @@ func (r *PubSubRead) SplitRestriction(_ []byte, rest string) []string {
 // ProcessElement initializes a PubSub client if one has not been created already, reads from the PubSub subscription,
 // and emits elements as it reads them. If no messages are available, the DoFn will schedule itself to resume processing
 // later. If polling the subscription returns an error, the error will be logged and the DoFn will not reschedule itself.
-func (r *PubSubRead) ProcessElement(bf beam.BundleFinalization, rt *sdf.LockRTracker, _ []byte, emit func([]byte, typex.EventTime)) (sdf.ProcessContinuation, error) {
+func (r *PubSubRead) ProcessElement(bf beam.BundleFinalization, rt *sdf.LockRTracker, _ []byte, emit func(beam.EventTime, []byte)) (sdf.ProcessContinuation, error) {
 	// Register finalization callback
 	bf.RegisterCallback(5*time.Minute, func() error {
 		for _, m := range r.ProcessedMessages {
 			m.Ack()
 		}
+		r.ProcessedMessages = []*pubsub.Message{}
 		return nil
 	})
 
@@ -118,7 +118,6 @@ func (r *PubSubRead) ProcessElement(bf beam.BundleFinalization, rt *sdf.LockRTra
 		go func(sendch chan<- *pubsub.Message) {
 			err := sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
 				messChan <- m
-				m.Ack()
 			})
 			if (err != nil) && (err != context.Canceled) {
 				log.Errorf(ctx, "error reading from PubSub: %v, stopping processing", err)
@@ -138,7 +137,7 @@ func (r *PubSubRead) ProcessElement(bf beam.BundleFinalization, rt *sdf.LockRTra
 					return sdf.StopProcessing(), nil
 				}
 				r.ProcessedMessages = append(r.ProcessedMessages, m)
-				emit(m.Data, typex.EventTime(m.PublishTime.UnixMilli()))
+				emit(beam.EventTime(m.PublishTime.UnixMilli()), m.Data)
 			default:
 				log.Debug(context.Background(), "cancelling receive context, scheduling resumption")
 				cFn()
