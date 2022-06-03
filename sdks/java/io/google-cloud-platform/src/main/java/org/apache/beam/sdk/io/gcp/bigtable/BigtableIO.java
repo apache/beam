@@ -573,7 +573,11 @@ public class BigtableIO {
       return getBigtableConfig().getBigtableOptions();
     }
 
-    // TODO (diegomez17): Add comment here
+    /**
+     * Returns whether client's throttle time is being passed to Dataflow for bulk mutations
+     *
+     * <p>This change is experimental and may be changed and relocated in the future
+     */
     public boolean isBulkMutationDataflowThrottlingEnabled() {
       return getBigtableConfig().getBulkMutationDataflowThrottling();
     }
