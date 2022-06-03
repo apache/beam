@@ -134,8 +134,8 @@ def parse_known_args(argv):
       dest='model_state_dict_path',
       default='gs://apache-beam-ml/'
       'models/imagenet_classification_mobilenet_v2.pt',
-      help='Path to load the model\'s state_dict. '
-      'Default state_dict would be MobilenetV2.')
+      help="Path to load the model's state_dict. "
+      "Default state_dict would be MobilenetV2.")
   parser.add_argument(
       '--images_dir',
       default=None,
