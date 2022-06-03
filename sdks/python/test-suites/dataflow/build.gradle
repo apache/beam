@@ -84,3 +84,10 @@ task examplesPostCommit {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:examples")
   }
 }
+
+//  TODO: Add all the inference benchmarks here.
+task inferenceBenchmarkTests {
+  getVersionsAsList('run_inference_tests').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:torchBenchmarkTests")
+  }
+}
