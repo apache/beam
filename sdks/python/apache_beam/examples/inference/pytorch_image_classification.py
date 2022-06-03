@@ -50,8 +50,8 @@ def read_image(image_file_name: str,
 
 def preprocess_image(data: Image.Image) -> torch.Tensor:
   image_size = (224, 224)
-  # Pre-trained PyTorch models expect input images normalized the
-  # below values ref: https://pytorch.org/vision/stable/models.html#
+  # Pre-trained PyTorch models expect input images normalized with the
+  # below values (see: https://pytorch.org/vision/stable/models.html)
   normalize = transforms.Normalize(
       mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
   transform = transforms.Compose([
@@ -127,14 +127,14 @@ def parse_known_args(argv):
   parser.add_argument(
       '--output',
       dest='output',
-      help='Predictions are saved to the output'
+      help='Path where to save output predictions.'
       ' text file.')
   parser.add_argument(
       '--model_state_dict_path',
       dest='model_state_dict_path',
       default='gs://apache-beam-ml/'
       'models/imagenet_classification_mobilenet_v2.pt',
-      help="Path to load the model's state_dict. "
+      help="Path to the model's state_dict. "
       "Default state_dict would be MobilenetV2.")
   parser.add_argument(
       '--images_dir',
