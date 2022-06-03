@@ -247,7 +247,11 @@ public class BigtableIO {
 
     static Read create() {
       BigtableConfig config =
-          BigtableConfig.builder().setTableId(StaticValueProvider.of("")).setValidate(true).setBulkMutationDataflowThrottling(false).build();
+          BigtableConfig.builder()
+              .setTableId(StaticValueProvider.of(""))
+              .setValidate(true)
+              .setBulkMutationDataflowThrottling(false)
+              .build();
 
       return new AutoValue_BigtableIO_Read.Builder()
           .setBigtableConfig(config)
@@ -870,13 +874,17 @@ public class BigtableIO {
                 }
               });
       if (config.getBulkMutationDataflowThrottling()) {
-        long newAggregatedThrottleTime = TimeUnit.NANOSECONDS.toMillis(ResourceLimiterStats.getInstance(
-                new BigtableInstanceName(config.getProjectId().get(), config.getInstanceId().get()))
-            .getCumulativeThrottlingTimeNanos());
+        long newAggregatedThrottleTime =
+            TimeUnit.NANOSECONDS.toMillis(
+                ResourceLimiterStats.getInstance(
+                        new BigtableInstanceName(
+                            config.getProjectId().get(), config.getInstanceId().get()))
+                    .getCumulativeThrottlingTimeNanos());
         long lastAggregatedThrottleTimeBeforeUpdate = lastAggregatedThrottleTime.get();
-        long newThrottleTimeDelta = lastAggregatedThrottleTime.updateAndGet(
-            l -> newAggregatedThrottleTime) - lastAggregatedThrottleTimeBeforeUpdate;
-        if(newThrottleTimeDelta > 0) {
+        long newThrottleTimeDelta =
+            lastAggregatedThrottleTime.updateAndGet(l -> newAggregatedThrottleTime)
+                - lastAggregatedThrottleTimeBeforeUpdate;
+        if (newThrottleTimeDelta > 0) {
           cumulativeThrottlingMilliseconds.inc(newThrottleTimeDelta);
         }
       }
