@@ -160,7 +160,7 @@ func extractResourcePathFrom(resourceLocationUrl string) (string, error) {
 	return resourceLocationUrl[startIdx:endIdx], nil
 }
 
-func TestRead_Success(t *testing.T) {
+func TestFhirIO_Read(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
 
@@ -171,7 +171,7 @@ func TestRead_Success(t *testing.T) {
 	ptest.RunAndValidate(t, p)
 }
 
-func TestRead_InvalidResourcePath(t *testing.T) {
+func TestFhirIO_InvalidRead(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
 

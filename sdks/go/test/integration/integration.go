@@ -91,6 +91,8 @@ var portableFilters = []string{
 	"TestKafkaIO.*",
 	// The portable runner does not support self-checkpointing
 	"TestCheckpointing",
+	// FhirIO currently only supports Dataflow and Direct runners
+	"TestFhirIO_.*",
 }
 
 var flinkFilters = []string{
@@ -101,6 +103,8 @@ var flinkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// Triggers are not yet supported
 	"TestTrigger.*",
+	// FhirIO currently only supports Dataflow and Direct runners
+	"TestFhirIO_.*",
 }
 
 var samzaFilters = []string{
@@ -116,6 +120,8 @@ var samzaFilters = []string{
 	"TestWordCount.*",
 	// The Samza runner does not support self-checkpointing
 	"TestCheckpointing",
+	// FhirIO currently only supports Dataflow and Direct runners
+	"TestFhirIO_.*",
 }
 
 var sparkFilters = []string{
@@ -132,6 +138,8 @@ var sparkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// The spark runner does not support self-checkpointing
 	"TestCheckpointing",
+	// FhirIO currently only supports Dataflow and Direct runners
+	"TestFhirIO_.*",
 }
 
 var dataflowFilters = []string{
