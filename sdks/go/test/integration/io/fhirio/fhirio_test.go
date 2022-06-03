@@ -42,12 +42,12 @@ import (
 const (
 	datasetPathFmt  = "projects/%s/locations/%s/datasets/apache-beam-integration-testing"
 	testFhirVersion = "R4"
+	testDataDir     = "../../../../data/healthcare/" + testFhirVersion + "/"
 )
 
 var (
 	gcpProject             string
 	gcpRegion              string
-	testDataDir            = fmt.Sprintf("../../../../data/healthcare/%s/", testFhirVersion)
 	storeService           *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService
 	storeManagementService *healthcare.ProjectsLocationsDatasetsFhirStoresService
 )

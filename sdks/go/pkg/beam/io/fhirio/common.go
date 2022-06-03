@@ -37,7 +37,7 @@ type fhirStoreClient interface {
 }
 
 type fhirStoreClientImpl struct {
-	service *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService
+	fhirService *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService
 }
 
 func newFhirStoreClient() *fhirStoreClientImpl {
@@ -45,11 +45,9 @@ func newFhirStoreClient() *fhirStoreClientImpl {
 	if err != nil {
 		panic("Failed to initialize Google Cloud Healthcare Service. Reason: " + err.Error())
 	}
-	return &fhirStoreClientImpl{
-		service: healthcare.NewProjectsLocationsDatasetsFhirStoresFhirService(healthcareService),
-	}
+	return &fhirStoreClientImpl{fhirService: healthcare.NewProjectsLocationsDatasetsFhirStoresFhirService(healthcareService)}
 }
 
 func (c *fhirStoreClientImpl) readResource(resourcePath string) (*http.Response, error) {
-	return c.service.Read(resourcePath).Do()
+	return c.fhirService.Read(resourcePath).Do()
 }
