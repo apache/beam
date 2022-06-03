@@ -504,8 +504,7 @@ public class JmsIOTest {
   /** Test the checkpoint mark default coder, which is actually AvroCoder. */
   @Test
   public void testCheckpointMarkDefaultCoder() throws Exception {
-    JmsCheckpointMark jmsCheckpointMark = new JmsCheckpointMark();
-    jmsCheckpointMark.add(new ActiveMQMessage());
+    JmsCheckpointMark jmsCheckpointMark = new JmsCheckpointMark(null, null);
     Coder coder = new JmsIO.UnboundedJmsSource(null).getCheckpointMarkCoder();
     CoderProperties.coderSerializable(coder);
     CoderProperties.coderDecodeEncodeEqual(coder, jmsCheckpointMark);

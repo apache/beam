@@ -21,8 +21,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import javax.jms.JMSException;
 import javax.jms.Message;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -38,33 +37,21 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
 
   private static final Logger LOG = LoggerFactory.getLogger(JmsCheckpointMark.class);
 
-  private Instant oldestMessageTimestamp = Instant.now();
-  private transient List<Message> messages = new ArrayList<>();
+  private transient JmsIO.UnboundedJmsReader<?> reader;
+  private transient List<Message> messagesToAck;
+  private final int readerHash;
 
-  private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-
-  JmsCheckpointMark() {}
-
-  void add(Message message) throws Exception {
-    lock.writeLock().lock();
-    try {
-      Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
-      if (currentMessageTimestamp.isBefore(oldestMessageTimestamp)) {
-        oldestMessageTimestamp = currentMessageTimestamp;
-      }
-      messages.add(message);
-    } finally {
-      lock.writeLock().unlock();
-    }
+  JmsCheckpointMark(JmsIO.UnboundedJmsReader<?> reader, @Nullable List<Message> messagesToAck) {
+    this.reader = reader;
+    this.messagesToAck = messagesToAck;
+    this.readerHash = System.identityHashCode(reader);
   }
 
-  Instant getOldestMessageTimestamp() {
-    lock.readLock().lock();
-    try {
-      return this.oldestMessageTimestamp;
-    } finally {
-      lock.readLock().unlock();
-    }
+  // set an empty list to messages when deserialize
+  private void readObject(java.io.ObjectInputStream stream)
+      throws IOException, ClassNotFoundException {
+    stream.defaultReadObject();
+    messagesToAck = new ArrayList<>();
   }
 
   /**
@@ -73,47 +60,37 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
    * batch is a good bound for future messages.
    */
   @Override
-  public void finalizeCheckpoint() {
-    lock.writeLock().lock();
+  public void finalizeCheckpoint() throws IOException {
     try {
-      for (Message message : messages) {
-        try {
-          message.acknowledge();
-          Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
-          if (currentMessageTimestamp.isAfter(oldestMessageTimestamp)) {
-            oldestMessageTimestamp = currentMessageTimestamp;
-          }
-        } catch (Exception e) {
-          LOG.error("Exception while finalizing message: ", e);
-        }
-      }
-      messages.clear();
-    } finally {
-      lock.writeLock().unlock();
+      LOG.debug("Finalize Checkpoint {} {}", reader, messagesToAck.size());
+      drainMessages();
+    } catch (JMSException e) {
+      throw new IOException("Exception while finalizing message ", e);
     }
   }
 
-  // set an empty list to messages when deserialize
-  private void readObject(java.io.ObjectInputStream stream)
-      throws IOException, ClassNotFoundException {
-    stream.defaultReadObject();
-    messages = new ArrayList<>();
+  protected void drainMessages() throws JMSException {
+    for (Message message : messagesToAck) {
+      message.acknowledge();
+      Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
+      reader.watermark.updateAndGet(prev -> Math.max(currentMessageTimestamp.getMillis(), prev));
+    }
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof JmsCheckpointMark)) {
       return false;
     }
     JmsCheckpointMark that = (JmsCheckpointMark) o;
-    return oldestMessageTimestamp.equals(that.oldestMessageTimestamp);
+    return readerHash == that.readerHash;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(oldestMessageTimestamp);
+    return readerHash;
   }
 }

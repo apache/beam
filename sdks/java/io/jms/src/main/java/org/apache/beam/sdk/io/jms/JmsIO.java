@@ -22,17 +22,21 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Destination;
+import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
@@ -58,6 +62,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -447,7 +452,7 @@ public class JmsIO {
     @Override
     public UnboundedJmsReader<T> createReader(
         PipelineOptions options, JmsCheckpointMark checkpointMark) {
-      return new UnboundedJmsReader<T>(this, checkpointMark);
+      return new UnboundedJmsReader<T>(this);
     }
 
     @Override
@@ -464,25 +469,24 @@ public class JmsIO {
   static class UnboundedJmsReader<T> extends UnboundedReader<T> {
 
     private UnboundedJmsSource<T> source;
-    private JmsCheckpointMark checkpointMark;
     private Connection connection;
     private Session session;
     private MessageConsumer consumer;
     private AutoScaler autoScaler;
 
     private T currentMessage;
+    private Message currentJmsMessage;
     private Instant currentTimestamp;
-    private final java.util.Queue<Message> wait4cpQueue;
 
-    public UnboundedJmsReader(UnboundedJmsSource<T> source, JmsCheckpointMark checkpointMark) {
+    Set<Message> messagesToAck;
+    AtomicBoolean active = new AtomicBoolean(true);
+    AtomicLong watermark = new AtomicLong(0);
+
+    public UnboundedJmsReader(UnboundedJmsSource<T> source) {
       this.source = source;
-      if (checkpointMark != null) {
-        this.checkpointMark = checkpointMark;
-      } else {
-        this.checkpointMark = new JmsCheckpointMark();
-      }
       this.currentMessage = null;
-      wait4cpQueue = new ArrayDeque<>();
+      this.messagesToAck = new HashSet<>();
+      watermark.getAndSet(System.currentTimeMillis());
     }
 
     @Override
@@ -504,6 +508,7 @@ public class JmsIO {
           this.autoScaler = spec.getAutoScaler();
         }
         this.autoScaler.start();
+
       } catch (Exception e) {
         throw new IOException("Error connecting to JMS", e);
       }
@@ -523,28 +528,32 @@ public class JmsIO {
       } catch (Exception e) {
         throw new IOException("Error creating JMS consumer", e);
       }
+      this.active.set(true);
 
       return advance();
     }
 
     @Override
     public boolean advance() throws IOException {
-      try {
-        Message message = this.consumer.receiveNoWait();
+      if (active.get()) {
+        try {
+          Message message = this.consumer.receiveNoWait();
 
-        if (message == null) {
-          currentMessage = null;
-          return false;
+          if (message == null) {
+            currentMessage = null;
+            return false;
+          }
+          currentJmsMessage = message;
+          messagesToAck.add(message);
+          currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
+          currentTimestamp = new Instant(message.getJMSTimestamp());
+          return true;
+
+        } catch (Exception e) {
+          throw new IOException(e);
         }
-        wait4cpQueue.add(message);
-        checkpointMark.add(message);
-
-        currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
-        currentTimestamp = new Instant(message.getJMSTimestamp());
-
-        return true;
-      } catch (Exception e) {
-        throw new IOException(e);
+      } else {
+        return false;
       }
     }
 
@@ -558,7 +567,10 @@ public class JmsIO {
 
     @Override
     public Instant getWatermark() {
-      return checkpointMark.getOldestMessageTimestamp();
+      if (watermark == null) {
+        return new Instant(0);
+      }
+      return new Instant(watermark.get());
     }
 
     @Override
@@ -571,7 +583,9 @@ public class JmsIO {
 
     @Override
     public CheckpointMark getCheckpointMark() {
-      return checkpointMark;
+      List<Message> msgToAcks = Lists.newArrayList(messagesToAck);
+      messagesToAck.clear();
+      return new JmsCheckpointMark(this, msgToAcks);
     }
 
     @Override
@@ -586,27 +600,80 @@ public class JmsIO {
 
     @Override
     public void close() throws IOException {
+      active.set(false);
+      maybeCloseClient();
+    }
+
+    void maybeCloseClient() throws IOException {
       try {
-        if (consumer != null) {
-          consumer.close();
-          consumer = null;
+        doClose();
+      } catch (Exception e) {
+        throw new IOException(e);
+      }
+    }
+
+    private void doClose() {
+      if (currentJmsMessage != null) {
+        try {
+          currentJmsMessage.acknowledge();
+        } catch (JMSException e) {
+          LOG.error("Impossible to acknowledge last message", e);
         }
-        if (session != null) {
-          session.close();
-          session = null;
-        }
+      }
+      closeAutoscaler();
+      closeConsumer();
+      closeSession();
+      closeConnection();
+    }
+
+    private void closeConnection() {
+      try {
         if (connection != null) {
           connection.stop();
           connection.close();
           connection = null;
         }
+      } catch (Exception e) {
+        LOG.error("Error closing connection", e);
+      }
+    }
+
+    private void closeSession() {
+      try {
+        if (session != null) {
+          session.close();
+          session = null;
+        }
+      } catch (Exception e) {
+        LOG.error("Error closing session", e);
+      }
+    }
+
+    private void closeConsumer() {
+      try {
+        if (consumer != null) {
+          consumer.close();
+          consumer = null;
+        }
+      } catch (Exception e) {
+        LOG.error("Error closing consumer", e);
+      }
+    }
+
+    private void closeAutoscaler() {
+      try {
         if (autoScaler != null) {
           autoScaler.stop();
           autoScaler = null;
         }
       } catch (Exception e) {
-        throw new IOException(e);
+        LOG.error("Error closing autoscaler", e);
       }
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+      doClose();
     }
   }
 
