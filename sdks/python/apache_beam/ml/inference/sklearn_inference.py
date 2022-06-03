@@ -56,6 +56,7 @@ class SklearnInferenceRunner(InferenceRunner[Union[numpy.ndarray,
       return SklearnInferenceRunner._predict_np_array(batch, model)
     elif isinstance(batch[0], pandas.DataFrame):
       return SklearnInferenceRunner._predict_pandas_dataframe(batch, model)
+    raise ValueError('Unsupported data type.')
 
   @staticmethod
   def _predict_np_array(batch: List[numpy.ndarray],
@@ -84,6 +85,7 @@ class SklearnInferenceRunner(InferenceRunner[Union[numpy.ndarray,
       return sum(sys.getsizeof(element) for element in batch)
     elif isinstance(batch[0], pandas.DataFrame):
       return sum(df.memory_usage(deep=True).sum() for df in batch)
+    raise ValueError('Unsupported data type.')
 
 
 class SklearnModelLoader(ModelLoader[numpy.ndarray,
