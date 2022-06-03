@@ -6422,19 +6422,26 @@ resource utilization.
 {{< /highlight >}}
 
 {{< highlight go >}}
-func (fn *splittableDoFn) ProcessElement(rt *sdf.LockRTracker, emit func(Record)) sdf.ProcessContinuation {
+func (fn *splittableDoFn) ProcessElement(rt *sdf.LockRTracker, emit func(Record)) (sdf.ProcessContinuation, error) {
   position := rt.GetRestriction().(offsetrange.Restriction).Start
   for {
     records, err := fn.ExternalService.readNextRecords(position)
-    if err == fn.ExternalService.ThrottlingErr {
-      return sdf.ResumeProcessingIn(60 * time.Seconds)
+
+    if err != nil {
+      if err == fn.ExternalService.ThrottlingErr {
+        // Resume at a later time to avoid throttling.
+        return sdf.ResumeProcessingIn(60 * time.Seconds), nil
+      } 
+      return sdf.StopProcessing(), err
     }
+
     if len(records) == 0 {
-      return sdf.ResumeProcessingIn(10 * time.Seconds)
+      // Wait for data to be available.
+      return sdf.ResumeProcessingIn(10 * time.Seconds), nil
     }
     for _, record := range records {
       if !rt.TryClaim(position) {
-        return sdf.StopProcessing()
+        return sdf.StopProcessing(), nil
       }
       position += 1
 
