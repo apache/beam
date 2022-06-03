@@ -45,6 +45,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileIO;
@@ -56,7 +57,6 @@ import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.FhirResourcePagesIterator;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -624,7 +624,7 @@ public class FhirIO {
 
   /** The type Write. */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<String>, Write.Result> {
+  public abstract static class Write extends PTransform<PCollection<String>, Write.AbstractResult> {
 
     /** The tag for successful writes to FHIR store. */
     public static final TupleTag<String> SUCCESSFUL_BODY = new TupleTag<String>() {};
@@ -652,8 +652,27 @@ public class FhirIO {
       IMPORT
     }
 
+    public abstract static class AbstractResult implements POutput {
+      private Pipeline pipeline;
+
+      public abstract PCollection<String> getSuccessfulBodies();
+
+      public abstract PCollection<HealthcareIOError<String>> getFailedBodies();
+
+      public abstract PCollection<HealthcareIOError<String>> getFailedFiles();
+
+      @Override
+      public Pipeline getPipeline() {
+        return this.pipeline;
+      }
+
+      @Override
+      public void finishSpecifyingOutput(
+          String transformName, PInput input, PTransform<?, ?> transform) {}
+    }
+
     /** The type Result. */
-    public static class Result implements POutput {
+    public static class Result extends AbstractResult {
 
       private final Pipeline pipeline;
       private final PCollection<String> successfulBodies;
@@ -689,6 +708,7 @@ public class FhirIO {
        *
        * @return the entries that were inserted
        */
+      @Override
       public PCollection<String> getSuccessfulBodies() {
         return this.successfulBodies;
       }
@@ -698,6 +718,7 @@ public class FhirIO {
        *
        * @return the failed inserts with err
        */
+      @Override
       public PCollection<HealthcareIOError<String>> getFailedBodies() {
         return this.failedBodies;
       }
@@ -707,6 +728,7 @@ public class FhirIO {
        *
        * @return the failed GCS uri with err
        */
+      @Override
       public PCollection<HealthcareIOError<String>> getFailedFiles() {
         return this.failedFiles;
       }
@@ -922,7 +944,7 @@ public class FhirIO {
     private static final Logger LOG = LoggerFactory.getLogger(Write.class);
 
     @Override
-    public Result expand(PCollection<String> input) {
+    public AbstractResult expand(PCollection<String> input) {
       switch (this.getWriteMethod()) {
         case IMPORT:
           LOG.warn(
@@ -940,7 +962,12 @@ public class FhirIO {
           return input.apply(new Import(getFhirStore(), tempPath, deadPath, contentStructure));
         case EXECUTE_BUNDLE:
         default:
-          return input.apply(new ExecuteBundles(this.getFhirStore()));
+          return input
+              .apply(
+                  MapElements.into(TypeDescriptor.of(FhirBundleParameter.class))
+                      .via(FhirBundleParameter::of))
+              .setCoder(SerializableCoder.of(FhirBundleParameter.class))
+              .apply(new ExecuteBundles(this.getFhirStore()));
       }
     }
   }
@@ -1338,7 +1365,15 @@ public class FhirIO {
   }
 
   /** The type Execute bundles. */
-  public static class ExecuteBundles extends Write {
+  public static class ExecuteBundles
+      extends PTransform<PCollection<FhirBundleParameter>, ExecuteBundlesResult> {
+
+    /** The TupleTag used for bundles that were executed successfully. */
+    public static final TupleTag<FhirBundleResponse> SUCCESSFUL_BUNDLES = new TupleTag<>();
+
+    /** The TupleTag used for bundles that failed to be executed for any reason. */
+    public static final TupleTag<HealthcareIOError<FhirBundleParameter>> FAILED_BUNDLES =
+        new TupleTag<>();
 
     private final ValueProvider<String> fhirStore;
 
@@ -1347,48 +1382,35 @@ public class FhirIO {
      *
      * @param fhirStore the fhir store
      */
-    ExecuteBundles(ValueProvider<String> fhirStore) {
+    public ExecuteBundles(ValueProvider<String> fhirStore) {
       this.fhirStore = fhirStore;
     }
 
-    @Override
-    ValueProvider<String> getFhirStore() {
+    public ExecuteBundles(String fhirStore) {
+      this.fhirStore = StaticValueProvider.of(fhirStore);
+    }
+
+    public ValueProvider<String> getFhirStore() {
       return fhirStore;
     }
 
     @Override
-    WriteMethod getWriteMethod() {
-      return WriteMethod.EXECUTE_BUNDLE;
-    }
-
-    @Override
-    Optional<ContentStructure> getContentStructure() {
-      return Optional.empty();
-    }
-
-    @Override
-    Optional<ValueProvider<String>> getImportGcsTempPath() {
-      return Optional.empty();
-    }
-
-    @Override
-    Optional<ValueProvider<String>> getImportGcsDeadLetterPath() {
-      return Optional.empty();
-    }
-
-    @Override
-    public FhirIO.Write.Result expand(PCollection<String> input) {
-      PCollectionTuple bodies =
+    public ExecuteBundlesResult expand(PCollection<FhirBundleParameter> input) {
+      PCollectionTuple bundles =
           input.apply(
-              ParDo.of(new ExecuteBundlesFn(fhirStore))
-                  .withOutputTags(Write.SUCCESSFUL_BODY, TupleTagList.of(Write.FAILED_BODY)));
-      bodies.get(Write.SUCCESSFUL_BODY).setCoder(StringUtf8Coder.of());
-      bodies.get(Write.FAILED_BODY).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
-      return Write.Result.in(input.getPipeline(), bodies);
+              ParDo.of(new ExecuteBundlesFn(this.fhirStore))
+                  .withOutputTags(SUCCESSFUL_BUNDLES, TupleTagList.of(FAILED_BUNDLES)));
+      bundles.get(SUCCESSFUL_BUNDLES).setCoder(SerializableCoder.of(FhirBundleResponse.class));
+      bundles
+          .get(FAILED_BUNDLES)
+          .setCoder(HealthcareIOErrorCoder.of(SerializableCoder.of(FhirBundleParameter.class)));
+
+      return ExecuteBundlesResult.in(
+          input.getPipeline(), bundles.get(SUCCESSFUL_BUNDLES), bundles.get(FAILED_BUNDLES));
     }
 
     /** The type Write Fhir fn. */
-    static class ExecuteBundlesFn extends DoFn<String, String> {
+    static class ExecuteBundlesFn extends DoFn<FhirBundleParameter, FhirBundleResponse> {
 
       private static final Counter EXECUTE_BUNDLE_ERRORS =
           Metrics.counter(
@@ -1439,22 +1461,22 @@ public class FhirIO {
 
       @ProcessElement
       public void executeBundles(ProcessContext context) {
-        String inputBody = context.element();
+        String bundle = context.element().getBundle();
         try {
           long startTime = Instant.now().toEpochMilli();
           // Validate that data was set to valid JSON.
-          mapper.readTree(inputBody);
-          HttpBody resp = client.executeFhirBundle(fhirStore.get(), inputBody);
+          mapper.readTree(bundle);
+          HttpBody resp = client.executeFhirBundle(fhirStore.get(), bundle);
           EXECUTE_BUNDLE_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
 
-          parseResponse(context, inputBody, resp);
+          parseResponse(context, resp);
         } catch (IOException | HealthcareHttpException e) {
           EXECUTE_BUNDLE_ERRORS.inc();
-          context.output(Write.FAILED_BODY, HealthcareIOError.of(inputBody, e));
+          context.output(FAILED_BUNDLES, HealthcareIOError.of(context.element(), e));
         }
       }
 
-      private void parseResponse(ProcessContext context, String inputBody, HttpBody resp)
+      private void parseResponse(ProcessContext context, HttpBody resp)
           throws JsonProcessingException {
         JsonObject bundle = JsonParser.parseString(resp.toString()).getAsJsonObject();
         String bundleType = bundle.getAsJsonPrimitive(BUNDLE_TYPE_FIELD).getAsString();
@@ -1481,20 +1503,22 @@ public class FhirIO {
             // 20X's are successes, otherwise failure.
             if (statusCode / 100 == 2) {
               success++;
-              context.output(Write.SUCCESSFUL_BODY, entry.toString());
+              context.output(
+                  SUCCESSFUL_BUNDLES, FhirBundleResponse.of(context.element(), entry.toString()));
             } else {
               fail++;
               context.output(
-                  Write.FAILED_BODY,
+                  FAILED_BUNDLES,
                   HealthcareIOError.of(
-                      inputBody, HealthcareHttpException.of(statusCode, entry.toString())));
+                      context.element(), HealthcareHttpException.of(statusCode, entry.toString())));
             }
           }
           EXECUTE_BUNDLE_RESOURCE_SUCCESS.inc(success);
           EXECUTE_BUNDLE_RESOURCE_ERRORS.inc(fail);
         } else if (bundleType.equals(BUNDLE_RESPONSE_TYPE_TRANSACTION)) {
           EXECUTE_BUNDLE_RESOURCE_SUCCESS.inc(entries.size());
-          context.output(Write.SUCCESSFUL_BODY, bundle.toString());
+          context.output(
+              SUCCESSFUL_BUNDLES, FhirBundleResponse.of(context.element(), bundle.toString()));
         }
         EXECUTE_BUNDLE_SUCCESS.inc();
         return;
@@ -1513,6 +1537,106 @@ public class FhirIO {
     }
   }
 
+  /**
+   * ExecuteBundlesResult contains both successfully executed bundles and information help debugging
+   * failed executions (eg metadata & error msgs).
+   */
+  public static class ExecuteBundlesResult extends Write.AbstractResult {
+
+    private final Pipeline pipeline;
+    private final PCollection<FhirBundleResponse> successfulBundles;
+    private final PCollection<HealthcareIOError<FhirBundleParameter>> failedBundles;
+
+    private ExecuteBundlesResult(
+        Pipeline pipeline,
+        PCollection<FhirBundleResponse> successfulBundles,
+        PCollection<HealthcareIOError<FhirBundleParameter>> failedBundles) {
+      this.pipeline = pipeline;
+      this.successfulBundles = successfulBundles;
+      this.failedBundles = failedBundles;
+    }
+
+    /**
+     * Entry point for the ExecuteBundlesResult, storing the successful and failed bundles and their
+     * metadata.
+     */
+    public static ExecuteBundlesResult in(
+        Pipeline pipeline,
+        PCollection<FhirBundleResponse> successfulBundles,
+        PCollection<HealthcareIOError<FhirBundleParameter>> failedBundles) {
+      return new ExecuteBundlesResult(pipeline, successfulBundles, failedBundles);
+    }
+
+    @Override
+    public PCollection<String> getSuccessfulBodies() {
+      return this.successfulBundles
+          .apply(
+              MapElements.into(TypeDescriptors.strings())
+                  .via(bundleResponse -> bundleResponse.getFhirBundleParameter().getBundle()))
+          .setCoder(StringUtf8Coder.of());
+    }
+
+    /** Gets successful FhirBundleResponse from execute bundles operation. */
+    public PCollection<FhirBundleResponse> getSuccessfulBundles() {
+      return this.successfulBundles;
+    }
+
+    @Override
+    public PCollection<HealthcareIOError<String>> getFailedBodies() {
+      return this.failedBundles
+          .apply(ParDo.of(new GetStringHealthcareIOErrorFn()))
+          .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
+    }
+
+    /**
+     * Gets failed FhirBundleResponse wrapped inside HealthcareIOError. The bundle field could be
+     * null.
+     */
+    public PCollection<HealthcareIOError<FhirBundleParameter>> getFailedBundles() {
+      return this.failedBundles;
+    }
+
+    @Override
+    public PCollection<HealthcareIOError<String>> getFailedFiles() {
+      return super.pipeline.apply(Create.empty(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
+    }
+
+    @Override
+    public Pipeline getPipeline() {
+      return this.pipeline;
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> expand() {
+      return ImmutableMap.of(
+          ExecuteBundles.SUCCESSFUL_BUNDLES,
+          successfulBundles,
+          ExecuteBundles.FAILED_BUNDLES,
+          failedBundles);
+    }
+
+    @Override
+    public void finishSpecifyingOutput(
+        String transformName, PInput input, PTransform<?, ?> transform) {}
+
+    private static class GetStringHealthcareIOErrorFn
+        extends DoFn<HealthcareIOError<FhirBundleParameter>, HealthcareIOError<String>> {
+
+      @ProcessElement
+      public void process(ProcessContext context) {
+        HealthcareIOError<FhirBundleParameter> input = context.element();
+        context.output(
+            new HealthcareIOError<String>(
+                input.getDataResource().getBundle(),
+                input.getErrorMessage(),
+                input.getStackTrace(),
+                input.getObservedTime(),
+                input.getStatusCode()));
+      }
+    }
+  }
+
+  /** Export FHIR resources from a FHIR store to new line delimited json files on GCS. */
   /**
    * Export FHIR resources from a FHIR store to new line delimited json files on GCS or BigQuery.
    * Output PCollection contains the URI where the FHIR store was exported to.
