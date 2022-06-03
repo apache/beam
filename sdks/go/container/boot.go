@@ -131,14 +131,6 @@ func getGoWorkerArtifactName(artifacts []*pipepb.ArtifactInformation) (string, e
 				return name, nil
 			}
 		}
-		// TODO(BEAM-13647): Remove legacy hack once aged out.
-		for _, a := range artifacts {
-			n, _ := artifact.MustExtractFilePayload(a)
-			if n == worker {
-				log.Printf("Go worker binary found with legacy name '%v'", worker)
-				return n, nil
-			}
-		}
 		return "", fmt.Errorf("no artifact named '%v' found", worker)
 	}
 }

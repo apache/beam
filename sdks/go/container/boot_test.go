@@ -123,20 +123,6 @@ func TestGetGoWorkerArtifactName_MultipleArtifactsSecondIsWorker(t *testing.T) {
 	}
 }
 
-func TestGetGoWorkerArtifactName_MultipleArtifactsLegacyWay(t *testing.T) {
-	artifact1 := constructArtifactInformation(t, "other role", "test/path", "sha")
-	artifact2 := constructArtifactInformation(t, "other role", "worker", "sha")
-	artifacts := []*pipepb.ArtifactInformation{&artifact1, &artifact2}
-
-	val, err := getGoWorkerArtifactName(artifacts)
-	if err != nil {
-		t.Fatalf("getGoWorkerArtifactName() = %v, want nil", err)
-	}
-	if got, want := val, "worker"; got != want {
-		t.Fatalf("getGoWorkerArtifactName() = %v, want %v", got, want)
-	}
-}
-
 func TestGetGoWorkerArtifactName_MultipleArtifactsNoneMatch(t *testing.T) {
 	artifact1 := constructArtifactInformation(t, "other role", "test/path", "sha")
 	artifact2 := constructArtifactInformation(t, "other role", "test/path2", "sha")
