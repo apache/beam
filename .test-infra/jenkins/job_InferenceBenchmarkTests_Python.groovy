@@ -24,7 +24,7 @@ def inferenceBenchmarkJob = { scope ->
   scope.description('Runs Inference benchmarking tests on Dataflow Runner.')
 
   // Set common parameters
-  commonJobProperties.setTopLevelMainJobProperties(scope)
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 480)
 
   // Gradle job for this job
    scope.steps {
@@ -47,7 +47,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 
 CronJobBuilder.cronJob(
     'beam_Inference_Python_Benchmarks_Dataflow',
-    'H 24 * * *',
+    'H 12 * * *',
     this
     ) {
       inferenceBenchmarkJob(delegate)
