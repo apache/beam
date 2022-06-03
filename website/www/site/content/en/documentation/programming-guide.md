@@ -6441,6 +6441,7 @@ func (fn *splittableDoFn) ProcessElement(rt *sdf.LockRTracker, emit func(Record)
     }
     for _, record := range records {
       if !rt.TryClaim(position) {
+        // Records have been claimed, finish processing.
         return sdf.StopProcessing(), nil
       }
       position += 1
