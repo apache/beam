@@ -70,10 +70,8 @@ class SklearnInferenceRunner(InferenceRunner[Union[numpy.ndarray,
                                 model: Any) -> Iterable[PredictionResult]:
     # vectorize data for better performance
     vectorized_batch = pandas.concat(batch, axis=0)
-    # Indexes will be that of the original dataframe unless they are reset.
-    vectorized_batch.reset_index(inplace=True, drop=True)
     predictions = model.predict(vectorized_batch)
-    splits = [vectorized_batch.loc[[i]] for i in vectorized_batch.index]
+    splits = [vectorized_batch.iloc[[i]] for i in range(len(batch))]
     return [
         PredictionResult(example, inference) for example,
         inference in zip(splits, predictions)

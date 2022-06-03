@@ -243,7 +243,6 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       actual = pcoll | api.RunInference(
           SklearnModelLoader(model_uri=temp_file_name))
 
-      splits = [data_frame.loc[[i]] for i in data_frame.index]
       expected = [
           api.PredictionResult(splits[0], 5),
           api.PredictionResult(splits[1], 8),
