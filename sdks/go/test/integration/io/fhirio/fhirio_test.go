@@ -40,9 +40,8 @@ import (
 )
 
 const (
-	datasetPathFmt  = "projects/%s/locations/%s/datasets/apache-beam-integration-testing"
-	testFhirVersion = "R4"
-	testDataDir     = "../../../../data/healthcare/" + testFhirVersion + "/"
+	datasetPathFmt = "projects/%s/locations/%s/datasets/apache-beam-integration-testing"
+	testDataDir    = "../../../../data/fhir_bundles/"
 )
 
 var (
@@ -69,7 +68,7 @@ func setupFhirStore(t *testing.T) (string, []string, func()) {
 	}
 
 	healthcareDataset := fmt.Sprintf(datasetPathFmt, gcpProject, gcpRegion)
-	createdFhirStore, err := createStore(healthcareDataset, testFhirVersion)
+	createdFhirStore, err := createStore(healthcareDataset)
 	if err != nil {
 		t.Fatal("Test store failed to be created")
 	}
@@ -85,13 +84,13 @@ func setupFhirStore(t *testing.T) (string, []string, func()) {
 	}
 }
 
-func createStore(dataset, fhirVersion string) (*healthcare.FhirStore, error) {
+func createStore(dataset string) (*healthcare.FhirStore, error) {
 	randInt, _ := rand.Int(rand.Reader, big.NewInt(32))
-	testFhirStoreId := "FHIR_store_" + testFhirVersion + "_write_it_" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "_" + randInt.String()
+	testFhirStoreId := "FHIR_store_write_it_" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "_" + randInt.String()
 	fhirStore := &healthcare.FhirStore{
 		DisableReferentialIntegrity: true,
 		EnableUpdateCreate:          true,
-		Version:                     fhirVersion,
+		Version:                     "R4",
 	}
 	return storeManagementService.Create(dataset, fhirStore).FhirStoreId(testFhirStoreId).Do()
 }
