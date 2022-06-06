@@ -21,7 +21,6 @@ import argparse
 import io
 import os
 from functools import partial
-from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Tuple
@@ -69,52 +68,6 @@ class PostProcessor(beam.DoFn):
     yield filename + ',' + str(prediction.item())
 
 
-def run_pipeline(
-    options: PipelineOptions,
-    model_class: Optional[torch.nn.Module],
-    model_params: Optional[Dict],
-    args=None):
-  """
-  Args:
-    options: options used to set up the pipeline.
-    model_class: Reference to the class definition of the model.
-                If None, MobilenetV2 will be used as default .
-    model_params: Parameters passed to the constructor of the model_class.
-                  These will be used to instantiate the model object in the
-                  RunInference API.
-    args: Command line arguments defined for this example.
-  """
-  if not model_class:
-    model_class = MobileNetV2
-    model_params = {'num_classes': 1000}
-
-  model_loader = PytorchModelLoader(
-      state_dict_path=args.model_state_dict_path,
-      model_class=model_class,
-      model_params=model_params)
-
-  with beam.Pipeline(options=options) as p:
-    filename_value_pair = (
-        p
-        | 'ReadImageNames' >> beam.io.ReadFromText(
-            args.input, skip_header_lines=1)
-        | 'ReadImageData' >> beam.Map(
-            partial(read_image, path_to_dir=args.images_dir))
-        | 'PreprocessImages' >> beam.MapTuple(
-            lambda file_name, data: (file_name, preprocess_image(data))))
-    predictions = (
-        filename_value_pair
-        | 'PyTorchRunInference' >> RunInference(model_loader).with_output_types(
-            Tuple[str, PredictionResult])
-        | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
-
-    if args.output:
-      predictions | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
-        args.output,
-        shard_name_template='',
-        append_trailing_newlines=True)
-
-
 def parse_known_args(argv):
   """Parses args for the workflow."""
   parser = argparse.ArgumentParser()
@@ -144,16 +97,49 @@ def parse_known_args(argv):
   return parser.parse_known_args(argv)
 
 
-def run(argv=None, save_main_session=True, model_class=None, model_params=None):
-  """Entry point. Defines and runs the pipeline."""
+def run(argv=None, model_class=None, model_params=None, save_main_session=True):
+  """
+  Args:
+    argv: Command line arguments defined for this example.
+    model_class: Reference to the class definition of the model.
+                If None, MobilenetV2 will be used as default .
+    model_params: Parameters passed to the constructor of the model_class.
+                  These will be used to instantiate the model object in the
+                  RunInference API.
+  """
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
-  run_pipeline(
-      pipeline_options,
-      args=known_args,
+
+  if not model_class:
+    model_class = MobileNetV2
+    model_params = {'num_classes': 1000}
+
+  model_loader = PytorchModelLoader(
+      state_dict_path=known_args.model_state_dict_path,
       model_class=model_class,
       model_params=model_params)
+
+  with beam.Pipeline(options=pipeline_options) as p:
+    filename_value_pair = (
+        p
+        | 'ReadImageNames' >> beam.io.ReadFromText(
+            known_args.input, skip_header_lines=1)
+        | 'ReadImageData' >> beam.Map(
+            partial(read_image, path_to_dir=known_args.images_dir))
+        | 'PreprocessImages' >> beam.MapTuple(
+            lambda file_name, data: (file_name, preprocess_image(data))))
+    predictions = (
+        filename_value_pair
+        | 'PyTorchRunInference' >> RunInference(model_loader).with_output_types(
+            Tuple[str, PredictionResult])
+        | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
+
+    if known_args.output:
+      predictions | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
+        known_args.output,
+        shard_name_template='',
+        append_trailing_newlines=True)
 
 
 if __name__ == '__main__':
