@@ -101,12 +101,12 @@ func (fn *executeBundlesFn) processResponseBody(ctx context.Context, body string
 		fn.resourcesSuccessCount.Inc(ctx, int64(len(bodyFields.Entries)))
 		emitSuccess(body)
 	case bundleResponseTypeBatch:
-		var entryFields struct {
-			Response struct {
-				Status string `json:"status"`
-			} `json:"response"`
-		}
 		for _, entry := range bodyFields.Entries {
+			var entryFields struct {
+				Response struct {
+					Status string `json:"status"`
+				} `json:"response"`
+			}
 			entryBytes, _ := json.Marshal(entry)
 			_ = json.NewDecoder(bytes.NewReader(entryBytes)).Decode(&entryFields)
 			if entryFields.Response.Status == "" {
