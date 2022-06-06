@@ -142,7 +142,7 @@ on a portable runner) but the following big-ticket items remain.
 
   * Enforce unique names for pipeline update.
 
-  * Cleanup uses of var, this. Arrow functions. `===` vs `==`.
+  * Cleanup uses of var, this. Arrow functions.
 
   * Avoid `any` return types (and re-enable check in compiler).
 
