@@ -23,8 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: take the issue
-      uses: bdougie/take-action@main
+      uses: damccorm/take-and-close-action@b37b24519483c490148839a50f74a2e9081b3f3c
       env:
         GITHUB_TOKEN: ${{ github.token }}
       with:
-        trigger: .take-issue
+        take: .take-issue
+        close: .close-issue

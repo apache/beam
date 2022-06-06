@@ -110,6 +110,7 @@ Questions can be asked on the [#beam channel of the ASF Slack](https://beam.apac
    Tracking your work in an issue will avoid duplicated or conflicting work, and provide
    a place for notes. Later, your pull request will be linked to the issue as well.
 2. Comment ".take-issue" on the issue. This will cause the issue to be assigned to you.
+   When you've completed the issue, you can close it by commenting ".close-issue".
 3. If your change is large or it is your first change, it is a good idea to
    [discuss it on the dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
 4. For large changes create a design doc
