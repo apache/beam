@@ -18,7 +18,12 @@ package fhirio
 import "net/http"
 
 type fakeFhirStoreClient struct {
-	fakeReadResources func(string) (*http.Response, error)
+	fakeReadResources  func(string) (*http.Response, error)
+	fakeExecuteBundles func(storePath string, bundle []byte) (*http.Response, error)
+}
+
+func (c *fakeFhirStoreClient) executeBundle(storePath string, bundle []byte) (*http.Response, error) {
+	return c.fakeExecuteBundles(storePath, bundle)
 }
 
 func (c *fakeFhirStoreClient) readResource(resourcePath string) (*http.Response, error) {

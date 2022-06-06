@@ -20,9 +20,14 @@ package fhirio
 
 import (
 	"context"
+	"io"
 	"net/http"
+	"regexp"
+	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"google.golang.org/api/healthcare/v1"
 	"google.golang.org/api/option"
 )
@@ -32,8 +37,54 @@ const (
 	baseMetricPrefix = "fhirio/"
 )
 
+func executeAndRecordLatency[T any](ctx context.Context, latencyMs *beam.Distribution, executionSupplier func() (T, error)) (T, error) {
+	timeBeforeReadRequest := time.Now()
+	response, err := executionSupplier()
+	latencyMs.Update(ctx, time.Since(timeBeforeReadRequest).Milliseconds())
+	return response, err
+}
+
+func extractBodyFrom(response *http.Response) (string, error) {
+	if isBadStatusCode(response.Status) {
+		return "", errors.Errorf("response contains bad status: [%v]", response.Status)
+	}
+
+	bodyBytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(bodyBytes), nil
+}
+
+func isBadStatusCode(status string) bool {
+	// 2XXs are successes, otherwise failure.
+	isMatch, err := regexp.MatchString("^2\\d{2}", status)
+	if err != nil {
+		return true
+	}
+	return !isMatch
+}
+
+type fhirioFnCommon struct {
+	client                fhirStoreClient
+	resourcesErrorCount   beam.Counter
+	resourcesSuccessCount beam.Counter
+	latencyMs             beam.Distribution
+}
+
+func (fnc *fhirioFnCommon) setup(namespace string) {
+	if fnc.client == nil {
+		fnc.client = newFhirStoreClient()
+	}
+	fnc.resourcesErrorCount = beam.NewCounter(namespace, baseMetricPrefix+"_resource_error_count")
+	fnc.resourcesSuccessCount = beam.NewCounter(namespace, baseMetricPrefix+"_resource_success_count")
+	fnc.latencyMs = beam.NewDistribution(namespace, baseMetricPrefix+"latency_ms")
+}
+
 type fhirStoreClient interface {
 	readResource(resourcePath string) (*http.Response, error)
+	executeBundle(storePath string, bundle []byte) (*http.Response, error)
 }
 
 type fhirStoreClientImpl struct {
@@ -50,4 +101,8 @@ func newFhirStoreClient() *fhirStoreClientImpl {
 
 func (c *fhirStoreClientImpl) readResource(resourcePath string) (*http.Response, error) {
 	return c.fhirService.Read(resourcePath).Do()
+}
+
+func (c *fhirStoreClientImpl) executeBundle(storePath string, bundle []byte) (*http.Response, error) {
+	return c.fhirService.ExecuteBundle(storePath, bytes.NewReader(bundle)).Do()
 }
