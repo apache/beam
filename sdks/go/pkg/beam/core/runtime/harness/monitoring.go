@@ -102,14 +102,15 @@ func shortIdsToInfos(shortids []string) map[string]*pipepb.MonitoringInfo {
 	return defaultShortIDCache.shortIdsToInfos(shortids)
 }
 
-func monitoring(p *exec.Plan, store *metrics.Store) map[string][]byte {
+func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, map[string][]byte) {
 	if store == nil {
-		return nil
+		return nil, nil
 	}
 
 	defaultShortIDCache.mu.Lock()
 	defer defaultShortIDCache.mu.Unlock()
 
+	var monitoringInfo []*pipepb.MonitoringInfo
 	payloads := make(map[string][]byte)
 	metrics.Extractor{
 		SumInt64: func(l metrics.Labels, v int64) {
@@ -118,6 +119,14 @@ func monitoring(p *exec.Plan, store *metrics.Store) map[string][]byte {
 				panic(err)
 			}
 			payloads[getShortID(l, metricsx.UrnUserSumInt64)] = payload
+
+			monitoringInfo = append(monitoringInfo,
+				&pipepb.MonitoringInfo{
+					Urn:     metricsx.UrnToString(metricsx.UrnUserSumInt64),
+					Type:    metricsx.UrnToType(metricsx.UrnUserSumInt64),
+					Labels:  l.Map(),
+					Payload: payload,
+				})
 		},
 		DistributionInt64: func(l metrics.Labels, count, sum, min, max int64) {
 			payload, err := metricsx.Int64Distribution(count, sum, min, max)
@@ -125,6 +134,14 @@ func monitoring(p *exec.Plan, store *metrics.Store) map[string][]byte {
 				panic(err)
 			}
 			payloads[getShortID(l, metricsx.UrnUserDistInt64)] = payload
+
+			monitoringInfo = append(monitoringInfo,
+				&pipepb.MonitoringInfo{
+					Urn:     metricsx.UrnToString(metricsx.UrnUserDistInt64),
+					Type:    metricsx.UrnToType(metricsx.UrnUserDistInt64),
+					Labels:  l.Map(),
+					Payload: payload,
+				})
 		},
 		GaugeInt64: func(l metrics.Labels, v int64, t time.Time) {
 			payload, err := metricsx.Int64Latest(t, v)
@@ -132,8 +149,18 @@ func monitoring(p *exec.Plan, store *metrics.Store) map[string][]byte {
 				panic(err)
 			}
 			payloads[getShortID(l, metricsx.UrnUserLatestMsInt64)] = payload
+
+			monitoringInfo = append(monitoringInfo,
+				&pipepb.MonitoringInfo{
+					Urn:     metricsx.UrnToString(metricsx.UrnUserLatestMsInt64),
+					Type:    metricsx.UrnToType(metricsx.UrnUserLatestMsInt64),
+					Labels:  l.Map(),
+					Payload: payload,
+				})
+
 		},
 		MsecsInt64: func(l string, states *[4]metrics.ExecutionState) {
+			label := map[string]string{"PTRANSFORM": l}
 			for i, v := range states {
 				payload, err := metricsx.Int64Counter(int64(v.TotalTime) / int64(time.Millisecond))
 				if err != nil {
@@ -141,6 +168,13 @@ func monitoring(p *exec.Plan, store *metrics.Store) map[string][]byte {
 				}
 				ul := metricsx.ExecutionMsecUrn(i)
 				payloads[getShortID(metrics.PTransformLabels(l), ul)] = payload
+				monitoringInfo = append(monitoringInfo,
+					&pipepb.MonitoringInfo{
+						Urn:     metricsx.UrnToString(ul),
+						Type:    metricsx.UrnToType(ul),
+						Labels:  label,
+						Payload: payload,
+					})
 			}
 		},
 	}.ExtractFrom(store)
@@ -149,7 +183,7 @@ func monitoring(p *exec.Plan, store *metrics.Store) map[string][]byte {
 
 	snapshot, ok := p.Progress()
 	if !ok {
-		return payloads
+		return monitoringInfo, payloads
 	}
 	for _, pcol := range snapshot.PCols {
 		payload, err := metricsx.Int64Counter(pcol.ElementCount)
@@ -160,6 +194,16 @@ func monitoring(p *exec.Plan, store *metrics.Store) map[string][]byte {
 		// TODO(BEAM-9934): This metric should account for elements in multiple windows.
 		payloads[getShortID(metrics.PCollectionLabels(pcol.ID), metricsx.UrnElementCount)] = payload
 
+		monitoringInfo = append(monitoringInfo,
+			&pipepb.MonitoringInfo{
+				Urn:  metricsx.UrnToString(metricsx.UrnElementCount),
+				Type: metricsx.UrnToType(metricsx.UrnElementCount),
+				Labels: map[string]string{
+					"PCOLLECTION": pcol.ID,
+				},
+				Payload: payload,
+			})
+
 		// Skip pcollections without size
 		if pcol.SizeCount != 0 {
 			payload, err := metricsx.Int64Distribution(pcol.SizeCount, pcol.SizeSum, pcol.SizeMin, pcol.SizeMax)
@@ -167,6 +211,16 @@ func monitoring(p *exec.Plan, store *metrics.Store) map[string][]byte {
 				panic(err)
 			}
 			payloads[getShortID(metrics.PCollectionLabels(pcol.ID), metricsx.UrnSampledByteSize)] = payload
+
+			monitoringInfo = append(monitoringInfo,
+				&pipepb.MonitoringInfo{
+					Urn:  metricsx.UrnToString(metricsx.UrnSampledByteSize),
+					Type: metricsx.UrnToType(metricsx.UrnSampledByteSize),
+					Labels: map[string]string{
+						"PCOLLECTION": pcol.ID,
+					},
+					Payload: payload,
+				})
 		}
 	}
 
@@ -176,5 +230,15 @@ func monitoring(p *exec.Plan, store *metrics.Store) map[string][]byte {
 	}
 
 	payloads[getShortID(metrics.PTransformLabels(snapshot.Source.ID), metricsx.UrnDataChannelReadIndex)] = payload
-	return payloads
+	monitoringInfo = append(monitoringInfo,
+		&pipepb.MonitoringInfo{
+			Urn:  metricsx.UrnToString(metricsx.UrnDataChannelReadIndex),
+			Type: metricsx.UrnToType(metricsx.UrnDataChannelReadIndex),
+			Labels: map[string]string{
+				"PTRANSFORM": snapshot.Source.ID,
+			},
+			Payload: payload,
+		})
+
+	return monitoringInfo, payloads
 }

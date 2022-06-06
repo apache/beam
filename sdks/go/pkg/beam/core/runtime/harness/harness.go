@@ -370,7 +370,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		c.cache.CompleteBundle(tokens...)
 
-		pylds := monitoring(plan, store)
+		mons, pylds := monitoring(plan, store)
 		requiresFinalization := false
 		// Move the plan back to the candidate state
 		c.mu.Lock()
@@ -444,6 +444,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 				ProcessBundle: &fnpb.ProcessBundleResponse{
 					ResidualRoots:        rRoots,
 					MonitoringData:       pylds,
+					MonitoringInfos:      mons,
 					RequiresFinalization: requiresFinalization,
 				},
 			},
@@ -492,13 +493,14 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			}
 		}
 
-		pylds := monitoring(plan, store)
+		mons, pylds := monitoring(plan, store)
 
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundleProgress{
 				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{
-					MonitoringData: pylds,
+					MonitoringData:  pylds,
+					MonitoringInfos: mons,
 				},
 			},
 		}
