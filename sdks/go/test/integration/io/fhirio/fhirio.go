@@ -40,7 +40,18 @@ func InvalidReadPipeline(fhirStorePath string) *beam.Pipeline {
 	passert.Count(s, failedReads, "", 1)
 	passert.Empty(s, resources)
 	passert.True(s, failedReads, func(errorMsg string) bool {
-		return strings.Contains(errorMsg, "bad status [404]")
+		return strings.Contains(errorMsg, "404")
+	})
+	return p
+}
+
+func ExecuteBundlesPipeline(fhirStorePath string, bundlesSlice [][]byte) *beam.Pipeline {
+	p, s, bundles := ptest.CreateList(bundlesSlice)
+	successBodies, failures := fhirio.ExecuteBundles(s, fhirStorePath, bundles)
+	passert.Count(s, successBodies, "", 2)
+	passert.Count(s, failures, "", 2)
+	passert.True(s, failures, func(errorMsg string) bool {
+		return strings.Contains(errorMsg, "400")
 	})
 	return p
 }

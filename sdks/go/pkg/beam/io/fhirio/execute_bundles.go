@@ -1,0 +1,136 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package fhirio provides an API for reading and writing resources to Google
+// Cloud Healthcare Fhir stores.
+// Experimental.
+package fhirio
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"net/http"
+	"strings"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+)
+
+const (
+	bundleResponseTypeBatch       = "batch-response"
+	bundleResponseTypeTransaction = "transaction-response"
+)
+
+func init() {
+	register.DoFn4x0[context.Context, []byte, func(string), func(string)]((*executeBundlesFn)(nil))
+	register.Emitter1[string]()
+}
+
+type executeBundlesFn struct {
+	fhirioFnCommon
+	successesCount beam.Counter
+	fhirStorePath  string
+}
+
+func (fn executeBundlesFn) String() string {
+	return "executeBundlesFn"
+}
+
+func (fn *executeBundlesFn) Setup() {
+	fn.fhirioFnCommon.setup(fn.String())
+	fn.successesCount = beam.NewCounter(fn.String(), baseMetricPrefix+"success_count")
+}
+
+func (fn *executeBundlesFn) ProcessElement(ctx context.Context, inputBundleBody []byte, emitSuccess, emitFailure func(string)) {
+	response, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() (*http.Response, error) {
+		return fn.client.executeBundle(fn.fhirStorePath, inputBundleBody)
+	})
+	if err != nil {
+		fn.resourcesErrorCount.Inc(ctx, 1)
+		emitFailure(errors.Wrap(err, "execute bundle request returned error").Error())
+		return
+	}
+
+	body, err := extractBodyFrom(response)
+	if err != nil {
+		fn.resourcesErrorCount.Inc(ctx, 1)
+		emitFailure(errors.Wrap(err, "could not extract body from execute bundles response").Error())
+		return
+	}
+
+	fn.processResponseBody(ctx, body, emitSuccess, emitFailure)
+}
+
+func (fn *executeBundlesFn) processResponseBody(ctx context.Context, body string, emitSuccess, emitFailure func(string)) {
+	var bodyFields struct {
+		Type    string        `json:"type"`
+		Entries []interface{} `json:"entry"`
+	}
+
+	err := json.NewDecoder(strings.NewReader(body)).Decode(&bodyFields)
+	if err != nil {
+		fn.resourcesErrorCount.Inc(ctx, 1)
+		emitFailure(errors.Wrap(err, "could not parse body from execute bundle response").Error())
+		return
+	}
+
+	if bodyFields.Entries == nil {
+		return
+	}
+
+	// A BATCH bundle returns a success response even if entries have failures, as entries are
+	// executed separately. However, TRANSACTION bundles fail if any entry fails, and this would
+	// have thrown an exception on `client.executeFhirBundle`.
+	// Therefore, for BATCH bundles we need to parse the error and success counters.
+	switch bodyFields.Type {
+	case bundleResponseTypeTransaction:
+		fn.resourcesSuccessCount.Inc(ctx, int64(len(bodyFields.Entries)))
+		emitSuccess(body)
+	case bundleResponseTypeBatch:
+		var entryFields struct {
+			Response struct {
+				Status string `json:"status"`
+			} `json:"response"`
+		}
+		for _, entry := range bodyFields.Entries {
+			entryBytes, _ := json.Marshal(entry)
+			_ = json.NewDecoder(bytes.NewReader(entryBytes)).Decode(&entryFields)
+			if entryFields.Response.Status == "" {
+				continue
+			}
+
+			if isBadStatusCode(entryFields.Response.Status) {
+				fn.resourcesErrorCount.Inc(ctx, 1)
+				emitFailure(errors.Errorf("execute bundles entry contains bad status: [%v]", entryFields.Response.Status).Error())
+			} else {
+				fn.resourcesSuccessCount.Inc(ctx, 1)
+				emitSuccess(string(entryBytes))
+			}
+		}
+	}
+
+	fn.successesCount.Inc(ctx, 1)
+}
+
+func ExecuteBundles(s beam.Scope, fhirStorePath string, bundles beam.PCollection) (beam.PCollection, beam.PCollection) {
+	s = s.Scope("fhirio.ExecuteBundles")
+	return executeBundles(s, fhirStorePath, bundles, nil)
+}
+
+func executeBundles(s beam.Scope, fhirStorePath string, bundles beam.PCollection, client fhirStoreClient) (beam.PCollection, beam.PCollection) {
+	return beam.ParDo2(s, &executeBundlesFn{fhirioFnCommon: fhirioFnCommon{client: client}, fhirStorePath: fhirStorePath}, bundles)
+}
