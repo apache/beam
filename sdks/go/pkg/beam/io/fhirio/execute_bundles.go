@@ -22,12 +22,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"net/http"
 	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 const (
