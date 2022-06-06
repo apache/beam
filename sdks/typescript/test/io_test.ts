@@ -59,7 +59,12 @@ before(() => {
 
 after(() => subprocessCache.stopAll());
 
-describe("IO Tests", function () {
+// These depends on fixes that will be released in 2.40.
+// They can be run manually by setting an environment variable
+// expor tBEAM_SERVICE_OVERRIDES = '{python:*": "/path/to/dev/venv/bin/python"}'
+// TODO: Automatically set up/depend on such a venv in dev environments and/or
+// testing infra.
+xdescribe("IO Tests", function () {
   it("textio file test", async function () {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "apache-beam-test"));
 
