@@ -38,7 +38,7 @@ func TestRead(t *testing.T) {
 					return nil, errors.New("")
 				},
 			},
-			containedError: "failed fetching resource",
+			containedError: "returned error",
 		},
 		{
 			name: "Read Request Returns Bad Status",
@@ -47,7 +47,7 @@ func TestRead(t *testing.T) {
 					return &http.Response{StatusCode: 403}, nil
 				},
 			},
-			containedError: "returned bad status",
+			containedError: "bad status",
 		},
 		{
 			name: "Response body fails to be parsed",
@@ -55,12 +55,12 @@ func TestRead(t *testing.T) {
 				fakeReadResources: func(resource string) (*http.Response, error) {
 					return &http.Response{Body: &fakeReaderCloser{
 						fakeRead: func([]byte) (int, error) {
-							return 0, errors.New("")
+							return 0, errors.New("ReadAll fail")
 						},
-					}, StatusCode: 200}, nil
+					}, Status: "200 Ok"}, nil
 				},
 			},
-			containedError: "error reading response body",
+			containedError: "ReadAll fail",
 		},
 	}
 
@@ -82,7 +82,7 @@ func TestRead(t *testing.T) {
 			}
 			counterResult := counterResults[0]
 
-			expectedCounterName := "fhirio/read_resource_error_count"
+			expectedCounterName := "fhirio/resource_error_count"
 			if counterResult.Name() != expectedCounterName {
 				t.Fatalf("counterResult.Name() is '%v', expected '%v'", counterResult.Name(), expectedCounterName)
 			}
