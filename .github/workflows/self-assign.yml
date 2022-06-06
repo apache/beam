@@ -13,19 +13,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Assign issue to contributor
+name: Assign or close an issue
 on: 
   issue_comment:
 
 jobs:
   assign:
-    name: Take an issue
+    name: Take or close an issue
     runs-on: ubuntu-latest
     steps:
-    - name: take the issue
-      uses: damccorm/take-and-close-action@b37b24519483c490148839a50f74a2e9081b3f3c
+    - run: |
+        BODY="$(jq '.comment.body' $GITHUB_EVENT_PATH)"
+        ISSUE_NUMBER="$(jq '.issue.number' $GITHUB_EVENT_PATH)"
+        LOGIN="$(jq '.comment.user.login' $GITHUB_EVENT_PATH | tr -d \")"
+        REPO="$(jq '.repository.full_name' $GITHUB_EVENT_PATH | tr -d \")"
+        ISSUE_JSON="$(jq '.issue' $GITHUB_EVENT_PATH)"
+        if [[ $BODY == *"$INPUT_TAKE"* ]]; then
+          echo "Assigning issue $ISSUE_NUMBER to $LOGIN"
+          echo "Using the link: https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/assignees"
+          curl -H "Authorization: token $GITHUB_TOKEN" -d '{"assignees":["'"$LOGIN"'"]}' https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/assignees
+        fi
+        if [[ $BODY == *"$INPUT_CLOSE"* ]]; then
+          echo "Closing issue $ISSUE_NUMBER"
+          echo "Using the link: https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER"
+          curl -X PATCH -H "Authorization: token $GITHUB_TOKEN" -d '{"state":"closed"}' https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER
+        fi
+      shell: bash
       env:
+        INPUT_TAKE: ".take-issue"
+        INPUT_CLOSE: ".close-issue"
         GITHUB_TOKEN: ${{ github.token }}
-      with:
-        take: .take-issue
-        close: .close-issue
