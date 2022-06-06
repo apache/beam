@@ -202,7 +202,7 @@ class FnApiRunner(runner.PipelineRunner):
     return self._latest_run_result
 
   def run_via_runner_api(self, pipeline_proto, options):
-    # type: (beam_runner_api_pb2.Pipeline) -> RunnerResult
+    # type: (beam_runner_api_pb2.Pipeline, pipeline_options.PipelineOptions) -> RunnerResult
     self._validate_requirements(pipeline_proto)
     self._check_requirements(pipeline_proto)
     if options.view_as(
@@ -212,11 +212,12 @@ class FnApiRunner(runner.PipelineRunner):
     return self.run_stages(stage_context, stages)
 
   def embed_default_docker_image(self, pipeline_proto):
+    # Context is unused for these types.
     embedded_env = environments.EmbeddedPythonEnvironment.default(
-    ).to_runner_api(None)
+    ).to_runner_api(None)  # type: ignore[arg-type]
     docker_env = environments.DockerEnvironment.from_container_image(
         environments.DockerEnvironment.default_docker_image()).to_runner_api(
-            None)
+            None)  # type: ignore[arg-type]
     for env_id, env in pipeline_proto.components.environments.items():
       if env == docker_env:
         docker_env_id = env_id
