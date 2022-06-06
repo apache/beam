@@ -20,7 +20,6 @@
 import argparse
 import io
 import os
-from functools import partial
 from typing import Iterable
 from typing import Optional
 from typing import Tuple
@@ -126,7 +125,8 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
         | 'ReadImageNames' >> beam.io.ReadFromText(
             known_args.input, skip_header_lines=1)
         | 'ReadImageData' >> beam.Map(
-            partial(read_image, path_to_dir=known_args.images_dir))
+            lambda image_name: read_image(
+                image_file_name=image_name, path_to_dir=known_args.images_dir))
         | 'PreprocessImages' >> beam.MapTuple(
             lambda file_name, data: (file_name, preprocess_image(data))))
     predictions = (
