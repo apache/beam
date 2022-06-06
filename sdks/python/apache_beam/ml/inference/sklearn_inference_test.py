@@ -238,7 +238,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       pickle.dump(build_pandas_pipeline(), file)
     with TestPipeline() as pipeline:
       dataframe = pandas_dataframe()
-      splits = [data_frame.loc[[i]] for i in data_frame.index]
+      splits = [dataframe.loc[[i]] for i in dataframe.index]
       pcoll = pipeline | 'start' >> beam.Create(splits)
       actual = pcoll | api.RunInference(
           SklearnModelLoader(model_uri=temp_file_name))
