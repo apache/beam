@@ -77,8 +77,8 @@ func (fnc *fhirioFnCommon) setup(namespace string) {
 	if fnc.client == nil {
 		fnc.client = newFhirStoreClient()
 	}
-	fnc.resourcesErrorCount = beam.NewCounter(namespace, baseMetricPrefix+"_resource_error_count")
-	fnc.resourcesSuccessCount = beam.NewCounter(namespace, baseMetricPrefix+"_resource_success_count")
+	fnc.resourcesErrorCount = beam.NewCounter(namespace, baseMetricPrefix+"resource_error_count")
+	fnc.resourcesSuccessCount = beam.NewCounter(namespace, baseMetricPrefix+"resource_success_count")
 	fnc.latencyMs = beam.NewDistribution(namespace, baseMetricPrefix+"latency_ms")
 }
 
