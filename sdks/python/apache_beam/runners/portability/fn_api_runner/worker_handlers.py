@@ -748,6 +748,10 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
     # type: () -> None
     credential_options = []
     try:
+      # This is the public facing API, skip if it is not available.
+      # (If this succeeds but the imports below fail, better to actually raise
+      # an error below rather than silently fail.)
+      # pylint: disable=unused-import
       import google.auth
     except ImportError:
       pass
