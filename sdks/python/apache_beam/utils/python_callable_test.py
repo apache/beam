@@ -62,3 +62,7 @@ class PythonCallableWithSourceTest(unittest.TestCase):
                 return bar(x) * x
         """)(10),
         110)
+
+
+if __name__ == '__main__':
+  unittest.main()
