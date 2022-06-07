@@ -1445,6 +1445,9 @@ public class KafkaIO {
         if (kafkaRead.isCommitOffsetsInFinalizeEnabled()) {
           readTransform = readTransform.commitOffsets();
         }
+        if (kafkaRead.getStopReadTime() != null) {
+          readTransform = readTransform.withBounded();
+        }
         PCollection<KafkaSourceDescriptor> output;
         if (kafkaRead.isDynamicRead()) {
           Set<String> topics = new HashSet<>();
@@ -1843,6 +1846,8 @@ public class KafkaIO {
 
     abstract @Nullable TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
+    abstract boolean isBounded();
+
     abstract ReadSourceDescriptors.Builder<K, V> toBuilder();
 
     @AutoValue.Builder
@@ -1880,6 +1885,8 @@ public class KafkaIO {
       abstract ReadSourceDescriptors.Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> policy);
 
+      abstract ReadSourceDescriptors.Builder<K, V> setBounded(boolean bounded);
+
       abstract ReadSourceDescriptors<K, V> build();
     }
 
@@ -1888,6 +1895,7 @@ public class KafkaIO {
           .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
           .setConsumerConfig(KafkaIOUtils.DEFAULT_CONSUMER_PROPERTIES)
           .setCommitOffsetEnabled(false)
+          .setBounded(false)
           .build()
           .withProcessingTime()
           .withMonotonicallyIncreasingWatermarkEstimator();
@@ -2180,6 +2188,11 @@ public class KafkaIO {
           .withManualWatermarkEstimator();
     }
 
+    /** Enable treating the Kafka sources as bounded as opposed to the unbounded default. */
+    ReadSourceDescriptors<K, V> withBounded() {
+      return toBuilder().setBounded(true).build();
+    }
+
     @Override
     public PCollection<KafkaRecord<K, V>> expand(PCollection<KafkaSourceDescriptor> input) {
       checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
@@ -2214,7 +2227,7 @@ public class KafkaIO {
       try {
         PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> outputWithDescriptor =
             input
-                .apply(ParDo.of(new ReadFromKafkaDoFn<K, V>(this)))
+                .apply(ParDo.of(ReadFromKafkaDoFn.<K, V>create(this)))
                 .setCoder(
                     KvCoder.of(
                         input
