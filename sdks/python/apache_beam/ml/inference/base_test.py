@@ -19,8 +19,8 @@
 
 import pickle
 import unittest
-from typing import Any
 from typing import Iterable
+from typing import List
 
 import apache_beam as beam
 from apache_beam.metrics.metric import MetricsFilter
@@ -35,36 +35,38 @@ class FakeModel:
     return example + 1
 
 
-class FakeInferenceRunner(base.InferenceRunner):
+class FakeInferenceRunner(base.InferenceRunner[int, int, FakeModel]):
   def __init__(self, clock=None):
-    self._mock_clock = clock
+    self._fake_clock = clock
 
-  def run_inference(self, batch: Any, model: Any) -> Iterable[Any]:
-    if self._mock_clock:
-      self._mock_clock.current_time += 3000
+  def run_inference(self, batch: List[int], model: FakeModel,
+                    **kwargs) -> Iterable[int]:
+    if self._fake_clock:
+      self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
     for example in batch:
       yield model.predict(example)
 
 
-class FakeModelLoader(base.ModelLoader):
+class FakeModelLoader(base.ModelLoader[int, int, FakeModel]):
   def __init__(self, clock=None):
-    self._mock_clock = clock
+    self._fake_clock = clock
 
   def load_model(self):
-    if self._mock_clock:
-      self._mock_clock.current_time += 50000
+    if self._fake_clock:
+      self._fake_clock.current_time_ns += 500_000_000  # 500ms
     return FakeModel()
 
   def get_inference_runner(self):
-    return FakeInferenceRunner(self._mock_clock)
+    return FakeInferenceRunner(self._fake_clock)
 
 
-class MockClock(base._Clock):
+class FakeClock:
   def __init__(self):
-    self.current_time = 10000
+    # Start at 10 seconds.
+    self.current_time_ns = 10_000_000_000
 
-  def get_current_time_in_microseconds(self) -> int:
-    return self.current_time
+  def time_ns(self) -> int:
+    return self.current_time_ns
 
 
 class ExtractInferences(beam.DoFn):
@@ -87,6 +89,18 @@ class FakeLoaderWithBatchArgForwarding(FakeModelLoader):
     return {'min_batch_size': 9999}
 
 
+class FakeInferenceRunnerKwargs(FakeInferenceRunner):
+  def run_inference(self, batch, unused_model, **kwargs):
+    if not kwargs.get('key'):
+      raise ValueError('key should be True')
+    return batch
+
+
+class FakeLoaderWithKwargs(FakeModelLoader):
+  def get_inference_runner(self):
+    return FakeInferenceRunnerKwargs()
+
+
 class RunInferenceBaseTest(unittest.TestCase):
   def test_run_inference_impl_simple_examples(self):
     with TestPipeline() as pipeline:
@@ -104,6 +118,14 @@ class RunInferenceBaseTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
       actual = pcoll | base.RunInference(FakeModelLoader())
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_kwargs(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      kwargs = {'key': True}
+      actual = pcoll | base.RunInference(FakeLoaderWithKwargs(), **kwargs)
+      assert_that(actual, equal_to(examples), label='assert:inferences')
 
   def test_counted_metrics(self):
     pipeline = TestPipeline()
@@ -137,9 +159,9 @@ class RunInferenceBaseTest(unittest.TestCase):
     pipeline = TestPipeline()
     examples = [1, 5, 3, 10]
     pcoll = pipeline | 'start' >> beam.Create(examples)
-    mock_clock = MockClock()
+    fake_clock = FakeClock()
     _ = pcoll | base.RunInference(
-        FakeModelLoader(clock=mock_clock), clock=mock_clock)
+        FakeModelLoader(clock=fake_clock), clock=fake_clock)
     res = pipeline.run()
     res.wait_until_finish()
 
@@ -155,7 +177,7 @@ class RunInferenceBaseTest(unittest.TestCase):
             MetricsFilter().with_name('load_model_latency_milli_secs')))
     load_model_latency = metric_results['distributions'][0]
     self.assertEqual(load_model_latency.result.count, 1)
-    self.assertEqual(load_model_latency.result.mean, 50)
+    self.assertEqual(load_model_latency.result.mean, 500)
 
   def test_forwards_batch_args(self):
     examples = list(range(100))

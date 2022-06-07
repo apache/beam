@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.util;
 import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -47,6 +48,11 @@ public class DataflowTemplateJob extends DataflowPipelineJob {
 
   @Override
   public DataflowPipelineJob getReplacedByJob() {
+    throw new UnsupportedOperationException(ERROR);
+  }
+
+  @Override
+  public MetricResults metrics() {
     throw new UnsupportedOperationException(ERROR);
   }
 

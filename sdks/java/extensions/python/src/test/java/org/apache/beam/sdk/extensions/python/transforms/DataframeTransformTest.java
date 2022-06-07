@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.python;
+package org.apache.beam.sdk.extensions.python.transforms;
 
 import org.apache.beam.runners.core.construction.BaseExternalTest;
-import org.apache.beam.sdk.extensions.python.io.DataframeTransform;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.UsesPythonExpansionService;

@@ -39,6 +39,9 @@ class PredictionResult:
 @beam.typehints.with_output_types(Union[PredictionResult, Tuple[_K, PredictionResult]])  # pylint: disable=line-too-long
 class RunInference(beam.PTransform):
   """
+  NOTE: This API and its implementation are under development and
+  do not provide backward compatibility guarantees.
+
   A transform that takes a PCollection of examples (or features) to be used on
   an ML model. It will then output inferences (or predictions) for those
   examples in a PCollection of PredictionResults, containing the input examples
