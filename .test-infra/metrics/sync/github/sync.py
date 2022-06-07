@@ -409,13 +409,12 @@ def fetchNewData():
   '''
   Main workhorse method. Fetches data from GitHub and puts it in metrics table.
   '''
-  connection = initDBConnection()
-
   for i in range(2):
     kind = 'issue'
     if i == 0:
       kind = 'pr'
 
+    connection = initDBConnection()
     cursor = connection.cursor()
     lastSyncTimestamp = fetchLastSyncTimestamp(cursor, f'gh_{kind}_sync')
     cursor.close()
@@ -503,7 +502,7 @@ if __name__ == '__main__':
   initDbTablesIfNeeded()
 
   while True:
-    print("Start PR fetching.")
+    print("Start PR and Issue fetching.")
     sys.stdout.flush()
 
     if not probeGitHubIsUp():
