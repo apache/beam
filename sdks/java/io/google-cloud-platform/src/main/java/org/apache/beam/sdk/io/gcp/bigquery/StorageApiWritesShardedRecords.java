@@ -37,7 +37,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -70,12 +69,12 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -83,6 +82,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNot
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,7 +93,7 @@ import org.slf4j.LoggerFactory;
   "FutureReturnValueIgnored",
   "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
-public class StorageApiWritesShardedRecords<DestinationT, ElementT>
+public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object, ElementT>
     extends PTransform<
         PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>>,
         PCollection<Void>> {
@@ -112,7 +113,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
           .expireAfterAccess(5, TimeUnit.MINUTES)
           .removalListener(
               (RemovalNotification<String, StreamAppendClient> removal) -> {
-                @Nullable final StreamAppendClient streamAppendClient = removal.getValue();
+                final @Nullable StreamAppendClient streamAppendClient = removal.getValue();
                 // Close the writer in a different thread so as not to block the main one.
                 runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::close);
               })
@@ -244,7 +245,6 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     // Get the current stream for this key. If there is no current stream, create one and store the
     // stream name in
     // persistent state.
-    @SuppressWarnings({"nullness"})
     String getOrCreateStream(
         String tableId,
         ValueState<String> streamName,
@@ -286,7 +286,6 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
       }
     }
 
-    @SuppressWarnings({"nullness"})
     @ProcessElement
     public void process(
         ProcessContext c,
@@ -346,7 +345,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
       class AppendRowsContext extends RetryManager.Operation.Context<AppendRowsResponse> {
         final ShardedKey<DestinationT> key;
         String streamName = "";
-        StreamAppendClient client = null;
+        @Nullable StreamAppendClient client = null;
         long offset = -1;
         long numRows = 0;
         long tryIteration = 0;
@@ -440,7 +439,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
             failedContexts -> {
               // The first context is always the one that fails.
               AppendRowsContext failedContext =
-                  Preconditions.checkNotNull(Iterables.getFirst(failedContexts, null));
+                  Preconditions.checkStateNotNull(Iterables.getFirst(failedContexts, null));
               // Invalidate the StreamWriter and force a new one to be created.
               LOG.error(
                   "Got error " + failedContext.getError() + " closing " + failedContext.streamName);
@@ -449,7 +448,8 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
               boolean explicitStreamFinalized =
                   failedContext.getError() instanceof StreamFinalizedException;
-              Status.Code statusCode = Status.fromThrowable(failedContext.getError()).getCode();
+              Throwable error = Preconditions.checkStateNotNull(failedContext.getError());
+              Status.Code statusCode = Status.fromThrowable(error).getCode();
               // This means that the offset we have stored does not match the current end of
               // the stream in the Storage API. Usually this happens because a crash or a bundle
               // failure

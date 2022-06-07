@@ -176,7 +176,7 @@ export class NullableCoder<T> implements Coder<T | undefined> {
   }
 
   encode(element: T | undefined, writer: Writer, context: Context) {
-    if (element == undefined) {
+    if (element === null || element === undefined) {
       writer.bool(false);
     } else {
       writer.bool(true);

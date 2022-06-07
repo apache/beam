@@ -457,7 +457,7 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV("42"),
                   new TableCell().setV("43"),
                   new TableCell().setV("2.8168"),
-                  new TableCell().setV("2.817"),
+                  new TableCell().setV("2"),
                   new TableCell().setV("true"),
                   new TableCell().setV("true"),
                   new TableCell().setV("1970-01-01T00:00:00.000043Z"),
@@ -476,7 +476,7 @@ public class TableRowToStorageApiProtoTest {
           .set("int64Value", "42")
           .set("intValue", "43")
           .set("float64Value", "2.8168")
-          .set("floatValue", "2.817")
+          .set("floatValue", "2")
           .set("boolValue", "true")
           .set("booleanValue", "true")
           .set("timestampValue", "1970-01-01T00:00:00.000043Z")
@@ -495,7 +495,7 @@ public class TableRowToStorageApiProtoTest {
           .put("int64value", (long) 42)
           .put("intvalue", (long) 43)
           .put("float64value", (double) 2.8168)
-          .put("floatvalue", (double) 2.817)
+          .put("floatvalue", (double) 2)
           .put("boolvalue", true)
           .put("booleanvalue", true)
           .put("timestampvalue", 43L)
@@ -518,7 +518,7 @@ public class TableRowToStorageApiProtoTest {
           .put("int64value", (long) 42)
           .put("intvalue", (long) 43)
           .put("float64value", (double) 2.8168)
-          .put("floatvalue", (double) 2.817)
+          .put("floatvalue", (double) 2)
           .put("boolvalue", true)
           .put("booleanvalue", true)
           .put("timestampvalue", 43L)

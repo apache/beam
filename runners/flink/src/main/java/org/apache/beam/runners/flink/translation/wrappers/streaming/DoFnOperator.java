@@ -118,7 +118,6 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OutputTag;
@@ -896,7 +895,7 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  protected void scheduleForCurrentProcessingTime(ProcessingTimeCallback callback) {
+  protected void scheduleForCurrentProcessingTime(ProcessingTimeCallbackCompat callback) {
     // We are scheduling a timer for advancing the watermark, to not delay finishing the bundle
     // and temporarily release the checkpoint lock. Otherwise, we could potentially loop when a
     // timer keeps scheduling a timer for the same timestamp.

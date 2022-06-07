@@ -99,6 +99,10 @@ func (n *ParDo) Up(ctx context.Context) error {
 	return nil
 }
 
+func (n *ParDo) AttachFinalizer(bf *bundleFinalizer) {
+	n.bf = bf
+}
+
 // StartBundle does pre-bundle processing operation for the DoFn.
 func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) error {
 	if n.status != Up {
