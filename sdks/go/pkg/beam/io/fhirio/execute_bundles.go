@@ -126,6 +126,14 @@ func (fn *executeBundlesFn) processResponseBody(ctx context.Context, body string
 	fn.successesCount.Inc(ctx, 1)
 }
 
+// ExecuteBundles performs all the requests in the specified bundles on a given
+// FHIR store. This transform takes a path to a FHIR store and a PCollection of
+// bundles as JSON-encoded strings. It executes the requests defined on the
+// bundles on the FHIR store located on the provided path. It outputs two
+// PCollection<string>, the first containing the response bodies of the
+// successfully performed requests and the second one error messages of the
+// requests that failed to be executed.
+// See: https://cloud.google.com/healthcare-api/docs/samples/healthcare-fhir-execute-bundle
 func ExecuteBundles(s beam.Scope, fhirStorePath string, bundles beam.PCollection) (beam.PCollection, beam.PCollection) {
 	s = s.Scope("fhirio.ExecuteBundles")
 	return executeBundles(s, fhirStorePath, bundles, nil)
