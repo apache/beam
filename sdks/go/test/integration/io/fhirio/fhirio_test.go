@@ -84,7 +84,7 @@ func setupFhirStore(t *testing.T, shouldPopulateStore bool) (string, []string, f
 	healthcareDataset := fmt.Sprintf(datasetPathFmt, *gcpopts.Project, *gcpopts.Region)
 	createdFhirStore, err := createStore(healthcareDataset)
 	if err != nil {
-		t.Fatal("Test store failed to be created")
+		t.Fatalf("Test store failed to be created. Reason: %v", err.Error())
 	}
 	createdFhirStorePath := createdFhirStore.Name
 
