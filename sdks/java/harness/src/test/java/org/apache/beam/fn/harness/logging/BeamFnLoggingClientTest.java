@@ -30,10 +30,12 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -53,6 +55,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.MDC;
 
 /** Tests for {@link BeamFnLoggingClient}. */
 @RunWith(JUnit4.class)
@@ -82,6 +85,15 @@ public class BeamFnLoggingClientTest {
           .setInstructionId("instruction-1")
           .setSeverity(BeamFnApi.LogEntry.Severity.Enum.DEBUG)
           .setMessage("Message")
+          .setThread("12345")
+          .setTimestamp(Timestamp.newBuilder().setSeconds(1234567).setNanos(890000000).build())
+          .setLogLocation("LoggerName")
+          .build();
+  private static final BeamFnApi.LogEntry TEST_ENTRY_WITH_CUSTOM_FORMATTER =
+      BeamFnApi.LogEntry.newBuilder()
+          .setInstructionId("instruction-1")
+          .setSeverity(BeamFnApi.LogEntry.Severity.Enum.DEBUG)
+          .setMessage("testMdcValue:Message")
           .setThread("12345")
           .setTimestamp(Timestamp.newBuilder().setSeconds(1234567).setNanos(890000000).build())
           .setLogLocation("LoggerName")
@@ -163,6 +175,20 @@ public class BeamFnLoggingClientTest {
       // Should not be filtered because the default log level override for ConfiguredLogger is DEBUG
       configuredLogger.log(TEST_RECORD);
       configuredLogger.log(TEST_RECORD_WITH_EXCEPTION);
+
+      // Ensure that configuring a custom formatter on the logging handler will be honored.
+      for (Handler handler : rootLogger.getHandlers()) {
+        handler.setFormatter(
+            new SimpleFormatter() {
+              @Override
+              public synchronized String formatMessage(LogRecord record) {
+                return MDC.get("testMdcKey") + ":" + super.formatMessage(record);
+              }
+            });
+      }
+      MDC.put("testMdcKey", "testMdcValue");
+      configuredLogger.log(TEST_RECORD);
+
       client.close();
 
       // Verify that after close, log levels are reset.
@@ -171,7 +197,9 @@ public class BeamFnLoggingClientTest {
 
       assertTrue(clientClosedStream.get());
       assertTrue(channel.isShutdown());
-      assertThat(values, contains(TEST_ENTRY, TEST_ENTRY_WITH_EXCEPTION));
+      assertThat(
+          values,
+          contains(TEST_ENTRY, TEST_ENTRY_WITH_EXCEPTION, TEST_ENTRY_WITH_CUSTOM_FORMATTER));
     } finally {
       server.shutdownNow();
     }

@@ -271,7 +271,7 @@ export class IterableCoder<T> implements Coder<Iterable<T>> {
    */
   encode(element: Iterable<T>, writer: Writer, context: Context) {
     const elmLen = (element as Array<T>).length;
-    if ((element as Array<T>).length !== undefined) {
+    if (elmLen !== undefined) {
       const eArray = element as Array<T>;
       writer.fixed32(swapEndian32(eArray.length));
       for (let i = 0; i < eArray.length; ++i) {
@@ -542,13 +542,13 @@ export class PaneInfoCoder implements Coder<PaneInfo> {
 
   private static chooseEncoding(value: PaneInfo): number {
     if (
-      (value.index == 0 && value.onTimeIndex == 0) ||
-      value.timing == Timing.UNKNOWN
+      (value.index === 0 && value.onTimeIndex === 0) ||
+      value.timing === Timing.UNKNOWN
     ) {
       return PaneInfoEncoding.NO_INDEX;
     } else if (
-      value.index == value.onTimeIndex ||
-      value.timing == Timing.EARLY
+      value.index === value.onTimeIndex ||
+      value.timing === Timing.EARLY
     ) {
       return PaneInfoEncoding.ONE_INDEX;
     } else {
@@ -586,7 +586,7 @@ export class PaneInfoCoder implements Coder<PaneInfo> {
           isFirst: isFirst,
           isLast: isLast,
           index: onlyIndex,
-          onTimeIndex: timing == Timing.EARLY ? -1 : onlyIndex,
+          onTimeIndex: timing === Timing.EARLY ? -1 : onlyIndex,
           timing: timing,
         };
 

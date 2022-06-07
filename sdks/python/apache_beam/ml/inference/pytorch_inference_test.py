@@ -37,10 +37,15 @@ try:
   import torch
   from apache_beam.ml.inference.api import PredictionResult
   from apache_beam.ml.inference.base import RunInference
-  from apache_beam.ml.inference.pytorch import PytorchInferenceRunner
-  from apache_beam.ml.inference.pytorch import PytorchModelLoader
+  from apache_beam.ml.inference.pytorch_inference import PytorchInferenceRunner
+  from apache_beam.ml.inference.pytorch_inference import PytorchModelLoader
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
+
+try:
+  from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+except ImportError:
+  GCSFileSystem = None  # type: ignore
 
 
 def _compare_prediction_result(a, b):
@@ -166,6 +171,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
           predictions,
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
+  @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_gcs_model(self):
     with TestPipeline() as pipeline:
       examples = torch.from_numpy(
@@ -178,7 +184,8 @@ class PytorchRunInferenceTest(unittest.TestCase):
                             for example in examples]).reshape(-1, 1))
       ]
 
-      gs_pth = 'gs://apache-beam-ml/pytorch_lin_reg_model_2x+0.5_state_dict.pth'
+      gs_pth = 'gs://apache-beam-ml/models/' \
+          'pytorch_lin_reg_model_2x+0.5_state_dict.pth'
       model_loader = PytorchModelLoader(
           state_dict_path=gs_pth,
           model_class=PytorchLinearRegression,

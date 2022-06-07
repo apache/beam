@@ -24,6 +24,7 @@ applyJavaNature(
   enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.runners.spark',
   archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName),
+  exportJavadoc: (project.hasProperty('exportJavadoc') ? exportJavadoc : true),
   classesTriggerCheckerBugs: [
     'SparkAssignWindowFn': 'https://github.com/typetools/checker-framework/issues/3793',
     'SparkCombineFn'     : 'https://github.com/typetools/checker-framework/issues/3793',
