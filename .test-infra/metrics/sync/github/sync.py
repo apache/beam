@@ -432,7 +432,7 @@ def fetchNewData():
     resultsPresent = True
     while resultsPresent:
       print(f'Syncing data for {kind}s: ', currTS)
-      query = queries.MAIN_PR_QUERY if kind == 'pr' else queries.MAIN_ISSUE_QUERY
+      query = queries.MAIN_PR_QUERY if kind == 'pr' else queries.MAIN_ISSUES_QUERY
       jsonData = fetchGHData(currTS, query)
 
       connection = initDBConnection()
