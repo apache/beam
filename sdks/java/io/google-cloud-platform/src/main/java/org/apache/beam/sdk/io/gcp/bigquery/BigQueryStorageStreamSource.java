@@ -356,6 +356,9 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                       .build(),
                   source.readSession.getTable());
           newResponseIterator = newResponseStream.iterator();
+          // The following line is required to trigger the `FailedPreconditionException` on which
+          // the SplitReadStream validation logic depends. Removing it will cause incorrect
+          // split operations to succeed.
           newResponseIterator.hasNext();
         } catch (FailedPreconditionException e) {
           // The current source has already moved past the split point, so this split attempt
