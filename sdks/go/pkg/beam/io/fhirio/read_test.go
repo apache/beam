@@ -26,41 +26,45 @@ import (
 )
 
 func TestRead(t *testing.T) {
+	readRequestReturnErrorMsg := "read returned error"
+	badStatus := "403 Forbidden"
+	readerErrorMsg := "ReadAll fail"
+
 	testCases := []struct {
 		name           string
 		client         fhirStoreClient
 		containedError string
 	}{
 		{
-			name: "Read Request Failed",
+			name: "Read request returns error",
 			client: &fakeFhirStoreClient{
 				fakeReadResources: func(resource string) (*http.Response, error) {
-					return nil, errors.New("")
+					return nil, errors.New(readRequestReturnErrorMsg)
 				},
 			},
-			containedError: "returned error",
+			containedError: readRequestReturnErrorMsg,
 		},
 		{
-			name: "Read Request Returns Bad Status",
+			name: "Read request returns bad status",
 			client: &fakeFhirStoreClient{
 				fakeReadResources: func(resource string) (*http.Response, error) {
-					return &http.Response{Status: "403 Forbidden"}, nil
+					return &http.Response{Status: badStatus}, nil
 				},
 			},
-			containedError: "403 Forbidden",
+			containedError: badStatus,
 		},
 		{
-			name: "Response body fails to be parsed",
+			name: "Read request response body fails to be parsed",
 			client: &fakeFhirStoreClient{
 				fakeReadResources: func(resource string) (*http.Response, error) {
 					return &http.Response{Body: &fakeReaderCloser{
 						fakeRead: func([]byte) (int, error) {
-							return 0, errors.New("ReadAll fail")
+							return 0, errors.New(readerErrorMsg)
 						},
 					}, Status: "200 Ok"}, nil
 				},
 			},
-			containedError: "ReadAll fail",
+			containedError: readerErrorMsg,
 		},
 	}
 
@@ -91,7 +95,6 @@ func TestRead(t *testing.T) {
 			if counterResult.Result() != expectedCounterResult {
 				t.Fatalf("counterResult.Result() is %v, expected %v", counterResult.Result(), expectedCounterResult)
 			}
-
 		})
 	}
 }
