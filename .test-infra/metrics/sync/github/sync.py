@@ -67,6 +67,21 @@ GH_PRS_CREATE_TABLE_QUERY = f"""
   )
   """
 
+GH_ISSUES_TABLE_NAME = 'gh_issues'
+
+GH_ISSUES_CREATE_TABLE_QUERY = f"""
+  create table {GH_PRS_TABLE_NAME} (
+  issue_id integer NOT NULL PRIMARY KEY,
+  author varchar NOT NULL,
+  created_ts timestamp NOT NULL,
+  updated_ts timestamp NOT NULL,
+  closed_ts timestamp NULL,
+  title varchar NOT NULL,
+  assignees varchar[] NOT NULL,
+  labels varchar[] NOT NULL
+  )
+  """
+
 GH_SYNC_METADATA_TABLE_NAME = 'gh_sync_metadata'
 GH_SYNC_METADATA_TABLE_CREATE_QUERY = f"""
   create table {GH_SYNC_METADATA_TABLE_NAME} (
@@ -110,6 +125,13 @@ def initDbTablesIfNeeded():
     if not bool(cursor.rowcount):
       raise Exception(f"Failed to create table {GH_PRS_TABLE_NAME}")
 
+  buildsTableExists = tableExists(cursor, GH_ISSUES_TABLE_NAME)
+  print('PRs table exists', buildsTableExists)
+  if not buildsTableExists:
+    cursor.execute(GH_ISSUES_CREATE_TABLE_QUERY)
+    if not bool(cursor.rowcount):
+      raise Exception(f"Failed to create table {GH_ISSUES_TABLE_NAME}")
+
   metadataTableExists = tableExists(cursor, GH_SYNC_METADATA_TABLE_NAME)
   print('Metadata table exists', metadataTableExists)
   if not buildsTableExists:
@@ -123,7 +145,8 @@ def initDbTablesIfNeeded():
   connection.close()
 
 
-def fetchLastSyncTimestamp(cursor):
+# TODO: Remove this logic once the gh_issue_sync row has been populated
+def fetchLastSyncTimestampFallback(cursor):
   '''Fetches last sync timestamp from metadata DB table.'''
   fetchQuery = f'''
   SELECT timestamp
@@ -138,14 +161,28 @@ def fetchLastSyncTimestamp(cursor):
   return defaultResult if queryResult is None else queryResult[0]
 
 
-def updateLastSyncTimestamp(timestamp):
+def fetchLastSyncTimestamp(cursor, name):
+  '''Fetches last sync timestamp from metadata DB table.'''
+  fetchQuery = f'''
+  SELECT timestamp
+  FROM {GH_SYNC_METADATA_TABLE_NAME}
+  WHERE name LIKE '{name}'
+  '''
+
+  cursor.execute(fetchQuery)
+  queryResult = cursor.fetchone()
+
+  return fetchLastSyncTimestampFallback(cursor) if queryResult is None else queryResult[0]
+
+
+def updateLastSyncTimestamp(timestamp, name):
   '''Updates last sync timestamp in metadata DB table.'''
   connection = initDBConnection()
   cursor = connection.cursor()
 
   insertTimestampSqlQuery = f'''INSERT INTO {GH_SYNC_METADATA_TABLE_NAME}
                                   (name, timestamp)
-                                VALUES ('gh_sync', %s) 
+                                VALUES ('{name}', %s) 
                                 ON CONFLICT (name) DO UPDATE
                                   SET timestamp = excluded.timestamp
                                 '''
@@ -164,10 +201,10 @@ def executeGHGraphqlQuery(query):
   return r.json()
 
 
-def fetchGHData(timestamp):
+def fetchGHData(timestamp, ghQuery):
   '''Fetches GitHub data required for reporting Beam metrics'''
   tsString = ghutilities.datetimeToGHTimeStr(timestamp)
-  query = queries.MAIN_PR_QUERY.replace('<TemstampSubstitueLocation>', tsString)
+  query = ghQuery.replace('<TemstampSubstitueLocation>', tsString)
   return executeGHGraphqlQuery(query)
 
 
@@ -289,6 +326,26 @@ def extractRowValuesFromPr(pr):
   return result
 
 
+def extractRowValuesFromIssue(issue):
+  '''
+  Extracts row values required to fill Beam metrics table from PullRequest
+  GraphQL response.
+  '''
+  assignees = []
+  for a in issue['assignees']['edges']:
+    assignees.append(a['node']['login'])
+  labels = []
+  for l in issue['labels']['edges']:
+    labels.append(l['node']['name'])
+
+  result = [
+      issue["number"], issue["author"]["login"], issue["createdAt"], issue["updatedAt"],
+      issue["closedAt"], issue["title"], assignees, labels
+  ]
+
+  return result
+
+
 def upsertIntoPRsTable(cursor, values):
   upsertPRRowQuery = f'''INSERT INTO {GH_PRS_TABLE_NAME}
                             (pr_id,
@@ -322,63 +379,98 @@ def upsertIntoPRsTable(cursor, values):
   cursor.execute(upsertPRRowQuery, values)
 
 
+def upsertIntoIssuesTable(cursor, values):
+  upsertPRRowQuery = f'''INSERT INTO {GH_ISSUES_TABLE_NAME}
+                            (issue_id,
+                            author,
+                            created_ts,
+                            updated_ts,
+                            closed_ts,
+                            title,
+                            assignees,
+                            labels)
+                          VALUES
+                            (%s, %s, %s, %s, %s, %s, %s, %s)
+                          ON CONFLICT (pr_id) DO UPDATE
+                            SET
+                            issue_id=excluded.issue_id,
+                            author=excluded.author,
+                            created_ts=excluded.created_ts,
+                            updated_ts=excluded.updated_ts,
+                            closed_ts=excluded.closed_ts,
+                            title=excluded.title,
+                            assignees=excluded.assignees,
+                            labels=excluded.labels
+                          '''
+  cursor.execute(upsertPRRowQuery, values)
+
+
 def fetchNewData():
   '''
   Main workhorse method. Fetches data from GitHub and puts it in metrics table.
   '''
   connection = initDBConnection()
-  cursor = connection.cursor()
-  lastSyncTimestamp = fetchLastSyncTimestamp(cursor)
-  cursor.close()
-  connection.close()
 
-  currTS = lastSyncTimestamp
+  for i in range(2):
+    kind = 'issue'
+    if i == 0:
+      kind = 'pr'
 
-  resultsPresent = True
-  while resultsPresent:
-    print("Syncing data for: ", currTS)
-    jsonData = fetchGHData(currTS)
-
-    connection = initDBConnection()
     cursor = connection.cursor()
-
-    if "errors" in jsonData:
-      print("Failed to fetch data, error:", jsonData)
-      return
-
-    prs = None
-    try:
-      prs = jsonData["data"]["search"]["edges"]
-    except:
-      # TODO This means that API returned error.
-      # We might want to bring this to stderr or utilize other means of logging.
-      # Examples: we hit throttling, etc
-      print("Got bad json format: ", jsonData)
-      return
-
-    if not prs:
-      resultsPresent = False
-
-    for edge in prs:
-      pr = edge["node"]
-      try:
-        rowValues = extractRowValuesFromPr(pr)
-      except Exception as e:
-        print("Failed to extract data. Exception: ", e, " PR: ", edge)
-        traceback.print_tb(e.__traceback__)
-        return
-
-      upsertIntoPRsTable(cursor, rowValues)
-
-      prUpdateTime = ghutilities.datetimeFromGHTimeStr(pr["updatedAt"])
-
-      currTS = currTS if currTS > prUpdateTime else prUpdateTime
-
+    lastSyncTimestamp = fetchLastSyncTimestamp(cursor, f'gh_{kind}_sync')
     cursor.close()
-    connection.commit()
     connection.close()
 
-    updateLastSyncTimestamp(currTS)
+    currTS = lastSyncTimestamp
+
+    resultsPresent = True
+    while resultsPresent:
+      print(f'Syncing data for {kind}s: ', currTS)
+      jsonData = fetchGHData(currTS, queries.MAIN_PR_QUERY)
+
+      connection = initDBConnection()
+      cursor = connection.cursor()
+
+      if "errors" in jsonData:
+        print("Failed to fetch data, error:", jsonData)
+        return
+
+      data = None
+      try:
+        data = jsonData["data"]["search"]["edges"]
+      except:
+        # TODO This means that API returned error.
+        # We might want to bring this to stderr or utilize other means of logging.
+        # Examples: we hit throttling, etc
+        print("Got bad json format: ", jsonData)
+        return
+
+      if not data:
+        resultsPresent = False
+
+      for edge in data:
+        node = edge["node"]
+        try:
+          rowValues = extractRowValuesFromPr(node) if kind == 'pr' else extractRowValuesFromIssue(node)
+        except Exception as e:
+          print("Failed to extract data. Exception: ", e, f" {kind}: ", edge)
+          traceback.print_tb(e.__traceback__)
+          return
+
+        if kind == 'pr':
+          upsertIntoPRsTable(cursor, rowValues)
+        else:
+          upsertIntoIssuesTable(cursor, rowValues)
+
+        updateTime = ghutilities.datetimeFromGHTimeStr(node["updatedAt"])
+
+        currTS = currTS if currTS > updateTime else updateTime
+
+      cursor.close()
+      connection.commit()
+      connection.close()
+
+      updateLastSyncTimestamp(currTS, 'gh_pr_sync')
 
 
 def probeGitHubIsUp():

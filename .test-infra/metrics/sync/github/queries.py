@@ -114,3 +114,56 @@ query {
   }
 }
 '''
+
+MAIN_ISSUES_QUERY = '''
+query {
+  search(
+    query: "type:issue repo:apache/beam created:>2022-06-01 sort:updated-asc"
+    type: ISSUE
+    first: 100
+  ) {
+    issueCount
+    pageInfo {
+      endCursor
+      startCursor
+      hasNextPage
+      hasPreviousPage
+    }
+    edges {
+      cursor
+      node {
+        ... on Issue {
+          number
+          author {
+            login
+          }
+          createdAt
+          closedAt
+          updatedAt
+          assignees(first: 50) {
+            pageInfo {
+              startCursor
+              endCursor
+              hasNextPage
+              hasPreviousPage
+            }
+            edges {
+              node {
+                login
+              }
+            }
+          }
+          title
+          labels(first: 10) {
+            edges {
+              node {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+'''
