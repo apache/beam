@@ -420,11 +420,14 @@ def fetchNewData():
     cursor.close()
     connection.close()
     if lastSyncTimestamp is None:
-      connection = initDBConnection()
-      cursor = connection.cursor()
-      lastSyncTimestamp = fetchLastSyncTimestampFallback(cursor)
-      cursor.close()
-      connection.close()
+      if kind == 'pr':
+        connection = initDBConnection()
+        cursor = connection.cursor()
+        lastSyncTimestamp = fetchLastSyncTimestampFallback(cursor)
+        cursor.close()
+        connection.close()
+      else:
+        lastSyncTimestamp = datetime(year=1980, month=1, day=1)
 
     currTS = lastSyncTimestamp
 
