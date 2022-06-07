@@ -57,7 +57,8 @@ class PytorchInferenceRunner(InferenceRunner[torch.Tensor,
   def run_inference(
       self,
       batch: List[Union[torch.Tensor, Dict[str, torch.Tensor]]],
-      model: torch.nn.Module) -> Iterable[PredictionResult]:
+      model: torch.nn.Module,
+      **kwargs) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
     Tensor Predictions.
@@ -65,6 +66,7 @@ class PytorchInferenceRunner(InferenceRunner[torch.Tensor,
     This method stacks the list of Tensors in a vectorized format to optimize
     the inference call.
     """
+    prediction_params = kwargs.get('prediction_params', {})
 
     # If elements in `batch` are provided as a dictionaries from key to Tensors,
     # then iterate through the batch list, and group Tensors to the same key
@@ -78,12 +80,12 @@ class PytorchInferenceRunner(InferenceRunner[torch.Tensor,
         batched_tensors = torch.stack(key_to_tensor_list[key])
         batched_tensors = self._convert_to_device(batched_tensors)
         key_to_batched_tensors[key] = batched_tensors
-      predictions = model(**key_to_batched_tensors)
+      predictions = model(**key_to_batched_tensors, **prediction_params)
     else:
       # If elements in `batch` are provided as Tensors, then do a regular stack
       batched_tensors = torch.stack(batch)
       batched_tensors = self._convert_to_device(batched_tensors)
-      predictions = model(batched_tensors)
+      predictions = model(batched_tensors, **prediction_params)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: List[torch.Tensor]) -> int:
