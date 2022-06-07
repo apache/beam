@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
@@ -39,6 +41,12 @@ import (
 
 // StatusAddress is a type of status endpoint address as an optional argument to harness.Main().
 type StatusAddress string
+
+// RunnerCapabilities is a type that represents comma separated runner capabilities URN.
+type RunnerCapabilities string
+
+// URNProgressReporting is a URN for v1 progress reporting.
+const URNProgressReporting = "beam:protocol:progress_reporting:v1"
 
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 
@@ -49,10 +57,13 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 	hooks.DeserializeHooksFromOptions(ctx)
 
 	statusEndpoint := ""
+	var runnerCapabilities []string
 	for _, option := range options {
 		switch option := option.(type) {
 		case StatusAddress:
 			statusEndpoint = string(option)
+		case RunnerCapabilities:
+			runnerCapabilities = strings.Split(string(option), ",")
 		default:
 			return errors.Errorf("unknown type %T, value %v in error call", option, option)
 		}
@@ -127,6 +138,12 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 	sideCache := statecache.SideInputCache{}
 	sideCache.Init(cacheSize)
 
+	rcMap := make(map[string]bool)
+	if len(runnerCapabilities) > 0 {
+		for _, capability := range runnerCapabilities {
+			rcMap[capability] = true
+		}
+	}
 	ctrl := &control{
 		lookupDesc:           lookupDesc,
 		descriptors:          make(map[bundleDescriptorID]*fnpb.ProcessBundleDescriptor),
@@ -139,6 +156,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		data:                 &DataChannelManager{},
 		state:                &StateChannelManager{},
 		cache:                &sideCache,
+		runnerCapabilities:   rcMap,
 	}
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
 	// is responsible for managing the network data. All it does is pull data from
@@ -275,7 +293,8 @@ type control struct {
 	data  *DataChannelManager
 	state *StateChannelManager
 	// TODO(BEAM-11097): Cache is currently unused.
-	cache *statecache.SideInputCache
+	cache              *statecache.SideInputCache
+	runnerCapabilities map[string]bool
 }
 
 func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
@@ -371,6 +390,10 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		c.cache.CompleteBundle(tokens...)
 
 		mons, pylds := monitoring(plan, store)
+		if c.runnerCapabilities[URNProgressReporting] {
+			mons = []*pipeline_v1.MonitoringInfo{}
+		}
+
 		requiresFinalization := false
 		// Move the plan back to the candidate state
 		c.mu.Lock()

@@ -111,6 +111,10 @@ func main() {
 		args = append(args, "--status_endpoint="+info.GetStatusEndpoint().GetUrl())
 	}
 
+	if len(info.GetRunnerCapabilities()) > 0 {
+		args = append(args, "--runner_capabilities="+strings.Join(info.GetRunnerCapabilities(), ","))
+	}
+
 	log.Fatalf("User program exited: %v", execx.Execute(prog, args...))
 }
 
