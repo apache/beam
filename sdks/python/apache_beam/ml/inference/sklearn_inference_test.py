@@ -55,7 +55,7 @@ def _compare_prediction_result(a, b):
 
 def _compare_dataframe_predictions(a_in, b_in):
   keys_equal = True
-  if isinstance(a_in, tuple):
+  if isinstance(a_in, tuple) and not isinstance(a_in, PredictionResult):
     a_key, a = a_in
     b_key, b = b_in
     keys_equal = a_key == b_key
