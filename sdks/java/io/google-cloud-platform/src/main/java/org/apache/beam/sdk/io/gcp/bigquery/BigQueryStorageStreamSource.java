@@ -290,6 +290,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     }
 
     @Override
+    @SuppressWarnings("ReturnValueIgnored")
     public BoundedSource<T> splitAtFraction(double fraction) {
       Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls").inc();
       LOG.debug(
@@ -342,6 +343,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                       .build(),
                   source.readSession.getTable());
           newResponseIterator = newResponseStream.iterator();
+          newResponseIterator.hasNext();
         } catch (FailedPreconditionException e) {
           // The current source has already moved past the split point, so this split attempt
           // is unsuccessful.
