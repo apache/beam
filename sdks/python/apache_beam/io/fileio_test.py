@@ -461,33 +461,39 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
 
   def test_write_to_dynamic_destination(self):
 
-    dir = self._new_tempdir()
+    sink_params = [
+        fileio.TextSink, # pass a type signature
+        fileio.TextSink() # pass a FileSink object
+    ]
 
-    with TestPipeline() as p:
-      _ = (
-          p
-          | "Create" >> beam.Create(range(100))
-          | beam.Map(lambda x: str(x))
-          | fileio.WriteToFiles(
-              path=dir,
-              destination=lambda n: "odd" if int(n) % 2 else "even",
-              sink=fileio.TextSink,
-              file_naming=fileio.destination_prefix_naming("test")))
+    for sink in sink_params:
+      dir = self._new_tempdir()
 
-    with TestPipeline() as p:
-      result = (
-          p
-          | fileio.MatchFiles(FileSystems.join(dir, '*'))
-          | fileio.ReadMatches()
-          | beam.Map(
-              lambda f: (
-                  os.path.basename(f.metadata.path).split('-')[0],
-                  sorted(map(int, f.read_utf8().strip().split('\n'))))))
+      with TestPipeline() as p:
+        _ = (
+            p
+            | "Create" >> beam.Create(range(100))
+            | beam.Map(lambda x: str(x))
+            | fileio.WriteToFiles(
+                path=dir,
+                destination=lambda n: "odd" if int(n) % 2 else "even",
+                sink=sink,
+                file_naming=fileio.destination_prefix_naming("test")))
 
-      assert_that(
-          result,
-          equal_to([('odd', list(range(1, 100, 2))),
-                    ('even', list(range(0, 100, 2)))]))
+      with TestPipeline() as p:
+        result = (
+            p
+            | fileio.MatchFiles(FileSystems.join(dir, '*'))
+            | fileio.ReadMatches()
+            | beam.Map(
+                lambda f: (
+                    os.path.basename(f.metadata.path).split('-')[0],
+                    sorted(map(int, f.read_utf8().strip().split('\n'))))))
+
+        assert_that(
+            result,
+            equal_to([('odd', list(range(1, 100, 2))),
+                      ('even', list(range(0, 100, 2)))]))
 
   def test_write_to_different_file_types_some_spilling(self):
 
