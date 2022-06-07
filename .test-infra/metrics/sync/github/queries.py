@@ -118,7 +118,7 @@ query {
 MAIN_ISSUES_QUERY = '''
 query {
   search(
-    query: "type:issue repo:apache/beam created:>2022-06-01 sort:updated-asc"
+    query: "type:issue repo:apache/beam created:><TemstampSubstitueLocation> sort:updated-asc"
     type: ISSUE
     first: 100
   ) {
