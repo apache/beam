@@ -36,10 +36,10 @@ body:
 
           If this isn't a bug and you have a question or support request, please email user@apache.beam.com with a description of the problem instead of opening this issue.
   - type: dropdown
-    id: flakey
+    id: flaky
     attributes:
       label: Failure Type
       options:
-      - "flakey"
+      - "flaky"
       - "red"
     required: false
