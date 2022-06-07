@@ -46,7 +46,9 @@ task run(type: Exec, dependsOn: installGcpTest) {
     String withDataflowWorkerJarArg = project.findProperty(withDataflowWorkerJarProperty).toString() ?: ""
     if (withDataflowWorkerJarArg.toLowerCase() == 'true') {
         dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
-        loadTestArgs +=" --dataflow_worker_jar=${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}"
+        def dataflow_worker_jar = "${rootDir}/runners/google-cloud-dataflow-java/worker/build/libs/beam-runners-google-cloud-dataflow-java-fn-api-worker-${version}.jar"
+//        loadTestArgs +=" --dataflow_worker_jar=${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}"
+        loadTestArgs +=" --dataflow_worker_jar=${dataflow_worker_jar}"
     }
 
     setWorkingDir "${project.rootDir}/sdks/python"
