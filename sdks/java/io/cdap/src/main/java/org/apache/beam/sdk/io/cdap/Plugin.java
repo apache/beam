@@ -105,7 +105,7 @@ public abstract class Plugin {
     }
     try {
       cdapPluginObj.prepareRun(getContext());
-      if (getFormatType().equals(PluginConstants.Format.INPUT)) {
+      if (getPluginType().equals(PluginConstants.PluginType.SOURCE)) {
         for (Map.Entry<String, String> entry :
             getContext().getInputFormatProvider().getInputFormatConfiguration().entrySet()) {
           getHadoopConfiguration().set(entry.getKey(), entry.getValue());

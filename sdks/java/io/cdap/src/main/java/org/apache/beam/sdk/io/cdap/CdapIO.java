@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.hadoop.format.HDFSSynchronization;
 import org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -32,22 +31,18 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.hadoop.conf.Configuration;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An unbounded/bounded sources and sinks from <a
  * href="https://github.com/data-integrations">CDAP</a> plugins.
  */
 @SuppressWarnings({
-  "UnusedVariable",
   "argument.type.incompatible",
   "return.type.incompatible",
-  "dereference.of.nullable"
+  "dereference.of.nullable",
+  "UnnecessaryParentheses"
 })
 public class CdapIO {
-
-  private static final Logger LOG = LoggerFactory.getLogger(CdapIO.class);
 
   public static <K, V> Read<K, V> read() {
     return new AutoValue_CdapIO_Read.Builder<K, V>().build();
@@ -60,7 +55,6 @@ public class CdapIO {
   /** A {@link PTransform} to read from CDAP source. */
   @AutoValue
   @AutoValue.CopyAnnotations
-  @SuppressWarnings({"rawtypes", "unchecked", "UnnecessaryParentheses", "UnusedVariable"})
   public abstract static class Read<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
 
     abstract @Nullable PluginConfig getPluginConfig();
@@ -70,8 +64,6 @@ public class CdapIO {
     abstract @Nullable Class<K> getKeyClass();
 
     abstract @Nullable Class<V> getValueClass();
-
-    abstract @Nullable Coder<V> getValueCoder();
 
     abstract Builder<K, V> toBuilder();
 
@@ -87,8 +79,6 @@ public class CdapIO {
 
       abstract Builder<K, V> setValueClass(Class<V> valueClass);
 
-      abstract Builder<K, V> setValueCoder(Coder<V> coder);
-
       abstract Read<K, V> build();
     }
 
@@ -102,10 +92,6 @@ public class CdapIO {
 
     public Read<K, V> withKeyClass(Class<K> keyClass) {
       return toBuilder().setKeyClass(keyClass).build();
-    }
-
-    public Read<K, V> withValueCoder(Coder<V> valueCoder) {
-      return toBuilder().setValueCoder(valueCoder).build();
     }
 
     public Read<K, V> withValueClass(Class<V> valueClass) {
@@ -139,7 +125,6 @@ public class CdapIO {
   /** A {@link PTransform} to read from CDAP source. */
   @AutoValue
   @AutoValue.CopyAnnotations
-  @SuppressWarnings({"rawtypes", "unchecked", "UnnecessaryParentheses", "UnusedVariable"})
   public abstract static class Write<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
 
     abstract @Nullable PluginConfig getPluginConfig();
@@ -149,8 +134,6 @@ public class CdapIO {
     abstract @Nullable Class<K> getKeyClass();
 
     abstract @Nullable Class<V> getValueClass();
-
-    abstract @Nullable Coder<V> getValueCoder();
 
     abstract @Nullable String getLocksDirPath();
 
@@ -167,8 +150,6 @@ public class CdapIO {
       abstract Builder<K, V> setKeyClass(Class<K> keyClass);
 
       abstract Builder<K, V> setValueClass(Class<V> valueClass);
-
-      abstract Builder<K, V> setValueCoder(Coder<V> coder);
 
       abstract Builder<K, V> setLocksDirPath(String path);
 
@@ -189,10 +170,6 @@ public class CdapIO {
 
     public Write<K, V> withLocksDirPath(String locksDirPath) {
       return toBuilder().setLocksDirPath(locksDirPath).build();
-    }
-
-    public Write<K, V> withValueCoder(Coder<V> valueCoder) {
-      return toBuilder().setValueCoder(valueCoder).build();
     }
 
     public Write<K, V> withValueClass(Class<V> valueClass) {
