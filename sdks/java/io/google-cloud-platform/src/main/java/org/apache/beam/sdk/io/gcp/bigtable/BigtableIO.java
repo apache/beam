@@ -250,7 +250,7 @@ public class BigtableIO {
           BigtableConfig.builder()
               .setTableId(StaticValueProvider.of(""))
               .setValidate(true)
-              .setBulkMutationDataflowThrottling(false)
+              .setBulkMutationThrottling(false)
               .build();
 
       return new AutoValue_BigtableIO_Read.Builder()
@@ -578,8 +578,9 @@ public class BigtableIO {
      *
      * <p>This change is experimental and may be changed and relocated in the future
      */
-    public boolean isBulkMutationDataflowThrottlingEnabled() {
-      return getBigtableConfig().getBulkMutationDataflowThrottling();
+    @Experimental
+    public boolean isBulkMutationThrottlingEnabled() {
+      return getBigtableConfig().getBulkMutationThrottling();
     }
 
     abstract Builder toBuilder();
@@ -589,7 +590,7 @@ public class BigtableIO {
           BigtableConfig.builder()
               .setTableId(StaticValueProvider.of(""))
               .setValidate(true)
-              .setBulkMutationDataflowThrottling(false)
+              .setBulkMutationThrottling(false)
               .setBigtableOptionsConfigurator(enableBulkApiConfigurator(null))
               .build();
 
@@ -763,9 +764,10 @@ public class BigtableIO {
      *
      * Returns a new {@link BigtableIO.Write} that will report amount of time throttling to Dataflow
      */
-    public Write withBulkMutationDataflowThrottling() {
+    @Experimental
+    public Write withBulkMutationThrottling() {
       BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withBulkMutationDataflowThrottling(true)).build();
+      return toBuilder().setBigtableConfig(config.withBulkMutationThrottling(true)).build();
     }
 
     /**
@@ -845,7 +847,7 @@ public class BigtableIO {
   private static class BigtableWriterFn
       extends DoFn<KV<ByteString, Iterable<Mutation>>, BigtableWriteResult> {
 
-    protected static final Counter cumulativeThrottlingMilliseconds =
+    protected final Counter cumulativeThrottlingMilliseconds =
         Metrics.counter("dataflow-throttling-metrics", "throttling-msecs");
     private static AtomicLong lastAggregatedThrottleTime = new AtomicLong(0);
 
@@ -877,7 +879,7 @@ public class BigtableIO {
                   failures.add(new BigtableWriteException(c.element(), exception));
                 }
               });
-      if (config.getBulkMutationDataflowThrottling()) {
+      if (config.getBulkMutationThrottling()) {
         long newAggregatedThrottleTime =
             TimeUnit.NANOSECONDS.toMillis(
                 ResourceLimiterStats.getInstance(

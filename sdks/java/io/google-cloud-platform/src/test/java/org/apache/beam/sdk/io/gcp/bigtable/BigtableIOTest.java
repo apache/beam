@@ -197,7 +197,6 @@ public class BigtableIOTest {
     config =
         BigtableConfig.builder()
             .setValidate(true)
-            .setBulkMutationDataflowThrottling(false)
             .setBigtableService(service)
             .build();
   }
@@ -309,7 +308,6 @@ public class BigtableIOTest {
     BigtableConfig failureConfig =
         BigtableConfig.builder()
             .setValidate(true)
-            .setBulkMutationDataflowThrottling(true)
             .setBigtableService(failureService)
             .build();
     final String table = "TEST-TABLE";
@@ -335,7 +333,6 @@ public class BigtableIOTest {
     BigtableConfig failureConfig =
         BigtableConfig.builder()
             .setValidate(true)
-            .setBulkMutationDataflowThrottling(true)
             .setBigtableService(failureService)
             .build();
     final String table = "TEST-TABLE";
@@ -811,7 +808,6 @@ public class BigtableIOTest {
     BigtableConfig failureConfig =
         BigtableConfig.builder()
             .setValidate(true)
-            .setBulkMutationDataflowThrottling(true)
             .setBigtableService(failureService)
             .build();
 
@@ -1581,16 +1577,16 @@ public class BigtableIOTest {
   }
 
   @Test
-  public void testWriteWithEnabledBulkMutationDataflowThrottling() {
+  public void testWriteWithEnabledBulkMutationThrottling() {
     BigtableIO.Write write =
         BigtableIO.write()
             .withBigtableOptions(BIGTABLE_OPTIONS)
             .withTableId("table")
             .withInstanceId("instance")
             .withProjectId("project")
-            .withBulkMutationDataflowThrottling();
+            .withBulkMutationThrottling();
 
-    assertTrue(write.isBulkMutationDataflowThrottlingEnabled());
+    assertTrue(write.isBulkMutationThrottlingEnabled());
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////

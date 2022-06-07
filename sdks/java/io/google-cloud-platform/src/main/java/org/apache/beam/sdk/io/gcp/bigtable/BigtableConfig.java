@@ -23,6 +23,7 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -69,13 +70,14 @@ abstract class BigtableConfig implements Serializable {
   /** Bigtable emulator. Used only for testing. */
   abstract @Nullable String getEmulatorHost();
 
-  /** Reporting throttle time to Dataflow flag. */
-  abstract boolean getBulkMutationDataflowThrottling();
+  /** Whether client throttling time is reported to Dataflow jobs. */
+  @Experimental
+  abstract boolean getBulkMutationThrottling();
 
   abstract Builder toBuilder();
 
   static BigtableConfig.Builder builder() {
-    return new AutoValue_BigtableConfig.Builder();
+    return new AutoValue_BigtableConfig.Builder().setBulkMutationThrottling(false);
   }
 
   @AutoValue.Builder
@@ -100,7 +102,11 @@ abstract class BigtableConfig implements Serializable {
 
     abstract Builder setEmulatorHost(String emulatorHost);
 
-    abstract Builder setBulkMutationDataflowThrottling(boolean isEnabled);
+    /*
+      This feature is experimental and may be changed and relocated in the future
+     */
+    @Experimental
+    abstract Builder setBulkMutationThrottling(boolean isEnabled);
 
     abstract BigtableConfig build();
   }
@@ -150,8 +156,9 @@ abstract class BigtableConfig implements Serializable {
   }
 
   @VisibleForTesting
-  BigtableConfig withBulkMutationDataflowThrottling(boolean isEnabled) {
-    return toBuilder().setBulkMutationDataflowThrottling(true).build();
+  @Experimental
+  BigtableConfig withBulkMutationThrottling(boolean isEnabled) {
+    return toBuilder().setBulkMutationThrottling(isEnabled).build();
   }
 
   void validate() {
