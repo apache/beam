@@ -88,6 +88,9 @@ class PythonCallableWithSource(object):
       if line[0] != ' ':
         if line.startswith('def '):
           name = line[4:line.index('(')].strip()
+        elif line.startswith('class '):
+          name = line[5:line.index('(') if '(' in
+                      line else line.index(':')].strip()
         else:
           name = '__python_callable__'
           lines[ix] = name + ' = ' + line

@@ -63,6 +63,25 @@ class PythonCallableWithSourceTest(unittest.TestCase):
         """)(10),
         110)
 
+  def test_class(self):
+    self.assertEqual(
+        PythonCallableWithSource(
+            """
+            class BareClass:
+              def __init__(self, x):
+                self.x = x
+        """)(10).x,
+        10)
+
+    self.assertEqual(
+        PythonCallableWithSource(
+            """
+            class SubClass(object):
+              def __init__(self, x):
+                self.x = x
+        """)(10).x,
+        10)
+
 
 if __name__ == '__main__':
   unittest.main()

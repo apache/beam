@@ -115,9 +115,11 @@ class FullyQualifiedNamedTransformTest(unittest.TestCase):
             | FullyQualifiedNamedTransform(
                 '__callable__',  # the next argument is a callable to be applied
                 (
-                  python_callable.PythonCallableWithSource(
-                      'lambda pcoll, x: '
-                      'pcoll | __import__("apache_beam").Map(lambda e: e + x)'),
+                  python_callable.PythonCallableWithSource("""
+                      import apache_beam as beam
+                      def func(pcoll, x):
+                        return pcoll | beam.Map(lambda e: e + x)
+                      """),
                   'x'  # arguments passed to the callable
                 ),
                 {}),
@@ -132,8 +134,14 @@ class FullyQualifiedNamedTransformTest(unittest.TestCase):
                 '__constructor__',  # the next argument constructs a PTransform
                 (),
                 {
-                'source': python_callable.PythonCallableWithSource(
-                    'lambda x: __import__("apache_beam").Map(lambda e: e + x)'),
+                'source': python_callable.PythonCallableWithSource("""
+                    import apache_beam as beam
+                    class MyTransform(beam.PTransform):
+                      def __init__(self, x):
+                        self._x = x
+                      def expand(self, pcoll):
+                        return pcoll | beam.Map(lambda e: e + self._x)
+                    """),
                 'x': 'x'  # arguments passed to the above constructor
                 }
                 ),
