@@ -20,7 +20,27 @@ package org.apache.beam.sdk.util;
 import java.io.Serializable;
 
 /**
- * A wrapper object storing a Python code that can be evaluated to Python callables in Python SDK.
+ * A wrapper object storing a Python function definition that can be evaluated to Python callables
+ * in Python SDK.
+ *
+ * <p>The snippet of Python code can be a valid Python expression (such as {@code lambda x: x * x}
+ * or {str.upper}), a fully qualified name (such as {@code math.sin}), or a complete, multi-line
+ * function definition (such as {@code def foo(x): ...}).
+ *
+ * <p>Any lines preceding the function definition are first evaluated to provide context in which to
+ * define the function which can be useful to declare imports or any other needed values, e.g.
+ *
+ * <pre>
+ * import math
+ *
+ * def helper(x):
+ *   return x * x
+ *
+ * def func(y):
+ *   return helper(y) + y
+ * </pre>
+ *
+ * in which case {@code func} would get applied to each element.
  */
 public class PythonCallableSource implements Serializable {
   private final String pythonCallableCode;
