@@ -44,10 +44,10 @@ func TestRead(t *testing.T) {
 			name: "Read Request Returns Bad Status",
 			client: &fakeFhirStoreClient{
 				fakeReadResources: func(resource string) (*http.Response, error) {
-					return &http.Response{StatusCode: 403}, nil
+					return &http.Response{Status: "403 Forbidden"}, nil
 				},
 			},
-			containedError: "bad status",
+			containedError: "403 Forbidden",
 		},
 		{
 			name: "Response body fails to be parsed",
