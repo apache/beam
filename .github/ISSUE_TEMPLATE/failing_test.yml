@@ -15,8 +15,8 @@
 # limitations under the License.
 #
 
-name: Bug Report
-description: File a bug report
+name: Failing Test
+description: Report a failing test
 title: "[Failing Test]: "
 labels: ["bug", "awaiting triage", "Component: test-failures", "Priority: 1"]
 assignees:
@@ -35,5 +35,11 @@ body:
           If possible include: when the test started failing, a jenkins link, and any initial debugging you've done.
 
           If this isn't a bug and you have a question or support request, please email user@apache.beam.com with a description of the problem instead of opening this issue.
-    validations:
-      required: true
+  - type: dropdown
+    id: flakey
+    attributes:
+      label: Issue Component
+      options:
+      - "flakey"
+      - "red"
+    required: false
