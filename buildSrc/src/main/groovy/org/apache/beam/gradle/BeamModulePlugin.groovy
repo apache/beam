@@ -351,6 +351,8 @@ class BeamModulePlugin implements Plugin<Project> {
     Integer numParallelTests = 1
     // Whether the pipeline needs --sdk_location option
     boolean needsSdkLocation = false
+    // semi_persist_dir for SDK containers
+    String semiPersistDir = "/tmp"
     // classpath for running tests.
     FileCollection classpath
   }
@@ -2309,8 +2311,10 @@ class BeamModulePlugin implements Plugin<Project> {
         throw new GradleException("unsupported java version.")
       }
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
-        dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
-        dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
+        if (!project.hasProperty('skipContainerBuilds')) {
+          dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
+          dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
+        }
         dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
         dependsOn ":sdks:python:installGcpTest"
         // setup test env
@@ -2347,6 +2351,7 @@ class BeamModulePlugin implements Plugin<Project> {
           systemProperty "beamTestPipelineOptions", JsonOutput.toJson(config.javaPipelineOptions)
           systemProperty "expansionJar", expansionJar
           systemProperty "expansionPort", port
+          systemProperty "semiPersistDir", config.semiPersistDir
           classpath = config.classpath + project.files(
               project.project(":runners:core-construction-java").sourceSets.test.runtimeClasspath,
               project.project(":sdks:java:extensions:python").sourceSets.test.runtimeClasspath
