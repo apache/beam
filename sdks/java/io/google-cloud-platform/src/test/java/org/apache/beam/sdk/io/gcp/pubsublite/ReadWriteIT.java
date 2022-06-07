@@ -194,13 +194,7 @@ public class ReadWriteIT {
         pipeline.apply(
             "readMessages",
             PubsubLiteIO.read(
-                SubscriberOptions.newBuilder()
-                    .setSubscriptionPath(subscriptionPath)
-                    // setMinBundleTimeout INTENDED FOR TESTING ONLY
-                    // This sacrifices efficiency to make tests run faster. Do not use this in a
-                    // real pipeline!
-                    .setMinBundleTimeout(Duration.standardSeconds(5))
-                    .build()));
+                SubscriberOptions.newBuilder().setSubscriptionPath(subscriptionPath).build()));
     return messages;
     // TODO(BEAM-13230): Fix and re-enable
     // Deduplicate messages based on the uuids added in PubsubLiteIO.addUuids() when writing.

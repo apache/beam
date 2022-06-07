@@ -617,6 +617,13 @@ class DirectOptions(PipelineOptions):
         default='in_memory',
         choices=['in_memory', 'multi_threading', 'multi_processing'],
         help='Workers running environment.')
+    parser.add_argument(
+        '--direct_embed_docker_python',
+        default=False,
+        action='store_true',
+        dest='direct_embed_docker_python',
+        help='DirectRunner uses the embedded Python environment when '
+        'the default Python docker environment is specified.')
 
 
 class GoogleCloudOptions(PipelineOptions):
@@ -1358,7 +1365,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.12', '1.13', '1.14']
+  PUBLISHED_FLINK_VERSIONS = ['1.12', '1.13', '1.14', '1.15']
 
   @classmethod
   def _add_argparse_args(cls, parser):

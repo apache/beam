@@ -66,6 +66,7 @@
 * Go SDK users can now use generic registration functions to optimize their DoFn execution. ([BEAM-14347](https://issues.apache.org/jira/browse/BEAM-14347))
 * Go SDK users may now write self-checkpointing Splittable DoFns to read from streaming sources. ([BEAM-11104](https://issues.apache.org/jira/browse/BEAM-11104))
 * Go SDK textio Reads have been moved to Splittable DoFns exclusively. ([BEAM-14489](https://issues.apache.org/jira/browse/BEAM-14489))
+* The serialization (pickling)  library for Python is updated to dill==0.3.5.1 ([BEAM-11167](https://issues.apache.org/jira/browse/BEAM-11167))
 
 ## Breaking Changes
 
@@ -85,11 +86,13 @@
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.39.0] - Unreleased, Cut
+# [2.39.0] - 2022-05-25
 
 ## Highlights
 
-* Watermark estimation is now supported in the Go SDK ([BEAM-11105](https://issues.apache.org/jira/browse/BEAM-11105))
+* Watermark estimation is now supported in the Go SDK ([BEAM-11105](https://issues.apache.org/jira/browse/BEAM-11105)).
+* Support for impersonation credentials added to dataflow runner in the Java and Python SDK ([BEAM-14014](https://issues.apache.org/jira/browse/BEAM-14014)).
+* Implemented Apache PulsarIO ([BEAM-8218](https://issues.apache.org/jira/browse/BEAM-8218)).
 
 ## I/Os
 
@@ -97,11 +100,27 @@
 * JmsIO introduces the ability to write to dynamic topics (Java) ([BEAM-16308](https://issues.apache.org/jira/browse/BEAM-16308)).
   * A `topicNameMapper` must be set to extract the topic name from the input value.
   * A `valueMapper` must be set to convert the input value to JMS message.
+* Reduce number of threads spawned by BigqueryIO StreamingInserts (
+  [BEAM-14283](https://issues.apache.org/jira/browse/BEAM-14283)).
+* Implemented Apache PulsarIO ([BEAM-8218](https://issues.apache.org/jira/browse/BEAM-8218)).
+
 
 ## New Features / Improvements
 
+* Support for flink scala 2.12, because most of the libraries support version 2.12 onwards. ([beam-14386](https://issues.apache.org/jira/browse/BEAM-14386))
 * 'Manage Clusters' JupyterLab extension added for users to configure usage of Dataproc clusters managed by Interactive Beam (Python) ([BEAM-14130](https://issues.apache.org/jira/browse/BEAM-14130)).
 * Pipeline drain support added for Go SDK ([BEAM-11106](https://issues.apache.org/jira/browse/BEAM-11106)). **Note: this feature is not yet fully validated and should be treated as experimental in this release.**
+* `DataFrame.unstack()`, `DataFrame.pivot() ` and  `Series.unstack()`
+  implemented for DataFrame API ([BEAM-13948](https://issues.apache.org/jira/browse/BEAM-13948), [BEAM-13966](https://issues.apache.org/jira/browse/BEAM-13966)).
+* Support for impersonation credentials added to dataflow runner in the Java and Python SDK ([BEAM-14014](https://issues.apache.org/jira/browse/BEAM-14014)).
+* Implemented Jupyterlab extension for managing Dataproc clusters ([BEAM-14130](https://issues.apache.org/jira/browse/BEAM-14130)).
+* ExternalPythonTransform API added for easily invoking Python transforms from
+  Java ([BEAM-14143](https://issues.apache.org/jira/browse/BEAM-14143)).
+* Added Add support for Elasticsearch 8.x ([BEAM-14003](https://issues.apache.org/jira/browse/BEAM-14003)).
+* Shard aware Kinesis record aggregation (AWS Sdk v2), ([BEAM-14104](https://issues.apache.org/jira/browse/BEAM-14104)).
+* Upgrade to ZetaSQL 2022.04.1 ([BEAM-14348](https://issues.apache.org/jira/browse/BEAM-14348)).
+* Fixed ReadFromBigQuery cannot be used with the interactive runner ([BEAM-14112](https://issues.apache.org/jira/browse/BEAM-14112)).
+
 
 ## Breaking Changes
 
@@ -113,20 +132,19 @@
         .withValueMapper(new TextMessageMapper());
 ```
 * Coders in Python are expected to inherit from Coder. ([BEAM-14351](https://issues.apache.org/jira/browse/BEAM-14351)).
+* New abstract method `metadata()` added to io.filesystem.FileSystem in the
+  Python SDK. ([BEAM-14314](https://issues.apache.org/jira/browse/BEAM-14314))
 
 ## Deprecations
 
-* Support for flink scala 2.12, because most of the libraries support version 2.12 onwards. ([beam-14386](https://issues.apache.org/jira/browse/BEAM-14386))
 * Flink 1.11 is no longer supported ([BEAM-14139](https://issues.apache.org/jira/browse/BEAM-14139)).
 * Python 3.6 is no longer supported ([BEAM-13657](https://issues.apache.org/jira/browse/BEAM-13657)).
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Fixed Java Spanner IO NPE when ProjectID not specified in template executions (Java) ([BEAM-14405](https://issues.apache.org/jira/browse/BEAM-14405)).
+* Fixed potential NPE in BigQueryServicesImpl.getErrorInfo (Java) ([BEAM-14133](https://issues.apache.org/jira/browse/BEAM-14133)).
 
-## Known Issues
-
-* ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 # [2.38.0] - 2022-04-20
 

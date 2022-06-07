@@ -308,7 +308,17 @@ func (n *TruncateSizedRestriction) StartBundle(ctx context.Context, id string, d
 //     Timestamps
 //    }
 func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
-	mainElm := elm.Elm.(*FullValue).Elm.(*FullValue)
+	mainElm := elm.Elm.(*FullValue)
+	inp := mainElm.Elm
+	// For the main element, the way we fill it out depends on whether the input element
+	// is a KV or single-element. Single-elements might have been lifted out of
+	// their FullValue if they were decoded, so we need to have a case for that.
+	// TODO(BEAM-9798): Optimize this so it's decided in exec/translate.go
+	// instead of checking per-element.
+	if e, ok := mainElm.Elm.(*FullValue); ok {
+		mainElm = e
+		inp = e
+	}
 	rest := elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
 	rt := n.ctInv.Invoke(rest)
 	newRest := n.truncateInv.Invoke(rt, mainElm)
@@ -317,10 +327,11 @@ func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *Full
 		return nil
 	}
 	size := n.sizeInv.Invoke(mainElm, newRest)
+
 	output := &FullValue{}
 	output.Timestamp = elm.Timestamp
 	output.Windows = elm.Windows
-	output.Elm = &FullValue{Elm: mainElm, Elm2: &FullValue{Elm: newRest, Elm2: elm.Elm.(*FullValue).Elm2.(*FullValue).Elm2}}
+	output.Elm = &FullValue{Elm: inp, Elm2: &FullValue{Elm: newRest, Elm2: elm.Elm.(*FullValue).Elm2.(*FullValue).Elm2}}
 	output.Elm2 = size
 
 	if err := n.Out.ProcessElement(ctx, output, values...); err != nil {
@@ -424,6 +435,10 @@ func (n *ProcessSizedElementsAndRestrictions) Up(ctx context.Context) error {
 	}
 	n.SU = make(chan SplittableUnit, 1)
 	return n.PDo.Up(ctx)
+}
+
+func (n *ProcessSizedElementsAndRestrictions) AttachFinalizer(bf *bundleFinalizer) {
+	n.PDo.bf = bf
 }
 
 // StartBundle calls the ParDo's StartBundle method.
@@ -937,6 +952,10 @@ func (n *SdfFallback) Up(ctx context.Context) error {
 		return addContext(err)
 	}
 	return n.PDo.Up(ctx)
+}
+
+func (n *SdfFallback) AttachFinalizer(bf *bundleFinalizer) {
+	n.PDo.bf = bf
 }
 
 // StartBundle calls the ParDo's StartBundle method.
