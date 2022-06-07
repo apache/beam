@@ -18,14 +18,14 @@
 name: Failing Test
 description: Report a failing test
 title: "[Failing Test]: "
-labels: ["bug", "awaiting triage", "Component: test-failures", "Priority: 1"]
+labels: ["bug", "awaiting triage", "test-failures", "P1"]
 assignees:
   - octocat
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to fill out this bug report!
+        Thanks for taking the time to report this test failure!
   - type: textarea
     id: what-happened
     attributes:
