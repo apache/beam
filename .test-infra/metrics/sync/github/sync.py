@@ -70,7 +70,7 @@ GH_PRS_CREATE_TABLE_QUERY = f"""
 GH_ISSUES_TABLE_NAME = 'gh_issues'
 
 GH_ISSUES_CREATE_TABLE_QUERY = f"""
-  create table {GH_PRS_TABLE_NAME} (
+  create table {GH_ISSUES_TABLE_NAME} (
   issue_id integer NOT NULL PRIMARY KEY,
   author varchar NOT NULL,
   created_ts timestamp NOT NULL,
@@ -118,23 +118,23 @@ def initDbTablesIfNeeded():
   connection = initDBConnection()
   cursor = connection.cursor()
 
-  buildsTableExists = tableExists(cursor, GH_PRS_TABLE_NAME)
-  print('PRs table exists', buildsTableExists)
-  if not buildsTableExists:
+  prsTableExists = tableExists(cursor, GH_PRS_TABLE_NAME)
+  print('PRs table exists', prsTableExists)
+  if not prsTableExists:
     cursor.execute(GH_PRS_CREATE_TABLE_QUERY)
     if not bool(cursor.rowcount):
       raise Exception(f"Failed to create table {GH_PRS_TABLE_NAME}")
 
-  buildsTableExists = tableExists(cursor, GH_ISSUES_TABLE_NAME)
-  print('PRs table exists', buildsTableExists)
-  if not buildsTableExists:
+  issuesTableExists = tableExists(cursor, GH_ISSUES_TABLE_NAME)
+  print('Issues table exists', issuesTableExists)
+  if not issuesTableExists:
     cursor.execute(GH_ISSUES_CREATE_TABLE_QUERY)
     if not bool(cursor.rowcount):
       raise Exception(f"Failed to create table {GH_ISSUES_TABLE_NAME}")
 
   metadataTableExists = tableExists(cursor, GH_SYNC_METADATA_TABLE_NAME)
   print('Metadata table exists', metadataTableExists)
-  if not buildsTableExists:
+  if not metadataTableExists:
     cursor.execute(GH_SYNC_METADATA_TABLE_CREATE_QUERY)
     if not bool(cursor.rowcount):
       raise Exception(f"Failed to create table {GH_SYNC_METADATA_TABLE_NAME}")
@@ -145,7 +145,7 @@ def initDbTablesIfNeeded():
   connection.close()
 
 
-# TODO: Remove this logic once the gh_issue_sync row has been populated
+# TODO: Remove this logic once the gh_issue_sync row has been populated and update the fallback to datetime(year=1980, month=1, day=1)
 def fetchLastSyncTimestampFallback(cursor):
   '''Fetches last sync timestamp from metadata DB table.'''
   fetchQuery = f'''
@@ -172,7 +172,7 @@ def fetchLastSyncTimestamp(cursor, name):
   cursor.execute(fetchQuery)
   queryResult = cursor.fetchone()
 
-  return fetchLastSyncTimestampFallback(cursor) if queryResult is None else queryResult[0]
+  return None if queryResult is None else queryResult[0]
 
 
 def updateLastSyncTimestamp(timestamp, name):
@@ -420,6 +420,12 @@ def fetchNewData():
     lastSyncTimestamp = fetchLastSyncTimestamp(cursor, f'gh_{kind}_sync')
     cursor.close()
     connection.close()
+    if lastSyncTimestamp is None:
+      connection = initDBConnection()
+      cursor = connection.cursor()
+      lastSyncTimestamp = fetchLastSyncTimestampFallback(cursor)
+      cursor.close()
+      connection.close()
 
     currTS = lastSyncTimestamp
 
