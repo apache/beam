@@ -23,6 +23,7 @@ import collections
 import contextlib
 import copy
 import logging
+import os
 import queue
 import subprocess
 import sys
@@ -745,6 +746,29 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
 
   def start_worker(self):
     # type: () -> None
+    credential_options = []
+    try:
+      # This is the public facing API, skip if it is not available.
+      # (If this succeeds but the imports below fail, better to actually raise
+      # an error below rather than silently fail.)
+      # pylint: disable=unused-import
+      import google.auth
+    except ImportError:
+      pass
+    else:
+      from google.auth import environment_vars
+      from google.auth import _cloud_sdk
+      gcloud_cred_file = os.environ.get(
+          environment_vars.CREDENTIALS,
+          _cloud_sdk.get_application_default_credentials_path())
+      if os.path.exists(gcloud_cred_file):
+        docker_cred_file = '/docker_cred_file.json'
+        credential_options.extend([
+            '--mount',
+            f'type=bind,source={gcloud_cred_file},target={docker_cred_file}',
+            '--env',
+            f'{environment_vars.CREDENTIALS}={docker_cred_file}'
+        ])
     with SUBPROCESS_LOCK:
       try:
         _LOGGER.info('Attempting to pull image %s', self._container_image)
@@ -757,8 +781,8 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
           'docker',
           'run',
           '-d',
-          # TODO:  credentials
           '--network=host',
+      ] + credential_options + [
           self._container_image,
           '--id=%s' % self.worker_id,
           '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,

@@ -41,7 +41,7 @@ Apache Beam is a very welcoming and collaborative community, and there are lots 
   [stackoverflow](https://stackoverflow.com/questions/tagged/apache-beam)
 - review proposed design ideas on [dev@beam.apache.org](/community/contact-us/)
 - improve the documentation
-- file [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
+- file [bug reports](https://github.com/apache/beam/issues/new/choose)
 - test releases
 - review [changes](https://github.com/apache/beam/pulls)
 - write new examples
@@ -67,17 +67,8 @@ detail.
 
 1. Consider [subscribing to the dev@beam.apache.org](https://beam.apache.org/community/contact-us/) mailing list, especially if you plan to make more than one change or the change will be large. All decisions are consensus-based and happen on the public mailing list.
 1. (Optionally) Join the [#beam channel of the ASF Slack](https://beam.apache.org/community/contact-us/).
-1. Create an account on [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues)
-   (anyone can do this).
 
 ### Accounts and Permissions
-
-- [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues):
-  Anyone can access it and browse issues. Anyone can register an account and login
-  to create issues or add comments. Only contributors can be assigned issues. If
-  you want to be assigned issues, a PMC member can add you to the project contributor
-  group.  Email the [dev@beam.apache.org](/community/contact-us)
-  to ask to be added as a contributor in the Beam issue tracker, and include your ASF Jira username.
 
 - [Beam Wiki Space](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam):
   Anyone has read access. If you wish to contribute changes, please create an account and request edit access on the
@@ -115,13 +106,10 @@ Questions can be asked on the [#beam channel of the ASF Slack](https://beam.apac
   Software Foundation (ASF).
 
 ### Share Your Intent
-1. Find or create an issue in the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
+1. Find or create an issue in the [Beam repo](https://github.com/apache/beam/issues/new/choose).
    Tracking your work in an issue will avoid duplicated or conflicting work, and provide
-   a place for notes. Later, your pull request will be linked to the issue as well. You can find the [Jira beginner’s guide](https://cwiki.apache.org/confluence/display/BEAM/Beam+Jira+Beginner%27s+Guide) and some useful [Jira tips](https://cwiki.apache.org/confluence/display/BEAM/Jira+Tips) in our Wiki.
-2. Assign the issue to yourself. To get the permission to do so, email
-   the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us)
-   to introduce yourself and to be added as a contributor in the Beam issue tracker including your
-   ASF Jira Username. For example, see [this welcome email](https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
+   a place for notes. Later, your pull request will be linked to the issue as well.
+2. Comment on the issue saying that you would like to work on it.
 3. If your change is large or it is your first change, it is a good idea to
    [discuss it on the dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
 4. For large changes create a design doc
@@ -303,9 +291,7 @@ Execute:
 
 4. When your change is ready to be reviewed and merged, create a pull request.
 
-5. Format commit messages and the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`,
-   where you replace BEAM-XXX with the appropriate JIRA issue.
-   This will automatically link the pull request to the issue.
+5. Link to the issue you are addressing in your pull request.
 
 6. The pull request and any changes pushed to it will trigger [pre-commit
    jobs](https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide#ContributionTestingGuide-Pre-commit). If a test fails and appears unrelated to your
@@ -333,7 +319,7 @@ that start various post-commit tests suites. Use these sparingly because post-co
 
 #### Make the Reviewer’s Job Easier
 
-1. Provide context for your changes in the associated JIRA issue and/or PR description.
+1. Provide context for your changes in the associated issue and/or PR description.
 
 2. Avoid huge mega-changes.
 
@@ -361,8 +347,7 @@ to make the next release.
 The community will close stale pull requests in order to keep the project
 healthy. A pull request becomes stale after its author fails to respond to
 actionable comments for 60 days.  Author of a closed pull request is welcome to
-reopen the same pull request again in the future. The associated JIRAs will be
-unassigned from the author but will stay open.
+reopen the same pull request again in the future.
 
 ### Troubleshooting
 
