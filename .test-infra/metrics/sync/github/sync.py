@@ -391,7 +391,7 @@ def upsertIntoIssuesTable(cursor, values):
                             labels)
                           VALUES
                             (%s, %s, %s, %s, %s, %s, %s, %s)
-                          ON CONFLICT (pr_id) DO UPDATE
+                          ON CONFLICT (issue_id) DO UPDATE
                             SET
                             issue_id=excluded.issue_id,
                             author=excluded.author,
