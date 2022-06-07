@@ -90,7 +90,7 @@ public class ReadFromKafkaDoFnTest {
       new ExceptionMockKafkaConsumer(OffsetResetStrategy.NONE, topicPartition);
 
   private final ReadFromKafkaDoFn<String, String> exceptionDofnInstance =
-      new ReadFromKafkaDoFn<>(makeReadSourceDescriptor(exceptionConsumer));
+      ReadFromKafkaDoFn.create(makeReadSourceDescriptor(exceptionConsumer));
 
   private ReadSourceDescriptors<String, String> makeReadSourceDescriptor(
       Consumer kafkaMockConsumer) {
