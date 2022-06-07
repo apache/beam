@@ -115,6 +115,11 @@ query {
 }
 '''
 
+'''
+This query is used to fetch issue data from github via Github API v4 (GraphQL).
+Returns issues on apache/beam repo that are older than provided timestamp.
+Time format "2017-10-26T20:00:00Z
+'''
 MAIN_ISSUES_QUERY = '''
 query {
   search(
