@@ -18,8 +18,8 @@ limitations under the License.
 
 # Release blockers
 
-A release blocking GitHub Issue is any open Issue that has its Milestone set
-to an upcoming version of Beam.
+A release blocking GitHub Issue is any P0 or P1 open Issue that has its Milestone
+set to an upcoming version of Beam.
 
 ## Release-blocking bugs
 

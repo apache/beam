@@ -430,7 +430,9 @@ We track them by assigning the blocked release to the issue's milestone before t
 
 
 The release manager should triage what does and does not block a release.
-The list of release-blocking issues is available at the [milestone status page](https://github.com/apache/beam/milestones).
+The list of release-blocking issues can be found using this query:
+`https://github.com/apache/beam/issues?q=milestone:"{$RELEASE_VERSION} Release" label:P1,P0 is:open is:issue`
+where `{$RELEASE_VERSION}` should be formatted `2.xx.0`.
 Triage each unresolved issue with one of the following resolutions:
 
 * An issue should not block the release if the problem exists in the current released version or is a bug in new functionality that does not exist in the current released version.
