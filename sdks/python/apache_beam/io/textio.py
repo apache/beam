@@ -553,7 +553,8 @@ class ReadAllFromText(PTransform):
   This implementation only supports reading text encoded using UTF-8 or ASCII.
   This does not support other encodings such as UTF-16 or UTF-32.
 
-  This implementation only supports batch pipeline.
+  This implementation is only tested with batch pipeline. In streaming,
+  reading may happen with delay due to the limitation in ReShuffle involved.
   """
   DEFAULT_DESIRED_BUNDLE_SIZE = 64 * 1024 * 1024  # 64MB
 

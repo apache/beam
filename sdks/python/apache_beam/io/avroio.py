@@ -155,8 +155,11 @@ class ReadFromAvro(PTransform):
 class ReadAllFromAvro(PTransform):
   """A ``PTransform`` for reading ``PCollection`` of Avro files.
 
-   Uses source '_AvroSource' to read a ``PCollection`` of Avro files or
-   file patterns and produce a ``PCollection`` of Avro records.
+  Uses source '_AvroSource' to read a ``PCollection`` of Avro files or file
+  patterns and produce a ``PCollection`` of Avro records.
+
+  This implementation is only tested with batch pipeline. In streaming,
+  reading may happen with delay due to the limitation in ReShuffle involved.
   """
 
   DEFAULT_DESIRED_BUNDLE_SIZE = 64 * 1024 * 1024  # 64MB
@@ -200,7 +203,7 @@ class ReadAllFromAvro(PTransform):
 class ReadAllFromAvroContinuously(ReadAllFromAvro):
   """A ``PTransform`` for reading avro files in given file patterns.
   This PTransform acts as a Source and produces continuously a ``PCollection``
-  of strings.
+  of Avro records.
 
   For more details, see ``ReadAllFromAvro`` for avro parsing settings;
   see ``apache_beam.io.fileio.MatchContinuously`` for watching settings.
