@@ -31,7 +31,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
-
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -58,6 +57,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -297,7 +297,7 @@ public class JdbcIOIT {
                     statement.setString(2, element.getValue());
                   }));
 
-      pipelineWrite.run().waitUntilFinish();
+      pipelineWrite.runWithAdditionalOptionArgs(Lists.newArrayList("--enableStreamingEngine", "--streaming")).waitUntilFinish();
 
       runRead();
     } finally {
@@ -332,7 +332,7 @@ public class JdbcIOIT {
 
       PAssert.that(resultSetCollection).containsInAnyOrder(expectedResult);
 
-      pipelineWrite.run();
+      pipelineWrite.run().waitUntilFinish();
 
       assertRowCount(dataSource, firstTableName, EXPECTED_ROW_COUNT);
     } finally {
