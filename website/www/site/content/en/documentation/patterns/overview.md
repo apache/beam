@@ -56,7 +56,7 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 
 ## Contributing a pattern
 
-To contribute a new pipeline pattern, create [a feature request](https://github.com/apache/beam/issues/new?assignees=octocat&labels=new+feature%2Cawaiting+triage&template=feature.yml&title=%5BFeature+Request%5D%3A+) and add details to the issue description. See [Get started contributing](/contribute/) for more information.
+To contribute a new pipeline pattern, create [a feature request](https://github.com/apache/beam/issues/new?labels=new+feature%2Cawaiting+triage&template=feature.yml&title=%5BFeature+Request%5D%3A+) and add details to the issue description. See [Get started contributing](/contribute/) for more information.
 
 ## What's next
 

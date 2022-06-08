@@ -2086,7 +2086,7 @@ public class JdbcIO {
   private static class Reparallelize<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> expand(PCollection<T> input) {
-      // See https://github.com/apache/beam/issues/1796403
+      // See https://issues.apache.org/jira/browse/BEAM-2803
       // We use a combined approach to "break fusion" here:
       // (see https://cloud.google.com/dataflow/service/dataflow-service-desc#preventing-fusion)
       // 1) force the data to be materialized by passing it as a side input to an identity fn,
