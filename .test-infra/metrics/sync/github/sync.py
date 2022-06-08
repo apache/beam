@@ -479,7 +479,7 @@ def fetchNewData():
       connection.commit()
       connection.close()
 
-      updateLastSyncTimestamp(currTS, 'gh_pr_sync')
+      updateLastSyncTimestamp(currTS, f'gh_{kind}_sync')
 
 
 def probeGitHubIsUp():
