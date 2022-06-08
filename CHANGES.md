@@ -53,8 +53,8 @@
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* Initial preview of [RunInference](link) API added to Python SDK ([BEAM-13970](https://issues.apache.org/jira/browse/BEAM-13970)).
+    See also example at apache_beam/examples/inference/pytorch_image_classification.py
 
 ## I/Os
 
