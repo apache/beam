@@ -30,6 +30,7 @@ type Trigger interface {
 // DefaultTrigger fires once after the end of window. Late Data is discarded.
 type DefaultTrigger struct{}
 
+// String implements the Stringer interface and returns trigger details as a string.
 func (t DefaultTrigger) String() string {
 	return fmt.Sprintf("%#v", t)
 }
@@ -47,6 +48,7 @@ type AlwaysTrigger struct{}
 
 func (t AlwaysTrigger) trigger() {}
 
+// String implements the Stringer interface and returns trigger details as a string.
 func (t *AlwaysTrigger) String() string {
 	return fmt.Sprintf("%#v", t)
 }
@@ -64,6 +66,7 @@ type AfterCountTrigger struct {
 	elementCount int32
 }
 
+// String implements the Stringer interface and returns trigger details as a string.
 func (t *AfterCountTrigger) String() string {
 	return fmt.Sprintf("%#v", t)
 }
@@ -89,6 +92,7 @@ type AfterProcessingTimeTrigger struct {
 	timestampTransforms []TimestampTransform
 }
 
+// String implements the Stringer interface and returns trigger details as a string.
 func (t *AfterProcessingTimeTrigger) String() string {
 	return fmt.Sprintf("%#v", t)
 }
@@ -124,6 +128,7 @@ type DelayTransform struct {
 	Delay int64 // in milliseconds
 }
 
+// String implements the Stringer interface and returns trigger details as a string.
 func (t *DelayTransform) String() string {
 	return fmt.Sprintf("%#v", t)
 }
@@ -140,6 +145,7 @@ type AlignToTransform struct {
 	Period, Offset int64 // in milliseconds
 }
 
+// String implements the Stringer interface and returns trigger details as a string.
 func (t *AlignToTransform) String() string {
 	return fmt.Sprintf("%#v", t)
 }
@@ -182,6 +188,7 @@ type RepeatTrigger struct {
 	subtrigger Trigger
 }
 
+// String implements the Stringer interface and returns trigger details as a string.
 func (t *RepeatTrigger) String() string {
 	return fmt.Sprintf("%#v", t)
 }
@@ -210,6 +217,7 @@ type AfterEndOfWindowTrigger struct {
 	lateFiring  Trigger
 }
 
+// String implements the Stringer interface and returns trigger details as a string.
 func (t *AfterEndOfWindowTrigger) String() string {
 	return fmt.Sprintf("%#v", t)
 }
@@ -256,6 +264,7 @@ type AfterAnyTrigger struct {
 	subtriggers []Trigger
 }
 
+// String implements the Stringer interface and returns trigger details as a string.
 func (t *AfterAnyTrigger) String() string {
 	return fmt.Sprintf("%#v", t)
 }
@@ -269,7 +278,7 @@ func (t *AfterAnyTrigger) SubTriggers() []Trigger {
 
 // AfterAny returns a new AfterAny trigger with subtriggers set to passed argument.
 func AfterAny(triggers []Trigger) *AfterAnyTrigger {
-	if len(triggers) < 1 {
+	if len(triggers) <= 1 {
 		panic("empty slice passed as an argument to trigger.AfterAny()")
 	}
 	return &AfterAnyTrigger{subtriggers: triggers}
@@ -280,6 +289,7 @@ type AfterAllTrigger struct {
 	subtriggers []Trigger
 }
 
+// String implements the Stringer interface and returns trigger details as a string.
 func (t *AfterAllTrigger) String() string {
 	return fmt.Sprintf("%#v", t)
 }
@@ -306,6 +316,7 @@ type OrFinallyTrigger struct {
 	finally Trigger // Trigger governing termination of output.
 }
 
+// String implements the Stringer interface and returns trigger details as a string.
 func (t *OrFinallyTrigger) String() string {
 	return fmt.Sprintf("%#v", t)
 }
@@ -334,43 +345,55 @@ func (t *OrFinallyTrigger) Finally() Trigger {
 // NeverTrigger is never ready to fire.
 type NeverTrigger struct{}
 
+// String implements the Stringer interface and returns trigger details as a string.
 func (t *NeverTrigger) String() string {
 	return fmt.Sprintf("%#v", t)
 }
 
 func (t NeverTrigger) trigger() {}
 
+// Never creates a Never Trigger that is never ready to fire.
+// There will only be an ON_TIME output and a final output at window expiration.
 func Never() *NeverTrigger {
 	return &NeverTrigger{}
 }
 
-// AfterSynchronizedProcessingTimeTrigger fires when processing time synchronises with arrival time.
+// AfterSynchronizedProcessingTimeTrigger fires when processing time synchronizes with arrival time.
 type AfterSynchronizedProcessingTimeTrigger struct{}
 
+// String implements the Stringer interface and returns trigger details as a string.
 func (t *AfterSynchronizedProcessingTimeTrigger) String() string {
 	return fmt.Sprintf("%#v", t)
 }
 
 func (t AfterSynchronizedProcessingTimeTrigger) trigger() {}
 
+// AfterSynchronizedProcessingTime creates a new AfterSynchronizedProcessingTime trigger that fires when
+// processing time synchronizes with arrival time.
 func AfterSynchronizedProcessingTime() *AfterSynchronizedProcessingTimeTrigger {
 	return &AfterSynchronizedProcessingTimeTrigger{}
 }
 
+// AfterEachTrigger fires when each trigger is ready. Order of triggers matters.
 type AfterEachTrigger struct {
 	subtriggers []Trigger
 }
 
 func (t AfterEachTrigger) trigger() {}
 
+// AfterEach creates a new AfterEach trigger that fires after each trigger is ready. It follows the order
+// of triggers passed in as arguments. Let's say if the second trigger gets ready but the first one is not ready
+// then it won't be fired until first triggered is ready and fired.
 func AfterEach(subtriggers []Trigger) *AfterEachTrigger {
 	return &AfterEachTrigger{subtriggers: subtriggers}
 }
 
+// Subtriggers returns the list of subtriggers for the current AfterEach trigger.
 func (t *AfterEachTrigger) Subtriggers() []Trigger {
 	return t.subtriggers
 }
 
+// String implements the Stringer interface and returns trigger details as a string.
 func (t *AfterEachTrigger) String() string {
 	return fmt.Sprintf("%#v", t)
 }

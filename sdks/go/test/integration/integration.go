@@ -99,8 +99,6 @@ var flinkFilters = []string{
 	// TODO(BEAM-12815): Test fails on post commits: "Insufficient number of network buffers".
 	"TestXLang_Multi",
 	"TestDebeziumIO_BasicRead",
-	// Triggers are not yet supported
-	//"TestTrigger.*",
 }
 
 var samzaFilters = []string{
