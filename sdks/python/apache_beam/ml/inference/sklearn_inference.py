@@ -69,10 +69,17 @@ class SklearnInferenceRunner(InferenceRunner[Union[numpy.ndarray,
   @staticmethod
   def _predict_pandas_dataframe(batch: List[pandas.DataFrame],
                                 model: Any) -> Iterable[PredictionResult]:
+    # sklearn_inference currently only supports single rowed dataframes.
+    for dataframe in batch:
+      if dataframe.shape[0] != 1:
+        raise ValueError('Only dataframes with single rows are supported.')
+
     # vectorize data for better performance
     vectorized_batch = pandas.concat(batch, axis=0)
     predictions = model.predict(vectorized_batch)
-    splits = [vectorized_batch.iloc[[i]] for i in range(len(batch))]
+    splits = [
+        vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
+    ]
     return [
         PredictionResult(example, inference) for example,
         inference in zip(splits, predictions)

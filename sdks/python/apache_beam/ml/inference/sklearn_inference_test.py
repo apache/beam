@@ -277,6 +277,22 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
 
+  @unittest.skipIf(platform.system() == 'Windows', 'BEAM-14359')
+  def test_infer_invalid_data_type(self):
+    with self.assertRaises(ValueError):
+      unexpected_input_type = [[1, 2, 3, 4], [5, 6, 7, 8]]
+      inference_runner = SklearnInferenceRunner()
+      fake_model = FakeModel()
+      inference_runner.run_inference(unexpected_input_type, fake_model)
+
+  @unittest.skipIf(platform.system() == 'Windows', 'BEAM-14359')
+  def test_infer_too_many_rows_in_dataframe(self):
+    with self.assertRaises(ValueError):
+      data_frame_too_many_rows = pandas_dataframe()
+      inference_runner = SklearnInferenceRunner()
+      fake_model = FakeModel()
+      inference_runner.run_inference([data_frame_too_many_rows], fake_model)
+
 
 if __name__ == '__main__':
   unittest.main()
