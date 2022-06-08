@@ -22,7 +22,8 @@ import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionPosition;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionRestriction;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -74,24 +75,23 @@ public class DataChangeRecordAction {
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       DataChangeRecord record,
-      RestrictionTracker<TimestampRange, Timestamp> tracker,
+      RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       OutputReceiver<DataChangeRecord> outputReceiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     final String token = partition.getPartitionToken();
-    LOG.debug("[" + token + "] Processing data record " + record.getCommitTimestamp());
 
     final Timestamp commitTimestamp = record.getCommitTimestamp();
     final Instant commitInstant = new Instant(commitTimestamp.toSqlTimestamp().getTime());
-    if (!tracker.tryClaim(commitTimestamp)) {
-      LOG.debug(
+    if (!tracker.tryClaim(PartitionPosition.queryChangeStream(commitTimestamp))) {
+      LOG.info(
           "[" + token + "] Could not claim queryChangeStream(" + commitTimestamp + "), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
     outputReceiver.outputWithTimestamp(record, commitInstant);
     watermarkEstimator.setWatermark(commitInstant);
 
-    LOG.debug("[" + token + "] Data record action completed successfully");
+    LOG.info("[" + token + "] Data record action completed successfully");
     return Optional.empty();
   }
 }

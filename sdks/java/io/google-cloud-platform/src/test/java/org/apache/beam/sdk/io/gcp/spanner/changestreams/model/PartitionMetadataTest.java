@@ -32,7 +32,6 @@ import org.junit.runners.JUnit4;
 public class PartitionMetadataTest {
 
   private static final String PARTITION_TOKEN = "partitionToken123";
-  private static final String PARENT_TOKEN = "parentToken123";
   private static final Timestamp START_TIMESTAMP = Timestamp.ofTimeSecondsAndNanos(1, 1);
   private static final Timestamp END_TIMESTAMP = Timestamp.ofTimeSecondsAndNanos(2, 2);
   private static final Timestamp WATERMARK = Timestamp.ofTimeSecondsAndNanos(3, 3);
@@ -46,7 +45,7 @@ public class PartitionMetadataTest {
     PartitionMetadata expectedPartitionMetadata =
         new PartitionMetadata(
             PARTITION_TOKEN,
-            Sets.newHashSet(PARENT_TOKEN),
+            Sets.newHashSet(),
             START_TIMESTAMP,
             END_TIMESTAMP,
             10,
@@ -59,7 +58,7 @@ public class PartitionMetadataTest {
     PartitionMetadata actualPartitionMetadata =
         PartitionMetadata.newBuilder()
             .setPartitionToken(PARTITION_TOKEN)
-            .setParentTokens(Sets.newHashSet(PARENT_TOKEN))
+            .setChildTokens(Sets.newHashSet())
             .setStartTimestamp(START_TIMESTAMP)
             .setEndTimestamp(END_TIMESTAMP)
             .setHeartbeatMillis(10)
@@ -78,7 +77,7 @@ public class PartitionMetadataTest {
     PartitionMetadata expectedPartitionMetadata =
         new PartitionMetadata(
             PARTITION_TOKEN,
-            Sets.newHashSet(PARENT_TOKEN),
+            Sets.newHashSet(),
             START_TIMESTAMP,
             END_TIMESTAMP,
             10,
@@ -91,7 +90,7 @@ public class PartitionMetadataTest {
     PartitionMetadata actualPartitionMetadata =
         PartitionMetadata.newBuilder()
             .setPartitionToken(PARTITION_TOKEN)
-            .setParentTokens(Sets.newHashSet(PARENT_TOKEN))
+            .setChildTokens(Sets.newHashSet())
             .setStartTimestamp(START_TIMESTAMP)
             .setEndTimestamp(END_TIMESTAMP)
             .setHeartbeatMillis(10)
@@ -111,24 +110,7 @@ public class PartitionMetadataTest {
         IllegalStateException.class,
         () ->
             PartitionMetadata.newBuilder()
-                .setParentTokens(Sets.newHashSet(PARENT_TOKEN))
-                .setStartTimestamp(START_TIMESTAMP)
-                .setEndTimestamp(END_TIMESTAMP)
-                .setHeartbeatMillis(10)
-                .setState(State.CREATED)
-                .setWatermark(WATERMARK)
-                .setCreatedAt(CREATED_AT)
-                .build());
-  }
-
-  @Test
-  public void testBuilderThrowsExceptionWhenParentTokenMissing() {
-    assertThrows(
-        "parentToken",
-        IllegalStateException.class,
-        () ->
-            PartitionMetadata.newBuilder()
-                .setPartitionToken(PARTITION_TOKEN)
+                .setChildTokens(Sets.newHashSet())
                 .setStartTimestamp(START_TIMESTAMP)
                 .setEndTimestamp(END_TIMESTAMP)
                 .setHeartbeatMillis(10)
@@ -146,7 +128,7 @@ public class PartitionMetadataTest {
         () ->
             PartitionMetadata.newBuilder()
                 .setPartitionToken(PARTITION_TOKEN)
-                .setParentTokens(Sets.newHashSet(PARENT_TOKEN))
+                .setChildTokens(Sets.newHashSet())
                 .setEndTimestamp(END_TIMESTAMP)
                 .setHeartbeatMillis(10)
                 .setState(State.CREATED)
@@ -163,7 +145,7 @@ public class PartitionMetadataTest {
         () ->
             PartitionMetadata.newBuilder()
                 .setPartitionToken(PARTITION_TOKEN)
-                .setParentTokens(Sets.newHashSet(PARENT_TOKEN))
+                .setChildTokens(Sets.newHashSet())
                 .setStartTimestamp(START_TIMESTAMP)
                 .setEndTimestamp(END_TIMESTAMP)
                 .setState(State.CREATED)
@@ -180,7 +162,7 @@ public class PartitionMetadataTest {
         () ->
             PartitionMetadata.newBuilder()
                 .setPartitionToken(PARTITION_TOKEN)
-                .setParentTokens(Sets.newHashSet(PARENT_TOKEN))
+                .setChildTokens(Sets.newHashSet())
                 .setStartTimestamp(START_TIMESTAMP)
                 .setEndTimestamp(END_TIMESTAMP)
                 .setHeartbeatMillis(10)
@@ -197,7 +179,7 @@ public class PartitionMetadataTest {
         () ->
             PartitionMetadata.newBuilder()
                 .setPartitionToken(PARTITION_TOKEN)
-                .setParentTokens(Sets.newHashSet(PARENT_TOKEN))
+                .setChildTokens(Sets.newHashSet())
                 .setStartTimestamp(START_TIMESTAMP)
                 .setEndTimestamp(END_TIMESTAMP)
                 .setHeartbeatMillis(10)

@@ -22,7 +22,8 @@ import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionPosition;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionRestriction;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -71,16 +72,16 @@ public class HeartbeatRecordAction {
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       HeartbeatRecord record,
-      RestrictionTracker<TimestampRange, Timestamp> tracker,
+      RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     final String token = partition.getPartitionToken();
-    LOG.debug("[" + token + "] Processing heartbeat record " + record);
+    LOG.info("[" + token + "] Processing heartbeat record " + record);
 
     final Timestamp timestamp = record.getTimestamp();
     final Instant timestampInstant = new Instant(timestamp.toSqlTimestamp().getTime());
-    if (!tracker.tryClaim(timestamp)) {
-      LOG.debug("[" + token + "] Could not claim queryChangeStream(" + timestamp + "), stopping");
+    if (!tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))) {
+      LOG.info("[" + token + "] Could not claim queryChangeStream(" + timestamp + "), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
     metrics.incHeartbeatRecordCount();

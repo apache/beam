@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
+import com.google.cloud.Timestamp;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
@@ -36,11 +37,23 @@ import org.joda.time.Duration;
 public class ActionFactory implements Serializable {
 
   private static final long serialVersionUID = -4060958761369602619L;
+  private transient UpdateStateAction updateStateActionInstance;
   private transient DataChangeRecordAction dataChangeRecordActionInstance;
   private transient HeartbeatRecordAction heartbeatRecordActionInstance;
   private transient ChildPartitionsRecordAction childPartitionsRecordActionInstance;
+  private transient InitialChildPartitionsRecordAction initialChildPartitionsRecordActionInstance;
   private transient QueryChangeStreamAction queryChangeStreamActionInstance;
+  private transient WaitForChildPartitionsAction waitForChildPartitionsActionInstance;
+  private transient DoneAction doneActionInstance;
   private transient DetectNewPartitionsAction detectNewPartitionsActionInstance;
+
+  public synchronized UpdateStateAction updateStateAction(
+      PartitionMetadataDao partitionMetadataDao, ChangeStreamMetrics metrics) {
+    if (updateStateActionInstance == null) {
+      updateStateActionInstance = new UpdateStateAction(partitionMetadataDao, metrics);
+    }
+    return updateStateActionInstance;
+  }
 
   /**
    * Creates and returns a singleton instance of an action class capable of processing {@link
@@ -90,6 +103,30 @@ public class ActionFactory implements Serializable {
     return childPartitionsRecordActionInstance;
   }
 
+  public synchronized InitialChildPartitionsRecordAction initialChildPartitionsRecordAction(
+      PartitionMetadataDao partitionMetadataDao) {
+    if (initialChildPartitionsRecordActionInstance == null) {
+      initialChildPartitionsRecordActionInstance =
+          new InitialChildPartitionsRecordAction(partitionMetadataDao);
+    }
+    return initialChildPartitionsRecordActionInstance;
+  }
+
+  public synchronized WaitForChildPartitionsAction waitForChildPartitionsAction(
+      PartitionMetadataDao partitionMetadataDao) {
+    if (waitForChildPartitionsActionInstance == null) {
+      waitForChildPartitionsActionInstance = new WaitForChildPartitionsAction(partitionMetadataDao);
+    }
+    return waitForChildPartitionsActionInstance;
+  }
+
+  public synchronized DoneAction doneAction() {
+    if (doneActionInstance == null) {
+      doneActionInstance = new DoneAction();
+    }
+    return doneActionInstance;
+  }
+
   /**
    * Creates and returns a single instance of an action class capable of performing a change stream
    * query for a given partition. It uses the {@link DataChangeRecordAction}, {@link
@@ -120,6 +157,7 @@ public class ActionFactory implements Serializable {
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
       ChildPartitionsRecordAction childPartitionsRecordAction,
+      InitialChildPartitionsRecordAction initialChildPartitionsRecordAction,
       ChangeStreamMetrics metrics,
       ThroughputEstimator throughputEstimator) {
     if (queryChangeStreamActionInstance == null) {
@@ -132,6 +170,7 @@ public class ActionFactory implements Serializable {
               dataChangeRecordAction,
               heartbeatRecordAction,
               childPartitionsRecordAction,
+              initialChildPartitionsRecordAction,
               metrics,
               throughputEstimator);
     }
@@ -152,12 +191,17 @@ public class ActionFactory implements Serializable {
   public synchronized DetectNewPartitionsAction detectNewPartitionsAction(
       PartitionMetadataDao partitionMetadataDao,
       PartitionMetadataMapper partitionMetadataMapper,
+      Timestamp startTimestamp,
       ChangeStreamMetrics metrics,
       Duration resumeDuration) {
     if (detectNewPartitionsActionInstance == null) {
       detectNewPartitionsActionInstance =
           new DetectNewPartitionsAction(
-              partitionMetadataDao, partitionMetadataMapper, metrics, resumeDuration);
+              partitionMetadataDao,
+              partitionMetadataMapper,
+              startTimestamp,
+              metrics,
+              resumeDuration);
     }
     return detectNewPartitionsActionInstance;
   }

@@ -18,69 +18,77 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.Timestamp;
+import java.util.HashSet;
 import java.util.Optional;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionPosition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionRestriction;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
-import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.joda.time.Instant;
+import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Test;
 
-public class HeartbeatRecordActionTest {
+public class WaitForChildPartitionsActionTest {
 
-  private HeartbeatRecordAction action;
-  private PartitionMetadata partition;
+  private WaitForChildPartitionsAction action;
+  private PartitionMetadataDao dao;
   private RestrictionTracker<PartitionRestriction, PartitionPosition> tracker;
-  private ManualWatermarkEstimator<Instant> watermarkEstimator;
 
   @Before
   public void setUp() {
-    final ChangeStreamMetrics metrics = mock(ChangeStreamMetrics.class);
-    action = new HeartbeatRecordAction(metrics);
-    partition = mock(PartitionMetadata.class);
+    dao = mock(PartitionMetadataDao.class);
+    action = new WaitForChildPartitionsAction(dao);
     tracker = mock(RestrictionTracker.class);
-    watermarkEstimator = mock(ManualWatermarkEstimator.class);
   }
 
   @Test
-  public void testRestrictionClaimed() {
+  public void testRestrictionClaimedAndChildrenFinished() {
     final String partitionToken = "partitionToken";
-    final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
-
-    when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(true);
+    final PartitionMetadata partition = mock(PartitionMetadata.class);
+    when(tracker.tryClaim(PartitionPosition.waitForChildPartitions())).thenReturn(true);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
+    HashSet<String> childTokens = new HashSet<String>();
+    childTokens.add("childtoken");
+    when(dao.getChildTokens(partitionToken)).thenReturn(childTokens);
+    when(dao.countNeverRunChildPartitions(childTokens)).thenReturn(0L);
 
-    final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, new HeartbeatRecord(timestamp, null), tracker, watermarkEstimator);
+    final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
 
     assertEquals(Optional.empty(), maybeContinuation);
-    verify(watermarkEstimator).setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
+  }
+
+  @Test
+  public void testRestrictionClaimedAndChildrenNotFinished() {
+    final String partitionToken = "partitionToken";
+    final PartitionMetadata partition = mock(PartitionMetadata.class);
+    when(tracker.tryClaim(PartitionPosition.waitForChildPartitions())).thenReturn(true);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
+    HashSet<String> childTokens = new HashSet<String>();
+    childTokens.add("childtoken");
+    when(dao.getChildTokens(partitionToken)).thenReturn(childTokens);
+    when(dao.countNeverRunChildPartitions(childTokens)).thenReturn(1L);
+
+    final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
+
+    assertEquals(
+        Optional.of(ProcessContinuation.resume().withResumeDelay(Duration.millis(3000))),
+        maybeContinuation);
   }
 
   @Test
   public void testRestrictionNotClaimed() {
     final String partitionToken = "partitionToken";
-    final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
-
-    when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(false);
+    final PartitionMetadata partition = mock(PartitionMetadata.class);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
+    when(tracker.tryClaim(PartitionPosition.waitForChildPartitions())).thenReturn(false);
 
-    final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, new HeartbeatRecord(timestamp, null), tracker, watermarkEstimator);
+    final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
 
     assertEquals(Optional.of(ProcessContinuation.stop()), maybeContinuation);
-    verify(watermarkEstimator, never()).setWatermark(any());
   }
 }

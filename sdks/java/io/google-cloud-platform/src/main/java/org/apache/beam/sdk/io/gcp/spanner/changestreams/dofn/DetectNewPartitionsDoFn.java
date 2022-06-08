@@ -57,6 +57,7 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
+  private final com.google.cloud.Timestamp startTimestamp;
   private final ChangeStreamMetrics metrics;
   private transient DetectNewPartitionsAction detectNewPartitionsAction;
 
@@ -77,11 +78,13 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       ActionFactory actionFactory,
+      com.google.cloud.Timestamp startTimestamp,
       ChangeStreamMetrics metrics) {
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
     this.metrics = metrics;
+    this.startTimestamp = startTimestamp;
     this.resumeDuration = DEFAULT_RESUME_DURATION;
   }
 
@@ -122,7 +125,7 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
     final PartitionMetadataMapper partitionMetadataMapper = mapperFactory.partitionMetadataMapper();
     this.detectNewPartitionsAction =
         actionFactory.detectNewPartitionsAction(
-            partitionMetadataDao, partitionMetadataMapper, metrics, resumeDuration);
+            partitionMetadataDao, partitionMetadataMapper, startTimestamp, metrics, resumeDuration);
   }
 
   /**

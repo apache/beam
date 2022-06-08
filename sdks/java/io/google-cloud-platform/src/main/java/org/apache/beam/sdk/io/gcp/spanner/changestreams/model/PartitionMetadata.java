@@ -61,7 +61,7 @@ public class PartitionMetadata implements Serializable {
   }
 
   private String partitionToken;
-  private HashSet<String> parentTokens;
+  private HashSet<String> childTokens;
 
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp startTimestamp;
@@ -98,7 +98,7 @@ public class PartitionMetadata implements Serializable {
 
   public PartitionMetadata(
       String partitionToken,
-      HashSet<String> parentTokens,
+      HashSet<String> childTokens,
       Timestamp startTimestamp,
       Timestamp endTimestamp,
       long heartbeatMillis,
@@ -109,7 +109,7 @@ public class PartitionMetadata implements Serializable {
       @Nullable Timestamp runningAt,
       @Nullable Timestamp finishedAt) {
     this.partitionToken = partitionToken;
-    this.parentTokens = parentTokens;
+    this.childTokens = childTokens;
     this.startTimestamp = startTimestamp;
     this.endTimestamp = endTimestamp;
     this.heartbeatMillis = heartbeatMillis;
@@ -130,8 +130,8 @@ public class PartitionMetadata implements Serializable {
    * The unique partition identifiers of the parent partitions where this child partition originated
    * from.
    */
-  public HashSet<String> getParentTokens() {
-    return parentTokens;
+  public HashSet<String> getChildTokens() {
+    return childTokens;
   }
 
   /**
@@ -204,7 +204,7 @@ public class PartitionMetadata implements Serializable {
     PartitionMetadata that = (PartitionMetadata) o;
     return heartbeatMillis == that.heartbeatMillis
         && Objects.equals(partitionToken, that.partitionToken)
-        && Objects.equals(parentTokens, that.parentTokens)
+        && Objects.equals(childTokens, that.childTokens)
         && Objects.equals(startTimestamp, that.startTimestamp)
         && Objects.equals(endTimestamp, that.endTimestamp)
         && state == that.state
@@ -219,7 +219,7 @@ public class PartitionMetadata implements Serializable {
   public int hashCode() {
     return Objects.hash(
         partitionToken,
-        parentTokens,
+        childTokens,
         startTimestamp,
         endTimestamp,
         heartbeatMillis,
@@ -237,8 +237,8 @@ public class PartitionMetadata implements Serializable {
         + "partitionToken='"
         + partitionToken
         + '\''
-        + ", parentTokens="
-        + parentTokens
+        + ", childTokens="
+        + childTokens
         + ", startTimestamp="
         + startTimestamp
         + ", endTimestamp="
@@ -269,7 +269,7 @@ public class PartitionMetadata implements Serializable {
   public static class Builder {
 
     private String partitionToken;
-    private HashSet<String> parentTokens;
+    private HashSet<String> childTokens;
     private Timestamp startTimestamp;
     private Timestamp endTimestamp;
     private Long heartbeatMillis;
@@ -284,7 +284,7 @@ public class PartitionMetadata implements Serializable {
 
     private Builder(PartitionMetadata partition) {
       this.partitionToken = partition.partitionToken;
-      this.parentTokens = partition.parentTokens;
+      this.childTokens = partition.childTokens;
       this.startTimestamp = partition.startTimestamp;
       this.endTimestamp = partition.endTimestamp;
       this.heartbeatMillis = partition.heartbeatMillis;
@@ -303,8 +303,8 @@ public class PartitionMetadata implements Serializable {
     }
 
     /** Sets the collection of parent partition identifiers. */
-    public Builder setParentTokens(HashSet<String> parentTokens) {
-      this.parentTokens = parentTokens;
+    public Builder setChildTokens(HashSet<String> childTokens) {
+      this.childTokens = childTokens;
       return this;
     }
 
@@ -376,7 +376,7 @@ public class PartitionMetadata implements Serializable {
      */
     public PartitionMetadata build() {
       Preconditions.checkState(partitionToken != null, "partitionToken");
-      Preconditions.checkState(parentTokens != null, "parentTokens");
+      Preconditions.checkState(childTokens != null, "childTokens");
       Preconditions.checkState(startTimestamp != null, "startTimestamp");
       Preconditions.checkState(heartbeatMillis != null, "heartbeatMillis");
       Preconditions.checkState(state != null, "state");
@@ -386,7 +386,7 @@ public class PartitionMetadata implements Serializable {
       }
       return new PartitionMetadata(
           partitionToken,
-          parentTokens,
+          childTokens,
           startTimestamp,
           endTimestamp,
           heartbeatMillis,

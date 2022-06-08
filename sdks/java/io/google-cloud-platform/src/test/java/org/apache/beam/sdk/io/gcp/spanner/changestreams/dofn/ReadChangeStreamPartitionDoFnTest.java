@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State.SCHEDULED;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionMode.UPDATE_STATE;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -26,12 +27,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
+import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ChildPartitionsRecordAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.DataChangeRecordAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.DoneAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.HeartbeatRecordAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.InitialChildPartitionsRecordAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.QueryChangeStreamAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.UpdateStateAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.WaitForChildPartitionsAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
@@ -40,9 +46,9 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionPosition;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionRestriction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
-import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -65,15 +71,18 @@ public class ReadChangeStreamPartitionDoFnTest {
 
   private ReadChangeStreamPartitionDoFn doFn;
   private PartitionMetadata partition;
-  private TimestampRange restriction;
-  private RestrictionTracker<TimestampRange, Timestamp> tracker;
+  private PartitionRestriction restriction;
+  private RestrictionTracker<PartitionRestriction, PartitionPosition> tracker;
   private OutputReceiver<DataChangeRecord> receiver;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
-  private BundleFinalizer bundleFinalizer;
   private DataChangeRecordAction dataChangeRecordAction;
   private HeartbeatRecordAction heartbeatRecordAction;
   private ChildPartitionsRecordAction childPartitionsRecordAction;
+  private InitialChildPartitionsRecordAction initialChildPartitionsRecordAction;
+  private UpdateStateAction updateStateAction;
   private QueryChangeStreamAction queryChangeStreamAction;
+  private WaitForChildPartitionsAction waitForChildPartitionsAction;
+  private DoneAction doneAction;
 
   @Before
   public void setUp() {
@@ -86,11 +95,14 @@ public class ReadChangeStreamPartitionDoFnTest {
     final ChangeStreamDao changeStreamDao = mock(ChangeStreamDao.class);
     final ChangeStreamRecordMapper changeStreamRecordMapper = mock(ChangeStreamRecordMapper.class);
     final PartitionMetadataMapper partitionMetadataMapper = mock(PartitionMetadataMapper.class);
+    updateStateAction = mock(UpdateStateAction.class);
     dataChangeRecordAction = mock(DataChangeRecordAction.class);
     heartbeatRecordAction = mock(HeartbeatRecordAction.class);
     childPartitionsRecordAction = mock(ChildPartitionsRecordAction.class);
+    initialChildPartitionsRecordAction = mock(InitialChildPartitionsRecordAction.class);
     queryChangeStreamAction = mock(QueryChangeStreamAction.class);
-
+    waitForChildPartitionsAction = mock(WaitForChildPartitionsAction.class);
+    doneAction = mock(DoneAction.class);
     doFn =
         new ReadChangeStreamPartitionDoFn(
             daoFactory, mapperFactory, actionFactory, metrics, throughputEstimator);
@@ -98,7 +110,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     partition =
         PartitionMetadata.newBuilder()
             .setPartitionToken(PARTITION_TOKEN)
-            .setParentTokens(Sets.newHashSet("parentToken"))
+            .setChildTokens(Sets.newHashSet())
             .setStartTimestamp(PARTITION_START_TIMESTAMP)
             .setEndTimestamp(PARTITION_END_TIMESTAMP)
             .setHeartbeatMillis(PARTITION_HEARTBEAT_MILLIS)
@@ -106,22 +118,26 @@ public class ReadChangeStreamPartitionDoFnTest {
             .setWatermark(PARTITION_START_TIMESTAMP)
             .setScheduledAt(Timestamp.now())
             .build();
-    restriction = mock(TimestampRange.class);
+    restriction = mock(PartitionRestriction.class);
     tracker = mock(RestrictionTracker.class);
     receiver = mock(OutputReceiver.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
-    bundleFinalizer = mock(BundleFinalizer.class);
 
     when(tracker.currentRestriction()).thenReturn(restriction);
+    when(restriction.getMode()).thenReturn(UPDATE_STATE);
     when(daoFactory.getPartitionMetadataDao()).thenReturn(partitionMetadataDao);
     when(daoFactory.getChangeStreamDao()).thenReturn(changeStreamDao);
     when(mapperFactory.changeStreamRecordMapper()).thenReturn(changeStreamRecordMapper);
     when(mapperFactory.partitionMetadataMapper()).thenReturn(partitionMetadataMapper);
 
+    when(actionFactory.updateStateAction(partitionMetadataDao, metrics))
+        .thenReturn(updateStateAction);
     when(actionFactory.dataChangeRecordAction()).thenReturn(dataChangeRecordAction);
     when(actionFactory.heartbeatRecordAction(metrics)).thenReturn(heartbeatRecordAction);
     when(actionFactory.childPartitionsRecordAction(partitionMetadataDao, metrics))
         .thenReturn(childPartitionsRecordAction);
+    when(actionFactory.initialChildPartitionsRecordAction(partitionMetadataDao))
+        .thenReturn(initialChildPartitionsRecordAction);
     when(actionFactory.queryChangeStreamAction(
             changeStreamDao,
             partitionMetadataDao,
@@ -130,24 +146,27 @@ public class ReadChangeStreamPartitionDoFnTest {
             dataChangeRecordAction,
             heartbeatRecordAction,
             childPartitionsRecordAction,
+            initialChildPartitionsRecordAction,
             metrics,
             throughputEstimator))
         .thenReturn(queryChangeStreamAction);
+    when(actionFactory.waitForChildPartitionsAction(partitionMetadataDao))
+        .thenReturn(waitForChildPartitionsAction);
+    when(actionFactory.doneAction()).thenReturn(doneAction);
+    when(doneAction.run(partition, tracker)).thenReturn(ProcessContinuation.stop());
 
     doFn.setup();
   }
 
   @Test
-  public void testQueryChangeStreamMode() {
-    when(queryChangeStreamAction.run(any(), any(), any(), any(), any()))
-        .thenReturn(ProcessContinuation.stop());
+  public void testProcessElement() {
+    when(queryChangeStreamAction.run(any(), any(), any(), any())).thenReturn(Optional.empty());
 
     final ProcessContinuation result =
-        doFn.processElement(partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
+        doFn.processElement(partition, tracker, receiver, watermarkEstimator);
 
     assertEquals(ProcessContinuation.stop(), result);
-    verify(queryChangeStreamAction)
-        .run(partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
+    verify(queryChangeStreamAction).run(partition, tracker, receiver, watermarkEstimator);
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());

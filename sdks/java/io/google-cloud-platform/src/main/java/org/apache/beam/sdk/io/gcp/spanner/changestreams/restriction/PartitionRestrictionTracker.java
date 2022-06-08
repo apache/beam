@@ -113,6 +113,19 @@ public class PartitionRestrictionTracker
 
   @Override
   public void checkDone() throws IllegalStateException {
+    final String token =
+        Optional.ofNullable(restriction.getMetadata())
+            .map(PartitionRestrictionMetadata::getPartitionToken)
+            .orElse("");
+    String lastClaimedPositionString =
+        lastClaimedPosition != null ? lastClaimedPosition.toString() : "null";
+    LOG.info(
+        "["
+            + token
+            + "] Check done with restriction "
+            + restriction.toString()
+            + " with lastclaimedposition "
+            + lastClaimedPositionString);
     if (restriction.getMode() == STOP) {
       return;
     }
@@ -126,18 +139,22 @@ public class PartitionRestrictionTracker
           throw new IllegalStateException(
               String.format(
                   "Last attempted key was %s in range %s, claiming work in [%s, %s) was not"
-                      + " attempted",
-                  nextPosition, restriction, nextPosition, restriction.getEndTimestamp()));
+                      + " attempted for token %s",
+                  nextPosition, restriction, nextPosition, restriction.getEndTimestamp(), token));
         }
       } else {
         checkState(
-            currentMode == DONE, "Restriction %s does not have mode DONE", restriction.toString());
+            currentMode == DONE,
+            "Restriction %s does not have mode DONE for token %s",
+            restriction.toString(),
+            token);
       }
     } else {
       // If nothing was attempted, throws an exception
       throw new IllegalStateException(
           String.format(
-              "restriction is non-empty %s and no keys have been attempted.", restriction));
+              "restriction is non-empty %s and no keys have been attempted for token %s",
+              restriction, token));
     }
   }
 

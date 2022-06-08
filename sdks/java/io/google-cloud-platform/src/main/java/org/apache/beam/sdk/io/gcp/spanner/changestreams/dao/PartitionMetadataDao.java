@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_CHILD_TOKENS;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_CREATED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_FINISHED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_HEARTBEAT_MILLIS;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_PARENT_TOKENS;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_RUNNING_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_SCHEDULED_AT;
@@ -39,6 +39,7 @@ import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.TransactionRunner;
 import com.google.cloud.spanner.Value;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -47,6 +48,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /** Data access object for the Connector metadata tables. */
 public class PartitionMetadataDao {
@@ -86,6 +88,52 @@ public class PartitionMetadataDao {
     }
   }
 
+  public @Nullable HashSet<String> getChildTokens(String partitionToken) {
+    try (ResultSet resultSet =
+        databaseClient
+            .singleUse()
+            .executeQuery(
+                Statement.newBuilder(
+                        "SELECT "
+                            + COLUMN_CHILD_TOKENS
+                            + " FROM "
+                            + metadataTableName
+                            + " WHERE "
+                            + COLUMN_PARTITION_TOKEN
+                            + " = @partition")
+                    .bind("partition")
+                    .to(partitionToken)
+                    .build())) {
+      if (resultSet.next()) {
+        return Sets.newHashSet(resultSet.getStringList(COLUMN_CHILD_TOKENS));
+      }
+    }
+    return null;
+  }
+
+  public long countNeverRunChildPartitions(HashSet<String> childTokens) {
+    final Statement statement =
+        Statement.newBuilder(
+                "SELECT COUNT(*)"
+                    + " FROM "
+                    + metadataTableName
+                    + " WHERE "
+                    + COLUMN_PARTITION_TOKEN
+                    + " IN UNNEST (@childTokens)"
+                    + " AND "
+                    + COLUMN_STATE
+                    + " != 'RUNNING' AND "
+                    + COLUMN_STATE
+                    + " != 'FINISHED'")
+            .bind("childTokens")
+            .toStringArray(childTokens)
+            .build();
+    try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
+      resultSet.next();
+      return resultSet.getLong(0);
+    }
+  }
+
   /**
    * Fetches the partition metadata row data for the given partition token.
    *
@@ -114,34 +162,46 @@ public class PartitionMetadataDao {
     }
   }
 
-  /**
-   * Fetches the earliest partition watermark from the partition metadata table that is not in a
-   * {@link State#FINISHED} state.
-   *
-   * @return the earliest partition watermark which is not in a {@link State#FINISHED} state.
-   */
-  public @Nullable Timestamp getUnfinishedMinWatermark() {
+  public long getUnfinishedPartitionsCount() {
     final Statement statement =
         Statement.newBuilder(
-                "SELECT "
-                    + COLUMN_WATERMARK
+                "SELECT COUNT(*)"
                     + " FROM "
                     + metadataTableName
                     + " WHERE "
                     + COLUMN_STATE
-                    + " != @state"
-                    + " ORDER BY "
-                    + COLUMN_WATERMARK
-                    + " ASC LIMIT 1")
+                    + " != @state")
             .bind("state")
             .to(State.FINISHED.name())
             .build();
     try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
-      if (resultSet.next()) {
-        return resultSet.getTimestamp(COLUMN_WATERMARK);
-      }
-      return null;
+      resultSet.next();
+      return resultSet.getLong(0);
     }
+  }
+
+  public boolean isPartitionRunningOrFinished(String partitionToken) {
+    final Statement statement =
+        Statement.newBuilder(
+                "SELECT "
+                    + COLUMN_STATE
+                    + " FROM "
+                    + metadataTableName
+                    + " WHERE "
+                    + COLUMN_PARTITION_TOKEN
+                    + " = @partitiontoken")
+            .bind("partitiontoken")
+            .to(partitionToken)
+            .build();
+    try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
+      if (resultSet.next()) {
+        String state = resultSet.getString(COLUMN_STATE);
+        if (state.equals(State.FINISHED.name()) || state.equals(State.RUNNING.name())) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /**
@@ -284,6 +344,35 @@ public class PartitionMetadataDao {
       return null;
     }
 
+    public Void insertChildTokens(String partitionToken, HashSet<String> childTokens) {
+      transaction.buffer(
+          ImmutableList.of(createInsertChildTokensMutation(partitionToken, childTokens)));
+      return null;
+    }
+
+    public @Nullable HashSet<String> getChildTokens(String partitionToken) {
+      try (ResultSet resultSet =
+          transaction.executeQuery(
+              Statement.newBuilder(
+                      "SELECT "
+                          + COLUMN_CHILD_TOKENS
+                          + " FROM "
+                          + metadataTableName
+                          + " WHERE "
+                          + COLUMN_PARTITION_TOKEN
+                          + " = @partition")
+                  .bind("partition")
+                  .to(partitionToken)
+                  .build())) {
+        if (resultSet.next()) {
+          HashSet<String> childTokens =
+              Sets.newHashSet(resultSet.getStringList(COLUMN_CHILD_TOKENS));
+          return childTokens;
+        }
+        return null;
+      }
+    }
+
     /**
      * Updates multiple partition rows to {@link State#SCHEDULED} state.
      *
@@ -362,8 +451,8 @@ public class PartitionMetadataDao {
       return Mutation.newInsertBuilder(metadataTableName)
           .set(COLUMN_PARTITION_TOKEN)
           .to(partitionMetadata.getPartitionToken())
-          .set(COLUMN_PARENT_TOKENS)
-          .toStringArray(partitionMetadata.getParentTokens())
+          .set(COLUMN_CHILD_TOKENS)
+          .toStringArray(partitionMetadata.getChildTokens())
           .set(COLUMN_START_TIMESTAMP)
           .to(partitionMetadata.getStartTimestamp())
           .set(COLUMN_END_TIMESTAMP)
@@ -376,6 +465,16 @@ public class PartitionMetadataDao {
           .to(partitionMetadata.getWatermark())
           .set(COLUMN_CREATED_AT)
           .to(Value.COMMIT_TIMESTAMP)
+          .build();
+    }
+
+    private Mutation createInsertChildTokensMutation(
+        String partitionToken, HashSet<String> childTokens) {
+      return Mutation.newUpdateBuilder(metadataTableName)
+          .set(COLUMN_PARTITION_TOKEN)
+          .to(partitionToken)
+          .set(COLUMN_CHILD_TOKENS)
+          .toStringArray(childTokens)
           .build();
     }
 

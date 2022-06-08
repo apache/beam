@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.DetectNewPartitionsRangeTracker;
@@ -52,15 +53,18 @@ public class DetectNewPartitionsAction {
   private final PartitionMetadataMapper mapper;
   private final ChangeStreamMetrics metrics;
   private final Duration resumeDuration;
+  private final Timestamp startTimestamp;
 
   /** Constructs an action class for detecting / scheduling new partitions. */
   public DetectNewPartitionsAction(
       PartitionMetadataDao dao,
       PartitionMetadataMapper mapper,
+      Timestamp startTimestamp,
       ChangeStreamMetrics metrics,
       Duration resumeDuration) {
     this.dao = dao;
     this.mapper = mapper;
+    this.startTimestamp = startTimestamp;
     this.metrics = metrics;
     this.resumeDuration = resumeDuration;
   }
@@ -97,11 +101,16 @@ public class DetectNewPartitionsAction {
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     final Timestamp readTimestamp = tracker.currentRestriction().getFrom();
-    // Updates the current watermark as the min of the watermarks from all existing partitions
-    final Timestamp minWatermark = dao.getUnfinishedMinWatermark();
+    // Check whether the initial query has started running yet.
 
-    if (minWatermark != null) {
-      return processPartitions(tracker, receiver, watermarkEstimator, minWatermark, readTimestamp);
+    final long unfinishedPartitions = dao.getUnfinishedPartitionsCount();
+
+    if (unfinishedPartitions > 0) {
+      final boolean isInitialQueryRunningOrFinished =
+          dao.isPartitionRunningOrFinished(InitialPartition.PARTITION_TOKEN);
+      LOG.info("Initial query is running or finished: " + isInitialQueryRunningOrFinished);
+      Timestamp watermark = isInitialQueryRunningOrFinished ? Timestamp.now() : startTimestamp;
+      return processPartitions(tracker, receiver, watermarkEstimator, watermark, readTimestamp);
     } else {
       return terminate(tracker);
     }
@@ -111,14 +120,14 @@ public class DetectNewPartitionsAction {
       RestrictionTracker<TimestampRange, Timestamp> tracker,
       OutputReceiver<PartitionMetadata> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
-      Timestamp minWatermark,
+      Timestamp watermark,
       Timestamp readTimestamp) {
     // Updates watermark to the min watermark found
-    watermarkEstimator.setWatermark(new Instant(minWatermark.toSqlTimestamp()));
+    watermarkEstimator.setWatermark(new Instant(watermark.toSqlTimestamp()));
 
     final List<PartitionMetadata> partitions = getAllPartitionsCreatedAfter(readTimestamp);
     final TreeMap<Timestamp, List<PartitionMetadata>> batches = batchByCreatedAt(partitions);
-    return schedulePartitions(tracker, receiver, minWatermark, batches);
+    return schedulePartitions(tracker, receiver, watermark, batches);
   }
 
   private List<PartitionMetadata> getAllPartitionsCreatedAfter(Timestamp readTimestamp) {
@@ -145,7 +154,7 @@ public class DetectNewPartitionsAction {
   private ProcessContinuation schedulePartitions(
       RestrictionTracker<TimestampRange, Timestamp> tracker,
       OutputReceiver<PartitionMetadata> receiver,
-      Timestamp minWatermark,
+      Timestamp watermark,
       TreeMap<Timestamp, List<PartitionMetadata>> batches) {
     for (Map.Entry<Timestamp, List<PartitionMetadata>> batch : batches.entrySet()) {
       final Timestamp batchCreatedAt = batch.getKey();
@@ -155,7 +164,7 @@ public class DetectNewPartitionsAction {
       if (!tracker.tryClaim(batchCreatedAt)) {
         return ProcessContinuation.stop();
       }
-      outputBatch(receiver, minWatermark, batchPartitions, scheduledAt);
+      outputBatch(receiver, watermark, batchPartitions, scheduledAt);
     }
 
     return ProcessContinuation.resume().withResumeDelay(resumeDuration);
@@ -171,7 +180,7 @@ public class DetectNewPartitionsAction {
 
   private void outputBatch(
       OutputReceiver<PartitionMetadata> receiver,
-      Timestamp minWatermark,
+      Timestamp watermark,
       List<PartitionMetadata> batchPartitions,
       Timestamp scheduledAt) {
     for (PartitionMetadata partition : batchPartitions) {
@@ -189,7 +198,8 @@ public class DetectNewPartitionsAction {
               + " and end time "
               + updatedPartition.getEndTimestamp());
 
-      receiver.outputWithTimestamp(partition, new Instant(minWatermark.toSqlTimestamp()));
+      LOG.info("Outputting " + partition.toString() + " at timestamp: " + watermark.toString());
+      receiver.outputWithTimestamp(partition, new Instant(watermark.toSqlTimestamp()));
 
       metrics.incPartitionRecordCount();
       metrics.updatePartitionCreatedToScheduled(

@@ -21,6 +21,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
@@ -33,17 +34,16 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecord
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionPosition;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionRestriction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
-import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +63,6 @@ import org.slf4j.LoggerFactory;
 public class QueryChangeStreamAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(QueryChangeStreamAction.class);
-  private static final Duration BUNDLE_FINALIZER_TIMEOUT = Duration.standardMinutes(5);
   private static final String OUT_OF_RANGE_ERROR_MESSAGE = "Specified start_timestamp is invalid";
 
   private final ChangeStreamDao changeStreamDao;
@@ -73,6 +72,7 @@ public class QueryChangeStreamAction {
   private final DataChangeRecordAction dataChangeRecordAction;
   private final HeartbeatRecordAction heartbeatRecordAction;
   private final ChildPartitionsRecordAction childPartitionsRecordAction;
+  private final InitialChildPartitionsRecordAction initialChildPartitionsRecordAction;
   private final ChangeStreamMetrics metrics;
   private final ThroughputEstimator throughputEstimator;
 
@@ -99,6 +99,7 @@ public class QueryChangeStreamAction {
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
       ChildPartitionsRecordAction childPartitionsRecordAction,
+      InitialChildPartitionsRecordAction initialChildPartitionsRecordAction,
       ChangeStreamMetrics metrics,
       ThroughputEstimator throughputEstimator) {
     this.changeStreamDao = changeStreamDao;
@@ -108,6 +109,7 @@ public class QueryChangeStreamAction {
     this.dataChangeRecordAction = dataChangeRecordAction;
     this.heartbeatRecordAction = heartbeatRecordAction;
     this.childPartitionsRecordAction = childPartitionsRecordAction;
+    this.initialChildPartitionsRecordAction = initialChildPartitionsRecordAction;
     this.metrics = metrics;
     this.throughputEstimator = throughputEstimator;
   }
@@ -125,8 +127,6 @@ public class QueryChangeStreamAction {
    *       the actions registered.
    *   <li>If an {@link Optional} with a {@link ProcessContinuation#stop()} is returned from the
    *       actions, we stop processing and return.
-   *   <li>Before returning we register a bundle finalizer callback to update the watermark of the
-   *       partition in the metadata tables to the latest processed timestamp.
    *   <li>When a change stream query finishes successfully (no more records) we update the
    *       partition state to FINISHED.
    * </ol>
@@ -142,23 +142,20 @@ public class QueryChangeStreamAction {
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
    * @param watermarkEstimator the watermark estimator of the {@link
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
-   * @param bundleFinalizer the bundle finalizer for {@link
-   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
-   *     bundles
    * @return a {@link ProcessContinuation#stop()} if a record timestamp could not be claimed or if
    *     the partition processing has finished
    */
   @SuppressWarnings("nullness")
   @VisibleForTesting
-  public ProcessContinuation run(
+  public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
-      RestrictionTracker<TimestampRange, Timestamp> tracker,
+      RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       OutputReceiver<DataChangeRecord> receiver,
-      ManualWatermarkEstimator<Instant> watermarkEstimator,
-      BundleFinalizer bundleFinalizer) {
+      ManualWatermarkEstimator<Instant> watermarkEstimator) {
     final String token = partition.getPartitionToken();
-    final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
-    final Timestamp endTimestamp = partition.getEndTimestamp();
+    final Timestamp startTimestamp = tracker.currentRestriction().getStartTimestamp();
+    final Timestamp endTimestamp =
+        tracker.currentRestriction().getMetadata().getPartitionEndTimestamp();
 
     // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
     // ReadChangeStreamPartitionDoFn#processElement is called
@@ -175,13 +172,15 @@ public class QueryChangeStreamAction {
             token, startTimestamp, endTimestamp, partition.getHeartbeatMillis())) {
 
       metrics.incQueryCounter();
+      HashSet<ChildPartitionsRecord> initialRecords = new HashSet<ChildPartitionsRecord>();
+      Optional<ProcessContinuation> maybeContinuation;
       while (resultSet.next()) {
         final List<ChangeStreamRecord> records =
             changeStreamRecordMapper.toChangeStreamRecords(
                 updatedPartition, resultSet.getCurrentRowAsStruct(), resultSet.getMetadata());
 
-        Optional<ProcessContinuation> maybeContinuation;
         for (final ChangeStreamRecord record : records) {
+          LOG.info("Returned records");
           if (record instanceof DataChangeRecord) {
             maybeContinuation =
                 dataChangeRecordAction.run(
@@ -195,9 +194,17 @@ public class QueryChangeStreamAction {
                 heartbeatRecordAction.run(
                     updatedPartition, (HeartbeatRecord) record, tracker, watermarkEstimator);
           } else if (record instanceof ChildPartitionsRecord) {
-            maybeContinuation =
-                childPartitionsRecordAction.run(
-                    updatedPartition, (ChildPartitionsRecord) record, tracker, watermarkEstimator);
+            if (partition.getPartitionToken().equals(InitialPartition.PARTITION_TOKEN)) {
+              initialRecords.add((ChildPartitionsRecord) record);
+              maybeContinuation = Optional.empty();
+            } else {
+              maybeContinuation =
+                  childPartitionsRecordAction.run(
+                      updatedPartition,
+                      (ChildPartitionsRecord) record,
+                      tracker,
+                      watermarkEstimator);
+            }
           } else {
             LOG.error("[" + token + "] Unknown record type " + record.getClass());
             throw new IllegalArgumentException("Unknown record type " + record.getClass());
@@ -210,18 +217,18 @@ public class QueryChangeStreamAction {
               Timestamp.now(), record.toString().getBytes(StandardCharsets.UTF_8).length);
 
           if (maybeContinuation.isPresent()) {
-            LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);
-            bundleFinalizer.afterBundleCommit(
-                Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-                updateWatermarkCallback(token, watermarkEstimator));
-            return maybeContinuation.get();
+            return maybeContinuation;
           }
         }
       }
-      bundleFinalizer.afterBundleCommit(
-          Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-          updateWatermarkCallback(token, watermarkEstimator));
-
+      if (!initialRecords.isEmpty()) {
+        maybeContinuation =
+            initialChildPartitionsRecordAction.run(
+                updatedPartition, initialRecords, tracker, watermarkEstimator);
+        if (maybeContinuation.isPresent()) {
+          return maybeContinuation;
+        }
+      }
     } catch (SpannerException e) {
       /*
       If there is a split when a partition is supposed to be finished, the residual will try
@@ -239,36 +246,22 @@ public class QueryChangeStreamAction {
                 + endTimestamp
                 + ", finishing stream");
       } else {
+        LOG.info("Error during QueryChangeStreamAction: " + e);
         throw e;
       }
     }
 
-    LOG.debug("[" + token + "] change stream completed successfully");
-    if (tracker.tryClaim(endTimestamp)) {
-      LOG.debug("[" + token + "] Finishing partition");
+    LOG.info("[" + token + "] change stream completed successfully");
+    if (tracker.tryClaim(PartitionPosition.queryChangeStream(endTimestamp))) {
+      LOG.info("[" + token + "] Finishing partition");
       partitionMetadataDao.updateToFinished(token);
       metrics.decActivePartitionReadCounter();
       LOG.info("[" + token + "] Partition finished");
+      return Optional.empty();
+    } else {
+      LOG.info("[" + token + "] end timestamp did not get claimed successfully");
     }
-    return ProcessContinuation.stop();
-  }
-
-  private BundleFinalizer.Callback updateWatermarkCallback(
-      String token, WatermarkEstimator<Instant> watermarkEstimator) {
-    return () -> {
-      final Instant watermark = watermarkEstimator.currentWatermark();
-      LOG.debug("[" + token + "] Updating current watermark to " + watermark);
-      try {
-        partitionMetadataDao.updateWatermark(
-            token, Timestamp.ofTimeMicroseconds(watermark.getMillis() * 1_000L));
-      } catch (SpannerException e) {
-        if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
-          LOG.debug("[" + token + "] Unable to update the current watermark, partition NOT FOUND");
-        } else {
-          LOG.error("[" + token + "] Error updating the current watermark: " + e.getMessage(), e);
-        }
-      }
-    };
+    return Optional.of(ProcessContinuation.stop());
   }
 
   private boolean isTimestampOutOfRange(SpannerException e) {

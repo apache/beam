@@ -34,7 +34,7 @@ public class InitialPartition {
    */
   public static final String PARTITION_TOKEN = "Parent0";
   /** The empty set representing the initial partition parent tokens. */
-  public static final HashSet<String> PARENT_TOKENS = Sets.newHashSet();
+  public static final HashSet<String> CHILD_TOKENS = Sets.newHashSet();
 
   /**
    * Verifies if the given partition token is the initial partition.

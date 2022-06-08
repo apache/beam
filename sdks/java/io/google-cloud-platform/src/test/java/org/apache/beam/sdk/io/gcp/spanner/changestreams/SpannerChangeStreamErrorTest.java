@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams;
 
 import static org.apache.beam.sdk.PipelineResult.State.RUNNING;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_CHILD_TOKENS;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_CREATED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_FINISHED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_HEARTBEAT_MILLIS;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_PARENT_TOKENS;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_RUNNING_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_SCHEDULED_AT;
@@ -60,6 +60,7 @@ import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -229,7 +230,8 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
 
     mockTableExists();
-    mockGetWatermark(startTimestamp);
+    mockGetUnfinishedPartitionsCount(1);
+    mockGetStateForInitialPartitionToken();
     ResultSet getPartitionResultSet = mockGetParentPartition(startTimestamp, endTimestamp);
     mockGetPartitionsAfter(
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() - 1),
@@ -261,7 +263,9 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   private void mockInvalidChangeStreamRecordReceived(Timestamp now, Timestamp after3Seconds) {
     Statement changeStreamQueryStatement =
         Statement.newBuilder(
-                "SELECT * FROM READ_my-change-stream(   start_timestamp => @startTimestamp,   end_timestamp => @endTimestamp,   partition_token => @partitionToken,   read_options => null,   heartbeat_milliseconds => @heartbeatMillis)")
+                "SELECT * FROM READ_my-change-stream(   start_timestamp => @startTimestamp,  "
+                    + " end_timestamp => @endTimestamp,   partition_token => @partitionToken,  "
+                    + " read_options => null,   heartbeat_milliseconds => @heartbeatMillis)")
             .bind("startTimestamp")
             .to(now)
             .bind("endTimestamp")
@@ -329,45 +333,76 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         StatementResult.query(changeStreamQueryStatement, readChangeStreamResultSet));
   }
 
-  private void mockGetPartitionsAfter(Timestamp timestamp, ResultSet getPartitionResultSet) {
-    Statement getPartitionsAfterStatement =
-        Statement.newBuilder(
-                "SELECT * FROM my-metadata-table WHERE CreatedAt > @timestamp ORDER BY CreatedAt ASC, StartTimestamp ASC")
-            .bind("timestamp")
-            .to(Timestamp.ofTimeSecondsAndNanos(timestamp.getSeconds(), timestamp.getNanos()))
-            .build();
-    mockSpannerService.putStatementResult(
-        StatementResult.query(getPartitionsAfterStatement, getPartitionResultSet));
-  }
-
-  private void mockGetWatermark(Timestamp watermark) {
-    Statement watermarkStatement =
-        Statement.newBuilder(
-                "SELECT Watermark FROM my-metadata-table WHERE State != @state ORDER BY Watermark ASC LIMIT 1")
+  private void mockGetUnfinishedPartitionsCount(long count) {
+    Statement getUnfinishedPartitionsCount =
+        Statement.newBuilder("SELECT COUNT(*) FROM my-metadata-table WHERE State != @state")
             .bind("state")
             .to(State.FINISHED.name())
             .build();
-    ResultSetMetadata watermarkResultSetMetadata =
+    ResultSetMetadata unfinishedPartitionsResultSetMetadata =
         ResultSetMetadata.newBuilder()
             .setRowType(
                 StructType.newBuilder()
                     .addFields(
                         Field.newBuilder()
-                            .setName("Watermark")
-                            .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP).build())
+                            .setName("count")
+                            .setType(Type.newBuilder().setCode(TypeCode.INT64).build())
                             .build())
                     .build())
             .build();
-    ResultSet watermarkResultSet =
+    ResultSet unfinishedPartitionsResultSet =
         ResultSet.newBuilder()
             .addRows(
                 ListValue.newBuilder()
-                    .addValues(Value.newBuilder().setStringValue(watermark.toString()).build())
+                    .addValues(Value.newBuilder().setStringValue(String.valueOf(count)).build())
                     .build())
-            .setMetadata(watermarkResultSetMetadata)
+            .setMetadata(unfinishedPartitionsResultSetMetadata)
             .build();
     mockSpannerService.putStatementResult(
-        StatementResult.query(watermarkStatement, watermarkResultSet));
+        StatementResult.query(getUnfinishedPartitionsCount, unfinishedPartitionsResultSet));
+  }
+
+  private void mockGetStateForInitialPartitionToken() {
+    Statement getInitialPartitionTokenStateStatement =
+        Statement.newBuilder(
+                "SELECT State FROM my-metadata-table WHERE PartitionToken = @partitiontoken")
+            .bind("partitiontoken")
+            .to(InitialPartition.PARTITION_TOKEN)
+            .build();
+    ResultSetMetadata getInitialPartitionTokenStateMetadata =
+        ResultSetMetadata.newBuilder()
+            .setRowType(
+                StructType.newBuilder()
+                    .addFields(
+                        Field.newBuilder()
+                            .setName("state")
+                            .setType(Type.newBuilder().setCode(TypeCode.STRING).build())
+                            .build())
+                    .build())
+            .build();
+    ResultSet getInitialPartitionTokenState =
+        ResultSet.newBuilder()
+            .addRows(
+                ListValue.newBuilder()
+                    .addValues(Value.newBuilder().setStringValue(State.RUNNING.name()).build())
+                    .build())
+            .setMetadata(getInitialPartitionTokenStateMetadata)
+            .build();
+    mockSpannerService.putStatementResult(
+        StatementResult.query(
+            getInitialPartitionTokenStateStatement, getInitialPartitionTokenState));
+  }
+
+  private void mockGetPartitionsAfter(Timestamp timestamp, ResultSet getPartitionResultSet) {
+    Statement getPartitionsAfterStatement =
+        Statement.newBuilder(
+                "SELECT * FROM my-metadata-table WHERE CreatedAt > @timestamp ORDER BY CreatedAt"
+                    + " ASC, StartTimestamp ASC")
+            .bind("timestamp")
+            .to(Timestamp.ofTimeSecondsAndNanos(timestamp.getSeconds(), timestamp.getNanos()))
+            .build();
+    mockSpannerService.putStatementResult(
+        StatementResult.query(getPartitionsAfterStatement, getPartitionResultSet));
   }
 
   private ResultSet mockGetParentPartition(Timestamp startTimestamp, Timestamp after3Seconds) {
@@ -402,7 +437,8 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   private void mockTableExists() {
     Statement tableExistsStatement =
         Statement.of(
-            "SELECT t.table_name FROM information_schema.tables AS t WHERE t.table_catalog = '' AND t.table_schema = '' AND t.table_name = 'my-metadata-table'");
+            "SELECT t.table_name FROM information_schema.tables AS t WHERE t.table_catalog = '' AND"
+                + " t.table_schema = '' AND t.table_name = 'my-metadata-table'");
     ResultSetMetadata tableExistsResultSetMetadata =
         ResultSetMetadata.newBuilder()
             .setRowType(
@@ -455,7 +491,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
                           .build())
                   .addFields(
                       Field.newBuilder()
-                          .setName(COLUMN_PARENT_TOKENS)
+                          .setName(COLUMN_CHILD_TOKENS)
                           .setType(
                               Type.newBuilder()
                                   .setCode(TypeCode.ARRAY)

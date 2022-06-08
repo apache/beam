@@ -37,8 +37,8 @@ public class PartitionMetadataAdminDao {
 
   /** Metadata table column name for the partition token. */
   public static final String COLUMN_PARTITION_TOKEN = "PartitionToken";
-  /** Metadata table column name for parent partition tokens. */
-  public static final String COLUMN_PARENT_TOKENS = "ParentTokens";
+  /** Metadata table column name for child partition tokens. */
+  public static final String COLUMN_CHILD_TOKENS = "ChildTokens";
   /**
    * Metadata table column name for the timestamp to start the change stream query of the partition.
    */
@@ -119,7 +119,7 @@ public class PartitionMetadataAdminDao {
             + " ("
             + COLUMN_PARTITION_TOKEN
             + " STRING(MAX) NOT NULL,"
-            + COLUMN_PARENT_TOKENS
+            + COLUMN_CHILD_TOKENS
             + " ARRAY<STRING(MAX)> NOT NULL,"
             + COLUMN_START_TIMESTAMP
             + " TIMESTAMP NOT NULL,"

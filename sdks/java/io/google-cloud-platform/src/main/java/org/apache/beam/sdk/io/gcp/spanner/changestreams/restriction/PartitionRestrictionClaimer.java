@@ -65,8 +65,8 @@ public class PartitionRestrictionClaimer {
             .map(PartitionRestrictionMetadata::getPartitionToken)
             .orElse("");
 
-    if (fromMode == STOP) {
-      LOG.debug(
+    if (restriction.getMode() == STOP) {
+      LOG.info(
           "["
               + token
               + "] Try claim from ("
@@ -81,13 +81,15 @@ public class PartitionRestrictionClaimer {
 
     checkArgument(
         allowedTransitions.getOrDefault(fromMode, Collections.emptySet()).contains(toMode),
-        "Invalid partition mode transition from %s to %s",
+        "Invalid partition mode transition from %s to %s for %s",
         fromMode,
-        toMode);
+        toMode,
+        token);
     checkArgument(
         toMode != QUERY_CHANGE_STREAM || position.getTimestamp().isPresent(),
-        "%s mode must specify a timestamp (no value sent)",
-        toMode);
+        "%s mode must specify a timestamp (no value sent) for token %s",
+        toMode,
+        token);
 
     boolean tryClaimResult;
     switch (toMode) {
@@ -100,14 +102,19 @@ public class PartitionRestrictionClaimer {
             lastClaimedPosition == null
                 || !lastClaimedPosition.getTimestamp().isPresent()
                 || attemptedTimestamp.compareTo(lastClaimedPosition.getTimestamp().get()) >= 0,
-            "Trying to claim offset %s while last attempted was %s",
+            "Trying to claim offset %s while last attempted was %s in restriction %s for token %s",
             position,
-            lastClaimedPosition);
+            lastClaimedPosition,
+            restriction.toString(),
+            token);
         checkArgument(
             attemptedTimestamp.compareTo(restriction.getStartTimestamp()) >= 0,
-            "Trying to claim offset %s before the start timestamp %s",
+            "Trying to claim offset %s before the start timestamp %s for restriction %s for token"
+                + " %s",
             position,
-            restriction.getStartTimestamp().toString());
+            restriction.getStartTimestamp().toString(),
+            restriction.toString(),
+            token);
 
         tryClaimResult = attemptedTimestamp.compareTo(endTimestamp) < 0;
         break;
@@ -117,16 +124,19 @@ public class PartitionRestrictionClaimer {
         tryClaimResult = true;
         break;
       case STOP:
-        throw new IllegalArgumentException("Trying to claim STOP state is invalid");
+        throw new IllegalArgumentException(
+            "Trying to claim STOP state is invalid for token " + token);
       default:
         throw new IllegalArgumentException("Unknown mode " + toMode);
     }
 
-    LOG.debug(
+    LOG.info(
         "["
             + token
             + "] Try claim from ("
             + restriction
+            + ", "
+            + (lastClaimedPosition == null ? "null" : lastClaimedPosition.toString())
             + ", "
             + position
             + ") is "

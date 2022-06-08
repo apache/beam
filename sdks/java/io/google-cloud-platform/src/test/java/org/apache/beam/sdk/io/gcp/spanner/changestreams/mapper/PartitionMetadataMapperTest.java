@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_CHILD_TOKENS;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_CREATED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_FINISHED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_HEARTBEAT_MILLIS;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_PARENT_TOKENS;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_RUNNING_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_SCHEDULED_AT;
@@ -54,8 +54,8 @@ public class PartitionMetadataMapperTest {
         Struct.newBuilder()
             .set(COLUMN_PARTITION_TOKEN)
             .to("token")
-            .set(COLUMN_PARENT_TOKENS)
-            .toStringArray(Collections.singletonList("parentToken"))
+            .set(COLUMN_CHILD_TOKENS)
+            .toStringArray(Collections.emptyList())
             .set(COLUMN_START_TIMESTAMP)
             .to(Timestamp.ofTimeMicroseconds(10L))
             .set(COLUMN_END_TIMESTAMP)
@@ -81,7 +81,7 @@ public class PartitionMetadataMapperTest {
     assertEquals(
         new PartitionMetadata(
             "token",
-            Sets.newHashSet("parentToken"),
+            Sets.newHashSet(),
             Timestamp.ofTimeMicroseconds(10L),
             Timestamp.ofTimeMicroseconds(20L),
             5_000L,
@@ -100,8 +100,8 @@ public class PartitionMetadataMapperTest {
         Struct.newBuilder()
             .set(COLUMN_PARTITION_TOKEN)
             .to("token")
-            .set(COLUMN_PARENT_TOKENS)
-            .toStringArray(Collections.singletonList("parentToken"))
+            .set(COLUMN_CHILD_TOKENS)
+            .toStringArray(Collections.emptyList())
             .set(COLUMN_START_TIMESTAMP)
             .to(Timestamp.ofTimeMicroseconds(10L))
             .set(COLUMN_END_TIMESTAMP)
@@ -127,7 +127,7 @@ public class PartitionMetadataMapperTest {
     assertEquals(
         new PartitionMetadata(
             "token",
-            Sets.newHashSet("parentToken"),
+            Sets.newHashSet(),
             Timestamp.ofTimeMicroseconds(10L),
             Timestamp.ofTimeMicroseconds(20L),
             5_000L,

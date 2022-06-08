@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMe
 import com.google.cloud.Timestamp;
 import java.util.HashSet;
 import java.util.Optional;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
@@ -45,11 +44,11 @@ import org.slf4j.LoggerFactory;
  * stored in the Connector's metadata tables in order to be scheduled for future querying by the
  * {@link org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.DetectNewPartitionsDoFn} SDF.
  */
-public class ChildPartitionsRecordAction {
+public class InitialChildPartitionsRecordAction {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ChildPartitionsRecordAction.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(InitialChildPartitionsRecordAction.class);
   private final PartitionMetadataDao partitionMetadataDao;
-  private final ChangeStreamMetrics metrics;
 
   /**
    * Constructs an action class for handling {@link ChildPartitionsRecord}s.
@@ -57,10 +56,8 @@ public class ChildPartitionsRecordAction {
    * @param partitionMetadataDao DAO class to access the Connector's metadata tables
    * @param metrics metrics gathering class
    */
-  ChildPartitionsRecordAction(
-      PartitionMetadataDao partitionMetadataDao, ChangeStreamMetrics metrics) {
+  InitialChildPartitionsRecordAction(PartitionMetadataDao partitionMetadataDao) {
     this.partitionMetadataDao = partitionMetadataDao;
-    this.metrics = metrics;
   }
 
   /**
@@ -106,97 +103,66 @@ public class ChildPartitionsRecordAction {
   @VisibleForTesting
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
-      ChildPartitionsRecord record,
+      HashSet<ChildPartitionsRecord> records,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     final String token = partition.getPartitionToken();
+    LOG.info("HERE IN InitialPartitionRecord Action");
 
-    LOG.info("[" + token + "] Processing child partition record " + record);
+    if (records.isEmpty()) {
+      throw new IllegalStateException("Partition " + token + " not found in metadata table");
+    }
+    Timestamp startTimestamp = Timestamp.now();
+    for (ChildPartitionsRecord record : records) {
+      startTimestamp = record.getStartTimestamp();
+      break;
+    }
 
-    final Timestamp startTimestamp = record.getStartTimestamp();
     final Instant startInstant = new Instant(startTimestamp.toSqlTimestamp().getTime());
     if (!tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))) {
       LOG.info(
-          "[" + token + "] Could not claim child partition (" + startTimestamp + "), stopping");
+          "[" + token + "] Could not claim queryChangeStream(" + startTimestamp + "), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
     watermarkEstimator.setWatermark(startInstant);
 
-    for (ChildPartition childPartition : record.getChildPartitions()) {
-      processChildPartition(partition, record, childPartition);
-    }
-
-    LOG.debug("[" + token + "] Child partitions action completed successfully");
-    return Optional.empty();
-  }
-
-  // Unboxing of runInTransaction result will not produce a null value, we can ignore it
-  @SuppressWarnings("nullness")
-  private void processChildPartition(
-      PartitionMetadata partition, ChildPartitionsRecord record, ChildPartition childPartition) {
-
-    final String partitionToken = partition.getPartitionToken();
-    final String childPartitionToken = childPartition.getToken();
-    final boolean isSplit = isSplit(childPartition);
-    LOG.info(
-        "["
-            + partitionToken
-            + "] Processing child partition"
-            + (isSplit ? " split" : " merge")
-            + " event");
-
-    final PartitionMetadata row =
-        toPartitionMetadata(
-            record.getStartTimestamp(),
-            partition.getEndTimestamp(),
-            partition.getHeartbeatMillis(),
-            childPartition);
-    LOG.info("[" + partitionToken + "] Inserting child partition token " + childPartitionToken);
-    final Boolean insertedRow =
+    final Boolean insertedChildTokens =
         partitionMetadataDao
             .runInTransaction(
                 transaction -> {
-                  if (transaction.getPartition(childPartitionToken) == null) {
-                    transaction.insert(row);
-                    LOG.info("inserted child partition token: " + childPartitionToken);
-
-                    // We want to insert all these child tokens under the original token.
-                    HashSet<String> childPartitionTokens =
-                        transaction.getChildTokens(partitionToken);
-                    if (childPartitionTokens == null) {
-                      throw new IllegalStateException(
-                          "Partition " + partitionToken + " not found in metadata table");
+                  HashSet<String> childTokens = new HashSet<String>();
+                  for (ChildPartitionsRecord record : records) {
+                    for (ChildPartition childPartition : record.getChildPartitions()) {
+                      if (transaction.getPartition(childPartition.getToken()) == null) {
+                        final PartitionMetadata row =
+                            toPartitionMetadata(
+                                record.getStartTimestamp(),
+                                partition.getEndTimestamp(),
+                                partition.getHeartbeatMillis(),
+                                childPartition);
+                        childTokens.add(childPartition.getToken());
+                        transaction.insert(row);
+                      }
                     }
-                    childPartitionTokens.add(childPartitionToken);
-                    transaction.insertChildTokens(partitionToken, childPartitionTokens);
-                    LOG.info(
-                        "["
-                            + partitionToken
-                            + "] inserted child tokens: "
-                            + childPartitionTokens.toString());
-                    return true;
-                  } else {
-                    return false;
                   }
+                  LOG.info("Inserted initial child tokens: " + childTokens.toString());
+                  // We want to insert all these child tokens under the original token.
+                  HashSet<String> childPartitionTokens = transaction.getChildTokens(token);
+                  if (childPartitionTokens == null) {
+                    throw new IllegalStateException(
+                        "Partition " + token + " not found in metadata table");
+                  }
+                  childPartitionTokens.addAll(childTokens);
+                  transaction.insertChildTokens(token, childTokens);
+                  LOG.info("[" + token + "] Added child tokens " + childTokens.toString());
+                  return true;
                 })
             .getResult();
-    if (insertedRow && isSplit) {
-      metrics.incPartitionRecordSplitCount();
-    } else if (insertedRow) {
-      metrics.incPartitionRecordMergeCount();
-    } else {
-      LOG.debug(
-          "["
-              + partitionToken
-              + "] Child token "
-              + childPartitionToken
-              + " already exists, skipping...");
-    }
-  }
 
-  private boolean isSplit(ChildPartition childPartition) {
-    return childPartition.getParentTokens().size() == 1;
+    LOG.debug(
+        "[" + token + "] Child partitions action completed successfully: " + insertedChildTokens);
+    return Optional.empty();
   }
 
   private PartitionMetadata toPartitionMetadata(

@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_CHILD_TOKENS;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_CREATED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_FINISHED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_HEARTBEAT_MILLIS;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_PARENT_TOKENS;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_RUNNING_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_SCHEDULED_AT;
@@ -49,8 +49,8 @@ public class PartitionMetadataMapper {
    * <ul>
    *   <li>{@link PartitionMetadataAdminDao#COLUMN_PARTITION_TOKEN}: non-nullable {@link String}
    *       representing the partition unique identifier.
-   *   <li>{@link PartitionMetadataAdminDao#COLUMN_PARENT_TOKENS}: non-nullable {@link List} of
-   *       {@link String} representing the partition parents' unique identifiers.
+   *   <li>{@link PartitionMetadataAdminDao#COLUMN_CHILD_TOKENS}: non-nullable {@link List} of
+   *       {@link String} representing the partition childrens' unique identifiers.
    *   <li>{@link PartitionMetadataAdminDao#COLUMN_START_TIMESTAMP}: non-nullable {@link Timestamp}
    *       representing the start time at which the partition started existing in Cloud Spanner.
    *   <li>{@link PartitionMetadataAdminDao#COLUMN_END_TIMESTAMP}: non-nullable {@link Timestamp}
@@ -80,7 +80,7 @@ public class PartitionMetadataMapper {
   public PartitionMetadata from(Struct row) {
     return PartitionMetadata.newBuilder()
         .setPartitionToken(row.getString(COLUMN_PARTITION_TOKEN))
-        .setParentTokens(Sets.newHashSet(row.getStringList(COLUMN_PARENT_TOKENS)))
+        .setChildTokens(Sets.newHashSet(row.getStringList(COLUMN_CHILD_TOKENS)))
         .setStartTimestamp(row.getTimestamp(COLUMN_START_TIMESTAMP))
         .setEndTimestamp(row.getTimestamp(COLUMN_END_TIMESTAMP))
         .setHeartbeatMillis(row.getLong(COLUMN_HEARTBEAT_MILLIS))
