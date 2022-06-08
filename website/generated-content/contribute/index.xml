@@ -260,7 +260,11 @@ Software Foundation (ASF).&lt;/li>
 &lt;li>Find or create an issue in the &lt;a href="https://github.com/apache/beam/issues/new/choose">Beam repo&lt;/a>.
 Tracking your work in an issue will avoid duplicated or conflicting work, and provide
 a place for notes. Later, your pull request will be linked to the issue as well.&lt;/li>
-&lt;li>Comment on the issue saying that you would like to work on it.&lt;/li>
+&lt;li>Comment &amp;ldquo;.take-issue&amp;rdquo; on the issue. This will cause the issue to be assigned to you.
+When you&amp;rsquo;ve completed the issue, you can close it by commenting &amp;ldquo;.close-issue&amp;rdquo;.
+If you are a committer and would like to assign an issue to a non-committer, they must comment
+on the issue first; please tag the user asking them to do so or to comment &amp;ldquo;`.take-issue`&amp;rdquo;.
+The command will be ignored if it is surrounded by ``` markdown characters.&lt;/li>
 &lt;li>If your change is large or it is your first change, it is a good idea to
 &lt;a href="https://beam.apache.org/community/contact-us/">discuss it on the dev@beam.apache.org mailing list&lt;/a>.&lt;/li>
 &lt;li>For large changes create a design doc
@@ -1354,23 +1358,23 @@ See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this rele
 &amp;lt;{$REMOVE_FOR_VALID_SUMMARY_BREAK}!--more--&amp;gt;
 For more information on changes in {$RELEASE_VERSION}, check out the [detailed release notes]({$LINK_TO_GITHUB_MILESTONE}).
 ## Highlights
-* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 {$TOPICS e.g.:}
 ### I/Os
-* Support for X source added (Java) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Support for X source added (Java) ([#X](https://github.com/apache/beam/issues/X)).
 {$TOPICS}
 ### New Features / Improvements
-* X feature added (Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* Y feature added (Java) [BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y).
+* X feature added (Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Y feature added (Java) [#Y](https://github.com/apache/beam/issues/Y).
 ### Breaking Changes
-* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Y behavior was changed ([#Y](https://github.com/apache/beam/issues/Y)).
 ### Deprecations
-* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 ### Bugfixes
-* Fixed X (Python) ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-X)).
-* Fixed Y (Java) ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* Fixed X (Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed Y (Java) ([#Y](https://github.com/apache/beam/issues/Y)).
 ### Known Issues
 * {$KNOWN_ISSUE_1}
 * {$KNOWN_ISSUE_2}
@@ -2140,32 +2144,20 @@ limitations under the License.
 &lt;li>A dependency conflict that was was triggered by a minor version release of a Beam dependency (this does not apply to Java SDK that depends on exact minor versions of dependencies).&lt;/li>
 &lt;/ul>
 &lt;p>These kind of urgently required upgrades might not get automatically picked up by the Jenkins job for few months. So Beam community has to act to identify such issues and perform upgrades early.&lt;/p>
-&lt;h2 id="jira-issue-automation">JIRA Issue Automation&lt;/h2>
-&lt;p>In order to track the dependency upgrade process, JIRA tickets will be created per significant outdated dependency based on the report. A bot named &lt;em>Beam Jira Bot&lt;/em> was created for managing JIRA issues. Beam community agrees on the following policies that creates and updates issues.&lt;/p>
-&lt;ul>
-&lt;li>Title (summary) of the issues will be in the format &amp;ldquo;Beam Dependency Update Request: &amp;lt;dep_name&amp;gt;&amp;rdquo; where &amp;lt;dep_name&amp;gt; is the dependency artifact name.&lt;/li>
-&lt;li>Issues will be created under the component &lt;em>&amp;ldquo;dependencies&amp;rdquo;&lt;/em>.&lt;/li>
-&lt;li>Owners of dependencies will be notified by tagging the corresponding JIRA IDs mentioned in the ownership files in the issue description. See &lt;a href="https://github.com/apache/beam/blob/master/ownership/JAVA_DEPENDENCY_OWNERS.yaml">Java Dependency Owners&lt;/a> and &lt;a href="https://github.com/apache/beam/blob/master/ownership/PYTHON_DEPENDENCY_OWNERS.yaml">Python Dependency Owners&lt;/a> for current owners for Java SDK and Python SDK dependencies respectively.&lt;/li>
-&lt;li>Automated tool will not create duplicate issues for the same dependency. Instead the tool will look for an existing JIRA when one has to be created for a given dependency and description of the JIRA will be updated with latest information, for example, current version of the dependency.&lt;/li>
-&lt;li>If a Beam community member determines that a given dependency should not be upgraded the corresponding JIRA issue can be closed with a fix version specified.&lt;/li>
-&lt;li>Automated tool will reopen a JIRA for a given dependency when one of following conditions is met:
-&lt;ul>
-&lt;li>Next SDK release is for a fix version mentioned in the JIRA.&lt;/li>
-&lt;li>Six months &lt;strong>and&lt;/strong> three or more minor releases have passed since the JIRA was closed.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
+&lt;h2 id="dependabot-issue-automation">Dependabot Issue Automation&lt;/h2>
+&lt;p>In order to track the dependency upgrade process, Dependabot will automatically raise pull requests to upgrade
+outdated dependencies.&lt;/p>
 &lt;h2 id="upgrading-identified-outdated-dependencies">Upgrading identified outdated dependencies&lt;/h2>
 &lt;p>After outdated dependencies are identified, Beam community has to act to upgrade the dependencies regularly. Beam community has agreed on following policies regarding upgrading dependencies.&lt;/p>
 &lt;p>&lt;strong>Human readable reports on status of Beam dependencies are generated weekly by an automated Jenkins job and shared with the Beam community through the dev list.&lt;/strong>&lt;/p>
 &lt;p>These reports should be concise and should highlight the cases where the community has to act on.&lt;/p>
 &lt;p>&lt;strong>Beam components should define dependencies and their versions at the top level. There can be rare exceptions, but they should come with explanations.&lt;/strong>&lt;/p>
 &lt;p>Components include various Beam runners, IO connectors, etc. Component-level dependency version declarations should only be performed in rare cases and should come with a comment explaining the reasoning for overriding the dependency. For example, dependencies specific to a runner that are unlikely to be utilized by other components might be defined at the runner.&lt;/p>
-&lt;p>&lt;strong>A significantly outdated dependency (identified manually or through the automated Jenkins job) should result in a JIRA that is a blocker for the next release. Release manager may choose to push the blocker to the subsequent release or downgrade from a blocker.&lt;/strong>&lt;/p>
-&lt;p>This will be a blocker for next major and minor version releases of Beam. JIRA may be created automatically or manually.&lt;/p>
-&lt;p>For manually identified critical dependency updates, Beam community members should create blocking JIRAs for next release. In addition to this Beam community members may trigger patch releases for any critical dependency fixes that should be made available to users urgently.&lt;/p>
+&lt;p>&lt;strong>A significantly outdated dependency (identified manually or through the automated Jenkins job) should result in a issue that is a blocker for the next release. Release manager may choose to push the blocker to the subsequent release or downgrade from a blocker.&lt;/strong>&lt;/p>
+&lt;p>This will be a blocker for next major and minor version releases of Beam.&lt;/p>
+&lt;p>For manually identified critical dependency updates, Beam community members should create blocking Issues for next release. In addition to this Beam community members may trigger patch releases for any critical dependency fixes that should be made available to users urgently.&lt;/p>
 &lt;p>&lt;strong>Dependency declarations may identify owners that are responsible for upgrading respective dependencies.&lt;/strong>&lt;/p>
-&lt;p>Owners can be mentioned in the yaml files. Blocking JIRAs will be initially assigned to these owners (if available). Release manager may choose to re-assign these JIRAs. A dependency may have more than one declared owner and in this case the JIRA will be assigned to one of the owners mentioned.&lt;/p>
+&lt;p>Owners can be mentioned in the yaml files. Blocking Issues will be initially assigned to these owners (if available). Release manager may choose to re-assign these Issues. A dependency may have more than one declared owner and in this case the Issue will be assigned to one of the owners mentioned.&lt;/p>
 &lt;p>&lt;strong>Dependencies of Java SDK components that may cause issues to other components if leaked should be vendored.&lt;/strong>&lt;/p>
 &lt;p>&lt;a href="https://www.ardanlabs.com/blog/2013/10/manage-dependencies-with-godep.html">Vendoring&lt;/a> is the process of creating copies of third party dependencies. Combined with repackaging, vendoring allows Beam components to depend on third party libraries without causing conflicts to other components. Vendoring should be done in a case-by-case basis since this can increase the total number of dependencies deployed in user&amp;rsquo;s enviroment.&lt;/p>
 &lt;h2 id="dependency-updates-and-backwards-compatibility">Dependency updates and backwards compatibility&lt;/h2>
