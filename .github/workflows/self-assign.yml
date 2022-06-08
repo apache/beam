@@ -28,12 +28,12 @@ jobs:
         LOGIN="$(jq '.comment.user.login' $GITHUB_EVENT_PATH | tr -d \")"
         REPO="$(jq '.repository.full_name' $GITHUB_EVENT_PATH | tr -d \")"
         ISSUE_JSON="$(jq '.issue' $GITHUB_EVENT_PATH)"
-        if [[ $BODY == *"$INPUT_TAKE"* ]]; then
+        if [[ $BODY == *"$INPUT_TAKE"* && $BODY != *"\`$INPUT_TAKE\`"* ]]; then
           echo "Assigning issue $ISSUE_NUMBER to $LOGIN"
           echo "Using the link: https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/assignees"
           curl -H "Authorization: token $GITHUB_TOKEN" -d '{"assignees":["'"$LOGIN"'"]}' https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/assignees
         fi
-        if [[ $BODY == *"$INPUT_CLOSE"* ]]; then
+        if [[ $BODY == *"$INPUT_CLOSE"* && $BODY != *"\`$INPUT_CLOSE\`"* ]]; then
           echo "Closing issue $ISSUE_NUMBER"
           echo "Using the link: https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER"
           curl -X PATCH -H "Authorization: token $GITHUB_TOKEN" -d '{"state":"closed"}' https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER
