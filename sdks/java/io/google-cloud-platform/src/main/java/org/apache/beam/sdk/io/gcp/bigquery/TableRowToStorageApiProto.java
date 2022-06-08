@@ -403,7 +403,7 @@ public class TableRowToStorageApiProto {
       case "FLOAT":
         if (value instanceof String) {
           return Double.valueOf((String) value);
-        } else if (value instanceof Double || value instanceof Float) {
+        } else if (value instanceof Number) {
           return ((Number) value).doubleValue();
         }
         break;

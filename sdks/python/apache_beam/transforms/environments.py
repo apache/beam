@@ -368,10 +368,6 @@ class DockerEnvironment(Environment):
 
     sdk_version = beam_version.__version__
     version_suffix = '.'.join([str(i) for i in sys.version_info[0:2]])
-    logging.warning(
-        'Make sure that locally built Python SDK docker image '
-        'has Python %d.%d interpreter.' %
-        (sys.version_info[0], sys.version_info[1]))
 
     image = (
         APACHE_BEAM_DOCKER_IMAGE_PREFIX +
