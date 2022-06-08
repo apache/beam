@@ -25,7 +25,7 @@ go 1.18
 require (
 	cloud.google.com/go/bigquery v1.32.0
 	cloud.google.com/go/datastore v1.6.0
-	cloud.google.com/go/pubsub v1.21.1
+	cloud.google.com/go/pubsub v1.22.2
 	cloud.google.com/go/storage v1.22.1
 	github.com/docker/go-connections v0.4.0
 	github.com/go-sql-driver/mysql v1.6.0
@@ -53,7 +53,7 @@ require (
 )
 
 require (
-	cloud.google.com/go v0.100.2 // indirect
+	cloud.google.com/go v0.102.0 // indirect
 	cloud.google.com/go/compute v1.6.1 // indirect
 	cloud.google.com/go/iam v0.3.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
