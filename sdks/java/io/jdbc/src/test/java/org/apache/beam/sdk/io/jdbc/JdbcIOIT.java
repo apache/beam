@@ -31,16 +31,17 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.PostgresIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -109,6 +110,9 @@ public class JdbcIOIT {
       options = null;
     }
     options.as(StreamingOptions.class).setStreaming(true);
+    if (options.getRunner().getName().contains("Dataflow")) {
+      options.as(GcpOptions.class).setEnableStreamingEngine(true);
+    }
     org.junit.Assume.assumeNotNull(options);
 
     numberOfRows = options.getNumberOfRecords();
