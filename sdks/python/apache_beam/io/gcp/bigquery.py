@@ -2064,7 +2064,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         DEFAULT will use STREAMING_INSERTS on Streaming pipelines and
         FILE_LOADS on Batch pipelines.
         Note: FILE_LOADS currently does not support BigQuery's JSON data type:
-        https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#json_type">
+        https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#json_type
       insert_retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
         Default is to retry always. This means that whenever there are rows
@@ -2089,6 +2089,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         These can be 'timePartitioning', 'clustering', etc. They are passed
         directly to the job load configuration. See
         https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationload
+        Note: FILE_LOAD writes that are large enough to invoke BigQuery
+        copy jobs will fail when writing to a table partition.
       table_side_inputs (tuple): A tuple with ``AsSideInput`` PCollections to be
         passed to the table callable (if one is provided).
       schema_side_inputs: A tuple with ``AsSideInput`` PCollections to be

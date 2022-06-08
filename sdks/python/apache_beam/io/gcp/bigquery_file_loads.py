@@ -725,6 +725,13 @@ class PartitionFiles(beam.DoFn):
     partitions.append(latest_partition.files)
 
     if len(partitions) > 1:
+      # Copy jobs with BigQuery API do not support having
+      # a table partition as the destination
+      if '$' in destination:
+        raise ValueError(
+            "This write will utilize BigQuery copy jobs via API, "
+            "which don't support copying to a table partition")
+
       output_tag = PartitionFiles.MULTIPLE_PARTITIONS_TAG
     else:
       output_tag = PartitionFiles.SINGLE_PARTITION_TAG
