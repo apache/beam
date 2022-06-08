@@ -22,8 +22,12 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
@@ -48,14 +52,26 @@ import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.NewPartitions;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.IntegerDeserializer;
+import org.apache.kafka.common.serialization.IntegerSerializer;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
@@ -200,6 +216,69 @@ public class KafkaIOIT {
     if (!options.isWithTestcontainers()) {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
       IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
+    }
+  }
+
+  @Test
+  public void testKafkaWithDynamicPartitions() throws IOException {
+    AdminClient client = AdminClient.create(ImmutableMap.of("bootstrap.servers", options.getKafkaBootstrapServerAddresses()));
+    String topicName = "DynamicTopicPartition-" + UUID.randomUUID();
+    Map<Integer,String> records = new HashMap<>();
+    for (int i = 0; i < 100; i++){
+      records.put(i, String.valueOf(i));
+    }
+    Map<Integer,String> moreRecords = new HashMap<>();
+    for (int i = 0; i < 100; i++){
+      moreRecords.put(i, String.valueOf(i));
+    }
+    try {
+      client.createTopics(ImmutableSet.of(new NewTopic(topicName, 1, (short) 1)));
+      client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(1)));
+
+      PCollection<Integer> values = readPipeline.apply("Read from Kafka", KafkaIO.<Integer,String>read()
+          .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+          .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+          .withTopic(topicName)
+          .withKeyDeserializer(IntegerDeserializer.class)
+          .withValueDeserializer(StringDeserializer.class))
+          .apply("Key by Partition", ParDo.of(new DoFn<KafkaRecord<Integer, String>, KV<Integer,KafkaRecord<Integer,String>>>() {
+            @ProcessElement
+            public void processElement(@Element KafkaRecord<Integer,String> record, OutputReceiver<KV<Integer,KafkaRecord<Integer,String>>> receiver){
+              receiver.output(KV.of(record.getPartition(),record));
+            }
+
+          }))
+          .apply("Group by Partion" , GroupByKey.create())
+          .apply("Get Partitions", Keys.create());
+
+      PipelineResult readResult = readPipeline.run();
+
+      writePipeline.apply("Generate Write Elements", Create.of(records))
+              .apply("Write to Kafka", KafkaIO.<Integer, String>write()
+                  .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                  .withTopic(topicName)
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(StringSerializer.class));
+
+      writePipeline.run().waitUntilFinish();
+
+      client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(2)));
+
+      writePipeline.apply("Second Pass generate Write Elements", Create.of(moreRecords))
+          .apply("Write more to Kafka", KafkaIO.<Integer, String>write()
+              .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+              .withTopic(topicName)
+              .withKeySerializer(IntegerSerializer.class)
+              .withValueSerializer(StringSerializer.class));
+
+      writePipeline.run().waitUntilFinish();
+
+      readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+      PAssert.that(values).containsInAnyOrder(1, 2);
+
+    } finally {
+      client.deleteTopics(ImmutableSet.of(topicName));
     }
   }
 
