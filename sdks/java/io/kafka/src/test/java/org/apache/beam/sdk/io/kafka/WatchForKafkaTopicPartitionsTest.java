@@ -24,7 +24,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.PartitionGrowthMockConsumer;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -48,7 +47,8 @@ import org.testcontainers.shaded.org.hamcrest.BaseMatcher;
 @RunWith(JUnit4.class)
 public class WatchForKafkaTopicPartitionsTest {
 
-  public static final TestPipelineOptions options = TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+  public static final TestPipelineOptions options =
+      TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
 
   static {
     options.setBlockOnRun(false);
