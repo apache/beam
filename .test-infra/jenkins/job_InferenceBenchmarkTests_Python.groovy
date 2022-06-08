@@ -23,29 +23,22 @@ import CronJobBuilder
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-// Common pipeline args for Dataflow job.
-def dataflowPipelineArgs = [
-  project         : 'apache-beam-testing',
-  region          : 'us-central1',
-  staging_location: 'gs://temp-storage-for-perf-tests/loadtests',
-]
 
 // define all the inference benchmarks here
 def torch_imagenet_classification = [
-  title       : 'Pytorch Imagenet Classification',
-  test        : 'apache_beam.testing.benchmarks.pytorch_benchmark_test',
-  runner      : CommonTestProperties.Runner.DATAFLOW,
+  title             : 'Pytorch Imagenet Classification',
+  test              : 'apache_beam.testing.benchmarks.inference.pytorch_benchmark_test',
+  runner            : CommonTestProperties.Runner.DATAFLOW,
   pipelineOptions: [
     job_name              : 'performance-tests-pytorch-imagenet-python' + now,
     project               : 'apache-beam-testing',
     region                : 'us-central1',
+    staging_location      : 'gs://temp-storage-for-perf-tests/loadtests',
     temp_location         : 'gs://temp-storage-for-perf-tests/loadtests',
     publish_to_bigquery   : true,
     metrics_dataset       : 'beam_performance',
-    influx_measurement    : 'python_torch_imagenet_mobilenet_results',
-    influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-    input_options         : '{}' // option is required in LoadTest. Bypass this.
+    input_options         : '{}', // option is required in LoadTest. Bypass this.
+    requirements_file      : 'apache_beam/ml/inference/torch_tests_requirements.txt',
     // args defined in the example.
     input_file            : 'gs://apache-beam-ml/testing/inputs/imagenet_validation_inputs.txt',
     model_state_dict_path : 'gs://apache-beam-ml/models/imagenet_classification_mobilenet_v2.pt',
@@ -54,7 +47,7 @@ def torch_imagenet_classification = [
 
 def executeJob = { scope, testConfig ->
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 480)
-  loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test)
+  loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, null, testConfig.pipelineOptions.requirements_file)
 }
 
 // Benchmark tests
