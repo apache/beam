@@ -18,7 +18,6 @@
 import enum
 import pickle
 import sys
-from typing import Any
 from typing import Iterable
 from typing import List
 from typing import Union
@@ -51,7 +50,8 @@ class SklearnInferenceRunner(InferenceRunner[Union[numpy.ndarray,
   def run_inference(
       self,
       batch: List[Union[numpy.ndarray, pandas.DataFrame]],
-      model: BaseEstimator) -> Iterable[PredictionResult]:
+      model: BaseEstimator,
+      **kwargs) -> Iterable[PredictionResult]:
     if isinstance(batch[0], numpy.ndarray):
       return SklearnInferenceRunner._predict_np_array(batch, model)
     elif isinstance(batch[0], pandas.DataFrame):

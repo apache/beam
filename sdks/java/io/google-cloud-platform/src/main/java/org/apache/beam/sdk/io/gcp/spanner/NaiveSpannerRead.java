@@ -22,8 +22,10 @@ import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -97,37 +99,26 @@ abstract class NaiveSpannerRead
     public void processElement(ProcessContext c) throws Exception {
       Transaction tx = c.sideInput(txView);
       ReadOperation op = c.element();
+      ServiceCallMetric serviceCallMetric =
+          SpannerIO.ReadAll.buildServiceCallMetricForReadOp(config, op);
       BatchReadOnlyTransaction context =
           spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
       try (ResultSet resultSet = execute(op, context)) {
         while (resultSet.next()) {
           c.output(resultSet.getCurrentRowAsStruct());
         }
+      } catch (SpannerException e) {
+        serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
+        throw (e);
       }
+      serviceCallMetric.call("ok");
     }
 
     private ResultSet execute(ReadOperation op, BatchReadOnlyTransaction readOnlyTransaction) {
+      RpcPriority rpcPriority = SpannerConfig.DEFAULT_RPC_PRIORITY;
       if (config.getRpcPriority() != null && config.getRpcPriority().get() != null) {
-        return executeWithPriority(op, readOnlyTransaction, config.getRpcPriority().get());
-      } else {
-        return executeWithoutPriority(op, readOnlyTransaction);
+        rpcPriority = config.getRpcPriority().get();
       }
-    }
-
-    private ResultSet executeWithoutPriority(
-        ReadOperation op, BatchReadOnlyTransaction readOnlyTransaction) {
-      if (op.getQuery() != null) {
-        return readOnlyTransaction.executeQuery(op.getQuery());
-      }
-      if (op.getIndex() != null) {
-        return readOnlyTransaction.readUsingIndex(
-            op.getTable(), op.getIndex(), op.getKeySet(), op.getColumns());
-      }
-      return readOnlyTransaction.read(op.getTable(), op.getKeySet(), op.getColumns());
-    }
-
-    private ResultSet executeWithPriority(
-        ReadOperation op, BatchReadOnlyTransaction readOnlyTransaction, RpcPriority rpcPriority) {
       if (op.getQuery() != null) {
         return readOnlyTransaction.executeQuery(op.getQuery(), Options.priority(rpcPriority));
       }

@@ -109,7 +109,11 @@ Questions can be asked on the [#beam channel of the ASF Slack](https://beam.apac
 1. Find or create an issue in the [Beam repo](https://github.com/apache/beam/issues/new/choose).
    Tracking your work in an issue will avoid duplicated or conflicting work, and provide
    a place for notes. Later, your pull request will be linked to the issue as well.
-2. Comment on the issue saying that you would like to work on it.
+2. Comment ".take-issue" on the issue. This will cause the issue to be assigned to you.
+   When you've completed the issue, you can close it by commenting ".close-issue".
+   If you are a committer and would like to assign an issue to a non-committer, they must comment
+   on the issue first; please tag the user asking them to do so or to comment "\`.take-issue\`".
+   The command will be ignored if it is surrounded by `\`` markdown characters.
 3. If your change is large or it is your first change, it is a good idea to
    [discuss it on the dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
 4. For large changes create a design doc

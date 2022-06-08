@@ -58,7 +58,9 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
@@ -118,6 +120,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -377,6 +382,12 @@ public class SpannerIO {
   // Multiple of mutation size to use to gather and sort mutations
   private static final int DEFAULT_GROUPING_FACTOR = 1000;
 
+  // Size of caches for read/write ServiceCallMetric objects .
+  // This is a reasonable limit, as for reads, each worker will process very few different table
+  // read requests, and for writes, batching will ensure that write operations for the same
+  // table occur at the same time (within a bundle).
+  static final int METRICS_CACHE_SIZE = 100;
+
   /**
    * Creates an uninitialized instance of {@link Read}. Before use, the {@link Read} must be
    * configured with a {@link Read#withInstanceId} and {@link Read#withDatabaseId} that identify the
@@ -586,6 +597,41 @@ public class SpannerIO {
       return input
           .apply("Reshuffle", Reshuffle.viaRandomKey())
           .apply("Read from Cloud Spanner", readTransform);
+    }
+
+    /** Helper function to create ServiceCallMetrics. */
+    static ServiceCallMetric buildServiceCallMetricForReadOp(
+        SpannerConfig config, ReadOperation op) {
+
+      HashMap<String, String> baseLabels = buildServiceCallMetricLabels(config);
+      baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "Read");
+
+      if (op.getQuery() != null) {
+        String queryName = op.getQueryName();
+        if (queryName == null || queryName.isEmpty()) {
+          // if queryName is not specified, use a hash of the SQL statement string.
+          queryName = String.format("UNNAMED_QUERY#%08x", op.getQuery().getSql().hashCode());
+        }
+
+        baseLabels.put(
+            MonitoringInfoConstants.Labels.RESOURCE,
+            GcpResourceIdentifiers.spannerQuery(
+                baseLabels.get(MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID),
+                config.getInstanceId().get(),
+                config.getDatabaseId().get(),
+                queryName));
+        baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_QUERY_NAME, queryName);
+      } else {
+        baseLabels.put(
+            MonitoringInfoConstants.Labels.RESOURCE,
+            GcpResourceIdentifiers.spannerTable(
+                baseLabels.get(MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID),
+                config.getInstanceId().get(),
+                config.getDatabaseId().get(),
+                op.getTable()));
+        baseLabels.put(MonitoringInfoConstants.Labels.TABLE_ID, op.getTable());
+      }
+      return new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
     }
   }
 
@@ -1962,8 +2008,7 @@ public class SpannerIO {
 
     // Fluent Backoff is not serializable so create at runtime in setup().
     private transient FluentBackoff bundleWriteBackoff;
-    private transient String projectId;
-    private transient ServiceCallMetric serviceCallMetric;
+    private transient LoadingCache<String, ServiceCallMetric> writeMetricsByTableName;
 
     WriteToSpannerFn(
         SpannerConfig spannerConfig, FailureMode failureMode, TupleTag<MutationGroup> failedTag) {
@@ -1980,12 +2025,19 @@ public class SpannerIO {
               .withMaxCumulativeBackoff(spannerConfig.getMaxCumulativeBackoff().get())
               .withInitialBackoff(spannerConfig.getMaxCumulativeBackoff().get().dividedBy(60));
 
-      projectId =
-          this.spannerConfig.getProjectId() == null
-                  || this.spannerConfig.getProjectId().get() == null
-                  || this.spannerConfig.getProjectId().get().isEmpty()
-              ? SpannerOptions.getDefaultProjectId()
-              : this.spannerConfig.getProjectId().get();
+      // Use a LoadingCache for metrics as there can be different tables being written to which
+      // result in different service call metrics labels. ServiceCallMetric items are created
+      // on-demand and added to the cache.
+      writeMetricsByTableName =
+          CacheBuilder.newBuilder()
+              .maximumSize(METRICS_CACHE_SIZE)
+              .build(
+                  new CacheLoader<String, ServiceCallMetric>() {
+                    @Override
+                    public ServiceCallMetric load(String tableName) {
+                      return buildWriteServiceCallMetric(spannerConfig, tableName);
+                    }
+                  });
     }
 
     @Teardown
@@ -1993,35 +2045,25 @@ public class SpannerIO {
       spannerAccessor.close();
     }
 
-    @StartBundle
-    public void startBundle() {
-      serviceCallMetric =
-          createServiceCallMetric(
-              projectId,
-              this.spannerConfig.getDatabaseId().get(),
-              this.spannerConfig.getInstanceId().get(),
-              "Write");
-    }
-
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      Iterable<MutationGroup> mutations = c.element();
+      List<MutationGroup> mutations = ImmutableList.copyOf(c.element());
 
       // Batch upsert rows.
       try {
         mutationGroupBatchesReceived.inc();
-        mutationGroupsReceived.inc(Iterables.size(mutations));
+        mutationGroupsReceived.inc(mutations.size());
         Iterable<Mutation> batch = Iterables.concat(mutations);
         writeMutations(batch);
         mutationGroupBatchesWriteSuccess.inc();
-        mutationGroupsWriteSuccess.inc(Iterables.size(mutations));
+        mutationGroupsWriteSuccess.inc(mutations.size());
         return;
       } catch (SpannerException e) {
         mutationGroupBatchesWriteFail.inc();
         if (failureMode == FailureMode.REPORT_FAILURES) {
           // fall through and retry individual mutationGroups.
         } else if (failureMode == FailureMode.FAIL_FAST) {
-          mutationGroupsWriteFail.inc(Iterables.size(mutations));
+          mutationGroupsWriteFail.inc(mutations.size());
           throw e;
         } else {
           throw new IllegalArgumentException("Unknown failure mode " + failureMode);
@@ -2046,8 +2088,7 @@ public class SpannerIO {
      Spanner aborts all inflight transactions during a schema change. Client is expected
      to retry silently. These must not be counted against retry backoff.
     */
-    private void spannerWriteWithRetryIfSchemaChange(Iterable<Mutation> batch)
-        throws SpannerException {
+    private void spannerWriteWithRetryIfSchemaChange(List<Mutation> batch) throws SpannerException {
       for (int retry = 1; ; retry++) {
         try {
           if (spannerConfig.getRpcPriority() != null
@@ -2059,10 +2100,10 @@ public class SpannerIO {
           } else {
             spannerAccessor.getDatabaseClient().writeAtLeastOnce(batch);
           }
-          serviceCallMetric.call("ok");
+          reportServiceCallMetricsForBatch(batch, "ok");
           return;
         } catch (AbortedException e) {
-          serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
+          reportServiceCallMetricsForBatch(batch, e.getErrorCode().getGrpcStatusCode().toString());
           if (retry >= ABORTED_RETRY_ATTEMPTS) {
             throw e;
           }
@@ -2071,33 +2112,40 @@ public class SpannerIO {
           }
           throw e;
         } catch (SpannerException e) {
-          serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
+          reportServiceCallMetricsForBatch(batch, e.getErrorCode().getGrpcStatusCode().toString());
           throw e;
         }
       }
     }
 
-    private ServiceCallMetric createServiceCallMetric(
-        String projectId, String databaseId, String tableId, String method) {
-      HashMap<String, String> baseLabels = new HashMap<>();
-      baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
-      baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Spanner");
-      baseLabels.put(MonitoringInfoConstants.Labels.METHOD, method);
+    private void reportServiceCallMetricsForBatch(List<Mutation> batch, String statusCode) {
+      // Get names of all tables in batch of mutations.
+      Set<String> tableNames = batch.stream().map(Mutation::getTable).collect(Collectors.toSet());
+      for (String tableName : tableNames) {
+        writeMetricsByTableName.getUnchecked(tableName).call(statusCode);
+      }
+    }
+
+    private static ServiceCallMetric buildWriteServiceCallMetric(
+        SpannerConfig config, String tableId) {
+      HashMap<String, String> baseLabels = buildServiceCallMetricLabels(config);
+      baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "Write");
       baseLabels.put(
           MonitoringInfoConstants.Labels.RESOURCE,
-          GcpResourceIdentifiers.spannerTable(projectId, databaseId, tableId));
-      baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID, projectId);
-      baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_DATABASE_ID, databaseId);
-      baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_INSTANCE_ID, tableId);
-      ServiceCallMetric serviceCallMetric =
-          new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
-      return serviceCallMetric;
+          GcpResourceIdentifiers.spannerTable(
+              baseLabels.get(MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID),
+              config.getInstanceId().get(),
+              config.getDatabaseId().get(),
+              tableId));
+      baseLabels.put(MonitoringInfoConstants.Labels.TABLE_ID, tableId);
+      return new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
     }
 
     /** Write the Mutations to Spanner, handling DEADLINE_EXCEEDED with backoff/retries. */
-    private void writeMutations(Iterable<Mutation> mutations) throws SpannerException, IOException {
+    private void writeMutations(Iterable<Mutation> mutationIterable)
+        throws SpannerException, IOException {
       BackOff backoff = bundleWriteBackoff.backoff();
-      long mutationsSize = Iterables.size(mutations);
+      List<Mutation> mutations = ImmutableList.copyOf(mutationIterable);
 
       while (true) {
         Stopwatch timer = Stopwatch.createStarted();
@@ -2116,7 +2164,7 @@ public class SpannerIO {
               LOG.error(
                   "DEADLINE_EXCEEDED writing batch of {} mutations to Cloud Spanner. "
                       + "Aborting after too many retries.",
-                  mutationsSize);
+                  mutations.size());
               spannerWriteFail.inc();
               throw exception;
             }
@@ -2124,7 +2172,7 @@ public class SpannerIO {
                 "DEADLINE_EXCEEDED writing batch of {} mutations to Cloud Spanner, "
                     + "retrying after backoff of {}ms\n"
                     + "({})",
-                mutationsSize,
+                mutations.size(),
                 sleepTimeMsecs,
                 exception.getMessage());
             spannerWriteRetries.inc();
@@ -2146,4 +2194,22 @@ public class SpannerIO {
   }
 
   private SpannerIO() {} // Prevent construction.
+
+  private static HashMap<String, String> buildServiceCallMetricLabels(SpannerConfig config) {
+    HashMap<String, String> baseLabels = new HashMap<>();
+    baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Spanner");
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID,
+        config.getProjectId() == null
+                || config.getProjectId().get() == null
+                || config.getProjectId().get().isEmpty()
+            ? SpannerOptions.getDefaultProjectId()
+            : config.getProjectId().get());
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.SPANNER_INSTANCE_ID, config.getInstanceId().get());
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.SPANNER_DATABASE_ID, config.getDatabaseId().get());
+    return baseLabels;
+  }
 }
