@@ -43,7 +43,8 @@ func init() {
 type executeBundlesFn struct {
 	fhirioFnCommon
 	successesCount beam.Counter
-	fhirStorePath  string
+	// Path to FHIR store where bundle requests will be executed on.
+	FhirStorePath string
 }
 
 func (fn executeBundlesFn) String() string {
@@ -57,7 +58,7 @@ func (fn *executeBundlesFn) Setup() {
 
 func (fn *executeBundlesFn) ProcessElement(ctx context.Context, inputBundleBody []byte, emitSuccess, emitFailure func(string)) {
 	response, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() (*http.Response, error) {
-		return fn.client.executeBundle(fn.fhirStorePath, inputBundleBody)
+		return fn.client.executeBundle(fn.FhirStorePath, inputBundleBody)
 	})
 	if err != nil {
 		fn.resourcesErrorCount.Inc(ctx, 1)
@@ -140,5 +141,5 @@ func ExecuteBundles(s beam.Scope, fhirStorePath string, bundles beam.PCollection
 }
 
 func executeBundles(s beam.Scope, fhirStorePath string, bundles beam.PCollection, client fhirStoreClient) (beam.PCollection, beam.PCollection) {
-	return beam.ParDo2(s, &executeBundlesFn{fhirioFnCommon: fhirioFnCommon{client: client}, fhirStorePath: fhirStorePath}, bundles)
+	return beam.ParDo2(s, &executeBundlesFn{fhirioFnCommon: fhirioFnCommon{client: client}, FhirStorePath: fhirStorePath}, bundles)
 }
