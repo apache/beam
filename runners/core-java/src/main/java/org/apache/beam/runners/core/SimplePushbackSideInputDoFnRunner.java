@@ -35,7 +35,7 @@ import org.joda.time.Instant;
  * A {@link DoFnRunner} that can refuse to process elements that are not ready, instead returning
  * them via the {@link #processElementInReadyWindows(WindowedValue)}.
  */
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
     implements PushbackSideInputDoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> underlying;

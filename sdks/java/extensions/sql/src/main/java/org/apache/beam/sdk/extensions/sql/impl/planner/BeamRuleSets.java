@@ -68,7 +68,7 @@ public class BeamRuleSets {
           CoreRules.FILTER_TO_CALC,
           CoreRules.PROJECT_TO_CALC,
           BeamIOPushDownRule.INSTANCE,
-          // disabled due to https://issues.apache.org/jira/browse/BEAM-6810
+          // disabled due to https://github.com/apache/beam/issues/1796310
           // CoreRules.CALC_REMOVE,
 
           // Rules to merge matching Calcs together.
@@ -121,7 +121,7 @@ public class BeamRuleSets {
           // CoreRules.AGGREGATE_REDUCE_FUNCTIONS,
 
           // remove unnecessary sort rule
-          // https://issues.apache.org/jira/browse/BEAM-5073
+          // https://github.com/apache/beam/issues/19006
           // CoreRules.SORT_REMOVE,,
           BeamTableFunctionScanRule.INSTANCE,
           // prune empty results rules

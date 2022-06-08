@@ -85,8 +85,8 @@ import scala.Tuple2;
 
 /** Supports translation between a Beam transform, and Spark's operations on RDDs. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class TransformTranslator {
 
@@ -426,7 +426,7 @@ public final class TransformTranslator {
             all = all.persist(level);
           } else {
             // Caching can cause Serialization, we need to code to bytes
-            // more details in https://issues.apache.org/jira/browse/BEAM-2669
+            // more details in https://github.com/apache/beam/issues/1796669
             Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap =
                 TranslationUtils.getTupleTagCoders(outputs);
             all =

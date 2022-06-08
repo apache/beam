@@ -611,7 +611,7 @@ public class TextIOWriteTest {
 
   @Test
   public void testWriteDisplayData() {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10737
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20467
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     TextIO.Write write =
         TextIO.write()
@@ -679,7 +679,7 @@ public class TextIOWriteTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Unsafe trigger");
 
-    // Tests for https://issues.apache.org/jira/browse/BEAM-3169
+    // Tests for https://github.com/apache/beam/issues/1796569
     PCollection<String> data =
         p.apply(Create.of("0", "1", "2"))
             .apply(

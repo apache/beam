@@ -41,7 +41,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTyp
  * except that in deriveUncollectRowType() it does not unwrap array elements of struct type.
  *
  * <p>Details of why unwrapping structs breaks ZetaSQL UNNEST syntax is in
- * https://issues.apache.org/jira/browse/BEAM-10896.
+ * https://github.com/apache/beam/issues/17970896.
  */
 public class ZetaSqlUnnest extends SingleRel {
   public final boolean withOrdinality;

@@ -82,7 +82,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class LocalFileSystem extends FileSystem<LocalResourceId> {
 
@@ -284,7 +284,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     final PathMatcher matcher =
         java.nio.file.FileSystems.getDefault().getPathMatcher("glob:" + pathToMatch);
 
-    // TODO: Avoid iterating all files: https://issues.apache.org/jira/browse/BEAM-1309
+    // TODO: Avoid iterating all files: https://github.com/apache/beam/issues/18193
     Iterable<File> files = fileTraverser().depthFirstPreOrder(parent);
     Iterable<File> matchedFiles =
         StreamSupport.stream(files.spliterator(), false)

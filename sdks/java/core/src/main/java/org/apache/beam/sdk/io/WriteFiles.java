@@ -119,7 +119,7 @@ import org.slf4j.LoggerFactory;
 @Experimental(Kind.SOURCE_SINK)
 @AutoValue
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public abstract class WriteFiles<UserT, DestinationT, OutputT>
@@ -343,9 +343,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           getWindowedWrites(),
           "Must use windowed writes when applying %s to an unbounded PCollection",
           WriteFiles.class.getSimpleName());
-      // Sharding used to be required due to https://issues.apache.org/jira/browse/BEAM-1438 and
+      // Sharding used to be required due to https://github.com/apache/beam/issues/1796938 and
       // similar behavior in other runners. Some runners may support runner determined sharding now.
-      // Check merging window here due to https://issues.apache.org/jira/browse/BEAM-12040.
+      // Check merging window here due to https://github.com/apache/beam/issues/20928.
       if (input.getWindowingStrategy().needsMerge()) {
         checkArgument(
             getComputeNumShards() != null || getNumShardsProvider() != null,

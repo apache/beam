@@ -404,7 +404,7 @@ public class CreateStreamTest implements Serializable {
 
   /**
    * Test that {@link ParDo} aligns both setup and teardown calls in streaming pipelines. See
-   * https://issues.apache.org/jira/browse/BEAM-6859.
+   * https://github.com/apache/beam/issues/1796359.
    */
   @Test
   public void testParDoCallsSetupAndTeardown() {

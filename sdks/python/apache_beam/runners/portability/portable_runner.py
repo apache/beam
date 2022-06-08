@@ -325,7 +325,7 @@ class PortableRunner(runner.PipelineRunner):
         default_environment=PortableRunner._create_environment(
             portable_options))
 
-    # TODO: https://issues.apache.org/jira/browse/BEAM-7199
+    # TODO: https://github.com/apache/beam/issues/181099
     # Eventually remove the 'pre_optimize' option alltogether and only perform
     # the equivalent of the 'default' case below (minus the 'lift_combiners'
     # part).
@@ -335,8 +335,8 @@ class PortableRunner(runner.PipelineRunner):
         pre_optimize != 'none'):
       if pre_optimize == 'default':
         phases = [
-            # TODO: https://issues.apache.org/jira/browse/BEAM-4678
-            #       https://issues.apache.org/jira/browse/BEAM-11478
+            # TODO: https://github.com/apache/beam/issues/18584
+            #       https://github.com/apache/beam/issues/18586
             # Eventually remove the 'lift_combiners' phase from 'default'.
             translations.pack_combiners,
             translations.lift_combiners,
@@ -411,7 +411,7 @@ class PortableRunner(runner.PipelineRunner):
     # type: (Pipeline, PipelineOptions) -> PipelineResult
     portable_options = options.view_as(PortableOptions)
 
-    # TODO: https://issues.apache.org/jira/browse/BEAM-5525
+    # TODO: https://github.com/apache/beam/issues/19168
     # portable runner specific default
     if options.view_as(SetupOptions).sdk_location == 'default':
       options.view_as(SetupOptions).sdk_location = 'container'

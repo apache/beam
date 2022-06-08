@@ -99,8 +99,8 @@ import scala.reflect.ClassTag$;
 
 /** Supports translation between a Beam transform, and Spark's operations on DStreams. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class StreamingTransformTranslator {
 
@@ -467,7 +467,7 @@ public final class StreamingTransformTranslator {
         Map<TupleTag<?>, PCollection<?>> outputs = context.getOutputs(transform);
         if (outputs.size() > 1) {
           // Caching can cause Serialization, we need to code to bytes
-          // more details in https://issues.apache.org/jira/browse/BEAM-2669
+          // more details in https://github.com/apache/beam/issues/1796669
           Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap =
               TranslationUtils.getTupleTagCoders(outputs);
           all =

@@ -56,7 +56,7 @@ import org.joda.time.Instant;
 
 /** GroupBy window function. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GroupByWindowFunction<K, V, W extends BoundedWindow>
     implements FlatMapFunc<WindowedValue<KV<K, Iterable<V>>>, KV<K, Iterable<WindowedValue<V>>>> {

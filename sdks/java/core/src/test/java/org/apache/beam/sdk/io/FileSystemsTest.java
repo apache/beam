@@ -64,7 +64,7 @@ public class FileSystemsTest {
 
   @Test
   public void testGetLocalFileSystem() throws Exception {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10740
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20484
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     assertTrue(
         FileSystems.getFileSystemInternal(toLocalResourceId("~/home/").getScheme())

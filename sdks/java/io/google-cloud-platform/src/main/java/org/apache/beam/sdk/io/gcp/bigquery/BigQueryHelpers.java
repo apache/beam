@@ -397,7 +397,7 @@ public class BigQueryHelpers {
    * <p>If the project id is omitted, the default project id is used.
    */
   @SuppressWarnings({
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
   })
   public static TableReference parseTableSpec(String tableSpec) {
     Matcher match = BigQueryIO.TABLE_SPEC.matcher(tableSpec);
@@ -418,7 +418,7 @@ public class BigQueryHelpers {
   }
 
   @SuppressWarnings({
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
   })
   public static TableReference parseTableUrn(String tableUrn) {
     Matcher match = BigQueryIO.TABLE_URN_SPEC.matcher(tableUrn);
@@ -494,7 +494,7 @@ public class BigQueryHelpers {
     try {
       // If T is Void then this ends up null, otherwise it is not; kind of a tough invariant
       @SuppressWarnings({
-        "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+        "nullness" // TODO(https://github.com/apache/beam/issues/20497)
       })
       @NonNull
       T result = BigQueryIO.JSON_FACTORY.fromString(json, clazz);

@@ -34,7 +34,7 @@ import org.apache.hive.hcatalog.data.schema.HCatSchemaUtils;
 /** Utils to convert between HCatalog schema types and Beam schema types. */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SchemaUtils {
 

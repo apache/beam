@@ -307,8 +307,8 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class JdbcIO {
 
@@ -2086,7 +2086,7 @@ public class JdbcIO {
   private static class Reparallelize<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> expand(PCollection<T> input) {
-      // See https://issues.apache.org/jira/browse/BEAM-2803
+      // See https://github.com/apache/beam/issues/1796403
       // We use a combined approach to "break fusion" here:
       // (see https://cloud.google.com/dataflow/service/dataflow-service-desc#preventing-fusion)
       // 1) force the data to be materialized by passing it as a side input to an identity fn,

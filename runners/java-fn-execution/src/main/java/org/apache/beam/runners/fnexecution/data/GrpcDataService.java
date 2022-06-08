@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
  * that connects.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     implements FnService, FnDataService {

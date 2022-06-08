@@ -56,7 +56,7 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 
 ## Contributing a pattern
 
-To contribute a new pipeline pattern, create an issue with the [`pipeline-patterns` label](https://issues.apache.org/jira/browse/BEAM-7449?jql=labels%20%3D%20pipeline-patterns) and add details to the issue description. See [Get started contributing](/contribute/) for more information.
+To contribute a new pipeline pattern, create an issue with the [`pipeline-patterns` label](https://github.com/apache/beam/issues/1797349?jql=labels%20%3D%20pipeline-patterns) and add details to the issue description. See [Get started contributing](/contribute/) for more information.
 
 ## What's next
 

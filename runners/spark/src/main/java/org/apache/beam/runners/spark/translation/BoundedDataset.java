@@ -40,7 +40,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * across the network until they are broadcast.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BoundedDataset<T> implements Dataset {
   // only set if creating an RDD from a static collection
@@ -111,7 +111,7 @@ public class BoundedDataset<T> implements Dataset {
       this.rdd = getRDD().persist(level);
     } else {
       // Caching can cause Serialization, we need to code to bytes
-      // more details in https://issues.apache.org/jira/browse/BEAM-2669
+      // more details in https://github.com/apache/beam/issues/1796669
       Coder<WindowedValue<T>> windowedValueCoder = (Coder<WindowedValue<T>>) coder;
       this.rdd =
           getRDD()

@@ -69,7 +69,7 @@ import org.slf4j.LoggerFactory;
  * here</a>.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class GcsFileSystem extends FileSystem<GcsResourceId> {
   private static final Logger LOG = LoggerFactory.getLogger(GcsFileSystem.class);
@@ -297,7 +297,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   private Metadata toMetadata(StorageObject storageObject) {
-    // TODO: Address https://issues.apache.org/jira/browse/BEAM-1494
+    // TODO: Address https://github.com/apache/beam/issues/1796994
     // It is incorrect to set IsReadSeekEfficient true for files with content encoding set to gzip.
     Metadata.Builder ret =
         Metadata.builder()

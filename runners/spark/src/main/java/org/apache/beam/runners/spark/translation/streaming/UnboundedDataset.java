@@ -67,7 +67,7 @@ public class UnboundedDataset<T> implements Dataset {
           StorageLevel.MEMORY_ONLY_SER());
     }
     // Caching can cause Serialization, we need to code to bytes
-    // more details in https://issues.apache.org/jira/browse/BEAM-2669
+    // more details in https://github.com/apache/beam/issues/1796669
     Coder<WindowedValue<T>> wc = (Coder<WindowedValue<T>>) coder;
     this.dStream =
         dStream.map(CoderHelpers.toByteFunction(wc)).cache().map(CoderHelpers.fromByteFunction(wc));

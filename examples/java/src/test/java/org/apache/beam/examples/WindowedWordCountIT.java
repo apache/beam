@@ -103,7 +103,7 @@ public class WindowedWordCountIT {
   }
 
   // TODO: add a test with streaming and dynamic sharding after resolving
-  // https://issues.apache.org/jira/browse/BEAM-1438
+  // https://github.com/apache/beam/issues/1796938
 
   @Test
   @Category(StreamingIT.class)

@@ -52,7 +52,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutpu
  * {@link Throwable#printStackTrace()}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DataflowWorkerLoggingHandler extends Handler {
   private static final EnumMap<BeamFnApi.LogEntry.Severity.Enum, String>

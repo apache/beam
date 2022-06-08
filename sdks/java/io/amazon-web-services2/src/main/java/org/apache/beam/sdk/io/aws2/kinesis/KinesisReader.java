@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
  * when fetching data from shards.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
@@ -155,7 +155,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
    * across all shards. This can lead to unnecessary decisions to scale up the number of workers but
    * will never fail to scale up when this is necessary due to backlog size.
    *
-   * @see <a href="https://issues.apache.org/jira/browse/BEAM-9439">BEAM-9439</a>
+   * @see <a href="https://github.com/apache/beam/issues/17971439">BEAM-9439</a>
    */
   @Override
   public long getSplitBacklogBytes() {

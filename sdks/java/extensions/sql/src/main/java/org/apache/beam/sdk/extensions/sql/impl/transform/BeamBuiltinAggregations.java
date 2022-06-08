@@ -52,8 +52,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamBuiltinAggregations {
 
@@ -77,7 +77,7 @@ public class BeamBuiltinAggregations {
               .put(
                   "BIT_XOR",
                   typeName -> new DropNullFn(BeamBuiltinAggregations.createBitXOr(typeName)))
-              // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
+              // JIRA link:https://github.com/apache/beam/issues/17970379
               .put(
                   "BIT_AND",
                   typeName -> new DropNullFn(BeamBuiltinAggregations.createBitAnd(typeName)))
@@ -603,7 +603,7 @@ public class BeamBuiltinAggregations {
    * Bitwise AND function implementation.
    *
    * <p>Note: null values are ignored when mixed with non-null values.
-   * (https://issues.apache.org/jira/browse/BEAM-10379)
+   * (https://github.com/apache/beam/issues/17970379)
    */
   static class BitAnd<T extends Number> extends CombineFn<T, BitAnd.Accum, Long> {
     static class Accum implements Serializable {

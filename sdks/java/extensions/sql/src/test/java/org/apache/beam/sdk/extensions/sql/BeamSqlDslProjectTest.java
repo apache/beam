@@ -195,7 +195,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
   /**
    * Trivial programs project precisely their input fields, without dropping or re-ordering them.
    *
-   * @see <a href="https://issues.apache.org/jira/browse/BEAM-6810">BEAM-6810</a>
+   * @see <a href="https://github.com/apache/beam/issues/1796310">BEAM-6810</a>
    */
   @Test
   public void testTrivialProjection() {

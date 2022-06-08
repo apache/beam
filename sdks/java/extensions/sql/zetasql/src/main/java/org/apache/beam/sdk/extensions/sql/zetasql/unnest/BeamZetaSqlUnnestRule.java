@@ -39,7 +39,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * except that it works on {@link ZetaSqlUnnest} instead of Calcite Uncollect.
  *
  * <p>Details of why unwrapping structs breaks ZetaSQL UNNEST syntax is in
- * https://issues.apache.org/jira/browse/BEAM-10896.
+ * https://github.com/apache/beam/issues/17970896.
  */
 public class BeamZetaSqlUnnestRule extends RelOptRule {
   public static final BeamZetaSqlUnnestRule INSTANCE = new BeamZetaSqlUnnestRule();

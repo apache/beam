@@ -34,7 +34,7 @@ import org.joda.time.Instant;
  * AfterDelayFromFirstElementStateMachine#alignedTo}.
  */
 // The superclass should be inlined here, its only real use
-// https://issues.apache.org/jira/browse/BEAM-1486
+// https://github.com/apache/beam/issues/1796986
 public class AfterProcessingTimeStateMachine extends AfterDelayFromFirstElementStateMachine {
 
   @Override

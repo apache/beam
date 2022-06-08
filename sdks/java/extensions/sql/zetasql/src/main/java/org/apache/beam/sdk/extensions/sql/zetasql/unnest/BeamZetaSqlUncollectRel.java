@@ -44,10 +44,10 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
  * except that in UncollectDoFn it does not treat elements of struct type differently.
  *
  * <p>Details of why unwrapping structs breaks ZetaSQL UNNEST syntax is in
- * https://issues.apache.org/jira/browse/BEAM-10896.
+ * https://github.com/apache/beam/issues/17970896.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamZetaSqlUncollectRel extends ZetaSqlUnnest implements BeamRelNode {
 

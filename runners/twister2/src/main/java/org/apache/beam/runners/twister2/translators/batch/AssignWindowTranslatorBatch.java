@@ -31,7 +31,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** Assign Window translator. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class AssignWindowTranslatorBatch<T> implements BatchTransformTranslator<Window.Assign<T>> {
   @Override

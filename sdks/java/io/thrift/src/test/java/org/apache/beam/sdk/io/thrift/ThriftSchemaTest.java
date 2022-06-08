@@ -53,7 +53,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-11436)
+  "nullness" // TODO(https://github.com/apache/beam/issues/182066)
 })
 public class ThriftSchemaTest {
   private static final SchemaProvider defaultSchemaProvider = ThriftSchema.provider();
