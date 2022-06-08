@@ -287,6 +287,7 @@ class WindmillTimerInternals implements TimerInternals {
 
   public static TimerData windmillTimerToTimerData(
       WindmillNamespacePrefix prefix, Timer timer, Coder<? extends BoundedWindow> windowCoder) {
+    System.out.println("Start");
 
     // The tag is a path-structure string but cheaper to parse than a proper URI. It follows
     // this pattern, where no component but the ID can contain a slash
@@ -308,6 +309,8 @@ class WindmillTimerInternals implements TimerInternals {
     //  - the id is totally arbitrary; currently unescaped though that could change
 
     ByteString tag = timer.getTag();
+    System.out.println("tag: " + String.valueOf(tag));
+
     checkArgument(
         tag.startsWith(prefix.byteString()),
         "Expected timer tag %s to start with prefix %s",
@@ -315,6 +318,8 @@ class WindmillTimerInternals implements TimerInternals {
         prefix.byteString());
 
     Instant timestamp = WindmillTimeUtils.windmillToHarnessTimestamp(timer.getTimestamp());
+    System.out.println("input timestamp: " + String.valueOf(timer.getTimestamp()));
+    System.out.println("output outputTimestamp: " + String.valueOf(timestamp));
 
     // Parse the namespace.
     int namespaceStart = prefix.byteString().size(); // drop the prefix, leave the begin slash
@@ -351,12 +356,25 @@ class WindmillTimerInternals implements TimerInternals {
 
     // For backwards compatibility, handle the case were the output timestamp isn't present.
     Instant outputTimestamp = timestamp;
+    System.out.println("coumputed timestamp: " + String.valueOf(timestamp));
+    System.out.println("coumputed outputTimestamp: " + String.valueOf(outputTimestamp));
+
     if ((outputTimestampStart < tag.size())) {
       try {
         outputTimestamp =
             new Instant(
                 VarInt.decodeLong(
                     tag.substring(outputTimestampStart, outputTimestampEnd).newInput()));
+        System.out.println(
+            "parsed string"
+                + String.valueOf(
+                    tag.substring(outputTimestampStart, outputTimestampEnd).newInput()));
+        if (outputTimestamp.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
+          System.out.println("bounding");
+          outputTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+        System.out.println("coumputed outputTimestamp2: " + String.valueOf(outputTimestamp));
+
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
