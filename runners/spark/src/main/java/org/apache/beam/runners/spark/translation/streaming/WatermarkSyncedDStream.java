@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
  * this point in time we are reluctant to apply complex and possibly overly synchronous mechanisms
  * at large scale).
  *
- * <p>See also <a href="https://github.com/apache/beam/issues/1796671">BEAM-2671</a>, <a
+ * <p>See also <a href="https://issues.apache.org/jira/browse/BEAM-2671">BEAM-2671</a>, <a
  * href="https://github.com/apache/beam/issues/18426">BEAM-2789</a>.
  */
 @SuppressWarnings({

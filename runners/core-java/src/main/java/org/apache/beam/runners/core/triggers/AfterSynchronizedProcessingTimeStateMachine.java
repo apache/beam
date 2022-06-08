@@ -25,7 +25,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
-// This should not really have the superclass https://github.com/apache/beam/issues/1796986
+// This should not really have the superclass https://issues.apache.org/jira/browse/BEAM-1486
 class AfterSynchronizedProcessingTimeStateMachine extends AfterDelayFromFirstElementStateMachine {
 
   public static AfterSynchronizedProcessingTimeStateMachine ofFirstElement() {

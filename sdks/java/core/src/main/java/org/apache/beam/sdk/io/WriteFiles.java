@@ -343,7 +343,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           getWindowedWrites(),
           "Must use windowed writes when applying %s to an unbounded PCollection",
           WriteFiles.class.getSimpleName());
-      // Sharding used to be required due to https://github.com/apache/beam/issues/1796938 and
+      // Sharding used to be required due to https://issues.apache.org/jira/browse/BEAM-1438 and
       // similar behavior in other runners. Some runners may support runner determined sharding now.
       // Check merging window here due to https://github.com/apache/beam/issues/20928.
       if (input.getWindowingStrategy().needsMerge()) {

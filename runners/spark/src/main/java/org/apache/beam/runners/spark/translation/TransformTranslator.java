@@ -426,7 +426,7 @@ public final class TransformTranslator {
             all = all.persist(level);
           } else {
             // Caching can cause Serialization, we need to code to bytes
-            // more details in https://github.com/apache/beam/issues/1796669
+            // more details in https://issues.apache.org/jira/browse/BEAM-2669
             Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap =
                 TranslationUtils.getTupleTagCoders(outputs);
             all =

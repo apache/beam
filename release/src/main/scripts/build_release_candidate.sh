@@ -188,7 +188,7 @@ if [[ $confirmation = "y" ]]; then
   # https://github.com/gradle/gradle/issues/11706
   # --max-workers=6 works, but parallelism also seems to cause
   # multiple Nexus repos to be created, so parallelism is disabled.
-  # https://github.com/apache/beam/issues/181663
+  # https://issues.apache.org/jira/browse/BEAM-11813
   ./gradlew publish -Psigning.gnupg.keyName=${SIGNING_KEY} -PisRelease --no-daemon --no-parallel
   echo "You need to close the staging repository manually on Apache Nexus. See the release guide for instructions."
   wipe_local_clone_dir

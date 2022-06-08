@@ -987,7 +987,7 @@ public class Watch {
         if (state.getCompleted().containsKey(hash) || newPending.containsKey(hash)) {
           continue;
         }
-        // TODO (https://github.com/apache/beam/issues/1796680):
+        // TODO (https://github.com/apache/beam/issues/18459):
         // Consider adding only at most N pending elements and ignoring others,
         // instead relying on future poll rounds to provide them, in order to avoid
         // blowing up the state. Combined with garbage collection of PollingGrowthState.completed,

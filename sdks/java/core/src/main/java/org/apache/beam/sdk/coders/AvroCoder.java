@@ -788,7 +788,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * <p>This is a copy from Avro 1.8's TimestampConversion, which is renamed in Avro 1.9. Defining
    * own copy gives flexibility for Beam Java SDK to work with Avro 1.8 and 1.9 at runtime.
    *
-   * @see <a href="https://github.com/apache/beam/issues/17971144">BEAM-9144: Beam's own Avro
+   * @see <a href="https://issues.apache.org/jira/browse/BEAM-9144">BEAM-9144: Beam's own Avro
    *     TimeConversion class in beam-sdk-java-core</a>
    */
   public static class JodaTimestampConversion extends Conversion<DateTime> {

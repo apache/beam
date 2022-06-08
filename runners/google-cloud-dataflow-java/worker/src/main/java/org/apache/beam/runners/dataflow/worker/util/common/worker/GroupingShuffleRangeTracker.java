@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
  * considered a split point (because it is the first to be returned when reading a position range
  * starting at this position), others are not.
  */
-// Likely real bugs - https://github.com/apache/beam/issues/180853
+// Likely real bugs - https://github.com/apache/beam/issues/19272
 @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

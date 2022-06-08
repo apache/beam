@@ -80,7 +80,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <V> the type of the value written to the sink
  */
-// Possible real inconsistency - https://github.com/apache/beam/issues/180850
+// Possible real inconsistency - https://issues.apache.org/jira/browse/BEAM-6560
 @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

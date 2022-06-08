@@ -116,7 +116,7 @@ static def pipelineOptionsStringCrossPlatformHandling(String[] options) {
 }
 
 def sickbayTests = [
-        // https://github.com/apache/beam/issues/179991
+        // https://github.com/apache/beam/issues/18499
         'org.apache.beam.sdk.testing.UsesLoopingTimer',
         // https://github.com/apache/beam/issues/19734
         'org.apache.beam.sdk.transforms.WatchTest.testMultiplePollsWithManyResults',
@@ -187,7 +187,7 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories "org.apache.beam.sdk.testing.UsesJavaExpansionService"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
-    // https://github.com/apache/beam/issues/179991
+    // https://github.com/apache/beam/issues/18499
     excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
   }
 }

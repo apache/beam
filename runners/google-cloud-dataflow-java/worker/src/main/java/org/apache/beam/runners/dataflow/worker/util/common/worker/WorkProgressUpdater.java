@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * interval between two consecutive updates is also bound by {@link #getMinReportingInterval} and
  * {@link #getMaxReportingInterval}.
  */
-// Very likely real potential for bugs - https://github.com/apache/beam/issues/180851
+// Very likely real potential for bugs - https://github.com/apache/beam/issues/19274
 @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
 @NotThreadSafe
 @SuppressWarnings({

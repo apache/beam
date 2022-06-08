@@ -55,4 +55,4 @@ of these changed or new files to the beam repository.
 
 ### Tracking the Go SDK Code Katas project
 
-[BEAM-9676](https://github.com/apache/beam/issues/17971676) tracks the Go SDK Code Katas project.
+[BEAM-9676](https://issues.apache.org/jira/browse/BEAM-9676) tracks the Go SDK Code Katas project.

@@ -728,7 +728,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       try (AutoCloseable bundleFactoryCloser = stageBundleFactory;
           AutoCloseable closable = stageContext) {
         // DoFnOperator generates another "bundle" for the final watermark
-        // https://github.com/apache/beam/issues/1796216
+        // https://issues.apache.org/jira/browse/BEAM-5816
         super.cleanUp();
       } finally {
         stageContext = null;

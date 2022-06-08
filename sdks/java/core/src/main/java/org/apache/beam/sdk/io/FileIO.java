@@ -162,7 +162,7 @@ import org.slf4j.LoggerFactory;
  *       always be produced for every non-empty pane. Note that setting a fixed number of shards can
  *       hurt performance: it adds an additional {@link GroupByKey} to the pipeline. However, it is
  *       required to set it when writing an unbounded {@link PCollection} due to <a
- *       href="https://github.com/apache/beam/issues/1796938">BEAM-1438</a> and similar behavior
+ *       href="https://issues.apache.org/jira/browse/BEAM-1438">BEAM-1438</a> and similar behavior
  *       in other runners.
  *   <li><b>How the shards are named:</b> This is controlled by a {@link Write.FileNaming}:
  *       filenames can depend on a variety of inputs, e.g. the window, the pane, total number of
