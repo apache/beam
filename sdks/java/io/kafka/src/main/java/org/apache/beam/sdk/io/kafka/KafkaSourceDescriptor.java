@@ -76,11 +76,11 @@ public abstract class KafkaSourceDescriptor implements Serializable {
 
   public static KafkaSourceDescriptor of(
       TopicPartition topicPartition,
-      Long startReadOffset,
-      Instant startReadTime,
-      Long stopReadOffset,
-      Instant stopReadTime,
-      List<String> bootstrapServers) {
+      @Nullable Long startReadOffset,
+      @Nullable Instant startReadTime,
+      @Nullable Long stopReadOffset,
+      @Nullable Instant stopReadTime,
+      @Nullable List<String> bootstrapServers) {
     checkArguments(startReadOffset, startReadTime, stopReadOffset, stopReadTime);
     return new AutoValue_KafkaSourceDescriptor(
         topicPartition.topic(),
