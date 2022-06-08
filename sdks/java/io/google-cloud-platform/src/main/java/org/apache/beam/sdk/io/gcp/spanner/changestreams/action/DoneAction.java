@@ -25,7 +25,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Add java docs
 public class DoneAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(DoneAction.class);
@@ -36,11 +35,11 @@ public class DoneAction {
     final String token = partition.getPartitionToken();
 
     if (!tracker.tryClaim(PartitionPosition.done())) {
-      LOG.info("[" + token + "] Could not claim done(), stopping");
+      LOG.debug("[" + token + "] Could not claim done(), stopping");
       return ProcessContinuation.stop();
     }
 
-    LOG.info("[" + token + "] Done action completed successfully");
+    LOG.debug("[" + token + "] Done action completed successfully");
     return ProcessContinuation.stop();
   }
 }

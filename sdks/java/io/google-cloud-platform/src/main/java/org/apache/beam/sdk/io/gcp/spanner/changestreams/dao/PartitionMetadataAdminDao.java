@@ -55,8 +55,6 @@ public class PartitionMetadataAdminDao {
    * org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State}.
    */
   public static final String COLUMN_STATE = "State";
-  /** Metadata table column name for the current watermark of the partition. */
-  public static final String COLUMN_WATERMARK = "Watermark";
   /** Metadata table column name for the timestamp at which the partition row was first created. */
   public static final String COLUMN_CREATED_AT = "CreatedAt";
   /**
@@ -129,8 +127,6 @@ public class PartitionMetadataAdminDao {
             + " INT64 NOT NULL,"
             + COLUMN_STATE
             + " STRING(MAX) NOT NULL,"
-            + COLUMN_WATERMARK
-            + " TIMESTAMP NOT NULL,"
             + COLUMN_CREATED_AT
             + " TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),"
             + COLUMN_SCHEDULED_AT

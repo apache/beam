@@ -266,7 +266,6 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       case DONE:
         return done(partition, tracker);
       default:
-        // TODO: Verify what to do here
         LOG.error("[" + token + "] Unknown mode " + mode);
         throw new IllegalArgumentException("Unknown mode " + mode);
     }

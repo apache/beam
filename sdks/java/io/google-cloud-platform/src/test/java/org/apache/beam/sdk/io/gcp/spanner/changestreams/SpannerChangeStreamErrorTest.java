@@ -28,7 +28,6 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMeta
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_SCHEDULED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_START_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_STATE;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_WATERMARK;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNull;
 
@@ -513,10 +512,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
                       Field.newBuilder()
                           .setName(COLUMN_STATE)
                           .setType(Type.newBuilder().setCode(TypeCode.STRING)))
-                  .addFields(
-                      Field.newBuilder()
-                          .setName(COLUMN_WATERMARK)
-                          .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
                   .addFields(
                       Field.newBuilder()
                           .setName(COLUMN_CREATED_AT)

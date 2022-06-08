@@ -61,7 +61,6 @@ public class ChangeStreamRecordMapperTest {
             .setChildTokens(Sets.newHashSet())
             .setHeartbeatMillis(30_000L)
             .setState(State.RUNNING)
-            .setWatermark(Timestamp.ofTimeMicroseconds(10L))
             .setStartTimestamp(Timestamp.ofTimeMicroseconds(11L))
             .setEndTimestamp(Timestamp.ofTimeMicroseconds(12L))
             .setCreatedAt(Timestamp.ofTimeMicroseconds(13L))

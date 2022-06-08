@@ -112,7 +112,7 @@ public class PartitionRestrictionSplitter {
         throw new IllegalArgumentException("Unknown mode " + positionMode);
     }
 
-    LOG.info(
+    LOG.debug(
         "["
             + token
             + "] Split result for ("

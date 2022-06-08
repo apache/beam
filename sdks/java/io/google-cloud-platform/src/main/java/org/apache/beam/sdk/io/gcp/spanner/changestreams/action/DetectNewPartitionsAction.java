@@ -108,7 +108,7 @@ public class DetectNewPartitionsAction {
     if (unfinishedPartitions > 0) {
       final boolean isInitialQueryRunningOrFinished =
           dao.isPartitionRunningOrFinished(InitialPartition.PARTITION_TOKEN);
-      LOG.info("Initial query is running or finished: " + isInitialQueryRunningOrFinished);
+      LOG.debug("Initial query is running or finished: " + isInitialQueryRunningOrFinished);
       Timestamp watermark = isInitialQueryRunningOrFinished ? Timestamp.now() : startTimestamp;
       return processPartitions(tracker, receiver, watermarkEstimator, watermark, readTimestamp);
     } else {
@@ -198,7 +198,6 @@ public class DetectNewPartitionsAction {
               + " and end time "
               + updatedPartition.getEndTimestamp());
 
-      LOG.info("Outputting " + partition.toString() + " at timestamp: " + watermark.toString());
       receiver.outputWithTimestamp(partition, new Instant(watermark.toSqlTimestamp()));
 
       metrics.incPartitionRecordCount();

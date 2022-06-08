@@ -112,12 +112,12 @@ public class ChildPartitionsRecordAction {
 
     final String token = partition.getPartitionToken();
 
-    LOG.info("[" + token + "] Processing child partition record " + record);
+    LOG.debug("[" + token + "] Processing child partition record " + record);
 
     final Timestamp startTimestamp = record.getStartTimestamp();
     final Instant startInstant = new Instant(startTimestamp.toSqlTimestamp().getTime());
     if (!tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))) {
-      LOG.info(
+      LOG.debug(
           "[" + token + "] Could not claim child partition (" + startTimestamp + "), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
@@ -139,7 +139,7 @@ public class ChildPartitionsRecordAction {
     final String partitionToken = partition.getPartitionToken();
     final String childPartitionToken = childPartition.getToken();
     final boolean isSplit = isSplit(childPartition);
-    LOG.info(
+    LOG.debug(
         "["
             + partitionToken
             + "] Processing child partition"
@@ -152,14 +152,14 @@ public class ChildPartitionsRecordAction {
             partition.getEndTimestamp(),
             partition.getHeartbeatMillis(),
             childPartition);
-    LOG.info("[" + partitionToken + "] Inserting child partition token " + childPartitionToken);
+    LOG.debug("[" + partitionToken + "] Inserting child partition token " + childPartitionToken);
     final Boolean insertedRow =
         partitionMetadataDao
             .runInTransaction(
                 transaction -> {
                   if (transaction.getPartition(childPartitionToken) == null) {
                     transaction.insert(row);
-                    LOG.info("inserted child partition token: " + childPartitionToken);
+                    LOG.debug("inserted child partition token: " + childPartitionToken);
 
                     // We want to insert all these child tokens under the original token.
                     HashSet<String> childPartitionTokens =
@@ -170,7 +170,7 @@ public class ChildPartitionsRecordAction {
                     }
                     childPartitionTokens.add(childPartitionToken);
                     transaction.insertChildTokens(partitionToken, childPartitionTokens);
-                    LOG.info(
+                    LOG.debug(
                         "["
                             + partitionToken
                             + "] inserted child tokens: "

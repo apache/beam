@@ -31,7 +31,6 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Add java docs
 public class UpdateStateAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(UpdateStateAction.class);
@@ -48,10 +47,10 @@ public class UpdateStateAction {
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
     final String token = partition.getPartitionToken();
-    LOG.info("[" + token + "] Updating state of partition to be running");
+    LOG.debug("[" + token + "] Updating state of partition to be running");
 
     if (!tracker.tryClaim(PartitionPosition.updateState())) {
-      LOG.info("[" + token + "] Could not claim updateState(), stopping");
+      LOG.debug("[" + token + "] Could not claim updateState(), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
 
@@ -60,7 +59,7 @@ public class UpdateStateAction {
       final com.google.cloud.Timestamp partitionRunningAt =
           partitionMetadataDao.updateToRunning(token);
 
-      LOG.info("[" + token + "] Finished updating state of partition to be running");
+      LOG.debug("[" + token + "] Finished updating state of partition to be running");
       if (partitionScheduledAt != null && partitionRunningAt != null) {
         metrics.updatePartitionScheduledToRunning(
             new Duration(
@@ -75,7 +74,7 @@ public class UpdateStateAction {
       }
     }
 
-    LOG.debug("[" + token + "] Finish partition action completed successfully");
+    LOG.debug("[" + token + "] Update state action completed successfully");
     return Optional.empty();
   }
 }

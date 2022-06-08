@@ -1570,13 +1570,11 @@ public class SpannerIO {
       // Inclusive end at is defaulted to ChangeStreamsContants.MAX_INCLUSIVE_END_AT
       checkArgument(
           getInclusiveEndAt() != null,
-          "SpannerIO.readChangeStream() requires the end time to be set. If you'd like to process"
-              + " the stream without an end time, you can omit this parameter.");
+          "SpannerIO.readChangeStream() requires the end time to be set. If you'd like to process the stream without an end time, you can omit this parameter.");
       if (getMetadataInstance() != null) {
         checkArgument(
             getMetadataDatabase() != null,
-            "SpannerIO.readChangeStream() requires the metadata database to be set if metadata"
-                + " instance is set.");
+            "SpannerIO.readChangeStream() requires the metadata database to be set if metadata instance is set.");
       }
 
       // Start time must be before end time

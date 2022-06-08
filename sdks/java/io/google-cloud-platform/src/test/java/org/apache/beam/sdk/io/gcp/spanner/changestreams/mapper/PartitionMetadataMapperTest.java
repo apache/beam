@@ -27,7 +27,6 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMeta
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_SCHEDULED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_START_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_STATE;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_WATERMARK;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
@@ -64,8 +63,6 @@ public class PartitionMetadataMapperTest {
             .to(5_000L)
             .set(COLUMN_STATE)
             .to(State.RUNNING.name())
-            .set(COLUMN_WATERMARK)
-            .to(Timestamp.ofTimeMicroseconds(30L))
             .set(COLUMN_CREATED_AT)
             .to(Timestamp.ofTimeMicroseconds(40L))
             .set(COLUMN_SCHEDULED_AT)
@@ -110,8 +107,6 @@ public class PartitionMetadataMapperTest {
             .to(5_000L)
             .set(COLUMN_STATE)
             .to(State.CREATED.name())
-            .set(COLUMN_WATERMARK)
-            .to(Timestamp.ofTimeMicroseconds(30L))
             .set(COLUMN_CREATED_AT)
             .to(Timestamp.ofTimeMicroseconds(40L))
             .set(COLUMN_SCHEDULED_AT)

@@ -84,14 +84,14 @@ public class DataChangeRecordAction {
     final Timestamp commitTimestamp = record.getCommitTimestamp();
     final Instant commitInstant = new Instant(commitTimestamp.toSqlTimestamp().getTime());
     if (!tracker.tryClaim(PartitionPosition.queryChangeStream(commitTimestamp))) {
-      LOG.info(
+      LOG.debug(
           "[" + token + "] Could not claim queryChangeStream(" + commitTimestamp + "), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
     outputReceiver.outputWithTimestamp(record, commitInstant);
     watermarkEstimator.setWatermark(commitInstant);
 
-    LOG.info("[" + token + "] Data record action completed successfully");
+    LOG.debug("[" + token + "] Data record action completed successfully");
     return Optional.empty();
   }
 }

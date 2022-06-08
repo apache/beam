@@ -66,7 +66,7 @@ public class PartitionRestrictionClaimer {
             .orElse("");
 
     if (restriction.getMode() == STOP) {
-      LOG.info(
+      LOG.debug(
           "["
               + token
               + "] Try claim from ("
@@ -130,7 +130,7 @@ public class PartitionRestrictionClaimer {
         throw new IllegalArgumentException("Unknown mode " + toMode);
     }
 
-    LOG.info(
+    LOG.debug(
         "["
             + token
             + "] Try claim from ("

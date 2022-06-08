@@ -246,20 +246,17 @@ public class QueryChangeStreamAction {
                 + endTimestamp
                 + ", finishing stream");
       } else {
-        LOG.info("Error during QueryChangeStreamAction: " + e);
+        LOG.debug("[" + token + "] error while processing stream " + e);
         throw e;
       }
     }
 
-    LOG.info("[" + token + "] change stream completed successfully");
+    LOG.debug("[" + token + "] change stream completed successfully");
     if (tracker.tryClaim(PartitionPosition.queryChangeStream(endTimestamp))) {
-      LOG.info("[" + token + "] Finishing partition");
+      LOG.debug("[" + token + "] Finishing partition");
       partitionMetadataDao.updateToFinished(token);
       metrics.decActivePartitionReadCounter();
-      LOG.info("[" + token + "] Partition finished");
       return Optional.empty();
-    } else {
-      LOG.info("[" + token + "] end timestamp did not get claimed successfully");
     }
     return Optional.of(ProcessContinuation.stop());
   }

@@ -27,7 +27,6 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMeta
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_SCHEDULED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_START_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_STATE;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_WATERMARK;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
@@ -60,9 +59,6 @@ public class PartitionMetadataMapper {
    *       record will be emitted.
    *   <li>{@link PartitionMetadataAdminDao#COLUMN_STATE}: non-nullable {@link String} representing
    *       the {@link State} in which the partition is in.
-   *   <li>{@link PartitionMetadataAdminDao#COLUMN_WATERMARK}: non-nullable {@link Timestamp}
-   *       representing the time for which all records with a timestamp less than it have been
-   *       processed.
    *   <li>{@link PartitionMetadataAdminDao#COLUMN_CREATED_AT}: non-nullable {@link Timestamp}
    *       representing the time at which this partition was first detected.
    *   <li>{@link PartitionMetadataAdminDao#COLUMN_SCHEDULED_AT}: nullable {@link Timestamp}
@@ -85,7 +81,6 @@ public class PartitionMetadataMapper {
         .setEndTimestamp(row.getTimestamp(COLUMN_END_TIMESTAMP))
         .setHeartbeatMillis(row.getLong(COLUMN_HEARTBEAT_MILLIS))
         .setState(State.valueOf(row.getString(COLUMN_STATE)))
-        .setWatermark(row.getTimestamp(COLUMN_WATERMARK))
         .setCreatedAt(row.getTimestamp(COLUMN_CREATED_AT))
         .setScheduledAt(
             !row.isNull(COLUMN_SCHEDULED_AT) ? row.getTimestamp(COLUMN_SCHEDULED_AT) : null)

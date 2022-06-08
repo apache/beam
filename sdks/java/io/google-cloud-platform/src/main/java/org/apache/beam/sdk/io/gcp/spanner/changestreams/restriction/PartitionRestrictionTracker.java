@@ -119,7 +119,7 @@ public class PartitionRestrictionTracker
             .orElse("");
     String lastClaimedPositionString =
         lastClaimedPosition != null ? lastClaimedPosition.toString() : "null";
-    LOG.info(
+    LOG.debug(
         "["
             + token
             + "] Check done with restriction "

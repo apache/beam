@@ -27,7 +27,6 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMeta
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_SCHEDULED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_START_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_STATE;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_WATERMARK;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
@@ -280,16 +279,6 @@ public class PartitionMetadataDao {
   }
 
   /**
-   * Update the partition watermark to the given timestamp.
-   *
-   * @param partitionToken the partition unique identifier
-   * @param watermark the new partition watermark
-   */
-  public void updateWatermark(String partitionToken, Timestamp watermark) {
-    runInTransaction(transaction -> transaction.updateWatermark(partitionToken, watermark));
-  }
-
-  /**
    * Runs a given function in a transaction context. The transaction object is given as the
    * parameter to the input function. If the function returns successfully, it will be committed. If
    * the function throws an exception it will be rolled back.
@@ -410,18 +399,6 @@ public class PartitionMetadataDao {
     }
 
     /**
-     * Update the partition watermark to the given timestamp.
-     *
-     * @param partitionToken the partition unique identifier
-     * @param watermark the new partition watermark
-     * @return the commit timestamp of the read / write transaction
-     */
-    public Void updateWatermark(String partitionToken, Timestamp watermark) {
-      transaction.buffer(createUpdateMetadataWatermarkMutationFrom(partitionToken, watermark));
-      return null;
-    }
-
-    /**
      * Fetches the partition metadata row data for the given partition token.
      *
      * @param partitionToken the partition unique identifier
@@ -461,8 +438,6 @@ public class PartitionMetadataDao {
           .to(partitionMetadata.getHeartbeatMillis())
           .set(COLUMN_STATE)
           .to(partitionMetadata.getState().toString())
-          .set(COLUMN_WATERMARK)
-          .to(partitionMetadata.getWatermark())
           .set(COLUMN_CREATED_AT)
           .to(Value.COMMIT_TIMESTAMP)
           .build();
@@ -490,16 +465,6 @@ public class PartitionMetadataDao {
           .to(state.toString())
           .set(timestampColumn)
           .to(Value.COMMIT_TIMESTAMP)
-          .build();
-    }
-
-    private Mutation createUpdateMetadataWatermarkMutationFrom(
-        String partitionToken, Timestamp watermark) {
-      return Mutation.newUpdateBuilder(metadataTableName)
-          .set(COLUMN_PARTITION_TOKEN)
-          .to(partitionToken)
-          .set(COLUMN_WATERMARK)
-          .to(watermark)
           .build();
     }
   }
