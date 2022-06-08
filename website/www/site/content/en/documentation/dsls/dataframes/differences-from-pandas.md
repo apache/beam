@@ -63,7 +63,7 @@ Examples:
 Beam DataFrame operations are deferred, but the schemas of the resulting DataFrames are not, meaning that result columns must be computable without access to the data. Some DataFrame operations can’t support this usage, so they can’t be implemented. These operations raise a [WontImplementError](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.dataframe.frame_base.html#apache_beam.dataframe.frame_base.WontImplementError).
 
 <!-- TODO(BEAM-12169): Document the use of categorical columns as a workaround -->
-Currently there’s no workaround for this issue. But in the future, Beam Dataframe may support non-deferred column operations on categorical columns. This work is being tracked in [BEAM-12169](https://issues.apache.org/jira/browse/BEAM-12169).
+Currently there’s no workaround for this issue. But in the future, Beam Dataframe may support non-deferred column operations on categorical columns. This work is being tracked in [BEAM-12169](https://github.com/apache/beam/issues/20958).
 
 ### Operations that produce non-deferred values or plots
 
@@ -76,7 +76,7 @@ It’s infeasible to implement DataFrame operations that produce non-deferred va
 
 These operations may be supported in the future through a tighter integration
 with Interactive Beam. To track progress on this issue, follow
-[BEAM-14211](https://issues.apache.org/jira/browse/BEAM-14211). If you think we
+[BEAM-14211](https://github.com/apache/beam/issues/21638). If you think we
 should prioritize this work you can also [contact
 us](https://beam.apache.org/community/contact-us/) to let us know.
 
@@ -93,7 +93,7 @@ Examples:
 
 Beam PCollections are inherently unordered, so pandas operations that are sensitive to the ordering of rows are not supported. These operations raise a [WontImplementError](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.dataframe.frame_base.html#apache_beam.dataframe.frame_base.WontImplementError).
 
-Order-sensitive operations may be supported in the future. To track progress on this issue, follow [BEAM-12129](https://issues.apache.org/jira/browse/BEAM-12129). If you think we should prioritize this work you can also [contact us](https://beam.apache.org/community/contact-us/) to let us know.
+Order-sensitive operations may be supported in the future. To track progress on this issue, follow [BEAM-12129](https://github.com/apache/beam/issues/20862). If you think we should prioritize this work you can also [contact us](https://beam.apache.org/community/contact-us/) to let us know.
 
 **Workaround**
 
@@ -107,7 +107,7 @@ Some DataFrame operations produce deferred scalars. In Beam, actual computation 
 
 ### Operations that aren’t implemented yet
 
-The Beam DataFrame API implements many of the commonly used pandas DataFrame operations, and we’re actively working to support the remaining operations. But pandas has a large API, and there are still gaps ([BEAM-9547](https://issues.apache.org/jira/browse/BEAM-9547)). If you invoke an operation that hasn’t been implemented yet, it will raise a `NotImplementedError`. Please [let us know](https://beam.apache.org/community/contact-us/) if you encounter a missing operation that you think should be prioritized.
+The Beam DataFrame API implements many of the commonly used pandas DataFrame operations, and we’re actively working to support the remaining operations. But pandas has a large API, and there are still gaps ([BEAM-9547](https://github.com/apache/beam/issues/20318)). If you invoke an operation that hasn’t been implemented yet, it will raise a `NotImplementedError`. Please [let us know](https://beam.apache.org/community/contact-us/) if you encounter a missing operation that you think should be prioritized.
 
 ## Using Interactive Beam to access the full pandas API
 

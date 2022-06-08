@@ -42,7 +42,7 @@ import org.joda.time.Instant;
 @Experimental(Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
   public static final String WRITE_URN = "beam:transform:org.apache.beam:kinesis_write:v1";

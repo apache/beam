@@ -309,7 +309,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * @deprecated This method permits a {@link DoFn} to emit elements behind the watermark. These
    *     elements are considered late, and if behind the {@link Window#withAllowedLateness(Duration)
    *     allowed lateness} of a downstream {@link PCollection} may be silently dropped. See
-   *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
+   *     https://github.com/apache/beam/issues/18065 for details on a replacement.
    */
   @Deprecated
   public Duration getAllowedTimestampSkew() {

@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Tracks the current state of a single execution thread. */
 @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification = "Intentional for performance.")
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> {
 

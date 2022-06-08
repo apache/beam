@@ -37,7 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>If only the table name is provided, then 'db' is assumed to be 'default'.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class HCatalogTableProvider implements TableProvider, Serializable {
 

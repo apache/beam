@@ -38,7 +38,7 @@ import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBu
 
 /** Assign Windows function. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class AssignWindowsFunction<T>
     implements ComputeCollectorFunc<WindowedValue<T>, Iterator<WindowedValue<T>>> {

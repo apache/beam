@@ -39,7 +39,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @VisibleForTesting
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 abstract class NaiveSpannerRead
     extends PTransform<PCollection<ReadOperation>, PCollection<Struct>> {

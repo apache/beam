@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
  * EvaluationContext} to execute a {@link Pipeline}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 final class ExecutorServiceParallelExecutor
     implements PipelineExecutor,

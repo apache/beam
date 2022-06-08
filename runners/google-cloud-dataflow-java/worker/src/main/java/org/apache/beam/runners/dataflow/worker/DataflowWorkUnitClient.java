@@ -55,7 +55,7 @@ import org.slf4j.Logger;
 /** A Dataflow WorkUnit client that fetches WorkItems from the Dataflow service. */
 @ThreadSafe
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class DataflowWorkUnitClient implements WorkUnitClient {
   private final Logger logger;

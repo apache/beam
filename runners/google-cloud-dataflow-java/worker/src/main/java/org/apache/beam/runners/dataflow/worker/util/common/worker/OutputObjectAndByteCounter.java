@@ -29,7 +29,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An {@link ElementCounter} that counts output objects, bytes, and mean bytes. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class OutputObjectAndByteCounter implements ElementCounter {
   // Might be null, e.g., undeclared outputs will not have an

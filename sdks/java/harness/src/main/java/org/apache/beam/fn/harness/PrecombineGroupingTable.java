@@ -48,7 +48,7 @@ import org.joda.time.Instant;
  * {@link #put} and {@link #flush}. {@link #shrink} may be called from any thread.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @NotThreadSafe
 public class PrecombineGroupingTable<K, InputT, AccumT>

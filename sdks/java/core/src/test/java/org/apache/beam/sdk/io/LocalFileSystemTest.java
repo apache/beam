@@ -498,7 +498,7 @@ public class LocalFileSystemTest {
 
   @Test
   public void testMatchWithoutParentDirectory() throws Exception {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10741
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20478
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     Path pattern =
         LocalResourceId.fromPath(temporaryFolder.getRoot().toPath(), true /* isDirectory */)
@@ -510,7 +510,7 @@ public class LocalFileSystemTest {
 
   @Test
   public void testMatchNewResource() {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10742
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20461
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     LocalResourceId fileResource =
         localFileSystem.matchNewResource("/some/test/resource/path", false /* isDirectory */);
