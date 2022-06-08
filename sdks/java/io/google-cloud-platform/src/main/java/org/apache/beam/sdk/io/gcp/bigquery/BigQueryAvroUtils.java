@@ -59,9 +59,6 @@ import org.joda.time.format.DateTimeFormatter;
  * <p>These utilities are based on the <a href="https://avro.apache.org/docs/1.8.1/spec.html">Avro
  * 1.8.1</a> specification.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class BigQueryAvroUtils {
 
   /**
@@ -417,6 +414,9 @@ class BigQueryAvroUtils {
         avroFields);
   }
 
+  @SuppressWarnings({
+    "nullness" // Avro library not annotated
+  })
   private static Field convertField(TableFieldSchema bigQueryField) {
     ImmutableCollection<Type> avroTypes = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType());
     if (avroTypes.isEmpty()) {

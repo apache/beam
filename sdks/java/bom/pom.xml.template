@@ -66,8 +66,8 @@
     <url>https://gitbox.apache.org/repos/asf?p=beam.git;a=summary</url>
   </scm>
   <issueManagement>
-    <system>jira</system>
-    <url>https://issues.apache.org/jira/browse/BEAM</url>
+    <system>github</system>
+    <url>https://github.com/apache/beam/issues</url>
   </issueManagement>
   <dependencyManagement>
     <dependencies>

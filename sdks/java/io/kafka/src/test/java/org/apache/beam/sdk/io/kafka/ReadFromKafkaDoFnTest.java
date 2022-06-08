@@ -25,14 +25,27 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -52,6 +65,7 @@ import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -70,13 +84,13 @@ public class ReadFromKafkaDoFnTest {
       new SimpleMockKafkaConsumer(OffsetResetStrategy.NONE, topicPartition);
 
   private final ReadFromKafkaDoFn<String, String> dofnInstance =
-      new ReadFromKafkaDoFn(makeReadSourceDescriptor(consumer));
+      ReadFromKafkaDoFn.create(makeReadSourceDescriptor(consumer));
 
   private final ExceptionMockKafkaConsumer exceptionConsumer =
       new ExceptionMockKafkaConsumer(OffsetResetStrategy.NONE, topicPartition);
 
   private final ReadFromKafkaDoFn<String, String> exceptionDofnInstance =
-      new ReadFromKafkaDoFn<>(makeReadSourceDescriptor(exceptionConsumer));
+      ReadFromKafkaDoFn.create(makeReadSourceDescriptor(exceptionConsumer));
 
   private ReadSourceDescriptors<String, String> makeReadSourceDescriptor(
       Consumer kafkaMockConsumer) {
@@ -417,7 +431,7 @@ public class ReadFromKafkaDoFnTest {
   public void testProcessElementWhenTopicPartitionIsStopped() throws Exception {
     MockOutputReceiver receiver = new MockOutputReceiver();
     ReadFromKafkaDoFn<String, String> instance =
-        new ReadFromKafkaDoFn(
+        ReadFromKafkaDoFn.create(
             makeReadSourceDescriptor(consumer)
                 .toBuilder()
                 .setCheckStopReadingFn(
@@ -453,5 +467,54 @@ public class ReadFromKafkaDoFnTest {
         tracker,
         null,
         (OutputReceiver) receiver);
+  }
+
+  private static final TypeDescriptor<KafkaSourceDescriptor>
+      KAFKA_SOURCE_DESCRIPTOR_TYPE_DESCRIPTOR = new TypeDescriptor<KafkaSourceDescriptor>() {};
+
+  @Test
+  public void testBounded() {
+    BoundednessVisitor visitor = testBoundedness(rsd -> rsd.withBounded());
+    Assert.assertEquals(0, visitor.unboundedPCollections.size());
+  }
+
+  @Test
+  public void testUnbounded() {
+    BoundednessVisitor visitor = testBoundedness(rsd -> rsd);
+    Assert.assertNotEquals(0, visitor.unboundedPCollections.size());
+  }
+
+  private BoundednessVisitor testBoundedness(
+      Function<ReadSourceDescriptors<String, String>, ReadSourceDescriptors<String, String>>
+          readSourceDescriptorsDecorator) {
+    TestPipeline p = TestPipeline.create();
+    p.apply(Create.empty(KAFKA_SOURCE_DESCRIPTOR_TYPE_DESCRIPTOR))
+        .apply(
+            ParDo.of(
+                ReadFromKafkaDoFn.<String, String>create(
+                    readSourceDescriptorsDecorator.apply(makeReadSourceDescriptor(consumer)))))
+        .setCoder(
+            KvCoder.of(
+                SerializableCoder.of(KafkaSourceDescriptor.class),
+                org.apache.beam.sdk.io.kafka.KafkaRecordCoder.of(
+                    StringUtf8Coder.of(), StringUtf8Coder.of())));
+
+    BoundednessVisitor visitor = new BoundednessVisitor();
+    p.traverseTopologically(visitor);
+    return visitor;
+  }
+
+  static class BoundednessVisitor extends PipelineVisitor.Defaults {
+    final List<PCollection> unboundedPCollections = new ArrayList<>();
+
+    @Override
+    public void visitValue(PValue value, Node producer) {
+      if (value instanceof PCollection) {
+        PCollection pc = (PCollection) value;
+        if (pc.isBounded() == IsBounded.UNBOUNDED) {
+          unboundedPCollections.add(pc);
+        }
+      }
+    }
   }
 }

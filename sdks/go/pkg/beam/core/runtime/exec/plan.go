@@ -66,8 +66,8 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		if p, ok := u.(*PCollection); ok {
 			pcols = append(pcols, p)
 		}
-		if p, ok := u.(*ParDo); ok {
-			p.bf = &bf
+		if p, ok := u.(needsBundleFinalization); ok {
+			p.AttachFinalizer(&bf)
 		}
 	}
 	if len(roots) == 0 {

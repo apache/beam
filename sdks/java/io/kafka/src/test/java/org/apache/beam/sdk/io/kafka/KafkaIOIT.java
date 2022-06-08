@@ -19,15 +19,20 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import com.google.cloud.Timestamp;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOITHelper;
@@ -48,13 +53,17 @@ import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -201,6 +210,57 @@ public class KafkaIOIT {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
       IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
     }
+  }
+
+  // This test roundtrips a single KV<Null,Null> to verify that externalWithMetadata
+  // can handle null keys and values correctly.
+  @Test
+  public void testKafkaIOExternalRoundtripWithMetadataAndNullKeysAndValues() {
+
+    List<byte[]> nullList = new ArrayList<>();
+    nullList.add(null);
+    writePipeline
+        .apply(Create.of(nullList))
+        .apply(
+            ParDo.of(
+                new DoFn<byte[], KV<byte[], byte[]>>() {
+                  @ProcessElement
+                  public void processElement(
+                      @Element byte[] element, OutputReceiver<KV<byte[], byte[]>> receiver) {
+                    receiver.output(KV.of(element, element));
+                  }
+                }))
+        .apply(
+            KafkaIO.<byte[], byte[]>write()
+                .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                .withTopic(options.getKafkaTopic())
+                .withKeySerializer(ByteArraySerializer.class)
+                .withValueSerializer(ByteArraySerializer.class));
+
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
+
+    PCollection<Row> rows =
+        readPipeline.apply(
+            KafkaIO.<byte[], byte[]>read()
+                .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                .withTopic(options.getKafkaTopic())
+                .withKeyDeserializerAndCoder(
+                    ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
+                .withValueDeserializerAndCoder(
+                    ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
+                .externalWithMetadata());
+
+    PAssert.thatSingleton(rows)
+        .satisfies(
+            actualRow -> {
+              assertNull(actualRow.getString("key"));
+              assertNull(actualRow.getString("value"));
+              return null;
+            });
+
+    PipelineResult readResult = readPipeline.run();
+    readResult.waitUntilFinish();
   }
 
   private long readElementMetric(PipelineResult result, String namespace, String name) {
