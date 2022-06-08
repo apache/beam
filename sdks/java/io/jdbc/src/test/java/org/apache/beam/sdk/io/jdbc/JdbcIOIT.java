@@ -40,6 +40,8 @@ import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.PostgresIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -106,6 +108,7 @@ public class JdbcIOIT {
     } catch (IllegalArgumentException e) {
       options = null;
     }
+    options.as(StreamingOptions.class).setStreaming(true);
     org.junit.Assume.assumeNotNull(options);
 
     numberOfRows = options.getNumberOfRecords();
