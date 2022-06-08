@@ -729,7 +729,7 @@ class PartitionFiles(beam.DoFn):
       # a table partition as the destination
       if '$' in destination:
         raise ValueError(
-            "This write will utilize BigQuery copy jobs via API, "
+            "This write will invoke BigQuery copy jobs via API, "
             "which don't support copying to a table partition")
 
       output_tag = PartitionFiles.MULTIPLE_PARTITIONS_TAG
