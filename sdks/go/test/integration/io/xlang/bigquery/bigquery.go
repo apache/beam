@@ -24,11 +24,14 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigqueryio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*CreateTestRowsFn)(nil)))
+	register.DoFn2x0[[]byte, func(TestRow)](&CreateTestRowsFn{})
+	register.Emitter1[TestRow]()
+	register.Function1x1[TestRowPtrs, TestRow](castFn)
 	beam.RegisterType(reflect.TypeOf((*TestRow)(nil)))
 	beam.RegisterType(reflect.TypeOf((*RandData)(nil)))
 	beam.RegisterType(reflect.TypeOf((*TestRowPtrs)(nil)))
@@ -138,6 +141,17 @@ type RandDataPtrs struct {
 	Word *string `beam:"word"`
 }
 
+func castFn(elm TestRowPtrs) TestRow {
+	return TestRow{
+		Counter: *elm.Counter,
+		Rand_data: RandData{
+			Flip: *elm.Rand_data.Flip,
+			Num:  *elm.Rand_data.Num,
+			Word: *elm.Rand_data.Word,
+		},
+	}
+}
+
 // ReadPipeline creates a pipeline that reads elements from a BigQuery table via a SQL Query, and
 // asserts that they match elements created by createFn.
 func ReadFromQueryPipeline(expansionAddr, table string, createFn interface{}) *beam.Pipeline {
@@ -151,16 +165,7 @@ func ReadFromQueryPipeline(expansionAddr, table string, createFn interface{}) *b
 	readRows := bigqueryio.Read(s, inType,
 		bigqueryio.FromQuery(query),
 		bigqueryio.ReadExpansionAddr(expansionAddr))
-	castRows := beam.ParDo(s, func(elm TestRowPtrs) TestRow {
-		return TestRow{
-			Counter: *elm.Counter,
-			Rand_data: RandData{
-				Flip: *elm.Rand_data.Flip,
-				Num:  *elm.Rand_data.Num,
-				Word: *elm.Rand_data.Word,
-			},
-		}
-	}, readRows)
+	castRows := beam.ParDo(s, castFn, readRows)
 	passert.Equals(s, castRows, rows)
 
 	return p
