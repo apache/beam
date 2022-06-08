@@ -170,8 +170,9 @@ def generate_proxy(element_type):
     return proxy
 
 
-def element_type_from_dataframe(proxy, include_indexes=False):
-  # type: (pd.DataFrame, bool) -> type
+def element_type_from_dataframe(
+    proxy, include_indexes=False, object_type_override=None):
+  # type: (pd.DataFrame, bool, Optional[type]) -> type
 
   """Generate an element_type for an element-wise PCollection from a proxy
   pandas object. Currently only supports converting the element_type for
@@ -214,7 +215,9 @@ def element_type_from_dataframe(proxy, include_indexes=False):
   output_columns.extend(zip(proxy.columns, proxy.dtypes))
 
   return named_tuple_from_schema(
-      named_fields_to_schema([(column, _dtype_to_fieldtype(dtype))
+      named_fields_to_schema([(
+          column,
+          _dtype_to_fieldtype(dtype, object_type_override=object_type_override))
                               for (column, dtype) in output_columns]))
 
 
@@ -269,15 +272,19 @@ class _UnbatchWithIndex(_BaseDataframeUnbatchDoFn):
             ] + [df[column] for column in df.columns]
 
 
-def _unbatch_transform(proxy, include_indexes):
+def _unbatch_transform(proxy, include_indexes, object_type_override):
   if isinstance(proxy, pd.DataFrame):
-    ctor = element_type_from_dataframe(proxy, include_indexes=include_indexes)
+    ctor = element_type_from_dataframe(
+        proxy,
+        include_indexes=include_indexes,
+        object_type_override=object_type_override)
 
     return beam.ParDo(
         _UnbatchWithIndex(ctor) if include_indexes else _UnbatchNoIndex(ctor))
   elif isinstance(proxy, pd.Series):
     # Raise a TypeError if proxy has an unknown type
-    output_type = _dtype_to_fieldtype(proxy.dtype)
+    output_type = _dtype_to_fieldtype(
+        proxy.dtype, object_type_override=object_type_override)
     # TODO: Should the index ever be included for a Series?
     if _match_is_optional(output_type):
 
@@ -296,7 +303,10 @@ def _unbatch_transform(proxy, include_indexes):
         "Proxy '%s' has unsupported type '%s'" % (proxy, type(proxy)))
 
 
-def _dtype_to_fieldtype(dtype):
+def _dtype_to_fieldtype(dtype, object_type_override=None):
+  if dtype == object and object_type_override:
+    return object_type_override
+
   fieldtype = PANDAS_TO_BEAM.get(dtype)
 
   if fieldtype is not None:
@@ -319,10 +329,14 @@ class UnbatchPandas(beam.PTransform):
         schema for expanded DataFrames. Raises an error if any of the index
         levels are unnamed (name=None), or if any of the names are not unique
         among all column and index names.
+    object_type_override: (optional, default: None) A more specific (and often
+        more portable) type to use for object columns.
   """
-  def __init__(self, proxy, include_indexes=False):
+  def __init__(self, proxy, include_indexes=False, object_type_override=None):
     self._proxy = proxy
     self._include_indexes = include_indexes
+    self._object_type_override = object_type_override
 
   def expand(self, pcoll):
-    return pcoll | _unbatch_transform(self._proxy, self._include_indexes)
+    return pcoll | _unbatch_transform(
+        self._proxy, self._include_indexes, self._object_type_override)

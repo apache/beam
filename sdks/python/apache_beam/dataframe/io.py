@@ -46,6 +46,7 @@ import re
 from io import BytesIO
 from io import StringIO
 from io import TextIOWrapper
+from typing import Optional
 
 import pandas as pd
 
@@ -718,3 +719,40 @@ class _WriteToPandasFileSink(fileio.FileSink):
     if self.buffer:
       self.write_to(pd.concat(self.buffer), self.file_handle)
       self.file_handle.flush()
+
+
+class ReadViaPandas(beam.PTransform):
+  def __init__(
+      self,
+      format,
+      *args,
+      include_indexes=False,
+      objects_as_strings=True,
+      **kwargs):
+    self._reader = globals()['read_%s' % format](*args, **kwargs)
+    self._include_indexes = include_indexes
+    self._objects_as_strings = objects_as_strings
+
+  def expand(self, p):
+    from apache_beam.dataframe import convert  # avoid circular import
+    return convert.to_pcollection(
+        p | self._reader,
+        include_indexes=self._include_indexes,
+        object_type_override=Optional[str]
+        if self._objects_as_strings else None)
+
+
+class WriteViaPandas(beam.PTransform):
+  def __init__(self, format, *args, **kwargs):
+    self._writer_func = globals()['to_%s' % format]
+    self._args = args
+    self._kwargs = kwargs
+
+  def expand(self, pcoll):
+    from apache_beam.dataframe import convert  # avoid circular import
+    return {
+        'files_written': self._writer_func(
+            convert.to_dataframe(pcoll), *self._args, **self._kwargs)
+        | beam.Map(lambda file_result: file_result.file_name).with_output_types(
+            str)
+    }
