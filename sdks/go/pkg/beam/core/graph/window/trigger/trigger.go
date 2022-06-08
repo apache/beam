@@ -293,8 +293,8 @@ func (t *AfterAllTrigger) SubTriggers() []Trigger {
 
 // AfterAll returns a new AfterAll trigger with subtriggers set to the passed argument.
 func AfterAll(triggers []Trigger) *AfterAllTrigger {
-	if len(triggers) < 1 {
-		panic("empty slice passed as an argument to trigger.AfterAll()")
+	if len(triggers) <= 1 {
+		panic(fmt.Sprintf("number of subtriggers to trigger.AfterAll() should be greater than 1, got: %v", len(triggers)))
 	}
 	return &AfterAllTrigger{subtriggers: triggers}
 }

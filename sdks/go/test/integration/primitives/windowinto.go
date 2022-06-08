@@ -267,3 +267,55 @@ func TriggerAfterEndOfWindow(s beam.Scope) {
 			beam.Trigger(trigger),
 		}, 2)
 }
+
+func TriggerAfterAll(s beam.Scope) {
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0, 5.0, 8.0)
+	con.AdvanceWatermark(11000)
+
+	col := teststream.Create(s, con)
+	trigger := trigger.AfterAll([]trigger.Trigger{
+		trigger.AfterCount(int32(1)),
+		trigger.Always(),
+	})
+
+	validateCount(s.Scope("Global"), window.NewGlobalWindows(), col,
+		[]beam.WindowIntoOption{
+			beam.Trigger(trigger),
+		}, 1)
+}
+
+func TriggerAfterEach(s beam.Scope) {
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0, 5.0, 8.0)
+	con.AdvanceWatermark(11000)
+
+	col := teststream.Create(s, con)
+	trigger := trigger.AfterEach([]trigger.Trigger{
+		trigger.AfterCount(int32(3)),
+		trigger.Always(),
+	})
+
+	validateCount(s.Scope("Global"), window.NewGlobalWindows(), col,
+		[]beam.WindowIntoOption{
+			beam.Trigger(trigger),
+		}, 3)
+}
+
+func TriggerAfterAny(s beam.Scope) {
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0)
+	con.AdvanceWatermark(11000)
+	con.AddElements(1200, 5.0, 8.0)
+
+	col := teststream.Create(s, con)
+	trigger := trigger.AfterAny([]trigger.Trigger{
+		trigger.AfterCount(int32(3)),
+		trigger.Always(),
+	})
+	windowSize := 10 * time.Second
+	validateCount(s.Scope("Global"), window.NewFixedWindows(windowSize), col,
+		[]beam.WindowIntoOption{
+			beam.Trigger(trigger),
+		}, 1)
+}

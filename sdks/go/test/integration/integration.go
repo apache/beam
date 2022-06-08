@@ -100,7 +100,7 @@ var flinkFilters = []string{
 	"TestXLang_Multi",
 	"TestDebeziumIO_BasicRead",
 	// Triggers are not yet supported
-	"TestTrigger.*",
+	//"TestTrigger.*",
 }
 
 var samzaFilters = []string{

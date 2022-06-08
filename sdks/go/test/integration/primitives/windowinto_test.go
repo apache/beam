@@ -78,3 +78,24 @@ func TestTriggerAfterEndOfWindow(t *testing.T) {
 	TriggerAfterEndOfWindow(s)
 	ptest.RunAndValidate(t, p)
 }
+
+func TestTriggerAfterAll(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	TriggerAfterAll(s)
+	ptest.RunAndValidate(t, p)
+}
+
+func TestTriggerAfterEach(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	TriggerAfterEach(s)
+	ptest.RunAndValidate(t, p)
+}
+
+func TestTriggerAfterAny(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	TriggerAfterAny(s)
+	ptest.RunAndValidate(t, p)
+}
