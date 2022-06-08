@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
 
 /** Utilities for Flink execution environments. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FlinkExecutionEnvironments {
 
@@ -399,7 +399,7 @@ public class FlinkExecutionEnvironments {
 
   /**
    * Disables classloader.check-leaked-classloader unless set by the user. See
-   * https://issues.apache.org/jira/browse/BEAM-11570.
+   * https://github.com/apache/beam/issues/20783.
    */
   private static void disableClassLoaderLeakCheck(final Configuration config) {
     if (!config.containsKey("classloader.check-leaked-classloader")) {

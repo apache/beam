@@ -86,7 +86,7 @@ Here’s a list of things you can do to get started contributing:
     <td class="list-text-size-md">
       <ul>
         <li>Follow the website <a href="https://beam.apache.org/contribute/get-started-contributing/">Contribution Guide</a> to make changes yourself.</li>
-        <li>Check our <a href="https://issues.apache.org/jira/browse/BEAM-13229?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20%3D%20website%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">Website Backlog</a> in Jira to find rooms for improvement, or propose one.</li>
+        <li>Check our <a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Awebsite">Website Backlog</a> in GitHub to find rooms for improvement, or propose one.</li>
       </ul>
     </td>
   </tr>

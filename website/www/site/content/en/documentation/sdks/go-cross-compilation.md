@@ -69,7 +69,7 @@ Apache Beam releases [SDK specific containers](documentation/runtime/environment
 These containers provision and initialize the worker binary as appropriate for the SDK.
 
 At present, Go SDK worker containers are only built for the `linux-amd64` platform.
-See [BEAM-11704](https://issues.apache.org/jira/browse/BEAM-11704) for the current state of ARM64 container support.
+See [BEAM-11704](https://github.com/apache/beam/issues/20807) for the current state of ARM64 container support.
 
 Because Go is statically compiled, there are no runtime dependencies on a specific Go version for a container.
 The Go release used to compile your binary will be what your workers execute.

@@ -109,7 +109,7 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class SnsIO {
 
@@ -122,7 +122,7 @@ public final class SnsIO {
 
   /**
    * @deprecated Please use {@link SnsIO#write()} to avoid the risk of data loss.
-   * @see <a href="https://issues.apache.org/jira/browse/BEAM-13824">BEAM-13824</a>, <a
+   * @see <a href="https://github.com/apache/beam/issues/21366">BEAM-13824</a>, <a
    *     href="https://issues.apache.org/jira/browse/BEAM-13203">BEAM-13203</a>
    */
   @Deprecated
@@ -394,7 +394,7 @@ public final class SnsIO {
    * Implementation of {@link #writeAsync}.
    *
    * @deprecated Please use {@link SnsIO#write()} to avoid the risk of data loss.
-   * @see <a href="https://issues.apache.org/jira/browse/BEAM-13824">BEAM-13824</a>, <a
+   * @see <a href="https://github.com/apache/beam/issues/21366">BEAM-13824</a>, <a
    *     href="https://issues.apache.org/jira/browse/BEAM-13203">BEAM-13203</a>
    */
   @Deprecated

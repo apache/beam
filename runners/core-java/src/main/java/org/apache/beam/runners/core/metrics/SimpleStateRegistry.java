@@ -29,7 +29,7 @@ import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
  * A Class for registering SimpleExecutionStates with and extracting execution time MonitoringInfos.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SimpleStateRegistry {
   private List<SimpleExecutionState> executionStates = new ArrayList<SimpleExecutionState>();

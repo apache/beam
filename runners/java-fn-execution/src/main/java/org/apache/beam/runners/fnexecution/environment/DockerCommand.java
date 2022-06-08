@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
     value = "OS_OPEN_STREAM",
     justification = "BufferedReader wraps stream we don't own and should not close")
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class DockerCommand {
   private static final Logger LOG = LoggerFactory.getLogger(DockerCommand.class);

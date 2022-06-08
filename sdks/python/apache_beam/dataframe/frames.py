@@ -1534,7 +1534,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.Series)
   def quantile(self, q, **kwargs):
     """quantile is not parallelizable. See
-    `BEAM-12167 <https://issues.apache.org/jira/browse/BEAM-12167>`_ tracking
+    `BEAM-12167 <https://github.com/apache/beam/issues/20933>`_ tracking
     the possible addition of an approximate, parallelizable implementation of
     quantile."""
     # TODO(BEAM-12167): Provide an option for approximate distributed
@@ -2273,7 +2273,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     preserved.
 
     When ``bin`` is specified this operation is not parallelizable. See
-    [BEAM-12441](https://issues.apache.org/jira/browse/BEAM-12441) tracking the
+    [BEAM-12441](https://github.com/apache/beam/issues/20903) tracking the
     possible addition of a distributed implementation."""
 
     if sort:
@@ -2602,7 +2602,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def set_index(self, keys, **kwargs):
     """``keys`` must be a ``str`` or ``List[str]``. Passing an Index or Series
     is not yet supported (`BEAM-11711
-    <https://issues.apache.org/jira/browse/BEAM-11711>`_)."""
+    <https://github.com/apache/beam/issues/20759>`_)."""
     if isinstance(keys, str):
       keys = [keys]
 
@@ -3295,7 +3295,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   def eval(self, expr, inplace, **kwargs):
     """Accessing local variables with ``@<varname>`` is not yet supported
-    (`BEAM-11202 <https://issues.apache.org/jira/browse/BEAM-11202>`_).
+    (`BEAM-11202 <https://github.com/apache/beam/issues/20626>`_).
 
     Arguments ``local_dict``, ``global_dict``, ``level``, ``target``, and
     ``resolvers`` are not yet supported."""
@@ -3306,7 +3306,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   def query(self, expr, inplace, **kwargs):
     """Accessing local variables with ``@<varname>`` is not yet supported
-    (`BEAM-11202 <https://issues.apache.org/jira/browse/BEAM-11202>`_).
+    (`BEAM-11202 <https://github.com/apache/beam/issues/20626>`_).
 
     Arguments ``local_dict``, ``global_dict``, ``level``, ``target``, and
     ``resolvers`` are not yet supported."""
@@ -3554,7 +3554,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   def quantile(self, q, axis, **kwargs):
     """``quantile(axis="index")`` is not parallelizable. See
-    `BEAM-12167 <https://issues.apache.org/jira/browse/BEAM-12167>`_ tracking
+    `BEAM-12167 <https://github.com/apache/beam/issues/20933>`_ tracking
     the possible addition of an approximate, parallelizable implementation of
     quantile.
 

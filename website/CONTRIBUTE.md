@@ -209,7 +209,7 @@ Do NOT do this:
 {{< /highlight >}}
 ```
 
-In some circumstances, the Hugo markdown parser will generate a pair of empty `<p>` tags for the extra return, and that breaks the formatting of the code tabs. TODO: Fix this issue: [BEAM-12688](https://issues.apache.org/jira/browse/BEAM-12688).
+In some circumstances, the Hugo markdown parser will generate a pair of empty `<p>` tags for the extra return, and that breaks the formatting of the code tabs. TODO: Fix this issue: [BEAM-12688](https://github.com/apache/beam/issues/21030).
 
 ### Code highlighting
 
