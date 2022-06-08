@@ -345,6 +345,12 @@ rules:
   contains: 'sdk-typescript'
   addLabels: ['sdk-typescript']
 - valueFor: 'Component'
+  contains: 'Test is flaky'
+  addLabels: ['flaky']
+- valueFor: 'Component'
+  contains: 'Test is continually failing'
+  addLabels: ['failing']
+- valueFor: 'Component'
   contains: 'test-failures'
   addLabels: ['test-failures']
 - valueFor: 'Component'

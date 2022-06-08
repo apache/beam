@@ -40,6 +40,6 @@ body:
     attributes:
       label: Failure Type
       options:
-      - "flaky"
-      - "red"
+      - "Test is flaky"
+      - "Test is continually failing"
     required: false
