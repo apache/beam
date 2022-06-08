@@ -1031,7 +1031,7 @@ public class SplittableDoFnTest implements Serializable {
     p.run();
   }
 
-  // TODO (https://github.com/apache/beam/issues/1797188): Test that Splittable DoFn
+  // TODO (https://github.com/apache/beam/issues/18091): Test that Splittable DoFn
   // emits output immediately (i.e. has a pass-through trigger) regardless of input's
   // windowing/triggering strategy.
 }

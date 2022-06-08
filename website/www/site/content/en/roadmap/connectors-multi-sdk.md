@@ -76,12 +76,12 @@ Work related to making cross-language transforms available on Direct runner
 
 Ongoing and planned work related to making existing connectors/transforms available to other SDKs through the cross-language transforms framework.
 
-* Java JdbcIO - completed - [BEAM-10135](https://github.com/apache/beam/issues/1798135), [BEAM-10136](https://github.com/apache/beam/issues/1798136)
-* Java KafkaIO - completed - [BEAM-7029](https://github.com/apache/beam/issues/180839)
-* Java KinesisIO - completed - [BEAM-10137](https://github.com/apache/beam/issues/1798137), [BEAM-10138](https://github.com/apache/beam/issues/1798138)
+* Java JdbcIO - completed - [BEAM-10135](https://issues.apache.org/jira/browse/BEAM-10135), [BEAM-10136](https://issues.apache.org/jira/browse/BEAM-10136)
+* Java KafkaIO - completed - [BEAM-7029](https://issues.apache.org/jira/browse/BEAM-7029)
+* Java KinesisIO - completed - [BEAM-10137](https://issues.apache.org/jira/browse/BEAM-10137), [BEAM-10138](https://issues.apache.org/jira/browse/BEAM-10138)
 * Java PubSubIO - In progress - [BEAM-7738](https://issues.apache.org/jira/browse/BEAM-7738)
-* Java SnowflakeIO - completed - [BEAM-9897](https://github.com/apache/beam/issues/17971897), [BEAM-9898](https://github.com/apache/beam/issues/17971898)
-* Java SpannerIO - In progress - [BEAM-10139](https://github.com/apache/beam/issues/1798139), [BEAM-10140](https://github.com/apache/beam/issues/1798140)
+* Java SnowflakeIO - completed - [BEAM-9897](https://issues.apache.org/jira/browse/BEAM-9897), [BEAM-9898](https://issues.apache.org/jira/browse/BEAM-9898)
+* Java SpannerIO - In progress - [BEAM-10139](https://issues.apache.org/jira/browse/BEAM-10139), [BEAM-10140](https://issues.apache.org/jira/browse/BEAM-10140)
 * Java SQL - completed - [BEAM-8603](https://issues.apache.org/jira/browse/BEAM-8603)
 
 ### Portable Beam schema

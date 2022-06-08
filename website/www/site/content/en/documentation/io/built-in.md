@@ -35,7 +35,7 @@ This table contains I/O transforms that are currently planned or in-progress. St
   </tr>
   <tr>
     <td>Apache DistributedLog</td><td>Java</td>
-    <td><a href="https://github.com/apache/beam/issues/179787">BEAM-607</a></td>
+    <td><a href="https://github.com/apache/beam/issues/18026">BEAM-607</a></td>
   </tr>
   <tr>
     <td>Apache Sqoop</td><td>Java</td>
@@ -47,7 +47,7 @@ This table contains I/O transforms that are currently planned or in-progress. St
   </tr>
   <tr>
     <td>Memcached</td><td>Java</td>
-    <td><a href="https://github.com/apache/beam/issues/1795778">BEAM-1678</a></td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-1678">BEAM-1678</a></td>
   </tr>
   <tr>
     <td>RestIO</td><td>Java</td>

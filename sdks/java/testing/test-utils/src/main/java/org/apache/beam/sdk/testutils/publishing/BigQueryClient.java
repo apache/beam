@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 public class BigQueryClient {
 
   // Fetching all fields (default way) may result in NullPointerException from the client library:
-  // https://github.com/apache/beam/issues/1797876.
+  // https://issues.apache.org/jira/browse/BEAM-6076.
   // Specifying only TYPE field enforces getting only the required fields (not null).
   private static final TableOption FIELD_OPTIONS = TableOption.fields(BigQuery.TableField.TYPE);
 

@@ -297,7 +297,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   private Metadata toMetadata(StorageObject storageObject) {
-    // TODO: Address https://github.com/apache/beam/issues/1796994
+    // TODO: Address https://issues.apache.org/jira/browse/BEAM-1494
     // It is incorrect to set IsReadSeekEfficient true for files with content encoding set to gzip.
     Metadata.Builder ret =
         Metadata.builder()

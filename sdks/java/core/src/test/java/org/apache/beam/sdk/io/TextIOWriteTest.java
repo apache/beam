@@ -679,7 +679,7 @@ public class TextIOWriteTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Unsafe trigger");
 
-    // Tests for https://github.com/apache/beam/issues/1796569
+    // Tests for https://issues.apache.org/jira/browse/BEAM-3169
     PCollection<String> data =
         p.apply(Create.of("0", "1", "2"))
             .apply(

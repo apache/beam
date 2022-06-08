@@ -77,7 +77,7 @@ public class BeamBuiltinAggregations {
               .put(
                   "BIT_XOR",
                   typeName -> new DropNullFn(BeamBuiltinAggregations.createBitXOr(typeName)))
-              // JIRA link:https://github.com/apache/beam/issues/17970379
+              // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
               .put(
                   "BIT_AND",
                   typeName -> new DropNullFn(BeamBuiltinAggregations.createBitAnd(typeName)))
@@ -603,7 +603,7 @@ public class BeamBuiltinAggregations {
    * Bitwise AND function implementation.
    *
    * <p>Note: null values are ignored when mixed with non-null values.
-   * (https://github.com/apache/beam/issues/17970379)
+   * (https://issues.apache.org/jira/browse/BEAM-10379)
    */
   static class BitAnd<T extends Number> extends CombineFn<T, BitAnd.Accum, Long> {
     static class Accum implements Serializable {

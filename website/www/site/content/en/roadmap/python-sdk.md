@@ -23,7 +23,7 @@ The Apache Beam community voted to join [the pledge](https://python3statement.or
 
 ## Python 3 Support
 
-Apache Beam 2.14.0 and higher support Python 3.5, 3.6, and 3.7. We're continuing to [improve](https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050) the experience for Python 3 users and add support for Python 3.x minor versions ([BEAM-8494](https://github.com/apache/beam/issues/180564)):
+Apache Beam 2.14.0 and higher support Python 3.5, 3.6, and 3.7. We're continuing to [improve](https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050) the experience for Python 3 users and add support for Python 3.x minor versions ([BEAM-8494](https://issues.apache.org/jira/browse/BEAM-8494)):
 
 
  - [Kanban Board](https://issues.apache.org/jira/secure/RapidBoard.jspa?rapidView=245&view=detail)

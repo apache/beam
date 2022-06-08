@@ -68,7 +68,7 @@ public class BeamRuleSets {
           CoreRules.FILTER_TO_CALC,
           CoreRules.PROJECT_TO_CALC,
           BeamIOPushDownRule.INSTANCE,
-          // disabled due to https://github.com/apache/beam/issues/1796310
+          // disabled due to https://issues.apache.org/jira/browse/BEAM-6810
           // CoreRules.CALC_REMOVE,
 
           // Rules to merge matching Calcs together.

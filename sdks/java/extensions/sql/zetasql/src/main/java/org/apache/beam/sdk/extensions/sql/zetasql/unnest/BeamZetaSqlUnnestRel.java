@@ -52,7 +52,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * except that in UnnestFn it does not treat elements of struct type differently.
  *
  * <p>Details of why unwrapping structs breaks ZetaSQL UNNEST syntax is in
- * https://github.com/apache/beam/issues/17970896.
+ * https://issues.apache.org/jira/browse/BEAM-10896.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

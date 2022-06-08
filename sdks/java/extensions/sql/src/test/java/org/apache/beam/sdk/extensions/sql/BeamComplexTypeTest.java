@@ -228,7 +228,7 @@ public class BeamComplexTypeTest {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 
-  @Ignore("https://github.com/apache/beam/issues/1796089")
+  @Ignore("https://github.com/apache/beam/issues/19011")
   @Test
   public void testSelectInnerRowOfNestedRow() {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(readOnlyTableProvider);

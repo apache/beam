@@ -32,5 +32,5 @@ more details on the planned Beam connector for InfluxDB.
 # Memcached
 
 Memcached is a distributed memory caching system. See
-[BEAM-1678](https://github.com/apache/beam/issues/1795778) for more details on the
+[BEAM-1678](https://issues.apache.org/jira/browse/BEAM-1678) for more details on the
 planned Beam connector for Memcached.
