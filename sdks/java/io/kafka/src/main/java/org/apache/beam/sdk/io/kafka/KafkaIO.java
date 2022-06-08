@@ -1464,24 +1464,6 @@ public class KafkaIO {
                       topics,
                       kafkaRead.getStartReadTime(),
                       kafkaRead.getStopReadTime()));
-          // .getPipeline()
-          // .apply(Impulse.create())
-          // .apply(
-          //     MapElements.into(
-          //             TypeDescriptors.kvs(
-          //                 new TypeDescriptor<byte[]>() {}, new TypeDescriptor<byte[]>() {}))
-          //         .via(element -> KV.of(element, element)))
-          // .apply(
-          //     ParDo.of(
-          //         new WatchKafkaTopicPartitionDoFn(
-          //             kafkaRead.getWatchTopicPartitionDuration(),
-          //             kafkaRead.getConsumerFactoryFn(),
-          //             kafkaRead.getCheckStopReadingFn(),
-          //             kafkaRead.getConsumerConfig(),
-          //             kafkaRead.getStartReadTime(),
-          //             kafkaRead.getStopReadTime(),
-          //             topics.stream().collect(Collectors.toList()))));
-
         } else {
           output =
               input
