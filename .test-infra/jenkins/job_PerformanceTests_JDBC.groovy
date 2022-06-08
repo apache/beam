@@ -43,6 +43,7 @@ job(jobName) {
     tempRoot             : 'gs://temp-storage-for-perf-tests',
     project              : 'apache-beam-testing',
     runner               : 'DataflowRunner',
+    streaming            : true,
     numberOfRecords      : '5000000',
     bigQueryDataset      : 'beam_performance',
     bigQueryTable        : 'jdbcioit_results',
