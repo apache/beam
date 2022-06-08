@@ -42,13 +42,23 @@ public class WindmillTimeUtils {
    * round timestamps down and output watermarks up.
    */
   public static Instant windmillToHarnessTimestamp(long timestampUs) {
+    System.out.println("check if need to bound timestamp: " + String.valueOf(timestampUs));
     // Windmill should never send us an unknown timestamp.
     Preconditions.checkArgument(timestampUs != Long.MIN_VALUE);
     Instant result = new Instant(divideAndRoundDown(timestampUs, 1000));
+    if (result.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
+      System.out.println("bounding");
+      return BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
     if (result.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
       // End of time.
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
+    System.out.println(
+        "no bounding: "
+            + String.valueOf(result)
+            + " : "
+            + String.valueOf(BoundedWindow.TIMESTAMP_MIN_VALUE));
     return result;
   }
 

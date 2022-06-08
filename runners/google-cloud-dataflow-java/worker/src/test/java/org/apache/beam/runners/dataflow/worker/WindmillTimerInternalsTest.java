@@ -88,12 +88,31 @@ public class WindmillTimerInternalsTest {
                       TimerData.of(
                           namespace, timestamp, timestamp.minus(Duration.millis(1)), timeDomain));
               for (TimerData timer : anonymousTimers) {
-                assertThat(
+                TimerData computed =
                     WindmillTimerInternals.windmillTimerToTimerData(
                         prefix,
                         WindmillTimerInternals.timerDataToWindmillTimer(stateFamily, prefix, timer),
-                        coder),
-                    equalTo(timer));
+                        coder);
+                // Instant outputTime =
+                //     timer.getOutputTimestamp().isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)
+                //         ? BoundedWindow.TIMESTAMP_MIN_VALUE
+                //         : timer.getOutputTimestamp();
+                TimerData expected =
+                    TimerData.of(
+                        timer.getNamespace(),
+                        timer.getTimestamp(),
+                        timer.getOutputTimestamp(), // outputTime,
+                        timer.getDomain());
+                // assertThat(
+                //     WindmillTimerInternals.windmillTimerToTimerData(
+                //         prefix,
+                //         WindmillTimerInternals.timerDataToWindmillTimer(stateFamily, prefix,
+                // timer),
+                //         coder),
+                //     equalTo(timer));
+                System.out.println("computed: " + String.valueOf(computed));
+                System.out.println("expected: " + String.valueOf(expected));
+                assertThat(computed, equalTo(expected));
               }
 
               for (String timerId : TEST_TIMER_IDS) {
