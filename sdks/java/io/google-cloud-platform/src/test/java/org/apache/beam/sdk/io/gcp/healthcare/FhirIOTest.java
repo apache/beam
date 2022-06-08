@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -145,5 +148,13 @@ public class FhirIOTest {
     PAssert.that(failedEverything).containsInAnyOrder(input.toString());
     PAssert.that(everythingResult.getPatientCompartments()).empty();
     pipeline.run();
+  }
+
+  @Test
+  public void test_FhirIO_Export_invalidUri() {
+    final String invalidUri = "someInvalidUri";
+    pipeline.apply(FhirIO.exportResources("fakeStore", invalidUri));
+    final RuntimeException exceptionThrown = assertThrows(RuntimeException.class, pipeline::run);
+    assertTrue(exceptionThrown.getMessage().contains(invalidUri));
   }
 }

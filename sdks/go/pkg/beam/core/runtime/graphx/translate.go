@@ -65,9 +65,11 @@ const (
 
 	URNLegacyProgressReporting = "beam:protocol:progress_reporting:v0"
 	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
+	URNWorkerStatus            = "beam:protocol:worker_status:v1"
 
 	URNRequiresSplittableDoFn     = "beam:requirement:pardo:splittable_dofn:v1"
 	URNRequiresBundleFinalization = "beam:requirement:pardo:finalization:v1"
+	URNTruncate                   = "beam:transform:sdf_truncate_sized_restrictions:v1"
 
 	// Deprecated: Determine worker binary based on GoWorkerBinary Role instead.
 	URNArtifactGoWorker = "beam:artifact:type:go_worker_binary:v1"
@@ -86,6 +88,8 @@ func goCapabilities() []string {
 	capabilities := []string{
 		URNLegacyProgressReporting,
 		URNMultiCore,
+		URNTruncate,
+		URNWorkerStatus,
 		// TOOD(BEAM-9614): Make this versioned.
 		"beam:version:sdk_base:go",
 	}

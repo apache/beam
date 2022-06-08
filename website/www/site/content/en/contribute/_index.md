@@ -50,7 +50,6 @@ Here’s a list of things you can do to get started contributing:
     <td>Participate and share ideas</td>
     <td class="list-text-size-md">
       <ul>
-        <li>Start by <a href="https://beam.apache.org/contribute/#accounts-and-permissions">getting an Apache Beam Jira account</a>.</li>
         <li>Subscribe to our <a href="https://beam.apache.org/community/contact-us/">mailing lists</a> (<a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> and <a href="mailto:dev@beam.apache.org">user@beam.apache.org</a>).</li>
         <li>Stay in the loop of our <a href="https://issues.apache.org/jira/projects/BEAM/issues">Jira product backlog</a>, participate in discussions to brainstorm solutions, and help the community solve their mailing list questions.</li>
       </ul>
@@ -60,7 +59,7 @@ Here’s a list of things you can do to get started contributing:
     <td>File a bug</td>
     <td class="list-text-size-md">
       <ol class="no-bullet">
-        <li>Create a Jira ticket and mark it as a bug</li>
+        <li>Create a GitHub issue and mark it as a bug</li>
         <br><span class="text--active">OR</span><br><br>
         <li>Send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> with subject: [Bug] &lt;bug summary&gt; and include as much detail as possible.</li>
       </ol>
@@ -70,7 +69,7 @@ Here’s a list of things you can do to get started contributing:
     <td>Propose a feature</td>
     <td class="list-text-size-md">
       <ol class="no-bullet">
-        <li>Create a Jira ticket and mark it as a feature request</li>
+        <li>Create a GitHub issue and mark it as a feature request</li>
         <br><span class="text--active">OR</span><br><br>
         <li>Send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> with subject: [Feature Proposal] &lt;your idea&gt;.</li>
       </ol>

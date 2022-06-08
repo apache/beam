@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.FileSystems.match;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -64,9 +64,6 @@ import org.slf4j.LoggerFactory;
  *
  * ...
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySourceBase.class);
 
@@ -76,7 +73,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   protected final String stepUuid;
   protected final BigQueryServices bqServices;
 
-  private transient List<BoundedSource<T>> cachedSplitResult;
+  private transient @Nullable List<BoundedSource<T>> cachedSplitResult = null;
   private SerializableFunction<SchemaAndRecord, T> parseFn;
   private Coder<T> coder;
   private final boolean useAvroLogicalTypes;
@@ -87,24 +84,26 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       boolean useAvroLogicalTypes) {
-    this.stepUuid = checkNotNull(stepUuid, "stepUuid");
-    this.bqServices = checkNotNull(bqServices, "bqServices");
-    this.coder = checkNotNull(coder, "coder");
-    this.parseFn = checkNotNull(parseFn, "parseFn");
+    this.stepUuid = checkArgumentNotNull(stepUuid, "stepUuid");
+    this.bqServices = checkArgumentNotNull(bqServices, "bqServices");
+    this.coder = checkArgumentNotNull(coder, "coder");
+    this.parseFn = checkArgumentNotNull(parseFn, "parseFn");
     this.useAvroLogicalTypes = useAvroLogicalTypes;
   }
 
   protected static class ExtractResult {
     public final TableSchema schema;
     public final List<ResourceId> extractedFiles;
-    public List<MatchResult.Metadata> metadata = null;
+    public @Nullable List<MatchResult.Metadata> metadata = null;
 
     public ExtractResult(TableSchema schema, List<ResourceId> extractedFiles) {
       this(schema, extractedFiles, null);
     }
 
     public ExtractResult(
-        TableSchema schema, List<ResourceId> extractedFiles, List<MatchResult.Metadata> metadata) {
+        TableSchema schema,
+        List<ResourceId> extractedFiles,
+        @Nullable List<MatchResult.Metadata> metadata) {
       this.schema = schema;
       this.extractedFiles = extractedFiles;
       this.metadata = metadata;
@@ -167,7 +166,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
         }
       }
       cleanupTempResource(options.as(BigQueryOptions.class));
-      cachedSplitResult = checkNotNull(createSources(res.extractedFiles, res.schema, res.metadata));
+      cachedSplitResult = createSources(res.extractedFiles, res.schema, res.metadata);
     }
     return cachedSplitResult;
   }
@@ -228,7 +227,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     return BigQueryIO.getExtractFilePaths(extractDestinationDir, extractJob);
   }
 
-  private static class TableSchemaFunction implements Serializable, Function<String, TableSchema> {
+  private static class TableSchemaFunction
+      implements Serializable, Function<@Nullable String, @Nullable TableSchema> {
     @Override
     public @Nullable TableSchema apply(@Nullable String input) {
       return BigQueryHelpers.fromJsonString(input, TableSchema.class);
@@ -236,7 +236,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   }
 
   List<BoundedSource<T>> createSources(
-      List<ResourceId> files, TableSchema schema, List<MatchResult.Metadata> metadata)
+      List<ResourceId> files, TableSchema schema, @Nullable List<MatchResult.Metadata> metadata)
       throws IOException, InterruptedException {
 
     final String jsonSchema = BigQueryIO.JSON_FACTORY.toString(schema);

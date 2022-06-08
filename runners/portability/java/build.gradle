@@ -120,6 +120,12 @@ task stopLocalJobService {
 
 startLocalJobService.configure{finalizedBy stopLocalJobService}
 
+def sickbayTests = [
+
+        //TODO: https://issues.apache.org/jira/browse/BEAM-10995
+        'org.apache.beam.sdk.transforms.windowing.WindowingTest.testWindowPreservation',
+]
+
 /**
  * Runs Java ValidatesRunner tests against the Universal Local Runner (ULR) aka local_job_service_main
  * with the specified environment type.
@@ -193,8 +199,10 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedMapAsEntrySetSideInput'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testMultimapAsEntrySetSideInput'
 
-      // https://issues.apache.org/jira/browse/BEAM-10995
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest.testWindowPreservation'
+      for (String test : sickbayTests) {
+        excludeTestsMatching test
+      }
+
     }
   }
 
@@ -211,6 +219,23 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
   }
 
   return vrTask
+}
+
+tasks.register("validatesRunnerSickbay", Test) {
+  group = "Verification"
+  description "Validates Universal local runner (Sickbay Tests)"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestUniversalRunner",
+  ])
+
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+
+  filter {
+    for (String test : sickbayTests) {
+      includeTestsMatching test
+    }
+  }
 }
 
 task ulrDockerValidatesRunner {

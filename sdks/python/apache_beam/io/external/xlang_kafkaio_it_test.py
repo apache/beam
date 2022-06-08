@@ -124,7 +124,7 @@ class CrossLanguageKafkaIOTest(unittest.TestCase):
           bootstrap_servers, kafka_topic, False)
 
       self.run_kafka_write(pipeline_creator)
-      self.run_kafka_read(pipeline_creator)
+      self.run_kafka_read(pipeline_creator, b'key')
 
   def test_kafkaio_null_key(self):
     kafka_topic = 'xlang_kafkaio_test_null_key_{}'.format(uuid.uuid4())
@@ -136,20 +136,21 @@ class CrossLanguageKafkaIOTest(unittest.TestCase):
           bootstrap_servers, kafka_topic, True)
 
       self.run_kafka_write(pipeline_creator)
-      self.run_kafka_read(pipeline_creator)
+      self.run_kafka_read(pipeline_creator, None)
 
   def run_kafka_write(self, pipeline_creator):
     with TestPipeline() as pipeline:
       pipeline.not_use_test_runner_api = True
       pipeline_creator.build_write_pipeline(pipeline)
 
-  def run_kafka_read(self, pipeline_creator):
+  def run_kafka_read(self, pipeline_creator, expected_key):
     with TestPipeline() as pipeline:
       pipeline.not_use_test_runner_api = True
       result = pipeline_creator.build_read_pipeline(pipeline, NUM_RECORDS)
       assert_that(
           result,
-          equal_to([(b'', str(i).encode()) for i in range(NUM_RECORDS)]))
+          equal_to([(expected_key, str(i).encode())
+                    for i in range(NUM_RECORDS)]))
 
   def get_platform_localhost(self):
     if sys.platform == 'darwin':

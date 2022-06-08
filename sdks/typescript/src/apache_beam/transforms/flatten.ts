@@ -17,28 +17,32 @@
  */
 
 import * as runnerApi from "../proto/beam_runner_api";
-import { PTransform } from "./transform";
+import { PTransform, withName } from "./transform";
 import { PCollection } from "../pvalue";
 import { Pipeline } from "../internal/pipeline";
 import { GeneralObjectCoder } from "../coders/js_coders";
 
-export class Flatten<T> extends PTransform<PCollection<T>[], PCollection<T>> {
-  // static urn: string = runnerApi.StandardPTransforms_Primitives.GROUP_BY_KEY.urn;
-  // TODO: (Cleanup) use above line, not below line.
-  static urn: string = "beam:transform:flatten:v1";
-  name = "Flatten";
-
-  expandInternal(
+export function flatten<T>(): PTransform<PCollection<T>[], PCollection<T>> {
+  function expandInternal(
     inputs: PCollection<T>[],
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform
   ) {
     transformProto.spec = runnerApi.FunctionSpec.create({
-      urn: Flatten.urn,
+      urn: flatten.urn,
       payload: null!,
     });
 
-    // TODO: Input coder if they're all the same? UnionCoder?
-    return pipeline.createPCollectionInternal<T>(new GeneralObjectCoder());
+    // TODO: UnionCoder if they're not the same?
+    const coders = new Set(
+      inputs.map((pc) => pipeline.context.getPCollectionCoderId(pc))
+    );
+    const coder =
+      coders.size == 1 ? [...coders][0] : new GeneralObjectCoder<T>();
+    return pipeline.createPCollectionInternal<T>(coder);
   }
+
+  return withName("flatten", expandInternal);
 }
+
+flatten.urn = "beam:transform:flatten:v1";

@@ -68,7 +68,7 @@ class DescriptionPopover extends StatelessWidget {
     return TextButton.icon(
       icon: SvgPicture.asset(kGithubIconAsset),
       onPressed: () {
-        launch(example.link ?? '');
+        launchUrl(Uri.parse(example.link ?? ''));
       },
       label: Text(appLocale.viewOnGithub),
     );
