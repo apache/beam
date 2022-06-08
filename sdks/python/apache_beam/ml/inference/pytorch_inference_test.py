@@ -37,8 +37,8 @@ try:
   import torch
   from apache_beam.ml.inference.api import PredictionResult
   from apache_beam.ml.inference.base import RunInference
-  from apache_beam.ml.inference.pytorch import PytorchInferenceRunner
-  from apache_beam.ml.inference.pytorch import PytorchModelLoader
+  from apache_beam.ml.inference.pytorch_inference import PytorchInferenceRunner
+  from apache_beam.ml.inference.pytorch_inference import PytorchModelLoader
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
 

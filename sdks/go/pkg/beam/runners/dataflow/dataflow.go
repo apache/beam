@@ -53,7 +53,8 @@ import (
 var (
 	endpoint               = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
 	stagingLocation        = flag.String("staging_location", "", "GCS staging location (required).")
-	image                  = flag.String("worker_harness_container_image", "", "Worker harness container image (optional).")
+	workerHarnessImage     = flag.String("worker_harness_container_image", "", "Worker harness container image (optional). Deprecated in favor of the sdk_container_image flag.")
+	image                  = flag.String("sdk_container_image", "", "Worker harness container image (optional).")
 	labels                 = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
 	serviceAccountEmail    = flag.String("service_account_email", "", "Service account email (optional).")
 	numWorkers             = flag.Int64("num_workers", 0, "Number of workers (optional).")
@@ -103,6 +104,7 @@ var flagFilter = map[string]bool{
 	"dataflow_endpoint":              true,
 	"staging_location":               true,
 	"worker_harness_container_image": true,
+	"sdk_container_image":            true,
 	"labels":                         true,
 	"service_account_email":          true,
 	"num_workers":                    true,
@@ -360,6 +362,12 @@ func gcsRecorderHook(opts []string) perf.CaptureHook {
 func getContainerImage(ctx context.Context) string {
 	urn := jobopts.GetEnvironmentUrn(ctx)
 	if urn == "" || urn == "beam:env:docker:v1" {
+		if *workerHarnessImage != "" {
+			if *image != "" {
+				panic("Both worker_harness_container_image and sdk_container_image cannot both be set. Prefer sdk_container_image, worker_harness_container_image is deprecated.")
+			}
+			return *workerHarnessImage
+		}
 		if *image != "" {
 			return *image
 		}

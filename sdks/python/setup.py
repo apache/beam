@@ -203,33 +203,33 @@ if __name__ == '__main__':
           'apache_beam/utils/windowed_value.py',
       ]),
       install_requires=[
-          # Avro 1.9.2 for python3 was broken.
-          # The issue was fixed in version 1.9.2.1
-          'crcmod>=1.7,<2.0',
-          'orjson<4.0',
-          # Dill doesn't have forwards-compatibility guarantees within minor
-          # version. Pickles created with a new version of dill may not unpickle
-          # using older version of dill. It is best to use the same version of
-          # dill on client and server, therefore list of allowed versions is very
-          # narrow. See: https://github.com/uqfoundation/dill/issues/341.
-          'dill>=0.3.1.1,<0.3.2',
-          'cloudpickle>=2.0.0,<3',
-          'fastavro>=0.23.6,<2',
-          'grpcio>=1.29.0,<2',
-          'hdfs>=2.1.0,<3.0.0',
-          'httplib2>=0.8,<0.21.0',
-          'numpy>=1.14.3,<1.23.0',
-          'pymongo>=3.8.0,<4.0.0',
-          'protobuf>=3.12.2,<4',
-          'proto-plus>=1.7.1,<2',
-          'pydot>=1.2.0,<2',
-          'python-dateutil>=2.8.0,<3',
-          'pytz>=2018.3',
-          'requests>=2.24.0,<3.0.0',
-          'typing-extensions>=3.7.0',
-          # Dynamic dependencies must be specified in a separate list, otherwise
-          # Dependabot won't be able to parse the main list. Any dynamic
-          # dependencies will not receive updates from Dependabot.
+        # Avro 1.9.2 for python3 was broken.
+        # The issue was fixed in version 1.9.2.1
+        'crcmod>=1.7,<2.0',
+        'orjson<4.0',
+        # Dill doesn't have forwards-compatibility guarantees within minor
+        # version. Pickles created with a new version of dill may not unpickle
+        # using older version of dill. It is best to use the same version of
+        # dill on client and server, therefore list of allowed versions is very
+        # narrow. See: https://github.com/uqfoundation/dill/issues/341.
+        'dill>=0.3.5.1,<0.3.6',
+        'cloudpickle>=2.0.0,<3',
+        'fastavro>=0.23.6,<2',
+        'grpcio>=1.33.1,<2',
+        'hdfs>=2.1.0,<3.0.0',
+        'httplib2>=0.8,<0.21.0',
+        'numpy>=1.14.3,<1.23.0',
+        'pymongo>=3.8.0,<4.0.0',
+        'protobuf>=3.12.2,<4',
+        'proto-plus>=1.7.1,<2',
+        'pydot>=1.2.0,<2',
+        'python-dateutil>=2.8.0,<3',
+        'pytz>=2018.3',
+        'requests>=2.24.0,<3.0.0',
+        'typing-extensions>=3.7.0',
+      # Dynamic dependencies must be specified in a separate list, otherwise
+      # Dependabot won't be able to parse the main list. Any dynamic
+      # dependencies will not receive updates from Dependabot.
       ] + [pyarrow_dependency],
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.

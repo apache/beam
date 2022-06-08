@@ -35,5 +35,5 @@ See the [godoc](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam) f
 Version 2.32.0 is the last experimental release of the Go SDK. The Go SDK supports most Batch oriented features, and cross language transforms.
 It's possible to write many kinds of transforms, but specific built in transforms may still be missing, or incomplete.
 
-Requests for specific transforms may be filed to the [`sdk-go` component in JIRA](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Open%2C%20%22In%20Progress%22%2C%20Idea%2C%20%22Under%20Discussion%22%2C%20%22In%20Implementation%22%2C%20%22Triage%20Needed%22)%20AND%20component%20%3D%20sdk-go%20ORDER%20BY%20updated%20DESC).
+Requests for specific transforms may be filed to the [`sdk-go` component in GitHub Issues](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Asdk-go).
 Contributions are welcome.
