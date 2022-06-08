@@ -53,7 +53,7 @@
 
 ## Highlights
 
-* Initial preview of [RunInference](link) API added to Python SDK ([BEAM-13970](https://issues.apache.org/jira/browse/BEAM-13970)).
+* Initial preview of the [RunInference](https://s.apache.org/inference-sklearn-pytorch) API added to Python SDK ([BEAM-13970](https://issues.apache.org/jira/browse/BEAM-13970)).
     See also example at apache_beam/examples/inference/pytorch_image_classification.py
 
 ## I/Os
