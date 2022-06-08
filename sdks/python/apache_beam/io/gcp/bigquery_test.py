@@ -509,7 +509,7 @@ class TestReadFromBigQuery(unittest.TestCase):
           query='SELECT * FROM `project.dataset.table`',
           gcs_location='gs://temp_location')
 
-    self.assertEqual(4, mock_insert.call_count)
+    mock_insert.assert_called()
     self.assertIn(error_message, exc.exception.args[0])
 
   @parameterized.expand([
@@ -539,7 +539,7 @@ class TestReadFromBigQuery(unittest.TestCase):
           query='SELECT * FROM `project.dataset.table`',
           gcs_location='gs://temp_location')
 
-    self.assertEqual(4, mock_query_job.call_count)
+    mock_query_job.assert_called()
     self.assertIn(error_message, exc.exception.args[0])
 
   @parameterized.expand([
@@ -566,7 +566,7 @@ class TestReadFromBigQuery(unittest.TestCase):
           table='project:dataset.table',
           gcs_location="gs://temp_location")
 
-    self.assertEqual(4, mock_query_job.call_count)
+    mock_query_job.assert_called()
     self.assertIn(error_message, exc.exception.args[0])
 
 
@@ -953,7 +953,7 @@ class TestWriteToBigQuery(unittest.TestCase):
               custom_gcs_temp_location="gs://temp_location",
               method='FILE_LOADS'))
 
-    self.assertEqual(4, mock_load_job.call_count)
+    mock_load_job.assert_called()
     self.assertIn(error_message, exc.exception.args[0])
 
   @parameterized.expand([
