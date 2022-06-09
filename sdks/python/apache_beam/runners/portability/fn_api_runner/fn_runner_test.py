@@ -320,7 +320,7 @@ class FnApiRunnerTest(unittest.TestCase):
       @beam.DoFn.yields_batches
       def process(self, element: np.int64, *unused_args,
                   **unused_kwargs) -> Iterator[np.ndarray]:
-        yield np.array([element] * element)
+        yield np.array([element] * int(element))
 
       # infer_output_type must be defined (when there's no process method),
       # otherwise we don't know the input type is the same as output type.
