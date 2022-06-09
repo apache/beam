@@ -47,13 +47,13 @@ class StagerTest(unittest.TestCase):
   def setUp(self):
     self._temp_dir = None
     self.stager = TestStager()
-    # [BEAM-13769] set pickler to dill by default.
-    pickler.set_library(pickler.DEFAULT_PICKLE_LIB)
 
   def tearDown(self):
     if self._temp_dir:
       shutil.rmtree(self._temp_dir)
     self.stager = None
+    # [BEAM-13769] set pickler to dill by default.
+    pickler.set_library(pickler.DEFAULT_PICKLE_LIB)
 
   def make_temp_dir(self):
     if self._temp_dir is None:
