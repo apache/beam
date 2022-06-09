@@ -37,6 +37,7 @@ from typing import Generic
 from typing import Iterable
 from typing import List
 from typing import Mapping
+from typing import Tuple
 from typing import TypeVar
 
 import apache_beam as beam
@@ -54,6 +55,7 @@ _NANOSECOND_TO_MICROSECOND = 1_000
 ModelT = TypeVar('ModelT')
 ExampleT = TypeVar('ExampleT')
 PredictionT = TypeVar('PredictionT')
+KeyT = TypeVar('KeyT')
 
 
 def _to_milliseconds(time_ns: int) -> int:
@@ -99,6 +101,48 @@ class ModelLoader(Generic[ExampleT, PredictionT, ModelT]):
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     """Returns kwargs suitable for beam.BatchElements."""
     return {}
+
+
+class KeyedModelLoader(Generic[KeyT, ExampleT, PredictionT, ModelT],
+                       ModelLoader[Tuple[KeyT, ExampleT],
+                                   Tuple[KeyT, PredictionT],
+                                   ModelT]):
+  def __init__(self, unkeyed: ModelLoader[ExampleT, PredictionT, ModelT]):
+    self._unkeyed = unkeyed
+
+  def load_model(self) -> ModelT:
+    return self._unkeyed.load_model()
+
+  def get_inference_runner(self):
+    return KeyedInferenceRunner(self._unkeyed.get_inference_runner())
+
+  def get_resource_hints(self):
+    return self._unkeyed.get_resource_hints()
+
+  def batch_elements_kwargs(self):
+    return self._unkeyed.batch_elements_kwargs()
+
+
+class KeyedInferenceRunner(Generic[KeyT, ExampleT, PredictionT, ModelT],
+                           InferenceRunner[Tuple[KeyT, ExampleT],
+                                           Tuple[KeyT, PredictionT],
+                                           ModelT]):
+  def __init__(self, unkeyed: InferenceRunner[ExampleT, PredictionT, ModelT]):
+    self._unkeyed = unkeyed
+
+  def run_inference(
+      self, batch: List[Tuple[KeyT, ExampleT]], model: ModelT,
+      **kwargs) -> Iterable[Tuple[KeyT, PredictionT]]:
+    keys, unkeyed_batch = zip(*batch)
+    return zip(
+        keys, self._unkeyed.run_inference(unkeyed_batch, model, **kwargs))
+
+  def get_num_bytes(self, batch: List[Tuple[KeyT, ExampleT]]) -> int:
+    keys, unkeyed_batch = zip(*batch)
+    return len(pickle.dumps(keys)) + self._unkeyed.get_num_bytes(unkeyed_batch)
+
+  def get_metrics_namespace(self) -> str:
+    return self._unkeyed.get_metrics_namespace()
 
 
 class RunInference(beam.PTransform[beam.PCollection[ExampleT],
@@ -214,32 +258,18 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = self._load_model()
 
   def process(self, batch, **kwargs):
-    # Process supports both keyed data, and example only data.
-    # First keys and samples are separated (if there are keys)
-    has_keys = isinstance(batch[0], tuple)
-    if has_keys:
-      examples = [example for _, example in batch]
-      keys = [key for key, _ in batch]
-    else:
-      examples = batch
-      keys = None
-
     start_time = _to_microseconds(self._clock.time_ns())
     result_generator = self._inference_runner.run_inference(
-        examples, self._model, **kwargs)
+        batch, self._model, **kwargs)
     predictions = list(result_generator)
 
     end_time = _to_microseconds(self._clock.time_ns())
     inference_latency = end_time - start_time
-    num_bytes = self._inference_runner.get_num_bytes(examples)
+    num_bytes = self._inference_runner.get_num_bytes(batch)
     num_elements = len(batch)
     self._metrics_collector.update(num_elements, num_bytes, inference_latency)
 
-    # Keys are recombined with predictions in the RunInference PTransform.
-    if has_keys:
-      yield from zip(keys, predictions)
-    else:
-      yield from predictions
+    return predictions
 
   def finish_bundle(self):
     # TODO(BEAM-13970): Figure out why there is a cache.

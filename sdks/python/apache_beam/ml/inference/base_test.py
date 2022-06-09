@@ -116,7 +116,8 @@ class RunInferenceBaseTest(unittest.TestCase):
       keyed_examples = [(i, example) for i, example in enumerate(examples)]
       expected = [(i, example + 1) for i, example in enumerate(examples)]
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
-      actual = pcoll | base.RunInference(FakeModelLoader())
+      actual = pcoll | base.RunInference(
+          base.KeyedModelLoader(FakeModelLoader()))
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_impl_kwargs(self):
