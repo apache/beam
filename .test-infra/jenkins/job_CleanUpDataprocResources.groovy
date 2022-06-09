@@ -31,7 +31,7 @@ job('Cleanup Dataproc Resources') {
   commonJobProperties.setCronJob(delegate, 'H */6 * * *')
 
   steps {
-    shell("cd ${CLEANUP_DIR}; ./${CLEANUP_SCRIPT} -xe") 
+    shell("cd ${CLEANUP_DIR}; ./${CLEANUP_SCRIPT} -xe")
   }
 
 }
