@@ -299,7 +299,7 @@ public class JdbcIOIT {
 
       pipelineWrite.runWithAdditionalOptionArgs(Lists.newArrayList("--enableStreamingEngine", "--streaming")).waitUntilFinish();
 
-      runRead();
+      runRead().waitUntilFinish();
     } finally {
       DatabaseTestHelper.deleteTable(dataSource, firstTableName);
     }
