@@ -219,10 +219,12 @@ func (b *Store) storeMetric(pid string, n name, m userMetric) {
 	b.store[l] = m
 }
 
+// BundleState returns the bundle state.
 func (b *Store) BundleState() *BundleState {
 	return b.bundleState
 }
 
+// StateRegistry returns the state registry that stores bundleID to executions states mapping.
 func (b *Store) StateRegistry() map[string]*[4]ExecutionState {
 	return b.stateRegistry
 }

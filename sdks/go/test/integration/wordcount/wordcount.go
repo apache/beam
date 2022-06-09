@@ -25,7 +25,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"regexp"
 	"strings"
-	"time"
 )
 
 var (
@@ -56,7 +55,6 @@ func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
 
 // extractFn is a DoFn that emits the words in a given line.
 func extractFn(ctx context.Context, line string, emit func(string)) {
-	time.Sleep(time.Second * 660)
 	lineLen.Update(ctx, int64(len(line)))
 	if len(strings.TrimSpace(line)) == 0 {
 		empty.Inc(ctx, 1)

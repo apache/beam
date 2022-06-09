@@ -50,57 +50,57 @@ func TestWordCount(t *testing.T) {
 			"wordcount.extractFn",
 			1,
 		},
-		//{
-		//	[]string{
-		//		"foo foo foo",
-		//		"foo foo",
-		//		"foo",
-		//	},
-		//	1,
-		//	"jAk8+k4BOH7vQDUiUZdfWg==",
-		//	6,
-		//	metrics.DistributionValue{Count: 3, Sum: 21, Min: 3, Max: 11},
-		//	"extractFn",
-		//	1,
-		//},
-		//{
-		//	[]string{
-		//		"bar bar foo bar foo foo",
-		//	},
-		//	2,
-		//	"Nz70m/sn3Ep9o484r7MalQ==",
-		//	6,
-		//	metrics.DistributionValue{Count: 1, Sum: 23, Min: 23, Max: 23},
-		//	"CountFn",
-		//	1,
-		//},
-		//{
-		//	[]string{
-		//		"foo bar foo bar foo bar",
-		//	},
-		//	2,
-		//	"Nz70m/sn3Ep9o484r7MalQ==", // ordering doesn't matter: same hash as above
-		//	6,
-		//	metrics.DistributionValue{Count: 1, Sum: 23, Min: 23, Max: 23},
-		//	"extract",
-		//	1,
-		//},
-		//{
-		//	[]string{
-		//		"",
-		//		"bar foo bar",
-		//		"  \t ",
-		//		" \n\n\n ",
-		//		"foo bar",
-		//		"       foo",
-		//	},
-		//	2,
-		//	"Nz70m/sn3Ep9o484r7MalQ==", // whitespace doesn't matter: same hash as above
-		//	6,
-		//	metrics.DistributionValue{Count: 6, Sum: 37, Min: 0, Max: 11},
-		//	"CreateFn",
-		//	0,
-		//},
+		{
+			[]string{
+				"foo foo foo",
+				"foo foo",
+				"foo",
+			},
+			1,
+			"jAk8+k4BOH7vQDUiUZdfWg==",
+			6,
+			metrics.DistributionValue{Count: 3, Sum: 21, Min: 3, Max: 11},
+			"extractFn",
+			1,
+		},
+		{
+			[]string{
+				"bar bar foo bar foo foo",
+			},
+			2,
+			"Nz70m/sn3Ep9o484r7MalQ==",
+			6,
+			metrics.DistributionValue{Count: 1, Sum: 23, Min: 23, Max: 23},
+			"CountFn",
+			1,
+		},
+		{
+			[]string{
+				"foo bar foo bar foo bar",
+			},
+			2,
+			"Nz70m/sn3Ep9o484r7MalQ==", // ordering doesn't matter: same hash as above
+			6,
+			metrics.DistributionValue{Count: 1, Sum: 23, Min: 23, Max: 23},
+			"extract",
+			1,
+		},
+		{
+			[]string{
+				"",
+				"bar foo bar",
+				"  \t ",
+				" \n\n\n ",
+				"foo bar",
+				"       foo",
+			},
+			2,
+			"Nz70m/sn3Ep9o484r7MalQ==", // whitespace doesn't matter: same hash as above
+			6,
+			metrics.DistributionValue{Count: 6, Sum: 37, Min: 0, Max: 11},
+			"CreateFn",
+			0,
+		},
 	}
 
 	for _, test := range tests {

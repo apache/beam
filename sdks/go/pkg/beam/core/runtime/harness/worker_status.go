@@ -73,7 +73,7 @@ func (w *workerStatusHandler) start(ctx context.Context) error {
 func memoryUsage() string {
 	m := runtime.MemStats{}
 	runtime.ReadMemStats(&m)
-	return fmt.Sprintf("\n Total Alloc: %v\n Sys: %v\n Mallocs: %v\n Frees: %v\n HeapAlloc: %v", m.TotalAlloc, m.Sys, m.Mallocs, m.Frees, m.HeapAlloc)
+	return fmt.Sprintf("\n Total Alloc: %v bytes \n Sys: %v bytes \n Mallocs: %v\n Frees: %v\n HeapAlloc: %v bytes", m.TotalAlloc, m.Sys, m.Mallocs, m.Frees, m.HeapAlloc)
 }
 
 func (w *workerStatusHandler) activeProcessBundleStates() string {
@@ -81,10 +81,10 @@ func (w *workerStatusHandler) activeProcessBundleStates() string {
 	for bundleID, store := range w.metStore {
 		execStates := ""
 		for bundleID, state := range store.StateRegistry() {
-			execStates += fmt.Sprintf("ID: %v Execution States: %v,\n", bundleID, *state)
+			execStates += fmt.Sprintf("ID: %v Execution States: %#v,", bundleID, *state)
 
 		}
-		states += fmt.Sprintf("\nBundle ID: %v\nBundle State: %v\nBundle Execution States: %#v\n", bundleID, *store.BundleState(), store.StateRegistry())
+		states += fmt.Sprintf("\nBundle ID: %v\nBundle State: %#v\nBundle Execution States: %v\n", bundleID, *store.BundleState(), execStates)
 	}
 	return states
 }
@@ -93,11 +93,17 @@ func (w *workerStatusHandler) cacheStats() string {
 	return fmt.Sprintf("Cache:\n%v", w.cache.CacheMetrics())
 }
 
+func goroutineDump() string {
+	buf := make([]byte, 1<<16)
+	runtime.Stack(buf, true)
+	return string(buf)
+}
+
 // reader reads the WorkerStatusRequest from the stream and sends a processed WorkerStatusResponse to
 // a response channel.
 func (w *workerStatusHandler) reader(ctx context.Context, stub fnpb.BeamFnWorkerStatus_WorkerStatusClient) {
 	defer w.wg.Done()
-	buf := make([]byte, 1<<16)
+
 	for w.isAlive() {
 		req, err := stub.Recv()
 		if err != nil && err != io.EOF {
@@ -105,8 +111,8 @@ func (w *workerStatusHandler) reader(ctx context.Context, stub fnpb.BeamFnWorker
 			return
 		}
 		log.Debugf(ctx, "RECV-status: %v", req.GetId())
-		runtime.Stack(buf, true)
-		statusInfo := fmt.Sprintf("\n============Memory Usage============\n%s\n============Active Process Bundle States============\n%s\n============Cache Stats============\n%s\n============Goroutine Dump============\n%s\n", memoryUsage(), w.activeProcessBundleStates(), w.cacheStats(), string(buf))
+
+		statusInfo := fmt.Sprintf("\n============Memory Usage============\n%s\n============Active Process Bundle States============\n%s\n============Cache Stats============\n%s\n============Goroutine Dump============\n%s\n", memoryUsage(), w.activeProcessBundleStates(), w.cacheStats(), goroutineDump())
 		log.Info(ctx, statusInfo)
 		response := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: statusInfo}
 		if err := stub.Send(response); err != nil && err != io.EOF {
