@@ -62,7 +62,44 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     extends PTransform<InputT, OutputT> {
 
   private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
+
+  /**
+   * The fully qualified name of the a Python callable that will be use to instantiate the
+   * transform. Often this is the fully qualified name of a PTransform class, in which case the
+   * arguments will be passed to its constructor, but any callable will do.
+   *
+   * <p>Two special names, {@code __callable__} and {@code __constructor__} can be used to define a
+   * suitable transform inline if none exists.
+   *
+   * <p>When {@code __callable__} is provided, the first argument (or {@code source} keyword
+   * argument) should be a {@link PythonCallableSource} which represents the expand method of the
+   * PTransform accepting and returning a PValue (and may also take additional arguments and keyword
+   * arguments). For example, one might write
+   *
+   * <pre>
+   * PythonExternalTransform
+   *     .from("__callable__")
+   *     .withArgs(
+   *         PythonCallable.of("def expand(pcoll, x, y): return pcoll | ..."),
+   *         valueForX,
+   *         valueForY);
+   * </pre>
+   *
+   * <p>When {@code __constructor__} is provided, the first argument (or {@code source} keyword
+   * argument) should be a {@link PythonCallableSource} which will return the desired PTransform
+   * when called with the remaining arguments and keyword arguments. Often this will be a
+   * PythonCallable representing a PTransform class, for example
+   *
+   * <pre>
+   * PythonExternalTransform
+   *     .from("__constructor__")
+   *     .withArgs(
+   *         PythonCallable.of("class MyPTransform(beam.PTransform): ..."),
+   *         ...valuesForMyPTransformConstructorIfAny);
+   * </pre>
+   */
   private String fullyQualifiedName;
+
   private String expansionService;
 
   // We preseve the order here since Schema's care about order of fields but the order will not

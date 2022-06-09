@@ -116,7 +116,6 @@ class FullyQualifiedNamedTransformTest(unittest.TestCase):
                 '__callable__',  # the next argument is a callable to be applied
                 (
                   python_callable.PythonCallableWithSource("""
-                      import apache_beam as beam
                       def func(pcoll, x):
                         return pcoll | beam.Map(lambda e: e + x)
                       """),
@@ -135,7 +134,6 @@ class FullyQualifiedNamedTransformTest(unittest.TestCase):
                 (),
                 {
                 'source': python_callable.PythonCallableWithSource("""
-                    import apache_beam as beam
                     class MyTransform(beam.PTransform):
                       def __init__(self, x):
                         self._x = x
