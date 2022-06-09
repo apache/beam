@@ -70,7 +70,7 @@ limitations under the License.
 &lt;/blockquote>&lt;/p>
 &lt;blockquote>
 &lt;p>&lt;strong>Note&lt;/strong>: MobileGaming is not yet available for the Go SDK. There is an open issue for this
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-4293">BEAM-4293&lt;/a>).&lt;/p>
+(&lt;a href="https://github.com/apache/beam/issues/18806">BEAM-4293&lt;/a>).&lt;/p>
 &lt;/blockquote>
 &lt;p>Every time a user plays an instance of our hypothetical mobile game, they generate a data event. Each data event consists of the following information:&lt;/p>
 &lt;ul>
@@ -1576,7 +1576,7 @@ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCou
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-flink" data-lang="flink">TODO: document Flink on Gradle: https://issues.apache.org/jira/browse/BEAM-14057&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flink" data-lang="flink">TODO: document Flink on Gradle: https://github.com/apache/beam/issues/21498&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-flinkCluster snippet'>
@@ -1584,7 +1584,7 @@ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCou
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">TODO: document FlinkCluster on Gradle: https://issues.apache.org/jira/browse/BEAM-14060&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">TODO: document FlinkCluster on Gradle: https://github.com/apache/beam/issues/21499&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-spark snippet'>
@@ -1592,7 +1592,7 @@ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCou
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-spark" data-lang="spark">TODO: document Spark on Gradle: https://issues.apache.org/jira/browse/BEAM-14063&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-spark" data-lang="spark">TODO: document Spark on Gradle: https://github.com/apache/beam/issues/21502&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-dataflow snippet'>
@@ -1610,7 +1610,7 @@ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCou
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-samza" data-lang="samza">TODO: document Samza on Gradle: https://issues.apache.org/jira/browse/BEAM-14061&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-samza" data-lang="samza">TODO: document Samza on Gradle: https://github.com/apache/beam/issues/21500&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-nemo snippet'>
@@ -1618,7 +1618,7 @@ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCou
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-nemo" data-lang="nemo">TODO: document Nemo on Gradle: https://issues.apache.org/jira/browse/BEAM-14058&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">TODO: document Nemo on Gradle: https://github.com/apache/beam/issues/21503&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-jet snippet'>
@@ -1626,7 +1626,7 @@ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCou
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-jet" data-lang="jet">TODO: document Jet on Gradle: https://issues.apache.org/jira/browse/BEAM-14062&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-jet" data-lang="jet">TODO: document Jet on Gradle: https://github.com/apache/beam/issues/21501&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;/p>
@@ -3589,12 +3589,12 @@ or DEBUG significantly increases the amount of logs output.&lt;/p>
 &lt;h4 id="apache-spark-runner">Apache Spark Runner&lt;/h4>
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> This section is yet to be added. There is an open issue for this
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-792">BEAM-792&lt;/a>).&lt;/p>
+(&lt;a href="https://github.com/apache/beam/issues/18076">BEAM-792&lt;/a>).&lt;/p>
 &lt;/blockquote>
 &lt;h4 id="apache-flink-runner">Apache Flink Runner&lt;/h4>
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> This section is yet to be added. There is an open issue for this
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-791">BEAM-791&lt;/a>).&lt;/p>
+(&lt;a href="https://github.com/apache/beam/issues/18075">BEAM-791&lt;/a>).&lt;/p>
 &lt;/blockquote>
 &lt;h4 id="apache-nemo-runner">Apache Nemo Runner&lt;/h4>
 &lt;p>When executing your pipeline with the &lt;code>NemoRunner&lt;/code>, most log messages are printed
@@ -4220,7 +4220,7 @@ python -m apache_beam.examples.streaming_wordcount \
 &lt;p>&lt;strong>To run this example in Go:&lt;/strong>&lt;/p>
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> StreamingWordCount is not yet available for the Go SDK. There is an open issue for this
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-4292">BEAM-4292&lt;/a>).&lt;/p>
+(&lt;a href="https://github.com/apache/beam/issues/18879">BEAM-4292&lt;/a>).&lt;/p>
 &lt;/blockquote>
 &lt;h3 id="reading-an-unbounded-dataset">Reading an unbounded dataset&lt;/h3>
 &lt;p>This example uses an unbounded dataset as input. The code reads Pub/Sub

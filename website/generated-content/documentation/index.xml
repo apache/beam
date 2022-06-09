@@ -2621,8 +2621,8 @@ SnowflakeIO is not going to delete created CSV files from path under the “stag
 &lt;/ul>
 &lt;p>&lt;strong>Important noticse&lt;/strong>:&lt;/p>
 &lt;ol>
-&lt;li>Streaming accepts only &lt;strong>key pair authentication&lt;/strong>. For details, see: &lt;a href="https://issues.apache.org/jira/browse/BEAM-13817">BEAM-13817&lt;/a>.&lt;/li>
-&lt;li>The role parameter configured in &lt;code>SnowflakeIO.DataSourceConfiguration&lt;/code> object is ignored for streaming writing. For details, see: &lt;a href="https://issues.apache.org/jira/browse/BEAM-13819">BEAM-13819&lt;/a>&lt;/li>
+&lt;li>Streaming accepts only &lt;strong>key pair authentication&lt;/strong>. For details, see: &lt;a href="https://github.com/apache/beam/issues/21287">BEAM-13817&lt;/a>.&lt;/li>
+&lt;li>The role parameter configured in &lt;code>SnowflakeIO.DataSourceConfiguration&lt;/code> object is ignored for streaming writing. For details, see: &lt;a href="https://github.com/apache/beam/issues/21365">BEAM-13819&lt;/a>&lt;/li>
 &lt;/ol>
 &lt;h4 id="flush-time-duration--number-of-rows">Flush time: duration &amp;amp; number of rows&lt;/h4>
 &lt;p>Duration: streaming write will write periodically files on stage according to time duration specified in flush time limit (for example. every 1 minute).&lt;/p>
@@ -3173,10 +3173,10 @@ You can read about Snowflake data types at &lt;a href="https://docs.snowflake.co
 &lt;p>SnowflakeIO currently has the following limitations.&lt;/p>
 &lt;ol>
 &lt;li>
-&lt;p>Streaming writing supports only pair key authentication. For details, see: &lt;a href="https://issues.apache.org/jira/browse/BEAM-13817">BEAM-13817&lt;/a>.&lt;/p>
+&lt;p>Streaming writing supports only pair key authentication. For details, see: &lt;a href="https://github.com/apache/beam/issues/21287">BEAM-13817&lt;/a>.&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>The role parameter configured in &lt;code>SnowflakeIO.DataSourceConfiguration&lt;/code> object is ignored for streaming writing. For details, see: &lt;a href="https://issues.apache.org/jira/browse/BEAM-13819">BEAM-13819&lt;/a>&lt;/p>
+&lt;p>The role parameter configured in &lt;code>SnowflakeIO.DataSourceConfiguration&lt;/code> object is ignored for streaming writing. For details, see: &lt;a href="https://github.com/apache/beam/issues/21365">BEAM-13819&lt;/a>&lt;/p>
 &lt;/li>
 &lt;/ol></description></item><item><title>Documentation: ApproximateQuantiles</title><link>/documentation/transforms/java/aggregation/approximatequantiles/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/approximatequantiles/</guid><description>
 &lt;!--
@@ -3227,7 +3227,7 @@ limitations under the License.
 -->
 &lt;h1 id="approximatequantiles">ApproximateQuantiles&lt;/h1>
 &lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>See &lt;a href="https://issues.apache.org/jira/browse/BEAM-7390">BEAM-7390&lt;/a> for updates.&lt;/p>
+&lt;p>See &lt;a href="https://github.com/apache/beam/issues/19547">BEAM-7390&lt;/a> for updates.&lt;/p>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2></description></item><item><title>Documentation: ApproximateUnique</title><link>/documentation/transforms/java/aggregation/approximateunique/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/approximateunique/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -3276,7 +3276,7 @@ limitations under the License.
 -->
 &lt;h1 id="approximateunique">ApproximateUnique&lt;/h1>
 &lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>See &lt;a href="https://issues.apache.org/jira/browse/BEAM-7390">BEAM-7390&lt;/a> for updates.&lt;/p>
+&lt;p>See &lt;a href="https://github.com/apache/beam/issues/19547">BEAM-7390&lt;/a> for updates.&lt;/p>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2></description></item><item><title>Documentation: Basics of the Beam model</title><link>/documentation/basics/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/basics/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -6472,7 +6472,7 @@ determined by the input data, or depend on a different branch of your pipeline.&
 &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterFunction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">filterWordsBelow&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="c1">// The Go SDK doesn&amp;#39;t support custom ViewFns.
-&lt;/span>&lt;span class="c1">// See https://issues.apache.org/jira/browse/BEAM-3305 for details
+&lt;/span>&lt;span class="c1">// See https://github.com/apache/beam/issues/18602 for details
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="o">//&lt;/span> &lt;span class="nx">on&lt;/span> &lt;span class="nx">how&lt;/span> &lt;span class="nx">to&lt;/span> &lt;span class="nx">contribute&lt;/span> &lt;span class="nx">them&lt;/span>&lt;span class="p">!&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
@@ -6812,7 +6812,7 @@ you can determine whether this is an early or a late firing, and how many times 
 &lt;p class="language-py">&lt;strong>PaneInfo:&lt;/strong>
 When triggers are used, Beam provides a &lt;code>DoFn.PaneInfoParam&lt;/code> object that contains information about the current firing. Using &lt;code>DoFn.PaneInfoParam&lt;/code>
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.
-This feature implementation in Python SDK is not fully completed; see more at &lt;a href="https://issues.apache.org/jira/browse/BEAM-3759">BEAM-3759&lt;/a>.&lt;/p>
+This feature implementation in Python SDK is not fully completed; see more at &lt;a href="https://github.com/apache/beam/issues/18721">BEAM-3759&lt;/a>.&lt;/p>
 &lt;p class="language-go">&lt;strong>PaneInfo:&lt;/strong>
 When triggers are used, Beam provides &lt;code>beam.PaneInfo&lt;/code> object that contains information about the current firing. Using &lt;code>beam.PaneInfo&lt;/code>
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.&lt;/p>
@@ -6886,7 +6886,7 @@ In addition to aforementioned parameters, user defined Timer and State parameter
 Timers and States are explained in more detail in the
 &lt;a href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam&lt;/a> blog post.&lt;/p>
 &lt;p class="language-go">&lt;strong>Timer and State:&lt;/strong>
-This feature isn&amp;rsquo;t implemented in the Go SDK; see more at &lt;a href="https://issues.apache.org/jira/browse/BEAM-10660">BEAM-10660&lt;/a>. Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.&lt;/p>
+This feature isn&amp;rsquo;t implemented in the Go SDK; see more at &lt;a href="https://github.com/apache/beam/issues/20510">BEAM-10660&lt;/a>. Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6943,7 +6943,7 @@ This feature isn&amp;rsquo;t implemented in the Go SDK; see more at &lt;a href="
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// State and Timers are yet implemented in the Go SDK.
-&lt;/span>&lt;span class="c1">// See https://issues.apache.org/jira/browse/BEAM-10660 for info
+&lt;/span>&lt;span class="c1">// See https://github.com/apache/beam/issues/20510 for info
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="o">//&lt;/span> &lt;span class="nx">on&lt;/span> &lt;span class="nx">contributing&lt;/span> &lt;span class="nx">State&lt;/span> &lt;span class="nx">and&lt;/span> &lt;span class="nx">Timers&lt;/span>&lt;span class="p">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
@@ -7311,7 +7311,7 @@ location. Each file has the prefix &amp;ldquo;numbers&amp;rdquo;, a numeric tag,
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// The Go SDK textio doesn&amp;#39;t support sharding on writes yet.
-&lt;/span>&lt;span class="c1">// See https://issues.apache.org/jira/browse/BEAM-12664 for ways
+&lt;/span>&lt;span class="c1">// See https://github.com/apache/beam/issues/21031 for ways
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="o">//&lt;/span> &lt;span class="nx">to&lt;/span> &lt;span class="nx">contribute&lt;/span> &lt;span class="nx">a&lt;/span> &lt;span class="nx">solution&lt;/span>&lt;span class="p">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
@@ -10176,7 +10176,7 @@ to other nodes in the graph. A &lt;code>DoFn&lt;/code> can declare multiple stat
 to other nodes in the graph. A &lt;code>DoFn&lt;/code> can declare multiple state variables.&lt;/p>
 &lt;span class="language-go">
 &lt;blockquote>
-&lt;p>&lt;strong>Note:&lt;/strong> The Beam SDK for Go does not yet support a State and Timer API. See &lt;a href="https://issues.apache.org/jira/browse/BEAM-10660">BEAM-10660&lt;/a> to contribute.&lt;/p>
+&lt;p>&lt;strong>Note:&lt;/strong> The Beam SDK for Go does not yet support a State and Timer API. See &lt;a href="https://github.com/apache/beam/issues/20510">BEAM-10660&lt;/a> to contribute.&lt;/p>
 &lt;/blockquote>
 &lt;/span>
 &lt;h3 id="types-of-state">11.1. Types of state&lt;/h3>
@@ -13223,15 +13223,15 @@ HL7v2IO
 &lt;/tr>
 &lt;tr>
 &lt;td>Apache DistributedLog&lt;/td>&lt;td>Java&lt;/td>
-&lt;td>&lt;a href="https://issues.apache.org/jira/browse/BEAM-607">BEAM-607&lt;/a>&lt;/td>
+&lt;td>&lt;a href="https://github.com/apache/beam/issues/18026">BEAM-607&lt;/a>&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td>Apache Sqoop&lt;/td>&lt;td>Java&lt;/td>
-&lt;td>&lt;a href="https://issues.apache.org/jira/browse/BEAM-67">BEAM-67&lt;/a>&lt;/td>
+&lt;td>&lt;a href="https://github.com/apache/beam/issues/17958">BEAM-67&lt;/a>&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td>Couchbase&lt;/td>&lt;td>Java&lt;/td>
-&lt;td>&lt;a href="https://issues.apache.org/jira/browse/BEAM-1893">BEAM-1893&lt;/a>&lt;/td>
+&lt;td>&lt;a href="https://github.com/apache/beam/issues/18381">BEAM-1893&lt;/a>&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td>Memcached&lt;/td>&lt;td>Java&lt;/td>
@@ -13239,7 +13239,7 @@ HL7v2IO
 &lt;/tr>
 &lt;tr>
 &lt;td>RestIO&lt;/td>&lt;td>Java&lt;/td>
-&lt;td>&lt;a href="https://issues.apache.org/jira/browse/BEAM-1946">BEAM-1946&lt;/a>&lt;/td>
+&lt;td>&lt;a href="https://github.com/apache/beam/issues/18356">BEAM-1946&lt;/a>&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td>NATS IO&lt;/td>&lt;td>&lt;/td>
@@ -14367,7 +14367,7 @@ limitations under the License.
 -->
 &lt;h1 id="combinewithcontext">CombineWithContext&lt;/h1>
 &lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>See &lt;a href="https://issues.apache.org/jira/browse/BEAM-7390">BEAM-7390&lt;/a> for updates.&lt;/p>
+&lt;p>See &lt;a href="https://github.com/apache/beam/issues/19547">BEAM-7390&lt;/a> for updates.&lt;/p>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2></description></item><item><title>Documentation: Container environments</title><link>/documentation/runtime/environments/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runtime/environments/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -14894,7 +14894,7 @@ useful for testing, as well as creating an initial input to process
 in parallel. For example, a single element to execute a one-time
 &lt;code>ParDo&lt;/code> or a list of filenames to be read.&lt;/p>
 &lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>See &lt;a href="https://issues.apache.org/jira/browse/BEAM-7391">BEAM-7391&lt;/a> for updates.&lt;/p>
+&lt;p>See &lt;a href="https://github.com/apache/beam/issues/19498">BEAM-7391&lt;/a> for updates.&lt;/p>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2></description></item><item><title>Documentation: Create Your Pipeline</title><link>/documentation/pipelines/create-your-pipeline/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/pipelines/create-your-pipeline/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -16836,7 +16836,7 @@ Pydoc
 that store the same data type.&lt;/p>
 &lt;p>See more information in the &lt;a href="/documentation/programming-guide/#flatten">Beam Programming Guide&lt;/a>.&lt;/p>
 &lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>See &lt;a href="https://issues.apache.org/jira/browse/BEAM-7391">BEAM-7391&lt;/a> for updates.&lt;/p>
+&lt;p>See &lt;a href="https://github.com/apache/beam/issues/19498">BEAM-7391&lt;/a> for updates.&lt;/p>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/transforms/python/elementwise/flatmap">FlatMap&lt;/a> applies a simple 1-to-many mapping
@@ -17310,7 +17310,7 @@ BigQuery. SDK versions before 2.25.0 support the BigQuery Storage API as an
 and use the pre-GA BigQuery Storage API surface. Callers should migrate
 pipelines which use the BigQuery Storage API to use SDK version 2.25.0 or later.&lt;/p>
 &lt;p>The Beam SDK for Python does not support the BigQuery Storage API. See
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-10917">BEAM-10917&lt;/a>).&lt;/p>
+&lt;a href="https://github.com/apache/beam/issues/20687">BEAM-10917&lt;/a>).&lt;/p>
 &lt;h4 id="updating-your-code">Updating your code&lt;/h4>
 &lt;p>Use the following methods when you read from a table:&lt;/p>
 &lt;ul>

@@ -58,7 +58,7 @@ limitations under the License.
 &lt;p>Roadmap for connectors developed using Java SDK.&lt;/p>
 &lt;h1 id="couchbase">Couchbase&lt;/h1>
 &lt;p>Couchbase is a NoSQL document-oriented database. See
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-1893">BEAM-1893&lt;/a> for more details on the
+&lt;a href="https://github.com/apache/beam/issues/18381">BEAM-1893&lt;/a> for more details on the
 planned Beam connector for Couchbase.&lt;/p>
 &lt;h1 id="influxdb">InfluxDB&lt;/h1>
 &lt;p>InfluxDB is a database for fast and highly available storage and retrieval
@@ -102,7 +102,7 @@ limitations under the License.
 &lt;h1 id="euphoria-api">Euphoria API&lt;/h1>
 &lt;p>Easy to use Java 8 DSL for the Beam Java SDK. Provides a high-level abstraction of Beam transformations, which is both easy to read and write. Can be used as a complement to existing Beam pipelines (convertible back and forth). You can have a glimpse of the API at &lt;a href="/documentation/sdks/java/euphoria/#wordcount-example">WordCount example&lt;/a>.&lt;/p>
 &lt;ul>
-&lt;li>JIRA: &lt;a href="https://issues.apache.org/jira/browse/BEAM-4366?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20dsl-euphoria">dsl-euphoria&lt;/a> / &lt;a href="https://issues.apache.org/jira/browse/BEAM-3900">BEAM-3900&lt;/a>&lt;/li>
+&lt;li>JIRA: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Adsl-euphoria">dsl-euphoria&lt;/a> / &lt;a href="https://issues.apache.org/jira/browse/BEAM-3900">BEAM-3900&lt;/a>&lt;/li>
 &lt;li>Contact: &lt;a href="mailto:dmvk@apache.org">David Moravek&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="salted-join-implementation">&amp;ldquo;Salted&amp;rdquo; join implementation&lt;/h2>
