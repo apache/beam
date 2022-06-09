@@ -23,14 +23,14 @@ import unittest
 import uuid
 
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.examples.inference import sklearn_inference_example
+from apache_beam.examples.inference import sklearn_mnist_classification
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class SklearnInference(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_predictions_output_file(self):
-    test_pipeline = TestPipeline(is_integration_test=False)
+    test_pipeline = TestPipeline(is_integration_test=True)
     input_file = 'gs://apache-beam-ml/testing/inputs/it_mnist_data.csv'
     output_file_dir = 'gs://apache-beam-ml/testing/predictions'  # pylint: disable=line-too-long
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
@@ -40,7 +40,7 @@ class SklearnInference(unittest.TestCase):
         'output': output_file,
         'model_path': model_path,
     }
-    sklearn_inference_example.run(
+    sklearn_mnist_classification.run(
         test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
