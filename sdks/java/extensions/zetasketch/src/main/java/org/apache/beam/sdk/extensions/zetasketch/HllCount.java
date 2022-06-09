@@ -81,7 +81,7 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  *
  * Note: Currently HllCount does not work on FnAPI workers. See <a
- * href="https://issues.apache.org/jira/browse/BEAM-7879">Jira ticket [BEAM-7879]</a>.
+ * href="https://github.com/apache/beam/issues/19698">Jira ticket [BEAM-7879]</a>.
  */
 @Experimental
 public final class HllCount {

@@ -99,6 +99,10 @@ func (n *ParDo) Up(ctx context.Context) error {
 	return nil
 }
 
+func (n *ParDo) AttachFinalizer(bf *bundleFinalizer) {
+	n.bf = bf
+}
+
 // StartBundle does pre-bundle processing operation for the DoFn.
 func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) error {
 	if n.status != Up {
@@ -174,18 +178,24 @@ func (n *ParDo) processSingleWindow(mainIn *MainInput) (sdf.ProcessContinuation,
 	if err != nil {
 		return nil, n.fail(err)
 	}
-	if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() {
-		return nil, rtErrHelper(mainIn.RTracker.GetError())
-	}
 
 	// Forward direct output, if any. It is always a main output.
 	if val != nil {
+		// Check for incomplete processing of a restriction without a checkpoint
+		if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() && val.Continuation == nil {
+			return nil, rtErrHelper(mainIn.RTracker.GetError())
+		}
 		// We do not forward a ProcessContinuation on its own
 		if val.Elm == nil {
 			return val.Continuation, nil
 		}
 		return val.Continuation, n.Out[0].ProcessElement(n.ctx, val)
 	}
+
+	if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() {
+		return nil, rtErrHelper(mainIn.RTracker.GetError())
+	}
+
 	return nil, nil
 }
 

@@ -899,12 +899,12 @@ or DEBUG significantly increases the amount of logs output.
 #### Apache Spark Runner
 
 > **Note:** This section is yet to be added. There is an open issue for this
-> ([BEAM-792](https://issues.apache.org/jira/browse/BEAM-792)).
+> ([BEAM-792](https://github.com/apache/beam/issues/18076)).
 
 #### Apache Flink Runner
 
 > **Note:** This section is yet to be added. There is an open issue for this
-> ([BEAM-791](https://issues.apache.org/jira/browse/BEAM-791)).
+> ([BEAM-791](https://github.com/apache/beam/issues/18075)).
 
 #### Apache Nemo Runner
 
@@ -1391,7 +1391,7 @@ To view the full code in Python, see
 **To run this example in Go:**
 
 > **Note:** StreamingWordCount is not yet available for the Go SDK. There is an open issue for this
-([BEAM-4292](https://issues.apache.org/jira/browse/BEAM-4292)).
+([BEAM-4292](https://github.com/apache/beam/issues/18879)).
 
 
 ### Reading an unbounded dataset

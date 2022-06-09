@@ -63,8 +63,8 @@ import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBu
 
 /** DoFn function. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DoFnFunction<OutputT, InputT>
     implements ComputeCollectorFunc<RawUnionValue, Iterator<WindowedValue<InputT>>> {

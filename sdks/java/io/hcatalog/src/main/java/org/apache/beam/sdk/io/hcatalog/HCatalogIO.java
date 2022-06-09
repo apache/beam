@@ -74,8 +74,7 @@ import org.slf4j.LoggerFactory;
  * org.apache.hive:hive-exec and org.apache.hive.hcatalog. At the time of this Beam release every
  * released version of those packages had a transitive dependency on a version of log4j vulnerable
  * to CVE-2021-44228. We strongly encourage users to pin a non-vulnerable version of log4j when
- * using this package. See <a
- * href="https://issues.apache.org/jira/browse/BEAM-13499">BEAM-13499</a>.
+ * using this package. See <a href="https://github.com/apache/beam/issues/21426">BEAM-13499</a>.
  *
  * <h3>Reading using HCatalog</h3>
  *
@@ -134,7 +133,7 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class HCatalogIO {
 

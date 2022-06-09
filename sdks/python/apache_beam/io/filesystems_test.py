@@ -51,7 +51,7 @@ class FileSystemsTest(unittest.TestCase):
 
   def test_get_scheme(self):
     self.assertIsNone(FileSystems.get_scheme('/abc/cdf'))
-    self.assertIsNone(FileSystems.get_scheme('c:\\abc\cdf'))  # pylint: disable=anomalous-backslash-in-string
+    self.assertIsNone(FileSystems.get_scheme('c:\\abc\\cdf'))
     self.assertEqual(FileSystems.get_scheme('gs://abc/cdf'), 'gs')
 
   def test_get_filesystem(self):
@@ -59,8 +59,10 @@ class FileSystemsTest(unittest.TestCase):
         isinstance(
             FileSystems.get_filesystem('/tmp'),
             localfilesystem.LocalFileSystem))
-    self.assertTrue(isinstance(FileSystems.get_filesystem('c:\\abc\def'),  # pylint: disable=anomalous-backslash-in-string
-                               localfilesystem.LocalFileSystem))
+    self.assertTrue(
+        isinstance(
+            FileSystems.get_filesystem('c:\\abc\\def'),
+            localfilesystem.LocalFileSystem))
     with self.assertRaises(ValueError):
       FileSystems.get_filesystem('error://abc/def')
 

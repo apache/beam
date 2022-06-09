@@ -89,7 +89,7 @@ import org.slf4j.LoggerFactory;
 /** Tests of {@link CassandraIO}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class CassandraIOTest implements Serializable {
   private static final long NUM_ROWS = 22L;

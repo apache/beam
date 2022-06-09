@@ -44,6 +44,7 @@ import org.apache.beam.runners.flink.translation.functions.ImpulseSourceFunction
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToByteBufferKeySelector;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.ProcessingTimeCallbackCompat;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItem;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SplittableDoFnOperator;
@@ -116,7 +117,6 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -127,8 +127,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * encountered Beam transformations into Flink one, based on the mapping available in this class.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class FlinkStreamingTransformTranslators {
 
@@ -1227,7 +1227,7 @@ class FlinkStreamingTransformTranslators {
       // since otherwise the PushbackSideInputRunner will not correctly
       // determine whether side inputs are ready
       //
-      // this is tracked as https://issues.apache.org/jira/browse/BEAM-1850
+      // this is tracked as https://github.com/apache/beam/issues/18358
       for (WindowedValue<KV<K, InputT>> in : inWithMultipleWindows.explodeWindows()) {
         SingletonKeyedWorkItem<K, InputT> workItem =
             new SingletonKeyedWorkItem<>(
@@ -1334,7 +1334,7 @@ class FlinkStreamingTransformTranslators {
       // since otherwise the PushbackSideInputRunner will not correctly
       // determine whether side inputs are ready
       //
-      // this is tracked as https://issues.apache.org/jira/browse/BEAM-1850
+      // this is tracked as https://github.com/apache/beam/issues/18358
       for (WindowedValue<KV<K, InputT>> in : inWithMultipleWindows.explodeWindows()) {
         SingletonKeyedWorkItem<K, InputT> workItem =
             new SingletonKeyedWorkItem<>(
@@ -1374,7 +1374,7 @@ class FlinkStreamingTransformTranslators {
       // since otherwise the PushbackSideInputRunner will not correctly
       // determine whether side inputs are ready
       //
-      // this is tracked as https://issues.apache.org/jira/browse/BEAM-1850
+      // this is tracked as https://github.com/apache/beam/issues/18358
       for (WindowedValue<KV<K, InputT>> in : inWithMultipleWindows.explodeWindows()) {
         final byte[] binaryValue =
             CoderUtils.encodeToByteArray(valueCoder, in.getValue().getValue());
@@ -1499,7 +1499,7 @@ class FlinkStreamingTransformTranslators {
   static class UnboundedSourceWrapperNoValueWithRecordId<
           OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
       extends RichParallelSourceFunction<WindowedValue<OutputT>>
-      implements ProcessingTimeCallback,
+      implements ProcessingTimeCallbackCompat,
           BeamStoppableFunction,
           CheckpointListener,
           CheckpointedFunction {

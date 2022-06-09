@@ -42,7 +42,7 @@ import org.joda.time.ReadableInstant;
 /** A set of utilities for inferring a Beam {@link Schema} from static Java types. */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class StaticSchemaInference {
@@ -126,6 +126,7 @@ public class StaticSchemaInference {
     return fieldFromType(type, fieldValueTypeSupplier, new HashMap<Class, Schema>());
   }
 
+  // TODO(BEAM-14458): support type inference for logical types
   private static Schema.FieldType fieldFromType(
       TypeDescriptor type,
       FieldValueTypeSupplier fieldValueTypeSupplier,

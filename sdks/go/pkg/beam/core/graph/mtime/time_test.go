@@ -238,9 +238,63 @@ func TestToTime(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got, want := test.input.ToTime(), test.expOut; got != want {
+			if got, want := test.input.ToTime(), test.expOut; !got.Equal(want) {
 				t.Errorf("ToTime(%v), got %v, want %v", test.input, got, want)
 			}
 		})
+	}
+}
+
+func TestMilliseconds(t *testing.T) {
+	tests := []struct {
+		name        string
+		inputMillis int64
+	}{
+		{
+			"Zero",
+			int64(0),
+		},
+		{
+			"End of Global Window",
+			EndOfGlobalWindowTime.Milliseconds(),
+		},
+		{
+			"some number",
+			int64(1000),
+		},
+	}
+	for _, test := range tests {
+		milliTime := FromMilliseconds(test.inputMillis)
+		outputMillis := milliTime.Milliseconds()
+		if got, want := outputMillis, test.inputMillis; got != want {
+			t.Errorf("got %v milliseconds, want %v milliseconds", got, want)
+		}
+	}
+}
+
+func TestFromDuration(t *testing.T) {
+	tests := []struct {
+		name string
+		dur  time.Duration
+	}{
+		{
+			"zero",
+			0 * time.Millisecond,
+		},
+		{
+			"End of Global Window",
+			time.Duration(EndOfGlobalWindowTime),
+		},
+		{
+			"day",
+			24 * time.Hour,
+		},
+	}
+	for _, test := range tests {
+		durTime := FromDuration(test.dur)
+		timeMillis := durTime.Milliseconds()
+		if got, want := timeMillis, test.dur.Milliseconds(); got != want {
+			t.Errorf("got %v milliseconds, want %v milliseconds", got, want)
+		}
 	}
 }

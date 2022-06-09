@@ -41,9 +41,9 @@ import (
 // and then eventually removed.
 //
 // Only users who rely on default JSON marshalling behaviour should set
-// this explicitly, and file an issue on the BEAM JIRA so the issue may
+// this explicitly, and file an issue on the BEAM repo so the issue may
 // be resolved.
-// https://issues.apache.org/jira/projects/BEAM/issues/
+// https://github.com/apache/beam/issues/new/choose
 var EnableSchemas bool = true
 
 type jsonCoder interface {
@@ -373,12 +373,4 @@ func schemaDec(t reflect.Type, in []byte) (T, error) {
 		return nil, err
 	}
 	return val, nil
-}
-
-func newSchemaCoder(t reflect.Type) (*coder.CustomCoder, error) {
-	c, err := coder.NewCustomCoder("schema", t, schemaEnc, schemaDec)
-	if err != nil {
-		return nil, errors.Wrapf(err, "invalid coder")
-	}
-	return c, nil
 }

@@ -41,6 +41,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
@@ -49,13 +51,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import javax.annotation.Nullable;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Days;
 
 /**
@@ -63,9 +69,19 @@ import org.joda.time.Days;
  * with the Storage write API.
  */
 public class TableRowToStorageApiProto {
+  // Custom formatter that accepts "2022-05-09 18:04:59.123456"
+  // The old dremel parser accepts this format, and so does insertall. We need to accept it
+  // for backwards compatibility, and it is based on UTC time.
+  private static final DateTimeFormatter DATETIME_SPACE_FORMATTER =
+      DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSSSSS").withZone(ZoneOffset.UTC);
+
   public static class SchemaConversionException extends Exception {
     SchemaConversionException(String msg) {
       super(msg);
+    }
+
+    SchemaConversionException(String msg, Exception e) {
+      super(msg, e);
     }
   }
 
@@ -79,24 +95,45 @@ public class TableRowToStorageApiProto {
     SchemaDoesntMatchException(String msg) {
       super(msg);
     }
+
+    SchemaDoesntMatchException(String msg, Exception e) {
+      super(msg + ". Exception: " + e, e);
+    }
   }
 
   static class SchemaInformation {
     private final TableFieldSchema tableFieldSchema;
     private final List<SchemaInformation> subFields;
     private final Map<String, SchemaInformation> subFieldsByName;
+    private final Iterable<SchemaInformation> parentSchemas;
 
     private SchemaInformation(TableFieldSchema tableFieldSchema) {
+      this(tableFieldSchema, Collections.emptyList());
+    }
+
+    private SchemaInformation(
+        TableFieldSchema tableFieldSchema, Iterable<SchemaInformation> parentSchemas) {
       this.tableFieldSchema = tableFieldSchema;
       this.subFields = Lists.newArrayList();
       this.subFieldsByName = Maps.newHashMap();
+      this.parentSchemas = parentSchemas;
       if (tableFieldSchema.getFields() != null) {
         for (TableFieldSchema field : tableFieldSchema.getFields()) {
-          SchemaInformation schemaInformation = new SchemaInformation(field);
+          SchemaInformation schemaInformation =
+              new SchemaInformation(
+                  field, Iterables.concat(this.parentSchemas, ImmutableList.of(this)));
           subFields.add(schemaInformation);
           subFieldsByName.put(field.getName(), schemaInformation);
         }
       }
+    }
+
+    public String getFullName() {
+      String prefix =
+          StreamSupport.stream(parentSchemas.spliterator(), false)
+              .map(SchemaInformation::getName)
+              .collect(Collectors.joining("."));
+      return prefix.isEmpty() ? getName() : prefix + "." + getName();
     }
 
     public String getName() {
@@ -143,8 +180,8 @@ public class TableRowToStorageApiProto {
           .put("BOOL", Type.TYPE_BOOL)
           .put("BOOLEAN", Type.TYPE_BOOL)
           .put("BYTES", Type.TYPE_BYTES)
-          .put("NUMERIC", Type.TYPE_BYTES) // Pass through the JSON encoding.
-          .put("BIGNUMERIC", Type.TYPE_BYTES) // Pass through the JSON encoding.
+          .put("NUMERIC", Type.TYPE_BYTES)
+          .put("BIGNUMERIC", Type.TYPE_BYTES)
           .put("GEOGRAPHY", Type.TYPE_STRING) // Pass through the JSON encoding.
           .put("DATE", Type.TYPE_INT32)
           .put("TIME", Type.TYPE_INT64)
@@ -183,20 +220,37 @@ public class TableRowToStorageApiProto {
           continue;
         } else {
           throw new SchemaTooNarrowException(
-              "TableRow contained unexpected field with name " + entry.getKey());
+              "TableRow contained unexpected field with name "
+                  + entry.getKey()
+                  + " not found in schema for "
+                  + schemaInformation.getFullName());
         }
       }
       SchemaInformation fieldSchemaInformation =
           schemaInformation.getSchemaForField(entry.getKey());
-      @Nullable
-      Object value =
-          messageValueFromFieldValue(
-              fieldSchemaInformation, fieldDescriptor, entry.getValue(), ignoreUnknownValues);
-      if (value != null) {
-        builder.setField(fieldDescriptor, value);
+      try {
+        @Nullable
+        Object value =
+            messageValueFromFieldValue(
+                fieldSchemaInformation, fieldDescriptor, entry.getValue(), ignoreUnknownValues);
+        if (value != null) {
+          builder.setField(fieldDescriptor, value);
+        }
+      } catch (Exception e) {
+        throw new SchemaDoesntMatchException(
+            "Problem converting field "
+                + fieldSchemaInformation.getFullName()
+                + " expected type: "
+                + fieldSchemaInformation.getType(),
+            e);
       }
     }
-    return builder.build();
+    try {
+      return builder.build();
+    } catch (Exception e) {
+      throw new SchemaDoesntMatchException(
+          "Couldn't convert schema for " + schemaInformation.getFullName(), e);
+    }
   }
 
   /**
@@ -218,23 +272,38 @@ public class TableRowToStorageApiProto {
         if (ignoreUnkownValues) {
           cellsToProcess = descriptor.getFields().size();
         } else {
-          throw new SchemaTooNarrowException("TableRow contained too many fields");
+          throw new SchemaTooNarrowException(
+              "TableRow contained too many fields and ignoreUnknownValues not set.");
         }
       }
       for (int i = 0; i < cellsToProcess; ++i) {
         AbstractMap<String, Object> cell = cells.get(i);
         FieldDescriptor fieldDescriptor = descriptor.getFields().get(i);
         SchemaInformation fieldSchemaInformation = schemaInformation.getSchemaForField(i);
-        @Nullable
-        Object value =
-            messageValueFromFieldValue(
-                fieldSchemaInformation, fieldDescriptor, cell.get("v"), ignoreUnkownValues);
-        if (value != null) {
-          builder.setField(fieldDescriptor, value);
+        try {
+          @Nullable
+          Object value =
+              messageValueFromFieldValue(
+                  fieldSchemaInformation, fieldDescriptor, cell.get("v"), ignoreUnkownValues);
+          if (value != null) {
+            builder.setField(fieldDescriptor, value);
+          }
+        } catch (Exception e) {
+          throw new SchemaDoesntMatchException(
+              "Problem converting field "
+                  + fieldSchemaInformation.getFullName()
+                  + " expected type: "
+                  + fieldSchemaInformation.getType(),
+              e);
         }
       }
 
-      return builder.build();
+      try {
+        return builder.build();
+      } catch (Exception e) {
+        throw new SchemaDoesntMatchException(
+            "Could convert schema for " + schemaInformation.getFullName(), e);
+      }
     } else {
       return messageFromMap(schemaInformation, descriptor, tableRow, ignoreUnkownValues);
     }
@@ -290,9 +359,7 @@ public class TableRowToStorageApiProto {
     descriptorBuilder.addField(fieldDescriptorBuilder.build());
   }
 
-  @Nullable
-  @SuppressWarnings({"nullness"})
-  private static Object messageValueFromFieldValue(
+  private static @Nullable Object messageValueFromFieldValue(
       SchemaInformation schemaInformation,
       FieldDescriptor fieldDescriptor,
       @Nullable Object bqValue,
@@ -304,14 +371,13 @@ public class TableRowToStorageApiProto {
       } else if (fieldDescriptor.isRepeated()) {
         return Collections.emptyList();
       } else {
-        throw new IllegalArgumentException(
-            "Received null value for non-nullable field " + fieldDescriptor.getName());
+        throw new SchemaDoesntMatchException(
+            "Received null value for non-nullable field " + schemaInformation.getFullName());
       }
     }
-
     if (fieldDescriptor.isRepeated()) {
       List<Object> listValue = (List<Object>) bqValue;
-      List<Object> protoList = Lists.newArrayListWithCapacity(listValue.size());
+      List<@Nullable Object> protoList = Lists.newArrayListWithCapacity(listValue.size());
       for (@Nullable Object o : listValue) {
         if (o != null) { // repeated field cannot contain null.
           protoList.add(
@@ -326,11 +392,10 @@ public class TableRowToStorageApiProto {
   }
 
   @VisibleForTesting
-  @Nullable
-  static Object singularFieldToProtoValue(
+  static @Nullable Object singularFieldToProtoValue(
       SchemaInformation schemaInformation,
       FieldDescriptor fieldDescriptor,
-      Object value,
+      @Nullable Object value,
       boolean ignoreUnknownValues)
       throws SchemaConversionException {
     switch (schemaInformation.getType()) {
@@ -346,7 +411,7 @@ public class TableRowToStorageApiProto {
       case "FLOAT":
         if (value instanceof String) {
           return Double.valueOf((String) value);
-        } else if (value instanceof Double || value instanceof Float) {
+        } else if (value instanceof Number) {
           return ((Number) value).doubleValue();
         }
         break;
@@ -370,10 +435,19 @@ public class TableRowToStorageApiProto {
       case "TIMESTAMP":
         if (value instanceof String) {
           try {
-            return ChronoUnit.MICROS.between(Instant.EPOCH, Instant.parse((String) value));
-          } catch (DateTimeParseException e) {
+            // '2011-12-03T10:15:30+01:00' '2011-12-03T10:15:30'
             return ChronoUnit.MICROS.between(
-                Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
+                Instant.EPOCH, Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse((String) value)));
+          } catch (DateTimeParseException e) {
+            try {
+              // "12345667"
+              return ChronoUnit.MICROS.between(
+                  Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
+            } catch (NumberFormatException e2) {
+              // "yyyy-MM-dd HH:mm:ss.SSSSSS"
+              return ChronoUnit.MICROS.between(
+                  Instant.EPOCH, Instant.from(DATETIME_SPACE_FORMATTER.parse((String) value)));
+            }
           }
         } else if (value instanceof Instant) {
           return ChronoUnit.MICROS.between(Instant.EPOCH, (Instant) value);
@@ -428,7 +502,15 @@ public class TableRowToStorageApiProto {
         break;
       case "DATETIME":
         if (value instanceof String) {
-          return CivilTimeEncoder.encodePacked64DatetimeMicros(LocalDateTime.parse((String) value));
+          try {
+            // '2011-12-03T10:15:30'
+            return CivilTimeEncoder.encodePacked64DatetimeMicros(
+                LocalDateTime.parse((String) value));
+          } catch (DateTimeParseException e2) {
+            // '2011-12-03 10:15:30'
+            return CivilTimeEncoder.encodePacked64DatetimeMicros(
+                LocalDateTime.parse((String) value, DATETIME_SPACE_FORMATTER));
+          }
         } else if (value instanceof Number) {
           return ((Number) value).longValue();
         } else if (value instanceof LocalDateTime) {
@@ -451,7 +533,7 @@ public class TableRowToStorageApiProto {
       case "STRING":
       case "JSON":
       case "GEOGRAPHY":
-        return value.toString();
+        return Preconditions.checkArgumentNotNull(value).toString();
       case "STRUCT":
       case "RECORD":
         if (value instanceof TableRow) {
@@ -467,13 +549,13 @@ public class TableRowToStorageApiProto {
         break;
     }
 
-    throw new RuntimeException(
+    throw new SchemaDoesntMatchException(
         "Unexpected value :"
             + value
             + ", type: "
-            + value.getClass()
+            + (value == null ? "null" : value.getClass())
             + ". Table field name: "
-            + schemaInformation.getName()
+            + schemaInformation.getFullName()
             + ", type: "
             + schemaInformation.getType());
   }

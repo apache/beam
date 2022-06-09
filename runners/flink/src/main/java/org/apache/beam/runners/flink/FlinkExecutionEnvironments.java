@@ -19,9 +19,11 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getDefaultLocalParallelism;
 
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -51,7 +53,7 @@ import org.slf4j.LoggerFactory;
 
 /** Utilities for Flink execution environments. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FlinkExecutionEnvironments {
 
@@ -61,9 +63,11 @@ public class FlinkExecutionEnvironments {
    * If the submitted job is a batch processing job, this method creates the adequate Flink {@link
    * org.apache.flink.api.java.ExecutionEnvironment} depending on the user-specified options.
    */
-  public static ExecutionEnvironment createBatchExecutionEnvironment(
-      FlinkPipelineOptions options, List<String> filesToStage) {
-    return createBatchExecutionEnvironment(options, filesToStage, null);
+  public static ExecutionEnvironment createBatchExecutionEnvironment(FlinkPipelineOptions options) {
+    return createBatchExecutionEnvironment(
+        options,
+        MoreObjects.firstNonNull(options.getFilesToStage(), Collections.emptyList()),
+        options.getFlinkConfDir());
   }
 
   static ExecutionEnvironment createBatchExecutionEnvironment(
@@ -139,18 +143,20 @@ public class FlinkExecutionEnvironments {
     return flinkBatchEnv;
   }
 
+  @VisibleForTesting
+  static StreamExecutionEnvironment createStreamExecutionEnvironment(FlinkPipelineOptions options) {
+    return createStreamExecutionEnvironment(
+        options,
+        MoreObjects.firstNonNull(options.getFilesToStage(), Collections.emptyList()),
+        options.getFlinkConfDir());
+  }
+
   /**
    * If the submitted job is a stream processing job, this method creates the adequate Flink {@link
    * org.apache.flink.streaming.api.environment.StreamExecutionEnvironment} depending on the
    * user-specified options.
    */
   public static StreamExecutionEnvironment createStreamExecutionEnvironment(
-      FlinkPipelineOptions options, List<String> filesToStage) {
-    return createStreamExecutionEnvironment(options, filesToStage, null);
-  }
-
-  @VisibleForTesting
-  static StreamExecutionEnvironment createStreamExecutionEnvironment(
       FlinkPipelineOptions options, List<String> filesToStage, @Nullable String confDir) {
 
     LOG.info("Creating a Streaming Environment.");
@@ -371,7 +377,7 @@ public class FlinkExecutionEnvironments {
   }
 
   private static Configuration getFlinkConfiguration(@Nullable String flinkConfDir) {
-    return flinkConfDir == null
+    return flinkConfDir == null || flinkConfDir.isEmpty()
         ? GlobalConfiguration.loadConfiguration()
         : GlobalConfiguration.loadConfiguration(flinkConfDir);
   }
@@ -393,7 +399,7 @@ public class FlinkExecutionEnvironments {
 
   /**
    * Disables classloader.check-leaked-classloader unless set by the user. See
-   * https://issues.apache.org/jira/browse/BEAM-11570.
+   * https://github.com/apache/beam/issues/20783.
    */
   private static void disableClassLoaderLeakCheck(final Configuration config) {
     if (!config.containsKey("classloader.check-leaked-classloader")) {

@@ -27,23 +27,23 @@ Consult the [Programming Guide I/O section](/documentation/programming-guide#pip
 
 # In-Progress I/O Transforms
 
-This table contains I/O transforms that are currently planned or in-progress. Status information can be found on the JIRA issue, or on the GitHub PR linked to by the JIRA issue (if there is one).
+This table contains I/O transforms that are currently planned or in-progress. Status information can be found on the GitHub Issue issue, or on the GitHub PR linked to by the GitHub Issue issue (if there is one).
 
 <table class="table table-bordered">
   <tr>
-    <th>Name</th><th>Language</th><th>JIRA</th>
+    <th>Name</th><th>Language</th><th>Issue or JIRA</th>
   </tr>
   <tr>
     <td>Apache DistributedLog</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-607">BEAM-607</a></td>
+    <td><a href="https://github.com/apache/beam/issues/18026">BEAM-607</a></td>
   </tr>
   <tr>
     <td>Apache Sqoop</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-67">BEAM-67</a></td>
+    <td><a href="https://github.com/apache/beam/issues/17958">BEAM-67</a></td>
   </tr>
   <tr>
     <td>Couchbase</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1893">BEAM-1893</a></td>
+    <td><a href="https://github.com/apache/beam/issues/18381">BEAM-1893</a></td>
   </tr>
   <tr>
     <td>Memcached</td><td>Java</td>
@@ -51,7 +51,7 @@ This table contains I/O transforms that are currently planned or in-progress. St
   </tr>
   <tr>
     <td>RestIO</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1946">BEAM-1946</a></td>
+    <td><a href="https://github.com/apache/beam/issues/18356">BEAM-1946</a></td>
   </tr>
   <tr>
     <td>NATS IO</td><td></td>

@@ -60,10 +60,10 @@ import org.slf4j.LoggerFactory;
  * Wrapper around {@link WorkUnitClient} with methods for creating and sending work item status
  * updates.
  */
-// Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6565
+// Very likely real potential for bugs - https://github.com/apache/beam/issues/19270
 @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class WorkItemStatusClient {
   private static final Logger LOG = LoggerFactory.getLogger(WorkItemStatusClient.class);

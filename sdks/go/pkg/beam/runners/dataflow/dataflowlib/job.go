@@ -41,12 +41,15 @@ type JobOptions struct {
 	Name string
 	// Experiments are additional experiments.
 	Experiments []string
+	// DataflowServiceOptions are additional job modes and configurations for Dataflow
+	DataflowServiceOptions []string
 	// Pipeline options
 	Options runtime.RawOptions
 
 	Project             string
 	Region              string
 	Zone                string
+	KmsKey              string
 	Network             string
 	Subnetwork          string
 	NoUsePublicIPs      bool
@@ -60,10 +63,17 @@ type JobOptions struct {
 	WorkerZone          string
 	ContainerImage      string
 	ArtifactURLs        []string // Additional packages for workers.
+	FlexRSGoal          string
+	EnableHotKeyLogging bool
+
+	// Streaming update settings
+	Update               bool
+	TransformNameMapping map[string]string
 
 	// Autoscaling settings
-	Algorithm     string
-	MaxNumWorkers int64
+	Algorithm            string
+	MaxNumWorkers        int64
+	WorkerHarnessThreads int64
 
 	TempLocation string
 
@@ -155,7 +165,11 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		Name:      opts.Name,
 		Type:      jobType,
 		Environment: &df.Environment{
-			ServiceAccountEmail: opts.ServiceAccountEmail,
+			DebugOptions: &df.DebugOptions{
+				EnableHotKeyLogging: opts.EnableHotKeyLogging,
+			},
+			FlexResourceSchedulingGoal: opts.FlexRSGoal,
+			ServiceAccountEmail:        opts.ServiceAccountEmail,
 			UserAgent: newMsg(userAgent{
 				Name:    core.SdkName,
 				Version: core.SdkVersion,
@@ -174,6 +188,8 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 				},
 				GoOptions: opts.Options,
 			}),
+			ServiceOptions:    opts.DataflowServiceOptions,
+			ServiceKmsKeyName: opts.KmsKey,
 			WorkerPools: []*df.WorkerPool{{
 				AutoscalingSettings: &df.AutoscalingSettings{
 					MaxNumWorkers: opts.MaxNumWorkers,
@@ -196,14 +212,18 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			TempStoragePrefix: opts.TempLocation,
 			Experiments:       experiments,
 		},
-		Labels: opts.Labels,
-		Steps:  steps,
+		Labels:               opts.Labels,
+		TransformNameMapping: opts.TransformNameMapping,
+		Steps:                steps,
 	}
 
 	workerPool := job.Environment.WorkerPools[0]
 
 	if opts.NumWorkers > 0 {
 		workerPool.NumWorkers = opts.NumWorkers
+	}
+	if opts.WorkerHarnessThreads > 0 {
+		workerPool.NumThreadsPerWorker = opts.WorkerHarnessThreads
 	}
 	if opts.Algorithm != "" {
 		workerPool.AutoscalingSettings.Algorithm = map[string]string{
@@ -223,7 +243,14 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 }
 
 // Submit submits a prepared job to Cloud Dataflow.
-func Submit(ctx context.Context, client *df.Service, project, region string, job *df.Job) (*df.Job, error) {
+func Submit(ctx context.Context, client *df.Service, project, region string, job *df.Job, updateJob bool) (*df.Job, error) {
+	if updateJob {
+		runningJob, err := GetRunningJobByName(client, project, region, job.Name)
+		if err != nil {
+			return nil, err
+		}
+		job.ReplaceJobId = runningJob.Id
+	}
 	upd, err := client.Projects.Locations.Jobs.Create(project, region, job).Do()
 	if err == nil {
 		log.Infof(ctx, "Submitted job: %v", upd.Id)
@@ -240,26 +267,43 @@ func WaitForCompletion(ctx context.Context, client *df.Service, project, region,
 			return errors.Wrap(err, "failed to get job")
 		}
 
-		switch j.CurrentState {
-		case "JOB_STATE_DONE":
-			log.Info(ctx, "Job succeeded!")
+		terminal, msg, err := currentStateMessage(j.CurrentState, jobID)
+		if err != nil {
+			return err
+		}
+		log.Infof(ctx, msg)
+		if terminal {
 			return nil
-
-		case "JOB_STATE_CANCELLED":
-			log.Info(ctx, "Job cancelled")
-			return nil
-
-		case "JOB_STATE_FAILED":
-			return errors.Errorf("job %s failed", jobID)
-
-		case "JOB_STATE_RUNNING":
-			log.Info(ctx, "Job still running ...")
-
-		default:
-			log.Infof(ctx, "Job state: %v ...", j.CurrentState)
 		}
 
 		time.Sleep(30 * time.Second)
+	}
+}
+
+// currentStateMessage indicates if the state is terminal, and provides a message to log, or an error.
+// Errors are always terminal.
+func currentStateMessage(currentState, jobID string) (bool, string, error) {
+	switch currentState {
+	// Add all Terminal Success stats here.
+	case "JOB_STATE_DONE", "JOB_STATE_CANCELLED", "JOB_STATE_DRAINED", "JOB_STATE_UPDATED":
+		var state string
+		switch currentState {
+		case "JOB_STATE_DONE":
+			state = "succeeded!"
+		case "JOB_STATE_CANCELLED":
+			state = "cancelled"
+		case "JOB_STATE_DRAINED":
+			state = "drained"
+		case "JOB_STATE_UPDATED":
+			state = "updated"
+		}
+		return true, fmt.Sprintf("Job %v %v", jobID, state), nil
+	case "JOB_STATE_FAILED":
+		return true, "", errors.Errorf("Job %s failed", jobID)
+	case "JOB_STATE_RUNNING":
+		return false, "Job still running ...", nil
+	default:
+		return false, fmt.Sprintf("Job state: %v ...", currentState), nil
 	}
 }
 

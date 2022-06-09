@@ -306,7 +306,7 @@ public class UserParDoFnFactoryTest {
   private CloudObject getCloudObject(DoFn<?, ?> fn, WindowingStrategy<?, ?> windowingStrategy) {
     CloudObject object = CloudObject.forClassName("DoFn");
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     })
     DoFnInfo<?, ?> info =

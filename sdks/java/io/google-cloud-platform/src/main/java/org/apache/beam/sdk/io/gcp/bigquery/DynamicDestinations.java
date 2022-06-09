@@ -73,9 +73,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * be a compact type with an efficient coder, as these objects may be used as a key in a {@link
  * org.apache.beam.sdk.transforms.GroupByKey}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public abstract class DynamicDestinations<T, DestinationT> implements Serializable {
   interface SideInputAccessor {
     <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view);
@@ -120,6 +117,9 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
         "View %s not declared in getSideInputs() (%s)",
         view,
         getSideInputs());
+    if (sideInputAccessor == null) {
+      throw new IllegalStateException("sideInputAccessor (transient field) is null");
+    }
     return sideInputAccessor.sideInput(view);
   }
 
@@ -132,7 +132,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
    * Returns an object that represents at a high level which table is being written to. May not
    * return null.
    */
-  public abstract DestinationT getDestination(ValueInSingleWindow<T> element);
+  public abstract DestinationT getDestination(@Nullable ValueInSingleWindow<T> element);
 
   /**
    * Returns the coder for {@link DestinationT}. If this is not overridden, then {@link BigQueryIO}
@@ -151,8 +151,8 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
    */
   public abstract TableDestination getTable(DestinationT destination);
 
-  /** Returns the table schema for the destination. May not return null. */
-  public abstract TableSchema getSchema(DestinationT destination);
+  /** Returns the table schema for the destination. */
+  public abstract @Nullable TableSchema getSchema(DestinationT destination);
 
   // Gets the destination coder. If the user does not provide one, try to find one in the coder
   // registry. If no coder can be found, throws CannotProvideCoderException.

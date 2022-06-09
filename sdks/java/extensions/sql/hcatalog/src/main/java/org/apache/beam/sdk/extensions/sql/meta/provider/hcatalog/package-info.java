@@ -23,8 +23,7 @@
  * org.apache.hive:hive-exec and org.apache.hive.hcatalog. At the time of this Beam release every
  * released version of those packages had a transitive dependency on a version of log4j vulnerable
  * to CVE-2021-44228. We strongly encourage users to pin a non-vulnerable version of log4j when
- * using this package. See <a
- * href="https://issues.apache.org/jira/browse/BEAM-13499">BEAM-13499</a>.
+ * using this package. See <a href="https://github.com/apache/beam/issues/21426">BEAM-13499</a>.
  */
 @Experimental
 package org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog;

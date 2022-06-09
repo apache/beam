@@ -750,6 +750,9 @@ class Sink(HasDisplayData):
   documentation at
   ``https://beam.apache.org/documentation/sdks/python-custom-io#creating-sinks``
   """
+  # Whether Beam should skip writing any shards if all are empty.
+  skip_if_empty = False
+
   def initialize_write(self):
     """Initializes the sink before writing begins.
 
@@ -1219,11 +1222,12 @@ def _finalize_write(
   write_results = list(write_results)
   extra_shards = []
   if len(write_results) < min_shards:
-    _LOGGER.debug(
-        'Creating %s empty shard(s).', min_shards - len(write_results))
-    for _ in range(min_shards - len(write_results)):
-      writer = sink.open_writer(init_result, str(uuid.uuid4()))
-      extra_shards.append(writer.close())
+    if write_results or not sink.skip_if_empty:
+      _LOGGER.debug(
+          'Creating %s empty shard(s).', min_shards - len(write_results))
+      for _ in range(min_shards - len(write_results)):
+        writer = sink.open_writer(init_result, str(uuid.uuid4()))
+        extra_shards.append(writer.close())
   outputs = sink.finalize_write(
       init_result, write_results + extra_shards, pre_finalize_results)
   if outputs:

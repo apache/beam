@@ -94,7 +94,7 @@ import org.joda.time.ReadableInstant;
  */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class RowJson {
   private static final ImmutableSet<TypeName> SUPPORTED_TYPES =
