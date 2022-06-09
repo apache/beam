@@ -83,8 +83,9 @@ var (
 	update           = flag.Bool("update", false, "Submit this job as an update to an existing Dataflow job (optional); the job name must match the existing job to update")
 	transformMapping = flag.String("transform_name_mapping", "", "JSON-formatted mapping of old transform names to new transform names for pipeline updates (optional)")
 
-	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
-	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
+	dryRun           = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
+	teardownPolicy   = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
+	templateLocation = flag.String("template_location", "", "GCS location to save the job graph. If set, the job is not submitted to Dataflow (optional.)")
 
 	// SDK options
 	cpuProfiling = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
@@ -328,6 +329,7 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 		Labels:                 jobLabels,
 		ServiceAccountEmail:    *serviceAccountEmail,
 		TempLocation:           *tempLocation,
+		TemplateLocation:       *templateLocation,
 		Worker:                 *jobopts.WorkerBinary,
 		WorkerJar:              *workerJar,
 		WorkerRegion:           *workerRegion,

@@ -92,10 +92,17 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	}
 	log.Info(ctx, proto.MarshalTextString(p))
 
+	templateLoc := opts.TemplateLocation
+	if templateLoc != "" {
+		modelURL = templateLoc
+	}
 	if err := StageModel(ctx, opts.Project, modelURL, protox.MustEncode(p)); err != nil {
 		return presult, err
 	}
 	log.Infof(ctx, "Staged model pipeline: %v", modelURL)
+	if templateLoc != "" {
+		return nil, nil
+	}
 
 	// (3) Translate to v1b3 and submit
 
