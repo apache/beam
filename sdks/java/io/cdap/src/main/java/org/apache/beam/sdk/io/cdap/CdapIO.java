@@ -82,28 +82,36 @@ public class CdapIO {
       abstract Read<K, V> build();
     }
 
+    public Read<K, V> withCdapPlugin(Plugin plugin) {
+      checkArgument(plugin != null, "Cdap plugin can not be null");
+      return toBuilder().setCdapPlugin(plugin).build();
+    }
+
     public Read<K, V> withCdapPluginClass(Class<?> cdapPluginClass) {
-      return toBuilder().setCdapPlugin(MappingUtils.getPluginByClass(cdapPluginClass)).build();
+      checkArgument(cdapPluginClass != null, "Cdap plugin class can not be null");
+      Plugin plugin = MappingUtils.getPluginByClass(cdapPluginClass);
+      checkArgument(plugin != null, "Can not instantiate Plugin object from provided plugin class");
+      return toBuilder().setCdapPlugin(plugin).build();
     }
 
     public Read<K, V> withPluginConfig(PluginConfig pluginConfig) {
+      checkArgument(pluginConfig != null, "Plugin config can not be null");
       return toBuilder().setPluginConfig(pluginConfig).build();
     }
 
     public Read<K, V> withKeyClass(Class<K> keyClass) {
+      checkArgument(keyClass != null, "Key class can not be null");
       return toBuilder().setKeyClass(keyClass).build();
     }
 
     public Read<K, V> withValueClass(Class<V> valueClass) {
+      checkArgument(valueClass != null, "Value class can not be null");
       return toBuilder().setValueClass(valueClass).build();
     }
 
     @Override
     public PCollection<KV<K, V>> expand(PBegin input) {
-      checkArgument(getPluginConfig() != null, "withPluginConfig() is required");
-      checkArgument(getCdapPlugin() != null, "withCdapPluginClass() is required");
-      checkArgument(getKeyClass() != null, "withKeyClass() is required");
-      checkArgument(getValueClass() != null, "withValueClass() is required");
+      validateTransform();
 
       getCdapPlugin()
           .withConfig(getPluginConfig())
@@ -119,6 +127,13 @@ public class CdapIO {
             HadoopFormatIO.<K, V>read().withConfiguration(hConf);
         return input.apply(readFromHadoop);
       }
+    }
+
+    public void validateTransform() {
+      checkArgument(getCdapPlugin() != null, "withCdapPluginClass() is required");
+      checkArgument(getPluginConfig() != null, "withPluginConfig() is required");
+      checkArgument(getKeyClass() != null, "withKeyClass() is required");
+      checkArgument(getValueClass() != null, "withValueClass() is required");
     }
   }
 

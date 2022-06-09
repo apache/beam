@@ -19,15 +19,19 @@ package org.apache.beam.sdk.io.cdap;
 
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.InputFormat;
+import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.RecordReader;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 public class EmployeeInputFormat extends InputFormat<String, String> {
+
+  public static final int NUM_OF_TEST_EMPLOYEE_RECORDS = 1000;
+  public static final String EMPLOYEE_NAME_PREFIX = "Employee ";
 
   @Override
   public List<InputSplit> getSplits(JobContext jobContext) {
@@ -39,38 +43,34 @@ public class EmployeeInputFormat extends InputFormat<String, String> {
       InputSplit inputSplit, TaskAttemptContext taskAttemptContext) {
     return new RecordReader<String, String>() {
 
-      private Pair<String, String> currentObject;
       private long currentObjectId = 0L;
 
       @Override
-      public void initialize(InputSplit split, TaskAttemptContext context)
-          throws IOException, InterruptedException {}
+      public void initialize(InputSplit split, TaskAttemptContext context) {}
 
       @Override
-      public boolean nextKeyValue() throws IOException, InterruptedException {
-        currentObject =
-            new ImmutablePair<>(String.valueOf(currentObjectId), "Employee " + currentObjectId);
+      public boolean nextKeyValue() {
         currentObjectId++;
-        return currentObjectId < 1000;
+        return currentObjectId < NUM_OF_TEST_EMPLOYEE_RECORDS;
       }
 
       @Override
-      public String getCurrentKey() throws IOException, InterruptedException {
-        return currentObject.getKey();
+      public String getCurrentKey() {
+        return String.valueOf(currentObjectId);
       }
 
       @Override
-      public String getCurrentValue() throws IOException, InterruptedException {
-        return currentObject.getValue();
+      public String getCurrentValue() {
+        return EMPLOYEE_NAME_PREFIX + currentObjectId;
       }
 
       @Override
-      public float getProgress() throws IOException, InterruptedException {
+      public float getProgress() {
         return 0;
       }
 
       @Override
-      public void close() throws IOException {}
+      public void close() {}
     };
   }
 

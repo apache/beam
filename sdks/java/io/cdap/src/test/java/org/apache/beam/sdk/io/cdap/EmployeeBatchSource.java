@@ -58,6 +58,7 @@ public class EmployeeBatchSource extends BatchSource<String, String, StructuredR
    *
    * @param context the batch source context
    */
+  @Override
   public void prepareRun(BatchSourceContext context) {
     validateConfiguration(context.getFailureCollector());
     LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);

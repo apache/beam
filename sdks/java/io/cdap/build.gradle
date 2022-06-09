@@ -66,10 +66,6 @@ dependencies {
     implementation "io.cdap.plugin:servicenow-plugins:1.2.0-SNAPSHOT"
     implementation "io.cdap:hubspot-plugins:1.0.0-SNAPSHOT"
     implementation "io.cdap.plugin:zendesk-plugins:1.0.0-SNAPSHOT"
-    testImplementation "io.cdap.plugin:salesforce-plugins:1.5.0-SNAPSHOT"
-    testImplementation "io.cdap:hubspot-plugins:1.0.0-SNAPSHOT"
-    testImplementation "io.cdap.plugin:zendesk-plugins:1.0.0-SNAPSHOT"
-    testImplementation "io.cdap.plugin:servicenow-plugins:1.2.0-SNAPSHOT"
     testImplementation library.java.cdap_plugin_service_now
     testImplementation library.java.cdap_etl_api
     testImplementation library.java.hadoop_common
