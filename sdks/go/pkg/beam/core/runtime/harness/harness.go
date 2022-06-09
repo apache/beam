@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -42,9 +43,6 @@ import (
 // StatusAddress is a type of status endpoint address as an optional argument to harness.Main().
 type StatusAddress string
 
-// RunnerCapabilities is a type that represents comma separated runner capabilities URN.
-type RunnerCapabilities string
-
 // URNProgressReporting is a URN for v1 progress reporting.
 const URNProgressReporting = "beam:protocol:progress_reporting:v1"
 
@@ -57,15 +55,20 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 	hooks.DeserializeHooksFromOptions(ctx)
 
 	statusEndpoint := ""
-	var runnerCapabilities []string
 	for _, option := range options {
 		switch option := option.(type) {
 		case StatusAddress:
 			statusEndpoint = string(option)
-		case RunnerCapabilities:
-			runnerCapabilities = strings.Split(string(option), ",")
 		default:
 			return errors.Errorf("unknown type %T, value %v in error call", option, option)
+		}
+	}
+
+	runnerCapabilities := strings.Split(os.Getenv("RUNNER_CAPABILITIES"), " ")
+	rcMap := make(map[string]bool)
+	if len(runnerCapabilities) > 0 {
+		for _, capability := range runnerCapabilities {
+			rcMap[capability] = true
 		}
 	}
 
@@ -138,12 +141,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 	sideCache := statecache.SideInputCache{}
 	sideCache.Init(cacheSize)
 
-	rcMap := make(map[string]bool)
-	if len(runnerCapabilities) > 0 {
-		for _, capability := range runnerCapabilities {
-			rcMap[capability] = true
-		}
-	}
 	ctrl := &control{
 		lookupDesc:           lookupDesc,
 		descriptors:          make(map[bundleDescriptorID]*fnpb.ProcessBundleDescriptor),

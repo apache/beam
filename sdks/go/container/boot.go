@@ -112,7 +112,7 @@ func main() {
 	}
 
 	if len(info.GetRunnerCapabilities()) > 0 {
-		args = append(args, "--runner_capabilities="+strings.Join(info.GetRunnerCapabilities(), ","))
+		os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
 	}
 
 	log.Fatalf("User program exited: %v", execx.Execute(prog, args...))
