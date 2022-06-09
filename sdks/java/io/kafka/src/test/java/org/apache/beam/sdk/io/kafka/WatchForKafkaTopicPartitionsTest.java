@@ -35,6 +35,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -42,19 +43,18 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
-import org.testcontainers.shaded.org.hamcrest.BaseMatcher;
 
 @RunWith(JUnit4.class)
 public class WatchForKafkaTopicPartitionsTest {
 
-  public static final TestPipelineOptions options =
+  public static final TestPipelineOptions OPTIONS =
       TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
 
   static {
-    options.setBlockOnRun(false);
+    OPTIONS.setBlockOnRun(false);
   }
 
-  @Rule public final transient TestPipeline p = TestPipeline.fromOptions(options);
+  @Rule public final transient TestPipeline p = TestPipeline.fromOptions(OPTIONS);
 
   @Test
   public void testGetAllTopicPartitions() throws Exception {
@@ -187,8 +187,5 @@ public class WatchForKafkaTopicPartitionsTest {
         return false;
       }
     }
-
-    @Override
-    public void describeTo(org.testcontainers.shaded.org.hamcrest.Description description) {}
   }
 }
