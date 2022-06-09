@@ -123,7 +123,6 @@ public class InitialChildPartitionsRecordAction {
         .setEndTimestamp(endTimestamp)
         .setHeartbeatMillis(heartbeatMillis)
         .setState(CREATED)
-        .setWatermark(startTimestamp)
         .build();
   }
 }

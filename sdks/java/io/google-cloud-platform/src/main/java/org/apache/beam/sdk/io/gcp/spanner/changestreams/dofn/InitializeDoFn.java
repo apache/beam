@@ -90,7 +90,6 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
             .setEndTimestamp(endTimestamp)
             .setHeartbeatMillis(DEFAULT_HEARTBEAT_MILLIS)
             .setState(State.CREATED)
-            .setWatermark(startTimestamp)
             .build();
     daoFactory.getPartitionMetadataDao().insert(parentPartition);
   }

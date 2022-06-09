@@ -211,7 +211,6 @@ public class ChildPartitionsRecordAction {
         .setEndTimestamp(endTimestamp)
         .setHeartbeatMillis(heartbeatMillis)
         .setState(CREATED)
-        .setWatermark(startTimestamp)
         .build();
   }
 }

@@ -73,9 +73,6 @@ public class PartitionMetadata implements Serializable {
   private State state;
 
   @AvroEncode(using = TimestampEncoding.class)
-  private Timestamp watermark;
-
-  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp createdAt;
 
   @Nullable
@@ -103,7 +100,6 @@ public class PartitionMetadata implements Serializable {
       Timestamp endTimestamp,
       long heartbeatMillis,
       State state,
-      Timestamp watermark,
       Timestamp createdAt,
       @Nullable Timestamp scheduledAt,
       @Nullable Timestamp runningAt,
@@ -114,7 +110,6 @@ public class PartitionMetadata implements Serializable {
     this.endTimestamp = endTimestamp;
     this.heartbeatMillis = heartbeatMillis;
     this.state = state;
-    this.watermark = watermark;
     this.createdAt = createdAt;
     this.scheduledAt = scheduledAt;
     this.runningAt = runningAt;
@@ -163,11 +158,6 @@ public class PartitionMetadata implements Serializable {
     return state;
   }
 
-  /** The time for which all records with a timestamp less than it have been processed. */
-  public Timestamp getWatermark() {
-    return watermark;
-  }
-
   /** The time at which this partition was first detected and created in the metadata table. */
   public Timestamp getCreatedAt() {
     return createdAt;
@@ -208,7 +198,6 @@ public class PartitionMetadata implements Serializable {
         && Objects.equals(startTimestamp, that.startTimestamp)
         && Objects.equals(endTimestamp, that.endTimestamp)
         && state == that.state
-        && Objects.equals(watermark, that.watermark)
         && Objects.equals(createdAt, that.createdAt)
         && Objects.equals(scheduledAt, that.scheduledAt)
         && Objects.equals(runningAt, that.runningAt)
@@ -224,7 +213,6 @@ public class PartitionMetadata implements Serializable {
         endTimestamp,
         heartbeatMillis,
         state,
-        watermark,
         createdAt,
         scheduledAt,
         runningAt,
@@ -247,8 +235,6 @@ public class PartitionMetadata implements Serializable {
         + heartbeatMillis
         + ", state="
         + state
-        + ", watermark="
-        + watermark
         + ", createdAt="
         + createdAt
         + ", scheduledAt="
@@ -274,7 +260,6 @@ public class PartitionMetadata implements Serializable {
     private Timestamp endTimestamp;
     private Long heartbeatMillis;
     private State state;
-    private Timestamp watermark;
     private Timestamp createdAt;
     @Nullable private Timestamp scheduledAt;
     @Nullable private Timestamp runningAt;
@@ -289,7 +274,6 @@ public class PartitionMetadata implements Serializable {
       this.endTimestamp = partition.endTimestamp;
       this.heartbeatMillis = partition.heartbeatMillis;
       this.state = partition.state;
-      this.watermark = partition.watermark;
       this.createdAt = partition.createdAt;
       this.scheduledAt = partition.scheduledAt;
       this.runningAt = partition.runningAt;
@@ -332,12 +316,6 @@ public class PartitionMetadata implements Serializable {
       return this;
     }
 
-    /** Sets the watermark (last processed timestamp) for the partition. */
-    public Builder setWatermark(Timestamp watermark) {
-      this.watermark = watermark;
-      return this;
-    }
-
     /** Sets the time at which the partition was created. */
     public Builder setCreatedAt(Timestamp createdAt) {
       this.createdAt = createdAt;
@@ -371,7 +349,6 @@ public class PartitionMetadata implements Serializable {
      *   <li>start timestamp
      *   <li>heartbeat millis
      *   <li>state
-     *   <li>watermark
      * </ul>
      */
     public PartitionMetadata build() {
@@ -380,7 +357,6 @@ public class PartitionMetadata implements Serializable {
       Preconditions.checkState(startTimestamp != null, "startTimestamp");
       Preconditions.checkState(heartbeatMillis != null, "heartbeatMillis");
       Preconditions.checkState(state != null, "state");
-      Preconditions.checkState(watermark != null, "watermark");
       if (createdAt == null) {
         createdAt = Value.COMMIT_TIMESTAMP;
       }
@@ -391,7 +367,6 @@ public class PartitionMetadata implements Serializable {
           endTimestamp,
           heartbeatMillis,
           state,
-          watermark,
           createdAt,
           scheduledAt,
           runningAt,
