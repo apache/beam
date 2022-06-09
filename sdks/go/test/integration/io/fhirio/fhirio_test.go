@@ -34,6 +34,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/fhirio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 	"google.golang.org/api/healthcare/v1"
@@ -170,7 +171,11 @@ func TestFhirIO_Read(t *testing.T) {
 	_, testResourcePaths, teardownFhirStore := setupFhirStore(t)
 	defer teardownFhirStore()
 
-	p := ReadPipeline(testResourcePaths)
+	p, s, resourcePaths := ptest.CreateList(testResourcePaths)
+	resources, failedReads := fhirio.Read(s, resourcePaths)
+	passert.Empty(s, failedReads)
+	passert.Count(s, resources, "", len(testResourcePaths))
+
 	ptest.RunAndValidate(t, p)
 }
 
@@ -181,7 +186,15 @@ func TestFhirIO_InvalidRead(t *testing.T) {
 	fhirStorePath, _, teardownFhirStore := setupFhirStore(t)
 	defer teardownFhirStore()
 
-	p := InvalidReadPipeline(fhirStorePath)
+	invalidResourcePath := fhirStorePath + "/fhir/Patient/invalid"
+	p, s, resourcePaths := ptest.CreateList([]string{invalidResourcePath})
+	resources, failedReads := fhirio.Read(s, resourcePaths)
+	passert.Count(s, failedReads, "", 1)
+	passert.Empty(s, resources)
+	passert.True(s, failedReads, func(errorMsg string) bool {
+		return strings.Contains(errorMsg, "bad status [404]")
+	})
+
 	ptest.RunAndValidate(t, p)
 }
 
