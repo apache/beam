@@ -35,8 +35,8 @@ import time
 from typing import Any
 from typing import Generic
 from typing import Iterable
-from typing import List
 from typing import Mapping
+from typing import Sequence
 from typing import Tuple
 from typing import TypeVar
 
@@ -68,13 +68,13 @@ def _to_microseconds(time_ns: int) -> int:
 
 class InferenceRunner(Generic[ExampleT, PredictionT, ModelT]):
   """Implements running inferences for a framework."""
-  def run_inference(self, batch: List[ExampleT], model: ModelT,
+  def run_inference(self, batch: Sequence[ExampleT], model: ModelT,
                     **kwargs) -> Iterable[PredictionT]:
     """Runs inferences on a batch of examples and
     returns an Iterable of Predictions."""
     raise NotImplementedError(type(self))
 
-  def get_num_bytes(self, batch: List[ExampleT]) -> int:
+  def get_num_bytes(self, batch: Sequence[ExampleT]) -> int:
     """Returns the number of bytes of data for a batch."""
     return len(pickle.dumps(batch))
 
@@ -131,13 +131,13 @@ class KeyedInferenceRunner(Generic[KeyT, ExampleT, PredictionT, ModelT],
     self._unkeyed = unkeyed
 
   def run_inference(
-      self, batch: List[Tuple[KeyT, ExampleT]], model: ModelT,
+      self, batch: Sequence[Tuple[KeyT, ExampleT]], model: ModelT,
       **kwargs) -> Iterable[Tuple[KeyT, PredictionT]]:
     keys, unkeyed_batch = zip(*batch)
     return zip(
         keys, self._unkeyed.run_inference(unkeyed_batch, model, **kwargs))
 
-  def get_num_bytes(self, batch: List[Tuple[KeyT, ExampleT]]) -> int:
+  def get_num_bytes(self, batch: Sequence[Tuple[KeyT, ExampleT]]) -> int:
     keys, unkeyed_batch = zip(*batch)
     return len(pickle.dumps(keys)) + self._unkeyed.get_num_bytes(unkeyed_batch)
 
