@@ -46,7 +46,6 @@ import re
 from io import BytesIO
 from io import StringIO
 from io import TextIOWrapper
-from typing import Optional
 
 import pandas as pd
 
