@@ -39,6 +39,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -50,7 +51,6 @@ import org.joda.time.Instant;
  * details.
  */
 @SuppressWarnings({
-  "nullness",
   // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
   // errorprone is released (2.11.0)
   "unused"
@@ -65,22 +65,22 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
 
   private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
       kafkaConsumerFactoryFn;
-  private final SerializableFunction<TopicPartition, Boolean> checkStopReadingFn;
+  private final @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn;
   private final Map<String, Object> kafkaConsumerConfig;
-  private final Instant startReadTime;
-  private final Instant stopReadTime;
+  private final @Nullable Instant startReadTime;
+  private final @Nullable Instant stopReadTime;
 
   private static final String COUNTER_NAMESPACE = "watch_kafka_topic_partition";
 
   private final List<String> topics;
 
   WatchKafkaTopicPartitionDoFn(
-      Duration checkDuration,
+      @Nullable Duration checkDuration,
       SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> kafkaConsumerFactoryFn,
-      SerializableFunction<TopicPartition, Boolean> checkStopReadingFn,
+      @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn,
       Map<String, Object> kafkaConsumerConfig,
-      Instant startReadTime,
-      Instant stopReadTime,
+      @Nullable Instant startReadTime,
+      @Nullable Instant stopReadTime,
       List<String> topics) {
     this.checkDuration = checkDuration == null ? DEFAULT_CHECK_DURATION : checkDuration;
     this.kafkaConsumerFactoryFn = kafkaConsumerFactoryFn;

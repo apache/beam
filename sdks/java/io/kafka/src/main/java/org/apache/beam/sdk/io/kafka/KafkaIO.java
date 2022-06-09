@@ -83,6 +83,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.WallTime;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -110,6 +111,7 @@ import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.common.utils.AppInfoParser;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -542,8 +544,7 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class KafkaIO {
 
@@ -629,43 +630,62 @@ public class KafkaIO {
   @SuppressWarnings({"rawtypes"})
   public abstract static class Read<K, V>
       extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
+    @Pure
     abstract Map<String, Object> getConsumerConfig();
 
+    @Pure
     abstract @Nullable List<String> getTopics();
 
+    @Pure
     abstract @Nullable List<TopicPartition> getTopicPartitions();
 
+    @Pure
     abstract @Nullable Coder<K> getKeyCoder();
 
+    @Pure
     abstract @Nullable Coder<V> getValueCoder();
 
+    @Pure
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
 
+    @Pure
     abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
 
+    @Pure
     abstract long getMaxNumRecords();
 
+    @Pure
     abstract @Nullable Duration getMaxReadTime();
 
+    @Pure
     abstract @Nullable Instant getStartReadTime();
 
+    @Pure
     abstract @Nullable Instant getStopReadTime();
 
+    @Pure
     abstract boolean isCommitOffsetsInFinalizeEnabled();
 
+    @Pure
     abstract boolean isDynamicRead();
 
+    @Pure
     abstract @Nullable Duration getWatchTopicPartitionDuration();
 
+    @Pure
     abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
+    @Pure
     abstract @Nullable Map<String, Object> getOffsetConsumerConfig();
 
+    @Pure
     abstract @Nullable DeserializerProvider getKeyDeserializerProvider();
 
+    @Pure
     abstract @Nullable DeserializerProvider getValueDeserializerProvider();
 
+    @Pure
     abstract @Nullable SerializableFunction<TopicPartition, Boolean> getCheckStopReadingFn();
 
     abstract Builder<K, V> toBuilder();
@@ -826,6 +846,7 @@ public class KafkaIO {
       }
 
       /** Parameters class to expose the Read transform to an external SDK. */
+      @SuppressWarnings("initialization")
       public static class Configuration {
 
         private Map<String, String> consumerConfig;
@@ -1416,6 +1437,7 @@ public class KafkaIO {
         PTransform<PBegin, PCollection<KafkaRecord<K, V>>> transform = unbounded;
 
         if (kafkaRead.getMaxNumRecords() < Long.MAX_VALUE || kafkaRead.getMaxReadTime() != null) {
+          // bounded read
           transform =
               unbounded
                   .withMaxReadTime(kafkaRead.getMaxReadTime())
@@ -1509,22 +1531,23 @@ public class KafkaIO {
       private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
           consumerFactoryFn;
 
-      private final List<TopicPartition> topicPartitions;
+      private final @Nullable List<TopicPartition> topicPartitions;
 
-      private final Instant startReadTime;
+      private final @Nullable Instant startReadTime;
 
-      private final Instant stopReadTime;
+      private final @Nullable Instant stopReadTime;
 
       @VisibleForTesting final Map<String, Object> consumerConfig;
 
-      @VisibleForTesting final List<String> topics;
+      @VisibleForTesting final @Nullable List<String> topics;
 
       @ProcessElement
       public void processElement(OutputReceiver<KafkaSourceDescriptor> receiver) {
-        List<TopicPartition> partitions = new ArrayList<>(topicPartitions);
+        List<TopicPartition> partitions =
+            new ArrayList<>(Preconditions.checkStateNotNull(topicPartitions));
         if (partitions.isEmpty()) {
           try (Consumer<?, ?> consumer = consumerFactoryFn.apply(consumerConfig)) {
-            for (String topic : topics) {
+            for (String topic : Preconditions.checkStateNotNull(topics)) {
               for (PartitionInfo p : consumer.partitionsFor(topic)) {
                 partitions.add(new TopicPartition(p.topic(), p.partition()));
               }
@@ -1542,13 +1565,13 @@ public class KafkaIO {
     private Coder<K> getKeyCoder(CoderRegistry coderRegistry) {
       return (getKeyCoder() != null)
           ? getKeyCoder()
-          : getKeyDeserializerProvider().getCoder(coderRegistry);
+          : Preconditions.checkStateNotNull(getKeyDeserializerProvider()).getCoder(coderRegistry);
     }
 
     private Coder<V> getValueCoder(CoderRegistry coderRegistry) {
       return (getValueCoder() != null)
           ? getValueCoder()
-          : getValueDeserializerProvider().getCoder(coderRegistry);
+          : Preconditions.checkStateNotNull(getValueDeserializerProvider()).getCoder(coderRegistry);
     }
 
     /**
@@ -1572,8 +1595,8 @@ public class KafkaIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      List<String> topics = getTopics();
-      List<TopicPartition> topicPartitions = getTopicPartitions();
+      List<String> topics = Preconditions.checkStateNotNull(getTopics());
+      List<TopicPartition> topicPartitions = Preconditions.checkStateNotNull(getTopicPartitions());
       if (topics.size() > 0) {
         builder.add(DisplayData.item("topics", Joiner.on(",").join(topics)).withLabel("Topic/s"));
       } else if (topicPartitions.size() > 0) {
@@ -1680,7 +1703,7 @@ public class KafkaIO {
     long timestamp;
     byte @Nullable [] key;
     byte @Nullable [] value;
-    List<KafkaHeader> headers;
+    @Nullable List<KafkaHeader> headers;
     int timestampTypeId;
     String timestampTypeName;
 
@@ -1821,31 +1844,43 @@ public class KafkaIO {
 
     private static final Logger LOG = LoggerFactory.getLogger(ReadSourceDescriptors.class);
 
+    @Pure
     abstract Map<String, Object> getConsumerConfig();
 
+    @Pure
     abstract @Nullable Map<String, Object> getOffsetConsumerConfig();
 
+    @Pure
     abstract @Nullable DeserializerProvider getKeyDeserializerProvider();
 
+    @Pure
     abstract @Nullable DeserializerProvider getValueDeserializerProvider();
 
+    @Pure
     abstract @Nullable Coder<K> getKeyCoder();
 
+    @Pure
     abstract @Nullable Coder<V> getValueCoder();
 
+    @Pure
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
 
+    @Pure
     abstract @Nullable SerializableFunction<TopicPartition, Boolean> getCheckStopReadingFn();
 
+    @Pure
     abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant>
         getExtractOutputTimestampFn();
 
+    @Pure
     abstract @Nullable SerializableFunction<Instant, WatermarkEstimator<Instant>>
         getCreateWatermarkEstimatorFn();
 
+    @Pure
     abstract boolean isCommitOffsetEnabled();
 
+    @Pure
     abstract @Nullable TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
     abstract boolean isBounded();
@@ -1857,19 +1892,19 @@ public class KafkaIO {
       abstract ReadSourceDescriptors.Builder<K, V> setConsumerConfig(Map<String, Object> config);
 
       abstract ReadSourceDescriptors.Builder<K, V> setOffsetConsumerConfig(
-          Map<String, Object> offsetConsumerConfig);
+          @Nullable Map<String, Object> offsetConsumerConfig);
 
       abstract ReadSourceDescriptors.Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn);
 
       abstract ReadSourceDescriptors.Builder<K, V> setCheckStopReadingFn(
-          SerializableFunction<TopicPartition, Boolean> checkStopReadingFn);
+          @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn);
 
       abstract ReadSourceDescriptors.Builder<K, V> setKeyDeserializerProvider(
-          DeserializerProvider deserializerProvider);
+          @Nullable DeserializerProvider deserializerProvider);
 
       abstract ReadSourceDescriptors.Builder<K, V> setValueDeserializerProvider(
-          DeserializerProvider deserializerProvider);
+          @Nullable DeserializerProvider deserializerProvider);
 
       abstract ReadSourceDescriptors.Builder<K, V> setKeyCoder(Coder<K> keyCoder);
 
@@ -1913,12 +1948,12 @@ public class KafkaIO {
     }
 
     public ReadSourceDescriptors<K, V> withKeyDeserializerProvider(
-        DeserializerProvider<K> deserializerProvider) {
+        @Nullable DeserializerProvider<K> deserializerProvider) {
       return toBuilder().setKeyDeserializerProvider(deserializerProvider).build();
     }
 
     public ReadSourceDescriptors<K, V> withValueDeserializerProvider(
-        DeserializerProvider<V> deserializerProvider) {
+        @Nullable DeserializerProvider<V> deserializerProvider) {
       return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
     }
 
@@ -1986,7 +2021,7 @@ public class KafkaIO {
      * should stop reading from the given {@link TopicPartition}.
      */
     public ReadSourceDescriptors<K, V> withCheckStopReadingFn(
-        SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
+        @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
       return toBuilder().setCheckStopReadingFn(checkStopReadingFn).build();
     }
 
@@ -2115,7 +2150,7 @@ public class KafkaIO {
      * <p>See {@link #withConsumerConfigUpdates} for configuring the main consumer.
      */
     public ReadSourceDescriptors<K, V> withOffsetConsumerConfigOverrides(
-        Map<String, Object> offsetConsumerConfig) {
+        @Nullable Map<String, Object> offsetConsumerConfig) {
       return toBuilder().setOffsetConsumerConfig(offsetConsumerConfig).build();
     }
 
@@ -2172,7 +2207,10 @@ public class KafkaIO {
                         outputReceiver.output(element.getKV());
                       }
                     }))
-            .setCoder(KvCoder.<K, V>of(readViaSDF.getKeyCoder(), readViaSDF.getValueCoder()));
+            .setCoder(
+                KvCoder.<K, V>of(
+                    Preconditions.checkStateNotNull(readViaSDF.getKeyCoder()),
+                    Preconditions.checkStateNotNull(readViaSDF.getValueCoder())));
       }
     }
 
@@ -2266,13 +2304,13 @@ public class KafkaIO {
     private Coder<K> getKeyCoder(CoderRegistry coderRegistry) {
       return (getKeyCoder() != null)
           ? getKeyCoder()
-          : getKeyDeserializerProvider().getCoder(coderRegistry);
+          : Preconditions.checkStateNotNull(getKeyDeserializerProvider()).getCoder(coderRegistry);
     }
 
     private Coder<V> getValueCoder(CoderRegistry coderRegistry) {
       return (getValueCoder() != null)
           ? getValueCoder()
-          : getValueDeserializerProvider().getCoder(coderRegistry);
+          : Preconditions.checkStateNotNull(getValueDeserializerProvider()).getCoder(coderRegistry);
     }
 
     private boolean configuredKafkaCommit() {
@@ -2338,27 +2376,37 @@ public class KafkaIO {
     // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
     // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
 
+    @Pure
     abstract @Nullable String getTopic();
 
+    @Pure
     abstract Map<String, Object> getProducerConfig();
 
+    @Pure
     abstract @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>>
         getProducerFactoryFn();
 
+    @Pure
     abstract @Nullable Class<? extends Serializer<K>> getKeySerializer();
 
+    @Pure
     abstract @Nullable Class<? extends Serializer<V>> getValueSerializer();
 
+    @Pure
     abstract @Nullable KafkaPublishTimestampFunction<ProducerRecord<K, V>>
         getPublishTimestampFunction();
 
     // Configuration for EOS sink
+    @Pure
     abstract boolean isEOS();
 
+    @Pure
     abstract @Nullable String getSinkGroupId();
 
+    @Pure
     abstract int getNumShards();
 
+    @Pure
     abstract @Nullable SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
         getConsumerFactoryFn();
 
@@ -2562,7 +2610,8 @@ public class KafkaIO {
     }
 
     @Override
-    public void validate(PipelineOptions options) {
+    public void validate(@Nullable PipelineOptions options) {
+      Preconditions.checkStateNotNull(options);
       if (isEOS()) {
         String runner = options.getRunner().getName();
         if ("org.apache.beam.runners.direct.DirectRunner".equals(runner)
@@ -2674,6 +2723,7 @@ public class KafkaIO {
       }
 
       /** Parameters class to expose the Write transform to an external SDK. */
+      @SuppressWarnings("initialization")
       public static class Configuration {
 
         private Map<String, String> producerConfig;
@@ -2818,7 +2868,7 @@ public class KafkaIO {
 
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
-      checkArgument(getTopic() != null, "withTopic() is required");
+      final String topic = Preconditions.checkStateNotNull(getTopic(), "withTopic() is required");
 
       KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
       return input
@@ -2828,7 +2878,7 @@ public class KafkaIO {
                   new SimpleFunction<KV<K, V>, ProducerRecord<K, V>>() {
                     @Override
                     public ProducerRecord<K, V> apply(KV<K, V> element) {
-                      return new ProducerRecord<>(getTopic(), element.getKey(), element.getValue());
+                      return new ProducerRecord<>(topic, element.getKey(), element.getValue());
                     }
                   }))
           .setCoder(ProducerRecordCoder.of(kvCoder.getKeyCoder(), kvCoder.getValueCoder()))
@@ -2836,7 +2886,7 @@ public class KafkaIO {
     }
 
     @Override
-    public void validate(PipelineOptions options) {
+    public void validate(@Nullable PipelineOptions options) {
       getWriteRecordsTransform().validate(options);
     }
 
@@ -2850,9 +2900,15 @@ public class KafkaIO {
      * Writes just the values to Kafka. This is useful for writing collections of values rather
      * thank {@link KV}s.
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public PTransform<PCollection<V>, PDone> values() {
-      return new KafkaValueWrite<K, V>(this.withKeySerializer((Class) StringSerializer.class));
+      // KafkaValueWrite requires a write transform that can handle null keys.
+      // Since it will only pass null, we can re-use the current transform safely
+      @SuppressWarnings("rawtypes")
+      Class<Serializer<K>> onlyNullSerializerClass = (Class) StringSerializer.class;
+
+      Write<@Nullable K, V> nullKeyWriteTransform =
+          (Write<@Nullable K, V>) this.withKeySerializer(onlyNullSerializerClass);
+      return new KafkaValueWrite<V>(nullKeyWriteTransform);
     }
 
     /**
@@ -2879,27 +2935,28 @@ public class KafkaIO {
    * Same as {@code Write<K, V>} without a Key. Null is used for key as it is the convention is
    * Kafka when there is no key specified. Majority of Kafka writers don't specify a key.
    */
-  private static class KafkaValueWrite<K, V> extends PTransform<PCollection<V>, PDone> {
-    private final Write<K, V> kvWriteTransform;
+  private static class KafkaValueWrite<V> extends PTransform<PCollection<V>, PDone> {
+    private final Write<@Nullable ?, V> kvWriteTransform;
 
-    private KafkaValueWrite(Write<K, V> kvWriteTransform) {
+    private KafkaValueWrite(Write<@Nullable ?, V> kvWriteTransform) {
       this.kvWriteTransform = kvWriteTransform;
     }
 
     @Override
     public PDone expand(PCollection<V> input) {
-      return input
-          .apply(
-              "Kafka values with default key",
-              MapElements.via(
-                  new SimpleFunction<V, KV<K, V>>() {
-                    @Override
-                    public KV<K, V> apply(V element) {
-                      return KV.of(null, element);
-                    }
-                  }))
-          .setCoder(KvCoder.of(new NullOnlyCoder<>(), input.getCoder()))
-          .apply(kvWriteTransform);
+      return (PDone)
+          input
+              .apply(
+                  "Kafka values with default key",
+                  MapElements.via(
+                      new SimpleFunction<V, KV<@Nullable ?, V>>() {
+                        @Override
+                        public KV<@Nullable ?, V> apply(V element) {
+                          return KV.of(null, element);
+                        }
+                      }))
+              .setCoder((Coder) KvCoder.of(new NullOnlyCoder<>(), input.getCoder()))
+              .apply(kvWriteTransform);
     }
 
     @Override
@@ -2909,7 +2966,7 @@ public class KafkaIO {
     }
   }
 
-  private static class NullOnlyCoder<T> extends AtomicCoder<T> {
+  private static class NullOnlyCoder<@Nullable T> extends AtomicCoder<T> {
     @Override
     public void encode(T value, OutputStream outStream) {
       checkArgument(value == null, "Can only encode nulls");
