@@ -94,7 +94,13 @@ public class External {
     Endpoints.ApiServiceDescriptor apiDesc =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
     return new SingleOutputExpandableTransform<>(
-        urn, payload, apiDesc, DEFAULT, getFreshNamespaceIndex(), ImmutableMap.of());
+        urn,
+        payload,
+        apiDesc,
+        DEFAULT,
+        getFreshNamespaceIndex(),
+        ImmutableMap.of(),
+        ImmutableMap.of());
   }
 
   @VisibleForTesting
@@ -103,7 +109,13 @@ public class External {
     Endpoints.ApiServiceDescriptor apiDesc =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
     return new SingleOutputExpandableTransform<>(
-        urn, payload, apiDesc, clientFactory, getFreshNamespaceIndex(), ImmutableMap.of());
+        urn,
+        payload,
+        apiDesc,
+        clientFactory,
+        getFreshNamespaceIndex(),
+        ImmutableMap.of(),
+        ImmutableMap.of());
   }
 
   /** Expandable transform for output type of PCollection. */
@@ -115,14 +127,27 @@ public class External {
         Endpoints.ApiServiceDescriptor endpoint,
         ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex,
-        Map<String, Coder<?>> outputCoders) {
-      super(urn, payload, endpoint, clientFactory, namespaceIndex, outputCoders);
+        Map<String, Coder<?>> outputCoders,
+        Map<String, String> resources) {
+      super(urn, payload, endpoint, clientFactory, namespaceIndex, outputCoders, resources);
     }
 
     @Override
     PCollection<OutputT> toOutputCollection(Map<TupleTag<?>, PCollection> output) {
       checkArgument(output.size() > 0, "output shouldn't be empty.");
       return Iterables.getOnlyElement(output.values());
+    }
+
+    public SingleOutputExpandableTransform<InputT, OutputT> withResources(
+        Map<String, String> resources) {
+      return new SingleOutputExpandableTransform<>(
+          getUrn(),
+          getPayload(),
+          getEndpoint(),
+          getClientFactory(),
+          getNamespaceIndex(),
+          getOutputCoders(),
+          resources);
     }
 
     public MultiOutputExpandableTransform<InputT> withMultiOutputs() {
@@ -132,7 +157,8 @@ public class External {
           getEndpoint(),
           getClientFactory(),
           getNamespaceIndex(),
-          getOutputCoders());
+          getOutputCoders(),
+          getResources());
     }
 
     public SingleOutputExpandableTransform<InputT, OutputT> withOutputCoder(Coder<?> outputCoder) {
@@ -142,7 +168,8 @@ public class External {
           getEndpoint(),
           getClientFactory(),
           getNamespaceIndex(),
-          ImmutableMap.of("0", outputCoder));
+          ImmutableMap.of("0", outputCoder),
+          getResources());
     }
   }
 
@@ -155,8 +182,9 @@ public class External {
         Endpoints.ApiServiceDescriptor endpoint,
         ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex,
-        Map<String, Coder<?>> outputCoders) {
-      super(urn, payload, endpoint, clientFactory, namespaceIndex, outputCoders);
+        Map<String, Coder<?>> outputCoders,
+        Map<String, String> resources) {
+      super(urn, payload, endpoint, clientFactory, namespaceIndex, outputCoders, resources);
     }
 
     @Override
@@ -178,7 +206,8 @@ public class External {
           getEndpoint(),
           getClientFactory(),
           getNamespaceIndex(),
-          outputCoders);
+          outputCoders,
+          getResources());
     }
   }
 
@@ -191,6 +220,7 @@ public class External {
     private final ExpansionServiceClientFactory clientFactory;
     private final Integer namespaceIndex;
     private final Map<String, Coder<?>> outputCoders;
+    private final Map<String, String> resources;
 
     private transient RunnerApi.@Nullable Components expandedComponents;
     private transient RunnerApi.@Nullable PTransform expandedTransform;
@@ -204,13 +234,15 @@ public class External {
         Endpoints.ApiServiceDescriptor endpoint,
         ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex,
-        Map<String, Coder<?>> outputCoders) {
+        Map<String, Coder<?>> outputCoders,
+        Map<String, String> resources) {
       this.urn = urn;
       this.payload = payload;
       this.endpoint = endpoint;
       this.clientFactory = clientFactory;
       this.namespaceIndex = namespaceIndex;
       this.outputCoders = outputCoders;
+      this.resources = resources;
     }
 
     @Override
@@ -281,20 +313,29 @@ public class External {
             String.format("expansion service error: %s", response.getError()));
       }
 
-      Map<String, RunnerApi.Environment> newEnvironmentsWithDependencies =
-          response.getComponents().getEnvironmentsMap().entrySet().stream()
-              .filter(
-                  kv ->
-                      !originalComponents.getEnvironmentsMap().containsKey(kv.getKey())
-                          && kv.getValue().getDependenciesCount() != 0)
-              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+      RunnerApi.Components.Builder componentsBuilder = response.getComponents().toBuilder();
+      componentsBuilder.putAllEnvironments(
+          resolveArtifacts(
+              componentsBuilder.getEnvironmentsMap().entrySet().stream()
+                  .filter(
+                      kv ->
+                          !originalComponents.getEnvironmentsMap().containsKey(kv.getKey())
+                              && kv.getValue().getDependenciesCount() != 0)
+                  .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))));
+      List<RunnerApi.ArtifactInformation> artifacts =
+          Environments.getArtifacts(
+              resources.entrySet().stream()
+                  .map(e -> String.format("%s=%s", e.getValue(), e.getKey()))
+                  .collect(Collectors.toList()));
+      componentsBuilder.putAllEnvironments(
+          componentsBuilder.getEnvironmentsMap().entrySet().stream()
+              .filter(kv -> !originalComponents.getEnvironmentsMap().containsKey(kv.getKey()))
+              .collect(
+                  Collectors.toMap(
+                      Map.Entry::getKey,
+                      e -> e.getValue().toBuilder().addAllDependencies(artifacts).build())));
 
-      expandedComponents =
-          response
-              .getComponents()
-              .toBuilder()
-              .putAllEnvironments(resolveArtifacts(newEnvironmentsWithDependencies))
-              .build();
+      expandedComponents = componentsBuilder.build();
       expandedTransform = response.getTransform();
       expandedRequirements = response.getRequirementsList();
 
@@ -477,6 +518,10 @@ public class External {
 
     Map<String, Coder<?>> getOutputCoders() {
       return outputCoders;
+    }
+
+    Map<String, String> getResources() {
+      return resources;
     }
   }
 }

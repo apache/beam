@@ -74,6 +74,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   private @Nullable Row providedKwargsRow;
 
   Map<String, Coder<?>> outputCoders;
+  Map<String, String> resources;
 
   private PythonExternalTransform(String fullyQualifiedName, String expansionService) {
     this.fullyQualifiedName = fullyQualifiedName;
@@ -86,6 +87,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
         PythonCallableSource.class, Schema.FieldType.logicalType(new PythonCallable()));
     argsArray = new Object[] {};
     this.outputCoders = new HashMap<>();
+    this.resources = new HashMap<>();
   }
 
   /**
@@ -225,6 +227,14 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
 
     // Output key should not matter when only specifying a single output.
     this.outputCoders.put("random_output_key", outputCoder);
+    return this;
+  }
+
+  public PythonExternalTransform<InputT, OutputT> withResources(Map<String, String> resources) {
+    if (this.resources.size() > 0) {
+      throw new IllegalArgumentException("resources were already specified");
+    }
+    this.resources = resources;
     return this;
   }
 
@@ -406,6 +416,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
                 "beam:transforms:python:fully_qualified_named",
                 payload.toByteArray(),
                 expansionService)
+            .withResources(this.resources)
             .withMultiOutputs()
             .withOutputCoder(this.outputCoders);
     PCollectionTuple outputs;
