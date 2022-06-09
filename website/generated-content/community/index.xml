@@ -928,7 +928,7 @@ limitations under the License.
 &lt;/div>
 &lt;div class="list-item-description">
 &lt;p class="beam-title">Find an area to contribute&lt;/p>
-&lt;p class="beam-description">Beam recognizes code and non-code contributions. Check out this &lt;a target="_blank" href="https://issues.apache.org/jira/secure/Dashboard.jspa?selectPageId=12335926">Jira board&lt;/a> for some inspiration.&lt;/p>
+&lt;p class="beam-description">Beam recognizes code and non-code contributions. Check out the &lt;a target="_blank" href="https://github.com/apache/beam/issues">GitHub Issues&lt;/a> for some inspiration.&lt;/p>
 &lt;/div>
 &lt;/div>
 &lt;div class="list-item">

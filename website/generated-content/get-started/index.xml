@@ -70,7 +70,7 @@ limitations under the License.
 &lt;/blockquote>&lt;/p>
 &lt;blockquote>
 &lt;p>&lt;strong>Note&lt;/strong>: MobileGaming is not yet available for the Go SDK. There is an open issue for this
-(&lt;a href="https://github.com/apache/beam/issues/18806">BEAM-4293&lt;/a>).&lt;/p>
+(&lt;a href="https://github.com/apache/beam/issues/18806">Issue 18806&lt;/a>).&lt;/p>
 &lt;/blockquote>
 &lt;p>Every time a user plays an instance of our hypothetical mobile game, they generate a data event. Each data event consists of the following information:&lt;/p>
 &lt;ul>
@@ -3589,12 +3589,12 @@ or DEBUG significantly increases the amount of logs output.&lt;/p>
 &lt;h4 id="apache-spark-runner">Apache Spark Runner&lt;/h4>
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> This section is yet to be added. There is an open issue for this
-(&lt;a href="https://github.com/apache/beam/issues/18076">BEAM-792&lt;/a>).&lt;/p>
+(&lt;a href="https://github.com/apache/beam/issues/18076">Issue 18076&lt;/a>).&lt;/p>
 &lt;/blockquote>
 &lt;h4 id="apache-flink-runner">Apache Flink Runner&lt;/h4>
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> This section is yet to be added. There is an open issue for this
-(&lt;a href="https://github.com/apache/beam/issues/18075">BEAM-791&lt;/a>).&lt;/p>
+(&lt;a href="https://github.com/apache/beam/issues/18075">Issue 18075&lt;/a>).&lt;/p>
 &lt;/blockquote>
 &lt;h4 id="apache-nemo-runner">Apache Nemo Runner&lt;/h4>
 &lt;p>When executing your pipeline with the &lt;code>NemoRunner&lt;/code>, most log messages are printed
@@ -4220,7 +4220,7 @@ python -m apache_beam.examples.streaming_wordcount \
 &lt;p>&lt;strong>To run this example in Go:&lt;/strong>&lt;/p>
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> StreamingWordCount is not yet available for the Go SDK. There is an open issue for this
-(&lt;a href="https://github.com/apache/beam/issues/18879">BEAM-4292&lt;/a>).&lt;/p>
+(&lt;a href="https://github.com/apache/beam/issues/18879">Issue 18879&lt;/a>).&lt;/p>
 &lt;/blockquote>
 &lt;h3 id="reading-an-unbounded-dataset">Reading an unbounded dataset&lt;/h3>
 &lt;p>This example uses an unbounded dataset as input. The code reads Pub/Sub

@@ -14,7 +14,7 @@ limitations under the License.
 &lt;p>This roadmap is in progress. In the meantime, here are available resources:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/dsls/sql/overview">Beam SQL documentation&lt;/a>&lt;/li>
-&lt;li>JIRA: &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20dsl-sql">dsl-sql&lt;/a>&lt;/li>
+&lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Adsl-sql">dsl-sql&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>Roadmap: Connectors - Go SDK</title><link>/roadmap/connectors-go-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/connectors-go-sdk/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -58,7 +58,7 @@ limitations under the License.
 &lt;p>Roadmap for connectors developed using Java SDK.&lt;/p>
 &lt;h1 id="couchbase">Couchbase&lt;/h1>
 &lt;p>Couchbase is a NoSQL document-oriented database. See
-&lt;a href="https://github.com/apache/beam/issues/18381">BEAM-1893&lt;/a> for more details on the
+&lt;a href="https://github.com/apache/beam/issues/18381">Issue 18381&lt;/a> for more details on the
 planned Beam connector for Couchbase.&lt;/p>
 &lt;h1 id="influxdb">InfluxDB&lt;/h1>
 &lt;p>InfluxDB is a database for fast and highly available storage and retrieval
@@ -102,7 +102,7 @@ limitations under the License.
 &lt;h1 id="euphoria-api">Euphoria API&lt;/h1>
 &lt;p>Easy to use Java 8 DSL for the Beam Java SDK. Provides a high-level abstraction of Beam transformations, which is both easy to read and write. Can be used as a complement to existing Beam pipelines (convertible back and forth). You can have a glimpse of the API at &lt;a href="/documentation/sdks/java/euphoria/#wordcount-example">WordCount example&lt;/a>.&lt;/p>
 &lt;ul>
-&lt;li>JIRA: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Adsl-euphoria">dsl-euphoria&lt;/a> / &lt;a href="https://issues.apache.org/jira/browse/BEAM-3900">BEAM-3900&lt;/a>&lt;/li>
+&lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Adsl-euphoria">dsl-euphoria&lt;/a> / &lt;a href="https://issues.apache.org/jira/browse/BEAM-3900">BEAM-3900&lt;/a>&lt;/li>
 &lt;li>Contact: &lt;a href="mailto:dmvk@apache.org">David Moravek&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="salted-join-implementation">&amp;ldquo;Salted&amp;rdquo; join implementation&lt;/h2>
@@ -132,7 +132,7 @@ limitations under the License.
 &lt;p>This roadmap is in progress. In the meantime, here are available resources:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runners/dataflow">Runner documentation&lt;/a>&lt;/li>
-&lt;li>JIRA: &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-dataflow">runner-dataflow&lt;/a>&lt;/li>
+&lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-dataflow">runner-dataflow&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>Roadmap: Flink Runner Roadmap</title><link>/roadmap/flink-runner/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/flink-runner/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -149,7 +149,7 @@ limitations under the License.
 &lt;p>This roadmap is in progress. In the meantime, here are available resources:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runners/flink">Runner documentation&lt;/a>&lt;/li>
-&lt;li>JIRA: &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-flink">runner-flink&lt;/a>&lt;/li>
+&lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-flink">runner-flink&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>Roadmap: Go SDK Roadmap</title><link>/roadmap/go-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/go-sdk/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -175,7 +175,7 @@ and can execute pipelines on portable runners, like Flink, Spark, Samza, and Goo
 Contributions are welcome. Please contact the &lt;a href="mailto:dev@beam.apache.org?subject=%5BGo%20SDK%5D%20How%20can%20I%20help%3F">dev list&lt;/a>
 for assistance in finding a place to help out.&lt;/p>
 &lt;ul>
-&lt;li>JIRA: &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go">sdk-go&lt;/a>&lt;/li>
+&lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Asdk-go">sdk-go&lt;/a>&lt;/li>
 &lt;li>Contact: Robert Burke (@lostluck) &lt;a href="mailto:lostluck@apache.org?subject=%5BGo%20SDK%20Roadmap%5D">Email&lt;/a> - Please also cc the &lt;a href="mailto:dev@beam.apache.org">dev@beam.apache.org&lt;/a> list. I strongly prefer public discussion of Go SDK matters.&lt;/li>
 &lt;/ul></description></item><item><title>Roadmap: Java SDK Roadmap</title><link>/roadmap/java-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/java-sdk/</guid><description>
 &lt;!--
@@ -389,7 +389,7 @@ design or proto definitions should use the &amp;ldquo;beam-model&amp;rdquo; comp
 common pattern for new portability features is that the overall
 feature is in &amp;ldquo;beam-model&amp;rdquo; with subtasks for each SDK and runner in
 their respective components.&lt;/p>
-&lt;p>&lt;strong>JIRA:&lt;/strong> &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20%3D%20portability%20order%20by%20priority%20DESC%2Cupdated%20DESC">query&lt;/a>&lt;/p>
+&lt;p>&lt;strong>Issues:&lt;/strong> &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Aportability">query&lt;/a>&lt;/p>
 &lt;p>Prerequisites: &lt;a href="https://docs.docker.com/compose/install/">Docker&lt;/a>, &lt;a href="https://docs.python-guide.org/starting/install3/linux/">Python&lt;/a>, &lt;a href="https://openjdk.java.net/install/">Java 8&lt;/a>&lt;/p>
 &lt;h3 id="python-on-flink">Running Python wordcount on Flink&lt;/h3>
 &lt;p>The Beam Flink runner can run Python pipelines in batch and streaming modes.
@@ -445,7 +445,7 @@ limitations under the License.
 &lt;p>This roadmap is in progress. In the meantime, here are available resources:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runners/samza">Runner documentation&lt;/a>&lt;/li>
-&lt;li>JIRA: &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-samza">runner-samza&lt;/a>&lt;/li>
+&lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-samza">runner-samza&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>Roadmap: Spark Runner Roadmap</title><link>/roadmap/spark-runner/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/spark-runner/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -481,5 +481,5 @@ limitations under the License.
 &lt;p>This roadmap is in progress. In the meantime, here are available resources:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runners/twister2">Runner documentation&lt;/a>&lt;/li>
-&lt;li>JIRA: &lt;a href="https://issues.apache.org/jira/browse/BEAM-10830?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-twister2">runner-twister2&lt;/a>&lt;/li>
+&lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-twister2">runner-twister2&lt;/a>&lt;/li>
 &lt;/ul></description></item></channel></rss>
