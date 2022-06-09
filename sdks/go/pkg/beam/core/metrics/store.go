@@ -218,3 +218,11 @@ func (b *Store) storeMetric(pid string, n name, m userMetric) {
 	}
 	b.store[l] = m
 }
+
+func (b *Store) BundleState() *BundleState {
+	return b.bundleState
+}
+
+func (b *Store) StateRegistry() map[string]*[4]ExecutionState {
+	return b.stateRegistry
+}

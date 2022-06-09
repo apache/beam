@@ -272,3 +272,7 @@ func (c *SideInputCache) evictElement(ctx context.Context) {
 		}
 	}
 }
+
+func (c *SideInputCache) CacheMetrics() CacheMetrics {
+	return c.metrics
+}

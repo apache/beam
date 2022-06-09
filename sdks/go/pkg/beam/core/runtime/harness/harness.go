@@ -112,18 +112,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		log.Debugf(ctx, "control response channel closed")
 	}()
 
-	// if the runner supports worker status api then expose SDK harness status
-	if statusEndpoint != "" {
-		statusHandler, err := newWorkerStatusHandler(ctx, statusEndpoint)
-		if err != nil {
-			log.Errorf(ctx, "error establishing connection to worker status API: %v", err)
-		} else {
-			if err := statusHandler.start(ctx); err == nil {
-				defer statusHandler.stop(ctx)
-			}
-		}
-	}
-
 	sideCache := statecache.SideInputCache{}
 	sideCache.Init(cacheSize)
 
@@ -140,6 +128,19 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		state:                &StateChannelManager{},
 		cache:                &sideCache,
 	}
+
+	// if the runner supports worker status api then expose SDK harness status
+	if statusEndpoint != "" {
+		statusHandler, err := newWorkerStatusHandler(ctx, statusEndpoint, ctrl.metStore, ctrl.cache)
+		if err != nil {
+			log.Errorf(ctx, "error establishing connection to worker status API: %v", err)
+		} else {
+			if err := statusHandler.start(ctx); err == nil {
+				defer statusHandler.stop(ctx)
+			}
+		}
+	}
+
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
 	// is responsible for managing the network data. All it does is pull data from
 	// the stream, and hand off the message to a goroutine to actually be handled,

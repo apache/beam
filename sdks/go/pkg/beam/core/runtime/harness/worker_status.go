@@ -17,6 +17,9 @@ package harness
 
 import (
 	"context"
+	"fmt"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 	"io"
 	"runtime"
 	"sync"
@@ -34,14 +37,16 @@ type workerStatusHandler struct {
 	conn           *grpc.ClientConn
 	shouldShutdown int32
 	wg             sync.WaitGroup
+	metStore       map[instructionID]*metrics.Store //*metrics.Store for active bundles
+	cache          *statecache.SideInputCache
 }
 
-func newWorkerStatusHandler(ctx context.Context, endpoint string) (*workerStatusHandler, error) {
+func newWorkerStatusHandler(ctx context.Context, endpoint string, metStore map[instructionID]*metrics.Store, cache *statecache.SideInputCache) (*workerStatusHandler, error) {
 	sconn, err := dial(ctx, endpoint, 60*time.Second)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect: %v\n", endpoint)
 	}
-	return &workerStatusHandler{conn: sconn, shouldShutdown: 0}, nil
+	return &workerStatusHandler{conn: sconn, shouldShutdown: 0, metStore: metStore, cache: cache}, nil
 }
 
 func (w *workerStatusHandler) isAlive() bool {
@@ -65,6 +70,29 @@ func (w *workerStatusHandler) start(ctx context.Context) error {
 	return nil
 }
 
+func memoryUsage() string {
+	m := runtime.MemStats{}
+	runtime.ReadMemStats(&m)
+	return fmt.Sprintf("\n Total Alloc: %v\n Sys: %v\n Mallocs: %v\n Frees: %v\n HeapAlloc: %v", m.TotalAlloc, m.Sys, m.Mallocs, m.Frees, m.HeapAlloc)
+}
+
+func (w *workerStatusHandler) activeProcessBundleStates() string {
+	var states string
+	for bundleID, store := range w.metStore {
+		execStates := ""
+		for bundleID, state := range store.StateRegistry() {
+			execStates += fmt.Sprintf("ID: %v Execution States: %v,\n", bundleID, *state)
+
+		}
+		states += fmt.Sprintf("\nBundle ID: %v\nBundle State: %v\nBundle Execution States: %#v\n", bundleID, *store.BundleState(), store.StateRegistry())
+	}
+	return states
+}
+
+func (w *workerStatusHandler) cacheStats() string {
+	return fmt.Sprintf("Cache:\n%v", w.cache.CacheMetrics())
+}
+
 // reader reads the WorkerStatusRequest from the stream and sends a processed WorkerStatusResponse to
 // a response channel.
 func (w *workerStatusHandler) reader(ctx context.Context, stub fnpb.BeamFnWorkerStatus_WorkerStatusClient) {
@@ -78,7 +106,9 @@ func (w *workerStatusHandler) reader(ctx context.Context, stub fnpb.BeamFnWorker
 		}
 		log.Debugf(ctx, "RECV-status: %v", req.GetId())
 		runtime.Stack(buf, true)
-		response := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: string(buf)}
+		statusInfo := fmt.Sprintf("\n============Memory Usage============\n%s\n============Active Process Bundle States============\n%s\n============Cache Stats============\n%s\n============Goroutine Dump============\n%s\n", memoryUsage(), w.activeProcessBundleStates(), w.cacheStats(), string(buf))
+		log.Info(ctx, statusInfo)
+		response := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: statusInfo}
 		if err := stub.Send(response); err != nil && err != io.EOF {
 			log.Errorf(ctx, "workerStatus.Writer: Failed to respond: %v", err)
 		}

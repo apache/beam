@@ -18,15 +18,14 @@ package wordcount
 
 import (
 	"context"
-	"regexp"
-	"strings"
-
 	"fmt"
-
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"regexp"
+	"strings"
+	"time"
 )
 
 var (
@@ -57,6 +56,7 @@ func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
 
 // extractFn is a DoFn that emits the words in a given line.
 func extractFn(ctx context.Context, line string, emit func(string)) {
+	time.Sleep(time.Second * 660)
 	lineLen.Update(ctx, int64(len(line)))
 	if len(strings.TrimSpace(line)) == 0 {
 		empty.Inc(ctx, 1)
@@ -81,7 +81,6 @@ func formatFn(w string, c int) string {
 // WordCount returns a self-validating wordcount pipeline.
 func WordCount(glob, hash string, size int) *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
-
 	in := textio.Read(s, glob)
 	WordCountFromPCol(s, in, hash, size)
 	return p
