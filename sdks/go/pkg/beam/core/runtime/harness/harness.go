@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -37,26 +38,15 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
-// StatusAddress is a type of status endpoint address as an optional argument to harness.Main().
-type StatusAddress string
-
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
 // "pipeline-construction time" -- on each worker. It is a FnAPI client and
 // ultimately responsible for correctly executing user code.
-func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options ...interface{}) error {
+func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	hooks.DeserializeHooksFromOptions(ctx)
 
-	statusEndpoint := ""
-	for _, option := range options {
-		switch option := option.(type) {
-		case StatusAddress:
-			statusEndpoint = string(option)
-		default:
-			return errors.Errorf("unknown type %T, value %v in error call", option, option)
-		}
-	}
+	statusEndpoint := os.Getenv("STATUS_ENDPOINT")
 
 	// Pass in the logging endpoint for use w/the default remote logging hook.
 	ctx = context.WithValue(ctx, loggingEndpointCtxKey, loggingEndpoint)

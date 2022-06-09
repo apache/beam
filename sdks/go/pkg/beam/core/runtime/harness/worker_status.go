@@ -113,7 +113,6 @@ func (w *workerStatusHandler) reader(ctx context.Context, stub fnpb.BeamFnWorker
 		log.Debugf(ctx, "RECV-status: %v", req.GetId())
 
 		statusInfo := fmt.Sprintf("\n============Memory Usage============\n%s\n============Active Process Bundle States============\n%s\n============Cache Stats============\n%s\n============Goroutine Dump============\n%s\n", memoryUsage(), w.activeProcessBundleStates(), w.cacheStats(), goroutineDump())
-		log.Info(ctx, statusInfo)
 		response := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: statusInfo}
 		if err := stub.Send(response); err != nil && err != io.EOF {
 			log.Errorf(ctx, "workerStatus.Writer: Failed to respond: %v", err)
