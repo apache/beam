@@ -135,7 +135,7 @@ kafkaVersions.each {kv ->
     include '**/KafkaIOIT.class'
 
     filter {
-      includeTestsMatching "*InBatch"
+      excludeTestsMatching "*InStreaming"
     }
   }
 }
