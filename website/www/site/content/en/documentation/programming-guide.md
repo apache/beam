@@ -6892,7 +6892,7 @@ Currently Python external transforms are limited to dependencies available in th
 #### 13.1.3. Creating cross-language Go transforms
 
 Go currently does not support creating cross-language transforms, only using cross-language
-transforms from other languages; see more at [BEAM-9923](https://issues.apache.org/jira/browse/BEAM-9923).
+transforms from other languages; see more at [#21767](https://github.com/apache/beam/issues/21767).
 
 #### 13.1.4. Defining a URN
 
