@@ -32,12 +32,14 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 /** Imitation of CDAP {@link BatchSink} plugin. Used to test {@link CdapIO#write()}. */
 @Plugin(type = BatchSink.PLUGIN_TYPE)
 @Name(EmployeeBatchSink.NAME)
-@Description("Sink plugin to  put data to HubSpot CRM.")
+@Description("Plugin writes Employee <ID, NAME> in batch")
 public class EmployeeBatchSink extends BatchSink<StructuredRecord, String, String> {
 
-  private final EmployeeConfig config;
-
+  public static final String ID_FIELD = "id";
+  public static final String NAME_FIELD = "name";
   public static final String NAME = "EmployeeSink";
+
+  private final EmployeeConfig config;
 
   public EmployeeBatchSink(EmployeeConfig config) {
     this.config = config;
@@ -61,6 +63,6 @@ public class EmployeeBatchSink extends BatchSink<StructuredRecord, String, Strin
   @Override
   public void transform(StructuredRecord input, Emitter<KeyValue<String, String>> emitter)
       throws Exception {
-    emitter.emit(new KeyValue<>(input.get("id"), input.get("name")));
+    emitter.emit(new KeyValue<>(input.get(ID_FIELD), input.get(NAME_FIELD)));
   }
 }
