@@ -34,7 +34,7 @@ limitations under the License.
  preventing coupled failures.
 
 ## Examples
-See [BEAM-7391](https://github.com/apache/beam/issues/19498) for updates.
+See [Issue 19498](https://github.com/apache/beam/issues/19498) for updates.
 
 ## Related transforms
 N/A

@@ -35,23 +35,23 @@ This table contains I/O transforms that are currently planned or in-progress. St
   </tr>
   <tr>
     <td>Apache DistributedLog</td><td>Java</td>
-    <td><a href="https://github.com/apache/beam/issues/18026">Issue #18026</a></td>
+    <td><a href="https://github.com/apache/beam/issues/18026">Issue 18026</a></td>
   </tr>
   <tr>
     <td>Apache Sqoop</td><td>Java</td>
-    <td><a href="https://github.com/apache/beam/issues/17958">Issue #17958</a></td>
+    <td><a href="https://github.com/apache/beam/issues/17958">Issue 17958</a></td>
   </tr>
   <tr>
     <td>Couchbase</td><td>Java</td>
-    <td><a href="https://github.com/apache/beam/issues/18381">Issue #18381</a></td>
+    <td><a href="https://github.com/apache/beam/issues/18381">Issue 18381</a></td>
   </tr>
   <tr>
     <td>Memcached</td><td>Java</td>
-    <td><a href="https://github.com/apache/beam/issues/21768">Issue #21768</a></td>
+    <td><a href="https://github.com/apache/beam/issues/21768">Issue 21768</a></td>
   </tr>
   <tr>
     <td>RestIO</td><td>Java</td>
-    <td><a href="https://github.com/apache/beam/issues/18356">Issue #18356</a></td>
+    <td><a href="https://github.com/apache/beam/issues/18356">Issue 18356</a></td>
   </tr>
   <tr>
     <td>NATS IO</td><td></td>
