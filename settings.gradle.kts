@@ -18,7 +18,7 @@
 
 
 plugins {
-  id("com.gradle.enterprise") version "3.4.1" apply false
+  id("com.gradle.enterprise") version "3.10.2" apply false
 }
 
 
