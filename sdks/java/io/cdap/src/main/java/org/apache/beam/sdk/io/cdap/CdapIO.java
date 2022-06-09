@@ -171,34 +171,40 @@ public class CdapIO {
       abstract Write<K, V> build();
     }
 
+    public Write<K, V> withCdapPlugin(Plugin plugin) {
+      checkArgument(plugin != null, "Cdap plugin can not be null");
+      return toBuilder().setCdapPlugin(plugin).build();
+    }
+
     public Write<K, V> withCdapPluginClass(Class<?> cdapPluginClass) {
-      return toBuilder().setCdapPlugin(MappingUtils.getPluginByClass(cdapPluginClass)).build();
+      checkArgument(cdapPluginClass != null, "Cdap plugin class can not be null");
+      Plugin plugin = MappingUtils.getPluginByClass(cdapPluginClass);
+      checkArgument(plugin != null, "Can not instantiate Plugin object from provided plugin class");
+      return toBuilder().setCdapPlugin(plugin).build();
     }
 
     public Write<K, V> withPluginConfig(PluginConfig pluginConfig) {
+      checkArgument(pluginConfig != null, "Plugin config can not be null");
       return toBuilder().setPluginConfig(pluginConfig).build();
     }
 
     public Write<K, V> withKeyClass(Class<K> keyClass) {
+      checkArgument(keyClass != null, "Key class can not be null");
       return toBuilder().setKeyClass(keyClass).build();
     }
 
     public Write<K, V> withLocksDirPath(String locksDirPath) {
+      checkArgument(locksDirPath != null, "Locks dir path can not be null");
       return toBuilder().setLocksDirPath(locksDirPath).build();
     }
 
     public Write<K, V> withValueClass(Class<V> valueClass) {
+      checkArgument(valueClass != null, "Value class can not be null");
       return toBuilder().setValueClass(valueClass).build();
     }
 
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
-      checkArgument(getLocksDirPath() != null, "withPluginConfig() is required");
-      checkArgument(getPluginConfig() != null, "withPluginConfig() is required");
-      checkArgument(getCdapPlugin() != null, "withCdapPluginClass() is required");
-      checkArgument(getKeyClass() != null, "withKeyClass() is required");
-      checkArgument(getValueClass() != null, "withValueClass() is required");
-
       getCdapPlugin()
           .withConfig(getPluginConfig())
           .withHadoopConfiguration(getKeyClass(), getValueClass())
@@ -216,6 +222,14 @@ public class CdapIO {
                 .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath()));
         return input.apply(writeHadoop);
       }
+    }
+
+    public void validateTransform() {
+      checkArgument(getCdapPlugin() != null, "withCdapPluginClass() is required");
+      checkArgument(getPluginConfig() != null, "withPluginConfig() is required");
+      checkArgument(getKeyClass() != null, "withKeyClass() is required");
+      checkArgument(getValueClass() != null, "withValueClass() is required");
+      checkArgument(getLocksDirPath() != null, "withLocksDirPath() is required");
     }
   }
 }

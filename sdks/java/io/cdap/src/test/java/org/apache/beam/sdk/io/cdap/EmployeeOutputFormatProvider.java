@@ -19,34 +19,35 @@ package org.apache.beam.sdk.io.cdap;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import io.cdap.cdap.api.data.batch.InputFormatProvider;
+import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * {@link InputFormatProvider} for {@link EmployeeBatchSource} CDAP plugin. Used to test {@link
- * CdapIO#read()}.
+ * {@link OutputFormatProvider} for {@link EmployeeBatchSink} CDAP plugin. Used to test {@link
+ * CdapIO#write()}.
  */
-public class EmployeeInputFormatProvider implements InputFormatProvider {
+public class EmployeeOutputFormatProvider implements OutputFormatProvider {
 
   public static final String PROPERTY_CONFIG_JSON = "cdap.employee.config";
-  private static final Gson gson = new GsonBuilder().create();
-  private final Map<String, String> conf;
+  public static final Gson GSON = new GsonBuilder().create();
 
-  EmployeeInputFormatProvider(EmployeeConfig config) {
-    this.conf =
+  private final Map<String, String> configMap;
+
+  EmployeeOutputFormatProvider(EmployeeConfig config) {
+    this.configMap =
         new ImmutableMap.Builder<String, String>()
-            .put(PROPERTY_CONFIG_JSON, gson.toJson(config))
+            .put(PROPERTY_CONFIG_JSON, GSON.toJson(config))
             .build();
   }
 
   @Override
-  public String getInputFormatClassName() {
-    return EmployeeInputFormat.class.getName();
+  public String getOutputFormatClassName() {
+    return EmployeeOutputFormat.class.getName();
   }
 
   @Override
-  public Map<String, String> getInputFormatConfiguration() {
-    return conf;
+  public Map<String, String> getOutputFormatConfiguration() {
+    return configMap;
   }
 }

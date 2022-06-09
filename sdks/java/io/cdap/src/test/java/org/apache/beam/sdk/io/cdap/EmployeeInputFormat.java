@@ -28,6 +28,10 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
+/**
+ * This is a valid {@link InputFormat} for writing employee data, available in the form of {@code
+ * List<KV>}. Used to test the {@link CdapIO#read()}.
+ */
 public class EmployeeInputFormat extends InputFormat<String, String> {
 
   public static final int NUM_OF_TEST_EMPLOYEE_RECORDS = 1000;

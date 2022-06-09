@@ -33,17 +33,17 @@ import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.common.LineageRecorder;
 import java.util.stream.Collectors;
 
-/** Imitation of CDAP {@link BatchSource} plugin for tests. */
+/** Imitation of CDAP {@link BatchSource} plugin. Used to test {@link CdapIO#read()}. */
 @Plugin(type = BatchSource.PLUGIN_TYPE)
-@Name("EmployeeSource")
-@Description("Plugin reads Employee<ID, NAME> in batch")
+@Name(EmployeeBatchSource.NAME)
+@Description("Plugin reads Employee <ID, NAME> in batch")
 public class EmployeeBatchSource extends BatchSource<String, String, StructuredRecord> {
 
-  private final EmployeeBatchSourceConfig config;
+  private final EmployeeConfig config;
 
   public static final String NAME = "EmployeeSource";
 
-  public EmployeeBatchSource(EmployeeBatchSourceConfig config) {
+  public EmployeeBatchSource(EmployeeConfig config) {
     this.config = config;
   }
 

@@ -20,41 +20,53 @@ package org.apache.beam.sdk.io.cdap;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import io.cdap.plugin.common.Constants;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.hadoop.mapreduce.OutputCommitter;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 
 /** Test class for {@link CdapIO}. */
 @RunWith(JUnit4.class)
 public class CdapIOTest {
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private static final Map<String, Object> TEST_EMPLOYEE_PARAMS_MAP =
       ImmutableMap.<String, Object>builder()
-          .put(EmployeeBatchSourceConfig.OBJECT_TYPE, "employee")
+          .put(EmployeeConfig.OBJECT_TYPE, "employee")
           .put(Constants.Reference.REFERENCE_NAME, "referenceName")
           .build();
 
+  @Before
+  public void setUp() {
+    OutputCommitter mockedOutputCommitter = Mockito.mock(OutputCommitter.class);
+    EmployeeOutputFormat.initWrittenOutput(mockedOutputCommitter);
+  }
+
   @Test
   public void testReadBuildsCorrectly() {
-
-    EmployeeBatchSourceConfig pluginConfig =
-        new ConfigWrapper<>(EmployeeBatchSourceConfig.class)
-            .withParams(TEST_EMPLOYEE_PARAMS_MAP)
-            .build();
+    EmployeeConfig pluginConfig =
+        new ConfigWrapper<>(EmployeeConfig.class).withParams(TEST_EMPLOYEE_PARAMS_MAP).build();
 
     CdapIO.Read<String, String> read =
         CdapIO.<String, String>read()
@@ -121,10 +133,8 @@ public class CdapIOTest {
 
   @Test
   public void testReadingData() {
-    EmployeeBatchSourceConfig pluginConfig =
-        new ConfigWrapper<>(EmployeeBatchSourceConfig.class)
-            .withParams(TEST_EMPLOYEE_PARAMS_MAP)
-            .build();
+    EmployeeConfig pluginConfig =
+        new ConfigWrapper<>(EmployeeConfig.class).withParams(TEST_EMPLOYEE_PARAMS_MAP).build();
     CdapIO.Read<String, String> read =
         CdapIO.<String, String>read()
             .withCdapPlugin(
@@ -143,5 +153,115 @@ public class CdapIOTest {
     PCollection<KV<String, String>> actual = p.apply("ReadTest", read);
     PAssert.that(actual).containsInAnyOrder(expected);
     p.run();
+  }
+
+  @Test
+  public void testWriteBuildsCorrectly() {
+    EmployeeConfig pluginConfig =
+        new ConfigWrapper<>(EmployeeConfig.class).withParams(TEST_EMPLOYEE_PARAMS_MAP).build();
+
+    CdapIO.Write<String, String> write =
+        CdapIO.<String, String>write()
+            .withCdapPlugin(
+                Plugin.create(
+                    EmployeeBatchSink.class,
+                    EmployeeOutputFormat.class,
+                    EmployeeOutputFormatProvider.class))
+            .withPluginConfig(pluginConfig)
+            .withKeyClass(String.class)
+            .withValueClass(String.class)
+            .withLocksDirPath(tmpFolder.getRoot().getAbsolutePath());
+
+    Plugin cdapPlugin = write.getCdapPlugin();
+    assertNotNull(cdapPlugin);
+    assertNotNull(write.getLocksDirPath());
+    assertEquals(EmployeeBatchSink.class, cdapPlugin.getPluginClass());
+    assertEquals(EmployeeOutputFormat.class, cdapPlugin.getFormatClass());
+    assertEquals(EmployeeOutputFormatProvider.class, cdapPlugin.getFormatProviderClass());
+    assertNotNull(cdapPlugin.getContext());
+    assertEquals(BatchSinkContextImpl.class, cdapPlugin.getContext().getClass());
+    assertEquals(PluginConstants.PluginType.SINK, cdapPlugin.getPluginType());
+    assertNotNull(cdapPlugin.getHadoopConfiguration());
+    assertEquals(pluginConfig, write.getPluginConfig());
+    assertEquals(String.class, write.getKeyClass());
+    assertEquals(String.class, write.getValueClass());
+  }
+
+  @Test
+  public void testWriteObjectCreationFailsIfCdapPluginClassIsNull() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> CdapIO.<String, String>write().withCdapPluginClass(null));
+  }
+
+  @Test
+  public void testWriteObjectCreationFailsIfPluginConfigIsNull() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> CdapIO.<String, String>write().withPluginConfig(null));
+  }
+
+  @Test
+  public void testWriteObjectCreationFailsIfKeyClassIsNull() {
+    assertThrows(
+        IllegalArgumentException.class, () -> CdapIO.<String, String>write().withKeyClass(null));
+  }
+
+  @Test
+  public void testWriteObjectCreationFailsIfValueClassIsNull() {
+    assertThrows(
+        IllegalArgumentException.class, () -> CdapIO.<String, String>write().withValueClass(null));
+  }
+
+  @Test
+  public void testWriteObjectCreationFailsIfLockDirIsNull() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> CdapIO.<String, String>write().withLocksDirPath(null));
+  }
+
+  @Test
+  public void testWriteValidationFailsMissingCdapPluginClass() {
+    CdapIO.Write<String, String> write = CdapIO.write();
+    assertThrows(IllegalArgumentException.class, write::validateTransform);
+  }
+
+  @Test
+  public void testWriteObjectCreationFailsIfCdapPluginClassIsNotSupported() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> CdapIO.<String, String>write().withCdapPluginClass(EmployeeBatchSink.class));
+  }
+
+  @Test
+  public void testWritingData() throws IOException {
+    List<KV<String, String>> data = new ArrayList<>();
+    for (int i = 0; i < EmployeeInputFormat.NUM_OF_TEST_EMPLOYEE_RECORDS; i++) {
+      data.add(KV.of(String.valueOf(i), EmployeeInputFormat.EMPLOYEE_NAME_PREFIX + i));
+    }
+    PCollection<KV<String, String>> input = p.apply(Create.of(data));
+
+    EmployeeConfig pluginConfig =
+        new ConfigWrapper<>(EmployeeConfig.class).withParams(TEST_EMPLOYEE_PARAMS_MAP).build();
+    input.apply(
+        "Write",
+        CdapIO.<String, String>write()
+            .withCdapPlugin(
+                Plugin.create(
+                    EmployeeBatchSink.class,
+                    EmployeeOutputFormat.class,
+                    EmployeeInputFormatProvider.class))
+            .withPluginConfig(pluginConfig)
+            .withKeyClass(String.class)
+            .withValueClass(String.class)
+            .withLocksDirPath(tmpFolder.getRoot().getAbsolutePath()));
+    p.run();
+
+    List<KV<String, String>> writtenOutput = EmployeeOutputFormat.getWrittenOutput();
+    assertEquals(data.size(), writtenOutput.size());
+    assertTrue(data.containsAll(writtenOutput));
+    assertTrue(writtenOutput.containsAll(data));
+
+    Mockito.verify(EmployeeOutputFormat.getOutputCommitter()).commitJob(Mockito.any());
   }
 }

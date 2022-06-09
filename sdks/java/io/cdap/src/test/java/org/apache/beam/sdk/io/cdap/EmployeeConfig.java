@@ -26,7 +26,11 @@ import io.cdap.plugin.common.ReferencePluginConfig;
 import java.util.HashSet;
 import java.util.Set;
 
-public class EmployeeBatchSourceConfig extends ReferencePluginConfig {
+/**
+ * {@link io.cdap.cdap.api.plugin.PluginConfig} for {@link EmployeeBatchSource} and {@link
+ * EmployeeBatchSink} CDAP plugins. Used to test {@link CdapIO#read()} and {@link CdapIO#write()}.
+ */
+public class EmployeeConfig extends ReferencePluginConfig {
 
   public static final String OBJECT_TYPE = "objectType";
 
@@ -35,7 +39,7 @@ public class EmployeeBatchSourceConfig extends ReferencePluginConfig {
   @Macro
   public String objectType;
 
-  public EmployeeBatchSourceConfig(String objectType, String referenceName) {
+  public EmployeeConfig(String objectType, String referenceName) {
     super(referenceName);
     this.objectType = objectType;
   }
