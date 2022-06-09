@@ -135,9 +135,9 @@
   "@enjoyingPlayground": {
     "description": "Title for the Enjoying Playground button"
   },
-  "reportIssue": "Report issue in Jira",
+  "reportIssue": "Report issue in GitHub",
   "@reportIssue": {
-    "description": "Title for the Report issue in Jira button"
+    "description": "Title for the Report issue in GitHub button"
   },
   "codeTextArea": "Code Text Area",
   "@codeTextArea": {
