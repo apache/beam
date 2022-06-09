@@ -310,7 +310,7 @@ public class KafkaIOIT {
                           receiver.output(KV.of(record.getPartition(), record));
                         }
                       }))
-              .apply(Window.into(FixedWindows.of(Duration.standardSeconds(300)))) // 5 minutes
+              .apply(Window.into(FixedWindows.of(Duration.standardMinutes(5))))
               .apply("Group by Partition", GroupByKey.create())
               .apply("Get Partitions", Keys.create());
 
