@@ -20,15 +20,15 @@ import CommonJobProperties as commonJobProperties
 
 
 job('Cleanup Dataproc Resources') {
-  description('Removes leaked resources for all the jobs that generates flink clusters.')
+  description('Deletes leaked resources for all the jobs that generates flink clusters.')
 
   def CLEANUP_DIR = '"$WORKSPACE/src/.test-infra/dataproc"'
   def CLEANUP_SCRIPT = 'cleanup.sh'
 
-  //commonJobProperties.setTopLevelMainJobProperties(delegate)
+  commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // Sets that this is a cron job.
-  //commonJobProperties.setCronJob(delegate, 'H 2 1 */2 *')// At 00:02am every second month.
+  commonJobProperties.setCronJob(delegate, 'H */6 * * *')// At 00:02am every second month.
 
   //Bash script path
   steps {
