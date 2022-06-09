@@ -390,8 +390,8 @@ class HadoopFileSystemTest(unittest.TestCase):
     handle.close()
 
   def test_random_read_large_file(self):
-    # this tests HdfsDownloader.get_range() works property with
-    # filesystemio.readinto() when reading a file of size larger than buffer.
+    # this tests HdfsDownloader.get_range() works properly with
+    # filesystemio.readinto when reading a file of size larger than the buffer.
     url = self.fs.join(self.tmpdir, 'read_length')
     handle = self.fs.create(url)
     data = b'test' * 10_000_000
