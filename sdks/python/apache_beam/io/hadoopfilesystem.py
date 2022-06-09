@@ -71,9 +71,8 @@ class HdfsDownloader(filesystemio.Downloader):
     return self._size
 
   def get_range(self, start, end):
-    with self._hdfs_client.read(self._path,
-                                offset=start,
-                                length=end - start + 1) as reader:
+    with self._hdfs_client.read(self._path, offset=start,
+                                length=end - start) as reader:
       return reader.read()
 
 
