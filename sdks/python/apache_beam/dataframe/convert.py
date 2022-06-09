@@ -87,19 +87,15 @@ UNBATCHED_CACHE = weakref.WeakValueDictionary(
 
 
 def _make_unbatched_pcoll(
-    pc: pvalue.PCollection,
-    expr: expressions.Expression,
-    include_indexes: bool,
-    object_type_override: type):
+    pc: pvalue.PCollection, expr: expressions.Expression,
+    include_indexes: bool):
   label = f"Unbatch '{expr._id}'"
   if include_indexes:
     label += " with indexes"
 
   if label not in UNBATCHED_CACHE:
     UNBATCHED_CACHE[label] = pc | label >> schemas.UnbatchPandas(
-        expr.proxy(),
-        include_indexes=include_indexes,
-        object_type_override=object_type_override)
+        expr.proxy(), include_indexes=include_indexes)
 
   # Note unbatched cache is keyed by the expression id as well as parameters
   # for the unbatching (i.e. include_indexes)
@@ -115,7 +111,6 @@ def to_pcollection(
     always_return_tuple=False,
     yield_elements='schemas',
     include_indexes=False,
-    object_type_override=None,
     pipeline=None) -> Union[pvalue.PCollection, Tuple[pvalue.PCollection, ...]]:
   """Converts one or more deferred dataframe-like objects back to a PCollection.
 
@@ -150,8 +145,6 @@ def to_pcollection(
         schema for expanded DataFrames. Raises an error if any of the index
         levels are unnamed (name=None), or if any of the names are not unique
         among all column and index names.
-    object_type_override: (optional, default: None) A more specific (and often
-        more portable) type to use for object columns.
     pipeline: (optional, unless non-deferred dataframes are passed) Used when
         creating a PCollection from a non-deferred dataframe.
   """
@@ -221,8 +214,7 @@ def to_pcollection(
       if isinstance(value, frame_base._DeferredScalar):
         return pc
       else:
-        return _make_unbatched_pcoll(
-            pc, value._expr, include_indexes, object_type_override)
+        return _make_unbatched_pcoll(pc, value._expr, include_indexes)
 
     results = {
         ix: maybe_unbatch(pc, dataframes[ix])

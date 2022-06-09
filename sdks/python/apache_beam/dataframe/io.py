@@ -735,11 +735,12 @@ class ReadViaPandas(beam.PTransform):
 
   def expand(self, p):
     from apache_beam.dataframe import convert  # avoid circular import
-    return convert.to_pcollection(
-        p | self._reader,
-        include_indexes=self._include_indexes,
-        object_type_override=Optional[str]
-        if self._objects_as_strings else None)
+    df = p | self._reader
+    if self._objects_as_strings:
+      for col, t in zip(df.columns, df.dtypes):
+        if t == object:
+          df[col] = df[col].astype(pd.StringDtype())
+    return convert.to_pcollection(df, include_indexes=self._include_indexes)
 
 
 class WriteViaPandas(beam.PTransform):
