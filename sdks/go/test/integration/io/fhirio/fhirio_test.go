@@ -32,6 +32,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/fhirio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
@@ -45,15 +46,18 @@ const (
 )
 
 var (
-	gcpProject             string
-	gcpRegion              string
 	storeService           *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService
 	storeManagementService *healthcare.ProjectsLocationsDatasetsFhirStoresService
 )
 
 func checkFlags(t *testing.T) {
-	if gcpProject == "" || gcpRegion == "" {
-		t.Skip("GCP flags not provided.")
+	gcpProjectIsNotSet := gcpopts.Project == nil || *gcpopts.Project == ""
+	if gcpProjectIsNotSet {
+		t.Skip("GCP project flag is not set.")
+	}
+	gcpRegionIsNotSet := gcpopts.Region == nil || *gcpopts.Region == ""
+	if gcpRegionIsNotSet {
+		t.Skip("GCP region flag is not set.")
 	}
 }
 
@@ -67,7 +71,7 @@ func setupFhirStore(t *testing.T) (string, []string, func()) {
 		t.Fatal("Healthcare Services were not initialized")
 	}
 
-	healthcareDataset := fmt.Sprintf(datasetPathFmt, gcpProject, gcpRegion)
+	healthcareDataset := fmt.Sprintf(datasetPathFmt, *gcpopts.Project, *gcpopts.Region)
 	createdFhirStore, err := createStore(healthcareDataset)
 	if err != nil {
 		t.Fatal("Test store failed to be created")
@@ -191,8 +195,5 @@ func TestMain(m *testing.M) {
 		storeManagementService = healthcare.NewProjectsLocationsDatasetsFhirStoresService(healthcareService)
 	}
 
-	beam.PipelineOptions.LoadOptionsFromFlags(nil)
-	gcpProject = beam.PipelineOptions.Get("project")
-	gcpRegion = beam.PipelineOptions.Get("region")
 	ptest.MainRet(m)
 }
