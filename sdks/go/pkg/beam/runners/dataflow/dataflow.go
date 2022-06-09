@@ -118,6 +118,7 @@ var flagFilter = map[string]bool{
 	"subnetwork":                     true,
 	"no_use_public_ips":              true,
 	"temp_location":                  true,
+	"template_location":              true,
 	"worker_machine_type":            true,
 	"min_cpu_platform":               true,
 	"dataflow_worker_jar":            true,
