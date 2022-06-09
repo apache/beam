@@ -52,6 +52,7 @@ class SklearnInferenceRunner(InferenceRunner[Union[numpy.ndarray,
       batch: List[Union[numpy.ndarray, pandas.DataFrame]],
       model: BaseEstimator,
       **kwargs) -> Iterable[PredictionResult]:
+    # TODO(github.com/apache/beam/issues/21769): Use supplied input type hint.
     if isinstance(batch[0], numpy.ndarray):
       return SklearnInferenceRunner._predict_np_array(batch, model)
     elif isinstance(batch[0], pandas.DataFrame):
