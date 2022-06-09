@@ -105,7 +105,7 @@ $(document).ready(function() {
           var items = $(".page-nav > #TableOfContents li");
           var itemTags = $('ul', items).siblings('a');
           var img = document.createElement("img");
-          img.src = "/images/arrow-expandable-broken-link.svg";
+          img.src = "/images/logo_flink.png";
           img.classList="rotate";
 
           $(itemTags).prepend(img);
