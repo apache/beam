@@ -31,7 +31,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 /** Utilities for going to/from DisplayData protos. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DisplayDataTranslation {
   public static final String LABELLED = "beam:display_data:labelled:v1";

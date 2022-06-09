@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
@@ -136,14 +134,14 @@ public final class WriteResult implements POutput {
    * loaded using the batch load API.
    */
   public PCollection<TableDestination> getSuccessfulTableLoads() {
-    checkArgument(
-        successfulBatchInsertsTag != null,
+    Preconditions.checkArgumentNotNull(
+        successfulBatchInsertsTag,
         "Cannot use getSuccessfulTableLoads because this WriteResult was not "
             + "configured to produce them.  Note: only batch loads produce successfulTableLoads.");
-    if (successfulBatchInserts == null) {
-      throw new IllegalStateException("Unexpected null successfulBatchInserts collection.");
-    }
-    return successfulBatchInserts;
+    return Preconditions.checkArgumentNotNull(
+        successfulBatchInserts,
+        "Cannot use getSuccessfulTableLoads because this WriteResult was not "
+            + "configured to produce them.  Note: only batch loads produce successfulTableLoads.");
   }
 
   /**
@@ -166,14 +164,14 @@ public final class WriteResult implements POutput {
    * WriteResult#getFailedInsertsWithErr()}
    */
   public PCollection<TableRow> getFailedInserts() {
-    checkArgument(
-        failedInsertsTag != null,
+    Preconditions.checkArgumentNotNull(
+        failedInsertsTag,
         "Cannot use getFailedInserts as this WriteResult uses extended errors"
             + " information. Use getFailedInsertsWithErr instead");
-    if (failedInserts == null) {
-      throw new IllegalStateException("Unexpected null failedInserts collection.");
-    }
-    return failedInserts;
+    return Preconditions.checkStateNotNull(
+        failedInserts,
+        "Cannot use getFailedInserts as this WriteResult uses extended errors"
+            + " information. Use getFailedInsertsWithErr instead");
   }
 
   /**
@@ -184,24 +182,23 @@ public final class WriteResult implements POutput {
    * Otherwise use {@link WriteResult#getFailedInserts()}
    */
   public PCollection<BigQueryInsertError> getFailedInsertsWithErr() {
-    checkArgument(
-        failedInsertsWithErrTag != null,
+    Preconditions.checkArgumentNotNull(
+        failedInsertsWithErrTag,
         "Cannot use getFailedInsertsWithErr as this WriteResult does not use"
             + " extended errors. Use getFailedInserts instead");
-    if (failedInsertsWithErr == null) {
-      throw new IllegalStateException("Unexpected null failedInsertsWithErr collection.");
-    }
-    return failedInsertsWithErr;
+    return Preconditions.checkArgumentNotNull(
+        failedInsertsWithErr,
+        "Cannot use getFailedInsertsWithErr as this WriteResult does not use"
+            + " extended errors. Use getFailedInserts instead");
   }
 
   public PCollection<BigQueryStorageApiInsertError> getFailedStorageApiInserts() {
-    checkArgument(
-        failedStorageApiInsertsTag != null,
+    Preconditions.checkStateNotNull(
+        failedStorageApiInsertsTag,
         "Cannot use getFailedStorageApiInserts as this insert didn't use the storage API.");
-    if (failedStorageApiInserts == null) {
-      throw new IllegalStateException("Unexpected null failedStorageApiInserts collection.");
-    }
-    return failedStorageApiInserts;
+    return Preconditions.checkStateNotNull(
+        failedStorageApiInserts,
+        "Cannot use getFailedStorageApiInserts as this insert didn't use the storage API.");
   }
 
   @Override

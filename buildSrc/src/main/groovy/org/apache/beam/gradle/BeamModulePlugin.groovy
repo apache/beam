@@ -356,7 +356,22 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   def isRelease(Project project) {
-    return project.hasProperty('isRelease')
+    return parseBooleanProperty(project, 'isRelease');
+  }
+
+  /**
+   * Parses -Pprop as true for use as a flag, and otherwise uses Groovy's toBoolean
+   */
+  def parseBooleanProperty(Project project, String property) {
+    if (!project.hasProperty(property)) {
+      return false;
+    }
+
+    if (project.getProperty(property) == "") {
+      return true;
+    }
+
+    return project.getProperty(property).toBoolean();
   }
 
   def defaultArchivesBaseName(Project p) {
@@ -649,6 +664,7 @@ class BeamModulePlugin implements Plugin<Project> {
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         mockito_core                                : "org.mockito:mockito-core:3.7.7",
+        mockito_inline                              : "org.mockito:mockito-inline:4.5.1",
         mongo_java_driver                           : "org.mongodb:mongo-java-driver:3.12.10",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_all                                   : "io.netty:netty-all:$netty_version",
@@ -929,7 +945,7 @@ class BeamModulePlugin implements Plugin<Project> {
           'org.checkerframework.checker.nullness.NullnessChecker'
         ]
 
-        if (project.findProperty('enableCheckerFramework') || project.jenkins.isCIBuild) {
+        if (parseBooleanProperty(project, 'enableCheckerFramework') || project.jenkins.isCIBuild) {
           skipCheckerFramework = false
         } else {
           skipCheckerFramework = true
@@ -1548,8 +1564,8 @@ class BeamModulePlugin implements Plugin<Project> {
                   url = "https://gitbox.apache.org/repos/asf?p=beam.git;a=summary"
                 }
                 issueManagement {
-                  system = "jira"
-                  url = "https://issues.apache.org/jira/browse/BEAM"
+                  system = "github"
+                  url = "https://github.com/apache/beam/issues"
                 }
                 mailingLists {
                   mailingList {

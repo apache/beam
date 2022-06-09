@@ -99,7 +99,7 @@ import org.joda.time.Duration;
  * org.apache.beam.runners.core.construction.graph.ExecutableStage}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {

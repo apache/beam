@@ -32,6 +32,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIOUtils.MovingAvg;
 import org.apache.beam.sdk.io.kafka.KafkaUnboundedReader.TimestampPolicyContext;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.GrowableOffsetRangeTracker;
@@ -137,15 +138,36 @@ import org.slf4j.LoggerFactory;
  * stopping reading from removed {@link TopicPartition}, the stopping reading may not happens
  * immediately.
  */
-@UnboundedPerElement
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class ReadFromKafkaDoFn<K, V>
+abstract class ReadFromKafkaDoFn<K, V>
     extends DoFn<KafkaSourceDescriptor, KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> {
 
-  ReadFromKafkaDoFn(ReadSourceDescriptors transform) {
+  static <K, V> ReadFromKafkaDoFn<K, V> create(ReadSourceDescriptors transform) {
+    if (transform.isBounded()) {
+      return new Bounded<K, V>(transform);
+    } else {
+      return new Unbounded<K, V>(transform);
+    }
+  }
+
+  @UnboundedPerElement
+  private static class Unbounded<K, V> extends ReadFromKafkaDoFn<K, V> {
+    Unbounded(ReadSourceDescriptors transform) {
+      super(transform);
+    }
+  }
+
+  @BoundedPerElement
+  private static class Bounded<K, V> extends ReadFromKafkaDoFn<K, V> {
+    Bounded(ReadSourceDescriptors transform) {
+      super(transform);
+    }
+  }
+
+  private ReadFromKafkaDoFn(ReadSourceDescriptors transform) {
     this.consumerConfig = transform.getConsumerConfig();
     this.offsetConsumerConfig = transform.getOffsetConsumerConfig();
     this.keyDeserializerProvider = transform.getKeyDeserializerProvider();

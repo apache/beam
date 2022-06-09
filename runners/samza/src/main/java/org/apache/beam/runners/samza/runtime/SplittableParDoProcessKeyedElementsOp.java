@@ -59,7 +59,7 @@ import org.slf4j.LoggerFactory;
 
 /** Samza operator for {@link org.apache.beam.sdk.transforms.GroupByKey}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SplittableParDoProcessKeyedElementsOp<
         InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>

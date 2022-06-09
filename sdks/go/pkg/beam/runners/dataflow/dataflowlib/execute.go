@@ -105,6 +105,18 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	}
 	PrintJob(ctx, job)
 
+	if opts.TemplateLocation != "" {
+		marshalled, err := job.MarshalJSON()
+		if err != nil {
+			return presult, err
+		}
+		if err := StageModel(ctx, opts.Project, opts.TemplateLocation, marshalled); err != nil {
+			return presult, err
+		}
+		log.Infof(ctx, "Template staged to %v", opts.TemplateLocation)
+		return nil, nil
+	}
+
 	client, err := NewClient(ctx, endpoint)
 	if err != nil {
 		return presult, err

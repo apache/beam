@@ -200,7 +200,7 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ElasticsearchIO {
 
@@ -601,6 +601,24 @@ public class ElasticsearchIO {
       builder.addIfNotNull(DisplayData.item("trustSelfSignedCerts", isTrustSelfSignedCerts()));
     }
 
+    private SSLContext getSSLContext() throws IOException {
+      if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
+        try {
+          KeyStore keyStore = KeyStore.getInstance("jks");
+          try (InputStream is = new FileInputStream(new File(getKeystorePath()))) {
+            String keystorePassword = getKeystorePassword();
+            keyStore.load(is, (keystorePassword == null) ? null : keystorePassword.toCharArray());
+          }
+          final TrustStrategy trustStrategy =
+              isTrustSelfSignedCerts() ? new TrustSelfSignedStrategy() : null;
+          return SSLContexts.custom().loadTrustMaterial(keyStore, trustStrategy).build();
+        } catch (Exception e) {
+          throw new IOException("Can't load the client certificate from the keystore", e);
+        }
+      }
+      return null;
+    }
+
     @VisibleForTesting
     RestClient createClient() throws IOException {
       HttpHost[] hosts = new HttpHost[getAddresses().size()];
@@ -611,14 +629,9 @@ public class ElasticsearchIO {
         i++;
       }
       RestClientBuilder restClientBuilder = RestClient.builder(hosts);
-      if (getUsername() != null) {
-        final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-        credentialsProvider.setCredentials(
-            AuthScope.ANY, new UsernamePasswordCredentials(getUsername(), getPassword()));
-        restClientBuilder.setHttpClientConfigCallback(
-            httpAsyncClientBuilder ->
-                httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
-      }
+
+      final SSLContext sslContext = getSSLContext();
+
       if (getApiKey() != null) {
         restClientBuilder.setDefaultHeaders(
             new Header[] {new BasicHeader("Authorization", "ApiKey " + getApiKey())});
@@ -627,25 +640,22 @@ public class ElasticsearchIO {
         restClientBuilder.setDefaultHeaders(
             new Header[] {new BasicHeader("Authorization", "Bearer " + getBearerToken())});
       }
-      if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
-        try {
-          KeyStore keyStore = KeyStore.getInstance("jks");
-          try (InputStream is = new FileInputStream(new File(getKeystorePath()))) {
-            String keystorePassword = getKeystorePassword();
-            keyStore.load(is, (keystorePassword == null) ? null : keystorePassword.toCharArray());
-          }
-          final TrustStrategy trustStrategy =
-              isTrustSelfSignedCerts() ? new TrustSelfSignedStrategy() : null;
-          final SSLContext sslContext =
-              SSLContexts.custom().loadTrustMaterial(keyStore, trustStrategy).build();
-          final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
-          restClientBuilder.setHttpClientConfigCallback(
-              httpClientBuilder ->
-                  httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
-        } catch (Exception e) {
-          throw new IOException("Can't load the client certificate from the keystore", e);
-        }
-      }
+
+      restClientBuilder.setHttpClientConfigCallback(
+          httpClientBuilder -> {
+            if (getUsername() != null) {
+              final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+              credentialsProvider.setCredentials(
+                  AuthScope.ANY, new UsernamePasswordCredentials(getUsername(), getPassword()));
+              httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+            }
+            if (sslContext != null) {
+              final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
+              httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy);
+            }
+            return httpClientBuilder;
+          });
+
       restClientBuilder.setRequestConfigCallback(
           new RestClientBuilder.RequestConfigCallback() {
             @Override

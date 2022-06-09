@@ -94,10 +94,10 @@ import org.slf4j.LoggerFactory;
  * <p>This operation supports restart.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "keyfor",
   "nullness"
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class RegisterAndProcessBundleOperation extends Operation {
   private static final Logger LOG =
       LoggerFactory.getLogger(RegisterAndProcessBundleOperation.class);

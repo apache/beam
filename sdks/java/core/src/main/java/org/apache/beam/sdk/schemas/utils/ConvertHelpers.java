@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
 /** Helper functions for converting between equivalent schema types. */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class ConvertHelpers {

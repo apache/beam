@@ -78,7 +78,7 @@ export class DirectRunner extends Runner {
     for (const env of Object.values(proto.components!.environments)) {
       if (
         env.urn &&
-        env.urn != environments.TYPESCRIPT_DEFAULT_ENVIRONMENT_URN
+        env.urn !== environments.TYPESCRIPT_DEFAULT_ENVIRONMENT_URN
       ) {
         yield env.urn;
       }
@@ -196,7 +196,7 @@ class DirectGbkOperator implements operators.IOperator {
       context.descriptor.windowingStrategies[inputPc.windowingStrategyId];
     // TODO: (Cleanup) Check or implement triggers, etc.
     if (
-      windowingStrategy.mergeStatus != runnerApi.MergeStatus_Enum.NON_MERGING
+      windowingStrategy.mergeStatus !== runnerApi.MergeStatus_Enum.NON_MERGING
     ) {
       throw new Error("Non-merging WindowFn: " + windowingStrategy);
     }
@@ -240,7 +240,7 @@ class DirectGbkOperator implements operators.IOperator {
         timestamp: window.maxTimestamp(),
         pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
       });
-      if (maybePromise != operators.NonPromise) {
+      if (maybePromise !== operators.NonPromise) {
         await maybePromise;
       }
     }
@@ -304,8 +304,7 @@ function rewriteSideInputs(p: runnerApi.Pipeline, pipelineStateRef: string) {
   const transforms = p.components!.transforms;
   for (const [transformId, transform] of Object.entries(transforms)) {
     if (
-      transform.spec != undefined &&
-      transform.spec.urn == parDo.urn &&
+      transform.spec?.urn === parDo.urn &&
       Object.keys(transform.inputs).length > 1
     ) {
       const spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);
@@ -469,7 +468,7 @@ class BufferOperator implements operators.IOperator {
   async finishBundle() {
     for (const element of this.elements) {
       const maybePromise = this.receiver.receive(element);
-      if (maybePromise != operators.NonPromise) {
+      if (maybePromise !== operators.NonPromise) {
         await maybePromise;
       }
     }
