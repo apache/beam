@@ -56,11 +56,15 @@ import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -231,15 +235,7 @@ public class KafkaIOIT {
     nullList.add(null);
     writePipeline
         .apply(Create.of(nullList))
-        .apply(
-            ParDo.of(
-                new DoFn<byte[], KV<byte[], byte[]>>() {
-                  @ProcessElement
-                  public void processElement(
-                      @Element byte[] element, OutputReceiver<KV<byte[], byte[]>> receiver) {
-                    receiver.output(KV.of(element, element));
-                  }
-                }))
+        .apply(ParDo.of(new ElementToKVFn()))
         .apply(
             KafkaIO.<byte[], byte[]>write()
                 .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
@@ -314,7 +310,8 @@ public class KafkaIOIT {
                           receiver.output(KV.of(record.getPartition(), record));
                         }
                       }))
-              .apply("Group by Partion", GroupByKey.create())
+              .apply(Window.into(FixedWindows.of(Duration.standardSeconds(300)))) // 5 minutes
+              .apply("Group by Partition", GroupByKey.create())
               .apply("Get Partitions", Keys.create());
 
       PipelineResult readResult = readPipeline.run();
@@ -405,6 +402,14 @@ public class KafkaIOIT {
         .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
         .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
         .withTopic(options.getKafkaTopic());
+  }
+
+  private static class ElementToKVFn extends DoFn<byte[], KV<byte[], byte[]>>{
+      @ProcessElement
+      public void processElement(
+      @Element byte[] element, OutputReceiver<KV<byte[], byte[]>> receiver) {
+        receiver.output(KV.of(element, element));
+      }
   }
 
   private static class CountingFn extends DoFn<String, Void> {
