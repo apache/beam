@@ -99,6 +99,7 @@ import org.hamcrest.TypeSafeMatcher;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1228,5 +1229,17 @@ class ElasticsearchIOTestCommon implements Serializable {
     // Check if documents are deleted as expected
     assertEquals(numDocs / 2, currentNumDocs);
     assertEquals(0, countByScientistName(connectionConfiguration, restClient, "Darwin", null));
+  }
+
+  void testValidSSLAndUsernameConfiguration(String filePath) throws Exception {
+    ConnectionConfiguration configWithSsl =
+        connectionConfiguration
+            .withUsername("username")
+            .withPassword("password")
+            .withKeystorePassword("qwerty")
+            .withKeystorePath(filePath);
+
+    RestClient restClient = configWithSsl.createClient();
+    Assert.assertNotNull("rest client should not be null", restClient);
   }
 }
