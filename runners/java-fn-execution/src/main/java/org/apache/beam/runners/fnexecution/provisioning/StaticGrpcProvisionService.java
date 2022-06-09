@@ -34,7 +34,7 @@ import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
  * A {@link ProvisionServiceImplBase provision service} that returns a static response to all calls.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class StaticGrpcProvisionService extends ProvisionServiceGrpc.ProvisionServiceImplBase
     implements FnService {

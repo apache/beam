@@ -62,7 +62,7 @@ import org.joda.time.Instant;
  * {@link ProcessKeyedElements} using a simple {@link Reshuffle} and {@link ParDo}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SplittableParDoNaiveBounded {
   /** Overrides a {@link ProcessKeyedElements} into {@link SplittableProcessNaive}. */

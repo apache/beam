@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.MessageConverter;
@@ -32,6 +31,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A transform that converts messages to protocol buffers in preparation for writing to BigQuery.
@@ -81,7 +82,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
     return result;
   }
 
-  public static class ConvertMessagesDoFn<DestinationT, ElementT>
+  public static class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
       extends DoFn<KV<DestinationT, ElementT>, KV<DestinationT, StorageApiWritePayload>> {
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;

@@ -36,7 +36,7 @@ import org.joda.time.Instant;
 /** A mocked unbounded table. */
 @Experimental
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TestUnboundedTable extends TestTable {
   /** rows flow out from this table with the specified watermark instant. */

@@ -31,7 +31,7 @@ import org.apache.beam.sdk.values.KV;
 
 /** Map to tuple function. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class MapToTupleFunction<K, V>
     implements MapFunc<Tuple<byte[], byte[]>, WindowedValue<KV<K, V>>> {

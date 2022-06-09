@@ -60,7 +60,7 @@ import org.junit.runners.JUnit4;
 /** Test External transforms. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ExternalTest implements Serializable {
   @Rule public transient TestPipeline testPipeline = TestPipeline.create();

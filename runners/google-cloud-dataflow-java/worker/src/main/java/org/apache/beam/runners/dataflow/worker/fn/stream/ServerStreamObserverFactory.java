@@ -41,7 +41,7 @@ import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
  * <p>The specific implementation returned is dependent on {@link PipelineOptions} experiments.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class ServerStreamObserverFactory {
   public static ServerStreamObserverFactory fromOptions(PipelineOptions options) {

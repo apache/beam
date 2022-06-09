@@ -68,7 +68,7 @@ export class PCollection<T> {
 
   constructor(pipeline: Pipeline, id: string | (() => string)) {
     this.pipeline = pipeline;
-    if (typeof id == "string") {
+    if (typeof id === "string") {
       this.id = id;
     } else {
       this.computeId = id;
@@ -76,7 +76,7 @@ export class PCollection<T> {
   }
 
   getId(): string {
-    if (this.id == undefined) {
+    if (this.id === null || this.id === undefined) {
       this.id = this.computeId();
     }
     return this.id;
@@ -114,7 +114,7 @@ export class PCollection<T> {
             process: function* (element: T, context: ContextT) {
               // While it's legal to call a function with extra arguments which will
               // be ignored, this can have surprising behavior (e.g. for map(console.log))
-              yield context == undefined
+              yield context === null || context === undefined
                 ? (fn as (T) => OutputT)(element)
                 : fn(element, context);
             },
@@ -139,7 +139,7 @@ export class PCollection<T> {
             process: function (element: T, context: ContextT) {
               // While it's legal to call a function with extra arguments which will
               // be ignored, this can have surprising behavior (e.g. for map(console.log))
-              return context == undefined
+              return context === null || context === undefined
                 ? (fn as (T) => Iterable<OutputT>)(element)
                 : fn(element, context);
             },
@@ -176,7 +176,7 @@ export function flattenPValue<T>(
   prefix: string = ""
 ): { [key: string]: PCollection<T> } {
   const result: { [key: string]: PCollection<any> } = {};
-  if (pValue == null) {
+  if (pValue === null || pValue === undefined) {
     // pass
   } else if (pValue instanceof Root) {
     // pass
@@ -242,7 +242,7 @@ class PValueWrapper<T extends PValue<any>> {
   }
 
   private pipeline(root: Root | null = null) {
-    if (root == null) {
+    if (root === null || root === undefined) {
       const flat = flattenPValue(this.pvalue);
       return Object.values(flat)[0].pipeline;
     } else {

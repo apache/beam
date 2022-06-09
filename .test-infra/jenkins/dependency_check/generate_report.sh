@@ -49,11 +49,10 @@ pip install --upgrade pip setuptools wheel
 pip install --upgrade google-cloud-bigquery google-cloud-bigtable google-cloud-core
 rm -f build/dependencyUpdates/beam-dependency-check-report.txt
 
-# Insall packages and run the unit tests of the report generator and the jira manager
-pip install mock jira pyyaml
+# Install packages and run the unit tests of the report generator
+pip install mock pyyaml
 cd $WORKSPACE/src/.test-infra/jenkins
 $PYTHON -m dependency_check.dependency_check_report_generator_test
-$PYTHON -m jira_utils.jira_manager_test
 $PYTHON -m dependency_check.version_comparer_test
 
 echo "<html><body>" > $WORKSPACE/src/build/dependencyUpdates/beam-dependency-check-report.html
