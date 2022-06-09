@@ -31,7 +31,7 @@ import (
 func init() {
 	register.DoFn2x0[[]byte, func(TestRow)](&CreateTestRowsFn{})
 	register.Emitter1[TestRow]()
-	register.Function1x1[TestRowPtrs, TestRow](castFn)
+	//register.Function1x1[TestRowPtrs, TestRow](castFn)
 	beam.RegisterType(reflect.TypeOf((*TestRow)(nil)))
 	beam.RegisterType(reflect.TypeOf((*RandData)(nil)))
 	beam.RegisterType(reflect.TypeOf((*TestRowPtrs)(nil)))
@@ -141,7 +141,14 @@ type RandDataPtrs struct {
 	Word *string `beam:"word"`
 }
 
-func castFn(elm TestRowPtrs) TestRow {
+func castFn(elm struct {
+	Counter   *int64 `beam:"counter"`
+	Rand_data *struct {
+		Flip *bool   `beam:"flip"`
+		Num  *int64  `beam:"num"`
+		Word *string `beam:"word"`
+	} `beam:"rand_data"`
+}) TestRow {
 	return TestRow{
 		Counter: *elm.Counter,
 		Rand_data: RandData{
@@ -160,7 +167,14 @@ func ReadFromQueryPipeline(expansionAddr, table string, createFn interface{}) *b
 
 	// Read from table and compare to generated elements.
 	rows := beam.ParDo(s, createFn, beam.Impulse(s))
-	inType := reflect.TypeOf((*TestRowPtrs)(nil)).Elem()
+	inType := reflect.TypeOf((*struct {
+		Counter   *int64 `beam:"counter"`
+		Rand_data *struct {
+			Flip *bool   `beam:"flip"`
+			Num  *int64  `beam:"num"`
+			Word *string `beam:"word"`
+		} `beam:"rand_data"`
+	})(nil)).Elem()
 	query := fmt.Sprintf("SELECT * FROM `%s`", table)
 	readRows := bigqueryio.Read(s, inType,
 		bigqueryio.FromQuery(query),
