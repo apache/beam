@@ -28,11 +28,9 @@ job('Cleanup Dataproc Resources') {
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // Sets that this is a cron job.
-  commonJobProperties.setCronJob(delegate, 'H */6 * * *') // Every 6 hours
+  commonJobProperties.setCronJob(delegate, 'H */6 * * *')
 
-  //Bash script path
   steps {
-    // Cleanup script is implemented on a separated bash file 
     shell("cd ${CLEANUP_DIR}; ./${CLEANUP_SCRIPT} -xe") 
   }
 
