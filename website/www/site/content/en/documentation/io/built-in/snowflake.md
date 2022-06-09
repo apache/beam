@@ -552,8 +552,8 @@ SnowflakeIO is not going to delete created CSV files from path under the “stag
 
 
 **Important noticse**:
-1. Streaming accepts only **key pair authentication**. For details, see: [BEAM-13817](https://github.com/apache/beam/issues/21287).
-2. The role parameter configured in `SnowflakeIO.DataSourceConfiguration` object is ignored for streaming writing. For details, see: [BEAM-13819](https://github.com/apache/beam/issues/21365)
+1. Streaming accepts only **key pair authentication**. For details, see: [Issue 21287](https://github.com/apache/beam/issues/21287).
+2. The role parameter configured in `SnowflakeIO.DataSourceConfiguration` object is ignored for streaming writing. For details, see: [Issue 21365](https://github.com/apache/beam/issues/21365)
 
 #### Flush time: duration & number of rows
 Duration: streaming write will write periodically files on stage according to time duration specified in flush time limit (for example. every 1 minute).
@@ -952,6 +952,6 @@ You can read about Snowflake data types at [Snowflake data types](https://docs.s
 
 SnowflakeIO currently has the following limitations.
 
-1. Streaming writing supports only pair key authentication. For details, see: [BEAM-13817](https://github.com/apache/beam/issues/21287).
+1. Streaming writing supports only pair key authentication. For details, see: [Issue 21287](https://github.com/apache/beam/issues/21287).
 
-1. The role parameter configured in `SnowflakeIO.DataSourceConfiguration` object is ignored for streaming writing. For details, see: [BEAM-13819](https://github.com/apache/beam/issues/21365)
+1. The role parameter configured in `SnowflakeIO.DataSourceConfiguration` object is ignored for streaming writing. For details, see: [Issue 21365](https://github.com/apache/beam/issues/21365)
