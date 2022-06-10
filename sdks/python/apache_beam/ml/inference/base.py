@@ -17,8 +17,8 @@
 
 """An extensible run inference transform.
 
-Users of this module can extend the ModelLoader class for any MLframework. Then
-pass their extended ModelLoader object into RunInference to create a
+Users of this module can extend the ModelHandler class for any MLframework. Then
+pass their extended ModelHandler object into RunInference to create a
 RunInference Beam transform for that framework.
 
 The transform will handle standard inference functionality like metric
@@ -66,8 +66,12 @@ def _to_microseconds(time_ns: int) -> int:
   return int(time_ns / _NANOSECOND_TO_MICROSECOND)
 
 
-class InferenceRunner(Generic[ExampleT, PredictionT, ModelT]):
-  """Implements running inferences for a framework."""
+class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
+  """Has the ability to load and apply an ML model."""
+  def load_model(self) -> ModelT:
+    """Loads and initializes a model for processing."""
+    raise NotImplementedError(type(self))
+
   def run_inference(
       self,
       batch: List[ExampleT],
@@ -86,18 +90,6 @@ class InferenceRunner(Generic[ExampleT, PredictionT, ModelT]):
     """Returns a namespace for metrics collected by RunInference transform."""
     return 'RunInference'
 
-
-class ModelLoader(Generic[ExampleT, PredictionT, ModelT]):
-  """Has the ability to load an ML model."""
-  def load_model(self) -> ModelT:
-    """Loads and initializes a model for processing."""
-    raise NotImplementedError(type(self))
-
-  def get_inference_runner(
-      self) -> InferenceRunner[ExampleT, PredictionT, ModelT]:
-    """Returns an implementation of InferenceRunner for this model."""
-    raise NotImplementedError(type(self))
-
   def get_resource_hints(self) -> dict:
     """Returns resource hints for the transform."""
     return {}
@@ -111,15 +103,15 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                                    beam.PCollection[PredictionT]]):
   """An extensible transform for running inferences.
   Args:
-      model_loader: An implementation of ModelLoader.
+      model_handler: An implementation of ModelHandler.
       clock: A clock implementing get_current_time_in_microseconds.
   """
   def __init__(
       self,
-      model_loader: ModelLoader[ExampleT, PredictionT, Any],
+      model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock=time,
       extra_runinference_args: Optional[Dict[str, Any]] = None):
-    self._model_loader = model_loader
+    self._model_handler = model_handler
     self._extra_runinference_args = extra_runinference_args
     self._clock = clock
 
@@ -127,14 +119,14 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
   # are functional reasons large batch sizes cannot be handled.
   def expand(
       self, pcoll: beam.PCollection[ExampleT]) -> beam.PCollection[PredictionT]:
-    resource_hints = self._model_loader.get_resource_hints()
+    resource_hints = self._model_handler.get_resource_hints()
     return (
         pcoll
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
-        | beam.BatchElements(**self._model_loader.batch_elements_kwargs())
+        | beam.BatchElements(**self._model_handler.batch_elements_kwargs())
         | (
             beam.ParDo(
-                _RunInferenceDoFn(self._model_loader, self._clock),
+                _RunInferenceDoFn(self._model_handler, self._clock),
                 self._extra_runinference_args).with_resource_hints(
                     **resource_hints)))
 
@@ -191,8 +183,8 @@ class _MetricsCollector:
 class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   """A DoFn implementation generic to frameworks."""
   def __init__(
-      self, model_loader: ModelLoader[ExampleT, PredictionT, Any], clock):
-    self._model_loader = model_loader
+      self, model_handler: ModelHandler[ExampleT, PredictionT, Any], clock):
+    self._model_handler = model_handler
     self._shared_model_handle = shared.Shared()
     self._clock = clock
     self._model = None
@@ -202,7 +194,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
       start_time = _to_milliseconds(self._clock.time_ns())
-      model = self._model_loader.load_model()
+      model = self._model_handler.load_model()
       end_time = _to_milliseconds(self._clock.time_ns())
       memory_after = _get_current_process_memory_in_bytes()
       load_model_latency_ms = end_time - start_time
@@ -215,9 +207,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     return self._shared_model_handle.acquire(load)
 
   def setup(self):
-    self._inference_runner = self._model_loader.get_inference_runner()
     self._metrics_collector = _MetricsCollector(
-        self._inference_runner.get_metrics_namespace())
+        self._model_handler.get_metrics_namespace())
     self._model = self._load_model()
 
   def process(self, batch, extra_runinference_args):
@@ -233,16 +224,16 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
     start_time = _to_microseconds(self._clock.time_ns())
     if extra_runinference_args:
-      result_generator = self._inference_runner.run_inference(
+      result_generator = self._model_handler.run_inference(
           examples, self._model, extra_runinference_args)
     else:
-      result_generator = self._inference_runner.run_inference(
+      result_generator = self._model_handler.run_inference(
           examples, self._model)
     predictions = list(result_generator)
 
     end_time = _to_microseconds(self._clock.time_ns())
     inference_latency = end_time - start_time
-    num_bytes = self._inference_runner.get_num_bytes(examples)
+    num_bytes = self._model_handler.get_num_bytes(examples)
     num_elements = len(batch)
     self._metrics_collector.update(num_elements, num_bytes, inference_latency)
 
