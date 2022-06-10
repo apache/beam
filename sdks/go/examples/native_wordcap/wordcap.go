@@ -19,7 +19,7 @@
 //    (2) start a streaming pipeline that converts the messages to
 //        upper case and logs the result.
 //
-// NOTE: it only runs on Dataflow and must be manually cancelled.
+// This is a portable PubSub option and does not need to be run on Dataflow.
 package main
 
 import (
