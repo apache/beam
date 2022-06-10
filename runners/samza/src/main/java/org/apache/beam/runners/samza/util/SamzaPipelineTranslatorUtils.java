@@ -26,7 +26,7 @@ import org.apache.beam.sdk.values.PCollection;
 
 /** Utilities for pipeline translation. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public final class SamzaPipelineTranslatorUtils {
   private SamzaPipelineTranslatorUtils() {}

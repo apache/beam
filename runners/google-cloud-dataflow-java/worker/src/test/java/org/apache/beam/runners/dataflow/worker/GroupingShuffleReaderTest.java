@@ -92,7 +92,7 @@ import org.junit.runners.JUnit4;
 /** Tests for GroupingShuffleReader. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class GroupingShuffleReaderTest {
   private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
@@ -238,7 +238,7 @@ public class GroupingShuffleReaderTest {
 
         // safe co-variant cast from Reiterable to Iterable
         @SuppressWarnings({
-          "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+          "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
           "unchecked"
         })
         WindowedValue<KV<Integer, Iterable<KV<Integer, Integer>>>> windowedValue =

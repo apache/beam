@@ -42,14 +42,10 @@ class OutputTabs extends StatelessWidget {
           controller: tabController,
           tabs: <Widget>[
             OutputTab(
-              name: appLocale.output,
+              name: appLocale.result,
               isSelected: tabController.index == 0,
-              value: state.result?.output ?? '',
-            ),
-            OutputTab(
-              name: appLocale.log,
-              isSelected: tabController.index == 1,
-              value: state.result?.log ?? '',
+              value: state.outputResult ?? '',
+              hasFilter: true,
             ),
             if (showGraph)
               OutputTab(

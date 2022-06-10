@@ -110,7 +110,7 @@ export class PortableRunner extends Runner {
     private jobService: JobService | undefined = undefined
   ) {
     super();
-    if (typeof options == "string") {
+    if (typeof options === "string") {
       this.defaultOptions = { jobEndpoint: options };
     } else if (options) {
       this.defaultOptions = options;
@@ -162,7 +162,7 @@ export class PortableRunner extends Runner {
     }
 
     let loopbackAddress: string | undefined = undefined;
-    if ((options as any)?.environmentType == "LOOPBACK") {
+    if ((options as any)?.environmentType === "LOOPBACK") {
       const workers = new ExternalWorkerPool();
       loopbackAddress = await workers.start();
       completionCallbacks.push(() => workers.stop());
@@ -173,7 +173,7 @@ export class PortableRunner extends Runner {
     for (const [envId, env] of Object.entries(
       pipeline.components!.environments
     )) {
-      if (env.urn == environments.TYPESCRIPT_DEFAULT_ENVIRONMENT_URN) {
+      if (env.urn === environments.TYPESCRIPT_DEFAULT_ENVIRONMENT_URN) {
         if (loopbackAddress) {
           pipeline.components!.environments[envId] =
             environments.asExternalEnvironment(env, loopbackAddress);

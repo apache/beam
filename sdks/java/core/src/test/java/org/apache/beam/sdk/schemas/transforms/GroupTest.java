@@ -69,7 +69,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class GroupTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();

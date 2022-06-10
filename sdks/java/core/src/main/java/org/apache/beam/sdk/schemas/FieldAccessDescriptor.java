@@ -61,7 +61,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Experimental(Experimental.Kind.SCHEMAS)
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class FieldAccessDescriptor implements Serializable {
   /** Description of a single field. */

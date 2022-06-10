@@ -50,7 +50,7 @@ import (
 // CheckFilters is called. Multiple tests can be skipped by using regex
 // wildcards. (ex. "TestXLang_.*" filters all tests starting with TestXLang_)
 //
-// It is strongly recommended to include, TODOs, Jira issues, or just comments
+// It is strongly recommended to include, TODOs, GitHub issues, or just comments
 // describing why tests are being skipped.
 
 // sickbay filters tests that fail due to Go SDK errors. These tests will not
@@ -79,6 +79,8 @@ var directFilters = []string{
 	"TestLargeWordcount_Loopback",
 	// The direct runner does not support self-checkpointing
 	"TestCheckpointing",
+	// The direct runner does not support pipeline drain for SDF.
+	"TestDrain",
 }
 
 var portableFilters = []string{
@@ -91,6 +93,8 @@ var portableFilters = []string{
 	"TestKafkaIO.*",
 	// The portable runner does not support self-checkpointing
 	"TestCheckpointing",
+	// The portable runner does not support pipeline drain for SDF.
+	"TestDrain",
 }
 
 var flinkFilters = []string{
@@ -101,6 +105,8 @@ var flinkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// Triggers are not yet supported
 	"TestTrigger.*",
+	// The flink runner does not support pipeline drain for SDF.
+	"TestDrain",
 }
 
 var samzaFilters = []string{
@@ -116,6 +122,8 @@ var samzaFilters = []string{
 	"TestWordCount.*",
 	// The Samza runner does not support self-checkpointing
 	"TestCheckpointing",
+	// The samza runner does not support pipeline drain for SDF.
+	"TestDrain",
 }
 
 var sparkFilters = []string{
@@ -132,6 +140,8 @@ var sparkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// The spark runner does not support self-checkpointing
 	"TestCheckpointing",
+	// The spark runner does not support pipeline drain for SDF.
+	"TestDrain",
 }
 
 var dataflowFilters = []string{
@@ -154,6 +164,8 @@ var dataflowFilters = []string{
 	// Dataflow does not automatically terminate the TestCheckpointing pipeline when
 	// complete.
 	"TestCheckpointing",
+	// Dataflow does not drain jobs by itself.
+	"TestDrain",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either

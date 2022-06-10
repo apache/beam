@@ -118,7 +118,7 @@ import org.junit.runners.Parameterized;
 
 /** Tests for AvroIO Read and Write transforms. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class AvroIOTest implements Serializable {
   /** Unit tests. */

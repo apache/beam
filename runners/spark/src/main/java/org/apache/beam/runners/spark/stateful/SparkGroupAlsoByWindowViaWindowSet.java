@@ -94,7 +94,7 @@ import scala.runtime.AbstractFunction1;
  * the state (and output if no firing) in the following steps.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   private static final Logger LOG =

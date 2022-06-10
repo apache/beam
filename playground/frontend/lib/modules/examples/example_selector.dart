@@ -212,7 +212,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
                 ),
               ),
             ),
-            onPressed: () => launch(kAddExampleLink),
+            onPressed: () => launchUrl(Uri.parse(kAddExampleLink)),
           ),
         )
       ],

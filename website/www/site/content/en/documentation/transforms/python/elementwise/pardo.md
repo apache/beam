@@ -141,7 +141,7 @@ Output:
 
 > *Known issues:*
 >
-> * [[BEAM-7340]](https://issues.apache.org/jira/browse/BEAM-7340)
+> * [[Issue 19394]](https://github.com/apache/beam/issues/19394)
 >   `DoFn.teardown()` metrics are lost.
 
 ## Related transforms

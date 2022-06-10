@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsToStructWithJson;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsToStructWithStrings;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsWithUnknownModTypeAndValueCaptureType;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -170,6 +171,33 @@ public class ChangeStreamRecordMapperTest {
     assertEquals(
         Collections.singletonList(dataChangeRecord),
         mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingStructRowWithUnknownModTypeAndValueCaptureTypeToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "transactionId",
+            false,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("type1"), true, 1L),
+                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+            Collections.singletonList(
+                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+            ModType.UNKNOWN,
+            ValueCaptureType.UNKNOWN,
+            10L,
+            2L,
+            null);
+    final Struct struct = recordsWithUnknownModTypeAndValueCaptureType(dataChangeRecord);
+
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapper.toChangeStreamRecords(partition, struct, resultSetMetadata));
   }
 
   @Test

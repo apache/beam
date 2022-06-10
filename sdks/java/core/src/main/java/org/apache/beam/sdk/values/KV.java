@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableComparator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * An immutable key/value pair.
@@ -37,19 +38,20 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <K> the type of the key
  * @param <V> the type of the value
  */
-public class KV<K extends @Nullable Object, V extends @Nullable Object> implements Serializable {
+public class KV<K, V> implements Serializable {
   /** Returns a {@link KV} with the given key and value. */
-  public static <K extends @Nullable Object, V extends @Nullable Object> KV<K, V> of(
-      K key, V value) {
+  public static <K, V> KV<K, V> of(K key, V value) {
     return new KV<>(key, value);
   }
 
   /** Returns the key of this {@link KV}. */
+  @Pure
   public K getKey() {
     return key;
   }
 
   /** Returns the value of this {@link KV}. */
+  @Pure
   public V getValue() {
     return value;
   }
