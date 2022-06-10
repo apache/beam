@@ -64,8 +64,8 @@ _OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
 
 @dataclass
 class PredictionResult:
-  example: _INPUT_TYPE
-  inference: _OUTPUT_TYPE
+  example: Generic[_INPUT_TYPE]
+  inference: Generic[_OUTPUT_TYPE]
 
 
 def _to_milliseconds(time_ns: int) -> int:
