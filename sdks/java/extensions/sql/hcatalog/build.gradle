@@ -42,6 +42,15 @@ configurations.all {
   }
 }
 
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ * TODO: use testTextures feature which is introduced in Gradle 5.6 instead of
+ * the test outputs directly.
+ */
+evaluationDependsOn(":sdks:java:io:hcatalog")
+
 dependencies {
   implementation project(":sdks:java:extensions:sql")
   implementation project(":sdks:java:io:hcatalog")
@@ -49,6 +58,7 @@ dependencies {
   implementation "com.alibaba:fastjson:1.2.69"
   implementation library.java.vendored_guava_26_0_jre
 
+  testImplementation project(":sdks:java:io:hcatalog").sourceSets.test.output
   // Needed for HCatalogTableProvider tests,
   // they use HCat* types
   testImplementation "io.netty:netty-all:$netty_version"
