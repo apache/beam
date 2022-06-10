@@ -18,10 +18,13 @@
 import enum
 import pickle
 import sys
+from typing import Any
 from typing import Iterable
 from typing import List
+from typing import Union
 
 import numpy
+import pandas
 from sklearn.base import BaseEstimator
 
 from apache_beam.io.filesystems import FileSystems
@@ -41,7 +44,7 @@ class ModelFileType(enum.Enum):
 
 
 class SklearnModelHandler(ModelHandler[Union[numpy.ndarray,
-+                                                   pandas.DataFrame],
+                                                   pandas.DataFrame],
                                        PredictionResult,
                                        BaseEstimator]):
   """ Implementation of the ModelHandler interface for scikit learn.
