@@ -76,8 +76,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       self,
       batch: List[ExampleT],
       model: ModelT,
-      extra_runinference_args: Optional[Dict[str, Any]] = None
-  ) -> Iterable[PredictionT]:
+      extra_kwargs: Optional[Dict[str, Any]] = None) -> Iterable[PredictionT]:
     """Runs inferences on a batch of examples and
     returns an Iterable of Predictions."""
     raise NotImplementedError(type(self))
@@ -105,14 +104,16 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
   Args:
       model_handler: An implementation of ModelHandler.
       clock: A clock implementing get_current_time_in_microseconds.
+      extra_kwargs: Extra arguments for models whose inference call requires
+        extra parameters.
   """
   def __init__(
       self,
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock=time,
-      extra_runinference_args: Optional[Dict[str, Any]] = None):
+      extra_kwargs: Optional[Dict[str, Any]] = None):
     self._model_handler = model_handler
-    self._extra_runinference_args = extra_runinference_args
+    self._extra_kwargs = extra_kwargs
     self._clock = clock
 
   # TODO(BEAM-14208): Add batch_size back off in the case there
@@ -127,8 +128,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         | (
             beam.ParDo(
                 _RunInferenceDoFn(self._model_handler, self._clock),
-                self._extra_runinference_args).with_resource_hints(
-                    **resource_hints)))
+                self._extra_kwargs).with_resource_hints(**resource_hints)))
 
 
 class _MetricsCollector:
@@ -211,7 +211,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
         self._model_handler.get_metrics_namespace())
     self._model = self._load_model()
 
-  def process(self, batch, extra_runinference_args):
+  def process(self, batch, extra_kwargs):
     # Process supports both keyed data, and example only data.
     # First keys and samples are separated (if there are keys)
     has_keys = isinstance(batch[0], tuple)
@@ -223,9 +223,9 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       keys = None
 
     start_time = _to_microseconds(self._clock.time_ns())
-    if extra_runinference_args:
+    if extra_kwargs:
       result_generator = self._model_handler.run_inference(
-          examples, self._model, extra_runinference_args)
+          examples, self._model, extra_kwargs)
     else:
       result_generator = self._model_handler.run_inference(
           examples, self._model)

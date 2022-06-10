@@ -90,8 +90,8 @@ class PytorchModelHandler(ModelHandler[torch.Tensor,
       self,
       batch: List[Union[torch.Tensor, Dict[str, torch.Tensor]]],
       model: torch.nn.Module,
-      extra_runinference_args: Optional[Dict[str, Any]] = None
-  ) -> Iterable[PredictionResult]:
+      extra_kwargs: Optional[Dict[str,
+                                  Any]] = None) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
     Tensor Predictions.
@@ -99,8 +99,7 @@ class PytorchModelHandler(ModelHandler[torch.Tensor,
     This method stacks the list of Tensors in a vectorized format to optimize
     the inference call.
     """
-    extra_runinference_args = (
-        extra_runinference_args if extra_runinference_args else {})
+    extra_kwargs = extra_kwargs if extra_kwargs else {}
 
     # If elements in `batch` are provided as a dictionaries from key to Tensors,
     # then iterate through the batch list, and group Tensors to the same key
@@ -114,12 +113,12 @@ class PytorchModelHandler(ModelHandler[torch.Tensor,
         batched_tensors = torch.stack(key_to_tensor_list[key])
         batched_tensors = self._convert_to_device(batched_tensors)
         key_to_batched_tensors[key] = batched_tensors
-      predictions = model(**key_to_batched_tensors, **extra_runinference_args)
+      predictions = model(**key_to_batched_tensors, **extra_kwargs)
     else:
       # If elements in `batch` are provided as Tensors, then do a regular stack
       batched_tensors = torch.stack(batch)
       batched_tensors = self._convert_to_device(batched_tensors)
-      predictions = model(batched_tensors, **extra_runinference_args)
+      predictions = model(batched_tensors, **extra_kwargs)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: List[torch.Tensor]) -> int:

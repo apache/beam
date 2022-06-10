@@ -75,10 +75,10 @@ class FakeModelHandlerNeedsBigBatch(FakeModelHandler):
     return {'min_batch_size': 9999}
 
 
-class FakeModelHandlerExtraArgs(FakeModelHandler):
-  def run_inference(self, batch, unused_model, extra_runinference_args):
-    if not extra_runinference_args:
-      raise ValueError('extra_runinference_args should exist')
+class FakeModelHandlerExtraKwargs(FakeModelHandler):
+  def run_inference(self, batch, unused_model, extra_kwargs):
+    if not extra_kwargs:
+      raise ValueError('extra_kwargs should exist')
     return batch
 
 
@@ -100,13 +100,13 @@ class RunInferenceBaseTest(unittest.TestCase):
       actual = pcoll | base.RunInference(FakeModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_run_inference_impl_extra_runinference_args(self):
+  def test_run_inference_impl_extra_kwargs(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      extra_args = {'key': True}
+      extra_kwargs = {'key': True}
       actual = pcoll | base.RunInference(
-          FakeModelHandlerExtraArgs(), extra_runinference_args=extra_args)
+          FakeModelHandlerExtraKwargs(), extra_kwargs=extra_kwargs)
       assert_that(actual, equal_to(examples), label='assert:inferences')
 
   def test_counted_metrics(self):
