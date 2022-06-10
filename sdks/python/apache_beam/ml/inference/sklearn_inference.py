@@ -61,9 +61,6 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
                                             BaseEstimator]):
   """ Implementation of the ModelHandler interface for scikit-learn
       using numpy arrays as input.
-
-      NOTE: This API and its implementation are under development and
-      do not provide backward compatibility guarantees.
   """
   def __init__(
       self,
@@ -94,9 +91,6 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
                                              BaseEstimator]):
   """ Implementation of the ModelHandler interface for scikit-learn that
       supports pandas dataframes.
-
-      NOTE: This API and its implementation are under development and
-      do not provide backward compatibility guarantees.
   """
   def __init__(
       self,
