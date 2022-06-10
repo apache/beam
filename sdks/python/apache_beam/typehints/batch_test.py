@@ -17,6 +17,8 @@
 
 """Unit tests for batched type converters."""
 
+import contextlib
+import random
 import typing
 import unittest
 
@@ -45,12 +47,12 @@ from apache_beam.typehints.batch import NumpyArray
     {
         'batch_typehint': typehints.List[str],
         'element_typehint': str,
-        'batch': ["foo" * (i % 5) + str(i) for i in range(100)],
+        'batch': ["foo" * (i % 5) + str(i) for i in range(1000)],
     },
     {
         'batch_typehint': typing.List[str],
         'element_typehint': str,
-        'batch': ["foo" * (i % 5) + str(i) for i in range(100)],
+        'batch': ["foo" * (i % 5) + str(i) for i in range(1000)],
     },
 ])
 class BatchConverterTest(unittest.TestCase):
@@ -88,6 +90,37 @@ class BatchConverterTest(unittest.TestCase):
     typehints.check_constraint(self.normalized_batch_typehint, rebatched)
     self.assertTrue(self.equality_check(self.batch, rebatched))
 
+  def test_estimate_byte_size_implemented(self):
+    # Just verify that we can call byte size
+    self.assertGreater(self.converter.estimate_byte_size(self.batch), 0)
+
+  @parameterized.expand([
+      (2, ),
+      (3, ),
+      (10, ),
+  ])
+  def test_estimate_byte_size_partitions(self, N):
+    elements = list(self.converter.explode_batch(self.batch))
+
+    # Split elements into N contiguous partitions, create a batch out of each
+    batches = [
+        self.converter.produce_batch(
+            elements[len(elements) * i // N:len(elements) * (i + 1) // N])
+        for i in range(N)
+    ]
+
+    # Some estimate_byte_size implementations use random samples,
+    # set a seed temporarily to make this test deterministic
+    with temp_seed(12345):
+      partitioned_size_estimate = sum(
+          self.converter.estimate_byte_size(batch) for batch in batches)
+      size_estimate = self.converter.estimate_byte_size(self.batch)
+
+    # Assert that size estimate for partitions is within 10% of size estimate
+    # for the whole partition.
+    self.assertLessEqual(
+        abs(partitioned_size_estimate / size_estimate - 1), 0.1)
+
   @parameterized.expand([
       (2, ),
       (3, ),
@@ -114,6 +147,16 @@ class BatchConverterTest(unittest.TestCase):
 
   def test_hash(self):
     self.assertEqual(hash(self.create_batch_converter()), hash(self.converter))
+
+
+@contextlib.contextmanager
+def temp_seed(seed):
+  state = random.getstate()
+  random.seed(seed)
+  try:
+    yield
+  finally:
+    random.setstate(state)
 
 
 if __name__ == '__main__':
