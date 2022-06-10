@@ -45,9 +45,9 @@ import { CheckStatus } from "./shared/checks";
  * (in which case that's all we need to do).
  */
 function needsProcessed(pull: any, prState: typeof Pr): boolean {
-  if (!pull.labels.find((label) => label.name.toLowerCase() === "go")) {
+  if (!pull.labels.find((label) => label.name.toLowerCase() === "go" || label.name.toLowerCase() == "python")) {
     console.log(
-      `Skipping PR ${pull.number} because it doesn't contain the go label`
+      `Skipping PR ${pull.number} because it doesn't contain the go or python labels`
     );
     return false;
   }
