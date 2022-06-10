@@ -165,14 +165,14 @@ func (r *pubSubRead) ProcessElement(ctx context.Context, bf beam.BundleFinalizat
 	}
 }
 
-// NativeRead reads messages from a PubSub topic in a streaming context, outputting
+// Read reads messages from a PubSub topic in a streaming context, outputting
 // received messages as a PCollection of byte slices. If the provided subscription
 // name exists for the given topic, the DoFn will read from that subscription; otherwise,
 // a new subscription with the given subscription name will be created and read from.
 //
 // This feature is experimental and subject to change, including its behavior and function signature.
 // Please use the cross-language implementation Read() instead.
-func NativeRead(ctx context.Context, s beam.Scope, project, topic, subscription string) beam.PCollection {
+func Read(ctx context.Context, s beam.Scope, project, topic, subscription string) beam.PCollection {
 	s = s.Scope("pubsubio.NativeRead")
 
 	psRead, err := newPubSubRead(ctx, project, topic, subscription)
@@ -231,12 +231,12 @@ func newPubSubWrite(ctx context.Context, projectID, topic string) (*pubSubWrite,
 	return &pubSubWrite{ProjectID: projectID, Topic: top.ID()}, nil
 }
 
-// NativeWrite publishes elements from a PCollection of byte slices to a PubSub topic.
+// Write publishes elements from a PCollection of byte slices to a PubSub topic.
 // If the topic does not exist at pipeline construction time, the function will panic.
 //
 // This feature is experimental and subject to change, including its behavior and function signature.
 // Please use the cross-language implementation Write() instead.
-func NativeWrite(ctx context.Context, s beam.Scope, col beam.PCollection, project, topic string) {
+func Write(ctx context.Context, s beam.Scope, col beam.PCollection, project, topic string) {
 	s = s.Scope("pubsubio.NativeWrite")
 
 	psWrite, err := newPubSubWrite(ctx, project, topic)
