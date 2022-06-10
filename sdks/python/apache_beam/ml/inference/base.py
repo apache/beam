@@ -72,7 +72,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     """Loads and initializes a model for processing."""
     raise NotImplementedError(type(self))
 
-  def run_inference(self, batch: List[ExampleT], model: ModelT,
+  def run_inference(self, batch: Sequence[ExampleT], model: ModelT,
                     **kwargs) -> Iterable[PredictionT]:
     """Runs inferences on a batch of examples and
     returns an Iterable of Predictions."""
@@ -96,10 +96,10 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
 
 
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
-                       KeyedModelHandler[Tuple[KeyT, ExampleT],
-                                   Tuple[KeyT, PredictionT],
-                                   ModelT]):
-  def __init__(self, unkeyed: ModelLoader[ExampleT, PredictionT, ModelT]):
+                        ModelHandler[Tuple[KeyT, ExampleT],
+                                     Tuple[KeyT, PredictionT],
+                                     ModelT]):
+  def __init__(self, unkeyed: ModelHandler[ExampleT, PredictionT, ModelT]):
     self._unkeyed = unkeyed
 
   def load_model(self) -> ModelT:
@@ -239,22 +239,13 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
   def process(self, batch, **kwargs):
     start_time = _to_microseconds(self._clock.time_ns())
-<<<<<<< HEAD
-    result_generator = self._inference_runner.run_inference(
-        batch, self._model, **kwargs)
-=======
     result_generator = self._model_handler.run_inference(
-        examples, self._model, **kwargs)
->>>>>>> master
+        batch, self._model, **kwargs)
     predictions = list(result_generator)
 
     end_time = _to_microseconds(self._clock.time_ns())
     inference_latency = end_time - start_time
-<<<<<<< HEAD
-    num_bytes = self._inference_runner.get_num_bytes(batch)
-=======
-    num_bytes = self._model_handler.get_num_bytes(examples)
->>>>>>> master
+    num_bytes = self._model_handler.get_num_bytes(batch)
     num_elements = len(batch)
     self._metrics_collector.update(num_elements, num_bytes, inference_latency)
 
