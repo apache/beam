@@ -39,6 +39,7 @@ from typing import Mapping
 from typing import Sequence
 from typing import Tuple
 from typing import TypeVar
+from typing import Union
 
 import apache_beam as beam
 from apache_beam.utils import shared
@@ -135,8 +136,10 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
 
 class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
-                             ModelHandler[Tuple[KeyT, ExampleT],
-                                          Tuple[KeyT, PredictionT],
+                             ModelHandler[Union[ExampleT, Tuple[KeyT,
+                                                                ExampleT]],
+                                          Union[PredictionT,
+                                                Tuple[KeyT, PredictionT]],
                                           ModelT]):
   """A ModelHandler that takes possibly keyed examples and returns possibly
   keyed predictions.
@@ -147,7 +150,8 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   depending on the whether the elements happen to be tuples, allowing one to
   associate the outputs with the inputs based on the key.
 
-  Note that this cannot be used if E happens to be a tuple type.
+  Note that this cannot be used if E happens to be a tuple type.  In addition,
+  either all examples should be keyed, or none of them.
   """
   def __init__(self, unkeyed: ModelHandler[ExampleT, PredictionT, ModelT]):
     self._unkeyed = unkeyed
@@ -156,14 +160,20 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     return self._unkeyed.load_model()
 
   def run_inference(
-      self, batch: Sequence[Tuple[KeyT, ExampleT]], model: ModelT,
-      **kwargs) -> Iterable[Tuple[KeyT, PredictionT]]:
+      self,
+      batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]],
+      model: ModelT,
+      **kwargs
+  ) -> Union[Iterable[PredictionT], Iterable[Tuple[KeyT, PredictionT]]]:
+    # Really the input should be
+    #    Union[Sequence[ExampleT], Sequence[Tuple[KeyT, ExampleT]]]
+    # but there's not a good way to express (or check) that.
     if isinstance(batch[0], tuple):
       is_keyed = True
-      keys, unkeyed_batch = zip(*batch)
+      keys, unkeyed_batch = zip(*batch)  # type: ignore[arg-type]
     else:
       is_keyed = False
-      unkeyed_batch = batch
+      unkeyed_batch = batch  # type: ignore[assignment]
     unkeyed_results = self._unkeyed.run_inference(
         unkeyed_batch, model, **kwargs)
     if is_keyed:
@@ -171,13 +181,15 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     else:
       return unkeyed_results
 
-  def get_num_bytes(self, batch: Sequence[Tuple[KeyT, ExampleT]]) -> int:
+  def get_num_bytes(
+      self, batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]]) -> int:
+    # MyPy can't follow the branching logic.
     if isinstance(batch[0], tuple):
-      keys, unkeyed_batch = zip(*batch)
+      keys, unkeyed_batch = zip(*batch)  # type: ignore[arg-type]
       return len(
           pickle.dumps(keys)) + self._unkeyed.get_num_bytes(unkeyed_batch)
     else:
-      return self._unkeyed.get_num_bytes(batch)
+      return self._unkeyed.get_num_bytes(batch)  # type: ignore[arg-type]
 
   def get_metrics_namespace(self) -> str:
     return self._unkeyed.get_metrics_namespace()
