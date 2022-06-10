@@ -39,8 +39,11 @@ class FakeInferenceRunner(base.InferenceRunner[int, int, FakeModel]):
   def __init__(self, clock=None):
     self._fake_clock = clock
 
-  def run_inference(self, batch: List[int], model: FakeModel,
-                    **kwargs) -> Iterable[int]:
+  def run_inference(
+      self,
+      batch: List[int],
+      model: FakeModel,
+  ) -> Iterable[int]:
     if self._fake_clock:
       self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
     for example in batch:
@@ -89,16 +92,16 @@ class FakeLoaderWithBatchArgForwarding(FakeModelLoader):
     return {'min_batch_size': 9999}
 
 
-class FakeInferenceRunnerKwargs(FakeInferenceRunner):
-  def run_inference(self, batch, unused_model, **kwargs):
-    if not kwargs.get('key'):
-      raise ValueError('key should be True')
+class FakeInferenceRunnerExtraArgs(FakeInferenceRunner):
+  def run_inference(self, batch, unused_model, extra_runinference_args):
+    if not extra_runinference_args:
+      raise ValueError('extra_runinference_args should exist')
     return batch
 
 
-class FakeLoaderWithKwargs(FakeModelLoader):
+class FakeLoaderWithExtraArgs(FakeModelLoader):
   def get_inference_runner(self):
-    return FakeInferenceRunnerKwargs()
+    return FakeInferenceRunnerExtraArgs()
 
 
 class RunInferenceBaseTest(unittest.TestCase):
@@ -119,12 +122,13 @@ class RunInferenceBaseTest(unittest.TestCase):
       actual = pcoll | base.RunInference(FakeModelLoader())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_run_inference_impl_kwargs(self):
+  def test_run_inference_impl_extra_runinference_args(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      kwargs = {'key': True}
-      actual = pcoll | base.RunInference(FakeLoaderWithKwargs(), **kwargs)
+      extra_args = {'key': True}
+      actual = pcoll | base.RunInference(
+          FakeLoaderWithExtraArgs(), extra_runinference_args=extra_args)
       assert_that(actual, equal_to(examples), label='assert:inferences')
 
   def test_counted_metrics(self):

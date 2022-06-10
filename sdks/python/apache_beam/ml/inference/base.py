@@ -33,10 +33,12 @@ import pickle
 import sys
 import time
 from typing import Any
+from typing import Dict
 from typing import Generic
 from typing import Iterable
 from typing import List
 from typing import Mapping
+from typing import Optional
 from typing import TypeVar
 
 import apache_beam as beam
@@ -66,8 +68,12 @@ def _to_microseconds(time_ns: int) -> int:
 
 class InferenceRunner(Generic[ExampleT, PredictionT, ModelT]):
   """Implements running inferences for a framework."""
-  def run_inference(self, batch: List[ExampleT], model: ModelT,
-                    **kwargs) -> Iterable[PredictionT]:
+  def run_inference(
+      self,
+      batch: List[ExampleT],
+      model: ModelT,
+      extra_runinference_args: Optional[Dict[str, Any]] = None
+  ) -> Iterable[PredictionT]:
     """Runs inferences on a batch of examples and
     returns an Iterable of Predictions."""
     raise NotImplementedError(type(self))
@@ -112,9 +118,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       self,
       model_loader: ModelLoader[ExampleT, PredictionT, Any],
       clock=time,
-      **kwargs):
+      extra_runinference_args: Optional[Dict[str, Any]] = None):
     self._model_loader = model_loader
-    self._kwargs = kwargs
+    self._extra_runinference_args = extra_runinference_args
     self._clock = clock
 
   # TODO(BEAM-14208): Add batch_size back off in the case there
@@ -129,7 +135,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         | (
             beam.ParDo(
                 _RunInferenceDoFn(self._model_loader, self._clock),
-                **self._kwargs).with_resource_hints(**resource_hints)))
+                self._extra_runinference_args).with_resource_hints(
+                    **resource_hints)))
 
 
 class _MetricsCollector:
@@ -213,7 +220,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
         self._inference_runner.get_metrics_namespace())
     self._model = self._load_model()
 
-  def process(self, batch, **kwargs):
+  def process(self, batch, extra_runinference_args):
     # Process supports both keyed data, and example only data.
     # First keys and samples are separated (if there are keys)
     has_keys = isinstance(batch[0], tuple)
@@ -225,8 +232,12 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       keys = None
 
     start_time = _to_microseconds(self._clock.time_ns())
-    result_generator = self._inference_runner.run_inference(
-        examples, self._model, **kwargs)
+    if extra_runinference_args:
+      result_generator = self._inference_runner.run_inference(
+          examples, self._model, extra_runinference_args)
+    else:
+      result_generator = self._inference_runner.run_inference(
+          examples, self._model)
     predictions = list(result_generator)
 
     end_time = _to_microseconds(self._clock.time_ns())

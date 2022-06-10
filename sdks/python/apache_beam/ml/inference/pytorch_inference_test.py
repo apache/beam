@@ -208,13 +208,13 @@ class PytorchRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(predictions, KWARGS_TORCH_PREDICTIONS):
       self.assertTrue(_compare_prediction_result(actual, expected))
 
-  def test_inference_runner_kwargs_prediction_params(self):
+  def test_inference_runner_kwargs_extra_args(self):
     """
     This tests for non-batchable input arguments. Since we do the batching
     for the user, we have to distinguish between the inputs that should be
     batched and the ones that should not be batched.
     """
-    prediction_params = {
+    extra_args = {
         'prediction_param_array': torch.from_numpy(
             np.array([1, 2], dtype="float32")),
         'prediction_param_bool': True
@@ -231,7 +231,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
     predictions = inference_runner.run_inference(
         batch=KWARGS_TORCH_EXAMPLES,
         model=model,
-        prediction_params=prediction_params)
+        extra_runinference_args=extra_args)
     for actual, expected in zip(predictions, KWARGS_TORCH_PREDICTIONS):
       self.assertEqual(actual, expected)
 
@@ -278,9 +278,9 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           equal_to(
               TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
 
-  def test_pipeline_local_model_kwargs_prediction_params(self):
+  def test_pipeline_local_model_kwargs_extra_args(self):
     with TestPipeline() as pipeline:
-      prediction_params = {
+      extra_args = {
           'prediction_param_array': torch.from_numpy(
               np.array([1, 2], dtype="float32")),
           'prediction_param_bool': True
@@ -299,11 +299,11 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           })
 
       pcoll = pipeline | 'start' >> beam.Create(KWARGS_TORCH_EXAMPLES)
-      prediction_params_side_input = (
-          pipeline | 'create side' >> beam.Create(prediction_params))
+      extra_args_side_input = (
+          pipeline | 'create side' >> beam.Create(extra_args))
       predictions = pcoll | RunInference(
           model_loader=model_loader,
-          prediction_params=beam.pvalue.AsDict(prediction_params_side_input))
+          extra_runinference_args=beam.pvalue.AsDict(extra_args_side_input))
       assert_that(
           predictions,
           equal_to(
