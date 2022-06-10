@@ -41,7 +41,7 @@ class ModelFileType(enum.Enum):
   JOBLIB = 2
 
 
-def load_model(model_uri, file_type):
+def _load_model(model_uri, file_type):
   file = FileSystems.open(model_uri, 'rb')
   if file_type == ModelFileType.PICKLE:
     return pickle.load(file)
@@ -71,7 +71,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
-    return load_model(self._model_uri, self._model_file_type)
+    return _load_model(self._model_uri, self._model_file_type)
 
   def run_inference(
       self, batch: List[numpy.ndarray], model: BaseEstimator,
@@ -91,6 +91,9 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
                                              BaseEstimator]):
   """ Implementation of the ModelHandler interface for scikit-learn that
       supports pandas dataframes.
+
+      NOTE: This API and its implementation are under development and
+      do not provide backward compatibility guarantees.
   """
   def __init__(
       self,
@@ -101,7 +104,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
-    return load_model(self._model_uri, self._model_file_type)
+    return _load_model(self._model_uri, self._model_file_type)
 
   def run_inference(
       self, batch: List[pandas.DataFrame], model: BaseEstimator,

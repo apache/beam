@@ -301,9 +301,9 @@ class SkLearnRunInferenceTest(unittest.TestCase):
   def test_infer_too_many_rows_in_dataframe(self):
     with self.assertRaises(ValueError):
       data_frame_too_many_rows = pandas_dataframe()
-      inference_runner = SklearnModelHandlerPandas(model_uri='unused')
       fake_model = FakeModel()
-      inference_runner.run_inference([data_frame_too_many_rows], fake_model)
+      inference_runner = SklearnModelHandlerPandas(model_uri='unused')
+      inference_runner.run_inference(data_frame_too_many_rows, fake_model)
 
 
 if __name__ == '__main__':
