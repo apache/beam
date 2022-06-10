@@ -22,6 +22,7 @@
 import unittest
 from typing import Iterator
 from typing import List
+from typing import Tuple
 from typing import no_type_check
 
 from parameterized import parameterized_class
@@ -54,6 +55,19 @@ class EitherDoFn(beam.DoFn):
     yield [element / 2 for element in batch]
 
 
+class ElementToBatchDoFn(beam.DoFn):
+  @beam.DoFn.yields_batches
+  def process(self, element: int, *args, **kwargs) -> Iterator[List[int]]:
+    yield [element] * element
+
+
+class BatchToElementDoFn(beam.DoFn):
+  @beam.DoFn.yields_elements
+  def process_batch(self, batch: List[int], *args,
+                    **kwargs) -> Iterator[Tuple[int, int]]:
+    yield (sum(batch), len(batch))
+
+
 def get_test_class_name(cls, num, params_dict):
   return "%s_%s" % (cls.__name__, params_dict['dofn'].__class__.__name__)
 
@@ -61,47 +75,68 @@ def get_test_class_name(cls, num, params_dict):
 @parameterized_class([
     {
         "dofn": ElementDoFn(),
-        "process_defined": True,
-        "process_batch_defined": False,
-        "input_batch_type": None,
-        "output_batch_type": None
+        "expected_process_defined": True,
+        "expected_process_batch_defined": False,
+        "expected_input_batch_type": None,
+        "expected_output_batch_type": None
     },
     {
         "dofn": BatchDoFn(),
-        "process_defined": False,
-        "process_batch_defined": True,
-        "input_batch_type": beam.typehints.List[int],
-        "output_batch_type": beam.typehints.List[float]
+        "expected_process_defined": False,
+        "expected_process_batch_defined": True,
+        "expected_input_batch_type": beam.typehints.List[int],
+        "expected_output_batch_type": beam.typehints.List[float]
     },
     {
         "dofn": BatchDoFnNoReturnAnnotation(),
-        "process_defined": False,
-        "process_batch_defined": True,
-        "input_batch_type": beam.typehints.List[int],
-        "output_batch_type": beam.typehints.List[int]
+        "expected_process_defined": False,
+        "expected_process_batch_defined": True,
+        "expected_input_batch_type": beam.typehints.List[int],
+        "expected_output_batch_type": beam.typehints.List[int]
     },
     {
         "dofn": EitherDoFn(),
-        "process_defined": True,
-        "process_batch_defined": True,
-        "input_batch_type": beam.typehints.List[int],
-        "output_batch_type": beam.typehints.List[float]
+        "expected_process_defined": True,
+        "expected_process_batch_defined": True,
+        "expected_input_batch_type": beam.typehints.List[int],
+        "expected_output_batch_type": beam.typehints.List[float]
+    },
+    {
+        "dofn": ElementToBatchDoFn(),
+        "expected_process_defined": True,
+        "expected_process_batch_defined": False,
+        "expected_input_batch_type": None,
+        "expected_output_batch_type": beam.typehints.List[int]
+    },
+    {
+        "dofn": BatchToElementDoFn(),
+        "expected_process_defined": False,
+        "expected_process_batch_defined": True,
+        "expected_input_batch_type": beam.typehints.List[int],
+        "expected_output_batch_type": None,
     },
 ],
                      class_name_func=get_test_class_name)
 class BatchDoFnParameterizedTest(unittest.TestCase):
   def test_process_defined(self):
-    self.assertEqual(self.dofn.process_defined, self.process_defined)
+    self.assertEqual(self.dofn.process_defined, self.expected_process_defined)
 
   def test_process_batch_defined(self):
     self.assertEqual(
-        self.dofn.process_batch_defined, self.process_batch_defined)
+        self.dofn.process_batch_defined, self.expected_process_batch_defined)
 
   def test_get_input_batch_type(self):
-    self.assertEqual(self.dofn.get_input_batch_type(), self.input_batch_type)
+    self.assertEqual(
+        self.dofn.get_input_batch_type(), self.expected_input_batch_type)
 
   def test_get_output_batch_type(self):
-    self.assertEqual(self.dofn.get_output_batch_type(), self.output_batch_type)
+    self.assertEqual(
+        self.dofn.get_output_batch_type(beam.typehints.Any),
+        self.expected_output_batch_type)
+
+  def test_can_yield_batches(self):
+    expected = self.expected_output_batch_type is not None
+    self.assertEqual(self.dofn.can_yield_batches, expected)
 
 
 class BatchDoFnNoInputAnnotation(beam.DoFn):
@@ -118,7 +153,7 @@ class BatchDoFnTest(unittest.TestCase):
     self.assertTrue(dofn.process_defined)
     self.assertFalse(dofn.process_batch_defined)
     self.assertEqual(dofn.get_input_batch_type(), None)
-    self.assertEqual(dofn.get_output_batch_type(), None)
+    self.assertEqual(dofn.get_output_batch_type(int), None)
 
   def test_no_input_annotation_raises(self):
     p = beam.Pipeline()
