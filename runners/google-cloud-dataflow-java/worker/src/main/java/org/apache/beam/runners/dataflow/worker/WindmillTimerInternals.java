@@ -212,8 +212,8 @@ class WindmillTimerInternals implements TimerInternals {
         // Only set a hold if it's needed and if the hold is before the end of the global window.
         if (needsWatermarkHold(timerData)) {
           if (timerData
-                .getOutputTimestamp()
-                .isBefore(GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1)))) {
+              .getOutputTimestamp()
+              .isBefore(GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1)))) {
             // Setting a timer, clear any prior hold and set to the new value
             outputBuilder
                 .addWatermarkHoldsBuilder()
@@ -284,7 +284,8 @@ class WindmillTimerInternals implements TimerInternals {
 
     builder.setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getTimestamp()));
     // Store the output timestamp in the metadata timestamp.
-    builder.setMetadataTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getOutputTimestamp()));
+    builder.setMetadataTimestamp(
+        WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getOutputTimestamp()));
 
     return builder;
   }
@@ -354,8 +355,10 @@ class WindmillTimerInternals implements TimerInternals {
             ? tag.substring(timerFamilyStart, timerFamilyEnd).toStringUtf8()
             : "";
 
-    // For backwards compatibility, parse the output timestamp from the tag. Not using '+' as a terminator because the
-    // output timestamp is the last segment in the tag and the timestamp encoding itself may contain '+'.
+    // For backwards compatibility, parse the output timestamp from the tag. Not using '+' as a
+    // terminator because the
+    // output timestamp is the last segment in the tag and the timestamp encoding itself may contain
+    // '+'.
     int outputTimestampStart = timerFamilyEnd + 1;
     int outputTimestampEnd = tag.size();
 
