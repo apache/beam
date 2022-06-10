@@ -21,15 +21,43 @@ const commentStrings = require("./shared/commentStrings");
 const { processCommand } = require("./shared/userCommand");
 const {
   addPrComment,
+  getGitHubClient,
   nextActionReviewers,
   getPullAuthorFromPayload,
   getPullNumberFromPayload,
 } = require("./shared/githubUtils");
 const { PersistentState } = require("./shared/persistentState");
 const { ReviewerConfig } = require("./shared/reviewerConfig");
-const { PATH_TO_CONFIG_FILE } = require("./shared/constants");
+const {
+  BOT_NAME,
+  PATH_TO_CONFIG_FILE,
+  REPO_OWNER,
+  REPO,
+  SLOW_REVIEW_LABEL,
+  REVIEWERS_ACTION,
+} = require("./shared/constants");
 
-const reviewerAction = "Reviewers";
+// Removes the slow label if the pr has been reviewed and returns an updated payload.
+async function removeSlowReviewLabel(payload: any) {
+  let labels = payload.issue?.labels || payload.pull_request?.labels;
+  if (labels.some((label) => label.name.toLowerCase() == SLOW_REVIEW_LABEL)) {
+    const pullNumber = payload.issue?.number || payload.pull_request?.number;
+    labels = (
+      await getGitHubClient().rest.issues.removeLabel({
+        owner: REPO_OWNER,
+        repo: REPO,
+        issue_number: pullNumber,
+        name: "slow-review",
+      })
+    ).data;
+    if (payload.issues) {
+      payload.issues.labels = labels;
+    }
+    if (payload.pull_request) {
+      payload.pull_request.labels = labels;
+    }
+  }
+}
 
 async function areReviewersAssigned(
   pullNumber: number,
@@ -46,6 +74,11 @@ async function processPrComment(
 ) {
   const commentContents = payload.comment.body;
   const commentAuthor = payload.sender.login;
+  const pullAuthor = getPullAuthorFromPayload(payload);
+  // If there's been a comment by a non-author, we can remove the slow review label
+  if (commentAuthor !== pullAuthor && commentAuthor !== BOT_NAME) {
+    await removeSlowReviewLabel(payload);
+  }
   console.log(commentContents);
   if (
     await processCommand(
@@ -66,66 +99,11 @@ async function processPrComment(
   console.log(
     "No command to be processed, checking if we should shift attention to reviewers"
   );
-  const pullAuthor = getPullAuthorFromPayload(payload);
   if (pullAuthor === commentAuthor) {
     await setNextActionReviewers(payload, stateClient);
   } else {
     console.log(
       `Comment was from ${commentAuthor}, not author: ${pullAuthor}. No action to take.`
-    );
-  }
-}
-
-/*
- * On approval from a reviewer we have assigned, assign committer if one not already assigned
- */
-async function processPrReview(
-  payload: any,
-  stateClient: typeof PersistentState,
-  reviewerConfig: typeof ReviewerConfig
-) {
-  if (payload.review.state !== "approved") {
-    return;
-  }
-
-  const pullNumber = getPullNumberFromPayload(payload);
-  if (!(await areReviewersAssigned(pullNumber, stateClient))) {
-    return;
-  }
-
-  let prState = await stateClient.getPrState(pullNumber);
-  // TODO(damccorm) - also check if the author is a committer, if they are don't auto-assign a committer
-  if (await prState.isAnyAssignedReviewerCommitter()) {
-    return;
-  }
-
-  const labelOfReviewer = prState.getLabelForReviewer(payload.sender.login);
-  if (labelOfReviewer) {
-    let reviewersState = await stateClient.getReviewersForLabelState(
-      labelOfReviewer
-    );
-    const availableReviewers =
-      reviewerConfig.getReviewersForLabel(labelOfReviewer);
-    const chosenCommitter = await reviewersState.assignNextCommitter(
-      availableReviewers
-    );
-    prState.reviewersAssignedForLabels[labelOfReviewer] = chosenCommitter;
-
-    // Set next action to committer
-    await addPrComment(
-      pullNumber,
-      commentStrings.assignCommitter(chosenCommitter)
-    );
-    const existingLabels =
-      payload.issue?.labels || payload.pull_request?.labels;
-    await nextActionReviewers(pullNumber, existingLabels);
-    prState.nextAction = reviewerAction;
-
-    // Persist state
-    await stateClient.writePrState(pullNumber, prState);
-    await stateClient.writeReviewersForLabelState(
-      labelOfReviewer,
-      reviewersState
     );
   }
 }
@@ -145,7 +123,7 @@ async function setNextActionReviewers(
   const existingLabels = payload.issue?.labels || payload.pull_request?.labels;
   await nextActionReviewers(pullNumber, existingLabels);
   let prState = await stateClient.getPrState(pullNumber);
-  prState.nextAction = reviewerAction;
+  prState.nextAction = REVIEWERS_ACTION;
   await stateClient.writePrState(pullNumber, prState);
 }
 
@@ -177,7 +155,6 @@ async function processPrUpdate() {
   }
 
   switch (github.context.eventName) {
-    case "pull_request_review_comment":
     case "issue_comment":
       console.log("Processing comment event");
       if (payload.action !== "created") {
@@ -185,10 +162,6 @@ async function processPrUpdate() {
         return;
       }
       await processPrComment(payload, stateClient, reviewerConfig);
-      break;
-    case "pull_request_review":
-      console.log("Processing PR review event");
-      await processPrReview(payload, stateClient, reviewerConfig);
       break;
     case "pull_request_target":
       if (payload.action === "synchronize") {
@@ -199,7 +172,7 @@ async function processPrUpdate() {
       // review requested, assigned, label added, label removed
       break;
     default:
-      console.log("Not a PR comment, push, or review, doing nothing");
+      console.log("Not a PR comment or push, doing nothing");
   }
 }
 

@@ -92,7 +92,7 @@ import org.joda.time.format.DateTimeFormatter;
  * and then exits.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TrafficRoutes {
 
@@ -393,8 +393,6 @@ public class TrafficRoutes {
   public static void main(String[] args) throws IOException {
     TrafficRoutesOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficRoutesOptions.class);
-
-    options.setBigQuerySchema(FormatStatsFn.getSchema());
 
     runTrafficRoutes(options);
   }

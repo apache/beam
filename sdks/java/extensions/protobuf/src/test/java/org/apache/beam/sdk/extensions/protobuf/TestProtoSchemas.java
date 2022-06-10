@@ -668,4 +668,8 @@ class TestProtoSchemas {
   // A sample instance of the proto.
   static final RequiredNested REQUIRED_NESTED =
       RequiredNested.newBuilder().setNested(REQUIRED_PRIMITIVE_PROTO).build();
+
+  // The schema for the Empty proto.
+  static final Schema EMPTY_SCHEMA =
+      Schema.builder().setOptions(withTypeName("proto3_schema_messages.Empty")).build();
 }

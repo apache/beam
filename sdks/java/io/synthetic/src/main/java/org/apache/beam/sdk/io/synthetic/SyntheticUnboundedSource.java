@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 /** A {@link SyntheticUnboundedSource} that reads {@code KV<byte[], byte[]>}. */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SyntheticUnboundedSource
     extends UnboundedSource<KV<byte[], byte[]>, SyntheticRecordsCheckpoint> {
@@ -87,11 +87,9 @@ public class SyntheticUnboundedSource
       PipelineOptions options, @Nullable SyntheticRecordsCheckpoint checkpoint) {
 
     if (checkpoint == null) {
-      return new SyntheticUnboundedReader(this);
+      return new SyntheticUnboundedReader(this, this.startOffset);
     } else {
-      return new SyntheticUnboundedReader(
-          new SyntheticUnboundedSource(
-              checkpoint.getStartPosition(), checkpoint.getEndPosition(), sourceOptions));
+      return new SyntheticUnboundedReader(this, checkpoint.getCurrentCheckMarkPosition());
     }
   }
 
@@ -109,9 +107,19 @@ public class SyntheticUnboundedSource
                     new SyntheticUnboundedSource(
                         offsetRange.getFrom(), offsetRange.getTo(), sourceOptions))
             .collect(Collectors.toList());
-    LOG.info("Split into {} bundles of sizes: {}", splits.size(), splits);
+    LOG.info("Split into {} bundles: {}", splits.size(), splits);
 
     return splits;
+  }
+
+  @Override
+  public String toString() {
+    return "SyntheticUnboundedSource{"
+        + "startOffset="
+        + startOffset
+        + ", endOffset="
+        + endOffset
+        + '}';
   }
 
   private class SyntheticUnboundedReader extends UnboundedReader<KV<byte[], byte[]>> {
@@ -130,11 +138,14 @@ public class SyntheticUnboundedSource
 
     private ReaderDelay delay;
 
-    public SyntheticUnboundedReader(SyntheticUnboundedSource source) {
+    private long startOffset;
+
+    public SyntheticUnboundedReader(SyntheticUnboundedSource source, long startOffset) {
       this.currentKVPair = null;
       this.delay = new ReaderDelay(sourceOptions);
       this.source = source;
       this.currentOffset = 0;
+      this.startOffset = startOffset;
       this.syntheticWatermark = new SyntheticWatermark(sourceOptions, source.endOffset);
     }
 
@@ -167,7 +178,7 @@ public class SyntheticUnboundedSource
 
     @Override
     public boolean start() {
-      currentOffset = SyntheticUnboundedSource.this.startOffset;
+      currentOffset = this.startOffset;
       delay.delayStart(currentOffset);
       return advance();
     }
@@ -195,7 +206,7 @@ public class SyntheticUnboundedSource
 
     @Override
     public CheckpointMark getCheckpointMark() {
-      return new SyntheticRecordsCheckpoint(source.startOffset, source.endOffset);
+      return new SyntheticRecordsCheckpoint(currentOffset);
     }
 
     @Override

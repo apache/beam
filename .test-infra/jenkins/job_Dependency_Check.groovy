@@ -33,10 +33,9 @@ job('beam_Dependency_Check') {
       false
       )
 
-  // This is a job that runs weekly.
   commonJobProperties.setAutoJob(
       delegate,
-      '0 12 * * 1')
+      '@weekly')
 
   steps {
     gradle {
@@ -49,12 +48,6 @@ job('beam_Dependency_Check') {
     shell('cd ' + commonJobProperties.checkoutDir +
         ' && bash .test-infra/jenkins/dependency_check/generate_report.sh ' +
         commonJobProperties.PYTHON)
-  }
-
-  wrappers{
-    credentialsBinding {
-      usernamePassword('BEAM_JIRA_BOT_USERNAME', 'BEAM_JIRA_BOT_PASSWORD', 'beam-jira-bot')
-    }
   }
 
   def date = new Date().format('yyyy-MM-dd')

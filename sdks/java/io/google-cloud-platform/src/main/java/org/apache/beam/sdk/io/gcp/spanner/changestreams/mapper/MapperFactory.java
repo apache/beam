@@ -23,15 +23,15 @@ import java.io.Serializable;
  * Factory class for creating instances that will map a struct to a connector model. The instances
  * created are all singletons.
  */
-// static fields are un-initialized, because we start them during the first fetch call (with the
+// transient fields are un-initialized, because we start them during the first fetch call (with the
 // singleton pattern)
-@SuppressWarnings("initialization.static.fields.uninitialized")
+@SuppressWarnings("initialization.fields.uninitialized")
 public class MapperFactory implements Serializable {
 
   private static final long serialVersionUID = -813434573067800902L;
 
-  private static ChangeStreamRecordMapper changeStreamRecordMapperInstance;
-  private static PartitionMetadataMapper partitionMetadataMapperInstance;
+  private transient ChangeStreamRecordMapper changeStreamRecordMapperInstance;
+  private transient PartitionMetadataMapper partitionMetadataMapperInstance;
 
   /**
    * Creates and returns a singleton instance of a mapper class capable of transforming a {@link

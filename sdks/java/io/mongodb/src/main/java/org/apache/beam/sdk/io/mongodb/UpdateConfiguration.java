@@ -30,9 +30,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Experimental(Kind.SOURCE_SINK)
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class UpdateConfiguration implements Serializable {
+
+  abstract @Nullable String findKey();
 
   abstract @Nullable String updateKey();
 
@@ -56,6 +58,8 @@ public abstract class UpdateConfiguration implements Serializable {
   abstract static class Builder {
     abstract Builder setUpdateFields(@Nullable List<UpdateField> updateFields);
 
+    abstract Builder setFindKey(@Nullable String findKey);
+
     abstract Builder setUpdateKey(@Nullable String updateKey);
 
     abstract Builder setIsUpsert(boolean isUpsert);
@@ -72,6 +76,10 @@ public abstract class UpdateConfiguration implements Serializable {
   }
 
   /** Sets the filters to find. */
+  public UpdateConfiguration withFindKey(String findKey) {
+    return toBuilder().setFindKey(findKey).build();
+  }
+
   public UpdateConfiguration withUpdateKey(String updateKey) {
     return toBuilder().setUpdateKey(updateKey).build();
   }

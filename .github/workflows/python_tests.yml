@@ -24,17 +24,17 @@ on:
     - cron: '10 2 * * *'
   push:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
   pull_request:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
     paths: ['sdks/python/**', 'model/**']
   workflow_dispatch:
     inputs:
       runDataflow:
         description: 'Type "true" if you want to run Dataflow tests (GCP variables must be configured, check CI.md)'
-        default: false
-
+        default: 'false'
+        required: true 
 
 jobs:
 
@@ -101,7 +101,6 @@ jobs:
       matrix:
         os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
         params: [
-          {"py_ver": "3.6", "tox_env": "py36"},
           {"py_ver": "3.7", "tox_env": "py37"},
           {"py_ver": "3.8", "tox_env": "py38"},
           {"py_ver": "3.9", "tox_env": "py39"},
@@ -144,7 +143,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
-        python: [3.6, 3.7, 3.8, 3.9]
+        python: [3.7, 3.8, 3.9]
     steps:
       - name: Clean GitHub workspace
         if: contains(matrix.os, 'ubuntu-20.04')
@@ -175,7 +174,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
-        python: [3.6, 3.7, 3.8, 3.9]
+        python: [3.7, 3.8, 3.9]
     steps:
       - name: Clean GitHub workspace
         if: contains(matrix.os, 'ubuntu-20.04')
@@ -189,14 +188,14 @@ jobs:
       - name: Install go
         uses: actions/setup-go@v2
         with:
-          go-version: '1.16.12'
+          go-version: '1.18'
       - name: Download source from artifacts
         uses: actions/download-artifact@v2
         with:
           name: python_sdk_source
           path: apache-beam-source
       - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@master
+        uses: google-github-actions/setup-gcloud@v0
         with:
           service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}

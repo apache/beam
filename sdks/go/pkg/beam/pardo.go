@@ -16,12 +16,16 @@
 package beam
 
 import (
+	"context"
 	"fmt"
+	"reflect"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 func addParDoCtx(err error, s Scope) error {
@@ -58,15 +62,26 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 			return nil, fmt.Errorf("error with side input %d in DoFn %v: PCollections using merging WindowFns are not supported as side inputs. Consider re-windowing the side input PCollection before use", i, fn)
 		}
 		if (inWfn.Kind == window.GlobalWindows) && (sideWfn.Kind != window.GlobalWindows) {
-			return nil, fmt.Errorf("main input is global windowed in DoFn %v but side input %v is not, cannot map windows correctly. Consider re-windowing the side input PCOllection before use", fn, i)
+			return nil, fmt.Errorf("main input is global windowed in DoFn %v but side input %v is not, cannot map windows correctly. Consider re-windowing the side input PCollection before use", fn, i)
+		}
+		if (sideWfn.Kind == window.GlobalWindows) && !sideNode.Bounded() {
+			// TODO(BEAM-14501): Replace this warning with an error return when proper streaming test functions have been added.
+			log.Warnf(context.Background(), "side input %v is global windowed in DoFn %v but is unbounded, DoFn will block until end of Global Window. Consider windowing your unbounded side input PCollection before use. This will cause your pipeline to fail in a future release, see BEAM-14501 for details", i, fn)
 		}
 		in = append(in, s.Input.n)
 	}
 
 	var rc *coder.Coder
+	// Sdfs will always encode restrictions as KV<restriction, watermark state | bool(false)>
 	if fn.IsSplittable() {
 		sdf := (*graph.SplittableDoFn)(fn)
-		rc, err = inferCoder(typex.New(sdf.RestrictionT()))
+		restT := typex.New(sdf.RestrictionT())
+		// If no watermark estimator state, use boolean as a placeholder
+		weT := typex.New(reflect.TypeOf(true))
+		if sdf.IsStatefulWatermarkEstimating() {
+			weT = typex.New(sdf.WatermarkEstimatorStateT())
+		}
+		rc, err = inferCoder(typex.NewKV(restT, weT))
 		if err != nil {
 			return nil, addParDoCtx(err, s)
 		}

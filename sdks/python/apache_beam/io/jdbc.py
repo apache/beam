@@ -120,10 +120,11 @@ Config = typing.NamedTuple(
         ('password', str),
         ('connection_properties', typing.Optional[str]),
         ('connection_init_sqls', typing.Optional[typing.List[str]]),
-        ('write_statement', typing.Optional[str]),
         ('read_query', typing.Optional[str]),
+        ('write_statement', typing.Optional[str]),
         ('fetch_size', typing.Optional[int]),
         ('output_parallelization', typing.Optional[bool]),
+        ('autosharding', typing.Optional[bool]),
     ],
 )
 
@@ -175,6 +176,7 @@ class WriteToJdbc(ExternalTransform):
       statement=None,
       connection_properties=None,
       connection_init_sqls=None,
+      autosharding=False,
       expansion_service=None,
       classpath=None,
   ):
@@ -191,6 +193,8 @@ class WriteToJdbc(ExternalTransform):
                                   [propertyName=property;]*
     :param connection_init_sqls: required only for MySql and MariaDB.
                                  passed as list of strings
+    :param autosharding: enable automatic re-sharding of bundles to scale the
+                         number of shards with the number of workers.
     :param expansion_service: The address (host:port) of the ExpansionService.
     :param classpath: A list of JARs or Java packages to include in the
                       classpath for the expansion service. This option is
@@ -221,6 +225,7 @@ class WriteToJdbc(ExternalTransform):
                             read_query=None,
                             fetch_size=None,
                             output_parallelization=None,
+                            autosharding=autosharding,
                         ))),
         ),
         expansion_service or default_io_expansion_service(classpath),
@@ -318,6 +323,7 @@ class ReadFromJdbc(ExternalTransform):
                             read_query=query,
                             fetch_size=fetch_size,
                             output_parallelization=output_parallelization,
+                            autosharding=None,
                         ))),
         ),
         expansion_service or default_io_expansion_service(classpath),

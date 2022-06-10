@@ -73,12 +73,11 @@ import scala.Tuple2;
 
 /** Translates a bounded portable pipeline into a Spark job. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SparkBatchPortablePipelineTranslator
     implements SparkPortablePipelineTranslator<SparkTranslationContext> {
-
 
   private final ImmutableMap<String, PTransformTranslator> urnToTransformTranslator;
 
@@ -182,9 +181,10 @@ public class SparkBatchPortablePipelineTranslator
     Partitioner partitioner = getPartitioner(context);
     // As this is batch, we can ignore triggering and allowed lateness parameters.
     if (windowingStrategy.getWindowFn().equals(new GlobalWindows())
-            && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
+        && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
       // we can drop the windows and recover them later
-      groupedByKeyAndWindow = GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
+      groupedByKeyAndWindow =
+          GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
               inputRdd, inputKeyCoder, inputValueCoder, partitioner);
     } else if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
       // we can have a memory sensitive translation for non-merging windows

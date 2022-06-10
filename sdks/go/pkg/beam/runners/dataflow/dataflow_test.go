@@ -16,10 +16,12 @@
 package dataflow
 
 import (
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
+	"context"
 	"sort"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 )
 
 func TestDontUseFlagAsPipelineOption(t *testing.T) {
@@ -38,6 +40,8 @@ func TestGetJobOptions(t *testing.T) {
 	*stagingLocation = "gs://testStagingLocation"
 	*autoscalingAlgorithm = "NONE"
 	*minCPUPlatform = "testPlatform"
+	*flexRSGoal = "FLEXRS_SPEED_OPTIMIZED"
+	*dataflowServiceOptions = "opt1,opt2"
 
 	*gcpopts.Project = "testProject"
 	*gcpopts.Region = "testRegion"
@@ -45,7 +49,7 @@ func TestGetJobOptions(t *testing.T) {
 	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
 	*jobopts.JobName = "testJob"
 
-	opts, err := getJobOptions(nil)
+	opts, err := getJobOptions(context.Background())
 	if err != nil {
 		t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
 	}
@@ -60,6 +64,17 @@ func TestGetJobOptions(t *testing.T) {
 		for i := 0; i < 3; i++ {
 			if got, want := opts.Experiments[i], expectedExperiments[i]; got != want {
 				t.Errorf("getJobOptions().Experiments = %q, want %q", got, want)
+			}
+		}
+	}
+	if got, want := len(opts.DataflowServiceOptions), 2; got != want {
+		t.Errorf("len(getJobOptions().DataflowServiceOptions) = %q, want %q", got, want)
+	} else {
+		sort.Strings(opts.DataflowServiceOptions)
+		expectedOptions := []string{"opt1", "opt2"}
+		for i := 0; i < 2; i++ {
+			if got, want := opts.DataflowServiceOptions[i], expectedOptions[i]; got != want {
+				t.Errorf("getJobOptions().DataflowServiceOptions = %q, want %q", got, want)
 			}
 		}
 	}
@@ -82,6 +97,9 @@ func TestGetJobOptions(t *testing.T) {
 	if got, want := opts.TempLocation, "gs://testStagingLocation/tmp"; got != want {
 		t.Errorf("getJobOptions().TempLocation = %q, want %q", got, want)
 	}
+	if got, want := opts.FlexRSGoal, "FLEXRS_SPEED_OPTIMIZED"; got != want {
+		t.Errorf("getJobOptions().FlexRSGoal = %q, want %q", got, want)
+	}
 }
 
 func TestGetJobOptions_NoExperimentsSet(t *testing.T) {
@@ -96,7 +114,7 @@ func TestGetJobOptions_NoExperimentsSet(t *testing.T) {
 	*jobopts.Experiments = ""
 	*jobopts.JobName = "testJob"
 
-	opts, err := getJobOptions(nil)
+	opts, err := getJobOptions(context.Background())
 
 	if err != nil {
 		t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
@@ -118,7 +136,7 @@ func TestGetJobOptions_NoStagingLocation(t *testing.T) {
 	*gcpopts.Project = "testProject"
 	*gcpopts.Region = "testRegion"
 
-	_, err := getJobOptions(nil)
+	_, err := getJobOptions(context.Background())
 	if err == nil {
 		t.Fatalf("getJobOptions() returned error nil, want an error")
 	}
@@ -136,18 +154,27 @@ func TestGetJobOptions_InvalidAutoscaling(t *testing.T) {
 	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
 	*jobopts.JobName = "testJob"
 
-	_, err := getJobOptions(nil)
+	_, err := getJobOptions(context.Background())
 	if err == nil {
 		t.Fatalf("getJobOptions() returned error nil, want an error")
 	}
 }
 
-func TestGetJobOptions_DockerNoImage(t *testing.T) {
-	*jobopts.EnvironmentType = "docker"
-	*jobopts.EnvironmentConfig = "testContainerImage"
+func TestGetJobOptions_InvalidRsGoal(t *testing.T) {
+	*labels = `{"label1": "val1", "label2": "val2"}`
+	*stagingLocation = "gs://testStagingLocation"
+	*flexRSGoal = "INVALID"
+	*minCPUPlatform = "testPlatform"
 
-	if got, want := getContainerImage(nil), "testContainerImage"; got != want {
-		t.Fatalf("getContainerImage() = %q, want %q", got, want)
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+
+	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
+	*jobopts.JobName = "testJob"
+
+	_, err := getJobOptions(context.Background())
+	if err == nil {
+		t.Fatalf("getJobOptions() returned error nil, want an error")
 	}
 }
 
@@ -155,8 +182,109 @@ func TestGetJobOptions_DockerWithImage(t *testing.T) {
 	*jobopts.EnvironmentType = "docker"
 	*jobopts.EnvironmentConfig = "testContainerImage"
 	*image = "testContainerImageOverride"
+	*workerHarnessImage = ""
 
-	if got, want := getContainerImage(nil), "testContainerImageOverride"; got != want {
+	if got, want := getContainerImage(context.Background()), "testContainerImageOverride"; got != want {
 		t.Fatalf("getContainerImage() = %q, want %q", got, want)
+	}
+}
+
+func TestGetJobOptions_DockerWithOldImage(t *testing.T) {
+	*jobopts.EnvironmentType = "docker"
+	*jobopts.EnvironmentConfig = "testContainerImage"
+	*image = ""
+	*workerHarnessImage = "testContainerImageOverride"
+
+	if got, want := getContainerImage(context.Background()), "testContainerImageOverride"; got != want {
+		t.Fatalf("getContainerImage() = %q, want %q", got, want)
+	}
+}
+
+func TestGetJobOptions_DockerNoImage(t *testing.T) {
+	*jobopts.EnvironmentType = "docker"
+	*jobopts.EnvironmentConfig = "testContainerImage"
+	*image = ""
+	*workerHarnessImage = ""
+
+	if got, want := getContainerImage(context.Background()), "testContainerImage"; got != want {
+		t.Fatalf("getContainerImage() = %q, want %q", got, want)
+	}
+}
+
+func TestGetJobOptions_TransformMapping(t *testing.T) {
+	*labels = `{"label1": "val1", "label2": "val2"}`
+	*stagingLocation = "gs://testStagingLocation"
+	*autoscalingAlgorithm = "NONE"
+	*minCPUPlatform = "testPlatform"
+	*flexRSGoal = "FLEXRS_SPEED_OPTIMIZED"
+
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+
+	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
+	*jobopts.JobName = "testJob"
+
+	*update = true
+	*transformMapping = `{"transformOne": "transformTwo"}`
+	opts, err := getJobOptions(context.Background())
+	if err != nil {
+		t.Errorf("getJobOptions() returned error, got %v", err)
+	}
+	if opts == nil {
+		t.Fatal("getJobOptions() got nil, want struct")
+	}
+	if got, ok := opts.TransformNameMapping["transformOne"]; !ok || got != "transformTwo" {
+		t.Errorf("mismatch in transform mapping got %v, want %v", got, "transformTwo")
+	}
+
+}
+
+func TestGetJobOptions_TransformMappingNoUpdate(t *testing.T) {
+	*labels = `{"label1": "val1", "label2": "val2"}`
+	*stagingLocation = "gs://testStagingLocation"
+	*autoscalingAlgorithm = "NONE"
+	*minCPUPlatform = "testPlatform"
+	*flexRSGoal = "FLEXRS_SPEED_OPTIMIZED"
+
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+
+	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
+	*jobopts.JobName = "testJob"
+
+	*update = false
+	*transformMapping = `{"transformOne": "transformTwo"}`
+
+	opts, err := getJobOptions(context.Background())
+	if err == nil {
+		t.Error("getJobOptions() returned error nil, want an error")
+	}
+	if opts != nil {
+		t.Errorf("getJobOptions() returned JobOptions when it should not have, got %#v, want nil", opts)
+	}
+}
+
+func TestGetJobOptions_InvalidMapping(t *testing.T) {
+	*labels = `{"label1": "val1", "label2": "val2"}`
+	*stagingLocation = "gs://testStagingLocation"
+	*autoscalingAlgorithm = "NONE"
+	*minCPUPlatform = "testPlatform"
+	*flexRSGoal = "FLEXRS_SPEED_OPTIMIZED"
+
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+
+	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
+	*jobopts.JobName = "testJob"
+
+	*update = true
+	*transformMapping = "not a JSON-encoded string"
+
+	opts, err := getJobOptions(context.Background())
+	if err == nil {
+		t.Error("getJobOptions() returned error nil, want an error")
+	}
+	if opts != nil {
+		t.Errorf("getJobOptions() returned JobOptions when it should not have, got %#v, want nil", opts)
 	}
 }

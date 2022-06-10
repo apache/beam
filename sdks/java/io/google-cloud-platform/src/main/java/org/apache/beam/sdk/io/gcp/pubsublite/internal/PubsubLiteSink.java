@@ -35,7 +35,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 
 /** A sink which publishes messages to Pub/Sub Lite. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
   private final PublisherOptions options;
@@ -53,7 +53,9 @@ public class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
     private final Publisher<MessageMetadata> publisher;
 
     RunState(PublisherOptions options) {
-      publisher = PerServerPublisherCache.PUBLISHER_CACHE.get(options);
+      publisher =
+          PerServerPublisherCache.PUBLISHER_CACHE.get(
+              options, () -> new PublisherAssembler(options).newPublisher());
     }
 
     void publish(PubSubMessage message) {

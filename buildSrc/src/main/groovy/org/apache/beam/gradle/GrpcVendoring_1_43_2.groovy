@@ -41,7 +41,7 @@ class GrpcVendoring_1_43_2 {
   static def protobuf_version = "3.19.2"
   static def gson_version = "2.8.9"
   static def google_auth_version = "0.22.2"
-  static def opencensus_version = "0.28.0"
+  static def opencensus_version = "0.31.0"
   static def conscrypt_version = "2.5.1"
   static def proto_google_common_protos_version = "2.0.1"
 

@@ -20,6 +20,12 @@ A connector for reading from and writing to Google Cloud Datastore.
 
 This module uses the newer google-cloud-datastore client package. Its API was
 different enough to require extensive changes to this and associated modules.
+
+**Updates to the I/O connector code**
+
+For any significant updates to this I/O connector, please consider involving
+corresponding code reviewers mentioned in
+https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 """
 # pytype: skip-file
 
@@ -301,8 +307,10 @@ class ReadFromDatastore(PTransform):
       except (ClientError, GoogleAPICallError) as e:
         # e.code.value contains the numeric http status code.
         service_call_metric.call(e.code.value)
+        raise
       except HttpError as e:
         service_call_metric.call(e)
+        raise
 
 
 class _Mutate(PTransform):

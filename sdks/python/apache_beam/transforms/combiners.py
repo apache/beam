@@ -33,6 +33,8 @@ from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
+import numpy as np
+
 from apache_beam import typehints
 from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
@@ -88,7 +90,7 @@ class Mean(object):
 
 # TODO(laolu): This type signature is overly restrictive. This should be
 # more general.
-@with_input_types(Union[float, int])
+@with_input_types(Union[float, int, np.int64, np.float64])
 @with_output_types(float)
 class MeanCombineFn(core.CombineFn):
   """CombineFn for computing an arithmetic mean."""

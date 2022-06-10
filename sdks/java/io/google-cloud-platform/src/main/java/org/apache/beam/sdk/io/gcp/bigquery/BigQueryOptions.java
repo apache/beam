@@ -93,11 +93,21 @@ public interface BigQueryOptions
   void setUseStorageWriteApiAtLeastOnce(Boolean value);
 
   @Description(
-      "If set, then BigQueryIO.Write will default to using this number of Storage Write API streams.")
+      "If set, then BigQueryIO.Write will default to using this number of Storage Write API streams. ")
   @Default.Integer(0)
   Integer getNumStorageWriteApiStreams();
 
   void setNumStorageWriteApiStreams(Integer value);
+
+  @Description(
+      "When using the {@link org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method#STORAGE_API_AT_LEAST_ONCE} write method, "
+          + "this option sets the number of stream append clients that will be allocated at a per worker and destination basis. "
+          + "A large value can cause a large pipeline to go over the BigQuery connection quota quickly on a job with "
+          + "enough number of workers. On the case of low-mid volume pipelines using the default configuration should be sufficient.")
+  @Default.Integer(1)
+  Integer getNumStorageWriteApiStreamAppendClients();
+
+  void setNumStorageWriteApiStreamAppendClients(Integer value);
 
   @Description(
       "If set, then BigQueryIO.Write will default to triggering the Storage Write API writes this often.")
@@ -117,4 +127,22 @@ public interface BigQueryOptions
   String getBigQueryProject();
 
   void setBigQueryProject(String value);
+
+  @Description("Specify the number of schema update retries. For internal testing only.")
+  @Default.Integer(2)
+  Integer getSchemaUpdateRetries();
+
+  void setSchemaUpdateRetries(Integer value);
+
+  @Description("Maximum (best effort) size of a single append to the storage API.")
+  @Default.Integer(2 * 1024 * 1024)
+  Integer getStorageApiAppendThresholdBytes();
+
+  void setStorageApiAppendThresholdBytes(Integer value);
+
+  @Description("Maximum (best effort) record count of a single append to the storage API.")
+  @Default.Integer(150000)
+  Integer getStorageApiAppendThresholdRecordCount();
+
+  void setStorageApiAppendThresholdRecordCount(Integer value);
 }

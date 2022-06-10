@@ -41,6 +41,8 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
+import org.apache.beam.sdk.schemas.logicaltypes.SchemaLogicalType;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
@@ -131,6 +133,7 @@ public class SchemaTranslationTest {
                   Field.of("decimal", FieldType.DECIMAL), Field.of("datetime", FieldType.DATETIME)))
           .add(Schema.of(Field.of("fixed_bytes", FieldType.logicalType(FixedBytes.of(24)))))
           .add(Schema.of(Field.of("micros_instant", FieldType.logicalType(new MicrosInstant()))))
+          .add(Schema.of(Field.of("python_callable", FieldType.logicalType(new PythonCallable()))))
           .add(
               Schema.of(
                       Field.of("field_with_option_atomic", FieldType.STRING)
@@ -180,6 +183,7 @@ public class SchemaTranslationTest {
           .add(Schema.of(Field.of("logical_argument", FieldType.logicalType(new DateTime()))))
           .add(
               Schema.of(Field.of("single_arg_argument", FieldType.logicalType(FixedBytes.of(100)))))
+          .add(Schema.of(Field.of("schema", FieldType.logicalType(new SchemaLogicalType()))))
           .build();
     }
 

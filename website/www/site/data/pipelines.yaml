@@ -1,0 +1,24 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- title: Python
+  image_url: /images/logos/sdks/python_pipelines.png
+  url: http://apache-beam-website-pull-requests.storage.googleapis.com/17388/documentation/sdks/python/index.html
+- title: Java
+  image_url: /images/logos/sdks/java_pipelines.png
+  url: http://apache-beam-website-pull-requests.storage.googleapis.com/17388/documentation/sdks/java/index.html
+- title: Go
+  image_url: /images/logos/sdks/go_pipelines.png
+  url: http://apache-beam-website-pull-requests.storage.googleapis.com/17388/documentation/sdks/go/index.html
+- title: SQL
+  image_url: /images/logos/sdks/sql_pipelines.png
+  url: http://apache-beam-website-pull-requests.storage.googleapis.com/17388/documentation/dsls/sql/overview/index.html

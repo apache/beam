@@ -65,7 +65,7 @@ python -m apache_beam.examples.wordcount_minimal --input YOUR_INPUT_FILE --outpu
 {{< /highlight >}}
 
 {{< highlight go >}}
-$ go install github.com/apache/beam/sdks/go/examples/minimal_wordcount
+$ go install github.com/apache/beam/sdks/v2/go/examples/minimal_wordcount
 $ minimal_wordcount
 {{< /highlight >}}
 
@@ -434,7 +434,7 @@ To view the full code in Python, see
 **To run this example in Go:**
 
 {{< runner direct >}}
-$ go install github.com/apache/beam/sdks/go/examples/wordcount
+$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
 $ wordcount --input <PATH_TO_INPUT_FILE> --output counts
 {{< /runner >}}
 
@@ -451,7 +451,7 @@ This runner is not yet available for the Go SDK.
 {{< /runner >}}
 
 {{< runner dataflow >}}
-$ go install github.com/apache/beam/sdks/go/examples/wordcount
+$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -760,7 +760,7 @@ To view the full code in Python, see
 **To run this example in Go:**
 
 {{< runner direct >}}
-$ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
+$ go install github.com/apache/beam/sdks/v2/go/examples/debugging_wordcount
 $ debugging_wordcount --input <PATH_TO_INPUT_FILE> --output counts
 {{< /runner >}}
 
@@ -777,7 +777,7 @@ This runner is not yet available for the Go SDK.
 {{< /runner >}}
 
 {{< runner dataflow >}}
-$ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
+$ go install github.com/apache/beam/sdks/v2/go/examples/debugging_wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
 $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -899,12 +899,12 @@ or DEBUG significantly increases the amount of logs output.
 #### Apache Spark Runner
 
 > **Note:** This section is yet to be added. There is an open issue for this
-> ([BEAM-792](https://issues.apache.org/jira/browse/BEAM-792)).
+> ([Issue 18076](https://github.com/apache/beam/issues/18076)).
 
 #### Apache Flink Runner
 
 > **Note:** This section is yet to be added. There is an open issue for this
-> ([BEAM-791](https://issues.apache.org/jira/browse/BEAM-791)).
+> ([Issue 18075](https://github.com/apache/beam/issues/18075)).
 
 #### Apache Nemo Runner
 
@@ -1088,7 +1088,7 @@ To view the full code in Python, see
 **To run this example in Go:**
 
 {{< runner direct >}}
-$ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
+$ go install github.com/apache/beam/sdks/v2/go/examples/windowed_wordcount
 $ windowed_wordcount --input <PATH_TO_INPUT_FILE> --output counts
 {{< /runner >}}
 
@@ -1105,7 +1105,7 @@ This runner is not yet available for the Go SDK.
 {{< /runner >}}
 
 {{< runner dataflow >}}
-$ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
+$ go install github.com/apache/beam/sdks/v2/go/examples/windowed_wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
 $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -1391,7 +1391,7 @@ To view the full code in Python, see
 **To run this example in Go:**
 
 > **Note:** StreamingWordCount is not yet available for the Go SDK. There is an open issue for this
-([BEAM-4292](https://issues.apache.org/jira/browse/BEAM-4292)).
+([Issue 18879](https://github.com/apache/beam/issues/18879)).
 
 
 ### Reading an unbounded dataset

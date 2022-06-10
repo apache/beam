@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import functools
+import operator
 import re
 from inspect import cleandoc
 from inspect import getfullargspec
@@ -115,6 +116,15 @@ class _DeferredScalar(DeferredBase):
               func, [self._expr] + [arg._expr for arg in args],
               requires_partition_by=partitionings.Singleton()))
 
+  def __neg__(self):
+    return self.apply(operator.neg)
+
+  def __pos__(self):
+    return self.apply(operator.pos)
+
+  def __invert__(self):
+    return self.apply(operator.invert)
+
   def __repr__(self):
     return f"DeferredScalar[type={type(self._expr.proxy())}]"
 
@@ -125,6 +135,32 @@ class _DeferredScalar(DeferredBase):
         "allowed. It's not possible to branch on the result of "
         "deferred operations.")
 
+
+def _scalar_binop(op):
+  def binop(self, other):
+    if not isinstance(other, DeferredBase):
+      return self.apply(lambda left: getattr(left, op)(other), name=op)
+    elif isinstance(other, _DeferredScalar):
+      return self.apply(
+          lambda left, right: getattr(left, op)(right), name=op, args=[other])
+    else:
+      return NotImplemented
+
+  return binop
+
+
+for op in ['__add__',
+           '__sub__',
+           '__mul__',
+           '__div__',
+           '__truediv__',
+           '__floordiv__',
+           '__mod__',
+           '__divmod__',
+           '__pow__',
+           '__and__',
+           '__or__']:
+  setattr(_DeferredScalar, op, _scalar_binop(op))
 
 DeferredBase._pandas_type_map[None] = _DeferredScalar
 

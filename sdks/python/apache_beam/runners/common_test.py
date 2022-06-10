@@ -50,6 +50,25 @@ class DoFnSignatureTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       DoFnSignature(MyDoFn())
 
+  def test_dofn_get_defaults(self):
+    class MyDoFn(DoFn):
+      def process(self, element, w=DoFn.WindowParam):
+        pass
+
+    signature = DoFnSignature(MyDoFn())
+
+    self.assertEqual(signature.process_method.defaults, [DoFn.WindowParam])
+
+  @unittest.skip('BEAM-5878')
+  def test_dofn_get_defaults_kwonly(self):
+    class MyDoFn(DoFn):
+      def process(self, element, *, w=DoFn.WindowParam):
+        pass
+
+    signature = DoFnSignature(MyDoFn())
+
+    self.assertEqual(signature.process_method.defaults, [DoFn.WindowParam])
+
   def test_dofn_validate_start_bundle_error(self):
     class MyDoFn(DoFn):
       def process(self, element):

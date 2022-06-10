@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -71,13 +72,15 @@ import org.mockito.Mockito;
 /** Unit tests for {@link HadoopFormatIO.Read}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class HadoopFormatIOReadTest {
   private static SerializableConfiguration serConf;
   private static SimpleFunction<Text, String> myKeyTranslate;
   private static SimpleFunction<Employee, String> myValueTranslate;
   private static SimpleFunction<Employee, Row> myValueToRowTranslate;
+  private static SimpleFunction<Employee, Row> myValueToNullRowTranslate;
+  private static SimpleFunction<Text, Row> myKeyToNullRowTranslate;
   private static Schema myValueToRowSchema;
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
@@ -112,6 +115,20 @@ public class HadoopFormatIOReadTest {
                 .addValue(input.getEmpName())
                 .addValue(input.getEmpAddress())
                 .build();
+          }
+        };
+    myValueToNullRowTranslate =
+        new SimpleFunction<Employee, Row>() {
+          @Override
+          public Row apply(Employee input) {
+            return null;
+          }
+        };
+    myKeyToNullRowTranslate =
+        new SimpleFunction<Text, Row>() {
+          @Override
+          public Row apply(Text input) {
+            return null;
           }
         };
   }
@@ -492,6 +509,38 @@ public class HadoopFormatIOReadTest {
         HadoopFormatIO.<Text, Employee>read().withConfiguration(serConf.get());
     List<KV<Text, Employee>> expected = TestEmployeeDataSet.getEmployeeData();
     PCollection<KV<Text, Employee>> actual = p.apply("ReadTest", read);
+    PAssert.that(actual).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  @Test
+  public void testReadingDataWithNullKeys() {
+    HadoopFormatIO.Read<Row, Employee> read =
+        HadoopFormatIO.<Row, Employee>read()
+            .withConfiguration(serConf.get())
+            .withKeyTranslation(
+                myKeyToNullRowTranslate, NullableCoder.of(RowCoder.of(Schema.of())));
+    List<KV<Row, Employee>> expected =
+        TestEmployeeDataSet.getEmployeeData().stream()
+            .map(data -> KV.of((Row) null, data.getValue()))
+            .collect(Collectors.toList());
+    PCollection<KV<Row, Employee>> actual = p.apply("ReadTestWithNullKeys", read);
+    PAssert.that(actual).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  @Test
+  public void testReadingDataWithNullValues() {
+    HadoopFormatIO.Read<Text, Row> read =
+        HadoopFormatIO.<Text, Row>read()
+            .withConfiguration(serConf.get())
+            .withValueTranslation(
+                myValueToNullRowTranslate, NullableCoder.of(RowCoder.of(Schema.of())));
+    List<KV<Text, Row>> expected =
+        TestEmployeeDataSet.getEmployeeData().stream()
+            .map(data -> KV.of(data.getKey(), (Row) null))
+            .collect(Collectors.toList());
+    PCollection<KV<Text, Row>> actual = p.apply("ReadTestWithNullValues", read);
     PAssert.that(actual).containsInAnyOrder(expected);
     p.run();
   }

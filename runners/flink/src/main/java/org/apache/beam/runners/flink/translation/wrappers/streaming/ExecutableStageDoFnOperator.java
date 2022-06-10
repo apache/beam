@@ -115,7 +115,6 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -133,8 +132,8 @@ import org.slf4j.LoggerFactory;
 // We use Flink's lifecycle methods to initialize transient fields
 @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
 
@@ -700,7 +699,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   @Override
   public void flushData() throws Exception {
     closed = true;
-    // We might still holding back the watermark and Flink does not trigger the timer
+    // We might still hold back the watermark and Flink does not trigger the timer
     // callback for watermark advancement anymore.
     processWatermark1(Watermark.MAX_WATERMARK);
     while (getCurrentOutputWatermark() < Watermark.MAX_WATERMARK.getTimestamp()) {
@@ -835,7 +834,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     inputWatermarkBeforeBundleStart = getEffectiveInputWatermark();
   }
 
-  @SuppressWarnings("FutureReturnValueIgnored")
   private void finishBundleCallback() {
     minEventTimeTimerTimestampInLastBundle = minEventTimeTimerTimestampInCurrentBundle;
     minEventTimeTimerTimestampInCurrentBundle = Long.MAX_VALUE;
@@ -843,12 +841,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       if (!closed
           && minEventTimeTimerTimestampInLastBundle < Long.MAX_VALUE
           && minEventTimeTimerTimestampInLastBundle <= getEffectiveInputWatermark()) {
-        ProcessingTimeService processingTimeService = getProcessingTimeService();
-        // We are scheduling a timer for advancing the watermark, to not delay finishing the bundle
-        // and temporarily release the checkpoint lock. Otherwise, we could potentially loop when a
-        // timer keeps scheduling a timer for the same timestamp.
-        processingTimeService.registerTimer(
-            processingTimeService.getCurrentProcessingTime(),
+
+        scheduleForCurrentProcessingTime(
             ts -> processWatermark1(new Watermark(getEffectiveInputWatermark())));
       } else {
         processWatermark1(new Watermark(getEffectiveInputWatermark()));

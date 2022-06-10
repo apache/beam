@@ -86,7 +86,7 @@ def portableValidatesRunnerTask(String name, boolean docker) {
             // Larger keys are possible, but they require more memory.
             excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above10MB'
             excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
             excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
             excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
             excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'

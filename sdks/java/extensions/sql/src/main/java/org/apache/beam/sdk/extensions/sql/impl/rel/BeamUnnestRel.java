@@ -17,8 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
@@ -48,7 +53,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link Uncollect}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamUnnestRel extends Uncollect implements BeamRelNode {
 
@@ -129,6 +134,34 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
       this.outputSchema = outputSchema;
       this.unnestIndices = unnestIndices;
     }
+    /**
+     * This is recursive call to get all the values of the nested rows. The recusion is bounded by
+     * the amount of nesting with in the data. This mirrors the unnest behavior of calcite towards
+     * schema. *
+     */
+    private List<Object> getNestedRowBaseValues(Row nestedRow) {
+      return IntStream.range(0, nestedRow.getFieldCount())
+          .mapToObj(
+              (i) -> {
+                List<Object> values = new ArrayList<>();
+                Schema.FieldType fieldType = nestedRow.getSchema().getField(i).getType();
+                if (fieldType.getTypeName().equals(Schema.TypeName.ROW)) {
+                  @Nullable Row row = nestedRow.getBaseValue(i, Row.class);
+                  if (row == null) {
+                    return Stream.builder().build();
+                  }
+                  List<Object> rowValues = getNestedRowBaseValues(row);
+                  if (null != rowValues) {
+                    values.addAll(rowValues);
+                  }
+                } else {
+                  values.add(nestedRow.getBaseValue(i));
+                }
+                return values.stream();
+              })
+          .flatMap(Function.identity())
+          .collect(Collectors.toList());
+    }
 
     @ProcessElement
     public void process(@Element Row row, OutputReceiver<Row> out) {
@@ -157,7 +190,7 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
           out.output(
               Row.withSchema(outputSchema)
                   .addValues(row.getBaseValues())
-                  .addValues(nestedRow.getBaseValues())
+                  .addValues(getNestedRowBaseValues(nestedRow))
                   .build());
         } else {
           out.output(

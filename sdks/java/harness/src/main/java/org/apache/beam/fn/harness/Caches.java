@@ -56,16 +56,18 @@ public final class Caches {
   private static final MemoryMeter MEMORY_METER =
       MemoryMeter.builder().withGuessing(Guess.BEST).build();
 
+  /** The size of a reference. */
+  public static final long REFERENCE_SIZE = 8;
+
   public static long weigh(Object o) {
     if (o == null) {
-      return 8;
+      return REFERENCE_SIZE;
     }
     try {
       return MEMORY_METER.measureDeep(o);
     } catch (RuntimeException e) {
       // Checking for RuntimeException since java.lang.reflect.InaccessibleObjectException is only
       // available starting Java 9
-      // TODO(BEAM-13695) Provide more accurate memory measurements for Java 17
       LOG.warn("JVM prevents jamm from accessing subgraph - cache sizes may be underestimated", e);
       return MEMORY_METER.measure(o);
     }

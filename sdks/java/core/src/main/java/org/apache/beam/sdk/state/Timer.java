@@ -100,6 +100,12 @@ public interface Timer {
   Timer withOutputTimestamp(Instant outputTime);
 
   /**
+   * Asserts that there is no output timestamp. The output watermark will not be held up, and it is
+   * illegal to output messages from this timer using the default output timestamp.
+   */
+  Timer withNoOutputTimestamp();
+
+  /**
    * Returns the current relative time used by {@link #setRelative()} and {@link #offset}. This can
    * be used by a client that self-manages relative timers (e.g. one that stores the current timer
    * time in a state variable.

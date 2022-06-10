@@ -51,7 +51,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
-import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -63,8 +62,6 @@ import org.mockito.Spy;
 @RunWith(JUnit4.class)
 @SuppressWarnings("initialization.fields.uninitialized")
 public class PerSubscriptionPartitionSdfTest {
-  private static final Duration MAX_SLEEP_TIME =
-      Duration.standardMinutes(10).plus(Duration.millis(10));
   private static final OffsetByteRange RESTRICTION =
       OffsetByteRange.of(new OffsetRange(1, Long.MAX_VALUE), 0);
   private static final SubscriptionPartition PARTITION =
@@ -100,7 +97,6 @@ public class PerSubscriptionPartitionSdfTest {
     when(backlogReaderFactory.newReader(any())).thenReturn(backlogReader);
     sdf =
         new PerSubscriptionPartitionSdf(
-            MAX_SLEEP_TIME,
             backlogReaderFactory,
             offsetReaderFactory,
             trackerFactory,
@@ -139,7 +135,7 @@ public class PerSubscriptionPartitionSdfTest {
   @Test
   @SuppressWarnings("argument.type.incompatible")
   public void process() throws Exception {
-    when(processor.runFor(MAX_SLEEP_TIME)).thenReturn(ProcessContinuation.resume());
+    when(processor.run()).thenReturn(ProcessContinuation.resume());
     when(processorFactory.newProcessor(any(), any(), any()))
         .thenAnswer(
             args -> {
@@ -154,7 +150,7 @@ public class PerSubscriptionPartitionSdfTest {
     assertEquals(ProcessContinuation.resume(), sdf.processElement(tracker, PARTITION, output));
     verify(processorFactory).newProcessor(eq(PARTITION), any(), eq(output));
     InOrder order = inOrder(processor);
-    order.verify(processor).runFor(MAX_SLEEP_TIME);
+    order.verify(processor).run();
     order.verify(processor).lastClaimed();
     InOrder order2 = inOrder(committerFactory, committer);
     order2.verify(committerFactory).apply(PARTITION);
@@ -178,7 +174,6 @@ public class PerSubscriptionPartitionSdfTest {
     ObjectOutputStream output = new ObjectOutputStream(new ByteArrayOutputStream());
     output.writeObject(
         new PerSubscriptionPartitionSdf(
-            MAX_SLEEP_TIME,
             new NoopManagedBacklogReaderFactory(),
             x -> null,
             (x, y) -> null,

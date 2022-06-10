@@ -46,7 +46,7 @@ class EditorTextArea extends StatefulWidget {
   final bool enabled;
   final void Function(String)? onSourceChange;
   final bool isEditable;
-  final bool enableScrolling;
+  final bool isEmbedded;
 
   const EditorTextArea({
     Key? key,
@@ -55,7 +55,7 @@ class EditorTextArea extends StatefulWidget {
     this.onSourceChange,
     required this.enabled,
     required this.isEditable,
-    this.enableScrolling = true,
+    this.isEmbedded = false,
   }) : super(key: key);
 
   @override
@@ -99,7 +99,9 @@ class _EditorTextAreaState extends State<EditorTextArea> {
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance!.addPostFrameCallback((_) => _setTextScrolling());
+    if (!widget.isEmbedded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _setTextScrolling());
+    }
 
     return Semantics(
       container: true,
@@ -143,7 +145,6 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   int _getOffset() {
     int contextLine = _getIndexOfContextLine();
     String pattern = _getPattern(_getQntOfStringsOnScreen());
-
     if (pattern == '' || pattern == '}') {
       return _codeController!.text.lastIndexOf(pattern);
     }

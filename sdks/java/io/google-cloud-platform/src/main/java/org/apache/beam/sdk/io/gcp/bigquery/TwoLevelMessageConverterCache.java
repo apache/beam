@@ -23,6 +23,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.Message
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * A cache for {@link MessageConverter} objects.
@@ -31,7 +32,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuild
  * name. However since this object is stored in DoFns and many DoFns share the same
  * MessageConverters, we also store a static cache keyed by operation name.
  */
-class TwoLevelMessageConverterCache<DestinationT, ElementT> implements Serializable {
+class TwoLevelMessageConverterCache<DestinationT extends @NonNull Object, ElementT>
+    implements Serializable {
   final String operationName;
 
   TwoLevelMessageConverterCache(String operationName) {
@@ -40,7 +42,6 @@ class TwoLevelMessageConverterCache<DestinationT, ElementT> implements Serializa
 
   // Cache MessageConverters since creating them can be expensive. Cache is keyed by transform name
   // and the destination.
-  @SuppressWarnings({"nullness"})
   private static final Cache<KV<String, ?>, MessageConverter<?>> CACHED_MESSAGE_CONVERTERS =
       CacheBuilder.newBuilder().expireAfterAccess(java.time.Duration.ofMinutes(15)).build();
 
@@ -49,9 +50,12 @@ class TwoLevelMessageConverterCache<DestinationT, ElementT> implements Serializa
   // on every element. Since there will be multiple DoFn instances (and they may periodically be
   // recreated), we
   // still need the static cache to allow reuse.
-  @SuppressWarnings({"nullness"})
   private final Cache<DestinationT, MessageConverter<ElementT>> localMessageConverters =
       CacheBuilder.newBuilder().expireAfterAccess(java.time.Duration.ofMinutes(15)).build();
+
+  static void clear() {
+    CACHED_MESSAGE_CONVERTERS.invalidateAll();
+  }
 
   public MessageConverter<ElementT> get(
       DestinationT destination,

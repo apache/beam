@@ -13,7 +13,8 @@
 $(document).ready(function() {
     function Switcher(conf) {
         var id = conf["class-prefix"],
-            def = conf["default"];
+            def = conf["default"],
+            langs = [];
         var prefix = id + "-";
         return {
             "id": id,
@@ -76,6 +77,7 @@ $(document).ready(function() {
             */
             "lookup": function(el, lang) {
                 if (!el.is("div"+this.selector)) {
+                    langs = lang;
                     return lang;
                 }
 
@@ -102,8 +104,16 @@ $(document).ready(function() {
                     }
                 });
 
-                if(!isPrefSelected) {
-                  pref = this.default;
+                if (!isPrefSelected) {
+                  // if there's a code block for the default language,
+                  // set the preferred language to the default language
+                  if (langs.includes(this.default)) {
+                    pref = this.default;
+                  // otherwise set the preferred language to the first available
+                  // language, so we don't have a page with no code blocks
+                  } else {
+                    pref = langs[0];
+                  }
 
                   $("." + this.wrapper + " li").each(function() {
                       if ($(this).data("type") === pref) {
@@ -111,7 +121,6 @@ $(document).ready(function() {
                       }
                   });
                }
-
                 // Swapping visibility of code blocks.
                 $(this.selector).hide();
                 $("nav"+this.selector).show();

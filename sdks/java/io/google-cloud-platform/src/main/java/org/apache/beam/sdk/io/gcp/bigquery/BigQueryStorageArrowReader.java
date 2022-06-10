@@ -31,7 +31,6 @@ import org.apache.beam.sdk.extensions.arrow.ArrowConversion.RecordBatchRowIterat
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
 
-@SuppressWarnings("nullness")
 class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
   private @Nullable RecordBatchRowIterator recordBatchIterator;
@@ -50,12 +49,13 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
     com.google.cloud.bigquery.storage.v1.ArrowRecordBatch recordBatch =
         readRowsResponse.getArrowRecordBatch();
     rowCount = recordBatch.getRowCount();
-    this.alloc = new RootAllocator(Long.MAX_VALUE);
     InputStream input = protoSchema.getSerializedSchema().newInput();
     Schema arrowSchema = ArrowConversion.arrowSchemaFromInput(input);
+    RootAllocator alloc = new RootAllocator(Long.MAX_VALUE);
+    this.alloc = alloc;
     this.recordBatchIterator =
         ArrowConversion.rowsFromSerializedRecordBatch(
-            arrowSchema, recordBatch.getSerializedRecordBatch().newInput(), this.alloc);
+            arrowSchema, recordBatch.getSerializedRecordBatch().newInput(), alloc);
   }
 
   @Override

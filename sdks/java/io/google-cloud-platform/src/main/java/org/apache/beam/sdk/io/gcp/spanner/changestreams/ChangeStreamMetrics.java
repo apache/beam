@@ -32,12 +32,6 @@ public class ChangeStreamMetrics implements Serializable {
 
   private static final long serialVersionUID = 8187140831756972470L;
 
-  // ----
-  // Tracing Labels
-
-  /** Cloud Tracing label for Partition Tokens. */
-  public static final String PARTITION_ID_ATTRIBUTE_LABEL = "PartitionID";
-
   // ------------------------
   // Partition record metrics
 
@@ -75,6 +69,10 @@ public class ChangeStreamMetrics implements Serializable {
   public static final Distribution PARTITION_SCHEDULED_TO_RUNNING_MS =
       Metrics.distribution(ChangeStreamMetrics.class, "partition_scheduled_to_running_ms");
 
+  /** Counter for the active partition reads during the execution of the Connector. */
+  public static final Counter ACTIVE_PARTITION_READ_COUNT =
+      Metrics.counter(ChangeStreamMetrics.class, "active_partition_read_count");
+
   // -------------------
   // Data record metrics
 
@@ -83,6 +81,25 @@ public class ChangeStreamMetrics implements Serializable {
    */
   public static final Counter DATA_RECORD_COUNT =
       Metrics.counter(ChangeStreamMetrics.class, "data_record_count");
+
+  /** Counter for the total number of queries issued during the execution of the Connector. */
+  public static final Counter QUERY_COUNT =
+      Metrics.counter(ChangeStreamMetrics.class, "query_count");
+
+  /** Counter for record latencies [0, 1000) ms during the execution of the Connector. */
+  public static final Counter DATA_RECORD_COMMITTED_TO_EMITTED_0MS_TO_1000MS_COUNT =
+      Metrics.counter(
+          ChangeStreamMetrics.class, "data_record_committed_to_emitted_0ms_to_1000ms_count");
+
+  /** Counter for record latencies [1000, 3000) ms during the execution of the Connector. */
+  public static final Counter DATA_RECORD_COMMITTED_TO_EMITTED_1000MS_TO_3000MS_COUNT =
+      Metrics.counter(
+          ChangeStreamMetrics.class, "data_record_committed_to_emitted_1000ms_to_3000ms_count");
+
+  /** Counter for record latencies equal or above 3000ms during the execution of the Connector. */
+  public static final Counter DATA_RECORD_COMMITTED_TO_EMITTED_3000MS_TO_INF_COUNT =
+      Metrics.counter(
+          ChangeStreamMetrics.class, "data_record_committed_to_emitted_3000ms_to_inf_count");
 
   // -------------------
   // Hearbeat record metrics
@@ -101,13 +118,25 @@ public class ChangeStreamMetrics implements Serializable {
   private final Set<MetricName> enabledMetrics;
 
   /**
-   * Constructs a ChangeStreamMetrics instance with the following metrics enabled by default: {@link
-   * ChangeStreamMetrics#PARTITION_RECORD_COUNT} and {@link ChangeStreamMetrics#DATA_RECORD_COUNT}.
+   * Constructs a ChangeStreamMetrics instance with the following metrics enabled by default.
+   *
+   * <ul>
+   *   <li>{@link ChangeStreamMetrics#DATA_RECORD_COUNT}
+   *   <li>{@link ChangeStreamMetrics#ACTIVE_PARTITION_READ_COUNT}
+   *   <li>{@link ChangeStreamMetrics#QUERY_COUNT}
+   *   <li>{@link ChangeStreamMetrics#DATA_RECORD_COMMITTED_TO_EMITTED_0MS_TO_1000MS_COUNT}
+   *   <li>{@link ChangeStreamMetrics#DATA_RECORD_COMMITTED_TO_EMITTED_1000MS_TO_3000MS_COUNT}
+   *   <li>{@link ChangeStreamMetrics#DATA_RECORD_COMMITTED_TO_EMITTED_3000MS_TO_INF_COUNT}
+   * </ul>
    */
   public ChangeStreamMetrics() {
     enabledMetrics = new HashSet<>();
-    enabledMetrics.add(PARTITION_RECORD_COUNT.getName());
     enabledMetrics.add(DATA_RECORD_COUNT.getName());
+    enabledMetrics.add(ACTIVE_PARTITION_READ_COUNT.getName());
+    enabledMetrics.add(QUERY_COUNT.getName());
+    enabledMetrics.add(DATA_RECORD_COMMITTED_TO_EMITTED_0MS_TO_1000MS_COUNT.getName());
+    enabledMetrics.add(DATA_RECORD_COMMITTED_TO_EMITTED_1000MS_TO_3000MS_COUNT.getName());
+    enabledMetrics.add(DATA_RECORD_COMMITTED_TO_EMITTED_3000MS_TO_INF_COUNT.getName());
   }
 
   /**
@@ -159,9 +188,30 @@ public class ChangeStreamMetrics implements Serializable {
     update(PARTITION_SCHEDULED_TO_RUNNING_MS, duration.getMillis());
   }
 
+  /**
+   * Increments the {@link ChangeStreamMetrics#ACTIVE_PARTITION_READ_COUNT} by 1 if the metric is
+   * enabled.
+   */
+  public void incActivePartitionReadCounter() {
+    inc(ACTIVE_PARTITION_READ_COUNT);
+  }
+
+  /**
+   * Decrements the {@link ChangeStreamMetrics#ACTIVE_PARTITION_READ_COUNT} by 1 if the metric is
+   * enabled.
+   */
+  public void decActivePartitionReadCounter() {
+    dec(ACTIVE_PARTITION_READ_COUNT);
+  }
+
   /** Increments the {@link ChangeStreamMetrics#DATA_RECORD_COUNT} by 1 if the metric is enabled. */
   public void incDataRecordCounter() {
     inc(DATA_RECORD_COUNT);
+  }
+
+  /** Increments the {@link ChangeStreamMetrics#QUERY_COUNT} by 1 if the metric is enabled. */
+  public void incQueryCounter() {
+    inc(QUERY_COUNT);
   }
 
   /**
@@ -178,9 +228,26 @@ public class ChangeStreamMetrics implements Serializable {
     }
   }
 
+  private void dec(Counter counter) {
+    if (enabledMetrics.contains(counter.getName())) {
+      counter.dec();
+    }
+  }
+
   private void update(Distribution distribution, long value) {
     if (enabledMetrics.contains(distribution.getName())) {
       distribution.update(value);
+    }
+  }
+
+  public void updateDataRecordCommittedToEmitted(Duration duration) {
+    final long millis = duration.getMillis();
+    if (millis < 1000) {
+      inc(DATA_RECORD_COMMITTED_TO_EMITTED_0MS_TO_1000MS_COUNT);
+    } else if (millis < 3000) {
+      inc(DATA_RECORD_COMMITTED_TO_EMITTED_1000MS_TO_3000MS_COUNT);
+    } else {
+      inc(DATA_RECORD_COMMITTED_TO_EMITTED_3000MS_TO_INF_COUNT);
     }
   }
 }

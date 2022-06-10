@@ -20,8 +20,8 @@ limitations under the License.
 {{< localstorage language language-py >}}
 
 If you already know [_Apache Spark_](http://spark.apache.org/),
-learning _Apache Beam_ is familiar.
-The Beam and Spark APIs are similar, so you already know the basic concepts.
+using Beam should be easy.
+The basic concepts are the same, and the APIs are similar as well.
 
 Spark stores data _Spark DataFrames_ for structured data,
 and in _Resilient Distributed Datasets_ (RDD) for unstructured data.
@@ -74,6 +74,7 @@ with beam.Pipeline() as pipeline:
 > ℹ️ Note that we called `print` inside a `Map` transform.
 > That's because we can only access the elements of a PCollection
 > from within a PTransform.
+> To inspect the data locally, you can use the [InteractiveRunner](https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development#creating_your_pipeline)
 
 Another thing to note is that Beam pipelines are constructed lazily.
 This means that when you pipe `|` data you're only declaring the
@@ -215,10 +216,11 @@ import pyspark
 
 sc = pyspark.SparkContext()
 values = sc.parallelize([1, 2, 3, 4])
-total = values.reduce(lambda x, y: x + y)
+min_value = values.reduce(min)
+max_value = values.reduce(max)
 
-# We can simply use `total` since it's already a Python `int` value from `reduce`.
-scaled_values = values.map(lambda x: x / total)
+# We can simply use `min_value` and `max_value` since it's already a Python `int` value from `reduce`.
+scaled_values = values.map(lambda x: (x - min_value) / (max_value - min_value))
 
 # But to access `scaled_values`, we need to call `collect`.
 print(scaled_values.collect())
@@ -242,18 +244,22 @@ import apache_beam as beam
 
 with beam.Pipeline() as pipeline:
     values = pipeline | beam.Create([1, 2, 3, 4])
-    total = values | beam.CombineGlobally(sum)
+    min_value = values | beam.CombineGlobally(min)
+    max_value = values | beam.CombineGlobally(max)
 
     # To access `total`, we need to pass it as a side input.
     scaled_values = values | beam.Map(
-        lambda x, total: x / total,
-        total=beam.pvalue.AsSingleton(total))
+        lambda x, min_value, max_value: x / lambda x: (x - min_value) / (max_value - min_value),
+        min_value =beam.pvalue.AsSingleton(min_value),
+        max_value =beam.pvalue.AsSingleton(max_value))
 
     scaled_values | beam.Map(print)
 {{< /highlight >}}
 
 > ℹ️ In Beam we need to pass a side input explicitly, but we get the
 > benefit that a reduction or aggregation does _not_ have to fit into memory.
+> Lazily computing side inputs also allows us to compute `values` only once,
+> rather than for each distinct reduction (or requiring explicit caching of the RDD).
 
 ## Next Steps
 

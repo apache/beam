@@ -28,9 +28,13 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
+import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Descriptors.FieldDescriptor;
+import com.google.protobuf.Descriptors.FieldDescriptor.Type;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -62,11 +66,13 @@ import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
@@ -79,7 +85,7 @@ import org.joda.time.format.DateTimeFormatterBuilder;
 
 /** Utility methods for BigQuery related operations. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20506)
 })
 public class BigQueryUtils {
 
@@ -221,8 +227,8 @@ public class BigQueryUtils {
           .put(TypeName.BYTES, StandardSQLTypeName.BYTES)
           .build();
 
-  private static final Map<TypeName, Function<String, Object>> JSON_VALUE_PARSERS =
-      ImmutableMap.<TypeName, Function<String, Object>>builder()
+  private static final Map<TypeName, Function<String, @Nullable Object>> JSON_VALUE_PARSERS =
+      ImmutableMap.<TypeName, Function<String, @Nullable Object>>builder()
           .put(TypeName.BYTE, Byte::valueOf)
           .put(TypeName.INT16, Short::valueOf)
           .put(TypeName.INT32, Integer::valueOf)
@@ -270,11 +276,13 @@ public class BigQueryUtils {
   static StandardSQLTypeName toStandardSQLTypeName(FieldType fieldType) {
     StandardSQLTypeName ret;
     if (fieldType.getTypeName().isLogicalType()) {
-      ret = BEAM_TO_BIGQUERY_LOGICAL_MAPPING.get(fieldType.getLogicalType().getIdentifier());
+      Schema.LogicalType<?, ?> logicalType =
+          Preconditions.checkArgumentNotNull(fieldType.getLogicalType());
+      ret = BEAM_TO_BIGQUERY_LOGICAL_MAPPING.get(logicalType.getIdentifier());
       if (ret == null) {
         throw new IllegalArgumentException(
             "Cannot convert Beam logical type: "
-                + fieldType.getLogicalType().getIdentifier()
+                + logicalType.getIdentifier()
                 + " to BigQuery type.");
       }
     } else {
@@ -385,21 +393,23 @@ public class BigQueryUtils {
         field.setMode(Mode.REQUIRED.toString());
       }
       if (type.getTypeName().isCollectionType()) {
-        type = type.getCollectionElementType();
+        type = Preconditions.checkArgumentNotNull(type.getCollectionElementType());
         if (type.getTypeName().isCollectionType() || type.getTypeName().isMapType()) {
           throw new IllegalArgumentException("Array of collection is not supported in BigQuery.");
         }
         field.setMode(Mode.REPEATED.toString());
       }
       if (TypeName.ROW == type.getTypeName()) {
-        Schema subType = type.getRowSchema();
+        Schema subType = Preconditions.checkArgumentNotNull(type.getRowSchema());
         field.setFields(toTableFieldSchema(subType));
       }
       if (TypeName.MAP == type.getTypeName()) {
+        FieldType mapKeyType = Preconditions.checkArgumentNotNull(type.getMapKeyType());
+        FieldType mapValueType = Preconditions.checkArgumentNotNull(type.getMapValueType());
         Schema mapSchema =
             Schema.builder()
-                .addField(BIGQUERY_MAP_KEY_FIELD_NAME, type.getMapKeyType())
-                .addField(BIGQUERY_MAP_VALUE_FIELD_NAME, type.getMapValueType())
+                .addField(BIGQUERY_MAP_KEY_FIELD_NAME, mapKeyType)
+                .addField(BIGQUERY_MAP_VALUE_FIELD_NAME, mapValueType)
                 .build();
         type = FieldType.row(mapSchema);
         field.setFields(toTableFieldSchema(mapSchema));
@@ -662,7 +672,7 @@ public class BigQueryUtils {
         .collect(toRow(rowSchema));
   }
 
-  private static Object toBeamValue(FieldType fieldType, Object jsonBQValue) {
+  private static @Nullable Object toBeamValue(FieldType fieldType, Object jsonBQValue) {
     if (jsonBQValue instanceof String
         || jsonBQValue instanceof Number
         || jsonBQValue instanceof Boolean) {
@@ -969,8 +979,8 @@ public class BigQueryUtils {
     return null;
   }
 
-  private static ServiceCallMetric callMetricForMethod(
-      TableReference tableReference, String method) {
+  private static @Nullable ServiceCallMetric callMetricForMethod(
+      @Nullable TableReference tableReference, String method) {
     if (tableReference != null) {
       // TODO(ajamato): Add Ptransform label. Populate it as empty for now to prevent the
       // SpecMonitoringInfoValidator from dropping the MonitoringInfo.
@@ -1001,7 +1011,8 @@ public class BigQueryUtils {
    *     elements directly from BigQuery in a process-wide metric. Such as: calls to readRows,
    *     splitReadStream, createReadSession.
    */
-  public static ServiceCallMetric readCallMetric(TableReference tableReference) {
+  public static @Nullable ServiceCallMetric readCallMetric(
+      @Nullable TableReference tableReference) {
     return callMetricForMethod(tableReference, "BigQueryBatchRead");
   }
 
@@ -1012,5 +1023,29 @@ public class BigQueryUtils {
    */
   public static ServiceCallMetric writeCallMetric(TableReference tableReference) {
     return callMetricForMethod(tableReference, "BigQueryBatchWrite");
+  }
+
+  /**
+   * Hashes a schema descriptor using a deterministic hash function.
+   *
+   * <p>Warning! These hashes are encoded into messages, so changing this function will cause
+   * pipelines to get stuck on update!
+   */
+  public static long hashSchemaDescriptorDeterministic(Descriptor descriptor) {
+    long hashCode = 0;
+    for (FieldDescriptor fieldDescriptor : descriptor.getFields()) {
+      hashCode +=
+          Hashing.murmur3_32()
+              .hashString(fieldDescriptor.getName(), StandardCharsets.UTF_8)
+              .asInt();
+      hashCode += Hashing.murmur3_32().hashInt(fieldDescriptor.isRepeated() ? 1 : 0).asInt();
+      hashCode += Hashing.murmur3_32().hashInt(fieldDescriptor.isRequired() ? 1 : 0).asInt();
+      Type type = fieldDescriptor.getType();
+      hashCode += Hashing.murmur3_32().hashInt(type.ordinal()).asInt();
+      if (type.equals(Type.MESSAGE)) {
+        hashCode += hashSchemaDescriptorDeterministic(fieldDescriptor.getMessageType());
+      }
+    }
+    return hashCode;
   }
 }

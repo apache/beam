@@ -21,6 +21,12 @@ Cloud Pub/Sub sources and sinks are currently supported only in streaming
 pipelines, during remote execution.
 
 This API is currently under development and is subject to change.
+
+**Updates to the I/O connector code**
+
+For any significant updates to this I/O connector, please consider involving
+corresponding code reviewers mentioned in
+https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 """
 
 # pytype: skip-file

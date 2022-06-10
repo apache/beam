@@ -65,7 +65,7 @@ dev_dependencies:
     sdk: flutter
   mockito: ^5.0.16
   build_runner: ^2.1.4
-  google_fonts: ^2.1.0
+  google_fonts: ^2.3.1
   usage: ^4.0.2
   collection: ^1.15.0
 

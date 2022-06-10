@@ -24,8 +24,6 @@
 # REGION       -> Region name to use for Dataflow
 #
 # Execute from the root of the repository:
-#     test Python3.6 container:
-#         ./gradlew :sdks:python:test-suites:dataflow:py36:validatesContainer
 #     test Python3.7 container:
 #         ./gradlew :sdks:python:test-suites:dataflow:py37:validatesContainer
 #     test Python3.8 container:
@@ -123,7 +121,6 @@ pytest -o junit_suite_name=$IMAGE_NAME \
     --output=$GCS_LOCATION/output \
     --sdk_location=$SDK_LOCATION \
     --num_workers=1 \
-    --prebuild_sdk_container_base_image=$CONTAINER:$TAG \
     --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH"
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"

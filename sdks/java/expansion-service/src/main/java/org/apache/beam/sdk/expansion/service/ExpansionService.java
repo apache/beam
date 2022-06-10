@@ -92,7 +92,7 @@ import org.slf4j.LoggerFactory;
 
 /** A service that allows pipeline expand transforms from a remote SDK. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplBase
     implements AutoCloseable {
@@ -576,6 +576,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .ifPresent(portableOptions::setDefaultEnvironmentType);
     Optional.ofNullable(specifiedOptions.getDefaultEnvironmentConfig())
         .ifPresent(portableOptions::setDefaultEnvironmentConfig);
+    List<String> filesToStage = specifiedOptions.getFilesToStage();
+    if (filesToStage != null) {
+      effectiveOpts.as(PortablePipelineOptions.class).setFilesToStage(filesToStage);
+    }
     effectiveOpts
         .as(ExperimentalOptions.class)
         .setExperiments(pipelineOptions.as(ExperimentalOptions.class).getExperiments());

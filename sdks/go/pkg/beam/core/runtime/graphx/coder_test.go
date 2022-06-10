@@ -89,6 +89,10 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			coder.NewW(coder.NewBytes(), coder.NewGlobalWindow()),
 		},
 		{
+			"N<bytes>",
+			coder.NewN(coder.NewBytes()),
+		},
+		{
 			"KV<foo,bar>",
 			coder.NewKV([]*coder.Coder{foo, bar}),
 		},

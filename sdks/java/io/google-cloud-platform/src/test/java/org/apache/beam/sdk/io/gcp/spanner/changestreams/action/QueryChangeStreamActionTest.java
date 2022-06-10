@@ -29,7 +29,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
 import java.util.Arrays;
 import java.util.Optional;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSetMetadata;
@@ -40,7 +40,8 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRec
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -55,17 +56,18 @@ public class QueryChangeStreamActionTest {
   private static final String PARTITION_TOKEN = "partitionToken";
   private static final Timestamp PARTITION_START_TIMESTAMP = Timestamp.ofTimeMicroseconds(10L);
   private static final Timestamp PARTITION_END_TIMESTAMP = Timestamp.ofTimeMicroseconds(30L);
-  private static final long PARTITION_END_MICROS = 30L;
   private static final long PARTITION_HEARTBEAT_MILLIS = 30_000L;
   private static final Instant WATERMARK = Instant.now();
   private static final Timestamp WATERMARK_TIMESTAMP =
-      TimestampConverter.timestampFromMillis(WATERMARK.getMillis());
+      Timestamp.ofTimeMicroseconds(WATERMARK.getMillis() * 1_000L);
 
   private ChangeStreamDao changeStreamDao;
   private PartitionMetadataDao partitionMetadataDao;
   private PartitionMetadata partition;
-  private OffsetRange restriction;
-  private RestrictionTracker<OffsetRange, Long> restrictionTracker;
+  private ChangeStreamMetrics metrics;
+  private ThroughputEstimator throughputEstimator;
+  private TimestampRange restriction;
+  private RestrictionTracker<TimestampRange, Timestamp> restrictionTracker;
   private OutputReceiver<DataChangeRecord> outputReceiver;
   private ChangeStreamRecordMapper changeStreamRecordMapper;
   private PartitionMetadataMapper partitionMetadataMapper;
@@ -85,6 +87,8 @@ public class QueryChangeStreamActionTest {
     dataChangeRecordAction = mock(DataChangeRecordAction.class);
     heartbeatRecordAction = mock(HeartbeatRecordAction.class);
     childPartitionsRecordAction = mock(ChildPartitionsRecordAction.class);
+    metrics = mock(ChangeStreamMetrics.class);
+    throughputEstimator = mock(ThroughputEstimator.class);
 
     action =
         new QueryChangeStreamAction(
@@ -94,7 +98,9 @@ public class QueryChangeStreamActionTest {
             partitionMetadataMapper,
             dataChangeRecordAction,
             heartbeatRecordAction,
-            childPartitionsRecordAction);
+            childPartitionsRecordAction,
+            metrics,
+            throughputEstimator);
     final Struct row = mock(Struct.class);
     partition =
         PartitionMetadata.newBuilder()
@@ -107,14 +113,15 @@ public class QueryChangeStreamActionTest {
             .setWatermark(WATERMARK_TIMESTAMP)
             .setScheduledAt(Timestamp.now())
             .build();
-    restriction = mock(OffsetRange.class);
+    restriction = mock(TimestampRange.class);
     restrictionTracker = mock(RestrictionTracker.class);
     outputReceiver = mock(OutputReceiver.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
     bundleFinalizer = new BundleFinalizerStub();
 
     when(restrictionTracker.currentRestriction()).thenReturn(restriction);
-    when(restriction.getFrom()).thenReturn(10L);
+    when(restriction.getFrom()).thenReturn(PARTITION_START_TIMESTAMP);
+    when(restriction.getTo()).thenReturn(PARTITION_END_TIMESTAMP);
     when(partitionMetadataDao.getPartition(PARTITION_TOKEN)).thenReturn(row);
     when(partitionMetadataMapper.from(row)).thenReturn(partition);
   }
@@ -251,7 +258,7 @@ public class QueryChangeStreamActionTest {
   }
 
   @Test
-  public void testQueryChangeStreamWithRestrictionStartAfterPartitionStart() {
+  public void testQueryChangeStreamWithRestrictionFromAfterPartitionStart() {
     final Struct rowAsStruct = mock(Struct.class);
     final ChangeStreamResultSetMetadata resultSetMetadata =
         mock(ChangeStreamResultSetMetadata.class);
@@ -259,16 +266,14 @@ public class QueryChangeStreamActionTest {
     final ChildPartitionsRecord record1 = mock(ChildPartitionsRecord.class);
     final ChildPartitionsRecord record2 = mock(ChildPartitionsRecord.class);
 
-    // One microsecond after partition start timestamp
-    when(restriction.getFrom()).thenReturn(11L);
-    // This record should be ignored because it is before restriction.getFrom
-    when(record1.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(10L));
-    // This record should be included because it is at the restriction.getFrom
-    when(record2.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(11L));
-    // We should start the query 1 microsecond before the restriction.getFrom
+    // From is after Partition start at
+    when(restriction.getFrom()).thenReturn(Timestamp.ofTimeMicroseconds(15L));
+    // Both records should be included
+    when(record1.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(15L));
+    when(record2.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(25L));
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
-            Timestamp.ofTimeMicroseconds(10L),
+            Timestamp.ofTimeMicroseconds(15L),
             PARTITION_END_TIMESTAMP,
             PARTITION_HEARTBEAT_MILLIS))
         .thenReturn(resultSet);
@@ -288,11 +293,11 @@ public class QueryChangeStreamActionTest {
 
     assertEquals(ProcessContinuation.stop(), result);
     verify(childPartitionsRecordAction)
+        .run(partition, record1, restrictionTracker, watermarkEstimator);
+    verify(childPartitionsRecordAction)
         .run(partition, record2, restrictionTracker, watermarkEstimator);
     verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
 
-    verify(childPartitionsRecordAction, never())
-        .run(partition, record1, restrictionTracker, watermarkEstimator);
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
@@ -309,7 +314,7 @@ public class QueryChangeStreamActionTest {
         .thenReturn(changeStreamResultSet);
     when(changeStreamResultSet.next()).thenReturn(false);
     when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
-    when(restrictionTracker.tryClaim(PARTITION_END_MICROS)).thenReturn(true);
+    when(restrictionTracker.tryClaim(PARTITION_END_TIMESTAMP)).thenReturn(true);
 
     final ProcessContinuation result =
         action.run(

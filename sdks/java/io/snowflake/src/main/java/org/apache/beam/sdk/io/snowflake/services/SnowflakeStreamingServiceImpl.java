@@ -25,12 +25,11 @@ import java.util.stream.Collectors;
 import net.snowflake.ingest.SimpleIngestManager;
 import net.snowflake.ingest.connection.IngestResponseException;
 
-/** Implemenation of {@link SnowflakeService} used in production. */
+/** Implementation of {@link SnowflakeServices.StreamingService} used in production. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class SnowflakeStreamingServiceImpl
-    implements SnowflakeService<SnowflakeStreamingServiceConfig> {
+public class SnowflakeStreamingServiceImpl implements SnowflakeServices.StreamingService {
 
   private transient SimpleIngestManager ingestManager;
 

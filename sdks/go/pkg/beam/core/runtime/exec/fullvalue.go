@@ -20,6 +20,7 @@ import (
 	"io"
 	"reflect"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
@@ -35,9 +36,10 @@ type FullValue struct {
 	Elm  interface{} // Element or KV key.
 	Elm2 interface{} // KV value, if not invalid
 
-	Timestamp typex.EventTime
-	Windows   []typex.Window
-	Pane      typex.PaneInfo
+	Timestamp    typex.EventTime
+	Windows      []typex.Window
+	Pane         typex.PaneInfo
+	Continuation sdf.ProcessContinuation
 }
 
 func (v *FullValue) String() string {

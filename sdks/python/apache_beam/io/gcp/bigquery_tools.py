@@ -43,6 +43,7 @@ from typing import Union
 
 import fastavro
 
+import apache_beam
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
@@ -69,6 +70,7 @@ try:
   from apitools.base.py.transfer import Upload
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
   from google.api_core.exceptions import ClientError, GoogleAPICallError
+  from google.api_core.client_info import ClientInfo
   from google.cloud import bigquery as gcp_bigquery
 except ImportError:
   gcp_bigquery = None
@@ -312,7 +314,7 @@ class BigQueryWrapper(object):
 
   The wrapper is used to organize all the BigQuery integration points and
   offer a common place where retry logic for failures can be controlled.
-  In addition it offers various functions used both in sources and sinks
+  In addition, it offers various functions used both in sources and sinks
   (e.g., find and create tables, query a table, etc.).
   """
 
@@ -326,9 +328,14 @@ class BigQueryWrapper(object):
   def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
     self.client = client or bigquery.BigqueryV2(
         http=get_new_http(),
-        credentials=auth.get_service_credentials(),
-        response_encoding='utf8')
-    self.gcp_bq_client = client or gcp_bigquery.Client()
+        credentials=auth.get_service_credentials(None),
+        response_encoding='utf8',
+        additional_http_headers={
+            "user-agent": "apache-beam-%s" % apache_beam.__version__
+        })
+    self.gcp_bq_client = client or gcp_bigquery.Client(
+        client_info=ClientInfo(
+            user_agent="apache-beam-%s" % apache_beam.__version__))
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
@@ -495,10 +502,9 @@ class BigQueryWrapper(object):
       job_labels=None):
 
     if not source_uris and not source_stream:
-      raise ValueError(
-          'Either a non-empty list of fully-qualified source URIs must be '
-          'provided via the source_uris parameter or an open file object must '
-          'be provided via the source_stream parameter. Got neither.')
+      _LOGGER.warning(
+          'Both source URIs and source stream are not provided. BigQuery load '
+          'job will not load any data.')
 
     if source_uris and source_stream:
       raise ValueError(
@@ -707,8 +713,8 @@ class BigQueryWrapper(object):
         for insert_error in errors:
           service_call_metric.call(insert_error['errors'][0])
     except (ClientError, GoogleAPICallError) as e:
-      # e.code.value contains the numeric http status code.
-      service_call_metric.call(e.code.value)
+      # e.code contains the numeric http status code.
+      service_call_metric.call(e.code)
       # Re-reise the exception so that we re-try appropriately.
       raise
     except HttpError as e:
@@ -995,17 +1001,6 @@ class BigQueryWrapper(object):
     Returns:
       bigquery.JobReference with the information about the job that was started.
     """
-    if not source_uris and not source_stream:
-      raise ValueError(
-          'Either a non-empty list of fully-qualified source URIs must be '
-          'provided via the source_uris parameter or an open file object must '
-          'be provided via the source_stream parameter. Got neither.')
-
-    if source_uris and source_stream:
-      raise ValueError(
-          'Only one of source_uris and source_stream may be specified. '
-          'Got both.')
-
     project_id = (
         destination.projectId
         if load_job_project_id is None else load_job_project_id)
@@ -1243,7 +1238,7 @@ class BigQueryWrapper(object):
 
     Returns:
       A tuple (bool, errors). If first element is False then the second element
-      will be a bigquery.InserttErrorsValueListEntry instance containing
+      will be a bigquery.InsertErrorsValueListEntry instance containing
       specific errors.
     """
 

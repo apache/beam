@@ -58,11 +58,11 @@ class Kubernetes {
 
   private static void setupKubeconfig() {
     job.steps {
+      shell("gcloud container clusters get-credentials ${cluster} --zone=us-central1-a")
       shell("cp /home/jenkins/.kube/config ${kubeconfigLocation}")
       environmentVariables {
         env('KUBECONFIG', kubeconfigLocation)
       }
-      shell("gcloud container clusters get-credentials ${cluster} --zone=us-central1-a")
     }
   }
 

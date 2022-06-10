@@ -36,7 +36,7 @@ from queue import Queue
 from tenacity import retry
 from tenacity import stop_after_attempt
 from tenacity import wait_fixed
-from urllib.request import urlopen, URLError, HTTPError
+from urllib.request import urlopen, Request, URLError, HTTPError
 
 SOURCE_CODE_REQUIRED_LICENSES = ['lgpl', 'gpl', 'cddl', 'mpl', 'gnu', 'mozilla public license']
 RETRY_NUM = 9
@@ -55,7 +55,7 @@ def pull_from_url(file_name, url, dep, no_list):
         logging.info('Replaced local file URL with {url} for {dep}'.format(url=url, dep=dep))
 
     try:
-        url_read = urlopen(url)
+        url_read = urlopen(Request(url, headers={'User-Agent': 'Apache Beam'}))
         with open(file_name, 'wb') as temp_write:
             shutil.copyfileobj(url_read, temp_write)
         logging.debug(

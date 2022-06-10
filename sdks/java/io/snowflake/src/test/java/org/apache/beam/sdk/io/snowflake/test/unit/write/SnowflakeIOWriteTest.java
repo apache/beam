@@ -26,10 +26,10 @@ import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import net.snowflake.client.jdbc.SnowflakeSQLException;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServices;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
-import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBatchServiceImpl;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
+import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServicesImpl;
 import org.apache.beam.sdk.io.snowflake.test.TestSnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -47,9 +47,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-})
 public class SnowflakeIOWriteTest {
   private static final String FAKE_TABLE = "FAKE_TABLE";
   private static final String BUCKET_NAME = "BUCKET/";
@@ -61,13 +58,13 @@ public class SnowflakeIOWriteTest {
   private static TestSnowflakePipelineOptions options;
   private static SnowflakeIO.DataSourceConfiguration dc;
 
-  private static SnowflakeService snowflakeService;
+  private static SnowflakeServices snowflakeServices;
   private static List<Long> testData;
   private static List<String> testDataInStrings;
 
   @BeforeClass
   public static void setupAll() {
-    snowflakeService = new FakeSnowflakeBatchServiceImpl();
+    snowflakeServices = new FakeSnowflakeServicesImpl();
     testData = LongStream.range(0, 100).boxed().collect(Collectors.toList());
 
     testDataInStrings = new ArrayList<>();
@@ -112,7 +109,7 @@ public class SnowflakeIOWriteTest {
                 .to(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
@@ -133,7 +130,7 @@ public class SnowflakeIOWriteTest {
                 .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withDataSourceConfiguration(dc)
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
@@ -155,7 +152,7 @@ public class SnowflakeIOWriteTest {
                 .to(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
@@ -180,7 +177,7 @@ public class SnowflakeIOWriteTest {
                 .withUserDataMapper(TestUtils.getLongCsvMapperKV())
                 .withDataSourceConfiguration(dc)
                 .withQueryTransformation(query)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
@@ -202,7 +199,7 @@ public class SnowflakeIOWriteTest {
                 .to(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
-                .withSnowflakeService(snowflakeService)
+                .withSnowflakeServices(snowflakeServices)
                 .withQuotationMark("\""));
 
     pipeline.run(options).waitUntilFinish();
@@ -228,7 +225,7 @@ public class SnowflakeIOWriteTest {
                 .to(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
-                .withSnowflakeService(snowflakeService)
+                .withSnowflakeServices(snowflakeServices)
                 .withQuotationMark(""));
 
     pipeline.run(options).waitUntilFinish();

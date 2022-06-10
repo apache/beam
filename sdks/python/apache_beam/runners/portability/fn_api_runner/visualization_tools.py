@@ -21,6 +21,7 @@ from typing import Tuple
 
 from apache_beam.runners.portability.fn_api_runner.translations import Stage
 from apache_beam.runners.portability.fn_api_runner.watermark_manager import WatermarkManager
+from apache_beam.utils import timestamp
 
 
 def show_stage(stage: Stage):
@@ -56,7 +57,7 @@ def show_stage(stage: Stage):
   g.render('stage_graph', format='png')
 
 
-def show_watermark_manager(watermark_manager: WatermarkManager):
+def show_watermark_manager(watermark_manager: WatermarkManager, filename=None):
   try:
     import graphviz
   except ImportError:
@@ -72,16 +73,21 @@ def show_watermark_manager(watermark_manager: WatermarkManager):
     else:
       return 'PCOLL_%s' % pcoll_node.name
 
-  def add_node(name, shape=None):
+  def add_node(name, shape=None, color=None, label=None):
     if name not in seen_nodes:
       seen_nodes.add(name)
-      g.node(name, shape=shape)
+      g.node(
+          name,
+          shape=shape,
+          fillcolor=color,
+          style='filled',
+          label=name + (label or ''))
 
   def add_links(link_from=None, link_to=None, edge_style="solid"):
     if link_from and link_to:
-      if (link_to, link_from) not in seen_links:
+      if (link_to, link_from, edge_style) not in seen_links:
         g.edge(link_from, link_to, style=edge_style)
-        seen_links.add((link_to, link_from))
+        seen_links.add((link_to, link_from, edge_style))
 
   seen_nodes: Set[str] = set()
   seen_links: Set[Tuple[str, str]] = set()
@@ -92,7 +98,17 @@ def show_watermark_manager(watermark_manager: WatermarkManager):
   for pcnode in watermark_manager._pcollections_by_name.values():
     assert isinstance(pcnode, WatermarkManager.PCollectionNode)
     name = pcoll_node_name(pcnode)
-    add_node(name)
+    if pcnode.watermark() == timestamp.MIN_TIMESTAMP:
+      color = 'aquamarine'
+    elif pcnode.watermark() == timestamp.MAX_TIMESTAMP:
+      color = 'aquamarine4'
+    else:
+      color = 'aquamarine2'
+    add_node(
+        name,
+        color=color,
+        label='\n%s\nprod: %s' %
+        (pcnode.watermark(), pcnode._produced_watermark))
 
   for node in watermark_manager._stages_by_name.values():
     stage = 'STAGE_%s...%s' % (node.name[:30], node.name[-30:])
@@ -112,4 +128,4 @@ def show_watermark_manager(watermark_manager: WatermarkManager):
       prod_name = 'STAGE_%s...%s' % (producer.name[:30], producer.name[-30:])
       add_links(link_from=prod_name, link_to=pcoll_name)
 
-  g.render('pipeline_graph', format='png')
+  g.render(filename or 'pipeline_graph', format='png')

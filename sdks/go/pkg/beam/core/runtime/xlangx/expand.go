@@ -19,6 +19,7 @@ package xlangx
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -143,18 +144,26 @@ func QueryExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.Expans
 	return res, nil
 }
 
-func startAutomatedJavaExpansionService(gradleTarget string) (stopFunc func() error, address string, err error) {
+func startAutomatedJavaExpansionService(gradleTarget string, classpath string) (stopFunc func() error, address string, err error) {
 	jarPath, err := expansionx.GetBeamJar(gradleTarget, core.SdkVersion)
 	if err != nil {
 		return nil, "", err
 	}
+
+	if len(classpath) > 0 {
+		jarPath, err = expansionx.MakeJar(jarPath, classpath)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
 	serviceRunner, err := expansionx.NewExpansionServiceRunner(jarPath, "")
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("error in  startAutomatedJavaExpansionService(%s,%s): %w", gradleTarget, classpath, err)
 	}
 	err = serviceRunner.StartService()
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("error in starting expansion service, StartService(): %w", err)
 	}
 	stopFunc = serviceRunner.StopService
 	address = serviceRunner.Endpoint()
@@ -171,8 +180,10 @@ func startAutomatedJavaExpansionService(gradleTarget string) (stopFunc func() er
 func QueryAutomatedExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.ExpansionResponse, error) {
 	// Strip auto: tag to get Gradle target
 	tag, target := parseAddr(p.Config)
+	// parse classpath namespace if present
+	target, classpath := parseClasspath(target)
 
-	stopFunc, address, err := startAutomatedJavaExpansionService(target)
+	stopFunc, address, err := startAutomatedJavaExpansionService(target, classpath)
 	if err != nil {
 		return nil, err
 	}

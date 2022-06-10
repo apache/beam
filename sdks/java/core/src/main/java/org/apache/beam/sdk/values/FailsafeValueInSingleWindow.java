@@ -28,7 +28,6 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -38,12 +37,9 @@ import org.joda.time.Instant;
  */
 @AutoValue
 @Internal
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
   /** Returns the value of this {@code FailsafeValueInSingleWindow}. */
-  public abstract @Nullable T getValue();
+  public abstract T getValue();
 
   /** Returns the timestamp of this {@code FailsafeValueInSingleWindow}. */
   public abstract Instant getTimestamp();
@@ -55,7 +51,7 @@ public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
   public abstract PaneInfo getPane();
 
   /** Returns the failsafe value of this {@code FailsafeValueInSingleWindow}. */
-  public abstract @Nullable ErrorT getFailsafeValue();
+  public abstract ErrorT getFailsafeValue();
 
   public static <T, ErrorT> FailsafeValueInSingleWindow<T, ErrorT> of(
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo, ErrorT failsafeValue) {

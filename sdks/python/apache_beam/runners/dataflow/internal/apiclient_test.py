@@ -174,15 +174,7 @@ class UtilTest(unittest.TestCase):
             dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
             FLEXRS_SPEED_OPTIMIZED))
 
-  def test_default_environment_get_set(self):
-
-    pipeline_options = PipelineOptions([
-        '--experiments=beam_fn_api',
-        '--experiments=use_unified_worker',
-        '--temp_location',
-        'gs://any-location/temp'
-    ])
-
+  def _verify_sdk_harness_container_images_get_set(self, pipeline_options):
     pipeline = Pipeline(options=pipeline_options)
     pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
 
@@ -207,32 +199,39 @@ class UtilTest(unittest.TestCase):
         pipeline_options,
         '2.0.0',  # any environment version
         FAKE_PIPELINE_URL,
-        proto_pipeline,
-        _sdk_image_overrides={
-            '.*dummy.*': 'dummy_image', '.*test.*': 'test_default_image'
-        })
+        proto_pipeline)
     worker_pool = env.proto.workerPools[0]
 
     self.assertEqual(2, len(worker_pool.sdkHarnessContainerImages))
 
-    images_from_proto = [
-        sdk_info.containerImage
-        for sdk_info in worker_pool.sdkHarnessContainerImages
-    ]
-    self.assertIn('test_default_image', images_from_proto)
+    env_and_image = [(item.environmentId, item.containerImage)
+                     for item in worker_pool.sdkHarnessContainerImages]
+    self.assertIn(('dummy_env_id', 'dummy_image'), env_and_image)
+    self.assertIn((mock.ANY, 'test_default_image'), env_and_image)
 
-  def test_sdk_harness_container_image_overrides(self):
+  def test_sdk_harness_container_images_get_set_runner_v2(self):
+    pipeline_options = PipelineOptions([
+        '--experiments=use_runner_v2',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
+    self._verify_sdk_harness_container_images_get_set(pipeline_options)
+
+  def test_sdk_harness_container_images_get_set_prime(self):
+    pipeline_options = PipelineOptions([
+        '--dataflow_service_options=enable_prime',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
+    self._verify_sdk_harness_container_images_get_set(pipeline_options)
+
+  def _verify_sdk_harness_container_image_overrides(self, pipeline_options):
     test_environment = DockerEnvironment(
         container_image='dummy_container_image')
     proto_pipeline, _ = Pipeline().to_runner_api(
       return_context=True, default_environment=test_environment)
-
-    pipeline_options = PipelineOptions([
-        '--experiments=beam_fn_api',
-        '--experiments=use_unified_worker',
-        '--temp_location',
-        'gs://any-location/temp'
-    ])
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
@@ -254,14 +253,25 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         docker_payload.container_image, 'new_dummy_container_image')
 
-  def test_dataflow_container_image_override(self):
+  def test_sdk_harness_container_image_overrides_runner_v2(self):
     pipeline_options = PipelineOptions([
-        '--experiments=beam_fn_api',
-        '--experiments=use_unified_worker',
+        '--experiments=use_runner_v2',
         '--temp_location',
         'gs://any-location/temp'
     ])
 
+    self._verify_sdk_harness_container_image_overrides(pipeline_options)
+
+  def test_sdk_harness_container_image_overrides_prime(self):
+    pipeline_options = PipelineOptions([
+        '--dataflow_service_options=enable_prime',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
+    self._verify_sdk_harness_container_image_overrides(pipeline_options)
+
+  def _verify_dataflow_container_image_override(self, pipeline_options):
     pipeline = Pipeline(options=pipeline_options)
     pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
 
@@ -285,14 +295,25 @@ class UtilTest(unittest.TestCase):
 
     self.assertTrue(found_override)
 
-  def test_non_apache_container_not_overridden(self):
+  def test_dataflow_container_image_override_runner_v2(self):
     pipeline_options = PipelineOptions([
-        '--experiments=beam_fn_api',
-        '--experiments=use_unified_worker',
+        '--experiments=use_runner_v2',
         '--temp_location',
         'gs://any-location/temp'
     ])
 
+    self._verify_dataflow_container_image_override(pipeline_options)
+
+  def test_dataflow_container_image_override_prime(self):
+    pipeline_options = PipelineOptions([
+        '--dataflow_service_options=enable_prime',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
+    self._verify_dataflow_container_image_override(pipeline_options)
+
+  def _verify_non_apache_container_not_overridden(self, pipeline_options):
     pipeline = Pipeline(options=pipeline_options)
     pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
 
@@ -318,15 +339,25 @@ class UtilTest(unittest.TestCase):
 
     self.assertFalse(found_override)
 
-  def test_pipeline_sdk_not_overridden(self):
+  def test_non_apache_container_not_overridden_runner_v2(self):
     pipeline_options = PipelineOptions([
-        '--experiments=beam_fn_api',
-        '--experiments=use_unified_worker',
+        '--experiments=use_runner_v2',
         '--temp_location',
-        'gs://any-location/temp',
-        '--sdk_container_image=dummy_prefix/dummy_name:dummy_tag'
+        'gs://any-location/temp'
     ])
 
+    self._verify_non_apache_container_not_overridden(pipeline_options)
+
+  def test_non_apache_container_not_overridden_prime(self):
+    pipeline_options = PipelineOptions([
+        '--dataflow_service_options=enable_prime',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
+    self._verify_non_apache_container_not_overridden(pipeline_options)
+
+  def _verify_pipeline_sdk_not_overridden(self, pipeline_options):
     pipeline = Pipeline(options=pipeline_options)
     pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
 
@@ -353,6 +384,26 @@ class UtilTest(unittest.TestCase):
         found_override = True
 
     self.assertFalse(found_override)
+
+  def test_pipeline_sdk_not_overridden_runner_v2(self):
+    pipeline_options = PipelineOptions([
+        '--experiments=use_runner_v2',
+        '--temp_location',
+        'gs://any-location/temp',
+        '--sdk_container_image=dummy_prefix/dummy_name:dummy_tag'
+    ])
+
+    self._verify_pipeline_sdk_not_overridden(pipeline_options)
+
+  def test_pipeline_sdk_not_overridden_prime(self):
+    pipeline_options = PipelineOptions([
+        '--dataflow_service_options=enable_prime',
+        '--temp_location',
+        'gs://any-location/temp',
+        '--sdk_container_image=dummy_prefix/dummy_name:dummy_tag'
+    ])
+
+    self._verify_pipeline_sdk_not_overridden(pipeline_options)
 
   def test_invalid_default_job_name(self):
     # Regexp for job names in dataflow.
@@ -1002,6 +1053,23 @@ class UtilTest(unittest.TestCase):
     pipeline_options = PipelineOptions(
         ['--experiments=use_runner_v2', '--experiments=beam_fn_api'])
     self.assertTrue(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(['--experiments=enable_prime'])
+    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(
+        ['--dataflow_service_options=enable_prime'])
+    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions([
+        '--dataflow_service_options=enable_prime',
+        '--experiments=disable_prime_runner_v2'
+    ])
+    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(
+        ['--experiments=enable_prime', '--experiments=disable_prime_runner_v2'])
+    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
 
     pipeline_options = PipelineOptions([
         '--experiments=use_unified_worker',

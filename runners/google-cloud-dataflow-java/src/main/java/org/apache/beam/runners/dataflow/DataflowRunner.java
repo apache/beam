@@ -76,6 +76,7 @@ import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.runners.core.construction.WriteFilesTranslation;
+import org.apache.beam.runners.core.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.StreamingViewOverrides.StreamingCreatePCollectionViewFactory;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
@@ -113,6 +114,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -192,10 +194,14 @@ import org.slf4j.LoggerFactory;
  * Dataflow Security and Permissions</a> for more details.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
+
+  /** Experiment to "unsafely attempt to process unbounded data in batch mode". */
+  public static final String UNSAFELY_ATTEMPT_TO_PROCESS_UNBOUNDED_DATA_IN_BATCH_MODE =
+      "unsafely_attempt_to_process_unbounded_data_in_batch_mode";
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunner.class);
   /** Provided configuration options. */
@@ -376,6 +382,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               + "' invalid. Please make sure the value is non-negative.");
     }
 
+    // Verify that if recordJfrOnGcThrashing is set, the pipeline is at least on java 11
+    if (dataflowOptions.getRecordJfrOnGcThrashing()
+        && Environments.getJavaVersion() == Environments.JavaVersion.java8) {
+      throw new IllegalArgumentException(
+          "recordJfrOnGcThrashing is only supported on java 9 and up.");
+    }
+
     if (dataflowOptions.isStreaming() && dataflowOptions.getGcsUploadBufferSizeBytes() == null) {
       dataflowOptions.setGcsUploadBufferSizeBytes(GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT);
     }
@@ -523,10 +536,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
       overridesBuilder.add(KafkaIO.Read.KAFKA_READ_OVERRIDE);
 
-      overridesBuilder.add(
-          PTransformOverride.of(
-              PTransformMatchers.writeWithRunnerDeterminedSharding(),
-              new StreamingShardedWriteFactory(options)));
+      if (!hasExperiment(options, "enable_file_dynamic_sharding")) {
+        overridesBuilder.add(
+            PTransformOverride.of(
+                PTransformMatchers.writeWithRunnerDeterminedSharding(),
+                new StreamingShardedWriteFactory(options)));
+      }
 
       overridesBuilder.add(
           PTransformOverride.of(
@@ -1025,7 +1040,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
-
     if (useUnifiedWorker(options)) {
       List<String> experiments = options.getExperiments(); // non-null if useUnifiedWorker is true
       if (!experiments.contains("use_runner_v2")) {
@@ -1044,8 +1058,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
-    if (containsUnboundedPCollection(pipeline)) {
+    if (shouldActAsStreaming(pipeline)) {
       options.setStreaming(true);
+    }
+
+    if (!options.isStreaming()
+        && !ExperimentalOptions.hasExperiment(options, "disable_projection_pushdown")) {
+      ProjectionPushdownOptimizer.optimize(pipeline);
     }
 
     LOG.info(
@@ -1418,23 +1437,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   static void configureSdkHarnessContainerImages(
       DataflowPipelineOptions options, RunnerApi.Pipeline pipelineProto, Job newJob) {
-    if (useUnifiedWorker(options)) {
-      List<SdkHarnessContainerImage> sdkContainerList =
-          getAllEnvironmentInfo(pipelineProto).stream()
-              .map(
-                  environmentInfo -> {
-                    SdkHarnessContainerImage image = new SdkHarnessContainerImage();
-                    image.setEnvironmentId(environmentInfo.environmentId());
-                    image.setContainerImage(environmentInfo.containerUrl());
-                    if (environmentInfo.containerUrl().toLowerCase().contains("python")) {
-                      image.setUseSingleCorePerContainer(true);
-                    }
-                    return image;
-                  })
-              .collect(Collectors.toList());
-      for (WorkerPool workerPool : newJob.getEnvironment().getWorkerPools()) {
-        workerPool.setSdkHarnessContainerImages(sdkContainerList);
-      }
+    List<SdkHarnessContainerImage> sdkContainerList =
+        getAllEnvironmentInfo(pipelineProto).stream()
+            .map(
+                environmentInfo -> {
+                  SdkHarnessContainerImage image = new SdkHarnessContainerImage();
+                  image.setEnvironmentId(environmentInfo.environmentId());
+                  image.setContainerImage(environmentInfo.containerUrl());
+                  if (environmentInfo.containerUrl().toLowerCase().contains("python")) {
+                    image.setUseSingleCorePerContainer(true);
+                  }
+                  return image;
+                })
+            .collect(Collectors.toList());
+    for (WorkerPool workerPool : newJob.getEnvironment().getWorkerPools()) {
+      workerPool.setSdkHarnessContainerImages(sdkContainerList);
     }
   }
 
@@ -1466,29 +1483,58 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // setup overrides.
   @VisibleForTesting
   protected void replaceV1Transforms(Pipeline pipeline) {
-    boolean streaming = options.isStreaming() || containsUnboundedPCollection(pipeline);
+    boolean streaming = shouldActAsStreaming(pipeline);
     // Ensure all outputs of all reads are consumed before potentially replacing any
     // Read PTransforms
     UnconsumedReads.ensureAllReadsConsumed(pipeline);
     pipeline.replaceAll(getOverrides(streaming));
   }
 
-  private boolean containsUnboundedPCollection(Pipeline p) {
+  private boolean shouldActAsStreaming(Pipeline p) {
     class BoundednessVisitor extends PipelineVisitor.Defaults {
 
-      IsBounded boundedness = IsBounded.BOUNDED;
+      final List<PCollection> unboundedPCollections = new ArrayList<>();
 
       @Override
       public void visitValue(PValue value, Node producer) {
         if (value instanceof PCollection) {
-          boundedness = boundedness.and(((PCollection) value).isBounded());
+          PCollection pc = (PCollection) value;
+          if (pc.isBounded() == IsBounded.UNBOUNDED) {
+            unboundedPCollections.add(pc);
+          }
         }
       }
     }
 
     BoundednessVisitor visitor = new BoundednessVisitor();
     p.traverseTopologically(visitor);
-    return visitor.boundedness == IsBounded.UNBOUNDED;
+    if (visitor.unboundedPCollections.isEmpty()) {
+      if (options.isStreaming()) {
+        LOG.warn(
+            "No unbounded PCollection(s) found in a streaming pipeline! "
+                + "You might consider using 'streaming=false'!");
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      if (options.isStreaming()) {
+        return true;
+      } else if (hasExperiment(options, UNSAFELY_ATTEMPT_TO_PROCESS_UNBOUNDED_DATA_IN_BATCH_MODE)) {
+        LOG.info(
+            "Turning a batch pipeline into streaming due to unbounded PCollection(s) has been avoided! "
+                + "Unbounded PCollection(s): {}",
+            visitor.unboundedPCollections);
+        return false;
+      } else {
+        LOG.warn(
+            "Unbounded PCollection(s) found in a batch pipeline! "
+                + "You might consider using 'streaming=true'! "
+                + "Unbounded PCollection(s): {}",
+            visitor.unboundedPCollections);
+        return true;
+      }
+    }
   };
 
   /** Returns the DataflowPipelineTranslator associated with this object. */
@@ -2311,9 +2357,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static boolean useUnifiedWorker(DataflowPipelineOptions options) {
     return hasExperiment(options, "beam_fn_api")
         || hasExperiment(options, "use_runner_v2")
-        || hasExperiment(options, "use_unified_worker")
-        || (hasExperiment(options, "enable_prime")
-            && !hasExperiment(options, "disable_prime_runner_v2"));
+        || hasExperiment(options, "use_unified_worker");
   }
 
   static boolean useStreamingEngine(DataflowPipelineOptions options) {
@@ -2363,7 +2407,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   static void verifyStateSupportForWindowingStrategy(WindowingStrategy strategy) {
-    // https://issues.apache.org/jira/browse/BEAM-2507
+    // https://github.com/apache/beam/issues/18478
     if (strategy.needsMerge()) {
       throw new UnsupportedOperationException(
           String.format(

@@ -307,8 +307,8 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class JdbcIO {
 
@@ -2000,7 +2000,9 @@ public class JdbcIO {
       // allow insert only if missing fields are nullable
       checkState(
           !checkNullabilityForFields(missingFields),
-          "Non nullable fields are not allowed without schema.");
+          "Non nullable fields are not allowed without a matching schema. "
+              + "Fields %s were in the destination table but not in the input schema.",
+          missingFields);
 
       List<SchemaUtil.FieldWithIndex> tableFilteredFields =
           tableSchema.getFields().stream()
@@ -2388,6 +2390,8 @@ public class JdbcIO {
             MS_PER_BATCH.update(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs));
             break;
           } catch (SQLException exception) {
+            LOG.trace(
+                "SQL exception thrown while writing to JDBC database: {}", exception.getMessage());
             if (!spec.getRetryStrategy().apply(exception)) {
               throw exception;
             }

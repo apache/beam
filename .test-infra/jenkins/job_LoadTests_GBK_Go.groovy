@@ -22,6 +22,8 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import InfluxDBCredentialsHelper
 
+import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
+
 String now = new Date().format('MMddHHmmss', TimeZone.getTimeZone('UTC'))
 
 def batchScenarios = {
@@ -46,6 +48,8 @@ def batchScenarios = {
         fanout               : 1,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
       ]
     ],
     [
@@ -68,6 +72,8 @@ def batchScenarios = {
         fanout               : 1,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
       ]
     ],
     [
@@ -90,6 +96,8 @@ def batchScenarios = {
         fanout               : 1,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
       ]
     ],
     [
@@ -112,6 +120,8 @@ def batchScenarios = {
         fanout               : 4,
         num_workers          : 16,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
       ]
     ],
     [
@@ -134,6 +144,8 @@ def batchScenarios = {
         fanout               : 8,
         num_workers          : 16,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
       ]
     ],
     [
@@ -158,6 +170,8 @@ def batchScenarios = {
         fanout               : 1,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
       ]
     ],
     [
@@ -182,6 +196,8 @@ def batchScenarios = {
         fanout               : 1,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
       ]
     ],
   ]

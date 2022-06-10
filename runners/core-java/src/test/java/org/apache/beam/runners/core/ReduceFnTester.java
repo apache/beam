@@ -84,7 +84,7 @@ import org.joda.time.Instant;
  * @param <W> The type of windows being used.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private static final String KEY = "TEST_KEY";

@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
  * EvaluationContext} to execute a {@link Pipeline}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 final class ExecutorServiceParallelExecutor
     implements PipelineExecutor,
@@ -173,7 +173,7 @@ final class ExecutorServiceParallelExecutor
           @Override
           public void run() {
             DriverState drive = executionDriver.drive();
-            if (drive.isTermainal()) {
+            if (drive.isTerminal()) {
               State newPipelineState = State.UNKNOWN;
               switch (drive) {
                 case FAILED:

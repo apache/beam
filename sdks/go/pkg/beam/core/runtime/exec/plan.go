@@ -21,8 +21,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Plan represents the bundle execution plan. It will generally be constructed
@@ -33,6 +35,7 @@ type Plan struct {
 	roots []Root
 	units []Unit
 	pcols []*PCollection
+	bf    *bundleFinalizer
 
 	status Status
 
@@ -45,6 +48,10 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 	var roots []Root
 	var pcols []*PCollection
 	var source *DataSource
+	bf := bundleFinalizer{
+		callbacks:         []bundleFinalizationCallback{},
+		lastValidCallback: time.Now(),
+	}
 
 	for _, u := range units {
 		if u == nil {
@@ -59,6 +66,9 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		if p, ok := u.(*PCollection); ok {
 			pcols = append(pcols, p)
 		}
+		if p, ok := u.(needsBundleFinalization); ok {
+			p.AttachFinalizer(&bf)
+		}
 	}
 	if len(roots) == 0 {
 		return nil, errors.Errorf("no root units")
@@ -70,6 +80,7 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		roots:  roots,
 		units:  units,
 		pcols:  pcols,
+		bf:     &bf,
 		source: source,
 	}, nil
 }
@@ -129,6 +140,46 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 
 	p.status = Up
 	return nil
+}
+
+// Finalize runs any callbacks registered by the bundleFinalizer. Should be run on bundle finalization.
+func (p *Plan) Finalize() error {
+	if p.status != Up {
+		return errors.Errorf("invalid status for plan %v: %v", p.id, p.status)
+	}
+	failedIndices := []int{}
+	for idx, bfc := range p.bf.callbacks {
+		if time.Now().Before(bfc.validUntil) {
+			if err := bfc.callback(); err != nil {
+				failedIndices = append(failedIndices, idx)
+			}
+		}
+	}
+
+	newFinalizer := bundleFinalizer{
+		callbacks:         []bundleFinalizationCallback{},
+		lastValidCallback: time.Now(),
+	}
+
+	for _, idx := range failedIndices {
+		newFinalizer.callbacks = append(newFinalizer.callbacks, p.bf.callbacks[idx])
+		if newFinalizer.lastValidCallback.Before(p.bf.callbacks[idx].validUntil) {
+			newFinalizer.lastValidCallback = p.bf.callbacks[idx].validUntil
+		}
+	}
+
+	p.bf = &newFinalizer
+
+	if len(failedIndices) > 0 {
+		return errors.Errorf("Plan %v failed %v callbacks", p.ID(), len(failedIndices))
+	}
+	return nil
+}
+
+// GetExpirationTime returns the last expiration time of any of the callbacks registered by the bundleFinalizer.
+// Once we have passed this time, it is safe to move this plan to inactive without missing any valid callbacks.
+func (p *Plan) GetExpirationTime() time.Time {
+	return p.bf.lastValidCallback
 }
 
 // Down takes the plan and associated units down. Does not panic.
@@ -210,6 +261,8 @@ type SplitResult struct {
 	RS   [][]byte // Residual splits. If an element is split, these are the encoded residuals.
 	TId  string   // Transform ID of the transform receiving the split elements.
 	InId string   // Input ID of the input the split elements are received from.
+
+	OW map[string]*timestamppb.Timestamp // Map of outputs to output watermark for the plan being split
 }
 
 // Split takes a set of potential split indexes, and if successful returns
@@ -222,4 +275,12 @@ func (p *Plan) Split(s SplitPoints) (SplitResult, error) {
 		return p.source.Split(s.Splits, s.Frac, s.BufSize)
 	}
 	return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
+}
+
+// Checkpoint attempts to split an SDF if the DoFn self-checkpointed.
+func (p *Plan) Checkpoint() (SplitResult, time.Duration, bool, error) {
+	if p.source != nil {
+		return p.source.Checkpoint()
+	}
+	return SplitResult{}, -1 * time.Minute, false, nil
 }

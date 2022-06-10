@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="96" height="96" rx="8" fill="#F8F8F8"/>
+<path d="M8 16C8 11.5817 11.5817 8 16 8H80C84.4183 8 88 11.5817 88 16V80C88 84.4183 84.4183 88 80 88H16C11.5817 88 8 84.4183 8 80V16Z" fill="#F8F8F8"/>
+<path d="M56 59.2L58.4 48L60.8 36.8" stroke="#E74D1A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M46.4 59.2L48.8 48L51.2 36.8" stroke="#E74D1A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M36.8 59.2L39.2 48L41.6 36.8" stroke="#E74D1A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M71.2 29.6L71.8316 29.6C74.0407 29.6 75.8316 31.3909 75.8316 33.6L75.8316 41.8573C75.8316 42.8501 76.2008 43.8075 76.8675 44.5432L77.5661 45.3141C78.9473 46.8383 78.9473 49.1617 77.5661 50.686L76.8675 51.4568C76.2008 52.1925 75.8316 53.1499 75.8316 54.1428L75.8316 62.4C75.8316 64.6092 74.0407 66.4 71.8316 66.4L71.2 66.4" stroke="#E74D1A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M25.6 29.6L24.5474 29.6C22.3382 29.6 20.5474 31.3909 20.5474 33.6L20.5474 41.7566C20.5474 42.8095 20.1322 43.82 19.392 44.5687L18.7799 45.1879C17.2395 46.7462 17.2395 49.2538 18.7799 50.8121L19.392 51.4313C20.1322 52.1801 20.5474 53.1905 20.5474 54.2434L20.5474 62.4C20.5474 64.6092 22.3382 66.4 24.5474 66.4L25.6 66.4" stroke="#E74D1A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16.8 80H80.8" stroke="#E74D1A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16.8 16H80.8" stroke="#E74D1A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

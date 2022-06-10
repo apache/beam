@@ -30,11 +30,9 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_interactive_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
-from apache_beam.portability.api.endpoints_pb2 import ApiServiceDescriptor
+from apache_beam.portability.api import endpoints_pb2
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import core
 from apache_beam.transforms import window
@@ -407,7 +405,7 @@ class TestStream(PTransform):
         beam_runner_api_pb2.TestStreamPayload(
             coder_id=context.coders.get_id(self.coder),
             events=[e.to_runner_api(self.coder) for e in self._events],
-            endpoint=ApiServiceDescriptor(url=self._endpoint)))
+            endpoint=endpoints_pb2.ApiServiceDescriptor(url=self._endpoint)))
 
   @staticmethod
   @PTransform.register_urn(
@@ -583,7 +581,7 @@ class _TimingEventGenerator(beam.DoFn):
 
       # Here we capture the initial time offset and initial watermark. This is
       # where we emit the TestStreamFileHeader.
-      yield TestStreamFileHeader(tag=self._output_tag)
+      yield beam_interactive_api_pb2.TestStreamFileHeader(tag=self._output_tag)
       yield ProcessingTimeEvent(
           Duration(micros=timing_info.processing_time.micros))
       yield WatermarkEvent(MIN_TIMESTAMP)
@@ -627,7 +625,7 @@ class _TestStreamFormatter(beam.DoFn):
     """
     _, (element, timing_info) = e
 
-    if isinstance(element, TestStreamFileHeader):
+    if isinstance(element, beam_interactive_api_pb2.TestStreamFileHeader):
       self.header = element
     elif isinstance(element, WatermarkEvent):
       # WatermarkEvents come in with a watermark of MIN_TIMESTAMP. Fill in the
@@ -687,19 +685,21 @@ class _TestStreamFormatter(beam.DoFn):
     records = []
     for e in self.timing_events:
       if isinstance(e, ProcessingTimeEvent):
-        processing_time_event = TestStreamPayload.Event.AdvanceProcessingTime(
+        processing_time_event = beam_runner_api_pb2.\
+            TestStreamPayload.Event.AdvanceProcessingTime(
             advance_duration=e.advance_by.micros)
         records.append(
-            TestStreamFileRecord(
-                recorded_event=TestStreamPayload.Event(
+            beam_interactive_api_pb2.TestStreamFileRecord(
+                recorded_event=beam_runner_api_pb2.TestStreamPayload.Event(
                     processing_time_event=processing_time_event)))
 
       elif isinstance(e, WatermarkEvent):
-        watermark_event = TestStreamPayload.Event.AdvanceWatermark(
+        watermark_event = beam_runner_api_pb2.\
+            TestStreamPayload.Event.AdvanceWatermark(
             new_watermark=int(e.new_watermark))
         records.append(
-            TestStreamFileRecord(
-                recorded_event=TestStreamPayload.Event(
+            beam_interactive_api_pb2.TestStreamFileRecord(
+                recorded_event=beam_runner_api_pb2.TestStreamPayload.Event(
                     watermark_event=watermark_event)))
 
     return records
@@ -715,6 +715,8 @@ class _TestStreamFormatter(beam.DoFn):
           timestamp=element_timestamp)
       elements.append(element)
 
-    element_event = TestStreamPayload.Event.AddElements(elements=elements)
-    return TestStreamFileRecord(
-        recorded_event=TestStreamPayload.Event(element_event=element_event))
+    element_event = beam_runner_api_pb2.TestStreamPayload.Event.AddElements(
+        elements=elements)
+    return beam_interactive_api_pb2.TestStreamFileRecord(
+        recorded_event=beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=element_event))

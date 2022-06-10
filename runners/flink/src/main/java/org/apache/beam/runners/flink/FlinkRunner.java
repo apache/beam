@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import org.apache.beam.runners.core.construction.SplittableParDo;
+import org.apache.beam.runners.core.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -47,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * configuration.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
@@ -79,6 +80,11 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
     if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+    }
+
+    if (!options.isStreaming()
+        && !ExperimentalOptions.hasExperiment(options, "disable_projection_pushdown")) {
+      ProjectionPushdownOptimizer.optimize(pipeline);
     }
 
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);

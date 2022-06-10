@@ -270,6 +270,18 @@ func (controller *playgroundController) GetPrecompiledObjects(ctx context.Contex
 	}, nil
 }
 
+// GetPrecompiledObject returns precompiled object from the bucket
+func (controller *playgroundController) GetPrecompiledObject(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetPrecompiledObjectResponse, error) {
+	cb := cloud_bucket.New()
+	precompiledObject, err := cb.GetPrecompiledObject(ctx, info.GetCloudPath(), controller.env.ApplicationEnvs.BucketName())
+	if err != nil {
+		return nil, errors.InternalError("Error during getting Precompiled Object", "Error with cloud connection")
+	}
+	return &pb.GetPrecompiledObjectResponse{
+		PrecompiledObject: precompiledObject,
+	}, nil
+}
+
 // GetPrecompiledObjectCode returns the code of the specific example
 func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Context, info *pb.GetPrecompiledObjectCodeRequest) (*pb.GetPrecompiledObjectCodeResponse, error) {
 	cd := cloud_bucket.New()

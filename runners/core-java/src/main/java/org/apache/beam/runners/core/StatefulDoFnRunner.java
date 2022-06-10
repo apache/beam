@@ -55,8 +55,8 @@ import org.joda.time.Instant;
  * @param <OutputT> the type of the {@link DoFn} (main) output elements
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     implements DoFnRunner<InputT, OutputT> {

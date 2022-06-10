@@ -42,8 +42,6 @@ public class ChangeStreamRecordMetadata implements Serializable {
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp partitionStartTimestamp;
 
-  @Nullable
-  @org.apache.avro.reflect.Nullable
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp partitionEndTimestamp;
 
@@ -83,7 +81,7 @@ public class ChangeStreamRecordMetadata implements Serializable {
       String partitionToken,
       Timestamp recordTimestamp,
       Timestamp partitionStartTimestamp,
-      @Nullable Timestamp partitionEndTimestamp,
+      Timestamp partitionEndTimestamp,
       Timestamp partitionCreatedAt,
       @Nullable Timestamp partitionScheduledAt,
       @Nullable Timestamp partitionRunningAt,
@@ -126,7 +124,7 @@ public class ChangeStreamRecordMetadata implements Serializable {
   }
 
   /** The end time for the partition change stream query, which produced this record. */
-  public @Nullable Timestamp getPartitionEndTimestamp() {
+  public Timestamp getPartitionEndTimestamp() {
     return partitionEndTimestamp;
   }
 
@@ -258,7 +256,7 @@ public class ChangeStreamRecordMetadata implements Serializable {
     private String partitionToken;
     private Timestamp recordTimestamp;
     private Timestamp partitionStartTimestamp;
-    @Nullable private Timestamp partitionEndTimestamp;
+    private Timestamp partitionEndTimestamp;
     private Timestamp partitionCreatedAt;
     @Nullable private Timestamp partitionScheduledAt;
     @Nullable private Timestamp partitionRunningAt;
@@ -308,7 +306,7 @@ public class ChangeStreamRecordMetadata implements Serializable {
      * @param partitionEndTimestamp the timestamp to be set
      * @return Builder
      */
-    public Builder withPartitionEndTimestamp(@Nullable Timestamp partitionEndTimestamp) {
+    public Builder withPartitionEndTimestamp(Timestamp partitionEndTimestamp) {
       this.partitionEndTimestamp = partitionEndTimestamp;
       return this;
     }

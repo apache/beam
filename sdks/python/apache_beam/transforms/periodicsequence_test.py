@@ -76,7 +76,7 @@ class PeriodicSequenceTest(unittest.TestCase):
       assert_that(actual, equal_to(k))
 
   def test_periodicimpulse_default_start(self):
-    default_parameters = inspect.signature(PeriodicImpulse).parameters
+    default_parameters = inspect.signature(PeriodicImpulse.__init__).parameters
     it = default_parameters["start_timestamp"].default
     duration = 1
     et = it + duration

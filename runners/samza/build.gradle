@@ -20,11 +20,11 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  exportJavadoc: false,
-  classesTriggerCheckerBugs: [
-    'GroupWithoutRepartition': 'https://github.com/typetools/checker-framework/issues/3791',
-  ],
-  automaticModuleName: 'org.apache.beam.runners.samza',
+        exportJavadoc: false,
+        classesTriggerCheckerBugs: [
+                'GroupWithoutRepartition': 'https://github.com/typetools/checker-framework/issues/3791',
+        ],
+        automaticModuleName: 'org.apache.beam.runners.samza',
 )
 
 description = "Apache Beam :: Runners :: Samza"
@@ -86,6 +86,31 @@ configurations.all {
   exclude group: "org.slf4j", module: "slf4j-jdk14"
 }
 
+def sickbayTests = [
+        // TODO(BEAM-12750)
+        'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInGlobalWindowBatchSizeByteSizeFn',
+        'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode',
+        'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
+        // TODO(BEAM-12749)
+        'org.apache.beam.sdk.transforms.MapElementsTest.testMapSimpleFunction',
+        // TODO(BEAM-12748)
+        'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput',
+        'org.apache.beam.sdk.transforms.ViewTest.testNonSingletonSideInput',
+        // TODO(BEAM-12747)
+        'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsBackwardsInTimeShouldThrow',
+        'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsWithNullTimestampShouldThrow',
+        // TODO(BEAM-12746)
+        'org.apache.beam.sdk.io.FileIOTest*',
+        // TODO(BEAM-12745)
+        'org.apache.beam.sdk.io.AvroIOTest*',
+        // TODO(BEAM-12744)
+        'org.apache.beam.sdk.PipelineTest.testEmptyPipeline',
+        // TODO(BEAM-12743)
+        'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingNPException',
+        'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingIOException',
+        'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingNPException',
+        'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingIOException',
+]
 tasks.register("validatesRunner", Test) {
   group = "Verification"
   description "Validates Samza runner"
@@ -116,6 +141,9 @@ tasks.register("validatesRunner", Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
   }
   filter {
+    for (String test : sickbayTests) {
+      excludeTestsMatching test
+    }
     // TODO(BEAM-10025)
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
     // TODO(BEAM-11479)
@@ -126,29 +154,6 @@ tasks.register("validatesRunner", Test) {
     excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
     // TODO(BEAM-12036)
     excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
-    // TODO(BEAM-12743)
-    excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingNPException'
-    excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingIOException'
-    excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingNPException'
-    excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingIOException'
-    // TODO(BEAM-12744)
-    excludeTestsMatching 'org.apache.beam.sdk.PipelineTest.testEmptyPipeline'
-    // TODO(BEAM-12745)
-    excludeTestsMatching 'org.apache.beam.sdk.io.AvroIOTest*'
-    // TODO(BEAM-12746)
-    excludeTestsMatching 'org.apache.beam.sdk.io.FileIOTest*'
-    // TODO(BEAM-12747)
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsBackwardsInTimeShouldThrow'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsWithNullTimestampShouldThrow'
-    // TODO(BEAM-12748)
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testNonSingletonSideInput'
-    // TODO(BEAM-12749)
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.MapElementsTest.testMapSimpleFunction'
-    // TODO(BEAM-12750)
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInGlobalWindowBatchSizeByteSizeFn'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow'
 
     // These tests fail since there is no support for side inputs in Samza's unbounded splittable DoFn integration
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testWindowedSideInputWithCheckpointsUnbounded'
@@ -163,6 +168,23 @@ tasks.register("validatesRunner", Test) {
   filter {
     // Re-enable the test after Samza runner supports same state id across DoFn(s).
     excludeTest('ParDoTest$StateTests', 'testValueStateSameId')
+  }
+}
+
+tasks.register("validatesRunnerSickbay", Test) {
+  group = "Verification"
+  description "Validates Samza runner (Sickbay Tests)"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestSamzaRunner",
+  ])
+
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+
+  filter {
+    for (String test : sickbayTests) {
+      includeTestsMatching test
+    }
   }
 }
 

@@ -22,12 +22,15 @@
 import collections
 import copy
 import itertools
+import logging
+import typing
 import uuid
 import weakref
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import DefaultDict
 from typing import Dict
+from typing import Generic
 from typing import Iterable
 from typing import Iterator
 from typing import List
@@ -35,11 +38,14 @@ from typing import MutableMapping
 from typing import Optional
 from typing import Set
 from typing import Tuple
+from typing import TypeVar
+from typing import Union
 
 from typing_extensions import Protocol
 
 from apache_beam import coders
 from apache_beam.coders import BytesCoder
+from apache_beam.coders.coder_impl import CoderImpl
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.coders.coders import GlobalWindowCoder
@@ -49,7 +55,13 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.direct.clock import RealClock
+from apache_beam.runners.direct.clock import TestClock
 from apache_beam.runners.portability.fn_api_runner import translations
+from apache_beam.runners.portability.fn_api_runner.translations import DataInput
+from apache_beam.runners.portability.fn_api_runner.translations import DataOutput
+from apache_beam.runners.portability.fn_api_runner.translations import OutputTimers
+from apache_beam.runners.portability.fn_api_runner.translations import Stage
 from apache_beam.runners.portability.fn_api_runner.translations import create_buffer_id
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
 from apache_beam.runners.portability.fn_api_runner.translations import split_buffer_id
@@ -63,23 +75,27 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
-  from apache_beam.coders.coder_impl import CoderImpl, WindowedValueCoderImpl
+  from apache_beam.coders.coder_impl import WindowedValueCoderImpl
   from apache_beam.portability.api import endpoints_pb2
   from apache_beam.runners.portability.fn_api_runner import worker_handlers
-  from apache_beam.runners.portability.fn_api_runner.fn_runner import DataOutput
-  from apache_beam.runners.portability.fn_api_runner.fn_runner import OutputTimers
   from apache_beam.runners.portability.fn_api_runner.translations import DataSideInput
   from apache_beam.runners.portability.fn_api_runner.translations import TimerFamilyId
   from apache_beam.transforms.window import BoundedWindow
 
-ENCODED_IMPULSE_VALUE = WindowedValueCoder(
-    BytesCoder(), GlobalWindowCoder()).get_impl().encode_nested(
-        GlobalWindows.windowed_value(b''))
+_LOGGER = logging.getLogger(__name__)
 
-SAFE_WINDOW_FNS = set(window.WindowFn._known_urns.keys()) - set(
-    [python_urns.PICKLED_WINDOWFN])
+IMPULSE_VALUE_CODER_IMPL = WindowedValueCoder(
+    BytesCoder(), GlobalWindowCoder()).get_impl()
+
+ENCODED_IMPULSE_VALUE = IMPULSE_VALUE_CODER_IMPL.encode_nested(
+    GlobalWindows.windowed_value(b''))
+
+SAFE_WINDOW_FNS = set(
+    window.WindowFn._known_urns.keys()) - {python_urns.PICKLED_WINDOWFN}
 
 
 class Buffer(Protocol):
@@ -91,8 +107,14 @@ class Buffer(Protocol):
     # type: (bytes) -> None
     pass
 
+  def extend(self, other: 'Buffer') -> None:
+    pass
+
 
 class PartitionableBuffer(Buffer, Protocol):
+  def copy(self) -> 'PartitionableBuffer':
+    pass
+
   def partition(self, n):
     # type: (int) -> List[List[bytes]]
     pass
@@ -111,14 +133,27 @@ class PartitionableBuffer(Buffer, Protocol):
     pass
 
 
-class ListBuffer(object):
+class ListBuffer:
   """Used to support parititioning of a list."""
   def __init__(self, coder_impl):
-    # type: (CoderImpl) -> None
-    self._coder_impl = coder_impl
+    # type: (Optional[CoderImpl]) -> None
+    self._coder_impl = coder_impl or CoderImpl()
     self._inputs = []  # type: List[bytes]
     self._grouped_output = None  # type: Optional[List[List[bytes]]]
     self.cleared = False
+
+  def copy(self) -> 'ListBuffer':
+    new = ListBuffer(self._coder_impl)
+    new._inputs = [v for v in self._inputs]
+    return new
+
+  def extend(self, extra: 'Buffer') -> None:
+    if self.cleared:
+      raise RuntimeError('Trying to append to a cleared ListBuffer.')
+    if self._grouped_output:
+      raise RuntimeError('ListBuffer append after read.')
+    assert isinstance(extra, ListBuffer)
+    self._inputs.extend(extra._inputs)
 
   def append(self, element):
     # type: (bytes) -> None
@@ -187,6 +222,12 @@ class GroupingBuffer(object):
     self._windowing = windowing
     self._grouped_output = None  # type: Optional[List[List[bytes]]]
 
+  def copy(self) -> 'GroupingBuffer':
+    # This is a silly temporary optimization. This class must be removed once
+    # full support for streaming is added (i.e. once we use trigger_manager for
+    # data grouping instead of GroupingBuffer).
+    return self
+
   def append(self, elements_data):
     # type: (bytes) -> None
     if self._grouped_output:
@@ -203,6 +244,17 @@ class GroupingBuffer(object):
       self._table[key_coder_impl.encode(key)].append(
           value if is_trivial_windowing else windowed_key_value.
           with_value(value))
+
+  def extend(self, input_buffer):
+    # type: (Buffer) -> None
+    if isinstance(input_buffer, ListBuffer):
+      # TODO(pabloem): GroupingBuffer will be removed once shuffling is done
+      #  via state. Remove this workaround along with that.
+      return
+    assert isinstance(input_buffer, GroupingBuffer), \
+      'Input was not GroupingBuffer: %s' % input_buffer
+    for key, values in input_buffer._table.items():
+      self._table[key].extend(values)
 
   def partition(self, n):
     # type: (int) -> List[List[bytes]]
@@ -338,6 +390,89 @@ class GenericNonMergingWindowFn(window.NonMergingWindowFn):
     # type: (bytes, Any) -> GenericNonMergingWindowFn
     return GenericNonMergingWindowFn(
         context.coders[window_coder_id.decode('utf-8')])
+
+
+QUEUE_KEY_TYPE = TypeVar('QUEUE_KEY_TYPE')
+
+
+class _ProcessingQueueManager(object):
+  """Manages the queues for ProcessBundle inputs.
+  There are three queues:
+   - ready_inputs(_ProcessingQueueManager.KeyedQueue). This queue contains input
+       data that is ready to be processed. These are data such as timers past
+       their trigger time, and data to be processed.
+       The ready_inputs_queue contains tuples of (stage_name, inputs), where
+       inputs are dictionaries mapping PCollection name to data buffers.
+   - watermark_pending_inputs(_ProcessingQueueManager.KeyedQueue). This queue
+       contains input data that is not yet ready to be processed, and is blocked
+       on the watermark advancing. ((stage_name, watermark), inputs), where
+       the watermark is the watermark at which the inputs should be scheduled,
+       and inputs are dictionaries mapping PCollection name to data buffers.
+   - time_pending_inputs(_ProcessingQueueManager.KeyedQueue). This queue
+       contains input data that is not yet ready to be processed, and is blocked
+       on time advancing. ((stage_name, time), inputs), where
+       the time is the real time point at which the inputs should be scheduled,
+       and inputs are dictionaries mapping PCollection name to data buffers.
+  """
+  class KeyedQueue(Generic[QUEUE_KEY_TYPE]):
+    def __init__(self) -> None:
+      self._q: typing.Deque[Tuple[QUEUE_KEY_TYPE,
+                                  DataInput]] = collections.deque()
+      self._keyed_elements: MutableMapping[QUEUE_KEY_TYPE,
+                                           Tuple[QUEUE_KEY_TYPE,
+                                                 DataInput]] = {}
+
+    def enque(self, elm: Tuple[QUEUE_KEY_TYPE, DataInput]) -> None:
+      key = elm[0]
+      incoming_inputs: DataInput = elm[1]
+      if not incoming_inputs:
+        return
+      if key in self._keyed_elements:
+        existing_inputs = self._keyed_elements[key][1]
+        for pcoll in incoming_inputs.data:
+          if incoming_inputs.data[pcoll] and existing_inputs.data.get(pcoll):
+            existing_inputs.data[pcoll].extend(incoming_inputs.data[pcoll])
+          elif incoming_inputs.data[pcoll]:
+            existing_inputs.data[pcoll] = incoming_inputs.data[pcoll]
+        for timer_family in (incoming_inputs.timers or []):
+          if (incoming_inputs.timers[timer_family] and
+              existing_inputs.timers.get(timer_family)):
+            existing_inputs.timers[timer_family].extend(
+                incoming_inputs.timers[timer_family])
+          elif incoming_inputs.timers[timer_family]:
+            existing_inputs.timers[timer_family] = incoming_inputs.timers[
+                timer_family]
+      else:
+        self._keyed_elements[key] = elm
+        self._q.appendleft(elm)
+
+    def deque(self) -> Tuple[QUEUE_KEY_TYPE, DataInput]:
+      elm = self._q.pop()
+      key = elm[0]
+      del self._keyed_elements[key]
+      return elm
+
+    def __len__(self) -> int:
+      return len(self._q)
+
+    def __repr__(self) -> str:
+      return '<%s at 0x%x>' % (str(self), id(self))
+
+    def __str__(self) -> str:
+      return '<%s len: %s %s>' % (
+          self.__class__.__name__, len(self), list(self._q))
+
+  def __init__(self) -> None:
+    # For time-pending and watermark-pending inputs, the key type is
+    # STAGE+TIMESTAMP, while for the ready inputs, the key type is only STAGE.
+    self.time_pending_inputs = _ProcessingQueueManager.KeyedQueue[Tuple[
+        str, Timestamp]]()
+    self.watermark_pending_inputs = _ProcessingQueueManager.KeyedQueue[Tuple[
+        str, Timestamp]]()
+    self.ready_inputs = _ProcessingQueueManager.KeyedQueue[str]()
+
+  def __str__(self) -> str:
+    return '_ProcessingQueueManager(%s)' % self.__dict__
 
 
 class GenericMergingWindowFn(window.WindowFn):
@@ -540,7 +675,7 @@ class GenericMergingWindowFn(window.WindowFn):
                 windowing_strategy_id=global_windowing_strategy_id,
                 coder_id=output_coder_id),
         },
-        coders=coders,
+        coders=coders,  # type: ignore
         windowing_strategies={
             global_windowing_strategy_id: global_windowing_strategy_proto,
         },
@@ -568,6 +703,8 @@ class FnApiRunnerExecutionContext(object):
                pipeline_components,  # type: beam_runner_api_pb2.Components
                safe_coders: translations.SafeCoderMapping,
                data_channel_coders: Dict[str, str],
+               num_workers: int,
+               uses_teststream: bool = False
               ) -> None:
     """
     :param worker_handler_manager: This class manages the set of worker
@@ -577,7 +714,7 @@ class FnApiRunnerExecutionContext(object):
     :param data_channel_coders: A map from PCollection ID to the ID of the Coder
         for that PCollection.
     """
-    self.stages = stages
+    self.stages = {s.name: s for s in stages}
     self.side_input_descriptors_by_stage = (
         self._build_data_side_inputs_map(stages))
     self.pcoll_buffers = {}  # type: MutableMapping[bytes, PartitionableBuffer]
@@ -586,13 +723,26 @@ class FnApiRunnerExecutionContext(object):
     self.pipeline_components = pipeline_components
     self.safe_coders = safe_coders
     self.data_channel_coders = data_channel_coders
+    self.num_workers = num_workers
+    # TODO(pabloem): Move Clock classes out of DirectRunner and into FnApiRnr
+    self.clock: Union[TestClock, RealClock] = (
+        TestClock() if uses_teststream else RealClock())
+    self.queues = _ProcessingQueueManager()
 
-    self.input_transform_to_buffer_id = {
-        t.unique_name: t.spec.payload
-        for s in stages for t in s.transforms
-        if t.spec.urn == bundle_processor.DATA_INPUT_URN
-    }
+    # The following set of dictionaries hold information mapping relationships
+    # between various pipeline elements.
+    self.input_transform_to_buffer_id: MutableMapping[str, bytes] = {}
+    self.pcollection_to_producer_transform: MutableMapping[Union[str, bytes],
+                                                           Optional[str]] = {}
+    # Map of buffer_id to its consumers. A consumer is the pair of
+    # Stage name + Ptransform name that consume that buffer.
+    self.buffer_id_to_consumer_pairs: Dict[bytes, Set[Tuple[str, str]]] = {}
+    self._compute_pipeline_dictionaries()
+
     self.watermark_manager = WatermarkManager(stages)
+    # from apache_beam.runners.portability.fn_api_runner import \
+    #     visualization_tools
+    # visualization_tools.show_watermark_manager(self.watermark_manager)
     self.pipeline_context = pipeline_context.PipelineContext(
         self.pipeline_components,
         iterable_state_write=self._iterable_state_write)
@@ -601,6 +751,106 @@ class FnApiRunnerExecutionContext(object):
         id: self._make_safe_windowing_strategy(id)
         for id in self.pipeline_components.windowing_strategies.keys()
     }
+
+    self._stage_managers: Dict[str, BundleContextManager] = {}
+
+  def bundle_manager_for(
+      self,
+      stage: Stage,
+      num_workers: Optional[int] = None) -> 'BundleContextManager':
+    if stage.name not in self._stage_managers:
+      self._stage_managers[stage.name] = BundleContextManager(
+          self, stage, num_workers or self.num_workers)
+    return self._stage_managers[stage.name]
+
+  def _compute_pipeline_dictionaries(self) -> None:
+    for s in self.stages.values():
+      for t in s.transforms:
+        buffer_id = t.spec.payload
+        if t.spec.urn == bundle_processor.DATA_INPUT_URN:
+          self.input_transform_to_buffer_id[t.unique_name] = buffer_id
+          if t.spec.payload == translations.IMPULSE_BUFFER:
+            # Impulse data is not produced by any PTransform.
+            self.pcollection_to_producer_transform[
+                translations.IMPULSE_BUFFER] = None
+          else:
+            assert t.spec.payload != translations.IMPULSE_BUFFER
+            _, input_pcoll = split_buffer_id(buffer_id)
+            # Adding PCollections that may not have a producer.
+            # This is necessary, for example, for the case where we pass an
+            # empty list of PCollections into a Flatten transform.
+            if input_pcoll not in self.pcollection_to_producer_transform:
+              self.pcollection_to_producer_transform[input_pcoll] = None
+            if buffer_id not in self.buffer_id_to_consumer_pairs:
+              self.buffer_id_to_consumer_pairs[buffer_id] = set()
+            if (s.name, t.unique_name
+                ) not in self.buffer_id_to_consumer_pairs[buffer_id]:
+              self.buffer_id_to_consumer_pairs[buffer_id].add(
+                  (s.name, t.unique_name))
+        elif t.spec.urn == bundle_processor.DATA_OUTPUT_URN:
+          _, output_pcoll = split_buffer_id(buffer_id)
+          self.pcollection_to_producer_transform[output_pcoll] = t.unique_name
+        elif t.spec.urn in translations.PAR_DO_URNS:
+          pass
+
+  def setup(self) -> None:
+    """This sets up the pipeline to begin running.
+
+    1. This function enqueues all initial pipeline bundles to be executed.
+    2. It also updates payload fields on DATA_INPUT and DATA_OUTPUT operations
+      to the Data API endpoints that are live.
+    """
+    for stage in self.stages.values():
+      self._enqueue_stage_initial_inputs(stage)
+
+  def _enqueue_stage_initial_inputs(self, stage: Stage) -> None:
+    """Sets up IMPULSE inputs for a stage, and the data GRPC API endpoint."""
+    data_input = {}  # type: MutableMapping[str, PartitionableBuffer]
+    ready_to_schedule = True
+    for transform in stage.transforms:
+      if (transform.spec.urn in {bundle_processor.DATA_INPUT_URN,
+                                 bundle_processor.DATA_OUTPUT_URN}):
+        if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
+          coder_id = self.data_channel_coders[only_element(
+              transform.outputs.values())]
+          coder = self.pipeline_context.coders[self.safe_coders.get(
+              coder_id, coder_id)]
+          if transform.spec.payload == translations.IMPULSE_BUFFER:
+            data_input[transform.unique_name] = ListBuffer(coder.get_impl())
+            data_input[transform.unique_name].append(ENCODED_IMPULSE_VALUE)
+          else:
+            # If this is not an IMPULSE input, then it is not part of the
+            # initial inputs of a pipeline, and we'll ignore it.
+            pass
+        else:
+          coder_id = self.data_channel_coders[only_element(
+              transform.inputs.values())]
+        # For every DATA_INPUT or DATA_OUTPUT operation, we need to replace the
+        # payload with the GRPC configuration for the Data channel.
+        bundle_manager = self.bundle_manager_for(stage)
+        data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
+        data_api_service_descriptor = (
+            bundle_manager.data_api_service_descriptor())
+        if data_api_service_descriptor:
+          data_spec.api_service_descriptor.url = (
+              data_api_service_descriptor.url)
+        transform.spec.payload = data_spec.SerializeToString()
+      elif transform.spec.urn in translations.PAR_DO_URNS:
+        payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        if payload.side_inputs:
+          # If the stage needs side inputs, then it's not ready to be
+          # executed.
+          ready_to_schedule = False
+    if data_input and ready_to_schedule:
+      # We push the data inputs, along with the name of the consuming stage.
+      _LOGGER.debug('Scheduling bundle in stage for execution: %s', stage.name)
+      self.queues.ready_inputs.enque((stage.name, DataInput(data_input, {})))
+    elif data_input and not ready_to_schedule:
+      _LOGGER.debug(
+          'Enqueuing stage pending watermark. Stage name: %s', stage.name)
+      self.queues.watermark_pending_inputs.enque(
+          ((stage.name, MAX_TIMESTAMP), DataInput(data_input, {})))
 
   @staticmethod
   def _build_data_side_inputs_map(stages):
@@ -770,6 +1020,25 @@ class BundleContextManager(object):
     # This field can be used to tell whether current bundle has timers.
     self._timer_coder_ids = None  # type: Optional[Dict[Tuple[str, str], str]]
 
+    # A mapping from transform_name to Buffer ID
+    self.stage_data_outputs: DataOutput = {}
+    # A mapping of {(transform_id, timer_family_id) : buffer_id}
+    self.stage_timer_outputs: OutputTimers = {}
+    self._compute_expected_outputs()
+
+  def _compute_expected_outputs(self) -> None:
+    for transform in self.stage.transforms:
+      if transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
+        buffer_id = transform.spec.payload
+        self.stage_data_outputs[transform.unique_name] = buffer_id
+      elif transform.spec.urn in translations.PAR_DO_URNS:
+        payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        for timer_family_id in payload.timer_family_specs.keys():
+          time_domain = payload.timer_family_specs[timer_family_id].time_domain
+          self.stage_timer_outputs[(transform.unique_name, timer_family_id)] = (
+              create_buffer_id(timer_family_id, 'timers'), time_domain)
+
   @property
   def worker_handlers(self):
     # type: () -> List[worker_handlers.WorkerHandler]
@@ -819,64 +1088,6 @@ class BundleContextManager(object):
             self.execution_context.pipeline_components.environments.items()),
         state_api_service_descriptor=self.state_api_service_descriptor(),
         timer_api_service_descriptor=self.data_api_service_descriptor())
-
-  def extract_bundle_inputs_and_outputs(self):
-    # type: () -> Tuple[Dict[str, PartitionableBuffer], DataOutput, Dict[TimerFamilyId, bytes]]
-
-    """Returns maps of transform names to PCollection identifiers.
-
-    Also mutates IO stages to point to the data ApiServiceDescriptor.
-
-    Returns:
-      A tuple of (data_input, data_output, expected_timer_output) dictionaries.
-        `data_input` is a dictionary mapping (transform_name, output_name) to a
-        PCollection buffer; `data_output` is a dictionary mapping
-        (transform_name, output_name) to a PCollection ID.
-        `expected_timer_output` is a dictionary mapping transform_id and
-        timer family ID to a buffer id for timers.
-    """
-    data_input = {}  # type: Dict[str, PartitionableBuffer]
-    data_output = {}  # type: DataOutput
-    # A mapping of {(transform_id, timer_family_id) : buffer_id}
-    expected_timer_output = {}  # type: OutputTimers
-    for transform in self.stage.transforms:
-      if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
-                                bundle_processor.DATA_OUTPUT_URN):
-        pcoll_id = transform.spec.payload
-        if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
-          coder_id = self.execution_context.data_channel_coders[only_element(
-              transform.outputs.values())]
-          coder = self.execution_context.pipeline_context.coders[
-              self.execution_context.safe_coders.get(coder_id, coder_id)]
-          if pcoll_id == translations.IMPULSE_BUFFER:
-            data_input[transform.unique_name] = ListBuffer(
-                coder_impl=coder.get_impl())
-            data_input[transform.unique_name].append(ENCODED_IMPULSE_VALUE)
-          else:
-            if pcoll_id not in self.execution_context.pcoll_buffers:
-              self.execution_context.pcoll_buffers[pcoll_id] = ListBuffer(
-                  coder_impl=coder.get_impl())
-            data_input[transform.unique_name] = (
-                self.execution_context.pcoll_buffers[pcoll_id])
-        elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
-          data_output[transform.unique_name] = pcoll_id
-          coder_id = self.execution_context.data_channel_coders[only_element(
-              transform.inputs.values())]
-        else:
-          raise NotImplementedError
-        data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
-        data_api_service_descriptor = self.data_api_service_descriptor()
-        if data_api_service_descriptor:
-          data_spec.api_service_descriptor.url = (
-              data_api_service_descriptor.url)
-        transform.spec.payload = data_spec.SerializeToString()
-      elif transform.spec.urn in translations.PAR_DO_URNS:
-        payload = proto_utils.parse_Bytes(
-            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-        for timer_family_id in payload.timer_family_specs.keys():
-          expected_timer_output[(transform.unique_name, timer_family_id)] = (
-              create_buffer_id(timer_family_id, 'timers'))
-    return data_input, data_output, expected_timer_output
 
   def get_input_coder_impl(self, transform_id):
     # type: (str) -> CoderImpl

@@ -21,9 +21,8 @@ import unittest
 
 from apache_beam import coders
 from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api import beam_interactive_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive.cache_manager import SafeFastPrimitivesCoder
 from apache_beam.runners.interactive.caching.cacheable import CacheKey
@@ -37,9 +36,9 @@ from apache_beam.transforms.window import TimestampedValue
 # Nose automatically detects tests if they match a regex. Here, it mistakens
 # these protos as tests. For more info see the Nose docs at:
 # https://nose.readthedocs.io/en/latest/writing_tests.html
-TestStreamPayload.__test__ = False  # type: ignore[attr-defined]
-TestStreamFileHeader.__test__ = False  # type: ignore[attr-defined]
-TestStreamFileRecord.__test__ = False  # type: ignore[attr-defined]
+beam_runner_api_pb2.TestStreamPayload.__test__ = False  # type: ignore[attr-defined]
+beam_interactive_api_pb2.TestStreamFileHeader.__test__ = False  # type: ignore[attr-defined]
+beam_interactive_api_pb2.TestStreamFileRecord.__test__ = False  # type: ignore[attr-defined]
 
 
 class StreamingCacheTest(unittest.TestCase):
@@ -49,7 +48,7 @@ class StreamingCacheTest(unittest.TestCase):
   def test_exists(self):
     cache = StreamingCache(cache_dir=None)
     self.assertFalse(cache.exists('my_label'))
-    cache.write([TestStreamFileRecord()], 'my_label')
+    cache.write([beam_interactive_api_pb2.TestStreamFileRecord()], 'my_label')
     self.assertTrue(cache.exists('my_label'))
 
     # '' shouldn't be treated as a wildcard to match everything.
@@ -68,18 +67,21 @@ class StreamingCacheTest(unittest.TestCase):
 
   def test_size(self):
     cache = StreamingCache(cache_dir=None)
-    cache.write([TestStreamFileRecord()], 'my_label')
+    cache.write([beam_interactive_api_pb2.TestStreamFileRecord()], 'my_label')
     coder = cache.load_pcoder('my_label')
 
     # Add one because of the new-line character that is also written.
-    size = len(coder.encode(TestStreamFileRecord().SerializeToString())) + 1
+    size = len(
+        coder.encode(
+            beam_interactive_api_pb2.TestStreamFileRecord().SerializeToString())
+    ) + 1
     self.assertEqual(cache.size('my_label'), size)
 
   def test_clear(self):
     cache = StreamingCache(cache_dir=None)
     self.assertFalse(cache.exists('my_label'))
     cache.sink(['my_label'], is_capture=True)
-    cache.write([TestStreamFileRecord()], 'my_label')
+    cache.write([beam_interactive_api_pb2.TestStreamFileRecord()], 'my_label')
     self.assertTrue(cache.exists('my_label'))
     self.assertEqual(cache.capture_keys, set(['my_label']))
     self.assertTrue(cache.clear('my_label'))
@@ -87,7 +89,8 @@ class StreamingCacheTest(unittest.TestCase):
     self.assertFalse(cache.capture_keys)
 
   def test_single_reader(self):
-    """Tests that we expect to see all the correctly emitted TestStreamPayloads.
+    """
+    Tests that we expect to see all the correctly emitted TestStreamPayloads.
     """
     CACHED_PCOLLECTION_KEY = repr(CacheKey('arbitrary_key', '', '', ''))
 
@@ -108,30 +111,33 @@ class StreamingCacheTest(unittest.TestCase):
 
     # Units here are in microseconds.
     expected = [
-        TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AddElements(
                 elements=[
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode(0), timestamp=0)
                 ],
                 tag=CACHED_PCOLLECTION_KEY)),
-        TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=1 * 10**6)),
-        TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceProcessingTime(advance_duration=1 * 10**6)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AddElements(
                 elements=[
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode(1), timestamp=1 * 10**6)
                 ],
                 tag=CACHED_PCOLLECTION_KEY)),
-        TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=1 * 10**6)),
-        TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceProcessingTime(advance_duration=1 * 10**6)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AddElements(
                 elements=[
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode(2), timestamp=2 * 10**6)
                 ],
                 tag=CACHED_PCOLLECTION_KEY)),
@@ -182,79 +188,85 @@ class StreamingCacheTest(unittest.TestCase):
     # Units here are in microseconds.
     expected = [
         # Advances clock from 0 to 1
-        TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=1 * 10**6)),
-        TestStreamPayload.Event(
-            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=0, tag=CACHED_LETTERS)),
-        TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceProcessingTime(advance_duration=1 * 10**6)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            watermark_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceWatermark(new_watermark=0, tag=CACHED_LETTERS)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AddElements(
                 elements=[
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('a'), timestamp=0)
                 ],
                 tag=CACHED_LETTERS)),
 
         # Advances clock from 1 to 2
-        TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=1 * 10**6)),
-        TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceProcessingTime(advance_duration=1 * 10**6)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AddElements(
                 elements=[
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode(1), timestamp=0)
                 ],
                 tag=CACHED_NUMBERS)),
 
         # Advances clock from 2 to 3
-        TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=1 * 10**6)),
-        TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceProcessingTime(advance_duration=1 * 10**6)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AddElements(
                 elements=[
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode(2), timestamp=0)
                 ],
                 tag=CACHED_NUMBERS)),
 
         # Advances clock from 3 to 4
-        TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=1 * 10**6)),
-        TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceProcessingTime(advance_duration=1 * 10**6)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AddElements(
                 elements=[
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode(2), timestamp=0)
                 ],
                 tag=CACHED_NUMBERS)),
 
         # Advances clock from 4 to 11
-        TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=7 * 10**6)),
-        TestStreamPayload.Event(
-            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=10 * 10**6, tag=CACHED_LETTERS)),
-        TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceProcessingTime(advance_duration=7 * 10**6)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            watermark_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceWatermark(new_watermark=10 * 10**6, tag=CACHED_LETTERS)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AddElements(
                 elements=[
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('b'), timestamp=10 * 10**6)
                 ],
                 tag=CACHED_LETTERS)),
 
         # Advances clock from 11 to 101
-        TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=90 * 10**6)),
-        TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceProcessingTime(advance_duration=90 * 10**6)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AddElements(
                 elements=[
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('late'), timestamp=0)
                 ],
                 tag=CACHED_LATE)),
@@ -307,39 +319,41 @@ class StreamingCacheTest(unittest.TestCase):
 
     # Units here are in microseconds.
     expected_events = [
-        TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=5 * 10**6)),
-        TestStreamPayload.Event(
-            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=0, tag=CACHED_RECORDS)),
-        TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceProcessingTime(advance_duration=5 * 10**6)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            watermark_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceWatermark(new_watermark=0, tag=CACHED_RECORDS)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AddElements(
                 elements=[
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('a'), timestamp=0),
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('b'), timestamp=0),
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('c'), timestamp=0),
                 ],
                 tag=CACHED_RECORDS)),
-        TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=1 * 10**6)),
-        TestStreamPayload.Event(
-            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=10 * 10**6, tag=CACHED_RECORDS)),
-        TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceProcessingTime(advance_duration=1 * 10**6)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            watermark_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceWatermark(new_watermark=10 * 10**6, tag=CACHED_RECORDS)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AddElements(
                 elements=[
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('1'), timestamp=15 *
                         10**6),
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('2'), timestamp=15 *
                         10**6),
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('3'), timestamp=15 *
                         10**6),
                 ],
@@ -387,42 +401,44 @@ class StreamingCacheTest(unittest.TestCase):
 
     # Units here are in microseconds.
     expected_events = [
-        TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=5 * 10**6)),
-        TestStreamPayload.Event(
-            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=0, tag=LETTERS_TAG)),
-        TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceProcessingTime(advance_duration=5 * 10**6)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            watermark_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceWatermark(new_watermark=0, tag=LETTERS_TAG)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AddElements(
                 elements=[
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('a'), timestamp=0),
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('b'), timestamp=0),
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('c'), timestamp=0),
                 ],
                 tag=LETTERS_TAG)),
-        TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=1 * 10**6)),
-        TestStreamPayload.Event(
-            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=10 * 10**6, tag=NUMBERS_TAG)),
-        TestStreamPayload.Event(
-            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=0, tag=LETTERS_TAG)),
-        TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceProcessingTime(advance_duration=1 * 10**6)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            watermark_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceWatermark(new_watermark=10 * 10**6, tag=NUMBERS_TAG)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            watermark_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceWatermark(new_watermark=0, tag=LETTERS_TAG)),
+        beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AddElements(
                 elements=[
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('1'), timestamp=15 *
                         10**6),
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('2'), timestamp=15 *
                         10**6),
-                    TestStreamPayload.TimestampedElement(
+                    beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('3'), timestamp=15 *
                         10**6),
                 ],

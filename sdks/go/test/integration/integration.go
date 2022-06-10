@@ -50,7 +50,7 @@ import (
 // CheckFilters is called. Multiple tests can be skipped by using regex
 // wildcards. (ex. "TestXLang_.*" filters all tests starting with TestXLang_)
 //
-// It is strongly recommended to include, TODOs, Jira issues, or just comments
+// It is strongly recommended to include, TODOs, GitHub issues, or just comments
 // describing why tests are being skipped.
 
 // sickbay filters tests that fail due to Go SDK errors. These tests will not
@@ -66,6 +66,7 @@ var directFilters = []string{
 	"TestKafkaIO.*",
 	"TestDebeziumIO_BasicRead",
 	"TestJDBCIO_BasicReadWrite",
+	"TestJDBCIO_PostgresReadWrite",
 	// Triggers, Panes are not yet supported
 	"TestTrigger.*",
 	"TestPanes",
@@ -76,6 +77,10 @@ var directFilters = []string{
 	// (BEAM-13075): The direct runner does not currently support multimap side inputs
 	"TestParDoMultiMapSideInput",
 	"TestLargeWordcount_Loopback",
+	// The direct runner does not support self-checkpointing
+	"TestCheckpointing",
+	// The direct runner does not support pipeline drain for SDF.
+	"TestDrain",
 }
 
 var portableFilters = []string{
@@ -86,18 +91,22 @@ var portableFilters = []string{
 	"TestPanes",
 	// TODO(BEAM-12797): Python portable runner times out on Kafka reads.
 	"TestKafkaIO.*",
+	// The portable runner does not support self-checkpointing
+	"TestCheckpointing",
+	// The portable runner does not support pipeline drain for SDF.
+	"TestDrain",
 }
 
 var flinkFilters = []string{
 	// TODO(BEAM-11500): Flink tests timing out on reads.
 	"TestXLang_Combine.*",
-	// TODO(BEAM-12815): Test fails: "Insufficient number of network buffers".
+	// TODO(BEAM-12815): Test fails on post commits: "Insufficient number of network buffers".
 	"TestXLang_Multi",
 	"TestDebeziumIO_BasicRead",
-	// TODO(BEAM-12753): Flink test stream fails for non-string/byte slice inputs
-	"TestTestStream.*Sequence.*",
 	// Triggers are not yet supported
 	"TestTrigger.*",
+	// The flink runner does not support pipeline drain for SDF.
+	"TestDrain",
 }
 
 var samzaFilters = []string{
@@ -111,6 +120,10 @@ var samzaFilters = []string{
 	"TestPanes",
 	// TODO(BEAM-13006): Samza doesn't yet support post job metrics, used by WordCount
 	"TestWordCount.*",
+	// The Samza runner does not support self-checkpointing
+	"TestCheckpointing",
+	// The samza runner does not support pipeline drain for SDF.
+	"TestDrain",
 }
 
 var sparkFilters = []string{
@@ -125,11 +138,16 @@ var sparkFilters = []string{
 	"TestPanes",
 	// [BEAM-13921]: Spark doesn't support side inputs to executable stages
 	"TestDebeziumIO_BasicRead",
+	// The spark runner does not support self-checkpointing
+	"TestCheckpointing",
+	// The spark runner does not support pipeline drain for SDF.
+	"TestDrain",
 }
 
 var dataflowFilters = []string{
 	// The Dataflow runner doesn't work with tests using testcontainers locally.
 	"TestJDBCIO_BasicReadWrite",
+	"TestJDBCIO_PostgresReadWrite",
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
@@ -143,6 +161,11 @@ var dataflowFilters = []string{
 	// Dataflow doesn't support any test that requires loopback.
 	// Eg. For FileIO examples.
 	".*Loopback.*",
+	// Dataflow does not automatically terminate the TestCheckpointing pipeline when
+	// complete.
+	"TestCheckpointing",
+	// Dataflow does not drain jobs by itself.
+	"TestDrain",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
@@ -151,6 +174,10 @@ var dataflowFilters = []string{
 // t.Run is used, CheckFilters should be called within the t.Run callback, so
 // that sub-tests can be skipped individually.
 func CheckFilters(t *testing.T) {
+	if !ptest.MainCalled() {
+		panic("ptest.Main() has not been called: please override TestMain to ensure that the integration test runs properly.")
+	}
+
 	// Check for sickbaying first.
 	n := t.Name()
 	for _, f := range sickbay {

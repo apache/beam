@@ -174,7 +174,7 @@ jobs:
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
       - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@master
+        uses: google-github-actions/setup-gcloud@v0
         with:
           service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
@@ -195,7 +195,7 @@ jobs:
           name: source_zip
           path: source/
       - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@master
+        uses: google-github-actions/setup-gcloud@v0
         with:
           service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
@@ -211,13 +211,13 @@ jobs:
     strategy:
       matrix:
         os_python: [
-          {"os": [self-hosted, ubuntu-20.04], "python": "cp36-* cp37-* cp38-* cp39-*"},
-          {"os": [macos-latest], "python": "cp36-* cp37-* cp38-* cp39-*"},
-          {"os": [self-hosted,windows-server-2019], "python": "cp36-* cp37-* cp38-* cp39-*"},
+          {"os": [self-hosted, ubuntu-20.04], "python": "cp37-* cp38-* cp39-*"},
+          {"os": [macos-latest], "python": "cp37-* cp38-* cp39-*"},
+          {"os": [self-hosted,windows-server-2019], "python": "cp37-* cp38-* cp39-*"},
         ]
         arch: [auto]
         include:
-          - os_python: {"os": [self-hosted, ubuntu-20.04], "python": "cp36-* cp37-* cp38-* cp39-*"}
+          - os_python: {"os": [self-hosted, ubuntu-20.04], "python": "cp37-* cp38-* cp39-*"}
             arch: aarch64
     steps:
     - name: Clean wheels folder (Windows)
@@ -305,7 +305,7 @@ jobs:
         name: wheelhouse-${{ matrix.os }}
         path: wheelhouse/
     - name: Authenticate on GCP
-      uses: google-github-actions/setup-gcloud@master
+      uses: google-github-actions/setup-gcloud@v0
       with:
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}
@@ -341,7 +341,7 @@ jobs:
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Authenticate on GCP
-      uses: google-github-actions/setup-gcloud@master
+      uses: google-github-actions/setup-gcloud@v0
       with:
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}

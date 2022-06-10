@@ -143,6 +143,15 @@ func TestMarshal(t *testing.T) {
 			edges:      1,
 			transforms: 2,
 			roots:      1,
+		}, {
+			name: "Reshuffle",
+			makeGraph: func(t *testing.T, g *graph.Graph) {
+				in := newIntInput(g)
+				graph.NewReshuffle(g, g.Root(), in)
+			},
+			edges:      1,
+			transforms: 4,
+			roots:      1,
 		},
 	}
 	for _, test := range tests {
@@ -192,6 +201,7 @@ func (rt *testRT) GetError() error                 { return nil }
 func (rt *testRT) GetProgress() (float64, float64) { return 0, 0 }
 func (rt *testRT) IsDone() bool                    { return true }
 func (rt *testRT) GetRestriction() interface{}     { return nil }
+func (rt *testRT) IsBounded() bool                 { return true }
 func (rt *testRT) TrySplit(_ float64) (interface{}, interface{}, error) {
 	return nil, nil, nil
 }

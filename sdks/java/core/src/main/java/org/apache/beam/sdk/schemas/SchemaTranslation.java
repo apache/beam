@@ -43,6 +43,8 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
+import org.apache.beam.sdk.schemas.logicaltypes.SchemaLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.UnknownLogicalType;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
@@ -57,7 +59,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Utility methods for translating schemas. */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class SchemaTranslation {
@@ -67,10 +69,14 @@ public class SchemaTranslation {
   private static final String URN_BEAM_LOGICAL_JAVASDK = "beam:logical_type:javasdk:v1";
 
   // TODO(BEAM-7855): Populate this with a LogicalTypeRegistrar, which includes a way to construct
-  // the LogicalType
-  // given an argument.
+  // the LogicalType given an argument.
   private static final ImmutableMap<String, Class<? extends LogicalType<?, ?>>>
-      STANDARD_LOGICAL_TYPES = ImmutableMap.of(MicrosInstant.IDENTIFIER, MicrosInstant.class);
+      STANDARD_LOGICAL_TYPES =
+          ImmutableMap.<String, Class<? extends LogicalType<?, ?>>>builder()
+              .put(MicrosInstant.IDENTIFIER, MicrosInstant.class)
+              .put(SchemaLogicalType.IDENTIFIER, SchemaLogicalType.class)
+              .put(PythonCallable.IDENTIFIER, PythonCallable.class)
+              .build();
 
   public static SchemaApi.Schema schemaToProto(Schema schema, boolean serializeLogicalType) {
     String uuid = schema.getUUID() != null ? schema.getUUID().toString() : "";

@@ -102,10 +102,10 @@ public class PTransformFunctionRegistry {
     SimpleExecutionState state =
         new SimpleExecutionState(this.executionStateName, executionTimeUrn, labelsMetadata);
     executionStates.register(state);
+    MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
 
     ThrowingRunnable wrapped =
         () -> {
-          MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
           try (Closeable metricCloseable = MetricsEnvironment.scopedMetricsContainer(container)) {
             try (Closeable trackerCloseable = this.stateTracker.enterState(state)) {
               runnable.run();

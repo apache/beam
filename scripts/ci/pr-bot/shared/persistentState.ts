@@ -115,12 +115,9 @@ export class PersistentState {
       console.log(
         "Couldnt find branch pr-bot-state in origin, trying to create it"
       );
-      try {
-        await exec.exec("git checkout -b pr-bot-state");
-      } catch {
-        console.log("Creating branch failed, trying a simple checkout.");
-        await exec.exec("git checkout pr-bot-state");
-      }
+      await exec.exec("git checkout -b pr-bot-state");
+      // Ensure that if we've created or just checked out the branch that we can also push to it
+      await exec.exec("git push origin pr-bot-state");
     }
     this.switchedBranch = true;
   }

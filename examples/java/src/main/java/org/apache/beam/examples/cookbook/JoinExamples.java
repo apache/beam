@@ -166,12 +166,17 @@ public class JoinExamples {
 
   public static void main(String[] args) throws Exception {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+    runJoinExamples(options);
+  }
+
+  static void runJoinExamples(Options options) throws Exception {
     Pipeline p = Pipeline.create(options);
     // the following two 'applys' create multiple inputs to our pipeline, one for each
     // of our two input sources.
     PCollection<TableRow> eventsTable =
-        p.apply(BigQueryIO.readTableRows().from(GDELT_EVENTS_TABLE));
-    PCollection<TableRow> countryCodes = p.apply(BigQueryIO.readTableRows().from(COUNTRY_CODES));
+        p.apply("Read BQ Events", BigQueryIO.readTableRows().from(GDELT_EVENTS_TABLE));
+    PCollection<TableRow> countryCodes =
+        p.apply("Read BQ Country Codes", BigQueryIO.readTableRows().from(COUNTRY_CODES));
     PCollection<String> formattedResults = joinEvents(eventsTable, countryCodes);
     formattedResults.apply(TextIO.write().to(options.getOutput()));
     p.run().waitUntilFinish();

@@ -46,7 +46,7 @@ nums.each {
         defaultNodes([machine])
         allowedNodes([machine])
         trigger('multiSelectionDisallowed')
-        eligibility('IgnoreOfflineNodeEligibility')
+        eligibility('AllNodeEligibility')
       }
       stringParam {
         name("tmp_unaccessed_for")

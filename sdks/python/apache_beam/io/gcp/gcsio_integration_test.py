@@ -121,8 +121,8 @@ class GcsIOIntegrationTest(unittest.TestCase):
       raise unittest.SkipTest('--kms_key_name not specified')
     self._test_copy("test_copy_kms", self.kms_key_name)
 
-  @pytest.mark.it_postcommit
-  @unittest.skip('BEAM-12352: enable once maxBytesRewrittenPerCall works again')
+  @pytest.mark.it_postcommit_sickbay
+  #@pytest.mark.it_postcommit BEAM-12352 maxBytesRewrittenPerCall '
   def test_copy_rewrite_token(self):
     # Tests a multi-part copy (rewrite) operation. This is triggered by a
     # combination of 3 conditions:
@@ -175,8 +175,8 @@ class GcsIOIntegrationTest(unittest.TestCase):
       raise unittest.SkipTest('--kms_key_name not specified')
     self._test_copy_batch("test_copy_batch_kms", self.kms_key_name)
 
-  @pytest.mark.it_postcommit
-  @unittest.skip('BEAM-12352: enable once maxBytesRewrittenPerCall works again')
+  @pytest.mark.it_postcommit_sickbay
+  #@pytest.mark.it_postcommit BEAM-12352  maxBytesRewrittenPerCall
   def test_copy_batch_rewrite_token(self):
     # Tests a multi-part copy (rewrite) operation. This is triggered by a
     # combination of 3 conditions:

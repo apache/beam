@@ -62,6 +62,7 @@ import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -80,9 +81,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class BatchLoads<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
   private static final Logger LOG = LoggerFactory.getLogger(BatchLoads.class);
@@ -141,12 +139,12 @@ class BatchLoads<DestinationT, ElementT>
   private int maxFilesPerPartition;
   private long maxBytesPerPartition;
   private int numFileShards;
-  private Duration triggeringFrequency;
+  private @Nullable Duration triggeringFrequency;
   private ValueProvider<String> customGcsTempLocation;
-  private ValueProvider<String> loadJobProjectId;
+  private @Nullable ValueProvider<String> loadJobProjectId;
   private final Coder<ElementT> elementCoder;
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
-  private final String kmsKey;
+  private final @Nullable String kmsKey;
   private final boolean clusteringEnabled;
   private final String tempDataset;
 
@@ -242,7 +240,8 @@ class BatchLoads<DestinationT, ElementT>
   }
 
   @Override
-  public void validate(PipelineOptions options) {
+  public void validate(@Nullable PipelineOptions maybeOptions) {
+    PipelineOptions options = Preconditions.checkArgumentNotNull(maybeOptions);
     // We will use a BigQuery load job -- validate the temp location.
     String tempLocation;
     if (customGcsTempLocation == null) {
@@ -274,6 +273,7 @@ class BatchLoads<DestinationT, ElementT>
 
   // Expand the pipeline when the user has requested periodically-triggered file writes.
   private WriteResult expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
+    Duration triggeringFrequency = Preconditions.checkStateNotNull(this.triggeringFrequency);
     Pipeline p = input.getPipeline();
     final PCollectionView<String> loadJobIdPrefixView = createJobIdPrefixView(p, JobType.LOAD);
     final PCollectionView<String> tempLoadJobIdPrefixView =
@@ -357,6 +357,10 @@ class BatchLoads<DestinationT, ElementT>
     PCollection<KV<TableDestination, WriteTables.Result>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), tempLoadJobIdPrefixView);
 
+    List<PCollectionView<?>> sideInputsForUpdateSchema =
+        Lists.newArrayList(tempLoadJobIdPrefixView);
+    sideInputsForUpdateSchema.addAll(dynamicDestinations.getSideInputs());
+
     PCollection<TableDestination> successfulMultiPartitionWrites =
         tempTables
             // Now that the load job has happened, we want the rename to happen immediately.
@@ -368,6 +372,22 @@ class BatchLoads<DestinationT, ElementT>
             .setCoder(KvCoder.of(VoidCoder.of(), tempTables.getCoder()))
             .apply("GroupByKey", GroupByKey.create())
             .apply("Extract Values", Values.create())
+            .apply(
+                ParDo.of(
+                        new UpdateSchemaDestination(
+                            bigQueryServices,
+                            tempLoadJobIdPrefixView,
+                            loadJobProjectId,
+                            WriteDisposition.WRITE_APPEND,
+                            CreateDisposition.CREATE_NEVER,
+                            maxRetryJobs,
+                            ignoreUnknownValues,
+                            kmsKey,
+                            rowWriterFactory.getSourceFormat(),
+                            useAvroLogicalTypes,
+                            schemaUpdateOptions,
+                            dynamicDestinations))
+                    .withSideInputs(sideInputsForUpdateSchema))
             .apply(
                 "WriteRenameTriggered",
                 ParDo.of(
@@ -444,9 +464,29 @@ class BatchLoads<DestinationT, ElementT>
     PCollection<TableDestination> successfulSinglePartitionWrites =
         writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
 
+    List<PCollectionView<?>> sideInputsForUpdateSchema =
+        Lists.newArrayList(tempLoadJobIdPrefixView);
+    sideInputsForUpdateSchema.addAll(dynamicDestinations.getSideInputs());
+
     PCollection<TableDestination> successfulMultiPartitionWrites =
         writeTempTables(partitions.get(multiPartitionsTag), tempLoadJobIdPrefixView)
             .apply("ReifyRenameInput", new ReifyAsIterable<>())
+            .apply(
+                ParDo.of(
+                        new UpdateSchemaDestination(
+                            bigQueryServices,
+                            tempLoadJobIdPrefixView,
+                            loadJobProjectId,
+                            WriteDisposition.WRITE_APPEND,
+                            CreateDisposition.CREATE_NEVER,
+                            maxRetryJobs,
+                            ignoreUnknownValues,
+                            kmsKey,
+                            rowWriterFactory.getSourceFormat(),
+                            useAvroLogicalTypes,
+                            schemaUpdateOptions,
+                            dynamicDestinations))
+                    .withSideInputs(sideInputsForUpdateSchema))
             .apply(
                 "WriteRenameUntriggered",
                 ParDo.of(
@@ -679,17 +719,6 @@ class BatchLoads<DestinationT, ElementT>
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
             WritePartition.ResultCoder.INSTANCE);
 
-    // If the final destination table exists already (and we're appending to it), then the temp
-    // tables must exactly match schema, partitioning, etc. Wrap the DynamicDestinations object
-    // with one that makes this happen.
-    @SuppressWarnings("unchecked")
-    DynamicDestinations<?, DestinationT> destinations = dynamicDestinations;
-    if (createDisposition.equals(CreateDisposition.CREATE_IF_NEEDED)
-        || createDisposition.equals(CreateDisposition.CREATE_NEVER)) {
-      destinations =
-          DynamicDestinationsHelpers.matchTableDynamicDestinations(destinations, bigQueryServices);
-    }
-
     Coder<TableDestination> tableDestinationCoder =
         clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
 
@@ -711,7 +740,7 @@ class BatchLoads<DestinationT, ElementT>
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
-                destinations,
+                dynamicDestinations,
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues,
@@ -720,7 +749,7 @@ class BatchLoads<DestinationT, ElementT>
                 useAvroLogicalTypes,
                 // Note that we can't pass through the schema update options when creating temporary
                 // tables. They also shouldn't be needed. See BEAM-12482 for additional details.
-                Collections.emptySet(),
+                schemaUpdateOptions,
                 tempDataset))
         .setCoder(KvCoder.of(tableDestinationCoder, WriteTables.ResultCoder.INSTANCE));
   }
@@ -780,7 +809,9 @@ class BatchLoads<DestinationT, ElementT>
         empty,
         null,
         new TupleTag<>("successfulInserts"),
-        successfulWrites);
+        successfulWrites,
+        null,
+        null);
   }
 
   @Override

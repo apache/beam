@@ -23,7 +23,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 
 /** A {@link DataflowRunner} marker class for creating a {@link PCollectionView}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class CreateDataflowView<ElemT, ViewT>
     extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {

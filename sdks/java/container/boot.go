@@ -19,11 +19,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -98,7 +101,6 @@ func main() {
 	log.Printf("Initializing java harness: %v", strings.Join(os.Args, " "))
 
 	// (1) Obtain the pipeline options
-
 	options, err := provision.ProtoToJSON(info.GetPipelineOptions())
 	if err != nil {
 		log.Fatalf("Failed to convert pipeline options: %v", err)
@@ -193,7 +195,35 @@ func main() {
 	} else {
 		args = append(args, jammAgentArgs)
 	}
+	// Apply meta options
+	const metaDir = "/opt/apache/beam/options"
+	metaOptions, err := LoadMetaOptions(metaDir)
+	javaOptions := BuildOptions(metaOptions)
+	// (1) Add custom jvm arguments: "-server -Xmx1324 -XXfoo .."
+	args = append(args, javaOptions.JavaArguments...)
 
+	// (2) Add classpath: "-cp foo.jar:bar.jar:.."
+	if len(javaOptions.Classpath) > 0 {
+		args = append(args, "-cp")
+		args = append(args, strings.Join(javaOptions.Classpath, ":"))
+	}
+
+	// (3) Add (sorted) properties: "-Dbar=baz -Dfoo=bar .."
+	var properties []string
+	for key, value := range javaOptions.Properties {
+		properties = append(properties, fmt.Sprintf("-D%s=%s", key, value))
+	}
+	sort.Strings(properties)
+	args = append(args, properties...)
+
+	// Open modules specified in pipeline options
+	if pipelineOptions, ok := info.GetPipelineOptions().GetFields()["options"]; ok {
+		if modules, ok := pipelineOptions.GetStructValue().GetFields()["jdkAddOpenModules"]; ok {
+			for _, module := range modules.GetListValue().GetValues() {
+				args = append(args, "--add-opens=" + module.GetStringValue())
+			}
+		}
+	}
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")
 	log.Printf("Executing: java %v", strings.Join(args, " "))
 
@@ -210,4 +240,122 @@ func heapSizeLimit(info *fnpb.ProvisionInfo) uint64 {
 		return (size * 70) / 100
 	}
 	return 1 << 30
+}
+
+// Options represents java VM invocation options in a simple,
+// semi-structured way.
+type Options struct {
+	JavaArguments []string          `json:"java_arguments,omitempty"`
+	Properties    map[string]string `json:"properties,omitempty"`
+	Classpath     []string          `json:"classpath,omitempty"`
+}
+
+// MetaOption represents a jvm environment transformation or setup
+// that the launcher employs. The aim is to keep the service-side and
+// user-side required configuration simple and minimal, yet allow
+// numerous execution tweaks. Most tweaks are enabled by default and
+// require no input. Some setups, such as Cloud Debugging, are opt-in.
+//
+// Meta-options are usually included with the image and use supporting
+// files, usually jars. A few are intrinsic because they are require
+// additional input or complex computations, such as Cloud Debugging
+// and Cloud Profiling. Meta-options can be enabled or disabled by
+// name. For the most part, the meta-option names are not guaranteed
+// to be backwards compatible or stable. They are rather knobs that
+// can be tuned if some well-intended transformation cause trouble for
+// a customer. For tweaks, the expectation is that the default is
+// almost always correct.
+//
+// Meta-options are simple additive manipulations applied in priority
+// order (applied low to high) to allow jvm customization by adding
+// files, notably enabling customization by later docker layers. The
+// override semantics is prepend for lists and simple overwrite
+// otherwise. A common use case is adding a jar to the beginning of
+// the classpath, such as the shuffle or windmill jni jar, or adding
+// an agent.
+type MetaOption struct {
+	Name        string  `json:"name,omitempty"`
+	Description string  `json:"description,omitempty"`
+	Enabled     bool    `json:"enabled,omitempty"`
+	Priority    int     `json:"priority,omitempty"`
+	Options     Options `json:"options"`
+}
+
+// byPriority sorts MetaOptions by priority, highest first.
+type byPriority []*MetaOption
+
+func (f byPriority) Len() int           { return len(f) }
+func (f byPriority) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+func (f byPriority) Less(i, j int) bool { return f[i].Priority > f[j].Priority }
+
+// LoadMetaOptions scans the directory tree for meta-option metadata
+// files and loads them. Any regular file named "option-XX.json" is
+// strictly assumed to be a meta-option file. This strictness allows
+// us to fail hard if such a file cannot be parsed.
+//
+// Loading meta-options from disk allows extra files and their
+// configuration be kept together and defined externally.
+func LoadMetaOptions(dir string) ([]*MetaOption, error) {
+	var meta []*MetaOption
+
+	worker := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return nil
+		}
+		if !strings.HasPrefix(info.Name(), "option-") {
+			return nil
+		}
+		if !strings.HasSuffix(info.Name(), ".json") {
+			return nil
+		}
+
+		content, err := ioutil.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		var option MetaOption
+		if err := json.Unmarshal(content, &option); err != nil {
+			return fmt.Errorf("failed to parse %s: %v", path, err)
+		}
+
+		log.Printf("Loaded meta-option '%s'", option.Name)
+
+		meta = append(meta, &option)
+		return nil
+	}
+
+	if err := filepath.Walk(dir, worker); err != nil {
+		return nil, err
+	}
+	return meta, nil
+}
+
+func BuildOptions(metaOptions []*MetaOption) *Options {
+	options := &Options{Properties: make(map[string]string)}
+
+	sort.Sort(byPriority(metaOptions))
+	for _, meta := range metaOptions {
+		if !meta.Enabled {
+			continue
+		}
+
+		// Rightmost takes precedence
+		options.JavaArguments = append(meta.Options.JavaArguments, options.JavaArguments...)
+
+		for key, value := range meta.Options.Properties {
+			_, exists := options.Properties[key]
+			if !exists {
+				options.Properties[key] = value
+			} else {
+				log.Printf("Warning: %s property -D%s=%s was redefined", meta.Name, key, value)
+			}
+		}
+
+		options.Classpath = append(options.Classpath, meta.Options.Classpath...)
+	}
+	return options
 }

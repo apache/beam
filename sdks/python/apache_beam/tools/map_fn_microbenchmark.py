@@ -35,9 +35,10 @@ Run as
 import logging
 import time
 
+from scipy import stats
+
 import apache_beam as beam
 from apache_beam.tools import utils
-from scipy import stats
 
 
 def run_benchmark(num_maps=100, num_runs=10, num_elements_step=1000):

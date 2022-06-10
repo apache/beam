@@ -68,7 +68,7 @@ public abstract class RetryConfiguration implements Serializable {
   public abstract RetryConfiguration.Builder toBuilder();
 
   public static Builder builder() {
-    return Builder.builder();
+    return Builder.builder().numRetries(3);
   }
 
   @AutoValue.Builder

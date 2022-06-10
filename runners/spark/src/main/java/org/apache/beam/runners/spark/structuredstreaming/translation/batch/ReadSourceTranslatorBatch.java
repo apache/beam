@@ -69,8 +69,7 @@ class ReadSourceTranslatorBatch<T>
             .option(
                 DEFAULT_PARALLELISM,
                 String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()))
-            .option(
-                PIPELINE_OPTIONS, context.getSerializableOptions().toString())
+            .option(PIPELINE_OPTIONS, context.getSerializableOptions().toString())
             .load();
 
     // extract windowedValue from Row

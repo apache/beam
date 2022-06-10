@@ -42,6 +42,7 @@ import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -68,7 +69,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link CoderTranslation}. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class CoderTranslationTest {
   private static final Set<Coder<?>> KNOWN_CODERS =
@@ -97,6 +98,7 @@ public class CoderTranslationTest {
                       Field.of("bar", FieldType.logicalType(FixedBytes.of(123))))))
           .add(ShardedKey.Coder.of(StringUtf8Coder.of()))
           .add(TimestampPrefixingWindowCoder.of(IntervalWindowCoder.of()))
+          .add(NullableCoder.of(ByteArrayCoder.of()))
           .build();
 
   /**

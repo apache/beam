@@ -25,10 +25,10 @@ import (
 
 // A basic test implementation to validate the utility functions.
 type testImpl struct {
-	m                                                     map[string][]byte
-	listErr, openReadErr, openWriteErr, sizeErr, closeErr error
-	readerErr, readerCloseErr                             error
-	writerErr, writerCloseErr                             error
+	m                                           map[string][]byte
+	listErr, openReadErr, openWriteErr, sizeErr error
+	readerErr, readerCloseErr                   error
+	writerErr, writerCloseErr                   error
 }
 
 func (fs *testImpl) List(ctx context.Context, glob string) ([]string, error) {

@@ -145,7 +145,7 @@ public class MultimapUserState<K, V> {
   }
 
   @SuppressWarnings({
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-12687)
+    "nullness" // TODO(https://github.com/apache/beam/issues/21068)
   })
   /*
    * Returns an iterables containing all distinct keys in this multimap.
@@ -265,7 +265,7 @@ public class MultimapUserState<K, V> {
 
   @SuppressWarnings({
     "FutureReturnValueIgnored",
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-12687)
+    "nullness" // TODO(https://github.com/apache/beam/issues/21068)
   })
   // Update data in persistent store
   public void asyncClose() throws Exception {
@@ -317,7 +317,8 @@ public class MultimapUserState<K, V> {
     }
 
     if (isCleared) {
-      // This will clear all keys and values since values is a sub-cache of keys.
+      // This will clear all keys and values since values is a sub-cache of keys. Note this
+      // takes ownership of pendingAddKeys. This object is no longer used after it has been closed.
       persistedKeys.clearAndAppend(pendingAddsKeys);
 
       // Since the map was cleared we can add all the values that are pending since we know
@@ -325,6 +326,8 @@ public class MultimapUserState<K, V> {
       for (Map.Entry<Object, KV<K, List<V>>> entry : pendingAdds.entrySet()) {
         CachingStateIterable<V> iterable =
             getPersistedValues(entry.getKey(), entry.getValue().getKey());
+        // Note this takes ownership of the list but this object is no longer used after it has
+        // been closed.
         iterable.clearAndAppend(entry.getValue().getValue());
       }
     } else {

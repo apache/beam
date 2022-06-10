@@ -204,6 +204,42 @@ func TestReflectionRowCoderGeneration(t *testing.T) {
 	}
 }
 
+func TestReflectionRowCoderGeneration_UnexportedEmbed(t *testing.T) {
+	input := userType5{
+		unexportedUserType: unexportedUserType{
+			A: 24,
+			B: "marmalade",
+			c: 10,
+		},
+		C: 79,
+	}
+	rt := reflect.TypeOf(input)
+	enc, err := RowEncoderForStruct(rt)
+	if err != nil {
+		t.Fatalf("RowEncoderForStruct(%v) = %v, want nil error", rt, err)
+	}
+	var buf bytes.Buffer
+	if err := enc(input, &buf); err != nil {
+		t.Fatalf("enc(%v) = err, want nil error", err)
+	}
+	dec, err := RowDecoderForStruct(rt)
+	if err != nil {
+		t.Fatalf("RowDecoderForStruct(%v) = %v, want nil error", rt, err)
+	}
+	b := buf.Bytes()
+	r := bytes.NewBuffer(b)
+	got, err := dec(r)
+	if err != nil {
+		t.Fatalf("RowDecoderForStruct(%v) = %v, want nil error", rt, err)
+	}
+	// Arrange expected output, should not have a value for the unexported field.
+	want := input
+	want.unexportedUserType.c = 0
+	if d := cmp.Diff(want, got, cmp.AllowUnexported(userType5{}, unexportedUserType{})); d != "" {
+		t.Fatalf("dec(enc(%v)) = %v\ndiff (-want, +got): %v", want, got, d)
+	}
+}
+
 type UserType1 struct {
 	A string
 	B int

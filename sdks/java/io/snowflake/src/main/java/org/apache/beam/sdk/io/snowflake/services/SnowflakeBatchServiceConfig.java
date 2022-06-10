@@ -26,9 +26,9 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /** Class for preparing configuration for batch write and read. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class SnowflakeBatchServiceConfig extends ServiceConfig {
+public class SnowflakeBatchServiceConfig {
   private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
 
   private final String database;

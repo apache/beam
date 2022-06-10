@@ -127,7 +127,7 @@ and <a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/stre
 
 Beam has an official [Python SDK](/documentation/sdks/python/) that currently supports a subset of the streaming features available in the Java SDK. Active development is underway to bridge the gap between the featuresets in the two SDKs. Currently for Python, the [Direct Runner](/documentation/runners/direct/) and [Dataflow Runner](/documentation/runners/dataflow/) are supported, and [several streaming options](/documentation/sdks/python-streaming/) were introduced in beta in [version 2.5.0](/blog/2018/06/26/beam-2.5.0.html).
 
-Spark also has a Python SDK called [PySpark](https://spark.apache.org/docs/latest/api/python/pyspark.html). As mentioned earlier, Scala code compiles to a bytecode that is executed by the JVM. PySpark uses [Py4J](https://www.py4j.org/), a library that enables Python programs to interact with the JVM and therefore access Java libraries, interact with Java objects, and register callbacks from Java. This allows PySpark to access native Spark objects like RDDs. Spark Structured Streaming supports [file sources](https://spark.apache.org/docs/latest/api/python/pyspark.sql.html#pyspark.sql.streaming.DataStreamReader) (local filesystems and HDFS-compatible systems like Cloud Storage or S3) and [Kafka](https://spark.apache.org/docs/latest/structured-streaming-kafka-integration.html) as streaming inputs.
+Spark also has a Python SDK called [PySpark](https://spark.apache.org/docs/latest/api/python/index.html). As mentioned earlier, Scala code compiles to a bytecode that is executed by the JVM. PySpark uses [Py4J](https://www.py4j.org/), a library that enables Python programs to interact with the JVM and therefore access Java libraries, interact with Java objects, and register callbacks from Java. This allows PySpark to access native Spark objects like RDDs. Spark Structured Streaming supports file sources (local filesystems and HDFS-compatible systems like Cloud Storage or S3) and [Kafka](https://spark.apache.org/docs/latest/structured-streaming-kafka-integration.html) as streaming inputs.
 
 Below are the main streaming input connectors for available for Beam and Spark DStreams in Python:
 
@@ -149,7 +149,7 @@ Below are the main streaming input connectors for available for Beam and Spark D
    </td>
    <td><a href="https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.textio.html">io.textio</a>
    </td>
-   <td><a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream">textFileStream</a>
+   <td><a href="https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.streaming.StreamingContext.textFileStream.html">textFileStream</a>
    </td>
   </tr>
   <tr>
@@ -158,7 +158,7 @@ Below are the main streaming input connectors for available for Beam and Spark D
    <td><a href="https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.hadoopfilesystem.html">io.hadoopfilesystem</a>
    </td>
    <td><a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/SparkContext.html#hadoopConfiguration--">hadoopConfiguration</a> (Access through <code>sc._jsc</code> with Py4J)
-and <a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream">textFileStream</a>
+and <a href="https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.streaming.StreamingContext.textFileStream.html">textFileStream</a>
    </td>
   </tr>
   <tr>
@@ -184,7 +184,7 @@ and <a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.h
    </td>
    <td>N/A
    </td>
-   <td><a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.kafka.KafkaUtils">KafkaUtils</a>
+   <td><a href="https://spark.apache.org/docs/2.4.8/api/python/pyspark.streaming.html#pyspark.streaming.kafka.KafkaUtils">KafkaUtils</a>
    </td>
   </tr>
   <tr>
@@ -192,7 +192,7 @@ and <a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.h
    </td>
    <td>N/A
    </td>
-   <td><a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#module-pyspark.streaming.kinesis">KinesisUtils</a>
+   <td><a href="https://spark.apache.org/docs/2.4.8/api/python/pyspark.streaming.html#pyspark.streaming.kinesis.KinesisUtils">KinesisUtils</a>
    </td>
   </tr>
   <tr>

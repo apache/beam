@@ -44,3 +44,5 @@
   translation: "Code of Conduct"
 - id: nav-case-studies
   translation: "Case Studies"
+- id: nav-about
+  translation: "About"

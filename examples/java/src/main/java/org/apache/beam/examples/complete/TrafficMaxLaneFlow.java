@@ -87,7 +87,7 @@ import org.joda.time.format.DateTimeFormatter;
  * and then exits.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TrafficMaxLaneFlow {
 
@@ -396,7 +396,6 @@ public class TrafficMaxLaneFlow {
   public static void main(String[] args) throws IOException {
     TrafficMaxLaneFlowOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficMaxLaneFlowOptions.class);
-    options.setBigQuerySchema(FormatMaxesFn.getSchema());
 
     runTrafficMaxLaneFlow(options);
   }

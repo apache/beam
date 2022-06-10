@@ -30,7 +30,8 @@ public class TpcdsParametersReader {
 
   /** The data sizes that have been supported. */
   private static final Set<String> supportedDataSizes =
-      Stream.of("1G", "10G", "100G").collect(Collectors.toCollection(HashSet::new));
+      Stream.of("1G", "1GB", "10G", "10GB", "100G", "100GB")
+          .collect(Collectors.toCollection(HashSet::new));
 
   private static final String QUERY_PREFIX = "query";
 

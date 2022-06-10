@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.kafka;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -61,7 +62,7 @@ import org.powermock.reflect.Whitebox;
 /** Tests for building {@link KafkaIO} externally via the ExpansionService. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class KafkaIOExternalTest {
 
@@ -184,6 +185,29 @@ public class KafkaIOExternalTest {
     assertEquals(KafkaTimestampType.LOG_APPEND_TIME.name, byteArrayKafkaRecord.timestampTypeName);
     assertEquals("dummyKey", new String(byteArrayKafkaRecord.key, "UTF-8"));
     assertEquals("dummyValue", new String(byteArrayKafkaRecord.value, "UTF-8"));
+    assertEquals(1, byteArrayKafkaRecord.headers.size());
+    assertEquals("dummyHeaderKey", byteArrayKafkaRecord.headers.get(0).key);
+    assertEquals("dummyHeaderVal", new String(byteArrayKafkaRecord.headers.get(0).value, "UTF-8"));
+  }
+
+  @Test
+  public void testKafkaRecordToExternalKafkaRecordWithNullKeyAndValue() throws Exception {
+    RecordHeaders headers = new RecordHeaders();
+    headers.add("dummyHeaderKey", "dummyHeaderVal".getBytes(StandardCharsets.UTF_8));
+    KafkaRecord<byte[], byte[]> kafkaRecord =
+        new KafkaRecord(
+            "dummyTopic", 111, 222, 12345, KafkaTimestampType.LOG_APPEND_TIME, headers, null, null);
+
+    ByteArrayKafkaRecord byteArrayKafkaRecord = RowsWithMetadata.toExternalKafkaRecord(kafkaRecord);
+
+    assertEquals("dummyTopic", byteArrayKafkaRecord.topic);
+    assertEquals(111, byteArrayKafkaRecord.partition);
+    assertEquals(222, byteArrayKafkaRecord.offset);
+    assertEquals(12345, byteArrayKafkaRecord.timestamp);
+    assertEquals(KafkaTimestampType.LOG_APPEND_TIME.id, byteArrayKafkaRecord.timestampTypeId);
+    assertEquals(KafkaTimestampType.LOG_APPEND_TIME.name, byteArrayKafkaRecord.timestampTypeName);
+    assertNull(byteArrayKafkaRecord.key);
+    assertNull(byteArrayKafkaRecord.value);
     assertEquals(1, byteArrayKafkaRecord.headers.size());
     assertEquals("dummyHeaderKey", byteArrayKafkaRecord.headers.get(0).key);
     assertEquals("dummyHeaderVal", new String(byteArrayKafkaRecord.headers.get(0).value, "UTF-8"));

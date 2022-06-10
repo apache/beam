@@ -24,8 +24,8 @@ from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam import coders
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api import beam_interactive_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_beam as ib
@@ -119,7 +119,7 @@ class CaptureControlTest(unittest.TestCase):
     cache = StreamingCache(cache_dir=None)
     # Build a sink object to track the label as a capture in the test.
     cache.sink(['my_label'], is_capture=True)
-    cache.write([TestStreamFileRecord()], 'my_label')
+    cache.write([beam_interactive_api_pb2.TestStreamFileRecord()], 'my_label')
     self.assertTrue(cache.exists('my_label'))
     ie.current_env().set_cache_manager(cache, 'dummy pipeline')
 
@@ -131,11 +131,13 @@ class CaptureControlTest(unittest.TestCase):
     cache = StreamingCache(cache_dir=None)
     cache.sink(['my_label'], is_capture=True)
     cache.write([
-        TestStreamFileRecord(
-            recorded_event=TestStreamPayload.Event(
-                element_event=TestStreamPayload.Event.AddElements(
+        beam_interactive_api_pb2.TestStreamFileRecord(
+            recorded_event=beam_runner_api_pb2.TestStreamPayload.Event(
+                element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+                AddElements(
                     elements=[
-                        TestStreamPayload.TimestampedElement(
+                        beam_runner_api_pb2.TestStreamPayload.
+                        TimestampedElement(
                             encoded_element=coders.FastPrimitivesCoder().encode(
                                 'a'),
                             timestamp=0)

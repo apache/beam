@@ -49,6 +49,10 @@ public class GcpApiSurfaceTest {
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
+            // Quick check packages, exposed only in testing
+            .pruningPattern("com[.]pholser[.]junit[.]quickcheck[.].*")
+            .pruningPattern("org[.]javaruntype[.]type[.].*")
+            // ------
             .pruningPattern("java[.]lang.*")
             .pruningPattern("java[.]util.*");
 
@@ -62,6 +66,7 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.api.client.util"),
             classesInPackage("com.google.api.gax.retrying"),
             classesInPackage("com.google.api.gax.longrunning"),
+            classesInPackage("com.google.api.gax.rpc"),
             classesInPackage("com.google.api.services.bigquery.model"),
             classesInPackage("com.google.api.services.healthcare"),
             classesInPackage("com.google.auth"),

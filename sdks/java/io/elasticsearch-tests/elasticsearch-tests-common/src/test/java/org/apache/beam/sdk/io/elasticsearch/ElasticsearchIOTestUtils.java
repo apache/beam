@@ -113,19 +113,32 @@ class ElasticsearchIOTestUtils {
   }
 
   public static void setDefaultTemplate(RestClient restClient) throws IOException {
-    Request request = new Request("PUT", "/_template/default");
+    String templateUrl = "/_template/default";
+    int backendVersion = getBackendVersion(restClient);
+
+    if (backendVersion > 7) {
+      templateUrl = "/_index_template/default";
+    }
+
+    Request request = new Request("PUT", templateUrl);
+    String settings =
+        "\"settings\": {"
+            + "   \"index.number_of_shards\": 1,"
+            + "   \"index.number_of_replicas\": 0,"
+            + "   \"index.store.stats_refresh_interval\": 0"
+            + "  }";
+    String template = "\"*\",";
+
+    if (backendVersion > 7) {
+      template = "{" + settings + "}";
+      settings = "";
+    }
+
     NStringEntity body =
         new NStringEntity(
-            "{"
-                + "\"order\": 0,"
-                + "\"index_patterns\": [\"*\"],"
-                + "\"template\": \"*\","
-                + "\"settings\": {"
-                + "   \"index.number_of_shards\": 1,"
-                + "   \"index.number_of_replicas\": 0,"
-                + "   \"index.store.stats_refresh_interval\": 0"
-                + "  }"
-                + "}",
+            String.format(
+                "{" + "\"index_patterns\": [\"beam*\"]," + "\"template\": %s %s" + "}",
+                template, settings),
             ContentType.APPLICATION_JSON);
 
     request.setEntity(body);
@@ -156,18 +169,17 @@ class ElasticsearchIOTestUtils {
       throws IOException {
     StringBuilder bulkRequest = new StringBuilder();
     int i = 0;
+    String type = connectionConfiguration.getType();
     for (String document : data) {
       bulkRequest.append(
           String.format(
-              "{ \"index\" : { \"_index\" : \"%s\", \"_type\" : \"%s\", \"_id\" : \"%s\" } }%n%s%n",
+              "{ \"index\" : { \"_index\" : \"%s\", %s \"_id\" : \"%s\" } }%n%s%n",
               connectionConfiguration.getIndex(),
-              connectionConfiguration.getType(),
+              type != null ? String.format("\"_type\" : \"%s\",", type) : "",
               i++,
               document));
     }
-    String endPoint =
-        String.format(
-            "/%s/%s/_bulk", connectionConfiguration.getIndex(), connectionConfiguration.getType());
+    String endPoint = connectionConfiguration.getBulkEndPoint();
     HttpEntity requestBody =
         new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
     Request request = new Request("POST", endPoint);

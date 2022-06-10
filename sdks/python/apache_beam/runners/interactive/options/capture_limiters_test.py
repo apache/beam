@@ -19,7 +19,7 @@ import unittest
 
 import pandas as pd
 
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive.options.capture_limiters import CountLimiter
 from apache_beam.runners.interactive.options.capture_limiters import ProcessingTimeLimiter
 from apache_beam.utils.windowed_value import WindowedValue
@@ -52,12 +52,12 @@ class CaptureLimitersTest(unittest.TestCase):
   def test_processing_time_limiter(self):
     limiter = ProcessingTimeLimiter(max_duration_secs=2)
 
-    e = TestStreamPayload.Event()
+    e = beam_runner_api_pb2.TestStreamPayload.Event()
     e.processing_time_event.advance_duration = int(1 * 1e6)
     limiter.update(e)
     self.assertFalse(limiter.is_triggered())
 
-    e = TestStreamPayload.Event()
+    e = beam_runner_api_pb2.TestStreamPayload.Event()
     e.processing_time_event.advance_duration = int(2 * 1e6)
     limiter.update(e)
     self.assertTrue(limiter.is_triggered())

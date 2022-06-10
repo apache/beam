@@ -22,6 +22,7 @@ import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
@@ -62,6 +63,7 @@ public class SpannerReadIT {
 
   /** Pipeline options for this test. */
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
+
     @Description("Project that hosts Spanner instance")
     @Nullable
     String getInstanceProjectId();
@@ -91,6 +93,7 @@ public class SpannerReadIT {
   private DatabaseAdminClient databaseAdminClient;
   private SpannerTestPipelineOptions options;
   private String databaseName;
+  private String pgDatabaseName;
   private String project;
 
   @Before
@@ -106,11 +109,13 @@ public class SpannerReadIT {
     spanner = SpannerOptions.newBuilder().setProjectId(project).build().getService();
 
     databaseName = generateDatabaseName();
+    pgDatabaseName = "pg-" + databaseName;
 
     databaseAdminClient = spanner.getDatabaseAdminClient();
 
     // Delete database if exists.
     databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
+    databaseAdminClient.dropDatabase(options.getInstanceId(), pgDatabaseName);
 
     OperationFuture<Database, CreateDatabaseMetadata> op =
         databaseAdminClient.createDatabase(
@@ -124,6 +129,27 @@ public class SpannerReadIT {
                     + "  Value         STRING(MAX),"
                     + ") PRIMARY KEY (Key)"));
     op.get();
+    databaseAdminClient
+        .createDatabase(
+            databaseAdminClient
+                .newDatabaseBuilder(DatabaseId.of(project, options.getInstanceId(), pgDatabaseName))
+                .setDialect(Dialect.POSTGRESQL)
+                .build(),
+            Collections.emptyList())
+        .get();
+    databaseAdminClient
+        .updateDatabaseDdl(
+            options.getInstanceId(),
+            pgDatabaseName,
+            Collections.singleton(
+                "CREATE TABLE "
+                    + options.getTable()
+                    + " ("
+                    + "  Key           bigint,"
+                    + "  Value         character varying,"
+                    + "  PRIMARY KEY (Key))"),
+            null)
+        .get();
     makeTestData();
   }
 
@@ -134,53 +160,78 @@ public class SpannerReadIT {
 
     PCollectionView<Transaction> tx =
         p.apply(
+            "Create tx",
             SpannerIO.createTransaction()
                 .withSpannerConfig(spannerConfig)
                 .withTimestampBound(TimestampBound.strong()));
 
     PCollection<Struct> output =
         p.apply(
+            "read db",
             SpannerIO.read()
                 .withSpannerConfig(spannerConfig)
                 .withTable(options.getTable())
                 .withColumns("Key", "Value")
                 .withTransaction(tx));
     PAssert.thatSingleton(output.apply("Count rows", Count.<Struct>globally())).isEqualTo(5L);
+
     p.run();
   }
 
   @Test
   public void testQuery() throws Exception {
     SpannerConfig spannerConfig = createSpannerConfig();
+    SpannerConfig pgSpannerConfig = createPgSpannerConfig();
 
     PCollectionView<Transaction> tx =
         p.apply(
+            "Create tx",
             SpannerIO.createTransaction()
                 .withSpannerConfig(spannerConfig)
                 .withTimestampBound(TimestampBound.strong()));
 
     PCollection<Struct> output =
         p.apply(
+            "Read db",
             SpannerIO.read()
                 .withSpannerConfig(spannerConfig)
                 .withQuery("SELECT * FROM " + options.getTable())
                 .withTransaction(tx));
     PAssert.thatSingleton(output.apply("Count rows", Count.globally())).isEqualTo(5L);
+
+    PCollectionView<Transaction> pgTx =
+        p.apply(
+            "Create PG tx",
+            SpannerIO.createTransaction()
+                .withSpannerConfig(pgSpannerConfig)
+                .withTimestampBound(TimestampBound.strong()));
+
+    PCollection<Struct> pgOutput =
+        p.apply(
+            "Read PG db",
+            SpannerIO.read()
+                .withSpannerConfig(pgSpannerConfig)
+                .withQuery("SELECT * FROM " + options.getTable())
+                .withTransaction(pgTx));
+    PAssert.thatSingleton(pgOutput.apply("Count PG rows", Count.globally())).isEqualTo(5L);
     p.run();
   }
 
   @Test
   public void testReadAllRecordsInDb() throws Exception {
     SpannerConfig spannerConfig = createSpannerConfig();
+    SpannerConfig pgSpannerConfig = createPgSpannerConfig();
 
     PCollectionView<Transaction> tx =
         p.apply(
+            "Create tx",
             SpannerIO.createTransaction()
                 .withSpannerConfig(spannerConfig)
                 .withTimestampBound(TimestampBound.strong()));
 
     PCollection<Struct> allRecords =
         p.apply(
+                "Scan schema",
                 SpannerIO.read()
                     .withSpannerConfig(spannerConfig)
                     .withBatching(false)
@@ -188,6 +239,7 @@ public class SpannerReadIT {
                         "SELECT t.table_name FROM information_schema.tables AS t WHERE t"
                             + ".table_catalog = '' AND t.table_schema = ''"))
             .apply(
+                "Build query",
                 MapElements.into(TypeDescriptor.of(ReadOperation.class))
                     .via(
                         (SerializableFunction<Struct, ReadOperation>)
@@ -195,14 +247,48 @@ public class SpannerReadIT {
                               String tableName = input.getString(0);
                               return ReadOperation.create().withQuery("SELECT * FROM " + tableName);
                             }))
-            .apply(SpannerIO.readAll().withTransaction(tx).withSpannerConfig(spannerConfig));
+            .apply(
+                "Read db",
+                SpannerIO.readAll().withTransaction(tx).withSpannerConfig(spannerConfig));
 
     PAssert.thatSingleton(allRecords.apply("Count rows", Count.globally())).isEqualTo(5L);
+
+    PCollectionView<Transaction> pgTx =
+        p.apply(
+            "Create PG tx",
+            SpannerIO.createTransaction()
+                .withSpannerConfig(pgSpannerConfig)
+                .withTimestampBound(TimestampBound.strong()));
+
+    PCollection<Struct> allPgRecords =
+        p.apply(
+                "Scan PG schema",
+                SpannerIO.read()
+                    .withSpannerConfig(pgSpannerConfig)
+                    .withBatching(false)
+                    .withQuery(
+                        "SELECT t.table_name FROM information_schema.tables AS t WHERE t"
+                            + ".table_schema = 'public'"))
+            .apply(
+                "Build PG query",
+                MapElements.into(TypeDescriptor.of(ReadOperation.class))
+                    .via(
+                        (SerializableFunction<Struct, ReadOperation>)
+                            input -> {
+                              String tableName = input.getString(0);
+                              return ReadOperation.create().withQuery("SELECT * FROM " + tableName);
+                            }))
+            .apply(
+                "Read PG db",
+                SpannerIO.readAll().withTransaction(pgTx).withSpannerConfig(pgSpannerConfig));
+
+    PAssert.thatSingleton(allPgRecords.apply("Count PG rows", Count.globally())).isEqualTo(5L);
     p.run();
   }
 
   private void makeTestData() {
     DatabaseClient databaseClient = getDatabaseClient();
+    DatabaseClient pgDatabaseClient = getPgDatabaseClient();
 
     List<Mutation> mutations = new ArrayList<>();
     for (int i = 0; i < 5L; i++) {
@@ -216,6 +302,7 @@ public class SpannerReadIT {
     }
 
     databaseClient.writeAtLeastOnce(mutations);
+    pgDatabaseClient.writeAtLeastOnce(mutations);
   }
 
   private SpannerConfig createSpannerConfig() {
@@ -225,20 +312,33 @@ public class SpannerReadIT {
         .withDatabaseId(databaseName);
   }
 
+  private SpannerConfig createPgSpannerConfig() {
+    return SpannerConfig.create()
+        .withProjectId(project)
+        .withInstanceId(options.getInstanceId())
+        .withDatabaseId(pgDatabaseName);
+  }
+
   private DatabaseClient getDatabaseClient() {
     return spanner.getDatabaseClient(DatabaseId.of(project, options.getInstanceId(), databaseName));
+  }
+
+  private DatabaseClient getPgDatabaseClient() {
+    return spanner.getDatabaseClient(
+        DatabaseId.of(project, options.getInstanceId(), pgDatabaseName));
   }
 
   @After
   public void tearDown() throws Exception {
     databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
+    databaseAdminClient.dropDatabase(options.getInstanceId(), pgDatabaseName);
     spanner.close();
   }
 
   private String generateDatabaseName() {
     String random =
         RandomUtils.randomAlphaNumeric(
-            MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length());
+            MAX_DB_NAME_LENGTH - 4 - options.getDatabaseIdPrefix().length());
     return options.getDatabaseIdPrefix() + "-" + random;
   }
 }

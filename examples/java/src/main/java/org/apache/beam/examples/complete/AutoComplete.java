@@ -96,7 +96,7 @@ import org.joda.time.Duration;
  * received.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class AutoComplete {
 
@@ -467,7 +467,6 @@ public class AutoComplete {
 
   public static void runAutocompletePipeline(Options options) throws IOException {
 
-    options.setBigQuerySchema(FormatForBigquery.getSchema());
     ExampleUtils exampleUtils = new ExampleUtils(options);
 
     // We support running the same pipeline in either

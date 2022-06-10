@@ -1,0 +1,165 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: Task
+description: File a task
+title: "[Task]: "
+labels: ["task", "awaiting triage"]
+assignees:
+  - octocat
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this task!
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What needs to happen?
+      description: Please describe your issue
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Issue Priority
+      description: What priority is this bug?
+      options:
+        - "Priority: 0"
+        - "Priority: 1"
+        - "Priority: 2"
+        - "Priority: 3"
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Issue Component
+      options:
+      - "Component: beam-community"
+      - "Component: beam-model"
+      - "Component: beam-playground"
+      - "Component: benchmarking-py"
+      - "Component: build-system"
+      - "Component: community-metrics"
+      - "Component: cross-language"
+      - "Component: dependencies"
+      - "Component: dsl-dataframe"
+      - "Component: dsl-euphoria"
+      - "Component: dsl-sql"
+      - "Component: dsl-sql-zetasql"
+      - "Component: examples-java"
+      - "Component: examples-python"
+      - "Component: extensions-ideas"
+      - "Component: extensions-java-gcp"
+      - "Component: extensions-java-join-library"
+      - "Component: extensions-java-json"
+      - "Component: extensions-java-kyro"
+      - "Component: extensions-java-protobuf"
+      - "Component: extensions-java-sketching"
+      - "Component: extensions-java-sorter"
+      - "Component: gcp-quota"
+      - "Component: infrastructure"
+      - "Component: io-common"
+      - "Component: io-go-gcp"
+      - "Component: io-ideas"
+      - "Component: io-java-amqp"
+      - "Component: io-java-avro"
+      - "Component: io-java-aws"
+      - "Component: io-java-azure"
+      - "Component: io-java-cassandra"
+      - "Component: io-java-cdap"
+      - "Component: io-java-clickhouse"
+      - "Component: io-java-debezium"
+      - "Component: io-java-elasticsearch"
+      - "Component: io-java-files"
+      - "Component: io-java-gcp"
+      - "Component: io-java-hadoop-file-system"
+      - "Component: io-java-hadoop-format"
+      - "Component: io-java-hbase"
+      - "Component: io-java-hcatalog"
+      - "Component: io-java-healthcare"
+      - "Component: io-java-influxdb"
+      - "Component: io-java-jdbc"
+      - "Component: io-java-jms"
+      - "Component: io-java-kafka"
+      - "Component: io-java-kinesis"
+      - "Component: io-java-kudu"
+      - "Component: io-java-mongodb"
+      - "Component: io-java-mqtt"
+      - "Component: io-java-parquet"
+      - "Component: io-java-pulsar"
+      - "Component: io-java-rabbitmq"
+      - "Component: io-java-redis"
+      - "Component: io-java-snowflake"
+      - "Component: io-java-solr"
+      - "Component: io-java-splunk"
+      - "Component: io-java-text"
+      - "Component: io-java-tfrecord"
+      - "Component: io-java-tika"
+      - "Component: io-java-utilities"
+      - "Component: io-java-xml"
+      - "Component: io-py-avro"
+      - "Component: io-py-aws"
+      - "Component: io-py-common"
+      - "Component: io-py-files"
+      - "Component: io-py-gcp"
+      - "Component: io-py-hadoop"
+      - "Component: io-py-ideas"
+      - "Component: io-py-kafka"
+      - "Component: io-py-mongodb"
+      - "Component: io-py-parquet"
+      - "Component: io-py-tfrecord"
+      - "Component: io-py-vcf"
+      - "Component: java-fn-execution"
+      - "Component: jobserver"
+      - "Component: katas"
+      - "Component: project-management"
+      - "Component: release"
+      - "Component: runner-apex"
+      - "Component: runner-core"
+      - "Component: runner-dataflow"
+      - "Component: runner-direct"
+      - "Component: runner-extensions-metrics"
+      - "Component: runner-flink"
+      - "Component: runner-gearpump"
+      - "Component: runner-ideas"
+      - "Component: runner-jet"
+      - "Component: runner-jstorm"
+      - "Component: runner-mapreduce"
+      - "Component: runner-py-direct"
+      - "Component: runner-py-interactive"
+      - "Component: runner-ray"
+      - "Component: runner-samza"
+      - "Component: runner-spark"
+      - "Component: runner-tez"
+      - "Component: runner-twister2"
+      - "Component: runner-universal"
+      - "Component: sdk-go"
+      - "Component: sdk-ideas"
+      - "Component: sdk-java-core"
+      - "Component: sdk-java-harness"
+      - "Component: sdk-py-core"
+      - "Component: sdk-py-harness"
+      - "Component: sdk-typescript"
+      - "Component: test-failures"
+      - "Component: testing"
+      - "Component: testing-nexmark"
+      - "Component: testing-tpcds"
+      - "Component: website"
+    validations:
+      required: true

@@ -285,6 +285,14 @@ public interface FlinkPipelineOptions
 
   void setFasterCopy(Boolean fasterCopy);
 
+  @Description(
+      "Directory containing Flink YAML configuration files. "
+          + "These properties will be set to all jobs submitted to Flink and take precedence "
+          + "over configurations in FLINK_CONF_DIR.")
+  String getFlinkConfDir();
+
+  void setFlinkConfDir(String confDir);
+
   static FlinkPipelineOptions defaults() {
     return PipelineOptionsFactory.as(FlinkPipelineOptions.class);
   }

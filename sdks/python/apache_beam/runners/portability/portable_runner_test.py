@@ -291,6 +291,11 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
         str(job_port),
     ]
 
+  def test_batch_rebatch_pardos(self):
+    raise unittest.SkipTest(
+        "Portable runners with subprocess can't make "
+        "assertions about warnings raised on the worker.")
+
 
 class PortableRunnerTestWithSubprocessesAndMultiWorkers(
     PortableRunnerTestWithSubprocesses):

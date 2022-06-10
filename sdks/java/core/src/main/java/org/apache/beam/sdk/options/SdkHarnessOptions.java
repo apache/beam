@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.fasterxml.jackson.annotation.JsonCreator;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -86,14 +87,26 @@ public interface SdkHarnessOptions extends PipelineOptions {
   void setSdkHarnessLogLevelOverrides(SdkHarnessLogLevelOverrides value);
 
   /**
-   * Size (in MB) of each grouping table used to pre-combine elements. If unset, defaults to 100 MB.
+   * Size (in MB) of each grouping table used to pre-combine elements. Larger values may reduce the
+   * amount of data shuffled. If unset, defaults to 100 MB.
    *
    * <p>CAUTION: If set too large, workers may run into OOM conditions more easily, each worker may
    * have many grouping tables in-memory concurrently.
+   *
+   * <p>CAUTION: This option does not apply to portable runners such as Dataflow Prime. See {@link
+   * #setMaxCacheMemoryUsageMb}, {@link #setMaxCacheMemoryUsagePercent}, or {@link
+   * #setMaxCacheMemoryUsageMbClass} to configure memory thresholds that apply to the grouping table
+   * and other cached objects.
    */
   @Description(
-      "The size (in MB) of the grouping tables used to pre-combine elements before "
-          + "shuffling.  Larger values may reduce the amount of data shuffled.")
+      "The size (in MB) of the grouping tables used to pre-combine elements before shuffling. If "
+          + "unset, defaults to 100 MB. Larger values may reduce the amount of data shuffled. "
+          + "CAUTION: If set too large, workers may run into OOM conditions more easily, each "
+          + "worker may have many grouping tables in-memory concurrently. CAUTION: This option "
+          + "does not apply to portable runners such as Dataflow Prime. See "
+          + "--maxCacheMemoryUsageMb, --maxCacheMemoryUsagePercent, or "
+          + "--maxCacheMemoryUsageMbClass to configure memory thresholds that apply to the "
+          + "grouping table and other cached objects.")
   @Default.Integer(100)
   int getGroupingTableMaxSizeMb();
 
@@ -294,4 +307,22 @@ public interface SdkHarnessOptions extends PipelineOptions {
       return overrides;
     }
   }
+
+  /**
+   * Open modules needed for reflection that access JDK internals with Java 9+
+   *
+   * <p>With JDK 16+, <a href="#{https://openjdk.java.net/jeps/403}">JDK internals are strongly
+   * encapsulated</a> and can result in an InaccessibleObjectException being thrown if a tool or
+   * library uses reflection that access JDK internals. If you see these errors in your worker logs,
+   * you can pass in modules to open using the format module/package=target-module(,target-module)*
+   * to allow access to the library. E.g. java.base/java.lang=jamm
+   *
+   * <p>You may see warnings that jamm, a library used to more accurately size objects, is unable to
+   * make a private field accessible. To resolve the warning, open the specified module/package to
+   * jamm.
+   */
+  @Description("Open modules needed for reflection with Java 17+.")
+  List<String> getJdkAddOpenModules();
+
+  void setJdkAddOpenModules(List<String> options);
 }

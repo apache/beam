@@ -24,7 +24,7 @@ import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe.frame_base import DeferredBase
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
@@ -133,7 +133,7 @@ class ElementStream:
       # From the to_element_list we either get TestStreamPayload.Events if
       # include_time_events or decoded elements from the reader. Make sure we
       # only count the decoded elements to break early.
-      if isinstance(e, TestStreamPayload.Event):
+      if isinstance(e, beam_runner_api_pb2.TestStreamPayload.Event):
         time_limiter.update(e)
       else:
         count_limiter.update(e)
@@ -398,12 +398,11 @@ class RecordingManager:
     utils.watch_sources(self.user_pipeline)
 
     # Attempt to run background caching job to record any sources.
-    if ie.current_env().is_in_ipython:
-      warnings.filterwarnings(
-          'ignore',
-          'options is deprecated since First stable release. References to '
-          '<pipeline>.options will not be supported',
-          category=DeprecationWarning)
+    warnings.filterwarnings(
+        'ignore',
+        'options is deprecated since First stable release. References to '
+        '<pipeline>.options will not be supported',
+        category=DeprecationWarning)
     if bcj.attempt_to_run_background_caching_job(
         runner,
         self.user_pipeline,
@@ -454,8 +453,12 @@ class RecordingManager:
           'options is deprecated since First stable release. References to '
           '<pipeline>.options will not be supported',
           category=DeprecationWarning)
-      pf.PipelineFragment(list(uncomputed_pcolls),
-                          self.user_pipeline.options).run()
+      cache_path = ie.current_env().options.cache_root
+      is_remote_run = cache_path and ie.current_env(
+      ).options.cache_root.startswith('gs://')
+      pf.PipelineFragment(
+          list(uncomputed_pcolls),
+          self.user_pipeline.options).run(blocking=is_remote_run)
       result = ie.current_env().pipeline_result(self.user_pipeline)
     else:
       result = None

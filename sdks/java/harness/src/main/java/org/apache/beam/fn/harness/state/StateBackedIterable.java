@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
@@ -59,7 +60,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
  * CoderTranslator#fromComponents} to be able to create a {@link StateBackedIterable.Coder}.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class StateBackedIterable<T> implements Iterable<T>, Serializable {
 
@@ -79,7 +80,7 @@ public class StateBackedIterable<T> implements Iterable<T>, Serializable {
     this.prefix = prefix;
     this.suffix =
         StateFetchingIterators.readAllAndDecodeStartingFrom(
-            cache, beamFnStateClient, request, elemCoder);
+            Caches.subCache(cache, stateKey), beamFnStateClient, request, elemCoder);
   }
 
   @Override

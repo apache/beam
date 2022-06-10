@@ -51,9 +51,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-@SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-})
 public class SnowflakeDataTypeValidTest {
   private SnowflakeDataType snowflakeDataType;
   private String expectedResult;
@@ -64,7 +61,7 @@ public class SnowflakeDataTypeValidTest {
   }
 
   @Parameterized.Parameters
-  public static Collection primeNumbers() {
+  public static Collection<Object[]> primeNumbers() {
     return Arrays.asList(
         new Object[][] {
           {SnowflakeBoolean.of(), "BOOLEAN"},

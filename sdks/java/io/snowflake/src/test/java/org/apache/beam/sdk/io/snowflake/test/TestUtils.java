@@ -48,14 +48,14 @@ import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-})
 public class TestUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(TestUtils.class);
 
-  private static final String VALID_PRIVATE_KEY_FILE_NAME = "valid_test_rsa_key.p8";
+  private static final String VALID_ENCRYPTED_PRIVATE_KEY_FILE_NAME =
+      "valid_encrypted_test_rsa_key.p8";
+  private static final String VALID_UNENCRYPTED_PRIVATE_KEY_FILE_NAME =
+      "valid_unencrypted_test_rsa_key.p8";
   private static final String INVALID_PRIVATE_KEY_FILE_NAME = "invalid_test_rsa_key.p8";
   private static final String PRIVATE_KEY_PASSPHRASE = "snowflake";
 
@@ -109,40 +109,37 @@ public class TestUtils {
   }
 
   public static SnowflakeIO.UserDataMapper<Long> getCsvMapper() {
-    return (SnowflakeIO.UserDataMapper<Long>) recordLine -> new String[] {recordLine.toString()};
+    return recordLine -> new String[] {recordLine.toString()};
   }
 
   public static SnowflakeIO.UserDataMapper<KV<String, Long>> getLongCsvMapperKV() {
-    return (SnowflakeIO.UserDataMapper<KV<String, Long>>)
-        recordLine -> new Long[] {recordLine.getValue()};
+    return recordLine -> new Long[] {recordLine.getValue()};
   }
 
   public static SnowflakeIO.UserDataMapper<Long> getLongCsvMapper() {
-    return (SnowflakeIO.UserDataMapper<Long>) recordLine -> new Long[] {recordLine};
+    return recordLine -> new Long[] {recordLine};
   }
 
   public static SnowflakeIO.CsvMapper<TestRow> getTestRowCsvMapper() {
-    return (SnowflakeIO.CsvMapper<TestRow>)
-        parts -> TestRow.create(Integer.valueOf(parts[0]), parts[1]);
+    return parts -> TestRow.create(Integer.valueOf(parts[0]), parts[1]);
   }
 
   public static SnowflakeIO.UserDataMapper<TestRow> getTestRowDataMapper() {
-    return (SnowflakeIO.UserDataMapper<TestRow>)
-        (TestRow element) -> new Object[] {element.id(), element.name()};
+    return (TestRow element) -> new Object[] {element.id(), element.name()};
   }
 
   public static SnowflakeIO.UserDataMapper<String[]> getLStringCsvMapper() {
-    return (SnowflakeIO.UserDataMapper<String[]>) recordLine -> recordLine;
+    return recordLine -> recordLine;
   }
 
   public static SnowflakeIO.UserDataMapper<String> getStringCsvMapper() {
-    return (SnowflakeIO.UserDataMapper<String>) recordLine -> new String[] {recordLine};
+    return recordLine -> new String[] {recordLine};
   }
 
   public static class ParseToKv extends DoFn<Long, KV<String, Long>> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      KV stringIntKV = KV.of(c.element().toString(), c.element().longValue());
+      KV<String, Long> stringIntKV = KV.of(c.element().toString(), c.element().longValue());
       c.output(stringIntKV);
     }
   }
@@ -164,16 +161,25 @@ public class TestUtils {
     return lines;
   }
 
-  public static String getInvalidPrivateKeyPath(Class c) {
+  public static String getValidEncryptedPrivateKeyPath(Class<?> c) {
+    return getPrivateKeyPath(c, VALID_ENCRYPTED_PRIVATE_KEY_FILE_NAME);
+  }
+
+  public static String getValidUnencryptedPrivateKeyPath(Class<?> c) {
+    return getPrivateKeyPath(c, VALID_UNENCRYPTED_PRIVATE_KEY_FILE_NAME);
+  }
+
+  public static String getInvalidPrivateKeyPath(Class<?> c) {
     return getPrivateKeyPath(c, INVALID_PRIVATE_KEY_FILE_NAME);
   }
 
-  public static String getValidPrivateKeyPath(Class c) {
-    return getPrivateKeyPath(c, VALID_PRIVATE_KEY_FILE_NAME);
+  public static String getRawValidEncryptedPrivateKey(Class<?> c) throws IOException {
+    byte[] keyBytes = Files.readAllBytes(Paths.get(getValidEncryptedPrivateKeyPath(c)));
+    return new String(keyBytes, StandardCharsets.UTF_8);
   }
 
-  public static String getRawValidPrivateKey(Class c) throws IOException {
-    byte[] keyBytes = Files.readAllBytes(Paths.get(getValidPrivateKeyPath(c)));
+  public static String getRawValidUnencryptedPrivateKey(Class<?> c) throws IOException {
+    byte[] keyBytes = Files.readAllBytes(Paths.get(getValidUnencryptedPrivateKeyPath(c)));
     return new String(keyBytes, StandardCharsets.UTF_8);
   }
 
@@ -181,7 +187,7 @@ public class TestUtils {
     return PRIVATE_KEY_PASSPHRASE;
   }
 
-  private static String getPrivateKeyPath(Class c, String path) {
+  private static String getPrivateKeyPath(Class<?> c, String path) {
     ClassLoader classLoader = c.getClassLoader();
     File file = new File(classLoader.getResource(path).getFile());
     return file.getAbsolutePath();

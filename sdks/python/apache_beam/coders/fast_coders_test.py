@@ -29,7 +29,7 @@ from apache_beam.tools import utils
 class FastCoders(unittest.TestCase):
   def test_using_fast_impl(self):
     try:
-      utils.check_compiled('apache_beam.coders')
+      utils.check_compiled('apache_beam.coders.coder_impl')
     except RuntimeError:
       self.skipTest('Cython is not installed')
     # pylint: disable=wrong-import-order, wrong-import-position

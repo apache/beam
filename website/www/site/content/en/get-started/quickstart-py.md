@@ -101,23 +101,23 @@ PS> python -m pip install apache-beam
 
 #### Extra requirements
 
-The above installation will not install all the extra dependencies for using features like the Google Cloud Dataflow runner. Information on what extra packages are required for different features are highlighted below. It is possible to install multiple extra requirements using something like `pip install apache-beam[feature1,feature2]`.
+The above installation will not install all the extra dependencies for using features like the Google Cloud Dataflow runner. Information on what extra packages are required for different features are highlighted below. It is possible to install multiple extra requirements using something like `pip install 'apache-beam[feature1,feature2]'`.
 
 - **Google Cloud Platform**
-  - Installation Command: `pip install apache-beam[gcp]`
+  - Installation Command: `pip install 'apache-beam[gcp]'`
   - Required for:
     - Google Cloud Dataflow Runner
     - GCS IO
     - Datastore IO
     - BigQuery IO
 - **Amazon Web Services**
-  - Installation Command: `pip install apache-beam[aws]`
+  - Installation Command: `pip install 'apache-beam[aws]'`
   - Required for I/O connectors interfacing with AWS
 - **Tests**
-  - Installation Command: `pip install apache-beam[test]`
+  - Installation Command: `pip install 'apache-beam[test]'`
   - Required for developing on beam and running unittests
 - **Docs**
-  - Installation Command: `pip install apache-beam[docs]`
+  - Installation Command: `pip install 'apache-beam[docs]'`
   - Generating API documentation using Sphinx
 
 ## Execute a pipeline

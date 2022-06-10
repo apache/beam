@@ -19,3 +19,7 @@
 task cancelStaleDataflowJobs(type: Exec) {
   commandLine './stale_dataflow_jobs_cleaner.sh'
 }
+
+task removeStaleSDKContainerImages(type: Exec) {
+  commandLine './stale_dataflow_prebuilt_image_cleaner.sh'
+}

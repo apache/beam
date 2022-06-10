@@ -60,15 +60,16 @@ import scala.Tuple2;
  * @param <OutputT>
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class ParDoTranslatorBatch<InputT, OutputT>
     implements TransformTranslator<PTransform<PCollection<InputT>, PCollectionTuple>> {
 
   @Override
   public void translateTransform(
-      PTransform<PCollection<InputT>, PCollectionTuple> transform, AbstractTranslationContext context) {
+      PTransform<PCollection<InputT>, PCollectionTuple> transform,
+      AbstractTranslationContext context) {
     String stepName = context.getCurrentTransform().getFullName();
 
     // Check for not supported advanced features

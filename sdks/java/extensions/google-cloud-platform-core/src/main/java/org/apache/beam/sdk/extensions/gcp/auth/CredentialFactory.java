@@ -20,8 +20,10 @@ package org.apache.beam.sdk.extensions.gcp.auth;
 import com.google.auth.Credentials;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Construct an oauth credential to be used by the SDK and the SDK workers. */
 public interface CredentialFactory {
+  @Nullable
   Credentials getCredential() throws IOException, GeneralSecurityException;
 }

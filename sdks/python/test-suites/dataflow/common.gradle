@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+evaluationDependsOn(':runners:google-cloud-dataflow-java:worker')
 enablePythonPerformanceTest()
 
 String pythonVersionSuffix = project.ext.pythonVersion
@@ -115,6 +116,26 @@ task postCommitIT {
         "worker_jar": dataflowWorkerJar,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "collect": "it_postcommit"
+    ]
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+task postCommitSickbay {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+
+  doLast {
+    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
+    def argMap = [
+        "test_opts": testOpts,
+        "sdk_location": files(configurations.distTarBall.files).singleFile,
+        "suite": "postCommitIT-df${pythonVersionSuffix}",
+        "collect": "it_postcommit_sickbay"
     ]
     def cmdArgs = mapToArgString(argMap)
     exec {

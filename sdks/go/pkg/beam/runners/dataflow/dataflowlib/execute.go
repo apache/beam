@@ -105,11 +105,23 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	}
 	PrintJob(ctx, job)
 
+	if opts.TemplateLocation != "" {
+		marshalled, err := job.MarshalJSON()
+		if err != nil {
+			return presult, err
+		}
+		if err := StageModel(ctx, opts.Project, opts.TemplateLocation, marshalled); err != nil {
+			return presult, err
+		}
+		log.Infof(ctx, "Template staged to %v", opts.TemplateLocation)
+		return nil, nil
+	}
+
 	client, err := NewClient(ctx, endpoint)
 	if err != nil {
 		return presult, err
 	}
-	upd, err := Submit(ctx, client, opts.Project, opts.Region, job)
+	upd, err := Submit(ctx, client, opts.Project, opts.Region, job, opts.Update)
 	// When in async mode, if we get a 409 because we've already submitted an actively running job with the same name
 	// just return the existing job as a convenience
 	if gErr, ok := err.(*googleapi.Error); async && ok && gErr.Code == 409 {

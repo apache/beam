@@ -35,10 +35,10 @@ import org.apache.beam.sdk.io.snowflake.data.structured.SnowflakeObject;
 import org.apache.beam.sdk.io.snowflake.data.structured.SnowflakeVariant;
 import org.apache.beam.sdk.io.snowflake.data.text.SnowflakeText;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
-import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServices;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
-import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBatchServiceImpl;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
+import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServicesImpl;
 import org.apache.beam.sdk.io.snowflake.test.TestSnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -54,9 +54,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-})
 public class SchemaDispositionTest {
   private static final String BUCKET_NAME = "BUCKET/";
 
@@ -68,7 +65,7 @@ public class SchemaDispositionTest {
   private static String stagingBucketName;
   private static String storageIntegrationName;
 
-  private static SnowflakeService snowflakeService;
+  private static SnowflakeServices snowflakeServices;
 
   @BeforeClass
   public static void setupAll() {
@@ -80,7 +77,7 @@ public class SchemaDispositionTest {
     stagingBucketName = options.getStagingBucketName();
     storageIntegrationName = options.getStorageIntegrationName();
 
-    snowflakeService = new FakeSnowflakeBatchServiceImpl();
+    snowflakeServices = new FakeSnowflakeServicesImpl();
 
     dc =
         SnowflakeIO.DataSourceConfiguration.create(new FakeSnowflakeBasicDataSource())
@@ -130,7 +127,7 @@ public class SchemaDispositionTest {
                 .withFileNameTemplate("output")
                 .withUserDataMapper(TestUtils.getLStringCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
@@ -168,7 +165,7 @@ public class SchemaDispositionTest {
                 .withFileNameTemplate("output")
                 .withUserDataMapper(getCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
@@ -208,7 +205,7 @@ public class SchemaDispositionTest {
                 .withFileNameTemplate("output")
                 .withUserDataMapper(getCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 

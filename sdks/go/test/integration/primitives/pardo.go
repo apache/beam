@@ -160,7 +160,8 @@ func splitByName(key string, vals []string, a, j, d func(string)) {
 	}
 }
 
-// ParDoMultiOutput tests that a DoFn can access PipelineOptions.
+// ParDoPipelineOptions creates a pipeline with flag options to validate
+// that a DoFn can access them as PipelineOptions.
 func ParDoPipelineOptions() *beam.Pipeline {
 	// Setup some fake flags
 	flag.String("A", "", "Flag for testing.")

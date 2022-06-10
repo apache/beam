@@ -28,7 +28,7 @@ def basicTestOpts = [
     "--log-cli-level=INFO" //log level info
 ]
 
-task postCommitIT {
+tasks.register("postCommitIT") {
   dependsOn 'installGcpTest'
 
   // Run IT tests with TestDirectRunner in batch in Python 3.
@@ -55,7 +55,7 @@ task postCommitIT {
   }
 }
 
-task spannerioIT {
+tasks.register("spannerioIT") {
   dependsOn 'installGcpTest'
 
   // Run Spanner IO IT tests with TestDirectRunner in batch in Python 3.
@@ -77,7 +77,7 @@ task spannerioIT {
   }
 }
 
-task examples {
+tasks.register("examples") {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
 
@@ -128,7 +128,7 @@ tasks.register("mongodbioIT") {
   }
 }
 
-task directRunnerIT {
+tasks.register("directRunnerIT") {
   dependsOn 'installGcpTest'
 
   // Run IT tests with TestDirectRunner in batch.
@@ -177,11 +177,44 @@ task directRunnerIT {
   }
 }
 
-task hdfsIntegrationTest {
+tasks.register("hdfsIntegrationTest") {
   doLast {
     exec {
       executable 'sh'
       args '-c', "${rootDir}/sdks/python/apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:${pythonContainerVersion}"
     }
   }
+}
+
+// Pytorch RunInference IT tests
+task torchTests {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/torch_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_pytorch and it_postcommit",
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && export FORCE_TORCH_IT=1 && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
+// Add all the RunInference framework IT tests to this gradle task that runs on Direct Runner Post commit suite.
+// TODO(anandinguva): Add sklearn IT test here
+project.tasks.register("inferencePostCommitIT") {
+  dependsOn = ['torchTests']
 }
