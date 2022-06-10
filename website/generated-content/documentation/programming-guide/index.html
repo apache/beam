@@ -3943,7 +3943,34 @@ resource utilization.</p><div class="language-java snippet"><div class="notebook
       <span class=k>except</span> <span class=n>TimeoutError</span><span class=p>:</span>
         <span class=c1># Set a longer delay in case we are being throttled.</span>
         <span class=n>restriction_tracker</span><span class=o>.</span><span class=n>defer_remainder</span><span class=p>(</span><span class=n>timestamp</span><span class=o>.</span><span class=n>Duration</span><span class=p>(</span><span class=n>seconds</span><span class=o>=</span><span class=mi>60</span><span class=p>))</span>
-        <span class=k>return</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=nx>This</span> <span class=nx>is</span> <span class=nx>not</span> <span class=nx>supported</span> <span class=nx>yet</span><span class=p>,</span> <span class=nx>see</span> <span class=nx>BEAM</span><span class=o>-</span><span class=mf>11104.</span></code></pre></div></div></div><h3 id=runner-initiated-split>12.4. Runner-initiated split</h3><p>A runner at any time may attempt to split a restriction while it is being processed. This allows the
+        <span class=k>return</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=kd>func</span> <span class=p>(</span><span class=nx>fn</span> <span class=o>*</span><span class=nx>checkpointingSplittableDoFn</span><span class=p>)</span> <span class=nf>ProcessElement</span><span class=p>(</span><span class=nx>rt</span> <span class=o>*</span><span class=nx>sdf</span><span class=p>.</span><span class=nx>LockRTracker</span><span class=p>,</span> <span class=nx>emit</span> <span class=kd>func</span><span class=p>(</span><span class=nx>Record</span><span class=p>))</span> <span class=p>(</span><span class=nx>sdf</span><span class=p>.</span><span class=nx>ProcessContinuation</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+	<span class=nx>position</span> <span class=o>:=</span> <span class=nx>rt</span><span class=p>.</span><span class=nf>GetRestriction</span><span class=p>().(</span><span class=nx>offsetrange</span><span class=p>.</span><span class=nx>Restriction</span><span class=p>).</span><span class=nx>Start</span>
+	<span class=k>for</span> <span class=p>{</span>
+		<span class=nx>records</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>fn</span><span class=p>.</span><span class=nx>ExternalService</span><span class=p>.</span><span class=nf>readNextRecords</span><span class=p>(</span><span class=nx>position</span><span class=p>)</span>
+
+		<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+			<span class=k>if</span> <span class=nx>err</span> <span class=o>==</span> <span class=nx>fn</span><span class=p>.</span><span class=nx>ExternalService</span><span class=p>.</span><span class=nx>ThrottlingErr</span> <span class=p>{</span>
+				<span class=c1>// Resume at a later time to avoid throttling.
+</span><span class=c1></span>				<span class=k>return</span> <span class=nx>sdf</span><span class=p>.</span><span class=nf>ResumeProcessingIn</span><span class=p>(</span><span class=mi>60</span> <span class=o>*</span> <span class=nx>time</span><span class=p>.</span><span class=nx>Second</span><span class=p>),</span> <span class=kc>nil</span>
+			<span class=p>}</span>
+			<span class=k>return</span> <span class=nx>sdf</span><span class=p>.</span><span class=nf>StopProcessing</span><span class=p>(),</span> <span class=nx>err</span>
+		<span class=p>}</span>
+
+		<span class=k>if</span> <span class=nb>len</span><span class=p>(</span><span class=nx>records</span><span class=p>)</span> <span class=o>==</span> <span class=mi>0</span> <span class=p>{</span>
+			<span class=c1>// Wait for data to be available.
+</span><span class=c1></span>			<span class=k>return</span> <span class=nx>sdf</span><span class=p>.</span><span class=nf>ResumeProcessingIn</span><span class=p>(</span><span class=mi>10</span> <span class=o>*</span> <span class=nx>time</span><span class=p>.</span><span class=nx>Second</span><span class=p>),</span> <span class=kc>nil</span>
+		<span class=p>}</span>
+		<span class=k>for</span> <span class=nx>_</span><span class=p>,</span> <span class=nx>record</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>records</span> <span class=p>{</span>
+			<span class=k>if</span> <span class=p>!</span><span class=nx>rt</span><span class=p>.</span><span class=nf>TryClaim</span><span class=p>(</span><span class=nx>position</span><span class=p>)</span> <span class=p>{</span>
+				<span class=c1>// Records have been claimed, finish processing.
+</span><span class=c1></span>				<span class=k>return</span> <span class=nx>sdf</span><span class=p>.</span><span class=nf>StopProcessing</span><span class=p>(),</span> <span class=kc>nil</span>
+			<span class=p>}</span>
+			<span class=nx>position</span> <span class=o>+=</span> <span class=mi>1</span>
+
+			<span class=nf>emit</span><span class=p>(</span><span class=nx>record</span><span class=p>)</span>
+		<span class=p>}</span>
+	<span class=p>}</span>
+<span class=p>}</span></code></pre></div></div></div><h3 id=runner-initiated-split>12.4. Runner-initiated split</h3><p>A runner at any time may attempt to split a restriction while it is being processed. This allows the
 runner to either pause processing of the restriction so that other work may be done (common for
 unbounded restrictions to limit the amount of output and/or improve latency) or split the restriction
 into two pieces, increasing the available parallelism within the system. Different runners (e.g.,
