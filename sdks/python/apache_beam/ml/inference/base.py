@@ -99,6 +99,13 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[Tuple[KeyT, ExampleT],
                                      Tuple[KeyT, PredictionT],
                                      ModelT]):
+  """A ModelHandler that takes keyed examples and returns keyed predictions.
+
+  For example, if the original model was used with RunInference to take a
+  PCollection[E] to a PCollection[P], this would take a
+  PCollection[Tuple[K, E]] to a PCollection[Tuple[K, P]], allowing one to
+  associate the outputs with the inputs based on the key.
+  """
   def __init__(self, unkeyed: ModelHandler[ExampleT, PredictionT, ModelT]):
     self._unkeyed = unkeyed
 
@@ -115,6 +122,62 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def get_num_bytes(self, batch: Sequence[Tuple[KeyT, ExampleT]]) -> int:
     keys, unkeyed_batch = zip(*batch)
     return len(pickle.dumps(keys)) + self._unkeyed.get_num_bytes(unkeyed_batch)
+
+  def get_metrics_namespace(self) -> str:
+    return self._unkeyed.get_metrics_namespace()
+
+  def get_resource_hints(self):
+    return self._unkeyed.get_resource_hints()
+
+  def batch_elements_kwargs(self):
+    return self._unkeyed.batch_elements_kwargs()
+    return {}
+
+
+class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
+                             ModelHandler[Tuple[KeyT, ExampleT],
+                                          Tuple[KeyT, PredictionT],
+                                          ModelT]):
+  """A ModelHandler that takes possibly keyed examples and returns possibly
+  keyed predictions.
+
+  For example, if the original model was used with RunInference to take a
+  PCollection[E] to a PCollection[P], this would take either PCollection[E] to a
+  PCollection[P] or PCollection[Tuple[K, E]] to a PCollection[Tuple[K, P]],
+  depending on the whether the elements happen to be tuples, allowing one to
+  associate the outputs with the inputs based on the key.
+
+  Note that this cannot be used if E happens to be a tuple type.
+  """
+  def __init__(self, unkeyed: ModelHandler[ExampleT, PredictionT, ModelT]):
+    self._unkeyed = unkeyed
+
+  def load_model(self) -> ModelT:
+    return self._unkeyed.load_model()
+
+  def run_inference(
+      self, batch: Sequence[Tuple[KeyT, ExampleT]], model: ModelT,
+      **kwargs) -> Iterable[Tuple[KeyT, PredictionT]]:
+    if isinstance(batch[0], tuple):
+      is_keyed = True
+      keys, unkeyed_batch = zip(*batch)
+    else:
+      is_keyed = False
+      unkeyed_batch = batch
+    unkeyed_results = self._unkeyed.run_inference(
+        unkeyed_batch, model, **kwargs)
+    if is_keyed:
+      return zip(keys, unkeyed_results)
+    else:
+      return unkeyed_results
+
+  def get_num_bytes(self, batch: Sequence[Tuple[KeyT, ExampleT]]) -> int:
+    if isinstance(batch[0], tuple):
+      keys, unkeyed_batch = zip(*batch)
+      return len(
+          pickle.dumps(keys)) + self._unkeyed.get_num_bytes(unkeyed_batch)
+    else:
+      return self._unkeyed.get_num_bytes(batch)
 
   def get_metrics_namespace(self) -> str:
     return self._unkeyed.get_metrics_namespace()
