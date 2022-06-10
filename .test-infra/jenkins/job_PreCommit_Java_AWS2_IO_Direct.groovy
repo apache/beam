@@ -19,20 +19,20 @@
 import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
-        scope: this,
-        nameBase: 'Java_amazon-web-services2_IO_Direct',
-        gradleTask: 'sdks:java:io:amazon-web-services2:integrationTest',
-        gradleSwitches: [
-                '-PdisableSpotlessCheck=true'
-        ], // spotless checked in separate pre-commit
-        triggerPathPatterns: [
-                '^sdks/java/io/amazon-web-services2/.*$',
-                '^runners/direct-java/.*$',
-        ],
-        timeoutMins: 120,
-)
+  scope: this,
+  nameBase: 'Java_Amazon-Web-Services2_IO_Direct',
+  gradleTask: 'sdks:java:io:amazon-web-services2:integrationTest',
+  gradleSwitches: [
+    '-PdisableSpotlessCheck=true'
+  ], // spotless checked in separate pre-commit
+  triggerPathPatterns: [
+    '^sdks/java/io/amazon-web-services2/.*$',
+    '^runners/direct-java/.*$',
+  ],
+  timeoutMins: 120,
+  )
 builder.build {
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
-    }
+  publishers {
+  archiveJunit('**/build/test-results/**/*.xml')
+  }
 }
