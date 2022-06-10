@@ -20,7 +20,7 @@
 import pickle
 import unittest
 from typing import Iterable
-from typing import List
+from typing import Sequence
 
 import apache_beam as beam
 from apache_beam.metrics.metric import MetricsFilter
@@ -44,7 +44,7 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       self._fake_clock.current_time_ns += 500_000_000  # 500ms
     return FakeModel()
 
-  def run_inference(self, batch: List[int], model: FakeModel,
+  def run_inference(self, batch: Sequence[int], model: FakeModel,
                     **kwargs) -> Iterable[int]:
     if self._fake_clock:
       self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
