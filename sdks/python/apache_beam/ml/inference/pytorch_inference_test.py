@@ -37,8 +37,7 @@ try:
   import torch
   from apache_beam.ml.inference.api import PredictionResult
   from apache_beam.ml.inference.base import RunInference
-  from apache_beam.ml.inference.pytorch_inference import PytorchInferenceRunner
-  from apache_beam.ml.inference.pytorch_inference import PytorchModelLoader
+  from apache_beam.ml.inference.pytorch_inference import PytorchModelHandler
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
 
@@ -89,6 +88,11 @@ KWARGS_TORCH_PREDICTIONS = [
         torch.Tensor([(example['k1'] * 2.0 + 0.5) + (example['k2'] * 2.0 + 0.5)
                       for example in KWARGS_TORCH_EXAMPLES]).reshape(-1, 1))
 ]
+
+
+class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandler):
+  def __init__(self, device):
+    self._device = device
 
 
 def _compare_prediction_result(x, y):
@@ -156,7 +160,8 @@ class PytorchRunInferenceTest(unittest.TestCase):
                      ('linear.bias', torch.Tensor([0.5]))]))
     model.eval()
 
-    inference_runner = PytorchInferenceRunner(torch.device('cpu'))
+    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+        torch.device('cpu'))
     predictions = inference_runner.run_inference(examples, model)
     for actual, expected in zip(predictions, expected_predictions):
       self.assertEqual(actual, expected)
@@ -168,7 +173,8 @@ class PytorchRunInferenceTest(unittest.TestCase):
                      ('linear.bias', torch.Tensor([0.5]))]))
     model.eval()
 
-    inference_runner = PytorchInferenceRunner(torch.device('cpu'))
+    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+        torch.device('cpu'))
     predictions = inference_runner.run_inference(TWO_FEATURES_EXAMPLES, model)
     for actual, expected in zip(predictions, TWO_FEATURES_PREDICTIONS):
       self.assertEqual(actual, expected)
@@ -203,7 +209,8 @@ class PytorchRunInferenceTest(unittest.TestCase):
                      ('linear.bias', torch.Tensor([0.5]))]))
     model.eval()
 
-    inference_runner = PytorchInferenceRunner(torch.device('cpu'))
+    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+        torch.device('cpu'))
     predictions = inference_runner.run_inference(KWARGS_TORCH_EXAMPLES, model)
     for actual, expected in zip(predictions, KWARGS_TORCH_PREDICTIONS):
       self.assertTrue(_compare_prediction_result(actual, expected))
@@ -227,7 +234,8 @@ class PytorchRunInferenceTest(unittest.TestCase):
                      ('linear.bias', torch.Tensor([0.5]))]))
     model.eval()
 
-    inference_runner = PytorchInferenceRunner(torch.device('cpu'))
+    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+        torch.device('cpu'))
     predictions = inference_runner.run_inference(
         batch=KWARGS_TORCH_EXAMPLES,
         model=model,
@@ -236,7 +244,8 @@ class PytorchRunInferenceTest(unittest.TestCase):
       self.assertEqual(actual, expected)
 
   def test_num_bytes(self):
-    inference_runner = PytorchInferenceRunner(torch.device('cpu'))
+    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+        torch.device('cpu'))
     examples = torch.from_numpy(
         np.array([1, 5, 3, 10, -14, 0, 0.5, 0.5],
                  dtype="float32")).reshape(-1, 2)
@@ -244,7 +253,8 @@ class PytorchRunInferenceTest(unittest.TestCase):
                      inference_runner.get_num_bytes(examples))
 
   def test_namespace(self):
-    inference_runner = PytorchInferenceRunner(torch.device('cpu'))
+    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+        torch.device('cpu'))
     self.assertEqual(
         'RunInferencePytorch', inference_runner.get_metrics_namespace())
 
@@ -264,7 +274,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       path = os.path.join(self.tmpdir, 'my_state_dict_path')
       torch.save(state_dict, path)
 
-      model_loader = PytorchModelLoader(
+      model_loader = PytorchModelHandler(
           state_dict_path=path,
           model_class=PytorchLinearRegression,
           model_params={
@@ -291,7 +301,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       path = os.path.join(self.tmpdir, 'my_state_dict_path')
       torch.save(state_dict, path)
 
-      model_loader = PytorchModelLoader(
+      model_loader = PytorchModelHandler(
           state_dict_path=path,
           model_class=PytorchLinearRegressionKwargsPredictionParams,
           model_params={
@@ -324,7 +334,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
 
       gs_pth = 'gs://apache-beam-ml/models/' \
           'pytorch_lin_reg_model_2x+0.5_state_dict.pth'
-      model_loader = PytorchModelLoader(
+      model_loader = PytorchModelHandler(
           state_dict_path=gs_pth,
           model_class=PytorchLinearRegression,
           model_params={
@@ -347,7 +357,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
         path = os.path.join(self.tmpdir, 'my_state_dict_path')
         torch.save(state_dict, path)
 
-        model_loader = PytorchModelLoader(
+        model_loader = PytorchModelHandler(
             state_dict_path=path,
             model_class=PytorchLinearRegression,
             model_params={

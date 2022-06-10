@@ -26,8 +26,7 @@ from sklearn.base import BaseEstimator
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.api import PredictionResult
-from apache_beam.ml.inference.base import InferenceRunner
-from apache_beam.ml.inference.base import ModelLoader
+from apache_beam.ml.inference.base import ModelHandler
 
 try:
   import joblib
@@ -41,36 +40,20 @@ class ModelFileType(enum.Enum):
   JOBLIB = 2
 
 
-class SklearnInferenceRunner(InferenceRunner[numpy.ndarray,
-                                             PredictionResult,
-                                             BaseEstimator]):
-  def run_inference(
-      self, batch: List[numpy.ndarray], model: BaseEstimator,
-      **kwargs) -> Iterable[PredictionResult]:
-    # vectorize data for better performance
-    vectorized_batch = numpy.stack(batch, axis=0)
-    predictions = model.predict(vectorized_batch)
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
-
-  def get_num_bytes(self, batch: List[numpy.ndarray]) -> int:
-    """Returns the number of bytes of data for a batch."""
-    return sum(sys.getsizeof(element) for element in batch)
-
-
-class SklearnModelLoader(ModelLoader[numpy.ndarray,
-                                     PredictionResult,
-                                     BaseEstimator]):
-  """ Implementation of the ModelLoader interface for scikit learn.
+class SklearnModelHandler(ModelHandler[numpy.ndarray,
+                                       PredictionResult,
+                                       BaseEstimator]):
+  """ Implementation of the ModelHandler interface for scikit learn.
 
       NOTE: This API and its implementation are under development and
       do not provide backward compatibility guarantees.
   """
   def __init__(
       self,
-      model_file_type: ModelFileType = ModelFileType.PICKLE,
-      model_uri: str = ''):
-    self._model_file_type = model_file_type
+      model_uri: str,
+      model_file_type: ModelFileType = ModelFileType.PICKLE):
     self._model_uri = model_uri
+    self._model_file_type = model_file_type
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
@@ -87,5 +70,14 @@ class SklearnModelLoader(ModelLoader[numpy.ndarray,
       return joblib.load(file)
     raise AssertionError('Unsupported serialization type.')
 
-  def get_inference_runner(self) -> SklearnInferenceRunner:
-    return SklearnInferenceRunner()
+  def run_inference(
+      self, batch: List[numpy.ndarray], model: BaseEstimator,
+      **kwargs) -> Iterable[PredictionResult]:
+    # vectorize data for better performance
+    vectorized_batch = numpy.stack(batch, axis=0)
+    predictions = model.predict(vectorized_batch)
+    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+
+  def get_num_bytes(self, batch: List[numpy.ndarray]) -> int:
+    """Returns the number of bytes of data for a batch."""
+    return sum(sys.getsizeof(element) for element in batch)
