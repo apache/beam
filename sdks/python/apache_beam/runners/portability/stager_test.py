@@ -52,6 +52,8 @@ class StagerTest(unittest.TestCase):
     if self._temp_dir:
       shutil.rmtree(self._temp_dir)
     self.stager = None
+    # [BEAM-13769] set pickler to dill by default.
+    pickler.set_library(pickler.DEFAULT_PICKLE_LIB)
 
   def make_temp_dir(self):
     if self._temp_dir is None:
@@ -242,7 +244,7 @@ class StagerTest(unittest.TestCase):
 
   # (BEAM-13769): Remove the decorator once cloudpickle is default pickle
   # library
-  @pytest.mark.skip
+  @pytest.mark.no_xdist
   def test_main_session_not_staged_when_using_cloudpickle(self):
     staging_dir = self.make_temp_dir()
     options = PipelineOptions()
