@@ -35,7 +35,7 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import torch
-  from apache_beam.ml.inference.api import PredictionResult
+  from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
   from apache_beam.ml.inference.pytorch_inference import PytorchModelHandler
 except ImportError:

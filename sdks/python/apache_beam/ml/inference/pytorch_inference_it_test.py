@@ -66,7 +66,7 @@ class PyTorchInference(unittest.TestCase):
   @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
   def test_torch_run_inference_imagenet_mobilenetv2(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
+    test_pipeline = TestPipeline(is_integration_test=False)
     # text files containing absolute path to the imagenet validation data on GCS
     file_of_image_names = 'gs://apache-beam-ml/testing/inputs/it_mobilenetv2_imagenet_validation_inputs.txt'  # disable: line-too-long
     output_file_dir = 'gs://apache-beam-ml/testing/predictions'
