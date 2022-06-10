@@ -43,8 +43,8 @@ import (
 // StatusAddress is a type of status endpoint address as an optional argument to harness.Main().
 type StatusAddress string
 
-// URNProgressReporting is a URN for v1 progress reporting.
-const URNProgressReporting = "beam:protocol:progress_reporting:v1"
+// URNMonitoringInfoShortID is a URN indicating support for short monitoring info IDs.
+const URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
 
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 
@@ -64,6 +64,9 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		}
 	}
 
+	// Extract environment variables. These are optional runner supported capabilities.
+	// Expected env variables:
+	// RUNNER_CAPABILITIES : list of runner supported capability urn.
 	runnerCapabilities := strings.Split(os.Getenv("RUNNER_CAPABILITIES"), " ")
 	rcMap := make(map[string]bool)
 	if len(runnerCapabilities) > 0 {
@@ -387,7 +390,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		c.cache.CompleteBundle(tokens...)
 
 		mons, pylds := monitoring(plan, store)
-		if c.runnerCapabilities[URNProgressReporting] {
+		if c.runnerCapabilities[URNMonitoringInfoShortID] {
 			mons = []*pipeline_v1.MonitoringInfo{}
 		}
 
