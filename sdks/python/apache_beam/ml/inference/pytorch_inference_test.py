@@ -38,6 +38,8 @@ try:
   from apache_beam.ml.inference.api import PredictionResult
   from apache_beam.ml.inference.base import RunInference
   from apache_beam.ml.inference.pytorch_inference import PytorchModelHandler
+  from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
+  from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
 
@@ -274,7 +276,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       path = os.path.join(self.tmpdir, 'my_state_dict_path')
       torch.save(state_dict, path)
 
-      model_loader = PytorchModelHandler(
+      model_loader = PytorchModelHandlerTensor(
           state_dict_path=path,
           model_class=PytorchLinearRegression,
           model_params={
@@ -301,7 +303,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       path = os.path.join(self.tmpdir, 'my_state_dict_path')
       torch.save(state_dict, path)
 
-      model_loader = PytorchModelHandler(
+      model_loader = PytorchModelHandlerKeyedTensor(
           state_dict_path=path,
           model_class=PytorchLinearRegressionKwargsPredictionParams,
           model_params={
@@ -312,7 +314,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       prediction_params_side_input = (
           pipeline | 'create side' >> beam.Create(prediction_params))
       predictions = pcoll | RunInference(
-          model_loader=model_loader,
+          model_handler=model_loader,
           prediction_params=beam.pvalue.AsDict(prediction_params_side_input))
       assert_that(
           predictions,
@@ -334,7 +336,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
 
       gs_pth = 'gs://apache-beam-ml/models/' \
           'pytorch_lin_reg_model_2x+0.5_state_dict.pth'
-      model_loader = PytorchModelHandler(
+      model_loader = PytorchModelHandlerTensor(
           state_dict_path=gs_pth,
           model_class=PytorchLinearRegression,
           model_params={
@@ -357,7 +359,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
         path = os.path.join(self.tmpdir, 'my_state_dict_path')
         torch.save(state_dict, path)
 
-        model_loader = PytorchModelHandler(
+        model_loader = PytorchModelHandlerTensor(
             state_dict_path=path,
             model_class=PytorchLinearRegression,
             model_params={
