@@ -283,6 +283,7 @@ class WindmillTimerInternals implements TimerInternals {
     }
 
     builder.setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getTimestamp()));
+    // Store the output timestamp in the metadata timestamp.
     builder.setMetadataTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getOutputTimestamp()));
 
     return builder;
