@@ -16,11 +16,8 @@
 package graphx
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-	"google.golang.org/protobuf/encoding/prototext"
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -372,9 +369,6 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 		if err != nil {
 			return nil, err
 		}
-		sp := prototext.Format(&s)
-		log.Warnf(context.Background(), "Schema proto: %v", sp)
-		log.Warnf(context.Background(), "Schema type: %v", t)
 		return coder.NewR(typex.New(t)), nil
 	case urnNullableCoder:
 		if len(components) != 1 {

@@ -31,16 +31,22 @@ import (
 func init() {
 	register.DoFn2x0[[]byte, func(TestRow)](&CreateTestRowsFn{})
 	register.Emitter1[TestRow]()
-	//register.Function1x1[TestRowPtrs, TestRow](castFn)
-	beam.RegisterType(reflect.TypeOf((*TestRow)(nil)))
-	beam.RegisterType(reflect.TypeOf((*RandData)(nil)))
-	beam.RegisterType(reflect.TypeOf((*TestRowPtrs)(nil)))
-	beam.RegisterType(reflect.TypeOf((*RandDataPtrs)(nil)))
+	// TODO(https://github.com/apache/beam/issues/21789): Uncomment once this register no longer panics.
+	//register.Function1x1(castFn)
 }
 
 const (
 	// A text to shuffle to get random words.
-	text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas eget nulla nec velit hendrerit placerat. Donec eu odio ultricies, fermentum arcu at, mollis lectus. Vestibulum porttitor pharetra sem vitae feugiat. Mauris facilisis neque in mauris feugiat rhoncus. Donec eu ipsum at nibh lobortis euismod. Nam at hendrerit felis. Vivamus et orci ex. Nam dui nisl, rutrum ac pretium eget, vehicula in tortor. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Phasellus ante lorem, pharetra blandit dapibus et, tempus nec purus. Maecenas in posuere sem, vel pharetra nisl. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Donec nec facilisis ex. Praesent euismod commodo efficitur. Fusce in nisi nunc."
+	text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas eget nulla nec " +
+		"velit hendrerit placerat. Donec eu odio ultricies, fermentum arcu at, mollis lectus. " +
+		"Vestibulum porttitor pharetra sem vitae feugiat. Mauris facilisis neque in mauris " +
+		"feugiat rhoncus. Donec eu ipsum at nibh lobortis euismod. Nam at hendrerit felis. " +
+		"Vivamus et orci ex. Nam dui nisl, rutrum ac pretium eget, vehicula in tortor. Class " +
+		"aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. " +
+		"Phasellus ante lorem, pharetra blandit dapibus et, tempus nec purus. Maecenas in " +
+		"posuere sem, vel pharetra nisl. Pellentesque habitant morbi tristique senectus et netus " +
+		"et malesuada fames ac turpis egestas. Donec nec facilisis ex. Praesent euismod commodo " +
+		"efficitur. Fusce in nisi nunc."
 	// Number of random elements to create for test. Must be less than number of words in text.
 	inputSize = 50
 )
@@ -128,27 +134,26 @@ func ReadPipeline(expansionAddr, table string, createFn interface{}) *beam.Pipel
 
 // TestRowPtrs is equivalent to TestRow but all fields are pointers, meant to be used when reading
 // via query.
-type TestRowPtrs struct {
+//
+// TODO(https://github.com/apache/beam/issues/21784): Change back to a named struct once resolved.
+type TestRowPtrs = struct {
 	Counter   *int64        `beam:"counter"`
 	Rand_data *RandDataPtrs `beam:"rand_data"`
 }
 
 // RandDataPtrs is equivalent to RandData but all fields are pointers, meant to be used when reading
 // via query.
-type RandDataPtrs struct {
+//
+// TODO(https://github.com/apache/beam/issues/21784): Change back to a named struct once resolved.
+type RandDataPtrs = struct {
 	Flip *bool   `beam:"flip"`
 	Num  *int64  `beam:"num"`
 	Word *string `beam:"word"`
 }
 
-func castFn(elm struct {
-	Counter   *int64 `beam:"counter"`
-	Rand_data *struct {
-		Flip *bool   `beam:"flip"`
-		Num  *int64  `beam:"num"`
-		Word *string `beam:"word"`
-	} `beam:"rand_data"`
-}) TestRow {
+// castFn converts the result of the query which has pointer fields, into the original TestRow
+// type that was written to BigQuery.
+func castFn(elm TestRowPtrs) TestRow {
 	return TestRow{
 		Counter: *elm.Counter,
 		Rand_data: RandData{
@@ -167,14 +172,7 @@ func ReadFromQueryPipeline(expansionAddr, table string, createFn interface{}) *b
 
 	// Read from table and compare to generated elements.
 	rows := beam.ParDo(s, createFn, beam.Impulse(s))
-	inType := reflect.TypeOf((*struct {
-		Counter   *int64 `beam:"counter"`
-		Rand_data *struct {
-			Flip *bool   `beam:"flip"`
-			Num  *int64  `beam:"num"`
-			Word *string `beam:"word"`
-		} `beam:"rand_data"`
-	})(nil)).Elem()
+	inType := reflect.TypeOf((*TestRowPtrs)(nil)).Elem()
 	query := fmt.Sprintf("SELECT * FROM `%s`", table)
 	readRows := bigqueryio.Read(s, inType,
 		bigqueryio.FromQuery(query),

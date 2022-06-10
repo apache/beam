@@ -193,6 +193,9 @@ func FromTable(table string) readOption {
 //
 // For more details see in the Java SDK:
 // org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Read.fromQuery(java.lang.String)
+//
+// BUG(https://github.com/apache/beam/issues/21784): Query read outputs currently cannot be named
+// struct types. See link for workaround.
 func FromQuery(query string) readOption {
 	return func(rc *readConfig) {
 		rc.cfg.Query = &query
