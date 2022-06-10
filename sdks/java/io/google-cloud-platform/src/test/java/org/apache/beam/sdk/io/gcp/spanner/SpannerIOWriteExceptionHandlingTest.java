@@ -135,7 +135,7 @@ public class SpannerIOWriteExceptionHandlingTest {
 
   @Test
   public void testExceptionHandlingForSimpleWrite() throws InterruptedException {
-    List<Mutation> mutationList = Arrays.asList(SpannerIOWriteTest.m((long) 1));
+    List<Mutation> mutationList = Arrays.asList(SpannerIOWriteTest.buildUpsertMutation((long) 1));
 
     // mock sleeper so that it does not actually sleep.
     SpannerIO.WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
@@ -180,7 +180,9 @@ public class SpannerIOWriteExceptionHandlingTest {
   @Test
   public void testExceptionHandlingForWriteGrouped() throws InterruptedException {
     List<MutationGroup> mutationList =
-        Arrays.asList(SpannerIOWriteTest.g(SpannerIOWriteTest.m((long) 1)));
+        Arrays.asList(
+            SpannerIOWriteTest.buildMutationGroup(
+                SpannerIOWriteTest.buildUpsertMutation((long) 1)));
 
     // mock sleeper so that it does not actually sleep.
     SpannerIO.WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);

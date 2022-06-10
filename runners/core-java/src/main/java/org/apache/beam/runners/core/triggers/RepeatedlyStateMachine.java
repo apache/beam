@@ -32,7 +32,7 @@ import java.util.Arrays;
  * AfterEach.inOrder(someTrigger, someTrigger, someTrigger, ...)}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class RepeatedlyStateMachine extends TriggerStateMachine {
 

@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
  * Samza plan.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaRunner.class);

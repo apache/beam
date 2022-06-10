@@ -145,7 +145,7 @@ public class MultimapUserState<K, V> {
   }
 
   @SuppressWarnings({
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-12687)
+    "nullness" // TODO(https://github.com/apache/beam/issues/21068)
   })
   /*
    * Returns an iterables containing all distinct keys in this multimap.
@@ -265,7 +265,7 @@ public class MultimapUserState<K, V> {
 
   @SuppressWarnings({
     "FutureReturnValueIgnored",
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-12687)
+    "nullness" // TODO(https://github.com/apache/beam/issues/21068)
   })
   // Update data in persistent store
   public void asyncClose() throws Exception {

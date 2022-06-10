@@ -35,7 +35,7 @@ import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
  * @deprecated Migrate to use {@link BeamFnDataOutboundAggregator} directly.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @Deprecated
 public class BeamFnDataOutboundObserver<T> implements CloseableFnDataReceiver<T> {

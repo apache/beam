@@ -110,11 +110,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** gRPC client for communicating with Windmill Service. */
-// Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6562
-// Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6564
+// Very likely real potential for bugs - https://github.com/apache/beam/issues/19273
+// Very likely real potential for bugs - https://github.com/apache/beam/issues/19271
 @SuppressFBWarnings({"JLM_JSR166_UTILCONCURRENT_MONITORENTER", "IS2_INCONSISTENT_SYNC"})
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GrpcWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServer.class);

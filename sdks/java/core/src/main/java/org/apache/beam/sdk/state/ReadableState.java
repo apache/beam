@@ -19,7 +19,6 @@ package org.apache.beam.sdk.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link State} that can be read via {@link #read()}.
@@ -42,7 +41,6 @@ public interface ReadableState<T> {
    * of the returned object should not modify state without going through the appropriate state
    * interface, and modification to the state should not be mirrored in the returned object.
    */
-  @Nullable
   T read();
 
   /**

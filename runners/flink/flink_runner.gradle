@@ -290,11 +290,11 @@ def createValidatesRunnerTask(Map m) {
           excludeTestsMatching test
         }
 
-        // https://issues.apache.org/jira/browse/BEAM-12039
+        // https://github.com/apache/beam/issues/20843
         excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testDiscardingMode'
-        // https://issues.apache.org/jira/browse/BEAM-12037
+        // https://github.com/apache/beam/issues/20845
         excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
-        // https://issues.apache.org/jira/browse/BEAM-12038
+        // https://github.com/apache/beam/issues/20844
         excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
       }
     }

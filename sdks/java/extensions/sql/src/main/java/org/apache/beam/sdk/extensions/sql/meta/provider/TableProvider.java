@@ -37,7 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * connection parameters.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public interface TableProvider {
   /** Gets the table type this provider handles. */

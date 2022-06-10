@@ -50,7 +50,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 /** Unit tests form {@link BeamRowToStorageApiProto}. */
 public class BeamRowToStorageApiProtoTest {

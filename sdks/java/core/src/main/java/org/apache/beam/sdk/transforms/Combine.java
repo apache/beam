@@ -78,7 +78,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * for how to use the operations in this class.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Combine {
   private Combine() {

@@ -27,3 +27,18 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
+    ignore:
+    # Ignore gcp dependencies
+    - dependency-name: "com.google.api:gax*"
+    - dependency-name: "com.google.cloud.bigdataoss:*"
+    - dependency-name: "com.google.cloud:*"
+    - dependency-name: "com.google.code.gson:*"
+    - dependency-name: "com.google.oauth-client:*"
+    - dependency-name: "io.grpc:grpc-*"
+    - dependency-name: "com.google.guava:*"
+    - dependency-name: "com.google.protobuf:*"
+    - dependency-name: "com.google.cloud.datastore:datastore-v1-proto-client"
+    - dependency-name: "com.google.api.grpc:proto-google-cloud-*"
+    - dependency-name: "com.google.api.grpc:grpc-*"
+    - dependency-name: "com.google.http-client:*"
+    - dependency-name: "com.google.apis:google-api-services-*"
