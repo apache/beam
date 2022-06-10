@@ -68,7 +68,7 @@ func main() {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	col := nativepubsubio.NativeRead(s, project, *input, sub.ID())
+	col := nativepubsubio.NativeRead(ctx, s, project, *input, sub.ID())
 	str := beam.ParDo(s, stringx.FromBytes, col)
 	cap := beam.ParDo(s, strings.ToUpper, str)
 	debug.Print(s, cap)

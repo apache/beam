@@ -125,14 +125,14 @@ func (r *pubSubRead) ProcessElement(ctx context.Context, bf beam.BundleFinalizat
 			return sdf.ResumeProcessingIn(5 * time.Second), nil
 		}
 		sub := r.client.Subscription(r.Subscription)
-		ctx, cFn := context.WithCancel(ctx)
+		canCtx, cFn := context.WithCancel(ctx)
 
 		// Because emitters are not thread safe and synchronous Receive() behavior
 		// is deprecated, we have to collect messages in a goroutine and pipe them
 		// out through a channel.
 		messChan := make(chan *pubsub.Message, 1)
 		go func(sendch chan<- *pubsub.Message) {
-			err := sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
+			err := sub.Receive(canCtx, func(ctx context.Context, m *pubsub.Message) {
 				messChan <- m
 			})
 			if (err != nil) && (err != context.Canceled) {
@@ -172,10 +172,10 @@ func (r *pubSubRead) ProcessElement(ctx context.Context, bf beam.BundleFinalizat
 //
 // This feature is experimental and subject to change, including its behavior and function signature.
 // Please use the cross-language implementation Read() instead.
-func NativeRead(s beam.Scope, project, topic, subscription string) beam.PCollection {
+func NativeRead(ctx context.Context, s beam.Scope, project, topic, subscription string) beam.PCollection {
 	s = s.Scope("pubsubio.NativeRead")
 
-	psRead, err := newPubSubRead(context.Background(), project, topic, subscription)
+	psRead, err := newPubSubRead(ctx, project, topic, subscription)
 	if err != nil {
 		panic(err)
 	}
@@ -236,10 +236,10 @@ func newPubSubWrite(ctx context.Context, projectID, topic string) (*pubSubWrite,
 //
 // This feature is experimental and subject to change, including its behavior and function signature.
 // Please use the cross-language implementation Write() instead.
-func NativeWrite(s beam.Scope, col beam.PCollection, project, topic string) {
+func NativeWrite(ctx context.Context, s beam.Scope, col beam.PCollection, project, topic string) {
 	s = s.Scope("pubsubio.NativeWrite")
 
-	psWrite, err := newPubSubWrite(context.Background(), project, topic)
+	psWrite, err := newPubSubWrite(ctx, project, topic)
 	if err != nil {
 		panic(err)
 	}
