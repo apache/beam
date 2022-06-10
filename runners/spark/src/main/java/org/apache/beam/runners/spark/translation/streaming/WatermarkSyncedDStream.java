@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
  * at large scale).
  *
  * <p>See also <a href="https://issues.apache.org/jira/browse/BEAM-2671">BEAM-2671</a>, <a
- * href="https://github.com/apache/beam/issues/18426">BEAM-2789</a>.
+ * href="https://github.com/apache/beam/issues/18426">Issue #18426</a>.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

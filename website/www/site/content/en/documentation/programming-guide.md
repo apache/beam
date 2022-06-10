@@ -2134,7 +2134,7 @@ you can determine whether this is an early or a late firing, and how many times 
 **PaneInfo:**
 When triggers are used, Beam provides a `DoFn.PaneInfoParam` object that contains information about the current firing. Using `DoFn.PaneInfoParam`
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.
-This feature implementation in Python SDK is not fully completed; see more at [BEAM-3759](https://github.com/apache/beam/issues/18721).
+This feature implementation in Python SDK is not fully completed; see more at [Issue 17821](https://github.com/apache/beam/issues/18721).
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
@@ -2193,7 +2193,7 @@ Timers and States are explained in more detail in the
 
 {{< paragraph class="language-go" >}}
 **Timer and State:**
-This feature isn't implemented in the Go SDK; see more at [BEAM-10660](https://github.com/apache/beam/issues/20510). Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.
+This feature isn't implemented in the Go SDK; see more at [Issue 20510](https://github.com/apache/beam/issues/20510). Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.
 {{< /paragraph >}}
 
 {{< highlight py >}}
@@ -5378,7 +5378,7 @@ to other nodes in the graph. A `DoFn` can declare multiple state variables.
 
 <span class="language-go">
 
-> **Note:** The Beam SDK for Go does not yet support a State and Timer API. See [BEAM-10660](https://github.com/apache/beam/issues/20510) to contribute.
+> **Note:** The Beam SDK for Go does not yet support a State and Timer API. See [Issue 20510](https://github.com/apache/beam/issues/20510) to contribute.
 
 </span>
 
@@ -6422,7 +6422,7 @@ resource utilization.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-11104.
+{{< code_sample "sdks/go/examples/snippets/12splittabledofns.go" self_checkpoint>}}
 {{< /highlight >}}
 
 ### 12.4. Runner-initiated split {#runner-initiated-split}
@@ -6892,7 +6892,7 @@ Currently Python external transforms are limited to dependencies available in th
 #### 13.1.3. Creating cross-language Go transforms
 
 Go currently does not support creating cross-language transforms, only using cross-language
-transforms from other languages; see more at [BEAM-9923](https://issues.apache.org/jira/browse/BEAM-9923).
+transforms from other languages; see more at [Issue 21767](https://github.com/apache/beam/issues/21767).
 
 #### 13.1.4. Defining a URN
 

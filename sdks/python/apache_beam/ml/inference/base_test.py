@@ -35,19 +35,7 @@ class FakeModel:
     return example + 1
 
 
-class FakeInferenceRunner(base.InferenceRunner[int, int, FakeModel]):
-  def __init__(self, clock=None):
-    self._fake_clock = clock
-
-  def run_inference(self, batch: List[int], model: FakeModel,
-                    **kwargs) -> Iterable[int]:
-    if self._fake_clock:
-      self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
-    for example in batch:
-      yield model.predict(example)
-
-
-class FakeModelLoader(base.ModelLoader[int, int, FakeModel]):
+class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def __init__(self, clock=None):
     self._fake_clock = clock
 
@@ -56,8 +44,12 @@ class FakeModelLoader(base.ModelLoader[int, int, FakeModel]):
       self._fake_clock.current_time_ns += 500_000_000  # 500ms
     return FakeModel()
 
-  def get_inference_runner(self):
-    return FakeInferenceRunner(self._fake_clock)
+  def run_inference(self, batch: List[int], model: FakeModel,
+                    **kwargs) -> Iterable[int]:
+    if self._fake_clock:
+      self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
+    for example in batch:
+      yield model.predict(example)
 
 
 class FakeClock:
@@ -74,31 +66,21 @@ class ExtractInferences(beam.DoFn):
     yield prediction_result.inference
 
 
-class FakeInferenceRunnerNeedsBigBatch(FakeInferenceRunner):
+class FakeModelHandlerNeedsBigBatch(FakeModelHandler):
   def run_inference(self, batch, unused_model):
     if len(batch) < 100:
       raise ValueError('Unexpectedly small batch')
     return batch
 
-
-class FakeLoaderWithBatchArgForwarding(FakeModelLoader):
-  def get_inference_runner(self):
-    return FakeInferenceRunnerNeedsBigBatch()
-
   def batch_elements_kwargs(self):
     return {'min_batch_size': 9999}
 
 
-class FakeInferenceRunnerKwargs(FakeInferenceRunner):
+class FakeModelHandlerWithKwargs(FakeModelHandler):
   def run_inference(self, batch, unused_model, **kwargs):
     if not kwargs.get('key'):
       raise ValueError('key should be True')
     return batch
-
-
-class FakeLoaderWithKwargs(FakeModelLoader):
-  def get_inference_runner(self):
-    return FakeInferenceRunnerKwargs()
 
 
 class RunInferenceBaseTest(unittest.TestCase):
@@ -107,7 +89,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       examples = [1, 5, 3, 10]
       expected = [example + 1 for example in examples]
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      actual = pcoll | base.RunInference(FakeModelLoader())
+      actual = pcoll | base.RunInference(FakeModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_impl_with_keyed_examples(self):
@@ -117,7 +99,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       expected = [(i, example + 1) for i, example in enumerate(examples)]
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
       actual = pcoll | base.RunInference(
-          base.KeyedModelLoader(FakeModelLoader()))
+          base.KeyedModelHandler(FakeModelHandler()))
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_impl_kwargs(self):
@@ -125,14 +107,14 @@ class RunInferenceBaseTest(unittest.TestCase):
       examples = [1, 5, 3, 10]
       pcoll = pipeline | 'start' >> beam.Create(examples)
       kwargs = {'key': True}
-      actual = pcoll | base.RunInference(FakeLoaderWithKwargs(), **kwargs)
+      actual = pcoll | base.RunInference(FakeModelHandlerWithKwargs(), **kwargs)
       assert_that(actual, equal_to(examples), label='assert:inferences')
 
   def test_counted_metrics(self):
     pipeline = TestPipeline()
     examples = [1, 5, 3, 10]
     pcoll = pipeline | 'start' >> beam.Create(examples)
-    _ = pcoll | base.RunInference(FakeModelLoader())
+    _ = pcoll | base.RunInference(FakeModelHandler())
     run_result = pipeline.run()
     run_result.wait_until_finish()
 
@@ -162,7 +144,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     pcoll = pipeline | 'start' >> beam.Create(examples)
     fake_clock = FakeClock()
     _ = pcoll | base.RunInference(
-        FakeModelLoader(clock=fake_clock), clock=fake_clock)
+        FakeModelHandler(clock=fake_clock), clock=fake_clock)
     res = pipeline.run()
     res.wait_until_finish()
 
@@ -184,7 +166,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     examples = list(range(100))
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      actual = pcoll | base.RunInference(FakeLoaderWithBatchArgForwarding())
+      actual = pcoll | base.RunInference(FakeModelHandlerNeedsBigBatch())
       assert_that(actual, equal_to(examples), label='assert:inferences')
 
 

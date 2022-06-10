@@ -219,9 +219,13 @@ class OperationCounters(object):
     assert self.producer_batch_converter is not None
     assert isinstance(windowed_batch, windowed_value.HomogeneousWindowedBatch)
 
-    self.element_counter.update(
-        self.producer_batch_converter.get_length(windowed_batch.values))
-    # TODO(BEAM-14408): Update byte size estimate
+    batch_length = self.producer_batch_converter.get_length(
+        windowed_batch.values)
+    self.element_counter.update(batch_length)
+
+    mean_element_size = self.producer_batch_converter.estimate_byte_size(
+        windowed_batch.values) / batch_length
+    self.mean_byte_counter.update_n(mean_element_size, batch_length)
 
   def _observable_callback(self, inner_coder_impl, accumulator):
     def _observable_callback_inner(value, is_encoded=False):
