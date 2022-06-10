@@ -279,14 +279,14 @@ class SkLearnRunInferenceTest(unittest.TestCase):
   def test_infer_invalid_data_type(self):
     with self.assertRaises(ValueError):
       unexpected_input_type = [[1, 2, 3, 4], [5, 6, 7, 8]]
-      inference_runner = SklearnInferenceRunner()
+      inference_runner = SklearnModelLoader(model_uri=unused)
       fake_model = FakeModel()
       inference_runner.run_inference(unexpected_input_type, fake_model)
 
   def test_infer_too_many_rows_in_dataframe(self):
     with self.assertRaises(ValueError):
       data_frame_too_many_rows = pandas_dataframe()
-      inference_runner = SklearnInferenceRunner()
+      inference_runner = SklearnModelLoader(model_uri=unused)
       fake_model = FakeModel()
       inference_runner.run_inference([data_frame_too_many_rows], fake_model)
 
