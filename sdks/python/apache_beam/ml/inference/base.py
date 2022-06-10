@@ -27,6 +27,7 @@ collection, sharing model between threads and batching elements.
 Note: This module is still actively being developed and users should have
 no expectation that these interfaces will not change.
 """
+# mypy: ignore-errors
 
 import logging
 import pickle
