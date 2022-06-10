@@ -21,11 +21,11 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java',
-    gradleTask: ':javaGCPIODirectRunnerPreCommit',
+    gradleTask: ':sdks:java:io:google-cloud-platform:postCommit',
     gradleSwitches: [
       '-PdisableSpotlessCheck=true'
     ], // spotless checked in separate pre-commit
-    timeoutMins: 180,
+    timeoutMins: 120,
     triggerPathPatterns: [
       '^sdks/java/io/google-cloud-platform/.*$',
       '^runners/direct-java/.*$',
@@ -46,11 +46,6 @@ builder.build {
         }
       }
       enabledForFailure(true)
-    }
-    jacocoCodeCoverage {
-      execPattern('**/build/jacoco/*.exec')
-      exclusionPattern('**/org/apache/beam/gradle/**,**/org/apache/beam/model/**,' +
-          '**/org/apache/beam/runners/dataflow/worker/windmill/**,**/AutoValue_*')
     }
   }
 }
