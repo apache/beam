@@ -50,7 +50,7 @@ import (
 // CheckFilters is called. Multiple tests can be skipped by using regex
 // wildcards. (ex. "TestXLang_.*" filters all tests starting with TestXLang_)
 //
-// It is strongly recommended to include, TODOs, Jira issues, or just comments
+// It is strongly recommended to include, TODOs, GitHub issues, or just comments
 // describing why tests are being skipped.
 
 // sickbay filters tests that fail due to Go SDK errors. These tests will not
