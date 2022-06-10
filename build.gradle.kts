@@ -202,7 +202,6 @@ tasks.register("javaPostCommit") {
   dependsOn(":sdks:java:io:amazon-web-services:integrationTest")
   dependsOn(":sdks:java:io:amazon-web-services2:integrationTest")
   dependsOn(":sdks:java:extensions:ml:postCommit")
-  dependsOn(":sdks:java:io:kafka:kafkaVersionsCompatibilityTest")
   dependsOn(":sdks:java:io:neo4j:integrationTest")
 }
 
