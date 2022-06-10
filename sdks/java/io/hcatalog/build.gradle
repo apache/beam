@@ -49,7 +49,7 @@ configurations.testRuntimeClasspath {
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
+ * TODO: use testTextures feature which is introduced in Gradle 5.6 instead of
  * the test outputs directly.
  */
 evaluationDependsOn(":sdks:java:io:common")
