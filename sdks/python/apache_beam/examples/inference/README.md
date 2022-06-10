@@ -26,20 +26,18 @@ API. <!---TODO: Add link to full documentation on Beam website when it's publish
 
 You must have `apache-beam>=2.40.0` installed in order to run these pipelines,
 because the `apache_beam.examples.inference` module was added in that release.
-Using the RunInference API also `torch` to be installed. 
-
-To install for a local pipeline, run:
 ```
-pip install apache-beam torch==1.11.0
+pip install apache-beam==2.40.0
 ```
 
-To install for a Dataflow pipeline, refer to these
+### Pytorch dependencies
+The RunInference API has support for the Pytorch framework. To use Pytorch locally, first install `torch`.
+```
+pip install torch==1.11.0
+```
+
+For installation of the `torch` dependency for Dataflow pipelines, refer to these
 [instructions](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pypi-dependencies).
-You'll need to add `torch` to a `requirements.txt` file, and then run your
-pipeline with the following command-line option:
-```
---requirements_file requirements.txt
-```
 
 <!---
 TODO: Add link to full documentation on Beam website when it's published.
@@ -49,6 +47,14 @@ i.e. "See the
 for details."
 -->
 
+### Datasets and Models for RunInference
+Data related to RunInference has been staged in
+`gs://apache-beam-ml/` for use with these example pipelines. You can see this by using the [gsutil tool](https://cloud.google.com/storage/docs/gsutil#gettingstarted).
+```
+gsutil ls gs://apache-beam-ml
+```
+
+---
 ## Image Classification with ImageNet dataset
 
 [`pytorch_image_classification.py`](./pytorch_image_classification.py) contains
@@ -60,19 +66,17 @@ The pipeline reads the images, performs basic preprocessing, passes them to the
 PyTorch implementation of RunInference, and then writes the predictions
 to a text file in GCS.
 
-### Data
-Data related to RunInference has been staged in
-`gs://apache-beam-ml/` for use with these example pipelines:
+### Dataset and model for Image Classification
 
 <!---
-Add once benchmark test is released
-- `gs://apache-beam-ml/testing/inputs/it_mobilenetv2_imagenet_validation_inputs.txt`:
+TODO: Add once benchmark test is released
+- `gs://apache-beam-ml/testing/inputs/imagenet_validation_inputs.txt`:
   text file containing the GCS paths of the images of all 5000 imagenet validation data
     - gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00000001.JPEG
     - ...
     - gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00050000.JPEG
 -->
-- `gs://apache-beam-ml/testing/inputs/imagenet_validation_inputs.txt/`:
+- `gs://apache-beam-ml/testing/inputs/it_imagenet_validation_inputs.txt/`:
   text file containing the GCS paths of the images of a subset of 15 imagenet
   validation data
     - gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00000001.JPEG
@@ -82,7 +86,7 @@ Add once benchmark test is released
 - `gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_*.JPEG`:
   JPEG images for the entire validation dataset.
 
-- `gs://apache-beam-ml/models/imagenet_classification_mobilenet_v2.pt`: Path to
+- `gs://apache-beam-ml/models/torchvision.models.mobilenet_v2.pth`: Path to
   the location of the saved state_dict of the pretrained mobilenet_v2 model
   from the `torchvision.models` subdirectory.
 
@@ -91,9 +95,9 @@ Add once benchmark test is released
 To run the image classification pipeline locally, use the following command:
 ```sh
 python -m apache_beam.examples.inference.pytorch_image_classification \
-  --input gs://apache-beam-ml/testing/inputs/it_mobilenetv2_imagenet_validation_inputs.txt \
+  --input gs://apache-beam-ml/testing/inputs/it_imagenet_validation_inputs.txt \
   --output predictions.csv \
-  --model_state_dict_path gs://apache-beam-ml/models/imagenet_classification_mobilenet_v2.pt
+  --model_state_dict_path gs://apache-beam-ml/models/torchvision.models.mobilenet_v2.pth
 ```
 
 This will write the output to the `predictions.csv` with contents like:
@@ -101,14 +105,7 @@ This will write the output to the `predictions.csv` with contents like:
 gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005002.JPEG,333
 gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005003.JPEG,711
 gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005004.JPEG,286
-gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005005.JPEG,433
-gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005006.JPEG,290
-gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005007.JPEG,890
-gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005008.JPEG,592
-gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005009.JPEG,406
-gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005010.JPEG,996
-gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005011.JPEG,327
-gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005012.JPEG,573
+...
 ```
 where the second item in each line is the integer representing the predicted class of the
 image.
