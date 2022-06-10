@@ -105,7 +105,7 @@ class TestPubsubMessage(unittest.TestCase):
       msg = PubsubMessage(b'0', attributes)
       msg._to_proto_str(for_publish=True)
     with self.assertRaisesRegex(ValueError, 'ordering key'):
-      msg = PubsubMessage(b'0', None, ordering_key='0' * 1001)
+      msg = PubsubMessage(b'0', None, ordering_key='0' * 1301)
       msg._to_proto_str(for_publish=True)
 
   def test_eq(self):
