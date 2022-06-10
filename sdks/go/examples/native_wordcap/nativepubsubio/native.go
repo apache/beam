@@ -95,7 +95,7 @@ func (r *pubSubRead) SplitRestriction(_ []byte, rest string) []string {
 // Setup initializes a PubSub client if one has not been created already
 func (r *pubSubRead) Setup(ctx context.Context) error {
 	if r.client == nil {
-		client, err := pubsub.NewClient(context.Background(), r.ProjectID)
+		client, err := pubsub.NewClient(ctx, r.ProjectID)
 		if err != nil {
 			return err
 		}
@@ -147,7 +147,7 @@ func (r *pubSubRead) ProcessElement(ctx context.Context, bf beam.BundleFinalizat
 			select {
 			case m, ok := <-messChan:
 				if !ok {
-					log.Debug(context.Background(), "stopping bundle processing")
+					log.Debug(ctx, "stopping bundle processing")
 					return sdf.StopProcessing(), nil
 				}
 				r.processedMessages = append(r.processedMessages, m)
@@ -157,7 +157,7 @@ func (r *pubSubRead) ProcessElement(ctx context.Context, bf beam.BundleFinalizat
 				}
 				timeout.Reset(messageTimeout)
 			case <-timeout.C:
-				log.Debugf(context.Background(), "cancelling receive context, scheduling resumption")
+				log.Debugf(ctx, "cancelling receive context, scheduling resumption")
 				cFn()
 				return sdf.ResumeProcessingIn(10 * time.Second), nil
 			}
@@ -192,7 +192,7 @@ type pubSubWrite struct {
 // Setup initializes a PubSub client if one has not been created already
 func (r *pubSubWrite) Setup(ctx context.Context) error {
 	if r.client == nil {
-		client, err := pubsub.NewClient(context.Background(), r.ProjectID)
+		client, err := pubsub.NewClient(ctx, r.ProjectID)
 		if err != nil {
 			return err
 		}
