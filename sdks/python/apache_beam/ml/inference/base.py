@@ -65,7 +65,7 @@ def _to_microseconds(time_ns: int) -> int:
 
 
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
-  """Has the ability to load an ML model."""
+  """Has the ability to load and apply an ML model."""
   def load_model(self) -> ModelT:
     """Loads and initializes a model for processing."""
     raise NotImplementedError(type(self))

@@ -70,7 +70,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
 
   def test_predict_output(self):
     fake_model = FakeModel()
-    inference_runner = SklearnModelHandler('unused')
+    inference_runner = SklearnModelHandler(model_uri='unused')
     batched_examples = [
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
@@ -85,7 +85,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
 
   def test_data_vectorized(self):
     fake_model = FakeModel()
-    inference_runner = SklearnModelHandler('unused')
+    inference_runner = SklearnModelHandler(model_uri='unused')
     batched_examples = [
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
@@ -95,7 +95,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     self.assertEqual(1, fake_model.total_predict_calls)
 
   def test_num_bytes(self):
-    inference_runner = SklearnModelHandler('unused')
+    inference_runner = SklearnModelHandler(model_uri='unused')
     batched_examples_int = [
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]

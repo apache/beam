@@ -139,7 +139,7 @@ class PytorchLinearRegressionKwargsPredictionParams(torch.nn.Module):
 
 @pytest.mark.uses_pytorch
 class PytorchRunInferenceTest(unittest.TestCase):
-  def test_inference_runner_single_tensor_feature(self):
+  def test_run_inference_single_tensor_feature(self):
     examples = [
         torch.from_numpy(np.array([1], dtype="float32")),
         torch.from_numpy(np.array([5], dtype="float32")),
@@ -166,7 +166,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(predictions, expected_predictions):
       self.assertEqual(actual, expected)
 
-  def test_inference_runner_multiple_tensor_features(self):
+  def test_run_inference_multiple_tensor_features(self):
     model = PytorchLinearRegression(input_dim=2, output_dim=1)
     model.load_state_dict(
         OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
@@ -179,7 +179,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(predictions, TWO_FEATURES_PREDICTIONS):
       self.assertEqual(actual, expected)
 
-  def test_inference_runner_kwargs(self):
+  def test_run_inference_kwargs(self):
     """
     This tests for inputs that are passed as a dictionary from key to tensor
     instead of a standard non-kwarg input.
@@ -215,7 +215,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(predictions, KWARGS_TORCH_PREDICTIONS):
       self.assertTrue(_compare_prediction_result(actual, expected))
 
-  def test_inference_runner_kwargs_prediction_params(self):
+  def test_run_inference_kwargs_prediction_params(self):
     """
     This tests for non-batchable input arguments. Since we do the batching
     for the user, we have to distinguish between the inputs that should be
