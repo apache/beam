@@ -43,8 +43,7 @@ class ModelFileType(enum.Enum):
   JOBLIB = 2
 
 
-class SklearnModelHandler(ModelHandler[Union[numpy.ndarray,
-                                                   pandas.DataFrame],
+class SklearnModelHandler(ModelHandler[Union[numpy.ndarray, pandas.DataFrame],
                                        PredictionResult,
                                        BaseEstimator]):
   """ Implementation of the ModelHandler interface for scikit-learn.
@@ -75,9 +74,9 @@ class SklearnModelHandler(ModelHandler[Union[numpy.ndarray,
     raise AssertionError('Unsupported serialization type.')
 
   def run_inference(
-     self,
-     batch: List[Union[numpy.ndarray, pandas.DataFrame]],
-     model: BaseEstimator,
+      self,
+      batch: List[Union[numpy.ndarray, pandas.DataFrame]],
+      model: BaseEstimator,
       **kwargs) -> Iterable[PredictionResult]:
     # TODO(github.com/apache/beam/issues/21769): Use supplied input type hint.
     if isinstance(batch[0], numpy.ndarray):
