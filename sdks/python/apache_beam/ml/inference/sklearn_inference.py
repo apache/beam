@@ -29,8 +29,7 @@ from sklearn.base import BaseEstimator
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.api import PredictionResult
-from apache_beam.ml.inference.base import InferenceRunner
-from apache_beam.ml.inference.base import ModelLoader
+from apache_beam.ml.inference.base import ModelHandler
 
 try:
   import joblib
@@ -44,10 +43,36 @@ class ModelFileType(enum.Enum):
   JOBLIB = 2
 
 
-class SklearnInferenceRunner(InferenceRunner[Union[numpy.ndarray,
-                                                   pandas.DataFrame],
-                                             PredictionResult,
-                                             BaseEstimator]):
+class SklearnModelHandler(ModelHandler[Union[numpy.ndarray, pandas.DataFrame],
+                                       PredictionResult,
+                                       BaseEstimator]):
+  """ Implementation of the ModelHandler interface for scikit-learn.
+
+      NOTE: This API and its implementation are under development and
+      do not provide backward compatibility guarantees.
+  """
+  def __init__(
+      self,
+      model_uri: str,
+      model_file_type: ModelFileType = ModelFileType.PICKLE):
+    self._model_uri = model_uri
+    self._model_file_type = model_file_type
+
+  def load_model(self) -> BaseEstimator:
+    """Loads and initializes a model for processing."""
+    file = FileSystems.open(self._model_uri, 'rb')
+    if self._model_file_type == ModelFileType.PICKLE:
+      return pickle.load(file)
+    elif self._model_file_type == ModelFileType.JOBLIB:
+      if not joblib:
+        raise ImportError(
+            'Could not import joblib in this execution environment. '
+            'For help with managing dependencies on Python workers.'
+            'see https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'  # pylint: disable=line-too-long
+        )
+      return joblib.load(file)
+    raise AssertionError('Unsupported serialization type.')
+
   def run_inference(
       self,
       batch: List[Union[numpy.ndarray, pandas.DataFrame]],
@@ -55,9 +80,9 @@ class SklearnInferenceRunner(InferenceRunner[Union[numpy.ndarray,
       **kwargs) -> Iterable[PredictionResult]:
     # TODO(github.com/apache/beam/issues/21769): Use supplied input type hint.
     if isinstance(batch[0], numpy.ndarray):
-      return SklearnInferenceRunner._predict_np_array(batch, model)
+      return SklearnModelHandler._predict_np_array(batch, model)
     elif isinstance(batch[0], pandas.DataFrame):
-      return SklearnInferenceRunner._predict_pandas_dataframe(batch, model)
+      return SklearnModelHandler._predict_pandas_dataframe(batch, model)
     raise ValueError('Unsupported data type.')
 
   @staticmethod
@@ -96,37 +121,3 @@ class SklearnInferenceRunner(InferenceRunner[Union[numpy.ndarray,
       data_frames: List[pandas.DataFrame] = batch
       return sum(df.memory_usage(deep=True).sum() for df in data_frames)
     raise ValueError('Unsupported data type.')
-
-
-class SklearnModelLoader(ModelLoader[numpy.ndarray,
-                                     PredictionResult,
-                                     BaseEstimator]):
-  """ Implementation of the ModelLoader interface for scikit learn.
-
-      NOTE: This API and its implementation are under development and
-      do not provide backward compatibility guarantees.
-  """
-  def __init__(
-      self,
-      model_file_type: ModelFileType = ModelFileType.PICKLE,
-      model_uri: str = ''):
-    self._model_file_type = model_file_type
-    self._model_uri = model_uri
-
-  def load_model(self) -> BaseEstimator:
-    """Loads and initializes a model for processing."""
-    file = FileSystems.open(self._model_uri, 'rb')
-    if self._model_file_type == ModelFileType.PICKLE:
-      return pickle.load(file)
-    elif self._model_file_type == ModelFileType.JOBLIB:
-      if not joblib:
-        raise ImportError(
-            'Could not import joblib in this execution environment. '
-            'For help with managing dependencies on Python workers.'
-            'see https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'  # pylint: disable=line-too-long
-        )
-      return joblib.load(file)
-    raise AssertionError('Unsupported serialization type.')
-
-  def get_inference_runner(self) -> SklearnInferenceRunner:
-    return SklearnInferenceRunner()

@@ -40,8 +40,7 @@ import apache_beam as beam
 from apache_beam.ml.inference import api
 from apache_beam.ml.inference import base
 from apache_beam.ml.inference.sklearn_inference import ModelFileType
-from apache_beam.ml.inference.sklearn_inference import SklearnInferenceRunner
-from apache_beam.ml.inference.sklearn_inference import SklearnModelLoader
+from apache_beam.ml.inference.sklearn_inference import SklearnModelHandler
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -130,7 +129,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
 
   def test_predict_output(self):
     fake_model = FakeModel()
-    inference_runner = SklearnInferenceRunner()
+    inference_runner = SklearnModelHandler(model_uri='unused')
     batched_examples = [
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
@@ -145,7 +144,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
 
   def test_data_vectorized(self):
     fake_model = FakeModel()
-    inference_runner = SklearnInferenceRunner()
+    inference_runner = SklearnModelHandler(model_uri='unused')
     batched_examples = [
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
@@ -155,7 +154,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     self.assertEqual(1, fake_model.total_predict_calls)
 
   def test_num_bytes(self):
-    inference_runner = SklearnInferenceRunner()
+    inference_runner = SklearnModelHandler(model_uri='unused')
     batched_examples_int = [
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
@@ -183,7 +182,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> beam.Create(examples)
       #TODO(BEAM-14305) Test against the public API.
       actual = pcoll | base.RunInference(
-          SklearnModelLoader(model_uri=temp_file_name))
+          SklearnModelHandler(model_uri=temp_file_name))
       expected = [
           api.PredictionResult(numpy.array([0, 0]), 0),
           api.PredictionResult(numpy.array([1, 1]), 1)
@@ -203,7 +202,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       #TODO(BEAM-14305) Test against the public API.
 
       actual = pcoll | base.RunInference(
-          SklearnModelLoader(
+          SklearnModelHandler(
               model_uri=temp_file_name, model_file_type=ModelFileType.JOBLIB))
       expected = [
           api.PredictionResult(numpy.array([0, 0]), 0),
@@ -219,7 +218,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         pcoll = pipeline | 'start' >> beam.Create(examples)
         # TODO(BEAM-14305) Test against the public API.
         _ = pcoll | base.RunInference(
-            SklearnModelLoader(model_uri='/var/bad_file_name'))
+            SklearnModelHandler(model_uri='/var/bad_file_name'))
         pipeline.run()
 
   @unittest.skipIf(platform.system() == 'Windows', 'BEAM-14359')
@@ -227,7 +226,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     with self.assertRaisesRegex(AssertionError,
                                 'Unsupported serialization type'):
       with tempfile.NamedTemporaryFile() as file:
-        model_loader = SklearnModelLoader(
+        model_loader = SklearnModelHandler(
             model_uri=file.name, model_file_type=None)
         model_loader.load_model()
 
@@ -280,14 +279,14 @@ class SkLearnRunInferenceTest(unittest.TestCase):
   def test_infer_invalid_data_type(self):
     with self.assertRaises(ValueError):
       unexpected_input_type = [[1, 2, 3, 4], [5, 6, 7, 8]]
-      inference_runner = SklearnInferenceRunner()
+      inference_runner = SklearnModelLoader(model_uri=unused)
       fake_model = FakeModel()
       inference_runner.run_inference(unexpected_input_type, fake_model)
 
   def test_infer_too_many_rows_in_dataframe(self):
     with self.assertRaises(ValueError):
       data_frame_too_many_rows = pandas_dataframe()
-      inference_runner = SklearnInferenceRunner()
+      inference_runner = SklearnModelLoader(model_uri=unused)
       fake_model = FakeModel()
       inference_runner.run_inference([data_frame_too_many_rows], fake_model)
 
