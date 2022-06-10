@@ -31,31 +31,25 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.PostgresIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Top;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.Instant;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -88,7 +82,6 @@ import org.postgresql.ds.PGSimpleDataSource;
 @RunWith(JUnit4.class)
 public class JdbcIOIT {
 
-  private static final int EXPECTED_ROW_COUNT = 1000;
   private static final String NAMESPACE = JdbcIOIT.class.getName();
   private static int numberOfRows;
   private static PGSimpleDataSource dataSource;
@@ -139,7 +132,7 @@ public class JdbcIOIT {
   public void testWriteThenRead() {
     PipelineResult writeResult = runWrite();
     writeResult.waitUntilFinish();
-    PipelineResult readResult = runRead();
+    PipelineResult readResult = runRead(null);
     readResult.waitUntilFinish();
     gatherAndPublishMetrics(writeResult, readResult);
   }
@@ -205,7 +198,7 @@ public class JdbcIOIT {
    */
   private PipelineResult runWrite() {
     pipelineWrite
-        .apply(GenerateSequence.from(0).to(numberOfRows))
+        .apply(Create.of(LongStream.range(0, numberOfRows).boxed().collect(Collectors.toList())))
         .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
         .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
         .apply(
@@ -232,7 +225,10 @@ public class JdbcIOIT {
    * verify that their values are correct. Where first/last 500 rows is determined by the fact that
    * we know all rows have a unique id - we can use the natural ordering of that key.
    */
-  private PipelineResult runRead() {
+  private PipelineResult runRead(String tableName) {
+    if (tableName == null) {
+      tableName = JdbcIOIT.tableName;
+    }
     PCollection<TestRow> namesAndIds =
         pipelineRead
             .apply(
@@ -266,23 +262,18 @@ public class JdbcIOIT {
 
   @Test
   public void testWriteWithAutosharding() throws Exception {
-    String firstTableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
+    String firstTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_W_AUTOSHARDING");
     DatabaseTestHelper.createTable(dataSource, firstTableName);
     try {
-      List<KV<Integer, String>> data = getTestDataToWrite(EXPECTED_ROW_COUNT);
-      TestStream.Builder<KV<Integer, String>> ts =
-          TestStream.create(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
-              .advanceWatermarkTo(Instant.now());
-      for (KV<Integer, String> elm : data) {
-        ts.addElements(elm);
-      }
+      List<KV<Integer, String>> data = getTestDataToWrite(numberOfRows);
 
       PCollection<KV<Integer, String>> dataCollection =
-          pipelineWrite.apply(ts.advanceWatermarkToInfinity());
+          pipelineWrite.apply(Create.of(data)).apply(Reshuffle.viaRandomKey());
       dataCollection.apply(
           JdbcIO.<KV<Integer, String>>write()
               .withDataSourceProviderFn(voidInput -> dataSource)
-              .withStatement(String.format("insert into %s values(?, ?) returning *", tableName))
+              .withStatement(
+                  String.format("insert into %s values(?, ?) returning *", firstTableName))
               .withAutoSharding()
               .withPreparedStatementSetter(
                   (element, statement) -> {
@@ -290,9 +281,17 @@ public class JdbcIOIT {
                     statement.setString(2, element.getValue());
                   }));
 
-      pipelineWrite.run().waitUntilFinish();
+      PipelineResult result =
+          pipelineWrite.runWithAdditionalOptionArgs(
+              Lists.newArrayList("--enableStreamingEngine", "--streaming"));
 
-      runRead();
+      if (result.waitUntilFinish(Duration.standardMinutes(7L)) == null) {
+        result.cancel();
+        throw new RuntimeException("Write pipeline did not finish");
+      }
+      runRead(firstTableName).waitUntilFinish();
+    } catch (Exception e) {
+      throw e;
     } finally {
       DatabaseTestHelper.deleteTable(dataSource, firstTableName);
     }
@@ -300,10 +299,10 @@ public class JdbcIOIT {
 
   @Test
   public void testWriteWithWriteResults() throws Exception {
-    String firstTableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
+    String firstTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_W_RESULTS");
     DatabaseTestHelper.createTable(dataSource, firstTableName);
     try {
-      ArrayList<KV<Integer, String>> data = getTestDataToWrite(EXPECTED_ROW_COUNT);
+      ArrayList<KV<Integer, String>> data = getTestDataToWrite(numberOfRows);
 
       PCollection<KV<Integer, String>> dataCollection = pipelineWrite.apply(Create.of(data));
       PCollection<JdbcTestHelper.TestDto> resultSetCollection =
@@ -319,7 +318,7 @@ public class JdbcIOIT {
       resultSetCollection.setCoder(JdbcTestHelper.TEST_DTO_CODER);
 
       List<JdbcTestHelper.TestDto> expectedResult = new ArrayList<>();
-      for (int id = 0; id < EXPECTED_ROW_COUNT; id++) {
+      for (int id = 0; id < numberOfRows; id++) {
         expectedResult.add(new JdbcTestHelper.TestDto(id));
       }
 
@@ -327,7 +326,7 @@ public class JdbcIOIT {
 
       pipelineWrite.run();
 
-      assertRowCount(dataSource, firstTableName, EXPECTED_ROW_COUNT);
+      assertRowCount(dataSource, firstTableName, numberOfRows);
     } finally {
       DatabaseTestHelper.deleteTable(dataSource, firstTableName);
     }
