@@ -43,7 +43,7 @@ class ModelFileType(enum.Enum):
 class SklearnModelHandler(ModelHandler[numpy.ndarray,
                                        PredictionResult,
                                        BaseEstimator]):
-  """ Implementation of the ModelHandler interface for scikit learn.
+  """ Implementation of the ModelHandler interface for scikit-learn.
 
       NOTE: This API and its implementation are under development and
       do not provide backward compatibility guarantees.
