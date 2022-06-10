@@ -19,20 +19,20 @@
 import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
-        scope: this,
-        nameBase: 'Java_Debezium_IO_Direct',
-        gradleTask: ':sdks:java:io:debezium:integrationTest',
-        gradleSwitches: [
-                '-PdisableSpotlessCheck=true'
-        ], // spotless checked in separate pre-commit
-        triggerPathPatterns: [
-                '^sdks/java/io/debezium/.*$',
-                '^runners/direct-java/.*$',
-        ],
-        timeoutMins: 60,
-)
+    scope: this,
+    nameBase: 'Java_Debezium_IO_Direct',
+    gradleTask: ':sdks:java:io:debezium:integrationTest',
+    gradleSwitches: [
+      '-PdisableSpotlessCheck=true'
+    ], // spotless checked in separate pre-commit
+    triggerPathPatterns: [
+      '^sdks/java/io/debezium/.*$',
+      '^runners/direct-java/.*$',
+    ],
+    timeoutMins: 60,
+    )
 builder.build {
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
-    }
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
 }

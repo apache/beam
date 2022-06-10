@@ -19,20 +19,20 @@
 import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
-        scope: this,
-        nameBase: 'Java_Kafka_IO_Direct',
-        gradleTask: ':sdks:java:io:kafka:kafkaVersionsCompatibilityTest',
-        gradleSwitches: [
-                '-PdisableSpotlessCheck=true'
-        ], // spotless checked in separate pre-commit
-        triggerPathPatterns: [
-                '^sdks/java/io/kafka/.*$',
-                '^runners/direct-java/.*$',
-        ],
-        timeoutMins: 120,
-)
+    scope: this,
+    nameBase: 'Java_Kafka_IO_Direct',
+    gradleTask: ':sdks:java:io:kafka:kafkaVersionsCompatibilityTest',
+    gradleSwitches: [
+      '-PdisableSpotlessCheck=true'
+    ], // spotless checked in separate pre-commit
+    triggerPathPatterns: [
+      '^sdks/java/io/kafka/.*$',
+      '^runners/direct-java/.*$',
+    ],
+    timeoutMins: 120,
+    )
 builder.build {
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
-    }
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
 }
