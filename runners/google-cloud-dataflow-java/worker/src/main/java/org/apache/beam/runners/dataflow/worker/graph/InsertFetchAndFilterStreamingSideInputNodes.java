@@ -49,8 +49,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * inputs for streaming pipelines before user {@link ParDo ParDos} containing side inputs.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class InsertFetchAndFilterStreamingSideInputNodes {
   public static InsertFetchAndFilterStreamingSideInputNodes with(

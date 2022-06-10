@@ -57,7 +57,7 @@ import org.slf4j.LoggerFactory;
 
 /** Builder class to generate configs for BEAM samza runner during runtime. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ConfigBuilder {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigBuilder.class);

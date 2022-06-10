@@ -132,8 +132,8 @@ import org.slf4j.LoggerFactory;
 // We use Flink's lifecycle methods to initialize transient fields
 @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
 

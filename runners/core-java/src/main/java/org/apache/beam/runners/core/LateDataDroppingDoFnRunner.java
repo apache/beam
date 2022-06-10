@@ -44,7 +44,7 @@ import org.joda.time.Instant;
  * @param <OutputT> output value element type
  * @param <W> window type
  */
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     implements DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> {
   private final DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFnRunner;

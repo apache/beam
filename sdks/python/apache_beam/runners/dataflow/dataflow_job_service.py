@@ -19,9 +19,7 @@ import argparse
 import logging
 import sys
 
-from apache_beam.options import pipeline_options
 from apache_beam.runners.dataflow import dataflow_runner
-from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import local_job_service
 from apache_beam.runners.portability import local_job_service_main
 from apache_beam.runners.portability import portable_runner
@@ -34,31 +32,22 @@ class DataflowBeamJob(local_job_service.BeamJob):
     """Actually calls Dataflow and waits for completion.
     """
     runner = dataflow_runner.DataflowRunner()
-    result = runner.run_pipeline(
+    self.result = runner.run_pipeline(
         None, self.pipeline_options(), self._pipeline_proto)
     # Prefer this to result.wait_until_finish() to get state updates
     # and avoid creating an extra thread (which also messes with logging).
     dataflow_runner.DataflowRunner.poll_for_job_completion(
         runner,
-        result,
+        self.result,
         None,
         lambda dataflow_state: self.set_state(
             portable_runner.PipelineResult.pipeline_state_to_runner_api_state(
-                result.api_jobstate_to_pipeline_state(dataflow_state))))
-    return result
+                self.result.api_jobstate_to_pipeline_state(dataflow_state))))
+    return self.result
 
-  def pipeline_options(self):
-    def from_urn(key):
-      assert key.startswith('beam:option:')
-      assert key.endswith(':v1')
-      return key[12:-3]
-
-    return pipeline_options.PipelineOptions(
-        **{
-            from_urn(key): value
-            for (key, value
-                 ) in job_utils.struct_to_dict(self._pipeline_options).items()
-        })
+  def cancel(self):
+    if not self.is_terminal_state(self.state):
+      self.result.cancel()
 
 
 def run(argv, beam_job_type=DataflowBeamJob):

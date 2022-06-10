@@ -113,7 +113,7 @@ public class FhirIOTest {
 
     PCollection<String> fhirBundles = pipeline.apply(Create.of(emptyMessages));
 
-    FhirIO.Write.Result writeResult =
+    FhirIO.Write.AbstractResult writeResult =
         fhirBundles.apply(
             FhirIO.Write.executeBundles(
                 "projects/foo/locations/us-central1/datasets/bar/hl7V2Stores/baz"));

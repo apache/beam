@@ -182,6 +182,18 @@ func TestGetJobOptions_DockerWithImage(t *testing.T) {
 	*jobopts.EnvironmentType = "docker"
 	*jobopts.EnvironmentConfig = "testContainerImage"
 	*image = "testContainerImageOverride"
+	*workerHarnessImage = ""
+
+	if got, want := getContainerImage(context.Background()), "testContainerImageOverride"; got != want {
+		t.Fatalf("getContainerImage() = %q, want %q", got, want)
+	}
+}
+
+func TestGetJobOptions_DockerWithOldImage(t *testing.T) {
+	*jobopts.EnvironmentType = "docker"
+	*jobopts.EnvironmentConfig = "testContainerImage"
+	*image = ""
+	*workerHarnessImage = "testContainerImageOverride"
 
 	if got, want := getContainerImage(context.Background()), "testContainerImageOverride"; got != want {
 		t.Fatalf("getContainerImage() = %q, want %q", got, want)
@@ -192,6 +204,7 @@ func TestGetJobOptions_DockerNoImage(t *testing.T) {
 	*jobopts.EnvironmentType = "docker"
 	*jobopts.EnvironmentConfig = "testContainerImage"
 	*image = ""
+	*workerHarnessImage = ""
 
 	if got, want := getContainerImage(context.Background()), "testContainerImage"; got != want {
 		t.Fatalf("getContainerImage() = %q, want %q", got, want)

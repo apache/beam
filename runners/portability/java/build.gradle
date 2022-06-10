@@ -122,7 +122,7 @@ startLocalJobService.configure{finalizedBy stopLocalJobService}
 
 def sickbayTests = [
 
-        //TODO: https://issues.apache.org/jira/browse/BEAM-10995
+        //TODO: https://github.com/apache/beam/issues/20631
         'org.apache.beam.sdk.transforms.windowing.WindowingTest.testWindowPreservation',
 ]
 
@@ -155,13 +155,13 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
     }
     filter {
       // There is not currently a category for excluding these _only_ in committed mode
-      // https://issues.apache.org/jira/browse/BEAM-10445
+      // https://github.com/apache/beam/issues/20370
       excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics'
-      // https://issues.apache.org/jira/browse/BEAM-10446
+      // https://github.com/apache/beam/issues/20371
       excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedDistributionMetrics'
 
       // Teardown not called in exceptions
-      // https://issues.apache.org/jira/browse/BEAM-10447
+      // https://github.com/apache/beam/issues/20372
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement'
@@ -172,7 +172,7 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful'
 
       // Only known window fns supported, not general window merging
-      // https://issues.apache.org/jira/browse/BEAM-10448
+      // https://github.com/apache/beam/issues/20437
       excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsWithoutCustomWindowTypes'
@@ -181,18 +181,18 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
       excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testGroupByKeyMergingWindows'
 
       // Misc failures
-      // https://issues.apache.org/jira/browse/BEAM-10451
+      // https://github.com/apache/beam/issues/20375
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testGlobalCombineWithDefaultsAndTriggers'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext'
 
-      // https://issues.apache.org/jira/browse/BEAM-10454
+      // https://github.com/apache/beam/issues/20373
       excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedIsEqualTo'
 
-      // https://issues.apache.org/jira/browse/BEAM-10452
+      // https://github.com/apache/beam/issues/20374
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombiningWithAccumulationMode'
 
-      // https://issues.apache.org/jira/browse/BEAM-12275
+      // https://github.com/apache/beam/issues/20878
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testSideInputAnnotationWithMultipleSideInputs'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testMapAsEntrySetSideInput'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedMultimapAsEntrySetSideInput'

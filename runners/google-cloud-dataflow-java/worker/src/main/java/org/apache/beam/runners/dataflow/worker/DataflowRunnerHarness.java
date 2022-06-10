@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
  * versa.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DataflowRunnerHarness {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunnerHarness.class);

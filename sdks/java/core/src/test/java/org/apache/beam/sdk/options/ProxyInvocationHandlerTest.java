@@ -310,7 +310,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testToString() throws Exception {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10725
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20485
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     StringWithDefault proxy = handler.as(StringWithDefault.class);
@@ -324,7 +324,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testToStringAfterDeserializationContainsJsonEntries() throws Exception {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10726
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20474
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     StringWithDefault proxy = handler.as(StringWithDefault.class);
@@ -344,7 +344,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testToStringAfterDeserializationContainsOverriddenEntries() throws Exception {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10727
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20473
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     StringWithDefault proxy = handler.as(StringWithDefault.class);

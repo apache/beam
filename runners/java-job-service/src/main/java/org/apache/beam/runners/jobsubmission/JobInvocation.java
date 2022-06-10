@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
 
 /** Internal representation of a Job which has been invoked (prepared and run) by a client. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class JobInvocation {
 

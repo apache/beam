@@ -349,7 +349,7 @@ These tables contain statuses of the queries runs in the different runners. Goog
     <tr>
       <th>Query</th>
       <th>Direct</th>
-      <th>Spark <a href="https://issues.apache.org/jira/browse/BEAM-2847">BEAM-2847</a></th>
+      <th>Spark <a href="https://github.com/apache/beam/issues/18416">Issue 18416</a></th>
       <th>Flink</th>
     </tr>
     <tr>
@@ -373,7 +373,7 @@ These tables contain statuses of the queries runs in the different runners. Goog
     <tr>
       <td>3</td>
       <td>ok</td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM-2176">BEAM-2176</a>, <a href="https://issues.apache.org/jira/browse/BEAM-3961">BEAM-3961</a></td>
+      <td><a href="https://github.com/apache/beam/issues/18074">Issue 18074</a>, <a href="https://issues.apache.org/jira/browse/BEAM-3961">BEAM-3961</a></td>
       <td>ok</td>
     </tr>
     <tr>

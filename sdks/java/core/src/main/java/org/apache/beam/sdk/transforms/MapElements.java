@@ -37,7 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@code PTransform}s for mapping a simple function over the elements of a {@link PCollection}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class MapElements<InputT, OutputT>
     extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {

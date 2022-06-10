@@ -754,7 +754,7 @@ public class TextIOReadTest {
 
     @Test
     public void testInitialSplitAutoModeGz() throws Exception {
-      // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10746
+      // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20470
       assumeFalse(SystemUtils.IS_OS_WINDOWS);
       PipelineOptions options = TestPipeline.testingPipelineOptions();
       long desiredBundleSize = 1000;

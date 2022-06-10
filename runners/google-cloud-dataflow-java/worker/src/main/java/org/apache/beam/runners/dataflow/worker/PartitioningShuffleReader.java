@@ -40,7 +40,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * @param <V> the type of the values read from the shuffle
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PartitioningShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K, V>>> {
   final byte[] shuffleReaderConfig;

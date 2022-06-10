@@ -97,7 +97,7 @@ import org.slf4j.LoggerFactory;
  * serializable in the HTTP client.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class HttpHealthcareApiClient implements HealthcareApiClient, Serializable {
   private static final String USER_AGENT =
@@ -921,7 +921,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     private String pageToken;
     private boolean isFirstRequest;
 
-    private FhirResourcePagesIterator(
+    public FhirResourcePagesIterator(
         FhirMethod fhirMethod,
         HealthcareApiClient client,
         String fhirStore,

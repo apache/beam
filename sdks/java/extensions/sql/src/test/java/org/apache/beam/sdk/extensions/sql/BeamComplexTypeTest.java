@@ -228,7 +228,7 @@ public class BeamComplexTypeTest {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-5189")
+  @Ignore("https://github.com/apache/beam/issues/19011")
   @Test
   public void testSelectInnerRowOfNestedRow() {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(readOnlyTableProvider);
@@ -245,7 +245,7 @@ public class BeamComplexTypeTest {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-12782")
+  @Ignore("https://github.com/apache/beam/issues/21024")
   @Test
   public void testNestedBytes() {
     byte[] bytes = new byte[] {-70, -83, -54, -2};
@@ -270,7 +270,7 @@ public class BeamComplexTypeTest {
     pipeline.run();
   }
 
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-12782")
+  @Ignore("https://github.com/apache/beam/issues/21024")
   @Test
   public void testNestedArrayOfBytes() {
     byte[] bytes = new byte[] {-70, -83, -54, -2};

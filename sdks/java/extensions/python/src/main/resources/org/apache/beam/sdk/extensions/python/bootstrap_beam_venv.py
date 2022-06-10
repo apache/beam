@@ -92,7 +92,7 @@ def main():
     if not os.path.exists(venv_python):
         try:
             subprocess.run([executable, '-m', 'venv', venv_dir], check=True)
-            # See https://issues.apache.org/jira/browse/BEAM-14092
+            # See https://github.com/apache/beam/issues/21506
             subprocess.run([
                 venv_python, '-m', 'pip', 'install', beam_package,
                 'pyparsing==2.4.2'

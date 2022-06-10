@@ -17,11 +17,13 @@
 
 # pytype: skip-file
 
+from collections import defaultdict
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Iterable
 from typing import List
+from typing import Union
 
 import torch
 from apache_beam.io.filesystems import FileSystems
@@ -41,8 +43,22 @@ class PytorchInferenceRunner(InferenceRunner[torch.Tensor,
   def __init__(self, device: torch.device):
     self._device = device
 
-  def run_inference(self, batch: List[torch.Tensor],
-                    model: torch.nn.Module) -> Iterable[PredictionResult]:
+  def _convert_to_device(self, examples: torch.Tensor) -> torch.Tensor:
+    """
+    Converts samples to a style matching given device.
+
+    Note: A user may pass in device='GPU' but if GPU is not detected in the
+    environment it must be converted back to CPU.
+    """
+    if examples.device != self._device:
+      examples = examples.to(self._device)
+    return examples
+
+  def run_inference(
+      self,
+      batch: List[Union[torch.Tensor, Dict[str, torch.Tensor]]],
+      model: torch.nn.Module,
+      **kwargs) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
     Tensor Predictions.
@@ -50,16 +66,37 @@ class PytorchInferenceRunner(InferenceRunner[torch.Tensor,
     This method stacks the list of Tensors in a vectorized format to optimize
     the inference call.
     """
+    prediction_params = kwargs.get('prediction_params', {})
 
-    torch_batch = torch.stack(batch)
-    if torch_batch.device != self._device:
-      torch_batch = torch_batch.to(self._device)
-    predictions = model(torch_batch)
+    # If elements in `batch` are provided as a dictionaries from key to Tensors,
+    # then iterate through the batch list, and group Tensors to the same key
+    if isinstance(batch[0], dict):
+      key_to_tensor_list = defaultdict(list)
+      for example in batch:
+        for key, tensor in example.items():
+          key_to_tensor_list[key].append(tensor)
+      key_to_batched_tensors = {}
+      for key in key_to_tensor_list:
+        batched_tensors = torch.stack(key_to_tensor_list[key])
+        batched_tensors = self._convert_to_device(batched_tensors)
+        key_to_batched_tensors[key] = batched_tensors
+      predictions = model(**key_to_batched_tensors, **prediction_params)
+    else:
+      # If elements in `batch` are provided as Tensors, then do a regular stack
+      batched_tensors = torch.stack(batch)
+      batched_tensors = self._convert_to_device(batched_tensors)
+      predictions = model(batched_tensors, **prediction_params)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: List[torch.Tensor]) -> int:
     """Returns the number of bytes of data for a batch of Tensors."""
-    return sum((el.element_size() for tensor in batch for el in tensor))
+    # If elements in `batch` are provided as a dictionaries from key to Tensors
+    if isinstance(batch[0], dict):
+      return sum(
+          (el.element_size() for tensor in batch for el in tensor.values()))
+    else:
+      # If elements in `batch` are provided as Tensors
+      return sum((el.element_size() for tensor in batch for el in tensor))
 
   def get_metrics_namespace(self) -> str:
     """

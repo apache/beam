@@ -71,7 +71,7 @@ import org.junit.runner.RunWith;
 /** Tests for conversion between AVRO records and Beam rows. */
 @RunWith(JUnitQuickcheck.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class AvroUtilsTest {
 

@@ -29,7 +29,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Bunch of methods to assert type descriptors in operators. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class TypePropagationAssert {
 
