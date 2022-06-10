@@ -38,6 +38,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
+import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.PostgresIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.state.StateSpec;
@@ -252,13 +253,13 @@ public class JdbcIOIT {
 
     PAssert.thatSingleton(namesAndIds.apply("Count All", Count.globally()))
         .isEqualTo((long) EXPECTED_ROW_COUNT);
-    //
-    //    PCollection<String> consolidatedHashcode =
-    //        namesAndIds
-    //            .apply(ParDo.of(new TestRow.SelectNameFn()))
-    //            .apply("Hash row contents", Combine.globally(new HashingFn()).withoutDefaults());
-    //    PAssert.that(consolidatedHashcode)
-    //        .containsInAnyOrder(TestRow.getExpectedHashForRowCount(EXPECTED_ROW_COUNT));
+
+    PCollection<String> consolidatedHashcode =
+        namesAndIds
+            .apply(ParDo.of(new TestRow.SelectNameFn()))
+            .apply("Hash row contents", Combine.globally(new HashingFn()).withoutDefaults());
+    PAssert.that(consolidatedHashcode)
+        .containsInAnyOrder(TestRow.getExpectedHashForRowCount(EXPECTED_ROW_COUNT));
 
     PCollection<List<TestRow>> frontOfList = namesAndIds.apply(Top.smallest(500));
     Iterable<TestRow> expectedFrontOfList = TestRow.getExpectedValues(0, 500);

@@ -50,7 +50,7 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
 
   /** Returns the name field value produced from the given seed. */
   public static String getNameForSeed(Integer seed) {
-    return "Test" + seed;
+    return "Testval" + seed;
   }
 
   /**
