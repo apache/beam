@@ -196,7 +196,6 @@ tasks.register("javaPreCommitPortabilityApi") {
 tasks.register("javaPostCommit") {
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:postCommit")
   dependsOn(":sdks:java:extensions:zetasketch:postCommit")
-  dependsOn(":sdks:java:io:jdbc:integrationTest")
   dependsOn(":sdks:java:io:google-cloud-platform:postCommit")
   dependsOn(":sdks:java:io:amazon-web-services:integrationTest")
   dependsOn(":sdks:java:io:amazon-web-services2:integrationTest")
