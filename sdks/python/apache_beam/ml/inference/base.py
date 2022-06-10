@@ -32,12 +32,15 @@ import logging
 import pickle
 import sys
 import time
+from dataclasses import dataclass
 from typing import Any
 from typing import Generic
 from typing import Iterable
 from typing import List
 from typing import Mapping
+from typing import Tuple
 from typing import TypeVar
+from typing import Union
 
 import apache_beam as beam
 from apache_beam.utils import shared
@@ -54,6 +57,15 @@ _NANOSECOND_TO_MICROSECOND = 1_000
 ModelT = TypeVar('ModelT')
 ExampleT = TypeVar('ExampleT')
 PredictionT = TypeVar('PredictionT')
+_K = TypeVar('_K')
+_INPUT_TYPE = TypeVar('_INPUT_TYPE')
+_OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
+
+
+@dataclass
+class PredictionResult:
+  example: _INPUT_TYPE
+  inference: _OUTPUT_TYPE
 
 
 def _to_milliseconds(time_ns: int) -> int:
@@ -101,12 +113,27 @@ class ModelLoader(Generic[ExampleT, PredictionT, ModelT]):
     return {}
 
 
+@beam.typehints.with_input_types(Union[_INPUT_TYPE, Tuple[_K, _INPUT_TYPE]])
+@beam.typehints.with_output_types(Union[PredictionResult, Tuple[_K, PredictionResult]])  # pylint: disable=line-too-long
 class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                                    beam.PCollection[PredictionT]]):
   """An extensible transform for running inferences.
   Args:
       model_loader: An implementation of ModelLoader.
       clock: A clock implementing get_current_time_in_microseconds.
+
+  This transform takes a PCollection of examples (or features) to be used on
+  an ML model. It will then output inferences (or predictions) for those
+  examples in a PCollection of PredictionResults, containing the input examples
+  and output inferences.
+
+  If examples are paired with keys, it will output a tuple
+  (key, PredictionResult) for each (key, example) input.
+
+  Models for supported frameworks can be loaded via a URI. Supported services
+  can also be used.
+
+  TODO(BEAM-14046): Add and link to help documentation
   """
   def __init__(
       self,

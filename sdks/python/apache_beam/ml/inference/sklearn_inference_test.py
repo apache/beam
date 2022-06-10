@@ -30,7 +30,6 @@ import numpy
 from sklearn import svm
 
 import apache_beam as beam
-from apache_beam.ml.inference import api
 from apache_beam.ml.inference import base
 from apache_beam.ml.inference.sklearn_inference import ModelFileType
 from apache_beam.ml.inference.sklearn_inference import SklearnInferenceRunner
@@ -76,9 +75,9 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
     expected_predictions = [
-        api.PredictionResult(numpy.array([1, 2, 3]), 6),
-        api.PredictionResult(numpy.array([4, 5, 6]), 15),
-        api.PredictionResult(numpy.array([7, 8, 9]), 24)
+        base.PredictionResult(numpy.array([1, 2, 3]), 6),
+        base.PredictionResult(numpy.array([4, 5, 6]), 15),
+        base.PredictionResult(numpy.array([7, 8, 9]), 24)
     ]
     inferences = inference_runner.run_inference(batched_examples, fake_model)
     for actual, expected in zip(inferences, expected_predictions):
@@ -126,8 +125,8 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       actual = pcoll | base.RunInference(
           SklearnModelLoader(model_uri=temp_file_name))
       expected = [
-          api.PredictionResult(numpy.array([0, 0]), 0),
-          api.PredictionResult(numpy.array([1, 1]), 1)
+          base.PredictionResult(numpy.array([0, 0]), 0),
+          base.PredictionResult(numpy.array([1, 1]), 1)
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
@@ -147,8 +146,8 @@ class SkLearnRunInferenceTest(unittest.TestCase):
           SklearnModelLoader(
               model_uri=temp_file_name, model_file_type=ModelFileType.JOBLIB))
       expected = [
-          api.PredictionResult(numpy.array([0, 0]), 0),
-          api.PredictionResult(numpy.array([1, 1]), 1)
+          base.PredictionResult(numpy.array([0, 0]), 0),
+          base.PredictionResult(numpy.array([1, 1]), 1)
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
