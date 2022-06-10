@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -46,6 +47,9 @@ import (
 func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	hooks.DeserializeHooksFromOptions(ctx)
 
+	// Extract environment variables. These are optional runner supported capabilities.
+	// Expected env variables:
+	// STATUS_ENDPOINT : Endpoint to connect to status server used for worker status reporting.
 	statusEndpoint := os.Getenv("STATUS_ENDPOINT")
 
 	// Pass in the logging endpoint for use w/the default remote logging hook.
@@ -121,7 +125,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 
 	// if the runner supports worker status api then expose SDK harness status
 	if statusEndpoint != "" {
-		statusHandler, err := newWorkerStatusHandler(ctx, statusEndpoint, ctrl.metStore, ctrl.cache)
+		statusHandler, err := newWorkerStatusHandler(ctx, statusEndpoint, ctrl.cache, func(statusInfo *strings.Builder) { ctrl.metStoreToString(statusInfo) })
 		if err != nil {
 			log.Errorf(ctx, "error establishing connection to worker status API: %v", err)
 		} else {
@@ -267,6 +271,16 @@ type control struct {
 	state *StateChannelManager
 	// TODO(BEAM-11097): Cache is currently unused.
 	cache *statecache.SideInputCache
+}
+
+func (c *control) metStoreToString(statusInfo *strings.Builder) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for bundleID, store := range c.metStore {
+		statusInfo.WriteString(fmt.Sprintf("Bundle ID: %v\n", bundleID))
+		statusInfo.WriteString(fmt.Sprintf("\t%s", store.BundleState()))
+		statusInfo.WriteString(fmt.Sprintf("\t%s", store.StateRegistry()))
+	}
 }
 
 func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {

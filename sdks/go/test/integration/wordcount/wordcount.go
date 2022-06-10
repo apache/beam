@@ -19,12 +19,13 @@ package wordcount
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
-	"regexp"
-	"strings"
 )
 
 var (
