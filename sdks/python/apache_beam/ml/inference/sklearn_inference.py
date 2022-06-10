@@ -18,10 +18,13 @@
 import enum
 import pickle
 import sys
+from typing import Any
 from typing import Iterable
 from typing import List
+from typing import Union
 
 import numpy
+import pandas
 from sklearn.base import BaseEstimator
 
 from apache_beam.io.filesystems import FileSystems
@@ -41,20 +44,58 @@ class ModelFileType(enum.Enum):
   JOBLIB = 2
 
 
-class SklearnInferenceRunner(InferenceRunner[numpy.ndarray,
+class SklearnInferenceRunner(InferenceRunner[Union[numpy.ndarray,
+                                                   pandas.DataFrame],
                                              PredictionResult,
                                              BaseEstimator]):
   def run_inference(
-      self, batch: List[numpy.ndarray], model: BaseEstimator,
+      self,
+      batch: List[Union[numpy.ndarray, pandas.DataFrame]],
+      model: BaseEstimator,
       **kwargs) -> Iterable[PredictionResult]:
+    # TODO(github.com/apache/beam/issues/21769): Use supplied input type hint.
+    if isinstance(batch[0], numpy.ndarray):
+      return SklearnInferenceRunner._predict_np_array(batch, model)
+    elif isinstance(batch[0], pandas.DataFrame):
+      return SklearnInferenceRunner._predict_pandas_dataframe(batch, model)
+    raise ValueError('Unsupported data type.')
+
+  @staticmethod
+  def _predict_np_array(batch: List[numpy.ndarray],
+                        model: Any) -> Iterable[PredictionResult]:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
-  def get_num_bytes(self, batch: List[numpy.ndarray]) -> int:
+  @staticmethod
+  def _predict_pandas_dataframe(batch: List[pandas.DataFrame],
+                                model: Any) -> Iterable[PredictionResult]:
+    # sklearn_inference currently only supports single rowed dataframes.
+    for dataframe in batch:
+      if dataframe.shape[0] != 1:
+        raise ValueError('Only dataframes with single rows are supported.')
+
+    # vectorize data for better performance
+    vectorized_batch = pandas.concat(batch, axis=0)
+    predictions = model.predict(vectorized_batch)
+    splits = [
+        vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
+    ]
+    return [
+        PredictionResult(example, inference) for example,
+        inference in zip(splits, predictions)
+    ]
+
+  def get_num_bytes(
+      self, batch: List[Union[numpy.ndarray, pandas.DataFrame]]) -> int:
     """Returns the number of bytes of data for a batch."""
-    return sum(sys.getsizeof(element) for element in batch)
+    if isinstance(batch[0], numpy.ndarray):
+      return sum(sys.getsizeof(element) for element in batch)
+    elif isinstance(batch[0], pandas.DataFrame):
+      data_frames: List[pandas.DataFrame] = batch
+      return sum(df.memory_usage(deep=True).sum() for df in data_frames)
+    raise ValueError('Unsupported data type.')
 
 
 class SklearnModelLoader(ModelLoader[numpy.ndarray,
