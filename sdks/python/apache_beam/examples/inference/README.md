@@ -36,7 +36,7 @@ The RunInference API has support for the Pytorch framework. To use Pytorch local
 pip install torch==1.11.0
 ```
 
-For installation of the `torch` dependency for Dataflow pipelines, refer to these
+For installation of the `torch` dependency on a distributed runner, like Dataflow, refer to these
 [instructions](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pypi-dependencies).
 
 <!---
@@ -49,7 +49,7 @@ for details."
 
 ### Datasets and Models for RunInference
 Data related to RunInference has been staged in
-`gs://apache-beam-ml/` for use with these example pipelines. You can see this by using the [gsutil tool](https://cloud.google.com/storage/docs/gsutil#gettingstarted).
+`gs://apache-beam-ml/` for use with these example pipelines. You can view the data [here](https://console.cloud.google.com/storage/browser/apache-beam-ml). You also can see this by using the [gsutil tool](https://cloud.google.com/storage/docs/gsutil#gettingstarted).
 ```
 gsutil ls gs://apache-beam-ml
 ```
