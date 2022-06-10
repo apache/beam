@@ -47,7 +47,7 @@ class SklearnModelHandler(ModelHandler[Union[numpy.ndarray,
                                                    pandas.DataFrame],
                                        PredictionResult,
                                        BaseEstimator]):
-  """ Implementation of the ModelHandler interface for scikit learn.
+  """ Implementation of the ModelHandler interface for scikit-learn.
 
       NOTE: This API and its implementation are under development and
       do not provide backward compatibility guarantees.
