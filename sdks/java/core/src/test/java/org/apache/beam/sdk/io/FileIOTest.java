@@ -298,6 +298,8 @@ public class FileIOTest implements Serializable {
                 .via((metadata) -> metadata.resourceId().getFilename()));
     PAssert.that(matchUpdatedCount).containsInAnyOrder(expectedMatchUpdated);
 
+    // Check watch for file updates. Compare only filename since modified time of copied files are
+    // uncontrolled.
     List<String> expectedMatchAllUpdated =
         Arrays.asList("first", "first", "first", "second", "second", "third");
     PCollection<String> matchAllUpdatedCount =
