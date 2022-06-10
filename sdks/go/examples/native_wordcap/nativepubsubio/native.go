@@ -104,6 +104,8 @@ func (r *pubSubRead) Setup(ctx context.Context) error {
 	return nil
 }
 
+var messageTimeout time.Duration = 5 * time.Second
+
 // ProcessElement initializes a PubSub client if one has not been created already, reads from the PubSub subscription,
 // and emits elements as it reads them. If no messages are available, the DoFn will schedule itself to resume processing
 // later. If polling the subscription returns an error, the error will be logged and the DoFn will not reschedule itself.
@@ -140,9 +142,7 @@ func (r *pubSubRead) ProcessElement(ctx context.Context, bf beam.BundleFinalizat
 			}
 		}(messChan)
 
-		// Give the goroutines time to start polling.
-		time.Sleep(5 * time.Second)
-
+		timeout := time.NewTimer(messageTimeout)
 		for {
 			select {
 			case m, ok := <-messChan:
@@ -152,8 +152,12 @@ func (r *pubSubRead) ProcessElement(ctx context.Context, bf beam.BundleFinalizat
 				}
 				r.processedMessages = append(r.processedMessages, m)
 				emit(beam.EventTime(m.PublishTime.UnixMilli()), m.Data)
-			default:
-				log.Debug(context.Background(), "cancelling receive context, scheduling resumption")
+				if !timeout.Stop() {
+					<-timeout.C
+				}
+				timeout.Reset(messageTimeout)
+			case <-timeout.C:
+				log.Debugf(context.Background(), "cancelling receive context, scheduling resumption")
 				cFn()
 				return sdf.ResumeProcessingIn(10 * time.Second), nil
 			}
