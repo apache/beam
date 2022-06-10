@@ -34,7 +34,7 @@ import (
 )
 
 func init() {
-	register.DoFn4x2[beam.BundleFinalization, *sdf.LockRTracker, []byte, func(beam.EventTime, []byte), sdf.ProcessContinuation, error](&pubSubRead{})
+	register.DoFn5x2[context.Context, beam.BundleFinalization, *sdf.LockRTracker, []byte, func(beam.EventTime, []byte), sdf.ProcessContinuation, error](&pubSubRead{})
 	register.DoFn2x1[context.Context, []byte, error](&pubSubWrite{})
 	register.Emitter2[beam.EventTime, []byte]()
 }
@@ -92,10 +92,22 @@ func (r *pubSubRead) SplitRestriction(_ []byte, rest string) []string {
 	return []string{rest}
 }
 
+// Setup initializes a PubSub client if one has not been created already
+func (r *pubSubRead) Setup(ctx context.Context) error {
+	if r.client == nil {
+		client, err := pubsub.NewClient(context.Background(), r.ProjectID)
+		if err != nil {
+			return err
+		}
+		r.client = client
+	}
+	return nil
+}
+
 // ProcessElement initializes a PubSub client if one has not been created already, reads from the PubSub subscription,
 // and emits elements as it reads them. If no messages are available, the DoFn will schedule itself to resume processing
 // later. If polling the subscription returns an error, the error will be logged and the DoFn will not reschedule itself.
-func (r *pubSubRead) ProcessElement(bf beam.BundleFinalization, rt *sdf.LockRTracker, _ []byte, emit func(beam.EventTime, []byte)) (sdf.ProcessContinuation, error) {
+func (r *pubSubRead) ProcessElement(ctx context.Context, bf beam.BundleFinalization, rt *sdf.LockRTracker, _ []byte, emit func(beam.EventTime, []byte)) (sdf.ProcessContinuation, error) {
 	// Register finalization callback
 	bf.RegisterCallback(5*time.Minute, func() error {
 		for _, m := range r.processedMessages {
@@ -105,22 +117,13 @@ func (r *pubSubRead) ProcessElement(bf beam.BundleFinalization, rt *sdf.LockRTra
 		return nil
 	})
 
-	// Initialize PubSub client if one has not been created already
-	if r.client == nil {
-		client, err := pubsub.NewClient(context.Background(), r.ProjectID)
-		if err != nil {
-			return sdf.StopProcessing(), err
-		}
-		r.client = client
-	}
-
 	for {
 		ok := rt.TryClaim(r.Subscription)
 		if !ok {
 			return sdf.ResumeProcessingIn(5 * time.Second), nil
 		}
 		sub := r.client.Subscription(r.Subscription)
-		ctx, cFn := context.WithCancel(context.Background())
+		ctx, cFn := context.WithCancel(ctx)
 
 		// Because emitters are not thread safe and synchronous Receive() behavior
 		// is deprecated, we have to collect messages in a goroutine and pipe them
@@ -182,17 +185,21 @@ type pubSubWrite struct {
 	client    *pubsub.Client
 }
 
-// ProcessElement takes a []byte element and publishes it to the provided PubSub
-// topic.
-func (w *pubSubWrite) ProcessElement(ctx context.Context, elm []byte) error {
-	// Initialize PubSub client if one has not been created already
-	if w.client == nil {
-		client, err := pubsub.NewClient(ctx, w.ProjectID)
+// Setup initializes a PubSub client if one has not been created already
+func (r *pubSubWrite) Setup(ctx context.Context) error {
+	if r.client == nil {
+		client, err := pubsub.NewClient(context.Background(), r.ProjectID)
 		if err != nil {
 			return err
 		}
-		w.client = client
+		r.client = client
 	}
+	return nil
+}
+
+// ProcessElement takes a []byte element and publishes it to the provided PubSub
+// topic.
+func (w *pubSubWrite) ProcessElement(ctx context.Context, elm []byte) error {
 	top := w.client.Topic(w.Topic)
 
 	psMess := &pubsub.Message{Data: elm}
