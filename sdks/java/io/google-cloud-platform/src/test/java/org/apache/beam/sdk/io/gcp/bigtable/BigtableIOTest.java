@@ -194,11 +194,7 @@ public class BigtableIOTest {
     defaultWrite = defaultWrite.withBigtableService(service);
     bigtableCoder = p.getCoderRegistry().getCoder(BIGTABLE_WRITE_TYPE);
 
-    config =
-        BigtableConfig.builder()
-            .setValidate(true)
-            .setBigtableService(service)
-            .build();
+    config = BigtableConfig.builder().setValidate(true).setBigtableService(service).build();
   }
 
   private static ByteKey makeByteKey(ByteString key) {
@@ -306,10 +302,7 @@ public class BigtableIOTest {
     FailureBigtableService failureService =
         new FailureBigtableService(FailureOptions.builder().setFailAtStart(true).build());
     BigtableConfig failureConfig =
-        BigtableConfig.builder()
-            .setValidate(true)
-            .setBigtableService(failureService)
-            .build();
+        BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
     final String table = "TEST-TABLE";
     final int numRows = 100;
     makeTableData(failureService, table, numRows);
@@ -331,10 +324,7 @@ public class BigtableIOTest {
     FailureBigtableService failureService =
         new FailureBigtableService(FailureOptions.builder().setFailAtAdvance(true).build());
     BigtableConfig failureConfig =
-        BigtableConfig.builder()
-            .setValidate(true)
-            .setBigtableService(failureService)
-            .build();
+        BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
     final String table = "TEST-TABLE";
     final int numRows = 100;
     makeTableData(failureService, table, numRows);
@@ -806,10 +796,7 @@ public class BigtableIOTest {
     FailureBigtableService failureService =
         new FailureBigtableService(FailureOptions.builder().setFailAtSplit(true).build());
     BigtableConfig failureConfig =
-        BigtableConfig.builder()
-            .setValidate(true)
-            .setBigtableService(failureService)
-            .build();
+        BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
 
     final String table = "TEST-MANY-ROWS-SPLITS-TABLE";
     final int numRows = 1500;

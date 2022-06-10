@@ -40,7 +40,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -849,7 +848,8 @@ public class BigtableIO {
 
     protected final Counter cumulativeThrottlingMilliseconds =
         Metrics.counter("dataflow-throttling-metrics", "throttling-msecs");
-    private static AtomicLong lastAggregatedThrottleTime = new AtomicLong(0);
+    private static Object metricLock = new Object();
+    private static long lastAggregatedThrottleTime = 0;
 
     BigtableWriterFn(BigtableConfig bigtableConfig) {
       this.config = bigtableConfig;
@@ -880,18 +880,19 @@ public class BigtableIO {
                 }
               });
       if (config.getBulkMutationThrottling()) {
-        long newAggregatedThrottleTime =
-            TimeUnit.NANOSECONDS.toMillis(
-                ResourceLimiterStats.getInstance(
-                        new BigtableInstanceName(
-                            config.getProjectId().get(), config.getInstanceId().get()))
-                    .getCumulativeThrottlingTimeNanos());
-        long lastAggregatedThrottleTimeBeforeUpdate = lastAggregatedThrottleTime.get();
-        long newThrottleTimeDelta =
-            lastAggregatedThrottleTime.updateAndGet(l -> newAggregatedThrottleTime)
-                - lastAggregatedThrottleTimeBeforeUpdate;
-        if (newThrottleTimeDelta > 0) {
-          cumulativeThrottlingMilliseconds.inc(newThrottleTimeDelta);
+        long delta = 0;
+        synchronized (metricLock) {
+          long newAggregratedThrottleTime =
+              TimeUnit.NANOSECONDS.toMillis(
+                  ResourceLimiterStats.getInstance(
+                          new BigtableInstanceName(
+                              config.getProjectId().get(), config.getInstanceId().get()))
+                      .getCumulativeThrottlingTimeNanos());
+          delta = newAggregratedThrottleTime - lastAggregatedThrottleTime;
+          lastAggregatedThrottleTime = newAggregratedThrottleTime;
+        }
+        if (delta > 0) {
+          cumulativeThrottlingMilliseconds.inc(delta);
         }
       }
       ++recordsWritten;

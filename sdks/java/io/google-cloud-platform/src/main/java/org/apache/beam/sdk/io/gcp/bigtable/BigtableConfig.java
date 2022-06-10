@@ -103,8 +103,8 @@ abstract class BigtableConfig implements Serializable {
     abstract Builder setEmulatorHost(String emulatorHost);
 
     /*
-      This feature is experimental and may be changed and relocated in the future
-     */
+     This feature is experimental and may be changed and relocated in the future
+    */
     @Experimental
     abstract Builder setBulkMutationThrottling(boolean isEnabled);
 
