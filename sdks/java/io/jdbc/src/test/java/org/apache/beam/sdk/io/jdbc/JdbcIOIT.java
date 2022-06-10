@@ -210,8 +210,7 @@ public class JdbcIOIT {
    */
   private PipelineResult runWrite() {
     pipelineWrite
-        .apply(
-            Create.of(LongStream.range(0, EXPECTED_ROW_COUNT).boxed().collect(Collectors.toList())))
+        .apply(Create.of(LongStream.range(0, numberOfRows).boxed().collect(Collectors.toList())))
         .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
         .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
         .apply(
@@ -252,14 +251,14 @@ public class JdbcIOIT {
             .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
 
     PAssert.thatSingleton(namesAndIds.apply("Count All", Count.globally()))
-        .isEqualTo((long) EXPECTED_ROW_COUNT);
+        .isEqualTo((long) numberOfRows);
 
     PCollection<String> consolidatedHashcode =
         namesAndIds
             .apply(ParDo.of(new TestRow.SelectNameFn()))
             .apply("Hash row contents", Combine.globally(new HashingFn()).withoutDefaults());
     PAssert.that(consolidatedHashcode)
-        .containsInAnyOrder(TestRow.getExpectedHashForRowCount(EXPECTED_ROW_COUNT));
+        .containsInAnyOrder(TestRow.getExpectedHashForRowCount(numberOfRows));
 
     PCollection<List<TestRow>> frontOfList = namesAndIds.apply(Top.smallest(500));
     Iterable<TestRow> expectedFrontOfList = TestRow.getExpectedValues(0, 500);
@@ -267,7 +266,7 @@ public class JdbcIOIT {
 
     PCollection<List<TestRow>> backOfList = namesAndIds.apply(Top.largest(500));
     Iterable<TestRow> expectedBackOfList =
-        TestRow.getExpectedValues(EXPECTED_ROW_COUNT - 500, EXPECTED_ROW_COUNT);
+        TestRow.getExpectedValues(numberOfRows - 500, numberOfRows);
     PAssert.thatSingletonIterable(backOfList).containsInAnyOrder(expectedBackOfList);
 
     return pipelineRead.run();
@@ -389,7 +388,7 @@ public class JdbcIOIT {
     String firstTableName = DatabaseTestHelper.getTestTableName("JDBCIT_WRITE");
     DatabaseTestHelper.createTable(dataSource, firstTableName);
     try {
-      ArrayList<KV<Integer, String>> data = getTestDataToWrite(EXPECTED_ROW_COUNT);
+      ArrayList<KV<Integer, String>> data = getTestDataToWrite(numberOfRows);
 
       PCollection<KV<Integer, String>> dataCollection = pipelineWrite.apply(Create.of(data));
       PCollection<JdbcTestHelper.TestDto> resultSetCollection =
@@ -405,7 +404,7 @@ public class JdbcIOIT {
       resultSetCollection.setCoder(JdbcTestHelper.TEST_DTO_CODER);
 
       List<JdbcTestHelper.TestDto> expectedResult = new ArrayList<>();
-      for (int id = 0; id < EXPECTED_ROW_COUNT; id++) {
+      for (int id = 0; id < numberOfRows; id++) {
         expectedResult.add(new JdbcTestHelper.TestDto(id));
       }
 
@@ -413,7 +412,7 @@ public class JdbcIOIT {
 
       pipelineWrite.run().waitUntilFinish();
 
-      assertRowCount(dataSource, firstTableName, EXPECTED_ROW_COUNT);
+      assertRowCount(dataSource, firstTableName, numberOfRows);
     } finally {
       DatabaseTestHelper.deleteTable(dataSource, firstTableName);
     }
