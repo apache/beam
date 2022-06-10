@@ -33,7 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Result of {@link WinningBids} transform. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class AuctionBid implements KnownSize, Serializable {
   public static final Coder<AuctionBid> CODER =

@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# mypy: ignore-errors
 
 from dataclasses import dataclass
 from typing import Tuple
@@ -34,11 +35,13 @@ class PredictionResult:
   inference: _OUTPUT_TYPE
 
 
-@beam.ptransform_fn
 @beam.typehints.with_input_types(Union[_INPUT_TYPE, Tuple[_K, _INPUT_TYPE]])
 @beam.typehints.with_output_types(Union[PredictionResult, Tuple[_K, PredictionResult]])  # pylint: disable=line-too-long
 class RunInference(beam.PTransform):
   """
+  NOTE: This API and its implementation are under development and
+  do not provide backward compatibility guarantees.
+
   A transform that takes a PCollection of examples (or features) to be used on
   an ML model. It will then output inferences (or predictions) for those
   examples in a PCollection of PredictionResults, containing the input examples
@@ -52,7 +55,7 @@ class RunInference(beam.PTransform):
 
   TODO(BEAM-14046): Add and link to help documentation
   """
-  def __init__(self, model_loader: base.ModelLoader) -> beam.pvalue.PCollection:
+  def __init__(self, model_loader: base.ModelLoader):
     self._model_loader = model_loader
 
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:

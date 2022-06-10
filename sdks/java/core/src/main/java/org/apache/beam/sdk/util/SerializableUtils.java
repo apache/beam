@@ -39,7 +39,7 @@ import org.xerial.snappy.SnappyOutputStream;
 
 /** Utilities for working with Serializables. */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class SerializableUtils {

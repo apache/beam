@@ -30,7 +30,7 @@ import org.apache.solr.common.SolrInputDocument;
 
 /** Test utilities to use with {@link SolrIO}. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class SolrIOTestUtils {
   public static final long MIN_DOC_SIZE = 30L;

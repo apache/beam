@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * when fetching data from shards.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 

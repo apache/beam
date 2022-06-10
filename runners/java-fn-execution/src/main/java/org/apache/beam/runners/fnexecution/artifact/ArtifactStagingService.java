@@ -65,7 +65,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ArtifactStagingService
     extends ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase implements FnService {

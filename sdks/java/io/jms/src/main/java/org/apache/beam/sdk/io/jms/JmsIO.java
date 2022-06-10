@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.stream.Stream;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Destination;
@@ -48,13 +49,19 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An unbounded source for JMS destinations (queues or topics).
@@ -107,14 +114,15 @@ import org.joda.time.Instant;
  *   .apply(JmsIO.write()
  *       .withConnectionFactory(myConnectionFactory)
  *       .withQueue("my-queue")
- *
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class JmsIO {
+
+  private static final Logger LOG = LoggerFactory.getLogger(JmsIO.class);
 
   public static Read<JmsRecord> read() {
     return new AutoValue_JmsIO_Read.Builder<JmsRecord>()
@@ -157,8 +165,8 @@ public class JmsIO {
     return new AutoValue_JmsIO_Read.Builder<T>().setMaxNumRecords(Long.MAX_VALUE).build();
   }
 
-  public static Write write() {
-    return new AutoValue_JmsIO_Write.Builder().build();
+  public static <EventT> Write<EventT> write() {
+    return new AutoValue_JmsIO_Write.Builder<EventT>().build();
   }
 
   /**
@@ -604,7 +612,8 @@ public class JmsIO {
    * and configuration.
    */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<String>, PDone> {
+  public abstract static class Write<EventT>
+      extends PTransform<PCollection<EventT>, WriteJmsResult<EventT>> {
 
     abstract @Nullable ConnectionFactory getConnectionFactory();
 
@@ -616,21 +625,31 @@ public class JmsIO {
 
     abstract @Nullable String getPassword();
 
-    abstract Builder builder();
+    abstract @Nullable SerializableBiFunction<EventT, Session, Message> getValueMapper();
+
+    abstract @Nullable SerializableFunction<EventT, String> getTopicNameMapper();
+
+    abstract Builder<EventT> builder();
 
     @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setConnectionFactory(ConnectionFactory connectionFactory);
+    abstract static class Builder<EventT> {
+      abstract Builder<EventT> setConnectionFactory(ConnectionFactory connectionFactory);
 
-      abstract Builder setQueue(String queue);
+      abstract Builder<EventT> setQueue(String queue);
 
-      abstract Builder setTopic(String topic);
+      abstract Builder<EventT> setTopic(String topic);
 
-      abstract Builder setUsername(String username);
+      abstract Builder<EventT> setUsername(String username);
 
-      abstract Builder setPassword(String password);
+      abstract Builder<EventT> setPassword(String password);
 
-      abstract Write build();
+      abstract Builder<EventT> setValueMapper(
+          SerializableBiFunction<EventT, Session, Message> valueMapper);
+
+      abstract Builder<EventT> setTopicNameMapper(
+          SerializableFunction<EventT, String> topicNameMapper);
+
+      abstract Write<EventT> build();
     }
 
     /**
@@ -646,7 +665,7 @@ public class JmsIO {
      * @param connectionFactory The JMS {@link ConnectionFactory}.
      * @return The corresponding {@link JmsIO.Read}.
      */
-    public Write withConnectionFactory(ConnectionFactory connectionFactory) {
+    public Write<EventT> withConnectionFactory(ConnectionFactory connectionFactory) {
       checkArgument(connectionFactory != null, "connectionFactory can not be null");
       return builder().setConnectionFactory(connectionFactory).build();
     }
@@ -656,7 +675,7 @@ public class JmsIO {
      * acts as a producer on the queue.
      *
      * <p>This method is exclusive with {@link JmsIO.Write#withTopic(String)}. The user has to
-     * specify a destination: queue or topic.
+     * specify a destination: queue, topic, or topicNameMapper.
      *
      * <p>For instance:
      *
@@ -668,7 +687,7 @@ public class JmsIO {
      * @param queue The JMS queue name where to send messages to.
      * @return The corresponding {@link JmsIO.Read}.
      */
-    public Write withQueue(String queue) {
+    public Write<EventT> withQueue(String queue) {
       checkArgument(queue != null, "queue can not be null");
       return builder().setQueue(queue).build();
     }
@@ -678,7 +697,7 @@ public class JmsIO {
      * as a publisher on the topic.
      *
      * <p>This method is exclusive with {@link JmsIO.Write#withQueue(String)}. The user has to
-     * specify a destination: queue or topic.
+     * specify a destination: queue, topic, or topicNameMapper.
      *
      * <p>For instance:
      *
@@ -690,47 +709,131 @@ public class JmsIO {
      * @param topic The JMS topic name.
      * @return The corresponding {@link JmsIO.Read}.
      */
-    public Write withTopic(String topic) {
+    public Write<EventT> withTopic(String topic) {
       checkArgument(topic != null, "topic can not be null");
       return builder().setTopic(topic).build();
     }
 
     /** Define the username to connect to the JMS broker (authenticated). */
-    public Write withUsername(String username) {
+    public Write<EventT> withUsername(String username) {
       checkArgument(username != null, "username can not be null");
       return builder().setUsername(username).build();
     }
 
     /** Define the password to connect to the JMS broker (authenticated). */
-    public Write withPassword(String password) {
+    public Write<EventT> withPassword(String password) {
       checkArgument(password != null, "password can not be null");
       return builder().setPassword(password).build();
     }
 
-    @Override
-    public PDone expand(PCollection<String> input) {
-      checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
-      checkArgument(
-          getQueue() != null || getTopic() != null,
-          "Either withQueue(queue) or withTopic(topic) is required");
-      checkArgument(
-          getQueue() == null || getTopic() == null,
-          "withQueue(queue) and withTopic(topic) are exclusive");
-
-      input.apply(ParDo.of(new WriterFn(this)));
-      return PDone.in(input.getPipeline());
+    /**
+     * Specify the JMS topic destination name where to send messages to dynamically. The {@link
+     * JmsIO.Write} acts as a publisher on the topic.
+     *
+     * <p>This method is exclusive with {@link JmsIO.Write#withQueue(String) and
+     * {@link JmsIO.Write#withTopic(String)}. The user has to specify a {@link SerializableFunction}
+     * that takes {@code EventT} object as a parameter, and returns the topic name depending of the content
+     * of the event object.
+     *
+     * <p>For example:
+     * <pre>{@code
+     * SerializableFunction<CompanyEvent, String> topicNameMapper =
+     *   (event ->
+     *    String.format(
+     *    "company/%s/employee/%s",
+     *    event.getCompanyName(),
+     *    event.getEmployeeId()));
+     * }</pre>
+     *
+     * <pre>{@code
+     * .apply(JmsIO.write().withTopicNameMapper(topicNameNapper)
+     * }</pre>
+     *
+     * @param topicNameMapper The function returning the dynamic topic name.
+     * @return The corresponding {@link JmsIO.Write}.
+     */
+    public Write<EventT> withTopicNameMapper(SerializableFunction<EventT, String> topicNameMapper) {
+      checkArgument(topicNameMapper != null, "topicNameMapper can not be null");
+      return builder().setTopicNameMapper(topicNameMapper).build();
     }
 
-    private static class WriterFn extends DoFn<String, Void> {
+    /**
+     * Map the {@code EventT} object to a {@link javax.jms.Message}.
+     *
+     * <p>For instance:
+     *
+     * <pre>{@code
+     * SerializableBiFunction<SomeEventObject, Session, Message> valueMapper = (e, s) -> {
+     *
+     *       try {
+     *         TextMessage msg = s.createTextMessage();
+     *         msg.setText(Mapper.MAPPER.toJson(e));
+     *         return msg;
+     *       } catch (JMSException ex) {
+     *         throw new JmsIOException("Error!!", ex);
+     *       }
+     *     };
+     *
+     * }</pre>
+     *
+     * <pre>{@code
+     * .apply(JmsIO.write().withValueMapper(valueNapper)
+     * }</pre>
+     *
+     * @param valueMapper The function returning the {@link javax.jms.Message}
+     * @return The corresponding {@link JmsIO.Write}.
+     */
+    public Write<EventT> withValueMapper(
+        SerializableBiFunction<EventT, Session, Message> valueMapper) {
+      checkArgument(valueMapper != null, "valueMapper can not be null");
+      return builder().setValueMapper(valueMapper).build();
+    }
 
-      private Write spec;
+    @Override
+    public WriteJmsResult<EventT> expand(PCollection<EventT> input) {
+      checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
+      checkArgument(
+          getTopicNameMapper() != null || getQueue() != null || getTopic() != null,
+          "Either withTopicNameMapper(topicNameMapper), withQueue(queue), or withTopic(topic) is required");
+      boolean exclusiveTopicQueue = isExclusiveTopicQueue();
+      checkArgument(
+          exclusiveTopicQueue,
+          "Only one of withQueue(queue), withTopic(topic), or withTopicNameMapper(function) must be set.");
+      checkArgument(getValueMapper() != null, "withValueMapper() is required");
+
+      final TupleTag<EventT> failedMessagesTag = new TupleTag<>();
+      final TupleTag<EventT> messagesTag = new TupleTag<>();
+      PCollectionTuple res =
+          input.apply(
+              ParDo.of(new WriterFn<>(this, failedMessagesTag))
+                  .withOutputTags(messagesTag, TupleTagList.of(failedMessagesTag)));
+      PCollection<EventT> failedMessages = res.get(failedMessagesTag).setCoder(input.getCoder());
+      res.get(messagesTag).setCoder(input.getCoder());
+      return WriteJmsResult.in(input.getPipeline(), failedMessagesTag, failedMessages);
+    }
+
+    private boolean isExclusiveTopicQueue() {
+      boolean exclusiveTopicQueue =
+          Stream.of(getQueue() != null, getTopic() != null, getTopicNameMapper() != null)
+                  .filter(b -> b)
+                  .count()
+              == 1;
+      return exclusiveTopicQueue;
+    }
+
+    private static class WriterFn<EventT> extends DoFn<EventT, EventT> {
+
+      private Write<EventT> spec;
 
       private Connection connection;
       private Session session;
       private MessageProducer producer;
+      private Destination destination;
+      private final TupleTag<EventT> failedMessageTag;
 
-      public WriterFn(Write spec) {
+      public WriterFn(Write<EventT> spec, TupleTag<EventT> failedMessageTag) {
         this.spec = spec;
+        this.failedMessageTag = failedMessageTag;
       }
 
       @Setup
@@ -746,21 +849,31 @@ public class JmsIO {
           this.connection.start();
           // false means we don't use JMS transaction.
           this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-          Destination destination;
+
           if (spec.getQueue() != null) {
-            destination = session.createQueue(spec.getQueue());
-          } else {
-            destination = session.createTopic(spec.getTopic());
+            this.destination = session.createQueue(spec.getQueue());
+          } else if (spec.getTopic() != null) {
+            this.destination = session.createTopic(spec.getTopic());
           }
-          this.producer = this.session.createProducer(destination);
+
+          this.producer = this.session.createProducer(null);
         }
       }
 
       @ProcessElement
-      public void processElement(ProcessContext ctx) throws Exception {
-        String value = ctx.element();
-        TextMessage message = session.createTextMessage(value);
-        producer.send(message);
+      public void processElement(ProcessContext ctx) {
+        Destination destinationToSendTo = destination;
+        try {
+          Message message = spec.getValueMapper().apply(ctx.element(), session);
+          if (spec.getTopicNameMapper() != null) {
+            destinationToSendTo =
+                session.createTopic(spec.getTopicNameMapper().apply(ctx.element()));
+          }
+          producer.send(destinationToSendTo, message);
+        } catch (Exception ex) {
+          LOG.error("Error sending message on topic {}", destinationToSendTo);
+          ctx.output(failedMessageTag, ctx.element());
+        }
       }
 
       @Teardown

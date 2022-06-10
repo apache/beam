@@ -31,7 +31,7 @@ import org.apache.beam.sdk.values.KV;
  * resources, and throw an exception if bundle processing has failed.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public interface RemoteBundle extends AutoCloseable {
   /** Get an id used to represent this bundle. */

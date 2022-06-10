@@ -45,6 +45,11 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    --python_expansion_service_allowlist_glob)
+      PYTHON_EXPANSION_SERVICE_ALLOWLIST_GLOB="$2"
+      shift
+      shift
+      ;;
     --python_virtualenv_dir)
       PYTHON_VIRTUALENV_DIR="$2"
       shift
@@ -121,7 +126,7 @@ case $STARTSTOP in
 
     echo "Launching Python expansion service @ $PYTHON_PORT"
     source $PYTHON_VIRTUALENV_DIR/bin/activate
-    python -m $PYTHON_EXPANSION_SERVICE_MODULE -p $PYTHON_PORT >$TEMP_DIR/$FILE_BASE-python.log 2>&1 </dev/null &
+    python -m $PYTHON_EXPANSION_SERVICE_MODULE -p $PYTHON_PORT --fully_qualified_name_glob "$PYTHON_EXPANSION_SERVICE_ALLOWLIST_GLOB" >$TEMP_DIR/$FILE_BASE-python.log 2>&1 </dev/null &
     mypid=$!
     if kill -0 $mypid >/dev/null 2>&1; then
       echo $mypid >> $pid

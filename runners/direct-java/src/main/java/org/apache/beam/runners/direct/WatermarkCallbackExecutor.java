@@ -51,7 +51,7 @@ import org.joda.time.Instant;
  * transform with the current value of the watermark.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class WatermarkCallbackExecutor {
   /** Create a new {@link WatermarkCallbackExecutor}. */

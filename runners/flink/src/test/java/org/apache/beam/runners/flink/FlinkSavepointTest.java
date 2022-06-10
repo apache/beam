@@ -83,7 +83,7 @@ import org.slf4j.LoggerFactory;
  * a different parallelism.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 public class FlinkSavepointTest implements Serializable {
@@ -274,7 +274,7 @@ public class FlinkSavepointTest implements Serializable {
     // try multiple times because the job might not be ready yet
     for (int i = 0; i < 10; i++) {
       try {
-        return flinkCluster.triggerSavepoint(jobID, null, false).get();
+        return MiniClusterCompat.triggerSavepoint(flinkCluster, jobID, null, false).get();
       } catch (Exception e) {
         exception = e;
         LOG.debug("Exception while triggerSavepoint, trying again", e);
@@ -316,7 +316,7 @@ public class FlinkSavepointTest implements Serializable {
                   MapElements.via(
                       new InferableFunction<byte[], KV<String, Void>>() {
                         @Override
-                        public KV<String, Void> apply(byte[] input) throws Exception {
+                        public KV<String, Void> apply(byte[] input) {
                           // This only writes data to one of the two initial partitions.
                           // We want to test this due to
                           // https://jira.apache.org/jira/browse/BEAM-7144

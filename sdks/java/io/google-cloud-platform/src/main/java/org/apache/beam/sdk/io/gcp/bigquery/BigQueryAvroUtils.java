@@ -59,9 +59,6 @@ import org.joda.time.format.DateTimeFormatter;
  * <p>These utilities are based on the <a href="https://avro.apache.org/docs/1.8.1/spec.html">Avro
  * 1.8.1</a> specification.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class BigQueryAvroUtils {
 
   /**
@@ -91,6 +88,7 @@ class BigQueryAvroUtils {
           .put("DATETIME", Type.STRING)
           .put("TIME", Type.STRING)
           .put("TIME", Type.LONG)
+          .put("JSON", Type.STRING)
           .build();
 
   /**
@@ -303,6 +301,7 @@ class BigQueryAvroUtils {
       case "STRING":
       case "DATETIME":
       case "GEOGRAPHY":
+      case "JSON":
         // Avro will use a CharSequence to represent String objects, but it may not always use
         // java.lang.String; for example, it may prefer org.apache.avro.util.Utf8.
         verify(v instanceof CharSequence, "Expected CharSequence (String), got %s", v.getClass());
@@ -415,6 +414,9 @@ class BigQueryAvroUtils {
         avroFields);
   }
 
+  @SuppressWarnings({
+    "nullness" // Avro library not annotated
+  })
   private static Field convertField(TableFieldSchema bigQueryField) {
     ImmutableCollection<Type> avroTypes = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType());
     if (avroTypes.isEmpty()) {

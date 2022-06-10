@@ -75,7 +75,7 @@ task copyGolangLicenses(type: Copy) {
 }
 
 task copyJdkOptions(type: Copy) {
-    if (imageJavaVersion == "17") {
+    if (imageJavaVersion == "17" || imageJavaVersion == "11") {
         from "option-jamm.json"
         into "build/target/options"
     }
@@ -83,7 +83,7 @@ task copyJdkOptions(type: Copy) {
 
 task skipPullLicenses(type: Exec) {
     executable "sh"
-    args "-c", "mkdir -p build/target/go-licenses build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
+    args "-c", "mkdir -p build/target/go-licenses build/target/options build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
 }
 
 docker {

@@ -77,7 +77,7 @@ def main():
           or options.beam_version.startswith('https://')):
         # It's a path to a tarball.
         beam_version = os.path.basename(options.beam_version)
-        beam_package = options.beam_version
+        beam_package = options.beam_version + '[gcp,aws,asure,dataframe]'
     else:
         beam_version = options.beam_version
         beam_package = 'apache_beam[gcp,aws,asure,dataframe]==' + beam_version
@@ -92,7 +92,7 @@ def main():
     if not os.path.exists(venv_python):
         try:
             subprocess.run([executable, '-m', 'venv', venv_dir], check=True)
-            # See https://issues.apache.org/jira/browse/BEAM-14092
+            # See https://github.com/apache/beam/issues/21506
             subprocess.run([
                 venv_python, '-m', 'pip', 'install', beam_package,
                 'pyparsing==2.4.2'

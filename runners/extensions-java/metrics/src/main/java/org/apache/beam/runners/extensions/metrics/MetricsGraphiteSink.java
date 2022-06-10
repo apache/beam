@@ -41,7 +41,7 @@ import org.apache.beam.sdk.metrics.MetricsSink;
  * beam.distribution.throughput.nbRecordsPerSec.attempted.mean}
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class MetricsGraphiteSink implements MetricsSink {
   private static final Charset UTF_8 = Charset.forName("UTF-8");

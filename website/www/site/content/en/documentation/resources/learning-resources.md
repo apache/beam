@@ -97,8 +97,7 @@ If you have additional material that you would like to see here, please let us k
 
 ### Python
 
-*   **[Python Qwik Start](https://qwiklabs.com/focuses/1100?locale=en&parent=catalog)** (30m) - Run a word count pipeline on the Dataflow runner.
-*   **[NDVI from Landsat Images](https://qwiklabs.com/focuses/1849?locale=en&parent=catalog)** (45m) - Process Landsat satellite data in a distributed environment to compute the [Normalized Difference Vegetation Index](https://en.wikipedia.org/wiki/Normalized_difference_vegetation_index) (NDVI).
+*   **[Python Qwik Start](https://www.qwiklabs.com/focuses/1098?parent=catalog)** (30m) - Run a word count pipeline on the Dataflow runner.
 *   **[Simulate historic flights](https://qwiklabs.com/focuses/1159?locale=en&parent=catalog)** (60m) - Simulate real-time historic internal flights in the United States and store the resulting simulated data in BigQuery.
 
 ## Beam Katas {#beam-katas}
@@ -157,7 +156,7 @@ complexity. Beam Katas are available for both Java and Python SDKs.
 
 We are open for feedback and suggestions, you can find different ways to reach out to the community in the [Contact Us](https://beam.apache.org/community/contact-us/) page.
 
-If you have a bug report or want to suggest a new feature, you can let us know by [submitting a new issue](https://issues.apache.org/jira/secure/CreateIssue!default.jspa).
+If you have a bug report or want to suggest a new feature, you can let us know by [submitting a new issue](https://github.com/apache/beam/issues/new/choose).
 
 ## How to Contribute {#how-to-contribute}
 

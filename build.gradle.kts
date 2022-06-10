@@ -137,7 +137,14 @@ tasks.rat {
 
     // Ignore LICENSES copied onto containers
     "sdks/java/container/license_scripts/manual_licenses",
-    "sdks/python/container/license_scripts/manual_licenses"
+    "sdks/python/container/license_scripts/manual_licenses",
+
+    // Ignore autogenrated proto files.
+    "sdks/typescript/src/apache_beam/proto/**/*.ts",
+
+    // Ignore typesciript package management.
+    "sdks/typescript/package-lock.json",
+    "sdks/typescript/node_modules/**/*",
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -198,6 +205,14 @@ tasks.register("javaPostCommit") {
   dependsOn(":sdks:java:extensions:ml:postCommit")
   dependsOn(":sdks:java:io:kafka:kafkaVersionsCompatibilityTest")
   dependsOn(":sdks:java:io:neo4j:integrationTest")
+}
+
+tasks.register("javaPostCommitSickbay") {
+  dependsOn(":runners:samza:validatesRunnerSickbay")
+  dependsOn(":runners:flink:validatesRunnerSickbay")
+  dependsOn(":runners:spark:validatesRunnerSickbay")
+  dependsOn(":runners:direct-java:validatesRunnerSickbay")
+  dependsOn(":runners:portability:java:validatesRunnerSickbay")
 }
 
 tasks.register("javaHadoopVersionsTest") {
@@ -269,7 +284,6 @@ tasks.register("playgroundPreCommit") {
 
 tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
-  dependsOn(":sdks:python:test-suites:tox:py36:preCommitPy36")
   dependsOn(":sdks:python:test-suites:tox:py37:preCommitPy37")
   dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
@@ -282,7 +296,6 @@ tasks.register("pythonDocsPreCommit") {
 }
 
 tasks.register("pythonDockerBuildPreCommit") {
-  dependsOn(":sdks:python:container:py36:docker")
   dependsOn(":sdks:python:container:py37:docker")
   dependsOn(":sdks:python:container:py38:docker")
   dependsOn(":sdks:python:container:py39:docker")
@@ -297,12 +310,6 @@ tasks.register("pythonFormatterPreCommit") {
   dependsOn("sdks:python:test-suites:tox:py38:formatter")
 }
 
-tasks.register("python36PostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py36:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py36:postCommitIT")
-  dependsOn(":sdks:python:test-suites:portable:py36:postCommitPy36")
-}
-
 tasks.register("python37PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py37:postCommitIT")
@@ -313,6 +320,7 @@ tasks.register("python37PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py37:spannerioIT")
   dependsOn(":sdks:python:test-suites:direct:py37:spannerioIT")
   dependsOn(":sdks:python:test-suites:portable:py37:xlangSpannerIOIT")
+  dependsOn(":sdks:python:test-suites:direct:py37:inferencePostCommitIT")
 }
 
 tasks.register("python38PostCommit") {
@@ -327,15 +335,27 @@ tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
+  dependsOn(":sdks:python:test-suites:direct:py39:inferencePostCommitIT")
+}
+
+task("python37SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitSickbay")
+}
+
+task("python38SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitSickbay")
+}
+
+task("python39SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitSickbay")
 }
 
 tasks.register("portablePythonPreCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py36:preCommitPy36")
+  dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
   dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
 }
 
 tasks.register("pythonSparkPostCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py36:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")

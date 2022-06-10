@@ -27,7 +27,9 @@ import (
 // that avoids a lot of machinery for testing.
 func Sum(s beam.Scope, col beam.PCollection, name string, size, value int) {
 	s = s.Scope(fmt.Sprintf("passert.Sum(%v)", name))
-
+	if size > 0 {
+		NonEmpty(s, col)
+	}
 	keyed := beam.AddFixedKey(s, col)
 	grouped := beam.GroupByKey(s, keyed)
 	beam.ParDo0(s, &sumFn{Name: name, Size: size, Sum: value}, grouped)

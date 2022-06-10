@@ -197,15 +197,49 @@ class FnApiRunner(runner.PipelineRunner):
         options.view_as(pipeline_options.ProfilingOptions))
 
     self._latest_run_result = self.run_via_runner_api(
-        pipeline.to_runner_api(default_environment=self._default_environment))
+        pipeline.to_runner_api(default_environment=self._default_environment),
+        options)
     return self._latest_run_result
 
-  def run_via_runner_api(self, pipeline_proto):
-    # type: (beam_runner_api_pb2.Pipeline) -> RunnerResult
+  def run_via_runner_api(self, pipeline_proto, options):
+    # type: (beam_runner_api_pb2.Pipeline, pipeline_options.PipelineOptions) -> RunnerResult
     self._validate_requirements(pipeline_proto)
     self._check_requirements(pipeline_proto)
+    if options.view_as(
+        pipeline_options.DirectOptions).direct_embed_docker_python:
+      pipeline_proto = self.embed_default_docker_image(pipeline_proto)
     stage_context, stages = self.create_stages(pipeline_proto)
     return self.run_stages(stage_context, stages)
+
+  def embed_default_docker_image(self, pipeline_proto):
+    # Context is unused for these types.
+    embedded_env = environments.EmbeddedPythonEnvironment.default(
+    ).to_runner_api(None)  # type: ignore[arg-type]
+    docker_env = environments.DockerEnvironment.from_container_image(
+        environments.DockerEnvironment.default_docker_image()).to_runner_api(
+            None)  # type: ignore[arg-type]
+    for env_id, env in pipeline_proto.components.environments.items():
+      if env == docker_env:
+        docker_env_id = env_id
+        break
+    else:
+      # No matching docker environments.
+      return pipeline_proto
+
+    for env_id, env in pipeline_proto.components.environments.items():
+      if env.urn == embedded_env.urn:
+        embedded_env_id = env_id
+        break
+    else:
+      # No existing embedded environment.
+      pipeline_proto.components.environments[docker_env_id].CopyFrom(
+          embedded_env)
+      return pipeline_proto
+
+    for transform in pipeline_proto.components.transforms.values():
+      if transform.environment_id == docker_env_id:
+        transform.environment_id = embedded_env_id
+    return pipeline_proto
 
   @contextlib.contextmanager
   def maybe_profile(self):
@@ -387,8 +421,8 @@ class FnApiRunner(runner.PipelineRunner):
         while len(runner_execution_context.queues.ready_inputs) > 0:
           _LOGGER.debug(
               "Remaining ready bundles: %s\n"
-              "\tWatermark pending bunbles: %s\n"
-              "\tTime pending bunbles: %s",
+              "\tWatermark pending bundles: %s\n"
+              "\tTime pending bundles: %s",
               len(runner_execution_context.queues.ready_inputs),
               len(runner_execution_context.queues.watermark_pending_inputs),
               len(runner_execution_context.queues.time_pending_inputs))
@@ -782,8 +816,7 @@ class FnApiRunner(runner.PipelineRunner):
       for (consuming_stage_name, consuming_transform) in \
           runner_execution_context.buffer_id_to_consumer_pairs.get(buffer_id,
                                                                    []):
-        buffer = runner_execution_context.pcoll_buffers.get(
-            buffer_id, ListBuffer(None))
+        buffer = runner_execution_context.pcoll_buffers.get(buffer_id, None)
 
         if (buffer_id in runner_execution_context.pcoll_buffers and
             buffer_id not in buffers_to_clean):
@@ -808,7 +841,7 @@ class FnApiRunner(runner.PipelineRunner):
         # MAX_TIMESTAMP for the downstream stage.
         runner_execution_context.queues.watermark_pending_inputs.enque(
             ((consuming_stage_name, timestamp.MAX_TIMESTAMP),
-             DataInput({consuming_transform: buffer}, {})))
+             DataInput({consuming_transform: buffer}, {})))  # type: ignore
 
     for bid in buffers_to_clean:
       if bid in runner_execution_context.pcoll_buffers:
@@ -1140,7 +1173,7 @@ class BundleManager(object):
     assert self._worker_handler is not None
     data_out = self._worker_handler.data_conn.output_stream(
         process_bundle_id, read_transform_id)
-    for byte_stream in byte_streams:
+    for byte_stream in (byte_streams or []):
       data_out.write(byte_stream)
     data_out.close()
 
@@ -1177,7 +1210,7 @@ class BundleManager(object):
     # type: (...) -> List[beam_fn_api_pb2.ProcessBundleSplitResponse]
     split_results = []  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
     read_transform_id, buffer_data = only_element(inputs.items())
-    byte_stream = b''.join(buffer_data)
+    byte_stream = b''.join(buffer_data or [])
     num_elements = len(
         list(
             self.bundle_context_manager.get_input_coder_impl(

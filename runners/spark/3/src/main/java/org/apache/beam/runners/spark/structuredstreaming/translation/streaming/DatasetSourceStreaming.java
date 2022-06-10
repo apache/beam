@@ -20,6 +20,6 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 /**
  * Spark structured streaming framework does not support more than one aggregation in streaming mode
  * because of watermark implementation. As a consequence, this runner, does not support streaming
- * mode yet see https://issues.apache.org/jira/browse/BEAM-9933
+ * mode yet see https://github.com/apache/beam/issues/20241
  */
 class DatasetSourceStreaming {}

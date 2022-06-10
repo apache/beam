@@ -87,7 +87,7 @@ import org.joda.time.Instant;
  */
 // TODO: write a proper Builder enforcing all those rules mentioned.
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
   public static final String TRANSFORM_URN = "beam:transform:spark:createstream:v1";

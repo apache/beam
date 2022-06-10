@@ -30,7 +30,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Side inputs are stored in {@link Cache} with 5 minutes expireAfterAccess.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SideInputStorage {
 

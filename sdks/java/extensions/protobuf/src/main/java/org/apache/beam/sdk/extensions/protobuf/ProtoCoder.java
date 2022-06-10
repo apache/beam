@@ -106,7 +106,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <T> the Protocol Buffers {@link Message} handled by this {@link Coder}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ProtoCoder<T extends Message> extends CustomCoder<T> {
 

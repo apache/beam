@@ -43,6 +43,12 @@
     padding: 5px
     box-sizing: border-box
 
+    .footer__cols__col--group
+      display: flex
+      gap: 30px
+      @media (max-width: $ak-breakpoint-lg)
+        gap: 0
+
     .footer__cols__col__title
       color: #fff
       font-weight: $font-weight-bold
@@ -54,7 +60,16 @@
     .footer__cols__col__logo
       margin-bottom: $pad
       @media (max-width: $ak-breakpoint-lg)
-        margin-right: 50px
+        margin-right: 20px
+      a
+        img
+          width: 64px
+          border-radius: 50%
+          filter: grayscale(100%)
+          opacity: 0.7
+          &:hover, focus
+            filter: grayscale(0)
+            opacity: 1
 
   .footer__flex_mobile
     display: flex
@@ -93,6 +108,6 @@
 
 .main-padding
   padding-bottom: 48px
-  background: #37424B;
+  background: #37424B
   @media (max-width: $ak-breakpoint-lg)
     padding-bottom: 100px
