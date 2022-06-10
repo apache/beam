@@ -76,12 +76,15 @@ TODO: Add once benchmark test is released
     - ...
     - gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00050000.JPEG
 -->
-- `gs://apache-beam-ml/testing/inputs/it_imagenet_validation_inputs.txt/`:
+- `gs://apache-beam-ml/testing/inputs/it_imagenet_validation_inputs.txt`:
   text file containing the GCS paths of the images of a subset of 15 imagenet
-  validation data
-    - gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00000001.JPEG
-    - ...
-    - gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00000015.JPEG
+  validation data. See the following example command to view contents of the file:
+```
+$ gsutil cat gs://apache-beam-ml/testing/inputs/it_imagenet_validation_inputs.txt
+gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00000001.JPEG
+...
+gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00000015.JPEG
+```
 
 - `gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_*.JPEG`:
   JPEG images for the entire validation dataset.
