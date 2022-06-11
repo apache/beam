@@ -163,6 +163,8 @@ var dataflowFilters = []string{
 	// Dataflow does not automatically terminate the TestCheckpointing pipeline when
 	// complete.
 	"TestCheckpointing",
+	// TODO(21761): This test needs to provide GCP project to expansion service.
+	"TestBigQueryIO_BasicWriteQueryRead",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either

@@ -216,6 +216,33 @@ func TestBigQueryIO_BasicWriteRead(t *testing.T) {
 	ptest.RunAndValidate(t, write)
 	read := ReadPipeline(expansionAddr, table, createTestRows)
 	ptest.RunAndValidate(t, read)
+
+	t.Logf("Deleting BigQuery table %v", table)
+	err = deleteTempTable(table)
+	if err != nil {
+		t.Logf("Error deleting BigQuery table: %v", err)
+	}
+}
+
+// TestBigQueryIO_BasicWriteQueryRead runs a pipeline that generates semi-randomized elements,
+// writes them to a BigQuery table and then reads from that table, and checks that the result
+// matches the original inputs. This requires a pre-existing table to be created.
+//
+// This test reads from a Bigquery SQL query, instead of directly from a table.
+func TestBigQueryIO_BasicWriteQueryRead(t *testing.T) {
+	integration.CheckFilters(t)
+	checkFlags(t)
+
+	// Create a table before running the pipeline
+	table, err := newTempTable(*integration.BigQueryDataset, "go_bqio_it", ddlTestRowSchema)
+	if err != nil {
+		t.Fatalf("error creating BigQuery table: %v", err)
+	}
+	t.Logf("Created BigQuery table %v", table)
+
+	createTestRows := &CreateTestRowsFn{seed: time.Now().UnixNano()}
+	write := WritePipeline(expansionAddr, table, createTestRows)
+	ptest.RunAndValidate(t, write)
 	readQuery := ReadFromQueryPipeline(expansionAddr, table, createTestRows)
 	ptest.RunAndValidate(t, readQuery)
 
