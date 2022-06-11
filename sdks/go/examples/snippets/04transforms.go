@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
@@ -96,7 +97,7 @@ type weDoFn struct{}
 
 // [START bundlefinalization_simplecallback]
 
-func (fn *splittableDoFn) ProcessElement(element string, bf beam.BundleFinalization) {
+func (fn *splittableDoFn) ProcessElement(bf beam.BundleFinalization, rt *sdf.LockRTracker, element string) {
 	// ... produce output ...
 
 	bf.RegisterCallback(5*time.Minute, func() error {
@@ -165,6 +166,23 @@ func (fn *weDoFn) ProcessElement(e *CustomWatermarkEstimator, element string) {
 }
 
 // [END watermarkestimation_customestimator]
+
+// [START sdf_truncate]
+
+// TruncateRestriction is a transform that is triggered when pipeline starts to drain. It helps to finish a
+// pipeline quicker by truncating the restriction.
+func (fn *splittableDoFn) TruncateRestriction(rt *sdf.LockRTracker, element string) offsetrange.Restriction {
+	start := rt.GetRestriction().(offsetrange.Restriction).Start
+	prevEnd := rt.GetRestriction().(offsetrange.Restriction).End
+	// truncate the restriction by half.
+	newEnd := prevEnd / 2
+	return offsetrange.Restriction{
+		Start: start,
+		End:   newEnd,
+	}
+}
+
+// [END sdf_truncate]
 
 // [START cogroupbykey_output_helpers]
 

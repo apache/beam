@@ -180,7 +180,7 @@ import org.joda.time.Duration;
  * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TextIO {
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;

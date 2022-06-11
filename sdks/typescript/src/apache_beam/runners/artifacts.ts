@@ -53,7 +53,7 @@ export async function* resolveArtifacts(
   async function storeArtifact(
     artifact: runnerApi.ArtifactInformation
   ): Promise<runnerApi.ArtifactInformation> {
-    if (artifact.typeUrn == "beam:artifact:type:file:v1") {
+    if (artifact.typeUrn === "beam:artifact:type:file:v1") {
       const payload = runnerApi.ArtifactFilePayload.fromBinary(
         artifact.typePayload
       );
@@ -102,8 +102,8 @@ export async function* resolveArtifacts(
 
   for (const artifact of resolved.replacements) {
     if (
-      artifact.typeUrn == "beam:artifact:type:url:v1" ||
-      artifact.typeUrn == "beam:artifact:type:embedded:v1"
+      artifact.typeUrn === "beam:artifact:type:url:v1" ||
+      artifact.typeUrn === "beam:artifact:type:embedded:v1"
     ) {
       // TODO: (Typescript) Yield from asycn?
       yield artifact;

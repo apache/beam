@@ -1,5 +1,5 @@
 ---
-title: "Jira Priorities"
+title: "Issue Priorities"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Jira Priorities
+# GitHub Issue Priorities
 
 ## P0: Outage
 
@@ -68,7 +68,7 @@ just P3/nice-to-have.
 ## P4
 
 *Expectation*: Nice-to-have improvements that are also very small and easy.
-Usually it is quicker to just fix them than to file a bug, but the Jira
+Usually it is quicker to just fix them than to file a bug, but the issue
 can be referenced by a pull request and shows up in release notes.
 
 *Example P4 issues*

@@ -88,7 +88,7 @@ import org.slf4j.LoggerFactory;
  * @see S3FileSystemSchemeRegistrar
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class S3FileSystem extends FileSystem<S3ResourceId> {
 

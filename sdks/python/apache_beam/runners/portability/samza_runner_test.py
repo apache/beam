@@ -139,7 +139,7 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
 
   def test_flattened_side_input(self):
     # Blocked on support for transcoding
-    # https://issues.apache.org/jira/browse/BEAM-12681
+    # https://github.com/apache/beam/issues/20984
     super().test_flattened_side_input(with_transcoding=False)
 
   def test_pack_combiners(self):

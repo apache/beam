@@ -31,7 +31,7 @@ import org.apache.beam.sdk.coders.Coder;
  * AutoService} to generate the necessary META-INF files automatically.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public interface CoderCloudObjectTranslatorRegistrar {
   /**

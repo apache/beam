@@ -79,6 +79,7 @@ WORKER_JAR=""
 KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 SUITE=""
 COLLECT_MARKERS=
+REQUIREMENTS_FILE=""
 
 # Default test (pytest) options.
 # Run WordCountIT.test_wordcount_it by default if no test options are
@@ -114,6 +115,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --requirements_file)
+      REQUIREMENTS_FILE="$2"
+      shift # past argument
+      shift # past value
+      ;;
     --num_workers)
         NUM_WORKERS="$2"
         shift # past argument
@@ -202,7 +208,6 @@ fi
 # Build pipeline options if not provided in --pipeline_opts from commandline
 
 if [[ -z $PIPELINE_OPTS ]]; then
-
   # Get tar ball path
   if [[ $(find ${SDK_LOCATION} 2> /dev/null) ]]; then
     SDK_LOCATION=$(find ${SDK_LOCATION} | tail -n1)
@@ -213,9 +218,13 @@ if [[ -z $PIPELINE_OPTS ]]; then
   # Install test dependencies for ValidatesRunner tests.
   # pyhamcrest==1.10.0 doesn't work on Py2.
   # See: https://github.com/hamcrest/PyHamcrest/issues/131.
-  echo "pyhamcrest!=1.10.0,<2.0.0" > postcommit_requirements.txt
-  echo "mock<3.0.0" >> postcommit_requirements.txt
-  echo "parameterized>=0.7.1,<0.8.0" >> postcommit_requirements.txt
+  if [[ -z $REQUIREMENTS_FILE ]]; then
+    echo "pyhamcrest!=1.10.0,<2.0.0" > postcommit_requirements.txt
+    echo "mock<3.0.0" >> postcommit_requirements.txt
+    echo "parameterized>=0.7.1,<0.8.0" >> postcommit_requirements.txt
+  else
+    cp $REQUIREMENTS_FILE postcommit_requirements.txt
+  fi
 
   # Options used to run testing pipeline on Cloud Dataflow Service. Also used for
   # running on DirectRunner (some options ignored).

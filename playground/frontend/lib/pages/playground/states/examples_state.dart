@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/constants/params.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/repositories/example_repository.dart';
@@ -34,7 +35,9 @@ class ExampleState with ChangeNotifier {
   ExampleState(this._exampleRepository);
 
   init() {
-    _loadCategories();
+    if (!Uri.base.toString().contains(kIsEmbedded)) {
+      _loadCategories();
+    }
   }
 
   setSdkCategories(Map<SDK, List<CategoryModel>> map) {
@@ -80,6 +83,21 @@ class ExampleState with ChangeNotifier {
     if (example.isInfoFetched()) {
       return example;
     }
+
+    //GRPC GetPrecompiledGraph errors hotfix
+    if (example.name == 'MinimalWordCount' &&
+        (sdk == SDK.go || sdk == SDK.scio)) {
+      final exampleData = await Future.wait([
+        getExampleSource(example.path, sdk),
+        getExampleOutput(example.path, sdk),
+        getExampleLogs(example.path, sdk),
+      ]);
+      example.setSource(exampleData[0]);
+      example.setOutputs(exampleData[1]);
+      example.setLogs(exampleData[2]);
+      return example;
+    }
+
     final exampleData = await Future.wait([
       getExampleSource(example.path, sdk),
       getExampleOutput(example.path, sdk),

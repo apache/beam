@@ -67,7 +67,7 @@ export function parDo<
     // Extract and populate side inputs from the context.
     const sideInputs = {};
     var contextCopy;
-    if (typeof context == "object") {
+    if (typeof context === "object") {
       contextCopy = Object.create(context as Object) as any;
       const components = pipeline.context.components;
       for (const [name, value] of Object.entries(context)) {
@@ -97,7 +97,7 @@ export function parDo<
             windowMappingFn: {
               urn: isGlobalSide
                 ? urns.GLOBAL_WINDOW_MAPPING_FN_URN
-                : mainWindowingStrategyId == sideWindowingStrategyId
+                : mainWindowingStrategyId === sideWindowingStrategyId
                 ? urns.IDENTITY_WINDOW_MAPPING_FN_URN
                 : urns.ASSIGN_MAX_TIMESTAMP_WINDOW_MAPPING_FN_URN,
               value: new Uint8Array(),
@@ -174,7 +174,7 @@ export function split<T extends { [key: string]: unknown }>(
       options.unknownTagBehavior = "error";
     }
     if (
-      options.unknownTagBehavior == "rename" &&
+      options.unknownTagBehavior === "rename" &&
       !tags.includes(options.unknownTagName!)
     ) {
       tags.push(options.unknownTagName!);
@@ -222,7 +222,7 @@ export class ParDoParam<T> {
 
   // TODO: Nameing "get" seems to be special.
   lookup(): T {
-    if (this.provider == undefined) {
+    if (this.provider === undefined) {
       throw new Error("Cannot be called outside of a DoFn's process method.");
     }
 
@@ -313,9 +313,13 @@ export function singletonSideInput<T>(
     accessPattern: "beam:side_input:iterable:v1",
     toValue: (iter: Iterable<T>) => {
       const asArray = Array.from(iter);
-      if (asArray.length == 0 && defaultValue != undefined) {
+      if (
+        asArray.length === 0 &&
+        defaultValue !== null &&
+        defaultValue !== undefined
+      ) {
         return defaultValue;
-      } else if (asArray.length == 1) {
+      } else if (asArray.length === 1) {
         return asArray[0];
       } else {
         throw new Error("Expected a single element, got " + asArray.length);

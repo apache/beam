@@ -38,7 +38,7 @@ export function flatten<T>(): PTransform<PCollection<T>[], PCollection<T>> {
       inputs.map((pc) => pipeline.context.getPCollectionCoderId(pc))
     );
     const coder =
-      coders.size == 1 ? [...coders][0] : new GeneralObjectCoder<T>();
+      coders.size === 1 ? [...coders][0] : new GeneralObjectCoder<T>();
     return pipeline.createPCollectionInternal<T>(coder);
   }
 

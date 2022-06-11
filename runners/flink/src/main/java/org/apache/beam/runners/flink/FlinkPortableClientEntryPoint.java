@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
  * <p>Finally Flink launches the job.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FlinkPortableClientEntryPoint {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkPortableClientEntryPoint.class);

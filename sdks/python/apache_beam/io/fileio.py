@@ -504,7 +504,8 @@ class WriteToFiles(beam.PTransform):
         given their final names. By default, the temporary directory will be
          within the temp_location of your pipeline.
       sink (callable, FileSink): The sink to use to write into a file. It should
-        implement the methods of a ``FileSink``. If none is provided, a
+        implement the methods of a ``FileSink``. Pass a class signature or an
+        instance of FileSink to this parameter. If none is provided, a
         ``TextSink`` is used.
       shards (int): The number of shards per destination and trigger firing.
       max_writers_per_bundle (int): The number of writers that can be open
@@ -525,8 +526,11 @@ class WriteToFiles(beam.PTransform):
   @staticmethod
   def _get_sink_fn(input_sink):
     # type: (...) -> Callable[[Any], FileSink]
-    if isinstance(input_sink, FileSink):
-      return lambda x: input_sink
+    if isinstance(input_sink, type) and issubclass(input_sink, FileSink):
+      return lambda x: input_sink()
+    elif isinstance(input_sink, FileSink):
+      kls = input_sink.__class__
+      return lambda x: kls()
     elif callable(input_sink):
       return input_sink
     else:
@@ -791,7 +795,6 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
   def _get_or_create_writer_and_sink(self, destination, window):
     """Returns a tuple of writer, sink."""
     writer_key = (destination, window)
-
     if writer_key in self._writers_and_sinks:
       return self._writers_and_sinks.get(writer_key)
     elif len(self._writers_and_sinks) >= self.max_num_writers_per_bundle:
@@ -807,7 +810,6 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
           create_metadata_fn=sink.create_metadata)
 
       sink.open(writer)
-
       self._writers_and_sinks[writer_key] = (writer, sink)
       self._file_names[writer_key] = full_file_name
       return self._writers_and_sinks[writer_key]

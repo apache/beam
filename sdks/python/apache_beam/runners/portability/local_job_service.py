@@ -36,12 +36,14 @@ from google.protobuf import json_format
 from google.protobuf import text_format  # type: ignore # not in typeshed
 
 from apache_beam.metrics import monitoring_infos
+from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import endpoints_pb2
+from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import portable_runner
@@ -248,6 +250,19 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self.daemon = True
     self.result = None
 
+  def pipeline_options(self):
+    def from_urn(key):
+      assert key.startswith('beam:option:')
+      assert key.endswith(':v1')
+      return key[12:-3]
+
+    return pipeline_options.PipelineOptions(
+        **{
+            from_urn(key): value
+            for (key, value
+                 ) in job_utils.struct_to_dict(self._pipeline_options).items()
+        })
+
   def set_state(self, new_state):
     """Set the latest state as an int enum and notify consumers"""
     timestamp = super().set_state(new_state)
@@ -296,7 +311,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self.set_state(beam_job_api_pb2.JobState.RUNNING)
     return fn_runner.FnApiRunner(
         provision_info=self._provision_info).run_via_runner_api(
-            self._pipeline_proto)
+            self._pipeline_proto, self.pipeline_options())
 
   def _update_dependencies(self):
     try:

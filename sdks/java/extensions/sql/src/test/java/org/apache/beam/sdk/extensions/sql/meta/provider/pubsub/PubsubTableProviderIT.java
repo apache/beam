@@ -196,7 +196,7 @@ public class PubsubTableProviderIT implements Serializable {
     resultSignal.waitForSuccess(timeout);
   }
 
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-12320")
+  @Ignore("https://github.com/apache/beam/issues/20937")
   @Test
   public void testSQLSelectsArrayAttributes() throws Exception {
 

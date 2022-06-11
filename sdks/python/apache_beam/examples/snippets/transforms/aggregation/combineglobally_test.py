@@ -78,7 +78,7 @@ class CombineGloballyTest(unittest.TestCase):
         check_common_items_with_exceptions)
 
   # TODO: enable side inputs tests after [BEAM-8400] is fixed.
-  # https://issues.apache.org/jira/browse/BEAM-8400
+  # https://github.com/apache/beam/issues/19851
   # def test_combineglobally_side_inputs_iter(self):
   #   combineglobally.combineglobally_side_inputs_iter(
   #       check_common_items_with_exceptions)

@@ -90,7 +90,7 @@ import software.amazon.awssdk.services.s3.model.UploadPartCopyRequest;
  * @see S3FileSystemSchemeRegistrar
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class S3FileSystem extends FileSystem<S3ResourceId> {
 

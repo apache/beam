@@ -102,7 +102,7 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes",
   "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
