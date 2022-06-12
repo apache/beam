@@ -265,7 +265,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
 
       pcoll = pipeline | 'start' >> beam.Create(keyed_rows)
       actual = pcoll | api.RunInference(
-          SklearnModelHandler(model_uri=temp_file_name))
+          base.KeyedModelHandler(SklearnModelHandler(model_uri=temp_file_name)))
       expected = [
           ('0', api.PredictionResult(splits[0], 5)),
           ('1', api.PredictionResult(splits[1], 8)),

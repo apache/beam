@@ -22,8 +22,8 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Iterable
-from typing import List
 from typing import Optional
+from typing import Sequence
 from typing import Union
 
 import torch
@@ -88,7 +88,7 @@ class PytorchModelHandler(ModelHandler[torch.Tensor,
 
   def run_inference(
       self,
-      batch: List[Union[torch.Tensor, Dict[str, torch.Tensor]]],
+      batch: Sequence[Union[torch.Tensor, Dict[str, torch.Tensor]]],
       model: torch.nn.Module,
       extra_kwargs: Optional[Dict[str,
                                   Any]] = None) -> Iterable[PredictionResult]:
@@ -121,7 +121,7 @@ class PytorchModelHandler(ModelHandler[torch.Tensor,
       predictions = model(batched_tensors, **extra_kwargs)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
-  def get_num_bytes(self, batch: List[torch.Tensor]) -> int:
+  def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """Returns the number of bytes of data for a batch of Tensors."""
     # If elements in `batch` are provided as a dictionaries from key to Tensors
     if isinstance(batch[0], dict):
