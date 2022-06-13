@@ -92,7 +92,7 @@ def parse_known_args(argv):
   parser.add_argument(
       '--model_state_dict_path',
       dest='model_state_dict_path',
-      default='/Users/yeandy/Downloads/'
+      default='gs://apache-beam-ml/models/'
       'huggingface.BertForMaskedLM.bert-base-uncased.pth',
       help="Path to the model's state_dict. "
       "Default state_dict would be for the bert-base-uncased model.")
