@@ -1041,7 +1041,7 @@ public class GcsUtil {
   }
 
   public void remove(Collection<String> filenames) throws IOException {
-    // TODO(BEAM-8268): It would be better to add per-file retries and backoff
+    // TODO(Issue 19859): It would be better to add per-file retries and backoff
     // instead of failing everything if a single operation fails.
     executeBatches(makeRemoveBatches(filenames));
   }

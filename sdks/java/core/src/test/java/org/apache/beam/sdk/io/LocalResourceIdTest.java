@@ -45,7 +45,7 @@ import org.junit.runners.JUnit4;
 /**
  * Tests for {@link LocalResourceId}.
  *
- * <p>TODO: re-enable unicode tests when BEAM-1453 is resolved.
+ * <p>TODO: re-enable unicode tests when Issue 18213 is resolved.
  */
 @RunWith(JUnit4.class)
 public class LocalResourceIdTest {

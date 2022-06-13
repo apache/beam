@@ -133,7 +133,7 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
       if (!(filters instanceof DefaultTableFilter)) {
         throw new UnsupportedOperationException(
             String.format(
-                "Filter pushdown is not yet supported in %s. BEAM-12663",
+                "Filter pushdown is not yet supported in %s. Issue 21001",
                 SchemaIOTableWrapper.class));
       }
       if (!fieldNames.isEmpty()) {

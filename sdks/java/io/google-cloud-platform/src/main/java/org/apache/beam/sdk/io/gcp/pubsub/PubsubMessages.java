@@ -32,7 +32,7 @@ public final class PubsubMessages {
     com.google.pubsub.v1.PubsubMessage.Builder message =
         com.google.pubsub.v1.PubsubMessage.newBuilder()
             .setData(ByteString.copyFrom(input.getPayload()));
-    // TODO(BEAM-8085) this should not be null
+    // TODO(Issue 19787) this should not be null
     if (attributes != null) {
       message.putAllAttributes(attributes);
     }

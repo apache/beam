@@ -81,7 +81,7 @@ public abstract class MetricsFilter {
      * as "foo", "bar" or "foo/bar". However, each component of the step name must be completely
      * matched, so the filter "foo" will not match a step name such as "fool/bar/foot"
      *
-     * <p>TODO(BEAM-12154): Beam does not guarantee a specific format for step IDs hence we should
+     * <p>TODO(Issue 20919): Beam does not guarantee a specific format for step IDs hence we should
      * not assume a "foo/bar/baz" format here.
      */
     public Builder addStep(String step) {

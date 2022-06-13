@@ -244,7 +244,7 @@ public class PCollectionConsumerRegistry {
     public void accept(WindowedValue<T> input) throws Exception {
       // Increment the counter for each window the element occurs in.
       this.unboundedElementCountCounter.inc(input.getWindows().size());
-      // TODO(BEAM-11879): Consider updating size per window when we have window optimization.
+      // TODO(Issue 20730): Consider updating size per window when we have window optimization.
       this.unboundedSampledByteSizeDistribution.tryUpdate(input.getValue(), this.coder);
       // Wrap the consumer with extra logic to set the metric container with the appropriate
       // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
@@ -304,7 +304,7 @@ public class PCollectionConsumerRegistry {
       for (ConsumerAndMetadata consumerAndMetadata : consumerAndMetadatas) {
 
         if (consumerAndMetadata.getValueCoder() != null) {
-          // TODO(BEAM-11879): Consider updating size per window when we have window optimization.
+          // TODO(Issue 20730): Consider updating size per window when we have window optimization.
           this.unboundedSampledByteSizeDistribution.tryUpdate(
               input.getValue(), consumerAndMetadata.getValueCoder());
         }

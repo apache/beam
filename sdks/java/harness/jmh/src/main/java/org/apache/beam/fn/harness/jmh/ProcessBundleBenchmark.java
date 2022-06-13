@@ -315,7 +315,7 @@ public class ProcessBundleBenchmark {
     final StateRequestHandler cachingStateRequestHandler;
 
     @SuppressWarnings({
-      "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+      "unused" // TODO(Issue 21230): Remove when new version of errorprone is released (2.11.0)
     })
     private static class StatefulOutputZeroOneTwo
         extends DoFn<KV<String, String>, KV<String, String>> {

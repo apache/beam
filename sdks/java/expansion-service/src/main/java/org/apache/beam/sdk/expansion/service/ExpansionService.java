@@ -465,7 +465,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     if (!isUseDeprecatedRead) {
       ExperimentalOptions.addExperiment(
           pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
-      // TODO(BEAM-10670): Remove this when we address performance issue.
+      // TODO(Issue 20530): Remove this when we address performance issue.
       ExperimentalOptions.addExperiment(
           pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
     } else {
@@ -568,7 +568,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   protected Pipeline createPipeline() {
-    // TODO: [BEAM-12599]: implement proper validation
+    // TODO: [Issue 21064]: implement proper validation
     PipelineOptions effectiveOpts = PipelineOptionsFactory.create();
     PortablePipelineOptions portableOptions = effectiveOpts.as(PortablePipelineOptions.class);
     PortablePipelineOptions specifiedOptions = pipelineOptions.as(PortablePipelineOptions.class);

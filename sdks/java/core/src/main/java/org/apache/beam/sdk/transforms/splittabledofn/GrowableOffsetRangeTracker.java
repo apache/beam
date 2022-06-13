@@ -53,7 +53,7 @@ public class GrowableOffsetRangeTracker extends OffsetRangeTracker {
    * <p>If {@link #estimate} is expensive to compute, consider wrapping the implementation with
    * {@link Suppliers#memoizeWithExpiration} or equivalent as an optimization.
    *
-   * <p>TODO(BEAM-10032): Also consider using {@link RangeEndEstimator} when the range is not ended
+   * <p>TODO(Issue 20227): Also consider using {@link RangeEndEstimator} when the range is not ended
    * with {@code Long.MAX_VALUE}.
    */
   @FunctionalInterface

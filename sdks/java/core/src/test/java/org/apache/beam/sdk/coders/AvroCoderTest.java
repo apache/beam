@@ -249,7 +249,7 @@ public class AvroCoderTest {
 
   /**
    * Confirm that we can serialize and deserialize an AvroCoder object and still decode after.
-   * (BEAM-349).
+   * (Issue 18022).
    *
    * @throws Exception
    */

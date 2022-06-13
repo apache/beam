@@ -174,7 +174,7 @@ public class DicomIO {
       public void processElement(ProcessContext context) {
         String dicomWebPath = context.element();
         try {
-          // TODO [BEAM-11259] Change to non-blocking async calls
+          // TODO [Issue 20582] Change to non-blocking async calls
           String responseData = dicomStore.retrieveDicomStudyMetadata(dicomWebPath);
           context.output(METADATA, responseData);
         } catch (IOException e) {

@@ -81,7 +81,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     this.expansionService = expansionService;
     this.kwargsMap = new TreeMap<>();
     this.typeHints = new HashMap<>();
-    // TODO(BEAM-14458): remove a default type hint for PythonCallableSource when BEAM-14458 is
+    // TODO(Issue 21567): remove a default type hint for PythonCallableSource when Issue 21567 is
     // resolved
     this.typeHints.put(
         PythonCallableSource.class, Schema.FieldType.logicalType(new PythonCallable()));

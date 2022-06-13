@@ -748,7 +748,7 @@ class BatchLoads<DestinationT, ElementT>
                 rowWriterFactory.getSourceFormat(),
                 useAvroLogicalTypes,
                 // Note that we can't pass through the schema update options when creating temporary
-                // tables. They also shouldn't be needed. See BEAM-12482 for additional details.
+                // tables. They also shouldn't be needed. See Issue 21105 for additional details.
                 schemaUpdateOptions,
                 tempDataset))
         .setCoder(KvCoder.of(tableDestinationCoder, WriteTables.ResultCoder.INSTANCE));

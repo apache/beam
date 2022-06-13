@@ -48,8 +48,8 @@ abstract class PrimitiveSbeField implements SbeField {
   private FieldType beamType(SbeFieldOptions options) {
     switch (type()) {
       case CHAR:
-        // TODO(BEAM-12697): Support char types
-        throw new UnsupportedOperationException("char type not supported yet (BEAM-12697)");
+        // TODO(Issue 21102): Support char types
+        throw new UnsupportedOperationException("char type not supported yet (Issue 21102)");
       case INT8:
         return FieldType.BYTE;
       case INT16:

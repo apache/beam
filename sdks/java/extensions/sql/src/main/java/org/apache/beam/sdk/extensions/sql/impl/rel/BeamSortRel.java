@@ -95,7 +95,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+  "unused" // TODO(Issue 21230): Remove when new version of errorprone is released (2.11.0)
 })
 public class BeamSortRel extends Sort implements BeamRelNode {
   private List<Integer> fieldIndices = new ArrayList<>();
@@ -190,7 +190,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       //    works only on bounded data.
       //  - Just LIMIT operates on unbounded data, but across windows.
       if (fieldIndices.isEmpty()) {
-        // TODO(https://issues.apache.org/jira/projects/BEAM/issues/BEAM-4702)
+        // TODO(https://issues.apache.org/jira/projects/BEAM/issues/Issue 19075)
         // Figure out which operations are per-window and which are not.
 
         return upstream
