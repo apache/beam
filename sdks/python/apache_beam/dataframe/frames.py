@@ -358,7 +358,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
     Aggregations grouping by a categorical column with ``observed=False`` set
     are not currently parallelizable
-    (`BEAM-11190 <https://issues.apache.org/jira/browse/BEAM-11190>`_).
+    (`Issue 21827 <https://github.com/apache/beam/issues/21827>`_).
     """
     if not as_index:
       raise NotImplementedError('groupby(as_index=False)')
@@ -1561,8 +1561,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def var(self, axis, skipna, level, ddof, **kwargs):
-    """Per-level aggregation is not yet supported (BEAM-11777). Only the
-    default, ``level=None``, is allowed."""
+    """Per-level aggregation is not yet supported
+    (https://github.com/apache/beam/issues/21829). Only the default,
+    ``level=None``, is allowed."""
     if level is not None:
       raise NotImplementedError("per-level aggregation")
     if skipna is None or skipna:
@@ -2340,7 +2341,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def mode(self, *args, **kwargs):
     """mode is not currently parallelizable. An approximate,
     parallelizable implementation of mode may be added in the future
-    (`Issue 20946 <https://issues.apache.org/jira/Issue 20946>`_)."""
+    (`Issue 20946 <https://github.com/apache/beam/issues/20946>`_)."""
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'mode',
@@ -3420,8 +3421,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         right_index=right_index,
         **kwargs)
     if kwargs.get('how', None) == 'cross':
-      raise NotImplementedError("cross join is not yet implemented "
-                                "(Issue 20318)")
+      raise NotImplementedError(
+        "cross join is not yet implemented "
+        "(https://github.com/apache/beam/issues/20318)")
     if not any([on, left_on, right_on, left_index, right_index]):
       on = [col for col in self_proxy.columns if col in right_proxy.columns]
     if not left_on:
@@ -4539,7 +4541,7 @@ def _liftable_agg(meth, postagg_meth=None):
         [pre_agg],
         requires_partition_by=(partitionings.Singleton(reason=(
             "Aggregations grouped by a categorical column are not currently "
-            "parallelizable (BEAM-11190)."
+            "parallelizable (Issue 21827)."
         ))
                                if is_categorical_grouping
                                else partitionings.Index()),
@@ -4571,7 +4573,7 @@ def _unliftable_agg(meth):
         [self._ungrouped],
         requires_partition_by=(partitionings.Singleton(reason=(
             "Aggregations grouped by a categorical column are not currently "
-            "parallelizable (BEAM-11190)."
+            "parallelizable (Issue 21827)."
         ))
                                if is_categorical_grouping
                                else partitionings.Index()),
