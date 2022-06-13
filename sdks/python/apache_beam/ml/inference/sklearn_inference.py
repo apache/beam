@@ -20,7 +20,7 @@ import pickle
 import sys
 from typing import Any
 from typing import Iterable
-from typing import List
+from typing import Sequence
 from typing import Union
 
 import numpy
@@ -75,7 +75,7 @@ class SklearnModelHandler(ModelHandler[Union[numpy.ndarray, pandas.DataFrame],
 
   def run_inference(
       self,
-      batch: List[Union[numpy.ndarray, pandas.DataFrame]],
+      batch: Sequence[Union[numpy.ndarray, pandas.DataFrame]],
       model: BaseEstimator,
       **kwargs) -> Iterable[PredictionResult]:
     # TODO(github.com/apache/beam/issues/21769): Use supplied input type hint.
@@ -86,7 +86,7 @@ class SklearnModelHandler(ModelHandler[Union[numpy.ndarray, pandas.DataFrame],
     raise ValueError('Unsupported data type.')
 
   @staticmethod
-  def _predict_np_array(batch: List[numpy.ndarray],
+  def _predict_np_array(batch: Sequence[numpy.ndarray],
                         model: Any) -> Iterable[PredictionResult]:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
@@ -94,7 +94,7 @@ class SklearnModelHandler(ModelHandler[Union[numpy.ndarray, pandas.DataFrame],
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   @staticmethod
-  def _predict_pandas_dataframe(batch: List[pandas.DataFrame],
+  def _predict_pandas_dataframe(batch: Sequence[pandas.DataFrame],
                                 model: Any) -> Iterable[PredictionResult]:
     # sklearn_inference currently only supports single rowed dataframes.
     for dataframe in batch:
@@ -113,11 +113,11 @@ class SklearnModelHandler(ModelHandler[Union[numpy.ndarray, pandas.DataFrame],
     ]
 
   def get_num_bytes(
-      self, batch: List[Union[numpy.ndarray, pandas.DataFrame]]) -> int:
+      self, batch: Sequence[Union[numpy.ndarray, pandas.DataFrame]]) -> int:
     """Returns the number of bytes of data for a batch."""
     if isinstance(batch[0], numpy.ndarray):
       return sum(sys.getsizeof(element) for element in batch)
     elif isinstance(batch[0], pandas.DataFrame):
-      data_frames: List[pandas.DataFrame] = batch
+      data_frames: Sequence[pandas.DataFrame] = batch
       return sum(df.memory_usage(deep=True).sum() for df in data_frames)
     raise ValueError('Unsupported data type.')
