@@ -27,6 +27,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntryRe
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
@@ -143,10 +144,9 @@ public class PartitioningShuffleReader<K, V> extends NativeReader<WindowedValue<
         return false;
       }
       ShuffleEntry record = iterator.next();
-      K key = shuffleReader.keyCoder.decode(record.getKey().newInput(), Coder.Context.OUTER);
+      K key = CoderUtils.decodeFromByteString(shuffleReader.keyCoder, record.getKey());
       WindowedValue<V> windowedValue =
-          shuffleReader.windowedValueCoder.decode(
-              record.getValue().newInput(), Coder.Context.OUTER);
+          CoderUtils.decodeFromByteString(shuffleReader.windowedValueCoder, record.getValue());
       shuffleReader.notifyElementRead(record.length());
       current = windowedValue.withValue(KV.of(key, windowedValue.getValue()));
       return true;

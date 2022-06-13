@@ -17,11 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.UnsafeByteOperations;
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
@@ -29,6 +26,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ByteArrayShuff
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleBatchReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShufflePosition;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** ChunkingShuffleBatchReader reads data from a shuffle dataset using a ShuffleReader. */
@@ -92,22 +90,12 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
    * @param chunk chunk to read from
    * @return parsed byte array
    */
-  private static ByteBuffer getFixedLengthPrefixedByteSlice(ByteArrayReader chunk)
+  private static ByteString getFixedLengthPrefixedByteArray(ByteArrayReader chunk)
       throws IOException {
     int length = chunk.readInt();
     if (length < 0) {
       throw new IOException("invalid length: " + length);
     }
     return chunk.read(length);
-  }
-
-  private static ByteString getFixedLengthPrefixedByteArray(ByteArrayReader chunk)
-      throws IOException {
-    ByteBuffer slice = getFixedLengthPrefixedByteSlice(chunk);
-    if (slice.remaining() == 0) {
-      return ByteString.EMPTY;
-    } else {
-      return UnsafeByteOperations.unsafeWrap(slice);
-    }
   }
 }

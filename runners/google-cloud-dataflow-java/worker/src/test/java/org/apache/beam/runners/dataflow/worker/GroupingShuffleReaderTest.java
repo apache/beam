@@ -33,7 +33,6 @@ import static org.junit.Assert.fail;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.Position;
-import com.google.protobuf.ByteString;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.DataOutputStream;
@@ -63,6 +62,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ByteArrayShuff
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutorTestUtils;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ShufflePosition;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleReadCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleReadCounterFactory;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
@@ -80,6 +80,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -590,6 +591,15 @@ public class GroupingShuffleReaderTest {
     return fabricatePosition(shard, key == null ? null : Arrays.hashCode(key));
   }
 
+  static ShuffleEntry newShuffleEntry(
+      ShufflePosition position, byte[] key, byte[] secondaryKey, byte[] value) {
+    return new ShuffleEntry(
+        position,
+        key == null ? null : ByteString.copyFrom(key),
+        secondaryKey == null ? null : ByteString.copyFrom(secondaryKey),
+        value == null ? null : ByteString.copyFrom(value));
+  }
+
   static ByteArrayShufflePosition fabricatePosition(int shard, @Nullable Integer keyHash)
       throws Exception {
     ByteArrayOutputStream os = new ByteArrayOutputStream();
@@ -612,7 +622,7 @@ public class GroupingShuffleReaderTest {
     for (int i = 0; i < kNumRecords; ++i) {
       byte[] key = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
       shuffleReader.addEntry(
-          new ShuffleEntry(fabricatePosition(kFirstShard, key), key, EMPTY_BYTE_ARRAY, key));
+          newShuffleEntry(fabricatePosition(kFirstShard, key), key, EMPTY_BYTE_ARRAY, key));
     }
 
     // Note that TestShuffleReader start/end positions are in the
@@ -680,7 +690,7 @@ public class GroupingShuffleReaderTest {
     for (int i = 0; i < kNumRecords; ++i) {
       byte[] key = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
       ShuffleEntry entry =
-          new ShuffleEntry(fabricatePosition(kFirstShard, i), key, EMPTY_BYTE_ARRAY, key);
+          newShuffleEntry(fabricatePosition(kFirstShard, i), key, EMPTY_BYTE_ARRAY, key);
       shuffleReader.addEntry(entry);
     }
 
@@ -787,7 +797,7 @@ public class GroupingShuffleReaderTest {
     for (int i = 0; i < kNumRecords; ++i) {
       byte[] keyByte = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
       ShuffleEntry entry =
-          new ShuffleEntry(
+          newShuffleEntry(
               fabricatePosition(kFirstShard, keyByte), keyByte, EMPTY_BYTE_ARRAY, keyByte);
       shuffleReader.addEntry(entry);
     }
@@ -796,7 +806,7 @@ public class GroupingShuffleReaderTest {
       byte[] keyByte = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
 
       ShuffleEntry entry =
-          new ShuffleEntry(
+          newShuffleEntry(
               fabricatePosition(kSecondShard, keyByte), keyByte, EMPTY_BYTE_ARRAY, keyByte);
       shuffleReader.addEntry(entry);
     }
@@ -885,7 +895,7 @@ public class GroupingShuffleReaderTest {
       ByteArrayShufflePosition position = fabricatePosition(i);
       byte[] keyByte = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
       positionsList.add(position);
-      ShuffleEntry entry = new ShuffleEntry(position, keyByte, EMPTY_BYTE_ARRAY, keyByte);
+      ShuffleEntry entry = newShuffleEntry(position, keyByte, EMPTY_BYTE_ARRAY, keyByte);
       shuffleReader.addEntry(entry);
     }
 
@@ -932,7 +942,7 @@ public class GroupingShuffleReaderTest {
     for (int i = 0; i < kNumRecords; ++i) {
       byte[] key = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
       shuffleReader.addEntry(
-          new ShuffleEntry(fabricatePosition(kFirstShard, key), key, EMPTY_BYTE_ARRAY, key));
+          newShuffleEntry(fabricatePosition(kFirstShard, key), key, EMPTY_BYTE_ARRAY, key));
     }
 
     TestShuffleReadCounterFactory shuffleReadCounterFactory = new TestShuffleReadCounterFactory();

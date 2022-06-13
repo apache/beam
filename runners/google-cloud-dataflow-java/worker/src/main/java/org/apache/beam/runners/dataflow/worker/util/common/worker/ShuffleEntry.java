@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
-import com.google.protobuf.ByteString;
 import java.util.Arrays;
 import java.util.Objects;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Entry written to/read from a shuffle dataset. */
@@ -37,21 +37,6 @@ public class ShuffleEntry {
     this.key = key;
     this.secondaryKey = secondaryKey;
     this.value = value;
-  }
-
-  public ShuffleEntry(byte[] key, byte[] secondaryKey, byte[] value) {
-    this(
-        key == null ? null : ByteString.copyFrom(key),
-        secondaryKey == null ? null : ByteString.copyFrom(secondaryKey),
-        value == null ? null : ByteString.copyFrom(value));
-  }
-
-  public ShuffleEntry(ShufflePosition position, byte[] key, byte[] secondaryKey, byte[] value) {
-    this(
-        position,
-        ByteString.copyFrom(key),
-        ByteString.copyFrom(secondaryKey),
-        ByteString.copyFrom(value));
   }
 
   public ShuffleEntry(

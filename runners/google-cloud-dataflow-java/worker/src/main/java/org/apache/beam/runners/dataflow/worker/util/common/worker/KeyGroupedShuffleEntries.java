@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
-import com.google.protobuf.ByteString;
 import org.apache.beam.sdk.util.common.Reiterable;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 
 /** A collection of ShuffleEntries, all with the same key. */
 public class KeyGroupedShuffleEntries {

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -30,7 +29,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntryReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShufflePosition;
 import org.apache.beam.sdk.util.common.Reiterator;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A fake implementation of a ShuffleEntryReader, for testing. */
@@ -47,8 +46,7 @@ public class TestShuffleReader implements ShuffleEntryReader {
         if (o2 == null) {
           return 1;
         }
-        return UnsignedBytes.lexicographicalComparator()
-            .compare(o1.toByteArray(), o2.toByteArray());
+        return ByteString.unsignedLexicographicalComparator().compare(o1, o2);
       };
 
   final TreeMap<ByteString, TreeMap<ByteString, List<ShuffleEntry>>> records =
@@ -80,7 +78,7 @@ public class TestShuffleReader implements ShuffleEntryReader {
   }
 
   public Iterator<ShuffleEntry> read() {
-    return read((ByteString) null, (ByteString) null);
+    return read((ByteString) null, null);
   }
 
   private ByteString toByteString(ShufflePosition pos) {

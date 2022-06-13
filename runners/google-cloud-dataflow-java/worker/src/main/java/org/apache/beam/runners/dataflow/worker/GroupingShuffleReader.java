@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
@@ -287,7 +288,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
         }
       }
 
-      K key = parentReader.keyCoder.decode(groups.getCurrent().key.newInput(), Coder.Context.OUTER);
+      K key = CoderUtils.decodeFromByteString(parentReader.keyCoder, groups.getCurrent().key);
       parentReader.executionContext.setKey(key);
       current =
           new ValueInEmptyWindows<>(
@@ -458,15 +459,13 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
                       KV.of(
                           // We ignore decoding the timestamp.
                           parentReader.secondaryKeyCoder.decode(bais),
-                          parentReader.valueCoder.decode(
-                              entry.getValue().newInput(), Coder.Context.OUTER));
+                          CoderUtils.decodeFromByteString(
+                              parentReader.valueCoder, entry.getValue()));
               return value;
             } else {
               @SuppressWarnings("unchecked")
               V value =
-                  (V)
-                      parentReader.valueCoder.decode(
-                          entry.getValue().newInput(), Coder.Context.OUTER);
+                  (V) CoderUtils.decodeFromByteString(parentReader.valueCoder, entry.getValue());
               return value;
             }
           } catch (IOException exn) {

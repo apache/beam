@@ -23,7 +23,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-import com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -62,8 +62,8 @@ public class ShuffleEntryTest {
 
   @Test
   public void equalsForEqualNullEntries() {
-    ShuffleEntry entry0 = new ShuffleEntry((byte[]) null, null, null);
-    ShuffleEntry entry1 = new ShuffleEntry((byte[]) null, null, null);
+    ShuffleEntry entry0 = new ShuffleEntry(null, null, null);
+    ShuffleEntry entry1 = new ShuffleEntry(null, null, null);
 
     assertEquals(entry0, entry1);
     assertEquals(entry1, entry0);
@@ -135,8 +135,8 @@ public class ShuffleEntryTest {
 
   @Test
   public void emptyNotTheSameAsNull() {
-    final byte[] empty = {};
-    ShuffleEntry entry0 = new ShuffleEntry((byte[]) null, null, null);
+    final ByteString empty = ByteString.EMPTY;
+    ShuffleEntry entry0 = new ShuffleEntry(null, null, null);
     ShuffleEntry entry1 = new ShuffleEntry(empty, empty, empty);
 
     assertFalse(entry0.equals(entry1));
