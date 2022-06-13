@@ -107,7 +107,3 @@ func (c *fhirStoreClientImpl) readResource(resourcePath string) (*http.Response,
 func (c *fhirStoreClientImpl) executeBundle(storePath string, bundle []byte) (*http.Response, error) {
 	return c.fhirService.ExecuteBundle(storePath, bytes.NewReader(bundle)).Do()
 }
-
-func (c *fhirStoreClientImpl) searchResource(storePath string, bundle []byte) (*http.Response, error) {
-	return c.fhirService.ExecuteBundle(storePath, bytes.NewReader(bundle)).Do()
-}
