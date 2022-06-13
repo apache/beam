@@ -22,7 +22,7 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Iterable
-from typing import List
+from typing import Sequence
 
 import torch
 from apache_beam.io.filesystems import FileSystems
@@ -91,7 +91,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         **self._model_params)
 
   def run_inference(
-      self, batch: List[torch.Tensor], model: torch.nn.Module,
+      self, batch: Sequence[torch.Tensor], model: torch.nn.Module,
       **kwargs) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
@@ -106,7 +106,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     predictions = model(batched_tensors, **prediction_params)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
-  def get_num_bytes(self, batch: List[torch.Tensor]) -> int:
+  def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """Returns the number of bytes of data for a batch of Tensors."""
     return sum((el.element_size() for tensor in batch for el in tensor))
 
@@ -161,7 +161,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
 
   def run_inference(
       self,
-      batch: List[Dict[str, torch.Tensor]],
+      batch: Sequence[Dict[str, torch.Tensor]],
       model: torch.nn.Module,
       **kwargs) -> Iterable[PredictionResult]:
     """
@@ -187,7 +187,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     predictions = model(**key_to_batched_tensors, **prediction_params)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
-  def get_num_bytes(self, batch: List[torch.Tensor]) -> int:
+  def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """Returns the number of bytes of data for a batch of Dict of Tensors."""
     # If elements in `batch` are provided as a dictionaries from key to Tensors
     return sum(

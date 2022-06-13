@@ -32,9 +32,10 @@ class PythonCallableWithSource(object):
 
   Supported formats include fully-qualified names such as `math.sin`,
   expressions such as `lambda x: x * x` or `str.upper`, and multi-line function
-  definitions such as `def foo(x): ...`. If the source string contains multiple
-  lines then lines prior to the last will be evaluated to provide the context
-  in which to evaluate the expression, for example::
+  definitions such as `def foo(x): ...` or class definitions like
+  `class Foo(...): ...`. If the source string contains multiple lines then lines
+  prior to the last will be evaluated to provide the context in which to
+  evaluate the expression, for example::
 
       import math
 
@@ -88,6 +89,9 @@ class PythonCallableWithSource(object):
       if line[0] != ' ':
         if line.startswith('def '):
           name = line[4:line.index('(')].strip()
+        elif line.startswith('class '):
+          name = line[5:line.index('(') if '(' in
+                      line else line.index(':')].strip()
         else:
           name = '__python_callable__'
           lines[ix] = name + ' = ' + line
@@ -96,7 +100,9 @@ class PythonCallableWithSource(object):
       raise ValueError("Unable to identify callable from %r" % source)
 
     # pylint: disable=exec-used
-    exec_globals = {}
+    # pylint: disable=ungrouped-imports
+    import apache_beam as beam
+    exec_globals = {'beam': beam}
     exec('\n'.join(lines), exec_globals)
     return exec_globals[name]
 
