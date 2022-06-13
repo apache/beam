@@ -32,6 +32,7 @@ from typing import Tuple
 import apache_beam as beam
 import torch
 from apache_beam.ml.inference.api import PredictionResult
+from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandler
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -190,9 +191,9 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
         | 'TokenizeSentence' >> beam.Map(tokenize_sentence))
     text_and_predictions = (
         text_and_tokenized_text_tuple
-        |
-        'PyTorchRunInference' >> RunInference(model_handler).with_output_types(
-            Tuple[str, PredictionResult])
+        | 'PyTorchRunInference' >> RunInference(
+            KeyedModelHandler(model_handler)).with_output_types(
+                Tuple[str, PredictionResult])
         | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
     combined_text = (({
         'masked_text': text_and_masked_text_tuple,
