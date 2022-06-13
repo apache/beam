@@ -1170,6 +1170,23 @@ func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 				AfterSynchronizedProcessingTime: &pipepb.Trigger_AfterSynchronizedProcessingTime{},
 			},
 		}
+	case *trigger.OrFinallyTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_OrFinally_{
+				OrFinally: &pipepb.Trigger_OrFinally{
+					Main:    makeTrigger(t.Main()),
+					Finally: makeTrigger(t.Finally()),
+				},
+			},
+		}
+	case *trigger.AfterEachTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterEach_{
+				AfterEach: &pipepb.Trigger_AfterEach{
+					Subtriggers: extractSubtriggers(t.Subtriggers()),
+				},
+			},
+		}
 	default:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Default_{
