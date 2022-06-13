@@ -385,7 +385,7 @@ class TestWriteStringsToPubSubOverride(unittest.TestCase):
     # Ensure that the properties passed through correctly
     self.assertEqual('a_topic', write_transform.dofn.short_topic_name)
     self.assertEqual(True, write_transform.dofn.with_attributes)
-    # TODO(BEAM-4275): These properties aren't supported yet in direct runner.
+    # TODO(Issue 18939): These properties aren't supported yet in direct runner.
     self.assertEqual(None, write_transform.dofn.id_label)
     self.assertEqual(None, write_transform.dofn.timestamp_attribute)
 

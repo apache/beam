@@ -183,12 +183,12 @@ class RowCoderTest(unittest.TestCase):
       self.assertEqual(test_case, coder.decode(coder.encode(test_case)))
 
   @unittest.skip(
-      "BEAM-8030 - Overflow behavior in VarIntCoder is currently inconsistent")
+      "Issue 19696 - Overflow behavior in VarIntCoder is currently inconsistent")
   def test_overflows(self):
     IntTester = typing.NamedTuple(
         'IntTester',
         [
-            # TODO(BEAM-7996): Test int8 and int16 here as well when those
+            # TODO(Issue 19815): Test int8 and int16 here as well when those
             # types are supported
             # ('i8', typing.Optional[np.int8]),
             # ('i16', typing.Optional[np.int16]),

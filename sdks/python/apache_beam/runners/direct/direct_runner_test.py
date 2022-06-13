@@ -136,7 +136,7 @@ class BundleBasedRunnerTest(unittest.TestCase):
 
 class DirectRunnerRetryTests(unittest.TestCase):
   def test_retry_fork_graph(self):
-    # TODO(BEAM-3642): The FnApiRunner currently does not currently support
+    # TODO(Issue 18640): The FnApiRunner currently does not currently support
     # retries.
     p = beam.Pipeline(runner='BundleBasedDirectRunner')
 

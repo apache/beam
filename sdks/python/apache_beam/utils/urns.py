@@ -19,7 +19,7 @@
 
 # pytype: skip-file
 
-# TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
+# TODO(Issue 18399): Issue with dill + local classes + abc metaclass
 # import abc
 import inspect
 from typing import TYPE_CHECKING
@@ -60,7 +60,7 @@ class RunnerApiFn(object):
   to register serialization via pickling.
   """
 
-  # TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
+  # TODO(Issue 18399): Issue with dill + local classes + abc metaclass
   # __metaclass__ = abc.ABCMeta
 
   _known_urns = {}  # type: Dict[str, Tuple[Optional[type], ConstructorFn]]

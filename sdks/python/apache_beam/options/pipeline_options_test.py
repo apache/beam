@@ -218,7 +218,7 @@ class PipelineOptionsTest(unittest.TestCase):
       parser.add_argument(
           '--fake_multi_option', action='append', help='fake multi option')
 
-  @unittest.skip("TODO(BEAM-12515): Flaky test.")
+  @unittest.skip("TODO(Issue 21116): Flaky test.")
   def test_display_data(self):
     for case in PipelineOptionsTest.TEST_CASES:
       options = PipelineOptions(flags=case['flags'])
@@ -516,7 +516,7 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(['--redefined_flag'])
     self.assertTrue(options.get_all_options()['redefined_flag'])
 
-  # TODO(BEAM-1319): Require unique names only within a test.
+  # TODO(Issue 18197): Require unique names only within a test.
   # For now, <file name acronym>_vp_arg<number> will be the convention
   # to name value-provider arguments in tests, as opposed to
   # <file name acronym>_non_vp_arg<number> for non-value-provider arguments.

@@ -31,11 +31,11 @@ check.dependsOn formatter
 
 apply from: "../common.gradle"
 
-// TODO(BEAM-8954): Remove this once tox uses isolated builds.
+// TODO(Issue 20051): Remove this once tox uses isolated builds.
 testPy38Cython.mustRunAfter testPython38, testPy38CloudCoverage
 
 // Create a test task for each major version of pyarrow
-// TODO(BEAM-12000): Move these to Py 3.9.
+// TODO(Issue 181120): Move these to Py 3.9.
 toxTask "testPy38pyarrow-0", "py38-pyarrow-0"
 test.dependsOn "testPy38pyarrow-0"
 preCommitPy38.dependsOn "testPy38pyarrow-0"

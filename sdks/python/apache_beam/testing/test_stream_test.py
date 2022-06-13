@@ -373,7 +373,7 @@ class TestStreamTest(unittest.TestCase):
         | beam.Map(lambda x: ('k', x))
         | beam.GroupByKey())
 
-    # TODO(BEAM-2519): timestamp assignment for elements from a GBK should
+    # TODO(Issue 18441): timestamp assignment for elements from a GBK should
     # respect the TimestampCombiner.  The test below should also verify the
     # timestamps of the outputted elements once this is implemented.
 
@@ -418,7 +418,7 @@ class TestStreamTest(unittest.TestCase):
         | beam.Map(lambda x: ('k', x))
         | beam.GroupByKey())
 
-    # TODO(BEAM-2519): timestamp assignment for elements from a GBK should
+    # TODO(Issue 18441): timestamp assignment for elements from a GBK should
     # respect the TimestampCombiner.  The test below should also verify the
     # timestamps of the outputted elements once this is implemented.
 
@@ -460,7 +460,7 @@ class TestStreamTest(unittest.TestCase):
         | beam.Map(lambda x: ('k', x))
         | beam.GroupByKey())
 
-    # TODO(BEAM-2519): timestamp assignment for elements from a GBK should
+    # TODO(Issue 18441): timestamp assignment for elements from a GBK should
     # respect the TimestampCombiner.  The test below should also verify the
     # timestamps of the outputted elements once this is implemented.
 

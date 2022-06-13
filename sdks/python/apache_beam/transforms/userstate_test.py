@@ -443,7 +443,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
     # Use state on the TestCase class, since other references would be pickled
     # into a closure and not have the desired side effects.
     #
-    # TODO(BEAM-5295): Use assert_that after it works for the cases here in
+    # TODO(Issue 18987): Use assert_that after it works for the cases here in
     # streaming mode.
     StatefulDoFnOnDirectRunnerTest.all_records = []
 

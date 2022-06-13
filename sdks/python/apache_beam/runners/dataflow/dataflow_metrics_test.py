@@ -65,7 +65,7 @@ class DictToObject(object):
 
 class TestDataflowMetrics(unittest.TestCase):
 
-  # TODO(BEAM-6734): Write a dump tool to generate this fake data, or
+  # TODO(Issue 19258): Write a dump tool to generate this fake data, or
   # somehow make this easier to maintain.
   ONLY_COUNTERS_LIST = {
       "metrics": [

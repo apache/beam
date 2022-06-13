@@ -107,7 +107,7 @@ class LeaderBoardIT(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   @pytest.mark.examples_postcommit
-  # TODO(BEAM-13613) This example only works in Dataflow,
+  # TODO(Issue 21300) This example only works in Dataflow,
   #  remove mark to enable for other runners when fixed
   @pytest.mark.sickbay_direct
   @pytest.mark.sickbay_spark

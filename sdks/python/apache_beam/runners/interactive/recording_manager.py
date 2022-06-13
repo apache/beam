@@ -304,7 +304,7 @@ class RecordingManager:
     # Convert them one-by-one to generate a unique label for each. This allows
     # caching at a more fine-grained granularity.
     #
-    # TODO(BEAM-12388): investigate the mixing pcollections in multiple
+    # TODO(Issue 20929): investigate the mixing pcollections in multiple
     # pipelines error when using the default label.
     for df in watched_dataframes:
       pcoll, _ = utils.deferred_df_to_pcollection(df)

@@ -98,7 +98,7 @@ class StreamingWordcountDebuggingIT(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   @unittest.skip(
-      "Skipped due to [BEAM-3377]: assert_that not working for streaming")
+      "Skipped due to [Issue 18709]: assert_that not working for streaming")
   def test_streaming_wordcount_debugging_it(self):
 
     # Set extra options to the pipeline for test purpose

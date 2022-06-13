@@ -302,7 +302,7 @@ class PipelineOptions(HasDisplayData):
       Dictionary of all args and values.
     """
 
-    # TODO(BEAM-1319): PipelineOption sub-classes in the main session might be
+    # TODO(Issue 18197): PipelineOption sub-classes in the main session might be
     # repeated. Pick last unique instance of each subclass to avoid conflicts.
     subset = {}
     parser = _BeamArgumentParser()

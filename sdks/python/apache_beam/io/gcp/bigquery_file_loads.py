@@ -943,7 +943,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
             file_prefix_pcv,
             *self.schema_side_inputs))
 
-    # TODO(BEAM-9494): Remove the identity transform. We flatten both
+    # TODO(Issue 20285): Remove the identity transform. We flatten both
     # PCollection paths and use an identity function to work around a
     # flatten optimization issue where the wrong coder is being used.
     all_destination_file_pairs_pc = (

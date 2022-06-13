@@ -301,7 +301,7 @@ class Pipeline(object):
               original_transform_node.full_label,
               original_transform_node.main_inputs)
 
-          # TODO(BEAM-12854): Merge rather than override.
+          # TODO(Issue 21178): Merge rather than override.
           replacement_transform_node.resource_hints = (
               original_transform_node.resource_hints)
 
@@ -791,7 +791,7 @@ class Pipeline(object):
           result_element_type, {'*': typehints.Any})
     elif isinstance(result_pcollection, pvalue.DoOutputsTuple):
       # {Single, multi}-input, multi-output inference.
-      # TODO(BEAM-4132): Add support for tagged type hints.
+      # TODO(Issue 18957): Add support for tagged type hints.
       #   https://github.com/apache/beam/pull/9810#discussion_r338765251
       for pcoll in result_pcollection:
         if pcoll.element_type is None:
@@ -1263,7 +1263,7 @@ class AppliedPTransform(object):
     # External transforms require more splicing than just setting the spec.
     from apache_beam.transforms import external
     if isinstance(self.transform, external.ExternalTransform):
-      # TODO(BEAM-12082): Support resource hints in XLang transforms.
+      # TODO(Issue 18371): Support resource hints in XLang transforms.
       # In particular, make sure hints on composites are properly propagated.
       return self.transform.to_runner_api_transform(context, self.full_label)
 
@@ -1315,7 +1315,7 @@ class AppliedPTransform(object):
         },
         environment_id=environment_id,
         annotations=self.annotations,
-        # TODO(BEAM-366): Add display_data.
+        # TODO(Issue 18012): Add display_data.
         display_data=DisplayData.create_from(self.transform).to_proto()
         if self.transform else None)
 
@@ -1350,7 +1350,7 @@ class AppliedPTransform(object):
         transform._resource_hints = dict(resource_hints)
 
     # Ordering is important here.
-    # TODO(BEAM-9635): use key, value pairs instead of depending on tags with
+    # TODO(Issue 20136): use key, value pairs instead of depending on tags with
     # index as a suffix.
     indexed_side_inputs = [
         (get_sideinput_index(tag), context.pcollections.get_by_id(id)) for tag,

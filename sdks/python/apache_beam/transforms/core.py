@@ -705,7 +705,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
   # the DoFn or maybe the runner
   def infer_output_type(self, input_type):
-    # TODO(BEAM-8247): Side inputs types.
+    # TODO(Issue 19824): Side inputs types.
     return trivial_inference.element_type(
         self._strip_output_annotations(
             trivial_inference.infer_return_type(self.process, [input_type])))
@@ -743,7 +743,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     input_type = list(
         inspect.signature(self.process_batch).parameters.values())[0].annotation
     if input_type == inspect.Signature.empty:
-      # TODO(BEAM-14340): Consider supporting an alternative (dynamic?) approach
+      # TODO(Issue 21652): Consider supporting an alternative (dynamic?) approach
       # for declaring input type
       raise TypeError(
           f"{self.__class__.__name__}.process_batch() does not have a type "
@@ -3339,7 +3339,7 @@ class Create(PTransform):
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> typing.Tuple[str, bytes]
     # Required as this is identified by type in PTransformOverrides.
-    # TODO(BEAM-3812): Use an actual URN here.
+    # TODO(Issue 18713): Use an actual URN here.
     return self.to_runner_api_pickled(context)
 
   def infer_output_type(self, unused_input_type):

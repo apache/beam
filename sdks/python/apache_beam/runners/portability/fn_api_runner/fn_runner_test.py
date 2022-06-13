@@ -141,7 +141,7 @@ class FnApiRunnerTest(unittest.TestCase):
       utils.check_compiled('apache_beam.coders.coder_impl')
     except RuntimeError:
       self.skipTest(
-          'BEAM-14410: FnRunnerTest with non-trivial inputs flakes '
+          'Issue 21643: FnRunnerTest with non-trivial inputs flakes '
           'in non-cython environments')
 
     with self.create_pipeline() as p:
@@ -343,7 +343,7 @@ class FnApiRunnerTest(unittest.TestCase):
       utils.check_compiled('apache_beam.coders.coder_impl')
     except RuntimeError:
       self.skipTest(
-          'BEAM-14410: FnRunnerTest with non-trivial inputs flakes in '
+          'Issue 21643: FnRunnerTest with non-trivial inputs flakes in '
           'non-cython environments')
     with self.create_pipeline() as p:
       res = (
@@ -425,7 +425,7 @@ class FnApiRunnerTest(unittest.TestCase):
                 ExpectingSideInputsFn(f'Do{k}'),
                 *[beam.pvalue.AsList(inputs[s]) for s in range(1, k)]))
 
-  @unittest.skip('BEAM-13040')
+  @unittest.skip('Issue 21228')
   def test_pardo_side_input_sparse_dependencies(self):
     with self.create_pipeline() as p:
       inputs = []
@@ -1755,7 +1755,7 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(is_drain=is_drain),
         options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests.
+    #TODO(Issue 19936): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
@@ -1785,7 +1785,7 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(is_drain=is_drain),
         options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests.
+    #TODO(Issue 19936): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
@@ -1823,7 +1823,7 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3, is_drain=is_drain),
         options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests.
+    #TODO(Issue 19936): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 

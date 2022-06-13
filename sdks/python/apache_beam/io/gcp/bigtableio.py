@@ -71,7 +71,7 @@ try:
 
         # If even one request fails we retry everything. BigTable mutations are
         # idempotent so this should be correct.
-        # TODO(BEAM-13849): make this more efficient by retrying only
+        # TODO(Issue 21396): make this more efficient by retrying only
         # re-triable failed requests.
         for status in status_list:
           if not status:

@@ -415,7 +415,7 @@ def wont_implement_method(base_type, name, reason=None, explanation=None):
   return wrapper
 
 
-def not_implemented_method(op, jira='BEAM-9547', base_type=None):
+def not_implemented_method(op, jira='Issue 20318', base_type=None):
   """Generate a stub method for ``op`` that simply raises a NotImplementedError.
 
   For internal use only. No backwards compatibility guarantees."""
