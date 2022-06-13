@@ -211,8 +211,8 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     return self._unkeyed.batch_elements_kwargs()
 
 
-@beam.typehints.with_input_types(Union[_INPUT_TYPE, Tuple[_K, _INPUT_TYPE]])
-@beam.typehints.with_output_types(Union[PredictionResult, Tuple[_K, PredictionResult]])  # pylint: disable=line-too-long
+@beam.typehints.with_input_types(Union[_INPUT_TYPE, Tuple[KeyT, _INPUT_TYPE]])
+@beam.typehints.with_output_types(Union[PredictionResult, Tuple[KeyT, PredictionResult]])  # pylint: disable=line-too-long
 class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                                    beam.PCollection[PredictionT]]):
   """An extensible transform for running inferences.

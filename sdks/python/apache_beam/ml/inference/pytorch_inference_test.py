@@ -312,7 +312,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       prediction_params_side_input = (
           pipeline | 'create side' >> beam.Create(prediction_params))
       predictions = pcoll | RunInference(
-          model_loader=model_loader,
+          model_handler=model_loader,
           prediction_params=beam.pvalue.AsDict(prediction_params_side_input))
       assert_that(
           predictions,

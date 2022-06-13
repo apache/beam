@@ -37,6 +37,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler
 
 import apache_beam as beam
+from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.sklearn_inference import ModelFileType
@@ -264,8 +265,8 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       keyed_rows = [(key, value) for key, value in zip(keys, splits)]
 
       pcoll = pipeline | 'start' >> beam.Create(keyed_rows)
-      actual = pcoll | api.RunInference(
-          base.KeyedModelHandler(SklearnModelHandler(model_uri=temp_file_name)))
+      actual = pcoll | RunInference(
+          KeyedModelHandler(SklearnModelHandler(model_uri=temp_file_name)))
       expected = [
           ('0', PredictionResult(splits[0], 5)),
           ('1', PredictionResult(splits[1], 8)),
