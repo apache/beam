@@ -40,18 +40,16 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v2
         with:
-            distribution: 'zulu'
-            java-version: '8'
+          distribution: 'zulu'
+          java-version: '8'
       - uses: actions/setup-go@v2
         with:
-            go-version: '${{ env.GO_VERSION }}'
-      - name: Install dependencies
-        run: sudo apt update && sudo apt install libsnmp-dev -y
+          go-version: '${{ env.GO_VERSION }}'
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue
         run: rm ~/.m2/settings.xml
       - name: Run PreCommit
-        run: sudo ./gradlew playground:backend:precommit
+        run: ./gradlew playground:backend:precommit
       - name: install npm
         uses: actions/setup-node@v2
         with:
