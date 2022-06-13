@@ -27,8 +27,8 @@ from typing import Union
 
 import torch
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference.api import PredictionResult
 from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import PredictionResult
 
 
 class PytorchModelHandler(ModelHandler[torch.Tensor,
