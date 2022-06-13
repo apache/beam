@@ -1906,7 +1906,8 @@ class GroupByTest(_AbstractFrameTest):
   def test_groupby_multiindex_keep_nans(self):
     # Due to https://github.com/pandas-dev/pandas/issues/36470
     # groupby(dropna=False) doesn't work with multiple columns
-    with self.assertRaisesRegex(NotImplementedError, "BEAM-12495"):
+    with self.assertRaisesRegex(NotImplementedError,
+                                "https://github.com/apache/beam/issues/21014"):
       self._run_test(
           lambda df: df.groupby(['foo', 'bar'], dropna=False).sum(), GROUPBY_DF)
 

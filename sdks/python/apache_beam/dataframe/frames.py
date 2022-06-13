@@ -358,7 +358,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
     Aggregations grouping by a categorical column with ``observed=False`` set
     are not currently parallelizable
-    (`BEAM-11190 <https://issues.apache.org/jira/browse/BEAM-11190>`_).
+    (`#21827 <https://github.com/apache/beam/issues/21827>`_).
     """
     if not as_index:
       raise NotImplementedError('groupby(as_index=False)')
@@ -580,7 +580,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           reason=(
               f"reset_index(level={level!r}) drops the entire index and "
               "creates a new one, so it cannot currently be parallelized "
-              "(BEAM-12182)."))
+              "(https://github.com/apache/beam/issues/20859)."))
     else:
       requires_partition_by = partitionings.Arbitrary()
     return frame_base.DeferredFrame.wrap(
@@ -1175,7 +1175,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   sparse = property(
       frame_base.not_implemented_method(
-          'sparse', 'BEAM-12425', base_type=pd.DataFrame))
+          'sparse', '20902', base_type=pd.DataFrame))
 
   transform = frame_base._elementwise_method('transform', base=pd.DataFrame)
 
@@ -1534,7 +1534,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.Series)
   def quantile(self, q, **kwargs):
     """quantile is not parallelizable. See
-    `BEAM-12167 <https://github.com/apache/beam/issues/20933>`_ tracking
+    `#20933 <https://github.com/apache/beam/issues/20933>`_ tracking
     the possible addition of an approximate, parallelizable implementation of
     quantile."""
     # TODO(BEAM-12167): Provide an option for approximate distributed
@@ -1542,8 +1542,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     requires = partitionings.Singleton(
         reason=(
             "Computing quantiles across index cannot currently be "
-            "parallelized. See BEAM-12167 tracking the possible addition of an "
-            "approximate, parallelizable implementation of quantile."))
+            "parallelized. See https://github.com/apache/beam/issues/20933 "
+            "tracking the possible addition of an approximate, parallelizable "
+            "implementation of quantile."))
 
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -1561,8 +1562,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def var(self, axis, skipna, level, ddof, **kwargs):
-    """Per-level aggregation is not yet supported (BEAM-11777). Only the
-    default, ``level=None``, is allowed."""
+    """Per-level aggregation is not yet supported
+    (https://github.com/apache/beam/issues/21829). Only the default,
+    ``level=None``, is allowed."""
     if level is not None:
       raise NotImplementedError("per-level aggregation")
     if skipna is None or skipna:
@@ -1920,7 +1922,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def sample(self, **kwargs):
     """Only ``n`` and/or ``weights`` may be specified.  ``frac``,
     ``random_state``, and ``replace=True`` are not yet supported.
-    See `BEAM-12476 <https://issues.apache.org/jira/BEAM-12476>`_.
+    See `#21010 <https://github.com/apache/beam/issues/21010>`_.
 
     Note that pandas will raise an error if ``n`` is larger than the length
     of the dataset, while the Beam DataFrame API will simply return the full
@@ -2273,7 +2275,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     preserved.
 
     When ``bin`` is specified this operation is not parallelizable. See
-    [BEAM-12441](https://github.com/apache/beam/issues/20903) tracking the
+    `#20903 <https://github.com/apache/beam/issues/20903>`_ tracking the
     possible addition of a distributed implementation."""
 
     if sort:
@@ -2340,7 +2342,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def mode(self, *args, **kwargs):
     """mode is not currently parallelizable. An approximate,
     parallelizable implementation of mode may be added in the future
-    (`BEAM-12181 <https://issues.apache.org/jira/BEAM-12181>`_)."""
+    (`#20946 <https://github.com/apache/beam/issues/20946>`_)."""
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'mode',
@@ -2350,8 +2352,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             requires_partition_by=partitionings.Singleton(
                 reason=(
                     "mode cannot currently be parallelized. See "
-                    "BEAM-12181 tracking the possble addition of "
-                    "an approximate, parallelizable implementation of mode.")),
+                    "https://github.com/apache/beam/issues/20946 tracking the "
+                    "possible addition of an approximate, parallelizable "
+                    "implementation of mode.")),
             preserves_partition_by=partitionings.Singleton()))
 
   apply = frame_base._elementwise_method('apply', base=pd.Series)
@@ -2601,7 +2604,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.maybe_inplace
   def set_index(self, keys, **kwargs):
     """``keys`` must be a ``str`` or ``List[str]``. Passing an Index or Series
-    is not yet supported (`BEAM-11711
+    is not yet supported (`#20759
     <https://github.com/apache/beam/issues/20759>`_)."""
     if isinstance(keys, str):
       keys = [keys]
@@ -2609,7 +2612,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     if any(isinstance(k, (_DeferredIndex, frame_base.DeferredFrame))
            for k in keys):
       raise NotImplementedError("set_index with Index or Series instances is "
-                                "not yet supported (BEAM-11711).")
+                                "not yet supported "
+                                "(https://github.com/apache/beam/issues/20759)."
+                                )
 
     return frame_base.DeferredFrame.wrap(
       expressions.ComputedExpression(
@@ -3120,7 +3125,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def sample(self, n, frac, replace, weights, random_state, axis):
     """When ``axis='index'``, only ``n`` and/or ``weights`` may be specified.
     ``frac``, ``random_state``, and ``replace=True`` are not yet supported.
-    See `BEAM-12476 <https://issues.apache.org/jira/BEAM-12476>`_.
+    See `#21010 <https://github.com/apache/beam/issues/21010>`_.
 
     Note that pandas will raise an error if ``n`` is larger than the length
     of the dataset, while the Beam DataFrame API will simply return the full
@@ -3143,7 +3148,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           f"When axis={axis!r}, only n and/or weights may be specified. "
           "frac, random_state, and replace=True are not yet supported "
           f"(got frac={frac!r}, random_state={random_state!r}, "
-          f"replace={replace!r}). See BEAM-12476.")
+          f"replace={replace!r}). See "
+          "https://github.com/apache/beam/issues/21010.")
 
     if n is None:
       n = 1
@@ -3222,7 +3228,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
     mode with axis="index" is not currently parallelizable. An approximate,
     parallelizable implementation of mode may be added in the future
-    (`BEAM-12181 <https://issues.apache.org/jira/BEAM-12181>`_)."""
+    (`#20946 <https://github.com/apache/beam/issues/20946>`_)."""
 
     if axis == 1 or axis == 'columns':
       # Number of columns is max(number mode values for each row), so we can't
@@ -3239,8 +3245,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             #TODO(BEAM-12181): Can we add an approximate implementation?
             requires_partition_by=partitionings.Singleton(reason=(
                 "mode(axis='index') cannot currently be parallelized. See "
-                "BEAM-12181 tracking the possble addition of an approximate, "
-                "parallelizable implementation of mode."
+                "https://github.com/apache/beam/issues/20946 tracking the "
+                "possble addition of an approximate, parallelizable "
+                "implementation of mode."
             )),
             preserves_partition_by=partitionings.Singleton()))
 
@@ -3275,7 +3282,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     # look for '@<py identifier>'
     if re.search(r'\@[^\d\W]\w*', expr, re.UNICODE):
       raise NotImplementedError("Accessing locals with @ is not yet supported "
-                                "(BEAM-11202)")
+                                "(https://github.com/apache/beam/issues/20626)")
 
     result_expr = expressions.ComputedExpression(
         name,
@@ -3295,7 +3302,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   def eval(self, expr, inplace, **kwargs):
     """Accessing local variables with ``@<varname>`` is not yet supported
-    (`BEAM-11202 <https://github.com/apache/beam/issues/20626>`_).
+    (`#20626 <https://github.com/apache/beam/issues/20626>`_).
 
     Arguments ``local_dict``, ``global_dict``, ``level``, ``target``, and
     ``resolvers`` are not yet supported."""
@@ -3306,7 +3313,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   def query(self, expr, inplace, **kwargs):
     """Accessing local variables with ``@<varname>`` is not yet supported
-    (`BEAM-11202 <https://github.com/apache/beam/issues/20626>`_).
+    (`#20626 <https://github.com/apache/beam/issues/20626>`_).
 
     Arguments ``local_dict``, ``global_dict``, ``level``, ``target``, and
     ``resolvers`` are not yet supported."""
@@ -3420,7 +3427,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         right_index=right_index,
         **kwargs)
     if kwargs.get('how', None) == 'cross':
-      raise NotImplementedError("cross join is not yet implemented (BEAM-9547)")
+      raise NotImplementedError(
+        "cross join is not yet implemented "
+        "(https://github.com/apache/beam/issues/20318)")
     if not any([on, left_on, right_on, left_index, right_index]):
       on = [col for col in self_proxy.columns if col in right_proxy.columns]
     if not left_on:
@@ -3554,7 +3563,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   def quantile(self, q, axis, **kwargs):
     """``quantile(axis="index")`` is not parallelizable. See
-    `BEAM-12167 <https://github.com/apache/beam/issues/20933>`_ tracking
+    `#20933 <https://github.com/apache/beam/issues/20933>`_ tracking
     the possible addition of an approximate, parallelizable implementation of
     quantile.
 
@@ -3571,12 +3580,13 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       else:
         requires = partitionings.Arbitrary()
     else: # axis='index'
-      # TODO(BEAM-12167): Provide an option for approximate distributed
+      # TODO(#20933): Provide an option for approximate distributed
       # quantiles
       requires = partitionings.Singleton(reason=(
           "Computing quantiles across index cannot currently be parallelized. "
-          "See BEAM-12167 tracking the possible addition of an approximate, "
-          "parallelizable implementation of quantile."
+          "See https://github.com/apache/beam/issues/20933 tracking the "
+          "possible addition of an approximate, parallelizable implementation "
+          "of quantile."
       ))
 
     return frame_base.DeferredFrame.wrap(
@@ -4116,7 +4126,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         self._ungrouped.proxy().index.nlevels > 1):
       raise NotImplementedError(
           "dropna=False does not work as intended in the Beam DataFrame API "
-          "when grouping on multiple columns or indexes (See BEAM-12495).")
+          "when grouping on multiple columns or indexes (See "
+          "https://github.com/apache/beam/issues/21014).")
 
   def __getattr__(self, name):
     return DeferredGroupBy(
@@ -4538,7 +4549,7 @@ def _liftable_agg(meth, postagg_meth=None):
         [pre_agg],
         requires_partition_by=(partitionings.Singleton(reason=(
             "Aggregations grouped by a categorical column are not currently "
-            "parallelizable (BEAM-11190)."
+            "parallelizable (https://github.com/apache/beam/issues/21827)."
         ))
                                if is_categorical_grouping
                                else partitionings.Index()),
@@ -4570,7 +4581,7 @@ def _unliftable_agg(meth):
         [self._ungrouped],
         requires_partition_by=(partitionings.Singleton(reason=(
             "Aggregations grouped by a categorical column are not currently "
-            "parallelizable (BEAM-11190)."
+            "parallelizable (https://github.com/apache/beam/issues/21827)."
         ))
                                if is_categorical_grouping
                                else partitionings.Index()),
