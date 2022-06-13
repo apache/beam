@@ -57,7 +57,7 @@ func (fn *executeBundlesFn) Setup() {
 }
 
 func (fn *executeBundlesFn) ProcessElement(ctx context.Context, inputBundleBody []byte, emitSuccess, emitFailure func(string)) {
-	response, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() (*http.Response, error) {
+	response, err := executeRequestAndRecordLatency(ctx, &fn.latencyMs, func() (*http.Response, error) {
 		return fn.client.executeBundle(fn.FhirStorePath, inputBundleBody)
 	})
 	if err != nil {

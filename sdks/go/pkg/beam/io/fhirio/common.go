@@ -38,9 +38,9 @@ const (
 	baseMetricPrefix = "fhirio/"
 )
 
-func executeAndRecordLatency[T any](ctx context.Context, latencyMs *beam.Distribution, executionSupplier func() (T, error)) (T, error) {
+func executeRequestAndRecordLatency(ctx context.Context, latencyMs *beam.Distribution, requestSupplier func() (*http.Response, error)) (*http.Response, error) {
 	timeBeforeReadRequest := time.Now()
-	response, err := executionSupplier()
+	response, err := requestSupplier()
 	latencyMs.Update(ctx, time.Since(timeBeforeReadRequest).Milliseconds())
 	return response, err
 }
@@ -105,5 +105,9 @@ func (c *fhirStoreClientImpl) readResource(resourcePath string) (*http.Response,
 }
 
 func (c *fhirStoreClientImpl) executeBundle(storePath string, bundle []byte) (*http.Response, error) {
+	return c.fhirService.ExecuteBundle(storePath, bytes.NewReader(bundle)).Do()
+}
+
+func (c *fhirStoreClientImpl) searchResource(storePath string, bundle []byte) (*http.Response, error) {
 	return c.fhirService.ExecuteBundle(storePath, bytes.NewReader(bundle)).Do()
 }
