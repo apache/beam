@@ -76,15 +76,22 @@ func TestRead(t *testing.T) {
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
 			counterResults := pipelineResult.Metrics().AllMetrics().Counters()
+
 			if len(counterResults) != 1 {
-				t.Fatal("Only one counter should have been used")
+				t.Fatalf("counterResults got length %v, expected %v", len(counterResults), 1)
 			}
-			if counterResults[0].Name() != "fhirio/read_resource_error_count" {
-				t.Fatal("Only error counter should have been used")
+			counterResult := counterResults[0]
+
+			expectedCounterName := "fhirio/read_resource_error_count"
+			if counterResult.Name() != expectedCounterName {
+				t.Fatalf("counterResult.Name() is '%v', expected '%v'", counterResult.Name(), expectedCounterName)
 			}
-			if counterResults[0].Result() != int64(len(testResourcePaths)) {
-				t.Fatal("Counter should have been incremented by the number of test resource paths")
+
+			expectedCounterResult := int64(len(testResourcePaths))
+			if counterResult.Result() != expectedCounterResult {
+				t.Fatalf("counterResult.Result() is %v, expected %v", counterResult.Result(), expectedCounterResult)
 			}
+
 		})
 	}
 }
