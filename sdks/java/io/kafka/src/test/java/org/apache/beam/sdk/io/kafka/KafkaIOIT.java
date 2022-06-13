@@ -404,12 +404,12 @@ public class KafkaIOIT {
         .withTopic(options.getKafkaTopic());
   }
 
-  private static class ElementToKVFn extends DoFn<byte[], KV<byte[], byte[]>>{
-      @ProcessElement
-      public void processElement(
-      @Element byte[] element, OutputReceiver<KV<byte[], byte[]>> receiver) {
-        receiver.output(KV.of(element, element));
-      }
+  private static class ElementToKVFn extends DoFn<byte[], KV<byte[], byte[]>> {
+    @ProcessElement
+    public void processElement(
+        @Element byte[] element, OutputReceiver<KV<byte[], byte[]>> receiver) {
+      receiver.output(KV.of(element, element));
+    }
   }
 
   private static class CountingFn extends DoFn<String, Void> {
