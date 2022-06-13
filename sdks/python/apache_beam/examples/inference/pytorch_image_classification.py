@@ -135,9 +135,7 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
             lambda file_name, data: (file_name, preprocess_image(data))))
     predictions = (
         filename_value_pair
-        |
-        'PyTorchRunInference' >> RunInference(model_handler).with_output_types(
-            Tuple[str, PredictionResult])
+        | 'PyTorchRunInference' >> RunInference(model_handler)
         | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 
     if known_args.output:
