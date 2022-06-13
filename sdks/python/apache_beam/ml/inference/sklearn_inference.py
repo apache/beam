@@ -26,8 +26,8 @@ import pandas
 from sklearn.base import BaseEstimator
 
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference.api import PredictionResult
 from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import PredictionResult
 
 try:
   import joblib
@@ -51,7 +51,7 @@ def _load_model(model_uri, file_type):
           'Could not import joblib in this execution environment. '
           'For help with managing dependencies on Python workers.'
           'see '
-          'https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'
+          'https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'  # pylint: disable=line-too-long
       )
     return joblib.load(file)
   raise AssertionError('Unsupported serialization type.')

@@ -37,8 +37,9 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler
 
 import apache_beam as beam
-from apache_beam.ml.inference import api
-from apache_beam.ml.inference import base
+from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.sklearn_inference import ModelFileType
 from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerPandas
 from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
@@ -135,9 +136,9 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
     expected_predictions = [
-        api.PredictionResult(numpy.array([1, 2, 3]), 6),
-        api.PredictionResult(numpy.array([4, 5, 6]), 15),
-        api.PredictionResult(numpy.array([7, 8, 9]), 24)
+        PredictionResult(numpy.array([1, 2, 3]), 6),
+        PredictionResult(numpy.array([4, 5, 6]), 15),
+        PredictionResult(numpy.array([7, 8, 9]), 24)
     ]
     inferences = inference_runner.run_inference(batched_examples, fake_model)
     for actual, expected in zip(inferences, expected_predictions):
@@ -181,11 +182,11 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       examples = [numpy.array([0, 0]), numpy.array([1, 1])]
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      actual = pcoll | base.RunInference(
+      actual = pcoll | RunInference(
           SklearnModelHandlerNumpy(model_uri=temp_file_name))
       expected = [
-          api.PredictionResult(numpy.array([0, 0]), 0),
-          api.PredictionResult(numpy.array([1, 1]), 1)
+          PredictionResult(numpy.array([0, 0]), 0),
+          PredictionResult(numpy.array([1, 1]), 1)
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
@@ -200,12 +201,12 @@ class SkLearnRunInferenceTest(unittest.TestCase):
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
 
-      actual = pcoll | base.RunInference(
+      actual = pcoll | RunInference(
           SklearnModelHandlerNumpy(
               model_uri=temp_file_name, model_file_type=ModelFileType.JOBLIB))
       expected = [
-          api.PredictionResult(numpy.array([0, 0]), 0),
-          api.PredictionResult(numpy.array([1, 1]), 1)
+          PredictionResult(numpy.array([0, 0]), 0),
+          PredictionResult(numpy.array([1, 1]), 1)
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
@@ -215,8 +216,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       with TestPipeline() as pipeline:
         examples = [numpy.array([0, 0])]
         pcoll = pipeline | 'start' >> beam.Create(examples)
-        # TODO(BEAM-14305) Test against the public API.
-        _ = pcoll | base.RunInference(
+        _ = pcoll | RunInference(
             SklearnModelHandlerNumpy(model_uri='/var/bad_file_name'))
         pipeline.run()
 
@@ -238,15 +238,15 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       dataframe = pandas_dataframe()
       splits = [dataframe.loc[[i]] for i in dataframe.index]
       pcoll = pipeline | 'start' >> beam.Create(splits)
-      actual = pcoll | api.RunInference(
+      actual = pcoll | RunInference(
           SklearnModelHandlerPandas(model_uri=temp_file_name))
 
       expected = [
-          api.PredictionResult(splits[0], 5),
-          api.PredictionResult(splits[1], 8),
-          api.PredictionResult(splits[2], 1),
-          api.PredictionResult(splits[3], 1),
-          api.PredictionResult(splits[4], 2),
+          PredictionResult(splits[0], 5),
+          PredictionResult(splits[1], 8),
+          PredictionResult(splits[2], 1),
+          PredictionResult(splits[3], 1),
+          PredictionResult(splits[4], 2),
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
@@ -260,16 +260,16 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       dataframe = pandas_dataframe()
       splits = [dataframe.loc[[i]] for i in dataframe.index]
       pcoll = pipeline | 'start' >> beam.Create(splits)
-      actual = pcoll | api.RunInference(
+      actual = pcoll | RunInference(
           SklearnModelHandlerPandas(
               model_uri=temp_file_name, model_file_type=ModelFileType.JOBLIB))
 
       expected = [
-          api.PredictionResult(splits[0], 5),
-          api.PredictionResult(splits[1], 8),
-          api.PredictionResult(splits[2], 1),
-          api.PredictionResult(splits[3], 1),
-          api.PredictionResult(splits[4], 2),
+          PredictionResult(splits[0], 5),
+          PredictionResult(splits[1], 8),
+          PredictionResult(splits[2], 1),
+          PredictionResult(splits[3], 1),
+          PredictionResult(splits[4], 2),
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
@@ -286,15 +286,15 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       keyed_rows = [(key, value) for key, value in zip(keys, splits)]
 
       pcoll = pipeline | 'start' >> beam.Create(keyed_rows)
-      actual = pcoll | api.RunInference(
-          base.KeyedModelHandler(
+      actual = pcoll | RunInference(
+          KeyedModelHandler(
               SklearnModelHandlerPandas(model_uri=temp_file_name)))
       expected = [
-          ('0', api.PredictionResult(splits[0], 5)),
-          ('1', api.PredictionResult(splits[1], 8)),
-          ('2', api.PredictionResult(splits[2], 1)),
-          ('3', api.PredictionResult(splits[3], 1)),
-          ('4', api.PredictionResult(splits[4], 2)),
+          ('0', PredictionResult(splits[0], 5)),
+          ('1', PredictionResult(splits[1], 8)),
+          ('2', PredictionResult(splits[2], 1)),
+          ('3', PredictionResult(splits[3], 1)),
+          ('4', PredictionResult(splits[4], 2)),
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
