@@ -93,10 +93,10 @@ func (fn *executeBundlesFn) processResponseBody(ctx context.Context, body string
 		return
 	}
 
-	// A BATCH bundle returns a success response even if entries have failures, as entries are
-	// executed separately. However, TRANSACTION bundles fail if any entry fails, and this would
-	// have thrown an exception on `client.executeFhirBundle`.
-	// Therefore, for BATCH bundles we need to parse the error and success counters.
+	// A BATCH bundle returns a success response even if entries have failures, as
+	// entries are executed separately. However, TRANSACTION bundles should return
+	// error response (in client.executeBundle call) if any entry fails. Therefore,
+	// for BATCH bundles we need to parse the error and success counters.
 	switch bodyFields.Type {
 	case bundleResponseTypeTransaction:
 		fn.resourcesSuccessCount.Inc(ctx, int64(len(bodyFields.Entries)))
