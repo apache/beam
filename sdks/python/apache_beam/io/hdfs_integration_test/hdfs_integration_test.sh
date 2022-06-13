@@ -56,7 +56,7 @@ cd ${CONTEXT_DIR}
 # https://github.com/docker/compose/issues/5745#issuecomment-370031631
 docker network prune --force
 
-# Issue 1797305: Create and point to an empty config file to work around "gcloud"
+# BEAM-7405: Create and point to an empty config file to work around "gcloud"
 # appearing in ~/.docker/config.json but not being installed.
 export DOCKER_CONFIG=.
 echo '{}' > config.json

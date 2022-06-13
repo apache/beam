@@ -697,7 +697,7 @@ class TriggerPipelineTest(unittest.TestCase):
 
   def test_on_pane_watermark_hold_no_pipeline_stall(self):
     """A regression test added for
-    https://issues.apache.org/jira/browse/Issue 17970054."""
+    ttps://issues.apache.org/jira/browse/BEAM-10054."""
     START_TIMESTAMP = 1534842000
 
     test_stream = TestStream()
