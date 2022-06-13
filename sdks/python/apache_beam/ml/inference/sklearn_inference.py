@@ -23,7 +23,6 @@ from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
-from typing import Union
 
 import numpy
 import pandas
@@ -45,10 +44,56 @@ class ModelFileType(enum.Enum):
   JOBLIB = 2
 
 
-class SklearnModelHandler(ModelHandler[Union[numpy.ndarray, pandas.DataFrame],
-                                       PredictionResult,
-                                       BaseEstimator]):
-  """ Implementation of the ModelHandler interface for scikit-learn.
+def _load_model(model_uri, file_type):
+  file = FileSystems.open(model_uri, 'rb')
+  if file_type == ModelFileType.PICKLE:
+    return pickle.load(file)
+  elif file_type == ModelFileType.JOBLIB:
+    if not joblib:
+      raise ImportError(
+          'Could not import joblib in this execution environment. '
+          'For help with managing dependencies on Python workers.'
+          'see https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'  # pylint: disable=line-too-long
+      )
+    return joblib.load(file)
+  raise AssertionError('Unsupported serialization type.')
+
+
+class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
+                                            PredictionResult,
+                                            BaseEstimator]):
+  """ Implementation of the ModelHandler interface for scikit-learn
+      using numpy arrays as input.
+  """
+  def __init__(
+      self,
+      model_uri: str,
+      model_file_type: ModelFileType = ModelFileType.PICKLE):
+    self._model_uri = model_uri
+    self._model_file_type = model_file_type
+
+  def load_model(self) -> BaseEstimator:
+    """Loads and initializes a model for processing."""
+    return _load_model(self._model_uri, self._model_file_type)
+
+  def run_inference(
+      self, batch: Sequence[numpy.ndarray], model: BaseEstimator,
+      **kwargs) -> Iterable[PredictionResult]:
+    # vectorize data for better performance
+    vectorized_batch = numpy.stack(batch, axis=0)
+    predictions = model.predict(vectorized_batch)
+    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+
+  def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
+    """Returns the number of bytes of data for a batch."""
+    return sum(sys.getsizeof(element) for element in batch)
+
+
+class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
+                                             PredictionResult,
+                                             BaseEstimator]):
+  """ Implementation of the ModelHandler interface for scikit-learn that
+      supports pandas dataframes.
 
       NOTE: This API and its implementation are under development and
       do not provide backward compatibility guarantees.
@@ -62,43 +107,14 @@ class SklearnModelHandler(ModelHandler[Union[numpy.ndarray, pandas.DataFrame],
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
-    file = FileSystems.open(self._model_uri, 'rb')
-    if self._model_file_type == ModelFileType.PICKLE:
-      return pickle.load(file)
-    elif self._model_file_type == ModelFileType.JOBLIB:
-      if not joblib:
-        raise ImportError(
-            'Could not import joblib in this execution environment. '
-            'For help with managing dependencies on Python workers.'
-            'see https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'  # pylint: disable=line-too-long
-        )
-      return joblib.load(file)
-    raise AssertionError('Unsupported serialization type.')
+    return _load_model(self._model_uri, self._model_file_type)
 
   def run_inference(
       self,
-      batch: Sequence[Union[numpy.ndarray, pandas.DataFrame]],
+      batch: Sequence[pandas.DataFrame],
       model: BaseEstimator,
       extra_kwargs: Optional[Dict[str,
                                   Any]] = None) -> Iterable[PredictionResult]:
-    # TODO(github.com/apache/beam/issues/21769): Use supplied input type hint.
-    if isinstance(batch[0], numpy.ndarray):
-      return SklearnModelHandler._predict_np_array(batch, model)
-    elif isinstance(batch[0], pandas.DataFrame):
-      return SklearnModelHandler._predict_pandas_dataframe(batch, model)
-    raise ValueError('Unsupported data type.')
-
-  @staticmethod
-  def _predict_np_array(batch: Sequence[numpy.ndarray],
-                        model: Any) -> Iterable[PredictionResult]:
-    # vectorize data for better performance
-    vectorized_batch = numpy.stack(batch, axis=0)
-    predictions = model.predict(vectorized_batch)
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
-
-  @staticmethod
-  def _predict_pandas_dataframe(batch: Sequence[pandas.DataFrame],
-                                model: Any) -> Iterable[PredictionResult]:
     # sklearn_inference currently only supports single rowed dataframes.
     for dataframe in batch:
       if dataframe.shape[0] != 1:
@@ -115,12 +131,6 @@ class SklearnModelHandler(ModelHandler[Union[numpy.ndarray, pandas.DataFrame],
         inference in zip(splits, predictions)
     ]
 
-  def get_num_bytes(
-      self, batch: Sequence[Union[numpy.ndarray, pandas.DataFrame]]) -> int:
+  def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """Returns the number of bytes of data for a batch."""
-    if isinstance(batch[0], numpy.ndarray):
-      return sum(sys.getsizeof(element) for element in batch)
-    elif isinstance(batch[0], pandas.DataFrame):
-      data_frames: Sequence[pandas.DataFrame] = batch
-      return sum(df.memory_usage(deep=True).sum() for df in data_frames)
-    raise ValueError('Unsupported data type.')
+    return sum(df.memory_usage(deep=True).sum() for df in batch)

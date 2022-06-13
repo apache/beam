@@ -39,7 +39,7 @@ class PostcommitJobBuilder {
    * Set the job details.
    *
    * @param nameBase Job name for the postcommit job, a _PR suffix added if the trigger is set.
-   * @param triggerPhrase Phrase to trigger jobs, IGNORED.
+   * @param triggerPhrase Phrase to trigger jobs, [Issue#21824] IGNORED.
    * @param githubUiHint Short description in the github UI.
    * @param scope Delegate for the job.
    * @param jobDefinition Closure for the job.
@@ -70,11 +70,12 @@ class PostcommitJobBuilder {
         maxTotal(3)
       }
 
-      commonJobProperties.setPullRequestBuildTrigger(
-          delegate,
-          githubUiHint,
-          triggerPhrase,
-          !triggerOnPrCommit)
+      // [Issue#21824] Disable trigger
+      //      commonJobProperties.setPullRequestBuildTrigger(
+      //          delegate,
+      //          githubUiHint,
+      //          triggerPhrase,
+      //          !triggerOnPrCommit)
     }
     ghprbBuilds.with(jobDefinition)
   }
