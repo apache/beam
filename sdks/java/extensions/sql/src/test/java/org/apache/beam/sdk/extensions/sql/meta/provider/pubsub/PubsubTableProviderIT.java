@@ -586,7 +586,8 @@ public class PubsubTableProviderIT implements Serializable {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubTableProvider());
     sqlEnv.executeDdl(createTableString);
 
-    // TODO(Issue 19875): Ideally we could write this query without specifying a column list, because
+    // TODO(Issue 19875): Ideally we could write this query without specifying a column list,
+    // because
     //   it shouldn't be possible to write to event_timestamp when it's mapped to  publish time.
     String queryString =
         "INSERT INTO message (name, height, knows_javascript) \n"
