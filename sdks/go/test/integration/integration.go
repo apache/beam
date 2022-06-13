@@ -107,8 +107,8 @@ var flinkFilters = []string{
 	// TODO(BEAM-12815): Test fails on post commits: "Insufficient number of network buffers".
 	"TestXLang_Multi",
 	"TestDebeziumIO_BasicRead",
-	// Triggers are not yet supported
-	"TestTrigger.*",
+	// The number of produced outputs in AfterSynchronizedProcessingTime varies in different runs.
+	"TestTriggerAfterSynchronizedProcessingTime",
 	// The flink runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
