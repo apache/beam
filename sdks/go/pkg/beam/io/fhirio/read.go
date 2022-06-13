@@ -77,6 +77,7 @@ func Read(s beam.Scope, resourcePaths beam.PCollection) (beam.PCollection, beam.
 	return read(s, resourcePaths, nil)
 }
 
+// This is useful as an entry point for testing because we can provide a fake FHIR store client.
 func read(s beam.Scope, resourcePaths beam.PCollection, client fhirStoreClient) (beam.PCollection, beam.PCollection) {
 	return beam.ParDo2(s, &readResourceFn{fhirioFnCommon: fhirioFnCommon{client: client}}, resourcePaths)
 }

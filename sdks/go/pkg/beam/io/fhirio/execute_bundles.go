@@ -140,6 +140,7 @@ func ExecuteBundles(s beam.Scope, fhirStorePath string, bundles beam.PCollection
 	return executeBundles(s, fhirStorePath, bundles, nil)
 }
 
+// This is useful as an entry point for testing because we can provide a fake FHIR store client.
 func executeBundles(s beam.Scope, fhirStorePath string, bundles beam.PCollection, client fhirStoreClient) (beam.PCollection, beam.PCollection) {
 	return beam.ParDo2(s, &executeBundlesFn{fhirioFnCommon: fhirioFnCommon{client: client}, FhirStorePath: fhirStorePath}, bundles)
 }
