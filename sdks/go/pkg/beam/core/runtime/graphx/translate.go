@@ -90,7 +90,7 @@ func goCapabilities() []string {
 		URNMultiCore,
 		URNTruncate,
 		URNWorkerStatus,
-		// TOOD(BEAM-9614): Make this versioned.
+		// TOOD(Issue 20287): Make this versioned.
 		"beam:version:sdk_base:go",
 	}
 	return append(capabilities, knownStandardCoders()...)
@@ -593,7 +593,7 @@ func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) (string, error) {
 }
 
 func (m *marshaller) expandCoGBK(edge NamedEdge) (string, error) {
-	// TODO(BEAM-490): replace once CoGBK is a primitive. For now, we have to translate
+	// TODO(Issue 18032): replace once CoGBK is a primitive. For now, we have to translate
 	// CoGBK with multiple PCollections as described in cogbk.go.
 	handleErr := func(err error) (string, error) {
 		return "", errors.Wrapf(err, "failed to expand CoGBK transform for edge: %v", edge)
