@@ -204,7 +204,7 @@ func TestFhirIO_InvalidRead(t *testing.T) {
 	passert.Count(s, failedReads, "", 1)
 	passert.Empty(s, resources)
 	passert.True(s, failedReads, func(errorMsg string) bool {
-		return strings.Contains(errorMsg, "bad status [404]")
+		return strings.Contains(errorMsg, "404")
 	})
 
 	ptest.RunAndValidate(t, p)
@@ -217,7 +217,13 @@ func TestFhirIO_ExecuteBundles(t *testing.T) {
 	fhirStorePath, teardownFhirStore := setupEmptyFhirStore(t)
 	defer teardownFhirStore()
 
-	p := ExecuteBundlesPipeline(fhirStorePath, readPrettyBundles())
+	p, s, bundles := ptest.CreateList(readPrettyBundles())
+	successBodies, failures := fhirio.ExecuteBundles(s, fhirStorePath, bundles)
+	passert.Count(s, successBodies, "", 2)
+	passert.Count(s, failures, "", 2)
+	passert.True(s, failures, func(errorMsg string) bool {
+		return strings.Contains(errorMsg, "400")
+	})
 	ptest.RunAndValidate(t, p)
 }
 
