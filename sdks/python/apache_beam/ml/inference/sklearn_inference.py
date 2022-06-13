@@ -19,7 +19,7 @@ import enum
 import pickle
 import sys
 from typing import Iterable
-from typing import List
+from typing import Sequence
 
 import numpy
 import pandas
@@ -74,14 +74,14 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     return _load_model(self._model_uri, self._model_file_type)
 
   def run_inference(
-      self, batch: List[numpy.ndarray], model: BaseEstimator,
+      self, batch: Sequence[numpy.ndarray], model: BaseEstimator,
       **kwargs) -> Iterable[PredictionResult]:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
-  def get_num_bytes(self, batch: List[pandas.DataFrame]) -> int:
+  def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """Returns the number of bytes of data for a batch."""
     return sum(sys.getsizeof(element) for element in batch)
 
@@ -107,7 +107,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     return _load_model(self._model_uri, self._model_file_type)
 
   def run_inference(
-      self, batch: List[pandas.DataFrame], model: BaseEstimator,
+      self, batch: Sequence[pandas.DataFrame], model: BaseEstimator,
       **kwargs) -> Iterable[PredictionResult]:
     # sklearn_inference currently only supports single rowed dataframes.
     for dataframe in batch:
@@ -125,6 +125,6 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
         inference in zip(splits, predictions)
     ]
 
-  def get_num_bytes(self, batch: List[pandas.DataFrame]) -> int:
+  def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """Returns the number of bytes of data for a batch."""
     return sum(df.memory_usage(deep=True).sum() for df in batch)
