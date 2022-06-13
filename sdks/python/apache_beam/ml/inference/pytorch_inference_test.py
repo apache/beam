@@ -37,7 +37,6 @@ try:
   import torch
   from apache_beam.ml.inference.api import PredictionResult
   from apache_beam.ml.inference.base import RunInference
-  from apache_beam.ml.inference.pytorch_inference import PytorchModelHandler
   from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
   from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 except ImportError:
@@ -92,7 +91,13 @@ KWARGS_TORCH_PREDICTIONS = [
 ]
 
 
-class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandler):
+class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandlerTensor):
+  def __init__(self, device):
+    self._device = device
+
+
+class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
+    PytorchModelHandlerKeyedTensor):
   def __init__(self, device):
     self._device = device
 
@@ -211,7 +216,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
                      ('linear.bias', torch.Tensor([0.5]))]))
     model.eval()
 
-    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+    inference_runner = TestPytorchModelHandlerKeyedTensorForInferenceOnly(
         torch.device('cpu'))
     predictions = inference_runner.run_inference(KWARGS_TORCH_EXAMPLES, model)
     for actual, expected in zip(predictions, KWARGS_TORCH_PREDICTIONS):
@@ -236,7 +241,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
                      ('linear.bias', torch.Tensor([0.5]))]))
     model.eval()
 
-    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+    inference_runner = TestPytorchModelHandlerKeyedTensorForInferenceOnly(
         torch.device('cpu'))
     predictions = inference_runner.run_inference(
         batch=KWARGS_TORCH_EXAMPLES,
