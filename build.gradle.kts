@@ -211,6 +211,7 @@ tasks.register("javaPostCommitSickbay") {
   dependsOn(":runners:samza:validatesRunnerSickbay")
   dependsOn(":runners:flink:validatesRunnerSickbay")
   dependsOn(":runners:spark:3:validatesRunnerSickbay")
+  dependsOn(":runners:spark:2:validatesRunnerSickbay")
   dependsOn(":runners:direct-java:validatesRunnerSickbay")
   dependsOn(":runners:portability:java:validatesRunnerSickbay")
 }
