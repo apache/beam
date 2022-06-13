@@ -50,7 +50,8 @@ def _load_model(model_uri, file_type):
       raise ImportError(
           'Could not import joblib in this execution environment. '
           'For help with managing dependencies on Python workers.'
-          'see https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'  # pylint: disable=line-too-long
+          'see '
+          'https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'
       )
     return joblib.load(file)
   raise AssertionError('Unsupported serialization type.')
