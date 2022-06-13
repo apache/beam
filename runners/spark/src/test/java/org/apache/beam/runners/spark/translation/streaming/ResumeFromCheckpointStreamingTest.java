@@ -351,8 +351,8 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
   }
 
   /**
-   * A custom PAssert that avoids using {@link org.apache.beam.sdk.transforms.Flatten} until
-   * Issue 18144 is resolved.
+   * A custom PAssert that avoids using {@link org.apache.beam.sdk.transforms.Flatten} until Issue
+   * 18144 is resolved.
    */
   private static class PAssertWithoutFlatten<T>
       extends PTransform<PCollection<Iterable<T>>, PDone> {

@@ -73,7 +73,8 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       StateTags.makeSystemTagInternal(
           StateTags.watermarkStateInternal("extra", TimestampCombiner.EARLIEST));
 
-  // [Issue 18014] Seems likely these should all be transient or this class should not be Serializable
+  // [Issue 18014] Seems likely these should all be transient or this class should not be
+  // Serializable
   @SuppressFBWarnings("SE_BAD_FIELD")
   private final TimerInternals timerInternals;
 
