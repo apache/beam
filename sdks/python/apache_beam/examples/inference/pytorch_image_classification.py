@@ -115,9 +115,9 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
     model_class = MobileNetV2
     model_params = {'num_classes': 1000}
 
-  # the input to RunInference transform is keyed. Wrap
-  # PytorchModelHandler on KeyedModelHandler for keyed examples.
-  model_loader = KeyedModelHandler(
+  # In this example we pass keyed inputs to RunInference transform.
+  # Therefore, we use KeyedModelHandler wrapper over PytorchModelHandler.
+  model_handler = KeyedModelHandler(
       PytorchModelHandler(
           state_dict_path=known_args.model_state_dict_path,
           model_class=model_class,
@@ -135,7 +135,8 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
             lambda file_name, data: (file_name, preprocess_image(data))))
     predictions = (
         filename_value_pair
-        | 'PyTorchRunInference' >> RunInference(model_loader).with_output_types(
+        |
+        'PyTorchRunInference' >> RunInference(model_handler).with_output_types(
             Tuple[str, PredictionResult])
         | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 
