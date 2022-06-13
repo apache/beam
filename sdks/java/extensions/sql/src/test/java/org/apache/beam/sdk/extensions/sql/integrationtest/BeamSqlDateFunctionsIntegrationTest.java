@@ -39,7 +39,7 @@ public class BeamSqlDateFunctionsIntegrationTest
     extends BeamSqlBuiltinFunctionsIntegrationTestBase {
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/Issue 20339")
+  @Ignore("https://github.com/apache/beam/issues/20339")
   public void testDateTimeFunctions_currentTime() throws Exception {
     String sql =
         "SELECT "

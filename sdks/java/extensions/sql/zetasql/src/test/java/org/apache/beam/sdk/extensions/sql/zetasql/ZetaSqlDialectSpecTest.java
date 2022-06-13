@@ -3411,7 +3411,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/Issue 20101")
+  @Ignore("https://github.com/apache/beam/issues/20101")
   public void testCastBytesToString1() {
     String sql = "SELECT CAST(@p0 AS STRING)";
     ImmutableMap<String, Value> params =
@@ -3436,7 +3436,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/Issue 20101")
+  @Ignore("https://github.com/apache/beam/issues/20101")
   public void testCastBytesToStringFromTable() {
     String sql = "SELECT CAST(bytes_col AS STRING) FROM table_all_types";
     PCollection<Row> stream = execute(sql);
@@ -3492,7 +3492,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/Issue 20351")
+  @Ignore("https://github.com/apache/beam/issues/20351")
   public void testCastBetweenTimeAndString() {
     String sql =
         "SELECT CAST(s1 as TIME) as t2, CAST(t1 as STRING) as s2 FROM "
