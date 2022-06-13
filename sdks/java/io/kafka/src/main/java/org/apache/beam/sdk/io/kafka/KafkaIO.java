@@ -1667,8 +1667,8 @@ public class KafkaIO {
   @SuppressFBWarnings("URF_UNREAD_FIELD")
   /**
    * Represents a Kafka record with metadata whey key and values are byte arrays. This class should
-   * only be used to represent a Kafka record for external transforms. TODO(Issue 18919): use regular
-   * KafkaRecord class when Beam Schema inference supports generics.
+   * only be used to represent a Kafka record for external transforms. TODO(Issue 18919): use
+   * regular KafkaRecord class when Beam Schema inference supports generics.
    */
   static class ByteArrayKafkaRecord {
 

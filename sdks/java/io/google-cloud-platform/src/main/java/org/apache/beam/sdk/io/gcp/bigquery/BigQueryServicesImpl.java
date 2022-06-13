@@ -1155,7 +1155,8 @@ class BigQueryServicesImpl implements BigQueryServices {
               if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
                 allErrors.add(error);
                 retryRows.add(rowsToPublish.get(errorIndex));
-                // TODO (Issue 20891): Select the retry rows(using errorIndex) from the batch of rows
+                // TODO (Issue 20891): Select the retry rows(using errorIndex) from the batch of
+                // rows
                 // which attempted insertion in this call. Not the entire set of rows in
                 // rowsToPublish.
                 if (retryIds != null) {
