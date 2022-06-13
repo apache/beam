@@ -519,8 +519,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         to_group = self.set_index(by)._expr
 
       if grouping_columns:
-        # TODO(Issue 20759): It should be possible to do this without creating an
-        # expression manually, by using DeferredDataFrame.set_index, i.e.:
+        # TODO(Issue 20759): It should be possible to do this without creating
+        # an expression manually, by using DeferredDataFrame.set_index, i.e.:
         #   to_group_with_index = self.set_index([self.index] +
         #                                        grouping_columns)._expr
         to_group_with_index = expressions.ComputedExpression(
@@ -1542,8 +1542,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     requires = partitionings.Singleton(
         reason=(
             "Computing quantiles across index cannot currently be "
-            "parallelized. See Issue 20933 tracking the possible addition of an "
-            "approximate, parallelizable implementation of quantile."))
+            "parallelized. See Issue 20933 tracking the possible addition of "
+            "an approximate, parallelizable implementation of quantile."))
 
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -3420,7 +3420,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         right_index=right_index,
         **kwargs)
     if kwargs.get('how', None) == 'cross':
-      raise NotImplementedError("cross join is not yet implemented (Issue 20318)")
+      raise NotImplementedError("cross join is not yet implemented "
+                                "(Issue 20318)")
     if not any([on, left_on, right_on, left_index, right_index]):
       on = [col for col in self_proxy.columns if col in right_proxy.columns]
     if not left_on:

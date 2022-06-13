@@ -183,7 +183,8 @@ class RowCoderTest(unittest.TestCase):
       self.assertEqual(test_case, coder.decode(coder.encode(test_case)))
 
   @unittest.skip(
-      "Issue 19696 - Overflow behavior in VarIntCoder is currently inconsistent")
+      "Issue 19696 - Overflow behavior in VarIntCoder "
+      "is currently inconsistent")
   def test_overflows(self):
     IntTester = typing.NamedTuple(
         'IntTester',

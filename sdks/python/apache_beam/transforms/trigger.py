@@ -1636,11 +1636,11 @@ class InMemoryUnmergedState(UnmergedState):
   def get_earliest_hold(self):
     earliest_hold = MAX_TIMESTAMP
     for unused_window, tagged_states in self.state.items():
-      # TODO(Issue 18441): currently, this assumes that the watermark hold tag is
-      # named "watermark".  This is currently only true because the only place
-      # watermark holds are set is in the GeneralTriggerDriver, where we use
-      # this name.  We should fix this by allowing enumeration of the tag types
-      # used in adding state.
+      # TODO(Issue 18441): currently, this assumes that the watermark hold tag
+      # is named "watermark".  This is currently only true because the only
+      # place watermark holds are set is in the GeneralTriggerDriver, where we
+      # use this name.  We should fix this by allowing enumeration of the tag
+      # types used in adding state.
       if 'watermark' in tagged_states and tagged_states['watermark']:
         hold = min(tagged_states['watermark']) - TIME_GRANULARITY
         earliest_hold = min(earliest_hold, hold)
