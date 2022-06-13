@@ -51,7 +51,7 @@ jobs:
         # This step is a workaround to avoid a decryption issue
         run: rm ~/.m2/settings.xml
       - name: Run PreCommit
-        run: ./gradlew playground:backend:precommit
+        run: sudo ./gradlew playground:backend:precommit
       - name: install npm
         uses: actions/setup-node@v2
         with:
