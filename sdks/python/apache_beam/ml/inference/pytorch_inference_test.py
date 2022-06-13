@@ -35,7 +35,7 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import torch
-  from apache_beam.ml.inference.api import PredictionResult
+  from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
   from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
   from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
@@ -281,7 +281,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       path = os.path.join(self.tmpdir, 'my_state_dict_path')
       torch.save(state_dict, path)
 
-      model_loader = PytorchModelHandlerTensor(
+      model_handler = PytorchModelHandlerTensor(
           state_dict_path=path,
           model_class=PytorchLinearRegression,
           model_params={
@@ -289,7 +289,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           })
 
       pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
-      predictions = pcoll | RunInference(model_loader)
+      predictions = pcoll | RunInference(model_handler)
       assert_that(
           predictions,
           equal_to(
@@ -308,7 +308,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       path = os.path.join(self.tmpdir, 'my_state_dict_path')
       torch.save(state_dict, path)
 
-      model_loader = PytorchModelHandlerKeyedTensor(
+      model_handler = PytorchModelHandlerKeyedTensor(
           state_dict_path=path,
           model_class=PytorchLinearRegressionKwargsPredictionParams,
           model_params={
@@ -319,7 +319,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       prediction_params_side_input = (
           pipeline | 'create side' >> beam.Create(prediction_params))
       predictions = pcoll | RunInference(
-          model_handler=model_loader,
+          model_handler=model_handler,
           prediction_params=beam.pvalue.AsDict(prediction_params_side_input))
       assert_that(
           predictions,
@@ -341,7 +341,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
 
       gs_pth = 'gs://apache-beam-ml/models/' \
           'pytorch_lin_reg_model_2x+0.5_state_dict.pth'
-      model_loader = PytorchModelHandlerTensor(
+      model_handler = PytorchModelHandlerTensor(
           state_dict_path=gs_pth,
           model_class=PytorchLinearRegression,
           model_params={
@@ -349,7 +349,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           })
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      predictions = pcoll | RunInference(model_loader)
+      predictions = pcoll | RunInference(model_handler)
       assert_that(
           predictions,
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
@@ -364,7 +364,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
         path = os.path.join(self.tmpdir, 'my_state_dict_path')
         torch.save(state_dict, path)
 
-        model_loader = PytorchModelHandlerTensor(
+        model_handler = PytorchModelHandlerTensor(
             state_dict_path=path,
             model_class=PytorchLinearRegression,
             model_params={
@@ -373,7 +373,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
 
         pcoll = pipeline | 'start' >> beam.Create(examples)
         # pylint: disable=expression-not-assigned
-        pcoll | RunInference(model_loader)
+        pcoll | RunInference(model_handler)
 
 
 if __name__ == '__main__':
