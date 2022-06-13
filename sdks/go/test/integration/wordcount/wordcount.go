@@ -80,6 +80,7 @@ func formatFn(w string, c int) string {
 // WordCount returns a self-validating wordcount pipeline.
 func WordCount(glob, hash string, size int) *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
+
 	in := textio.Read(s, glob)
 	WordCountFromPCol(s, in, hash, size)
 	return p
