@@ -87,6 +87,27 @@ class TestPubsubMessage(unittest.TestCase):
     self.assertEqual(m_converted.data, data)
     self.assertEqual(m_converted.attributes, attributes)
 
+  @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
+  def test_payload_publish_invalid(self):
+    with self.assertRaisesRegex(ValueError, r'data field.*10MB'):
+      msg = PubsubMessage(b'0' * 1024 * 1024 * 11, None)
+      msg._to_proto_str(for_publish=True)
+    with self.assertRaisesRegex(ValueError, 'attribute key'):
+      msg = PubsubMessage(b'0', {'0' * 257: '0'})
+      msg._to_proto_str(for_publish=True)
+    with self.assertRaisesRegex(ValueError, 'attribute value'):
+      msg = PubsubMessage(b'0', {'0' * 100: '0' * 1025})
+      msg._to_proto_str(for_publish=True)
+    with self.assertRaisesRegex(ValueError, '100 attributes'):
+      attributes = {}
+      for i in range(0, 101):
+        attributes[str(i)] = str(i)
+      msg = PubsubMessage(b'0', attributes)
+      msg._to_proto_str(for_publish=True)
+    with self.assertRaisesRegex(ValueError, 'ordering key'):
+      msg = PubsubMessage(b'0', None, ordering_key='0' * 1301)
+      msg._to_proto_str(for_publish=True)
+
   def test_eq(self):
     a = PubsubMessage(b'abc', {1: 2, 3: 4})
     b = PubsubMessage(b'abc', {1: 2, 3: 4})
