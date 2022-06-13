@@ -428,7 +428,7 @@ def not_implemented_method(op, issue='Issue 20318', base_type=None):
         f"If support for {op!r} is important to you, please let the Beam "
         "community know by writing to user@beam.apache.org "
         "(see https://beam.apache.org/community/contact-us/) or commenting on "
-        issue_url)
+        f"{issue_url}")
 
   wrapper.__name__ = op
   wrapper.__doc__ = (
