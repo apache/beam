@@ -77,8 +77,11 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     return _load_model(self._model_uri, self._model_file_type)
 
   def run_inference(
-      self, batch: Sequence[numpy.ndarray], model: BaseEstimator,
-      **kwargs) -> Iterable[PredictionResult]:
+      self,
+      batch: Sequence[numpy.ndarray],
+      model: BaseEstimator,
+      extra_kwargs: Optional[Dict[str,
+                                  Any]] = None) -> Iterable[PredictionResult]:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
