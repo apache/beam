@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# TODO: https://github.com/apache/beam/issues/21822
+# mypy: ignore-errors
 
 """An extensible run inference transform.
 
@@ -32,6 +34,7 @@ import logging
 import pickle
 import sys
 import time
+from dataclasses import dataclass
 from typing import Any
 from typing import Generic
 from typing import Iterable
@@ -56,7 +59,15 @@ _NANOSECOND_TO_MICROSECOND = 1_000
 ModelT = TypeVar('ModelT')
 ExampleT = TypeVar('ExampleT')
 PredictionT = TypeVar('PredictionT')
+_INPUT_TYPE = TypeVar('_INPUT_TYPE')
+_OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
 KeyT = TypeVar('KeyT')
+
+
+@dataclass
+class PredictionResult:
+  example: _INPUT_TYPE
+  inference: _OUTPUT_TYPE
 
 
 def _to_milliseconds(time_ns: int) -> int:
@@ -206,6 +217,19 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
   Args:
       model_handler: An implementation of ModelHandler.
       clock: A clock implementing get_current_time_in_microseconds.
+
+  A transform that takes a PCollection of examples (or features) to be used on
+  an ML model. It will then output inferences (or predictions) for those
+  examples in a PCollection of PredictionResults, containing the input examples
+  and output inferences.
+
+  If examples are paired with keys, it will output a tuple
+  (key, PredictionResult) for each (key, example) input.
+
+  Models for supported frameworks can be loaded via a URI. Supported services
+  can also be used.
+
+  TODO(BEAM-14046): Add and link to help documentation
   """
   def __init__(
       self,
