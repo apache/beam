@@ -1564,16 +1564,16 @@ public class BigtableIOTest {
   }
 
   @Test
-  public void testWriteWithEnabledBulkMutationThrottling() {
+  public void testWriteWithEnabledDataflowThrottleReporting() {
     BigtableIO.Write write =
         BigtableIO.write()
             .withBigtableOptions(BIGTABLE_OPTIONS)
             .withTableId("table")
             .withInstanceId("instance")
             .withProjectId("project")
-            .withBulkMutationThrottling();
+            .withDataflowThrottleReporting();
 
-    assertTrue(write.isBulkMutationThrottlingEnabled());
+    assertTrue(write.isDataflowThrottleReportingEnabled());
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////

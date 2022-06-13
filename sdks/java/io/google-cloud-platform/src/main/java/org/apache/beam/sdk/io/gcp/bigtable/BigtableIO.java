@@ -249,7 +249,7 @@ public class BigtableIO {
           BigtableConfig.builder()
               .setTableId(StaticValueProvider.of(""))
               .setValidate(true)
-              .setBulkMutationThrottling(false)
+              .setDataflowThrottleReporting(false)
               .build();
 
       return new AutoValue_BigtableIO_Read.Builder()
@@ -578,8 +578,8 @@ public class BigtableIO {
      * <p>This change is experimental and may be changed and relocated in the future
      */
     @Experimental
-    public boolean isBulkMutationThrottlingEnabled() {
-      return getBigtableConfig().getBulkMutationThrottling();
+    public boolean isDataflowThrottleReportingEnabled() {
+      return getBigtableConfig().getDataflowThrottleReporting();
     }
 
     abstract Builder toBuilder();
@@ -589,7 +589,7 @@ public class BigtableIO {
           BigtableConfig.builder()
               .setTableId(StaticValueProvider.of(""))
               .setValidate(true)
-              .setBulkMutationThrottling(false)
+              .setDataflowThrottleReporting(false)
               .setBigtableOptionsConfigurator(enableBulkApiConfigurator(null))
               .build();
 
@@ -764,9 +764,9 @@ public class BigtableIO {
      * Returns a new {@link BigtableIO.Write} that will report amount of time throttling to Dataflow
      */
     @Experimental
-    public Write withBulkMutationThrottling() {
+    public Write withDataflowThrottleReporting() {
       BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withBulkMutationThrottling(true)).build();
+      return toBuilder().setBigtableConfig(config.withDataflowThrottleReporting(true)).build();
     }
 
     /**
@@ -879,15 +879,13 @@ public class BigtableIO {
                   failures.add(new BigtableWriteException(c.element(), exception));
                 }
               });
-      if (config.getBulkMutationThrottling()) {
+      if (config.getDataflowThrottleReporting()) {
         long delta = 0;
+        ResourceLimiterStats stats = ResourceLimiterStats.getInstance(new BigtableInstanceName(
+            config.getProjectId().get(), config.getInstanceId().get()));
         synchronized (metricLock) {
           long newAggregratedThrottleTime =
-              TimeUnit.NANOSECONDS.toMillis(
-                  ResourceLimiterStats.getInstance(
-                          new BigtableInstanceName(
-                              config.getProjectId().get(), config.getInstanceId().get()))
-                      .getCumulativeThrottlingTimeNanos());
+              TimeUnit.NANOSECONDS.toMillis(stats.getCumulativeThrottlingTimeNanos());
           delta = newAggregratedThrottleTime - lastAggregatedThrottleTime;
           lastAggregatedThrottleTime = newAggregratedThrottleTime;
         }

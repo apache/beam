@@ -72,12 +72,12 @@ abstract class BigtableConfig implements Serializable {
 
   /** Whether client throttling time is reported to Dataflow jobs. */
   @Experimental
-  abstract boolean getBulkMutationThrottling();
+  abstract boolean getDataflowThrottleReporting();
 
   abstract Builder toBuilder();
 
   static BigtableConfig.Builder builder() {
-    return new AutoValue_BigtableConfig.Builder().setBulkMutationThrottling(false);
+    return new AutoValue_BigtableConfig.Builder().setDataflowThrottleReporting(false);
   }
 
   @AutoValue.Builder
@@ -106,7 +106,7 @@ abstract class BigtableConfig implements Serializable {
      This feature is experimental and may be changed and relocated in the future
     */
     @Experimental
-    abstract Builder setBulkMutationThrottling(boolean isEnabled);
+    abstract Builder setDataflowThrottleReporting(boolean isEnabled);
 
     abstract BigtableConfig build();
   }
@@ -157,8 +157,8 @@ abstract class BigtableConfig implements Serializable {
 
   @VisibleForTesting
   @Experimental
-  BigtableConfig withBulkMutationThrottling(boolean isEnabled) {
-    return toBuilder().setBulkMutationThrottling(isEnabled).build();
+  BigtableConfig withDataflowThrottleReporting(boolean isEnabled) {
+    return toBuilder().setDataflowThrottleReporting(isEnabled).build();
   }
 
   void validate() {
