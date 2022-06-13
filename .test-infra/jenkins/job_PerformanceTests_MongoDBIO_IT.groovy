@@ -25,10 +25,11 @@ String jobName = "beam_PerformanceTests_MongoDBIO_IT"
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
   common.setAutoJob(delegate,'H H/6 * * *')
-  common.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      'Java MongoDBIO Performance Test',
-      'Run Java MongoDBIO Performance Test')
+  // [Issue#21824] Disable trigger
+  //  common.enablePhraseTriggeringFromPullRequest(
+  //      delegate,
+  //      'Java MongoDBIO Performance Test',
+  //      'Run Java MongoDBIO Performance Test')
   InfluxDBCredentialsHelper.useCredentials(delegate)
 
   String namespace = common.getKubernetesNamespace(jobName)
