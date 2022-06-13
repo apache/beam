@@ -16,10 +16,76 @@
 package fhirio
 
 import (
-	"testing"
-
+	"errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"net/http"
+	"testing"
 )
+
+var (
+	fakeRequestReturnErrorMessage = "internal error"
+	requestReturnErrorFakeClient  = &fakeFhirStoreClient{
+		fakeReadResources: func(resource string) (*http.Response, error) {
+			return nil, errors.New(fakeRequestReturnErrorMessage)
+		},
+		fakeExecuteBundles: func(storePath string, bundle []byte) (*http.Response, error) {
+			return nil, errors.New(fakeRequestReturnErrorMessage)
+		},
+	}
+
+	fakeBadStatus         = "403 Forbidden"
+	badStatusFakeResponse = &http.Response{Status: fakeBadStatus}
+	badStatusFakeClient   = &fakeFhirStoreClient{
+		fakeReadResources: func(resource string) (*http.Response, error) {
+			return badStatusFakeResponse, nil
+		},
+		fakeExecuteBundles: func(storePath string, bundle []byte) (*http.Response, error) {
+			return badStatusFakeResponse, nil
+		},
+	}
+
+	fakeBodyReaderErrorMessage  = "ReadAll fail"
+	bodyReaderErrorFakeResponse = &http.Response{
+		Body: &fakeReaderCloser{
+			fakeRead: func([]byte) (int, error) {
+				return 0, errors.New(fakeBodyReaderErrorMessage)
+			},
+		}, Status: "200 Ok"}
+	bodyReaderErrorFakeClient = &fakeFhirStoreClient{
+		fakeReadResources: func(resource string) (*http.Response, error) {
+			return bodyReaderErrorFakeResponse, nil
+		},
+		fakeExecuteBundles: func(storePath string, bundle []byte) (*http.Response, error) {
+			return bodyReaderErrorFakeResponse, nil
+		},
+	}
+)
+
+type fakeFhirStoreClient struct {
+	fakeReadResources  func(string) (*http.Response, error)
+	fakeExecuteBundles func(storePath string, bundle []byte) (*http.Response, error)
+}
+
+func (c *fakeFhirStoreClient) executeBundle(storePath string, bundle []byte) (*http.Response, error) {
+	return c.fakeExecuteBundles(storePath, bundle)
+}
+
+func (c *fakeFhirStoreClient) readResource(resourcePath string) (*http.Response, error) {
+	return c.fakeReadResources(resourcePath)
+}
+
+// Useful to fake the Body of a http.Response.
+type fakeReaderCloser struct {
+	fakeRead func([]byte) (int, error)
+}
+
+func (*fakeReaderCloser) Close() error {
+	return nil
+}
+
+func (m *fakeReaderCloser) Read(b []byte) (int, error) {
+	return m.fakeRead(b)
+}
 
 func validateResourceErrorCounter(t *testing.T, pipelineResult beam.PipelineResult, expectedCount int) {
 	counterResults := pipelineResult.Metrics().AllMetrics().Counters()
