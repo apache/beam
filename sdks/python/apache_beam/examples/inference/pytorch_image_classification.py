@@ -28,8 +28,8 @@ import apache_beam as beam
 import torch
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import KeyedModelHandler
-from apache_beam.ml.inference.api import PredictionResult
-from apache_beam.ml.inference.api import RunInference
+from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandler
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
@@ -135,9 +135,7 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
             lambda file_name, data: (file_name, preprocess_image(data))))
     predictions = (
         filename_value_pair
-        |
-        'PyTorchRunInference' >> RunInference(model_handler).with_output_types(
-            Tuple[str, PredictionResult])
+        | 'PyTorchRunInference' >> RunInference(model_handler)
         | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 
     if known_args.output:
