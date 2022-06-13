@@ -132,7 +132,6 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
   def batch_elements_kwargs(self):
     return self._unkeyed.batch_elements_kwargs()
-    return {}
 
 
 class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
