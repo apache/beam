@@ -78,7 +78,7 @@ import org.joda.time.Instant;
  */
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+  "unused" // TODO(Issue 21230): Remove when new version of errorprone is released (2.11.0)
 })
 public class StatefulTeamScore extends LeaderBoard {
 

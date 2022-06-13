@@ -191,7 +191,7 @@ async function processPull(
       return;
     }
 
-    // TODO(BEAM-13925) - also check if the author is a committer, if they are don't auto-assign a committer
+    // TODO(Issue 21417) - also check if the author is a committer, if they are don't auto-assign a committer
     for (const approver of approvers) {
       const labelOfReviewer = prState.getLabelForReviewer(approver);
       if (labelOfReviewer) {
