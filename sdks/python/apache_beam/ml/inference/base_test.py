@@ -44,8 +44,11 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       self._fake_clock.current_time_ns += 500_000_000  # 500ms
     return FakeModel()
 
-  def run_inference(self, batch: Sequence[int],
-                    model: FakeModel) -> Iterable[int]:
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeModel,
+      extra_kwargs=None) -> Iterable[int]:
     if self._fake_clock:
       self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
     for example in batch:
@@ -67,7 +70,7 @@ class ExtractInferences(beam.DoFn):
 
 
 class FakeModelHandlerNeedsBigBatch(FakeModelHandler):
-  def run_inference(self, batch, unused_model):
+  def run_inference(self, batch, unused_model, extra_kwargs=None):
     if len(batch) < 100:
       raise ValueError('Unexpectedly small batch')
     return batch
@@ -77,7 +80,7 @@ class FakeModelHandlerNeedsBigBatch(FakeModelHandler):
 
 
 class FakeModelHandlerExtraKwargs(FakeModelHandler):
-  def run_inference(self, batch, unused_model, extra_kwargs):
+  def run_inference(self, batch, unused_model, extra_kwargs=None):
     if not extra_kwargs:
       raise ValueError('extra_kwargs should exist')
     return batch

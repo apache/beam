@@ -119,11 +119,14 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     return self._unkeyed.load_model()
 
   def run_inference(
-      self, batch: Sequence[Tuple[KeyT, ExampleT]], model: ModelT,
-      **kwargs) -> Iterable[Tuple[KeyT, PredictionT]]:
+      self,
+      batch: Sequence[Tuple[KeyT, ExampleT]],
+      model: ModelT,
+      extra_kwargs: Optional[Dict[str, Any]] = None
+  ) -> Iterable[Tuple[KeyT, PredictionT]]:
     keys, unkeyed_batch = zip(*batch)
     return zip(
-        keys, self._unkeyed.run_inference(unkeyed_batch, model, **kwargs))
+        keys, self._unkeyed.run_inference(unkeyed_batch, model, extra_kwargs))
 
   def get_num_bytes(self, batch: Sequence[Tuple[KeyT, ExampleT]]) -> int:
     keys, unkeyed_batch = zip(*batch)
@@ -167,7 +170,7 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       self,
       batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]],
       model: ModelT,
-      **kwargs
+      extra_kwargs: Optional[Dict[str, Any]] = None
   ) -> Union[Iterable[PredictionT], Iterable[Tuple[KeyT, PredictionT]]]:
     # Really the input should be
     #    Union[Sequence[ExampleT], Sequence[Tuple[KeyT, ExampleT]]]
@@ -179,7 +182,7 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       is_keyed = False
       unkeyed_batch = batch  # type: ignore[assignment]
     unkeyed_results = self._unkeyed.run_inference(
-        unkeyed_batch, model, **kwargs)
+        unkeyed_batch, model, extra_kwargs)
     if is_keyed:
       return zip(keys, unkeyed_results)
     else:
@@ -320,11 +323,13 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
   def process(self, batch, extra_kwargs):
     start_time = _to_microseconds(self._clock.time_ns())
-    if extra_kwargs:
-      result_generator = self._model_handler.run_inference(
-          batch, self._model, extra_kwargs)
-    else:
-      result_generator = self._model_handler.run_inference(batch, self._model)
+    # if extra_kwargs:
+    #   result_generator = self._model_handler.run_inference(
+    #       batch, self._model, extra_kwargs)
+    # else:
+    #   result_generator = self._model_handler.run_inference(batch, self._model)
+    result_generator = self._model_handler.run_inference(
+        batch, self._model, extra_kwargs)
     predictions = list(result_generator)
 
     end_time = _to_microseconds(self._clock.time_ns())

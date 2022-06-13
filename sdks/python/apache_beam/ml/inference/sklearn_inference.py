@@ -19,7 +19,9 @@ import enum
 import pickle
 import sys
 from typing import Any
+from typing import Dict
 from typing import Iterable
+from typing import Optional
 from typing import Sequence
 from typing import Union
 
@@ -76,7 +78,9 @@ class SklearnModelHandler(ModelHandler[Union[numpy.ndarray, pandas.DataFrame],
   def run_inference(
       self,
       batch: Sequence[Union[numpy.ndarray, pandas.DataFrame]],
-      model: BaseEstimator) -> Iterable[PredictionResult]:
+      model: BaseEstimator,
+      extra_kwargs: Optional[Dict[str,
+                                  Any]] = None) -> Iterable[PredictionResult]:
     # TODO(github.com/apache/beam/issues/21769): Use supplied input type hint.
     if isinstance(batch[0], numpy.ndarray):
       return SklearnModelHandler._predict_np_array(batch, model)
