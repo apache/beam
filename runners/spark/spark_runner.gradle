@@ -67,6 +67,11 @@ def hadoopVersions = [
   "321" : "3.2.1",
 ]
 
+def sickbayTests = [
+        // TODO(BEAM-13498)
+        'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
+]
+
 hadoopVersions.each { kv -> configurations.create("hadoopVersion$kv.key") }
 
 def sourceBase = "${project.projectDir}/../src"
@@ -345,6 +350,23 @@ tasks.register("validatesRunner") {
   // It should be uncommented once all "validatesStructuredStreamingRunnerBatch" tests will pass.
   // Otherwise, it breaks Spark runner ValidatesRunner tests.
   //dependsOn validatesStructuredStreamingRunnerBatch
+}
+
+tasks.register("validatesRunnerSickbay", Test) {
+  group = "Verification"
+  description "Validates Spark runner (Sickbay Tests)"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestSparkRunner",
+  ])
+
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+
+  filter {
+    for (String test : sickbayTests) {
+      includeTestsMatching test
+    }
+  }
 }
 
 // Generates :runners:spark:*:runQuickstartJavaSpark task

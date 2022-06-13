@@ -227,23 +227,6 @@ tasks.register("validatesPortableRunner") {
   dependsOn validatesPortableRunnerStreaming
 }
 
-tasks.register("validatesRunnerSickbay", Test) {
-  group = "Verification"
-  description "Validates Spark runner (Sickbay Tests)"
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestSparkRunner",
-  ])
-
-  classpath = configurations.validatesPortableRunner
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
-
-  filter {
-    for (String test : sickbayTests) {
-      includeTestsMatching test
-    }
-  }
-}
-
 def jobPort = BeamModulePlugin.getRandomPort()
 def artifactPort = BeamModulePlugin.getRandomPort()
 
