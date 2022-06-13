@@ -65,7 +65,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
   private final PipelineOptions options;
 
-  // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the DirectRunner.
+  // TODO: (Issue 18079) Create a shared ExecutorService for maintenance tasks in the DirectRunner.
   @VisibleForTesting
   final ExecutorService executor =
       Executors.newCachedThreadPool(

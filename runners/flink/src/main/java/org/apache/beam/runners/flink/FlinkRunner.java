@@ -77,7 +77,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
   @Override
   public PipelineResult run(Pipeline pipeline) {
     // Portable flink only support SDF as read.
-    // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
+    // TODO(Issue 20530): Use SDF read as default when we address performance issue.
     if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }

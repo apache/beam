@@ -708,7 +708,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         // Manually drain processing time timers since Flink will ignore pending
         // processing-time timers when upstream operators have shut down and will also
         // shut down this operator with pending processing-time timers.
-        // TODO(BEAM-11210, FLINK-18647): It doesn't work efficiently when the watermark of upstream
+        // TODO(Issue 20600, FLINK-18647): It doesn't work efficiently when the watermark of upstream
         // advances
         // to MAX_TIMESTAMP immediately.
         if (numProcessingTimeTimers() > 0) {

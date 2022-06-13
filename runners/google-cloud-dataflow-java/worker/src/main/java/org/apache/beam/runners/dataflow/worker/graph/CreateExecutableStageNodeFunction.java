@@ -257,7 +257,7 @@ public class CreateExecutableStageNodeFunction
                   .setSpec(RunnerApi.FunctionSpec.newBuilder().setPayload(output.toByteString()))
                   .build());
           // For non-java coder, hope it's GlobalWindows by default.
-          // TODO(BEAM-6231): Actually discover the right windowing strategy.
+          // TODO(Issue 19363): Actually discover the right windowing strategy.
           windowingStrategyId = globalWindowingStrategyId;
         }
       } catch (IOException e) {
@@ -268,7 +268,7 @@ public class CreateExecutableStageNodeFunction
             e);
       }
 
-      // TODO(BEAM-6275): Set correct IsBounded on generated PCollections
+      // TODO(Issue 19297): Set correct IsBounded on generated PCollections
       String pcollectionId = node.getPcollectionId();
       RunnerApi.PCollection pCollection =
           RunnerApi.PCollection.newBuilder()

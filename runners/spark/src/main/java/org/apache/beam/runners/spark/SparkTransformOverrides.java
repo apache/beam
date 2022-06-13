@@ -34,7 +34,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 class SparkTransformOverrides {
   public static List<PTransformOverride> getDefaultOverrides(boolean streaming) {
     ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
-    // TODO: [BEAM-5358] Support @RequiresStableInput on Spark runner
+    // TODO: [Issue 19107] Support @RequiresStableInput on Spark runner
     builder.add(
         PTransformOverride.of(
             PTransformMatchers.requiresStableInputParDoMulti(),

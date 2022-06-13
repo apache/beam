@@ -82,7 +82,7 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
         options.isStreaming() || options.as(TestSparkPipelineOptions.class).isForceStreaming();
 
     // Default to using the primitive versions of Read.Bounded and Read.Unbounded.
-    // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
+    // TODO(Issue 20530): Use SDF read as default when we address performance issue.
     if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }

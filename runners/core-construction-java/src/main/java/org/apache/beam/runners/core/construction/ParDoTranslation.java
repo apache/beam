@@ -599,7 +599,7 @@ public class ParDoTranslation {
                 .setOrderedListSpec(
                     RunnerApi.OrderedListStateSpec.newBuilder()
                         .setElementCoderId(registerCoderOrThrow(components, elementCoder)))
-                // TODO(BEAM-10650): Update with correct protocol once the protocol is defined and
+                // TODO(Issue 20486): Update with correct protocol once the protocol is defined and
                 // the SDK harness uses it.
                 .build();
           }

@@ -104,7 +104,7 @@ public class ProjectionPushdownOptimizerTest {
         FieldAccessDescriptor.withFieldNames("foo", "bar");
     p.apply(source).apply(originalT).apply(new FieldAccessTransform(downstreamFieldAccess));
 
-    // TODO(BEAM-13658) Support pushdown on intermediate transforms.
+    // TODO(Issue 21359) Support pushdown on intermediate transforms.
     // For now, test that the pushdown optimizer ignores immediate transforms.
     ProjectionPushdownOptimizer.optimize(p);
     Assert.assertTrue(pipelineHasTransform(p, originalT));
