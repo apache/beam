@@ -28,8 +28,8 @@ import pandas
 from sklearn.base import BaseEstimator
 
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference.api import PredictionResult
 from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import PredictionResult
 
 try:
   import joblib
