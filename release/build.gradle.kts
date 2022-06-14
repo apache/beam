@@ -29,7 +29,7 @@ val library = project.extensions.extraProperties["library"] as Map<String, Map<S
 
 dependencies {
   implementation(library.getValue("groovy").getValue("groovy_all"))
-  implementation("commons-cli:commons-cli:1.2")
+  implementation("commons-cli:commons-cli:1.5.0")
   permitUnusedDeclared("commons-cli:commons-cli:1.2") // BEAM-11761
 }
 
