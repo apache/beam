@@ -55,7 +55,7 @@ import org.apache.samza.zk.ZkJobCoordinatorFactory;
 import org.junit.Test;
 
 /** Test config generations for {@link org.apache.beam.runners.samza.SamzaRunner}. */
-// TODO(Issue 21230): Remove when new version of errorprone is released (2.11.0)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is released (2.11.0)
 @SuppressWarnings("unused")
 public class ConfigGeneratorTest {
   private static final String APP_RUNNER_CLASS = "app.runner.class";

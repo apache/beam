@@ -209,7 +209,7 @@ public class StreamingDataflowWorker {
   /** Maximum number of failure stacktraces to report in each update sent to backend. */
   private static final int MAX_FAILURES_TO_REPORT_IN_UPDATE = 1000;
 
-  // TODO(Issue 19632): Update throttling counters to use generic throttling-msecs metric.
+  // TODO(https://github.com/apache/beam/issues/19632): Update throttling counters to use generic throttling-msecs metric.
   public static final MetricName BIGQUERY_STREAMING_INSERT_THROTTLE_TIME =
       MetricName.named(
           "org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl$DatasetServiceImpl",

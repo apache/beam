@@ -239,7 +239,7 @@ public class External {
                     PValues.expandInput(PBegin.in(p)),
                     ImmutableMap.of(entry.getKey(), (PCollection<?>) entry.getValue()),
                     Impulse.create(),
-                    // TODO(Issue 18371): Add proper support for Resource Hints with XLang.
+                    // TODO(https://github.com/apache/beam/issues/18371): Add proper support for Resource Hints with XLang.
                     ResourceHints.create(),
                     p);
             // using fake Impulses to provide inputs

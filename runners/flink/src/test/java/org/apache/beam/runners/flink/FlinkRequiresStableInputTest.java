@@ -121,7 +121,7 @@ public class FlinkRequiresStableInputTest {
    * restore the savepoint to check if we produce impotent results.
    */
   @Test(timeout = 30_000)
-  @Ignore("Issue 21333")
+  @Ignore("https://github.com/apache/beam/issues/21333")
   public void testParDoRequiresStableInput() throws Exception {
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setParallelism(1);

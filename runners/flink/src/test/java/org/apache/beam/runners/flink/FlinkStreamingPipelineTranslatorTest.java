@@ -55,7 +55,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /** Tests if overrides are properly applied. */
-// TODO(Issue 21230): Remove when new version of errorprone is released (2.11.0)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is released (2.11.0)
 @SuppressWarnings("unused")
 public class FlinkStreamingPipelineTranslatorTest {
 

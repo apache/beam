@@ -77,7 +77,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link UserParDoFnFactory}. */
 @RunWith(JUnit4.class)
-// TODO(Issue 21230): Remove when new version of errorprone is released (2.11.0)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is released (2.11.0)
 @SuppressWarnings("unused")
 public class UserParDoFnFactoryTest {
   static class TestDoFn extends DoFn<Integer, String> {
