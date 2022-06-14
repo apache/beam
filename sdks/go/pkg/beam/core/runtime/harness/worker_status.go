@@ -17,8 +17,13 @@ package harness
 
 import (
 	"context"
+	"fmt"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 	"io"
 	"runtime"
+	"runtime/debug"
+	"runtime/pprof"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -31,17 +36,19 @@ import (
 
 // workerStatusHandler stores the communication information of WorkerStatus API.
 type workerStatusHandler struct {
-	conn           *grpc.ClientConn
-	shouldShutdown int32
-	wg             sync.WaitGroup
+	conn             *grpc.ClientConn
+	shouldShutdown   int32
+	wg               sync.WaitGroup
+	cache            *statecache.SideInputCache
+	metStoreToString func(*strings.Builder)
 }
 
-func newWorkerStatusHandler(ctx context.Context, endpoint string) (*workerStatusHandler, error) {
+func newWorkerStatusHandler(ctx context.Context, endpoint string, cache *statecache.SideInputCache, metStoreToString func(*strings.Builder)) (*workerStatusHandler, error) {
 	sconn, err := dial(ctx, endpoint, 60*time.Second)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect: %v\n", endpoint)
 	}
-	return &workerStatusHandler{conn: sconn, shouldShutdown: 0}, nil
+	return &workerStatusHandler{conn: sconn, shouldShutdown: 0, cache: cache, metStoreToString: metStoreToString}, nil
 }
 
 func (w *workerStatusHandler) isAlive() bool {
@@ -65,11 +72,47 @@ func (w *workerStatusHandler) start(ctx context.Context) error {
 	return nil
 }
 
+func memoryUsage(statusInfo *strings.Builder) {
+	statusInfo.WriteString("\n============Memory Usage============\n")
+	m := runtime.MemStats{}
+	runtime.ReadMemStats(&m)
+	statusInfo.WriteString(fmt.Sprintf("heap in-use-spans/allocated/total/max = %d/%d/%d/%d MB\n", m.HeapInuse>>20, m.HeapAlloc>>20, m.TotalAlloc>>20, m.HeapSys>>20))
+	statusInfo.WriteString(fmt.Sprintf("stack in-use-spans/max = %d/%d MB\n", m.StackInuse>>20, m.StackSys>>20))
+	statusInfo.WriteString(fmt.Sprintf("GC-CPU percentage = %.2f %%\n", m.GCCPUFraction*100))
+	statusInfo.WriteString(fmt.Sprintf("Last GC time: %v\n", time.Unix(0, int64(m.LastGC))))
+	statusInfo.WriteString(fmt.Sprintf("Next GC: %v MB\n", m.NextGC>>20))
+}
+
+func (w *workerStatusHandler) activeProcessBundleStates(statusInfo *strings.Builder) {
+	statusInfo.WriteString("\n============Active Process Bundle States============\n")
+	w.metStoreToString(statusInfo)
+}
+
+func (w *workerStatusHandler) cacheStats(statusInfo *strings.Builder) {
+	statusInfo.WriteString("\n============Cache Stats============\n")
+	statusInfo.WriteString(fmt.Sprintf("State Cache:\n%+v\n", w.cache.CacheMetrics()))
+}
+
+func goroutineDump(statusInfo *strings.Builder) {
+	statusInfo.WriteString("\n============Goroutine Dump============\n")
+	profile := pprof.Lookup("goroutine")
+	if profile != nil {
+		profile.WriteTo(statusInfo, 1)
+	}
+}
+
+func buildInfo(statusInfo *strings.Builder) {
+	statusInfo.WriteString("\n============Build Info============\n")
+	if info, ok := debug.ReadBuildInfo(); ok {
+		statusInfo.WriteString(info.String())
+	}
+}
+
 // reader reads the WorkerStatusRequest from the stream and sends a processed WorkerStatusResponse to
 // a response channel.
 func (w *workerStatusHandler) reader(ctx context.Context, stub fnpb.BeamFnWorkerStatus_WorkerStatusClient) {
 	defer w.wg.Done()
-	buf := make([]byte, 1<<16)
+
 	for w.isAlive() {
 		req, err := stub.Recv()
 		if err != nil && err != io.EOF {
@@ -77,8 +120,15 @@ func (w *workerStatusHandler) reader(ctx context.Context, stub fnpb.BeamFnWorker
 			return
 		}
 		log.Debugf(ctx, "RECV-status: %v", req.GetId())
-		runtime.Stack(buf, true)
-		response := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: string(buf)}
+
+		statusInfo := &strings.Builder{}
+		memoryUsage(statusInfo)
+		w.activeProcessBundleStates(statusInfo)
+		w.cacheStats(statusInfo)
+		goroutineDump(statusInfo)
+		buildInfo(statusInfo)
+
+		response := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: statusInfo.String()}
 		if err := stub.Send(response); err != nil && err != io.EOF {
 			log.Errorf(ctx, "workerStatus.Writer: Failed to respond: %v", err)
 		}
