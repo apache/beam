@@ -62,7 +62,7 @@ for details."
 ## Image classification
 
 [`pytorch_image_classification.py`](./pytorch_image_classification.py) contains
-an implementation for a RunInference pipeline thatpeforms image classification using the mobilenet_v2
+an implementation for a RunInference pipeline that performs image classification using the mobilenet_v2
 architecture.
 
 The pipeline reads the images, performs basic preprocessing, passes them to the
@@ -71,7 +71,7 @@ to a text file.
 
 ### Dataset and model for image classification
 
-You will need to create or download images, and place them into this directory called `IMAGES_DIR`. One popular dataset is from [ImageNet](https://www.image-net.org/). Please follow their instructions to download the images.
+You will need to create or download images, and place them into your `IMAGES_DIR` directory. One popular dataset is from [ImageNet](https://www.image-net.org/). Please follow their instructions to download the images.
 - **Required**: A path to a file called `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` on which you want to run image segmentation. For example:
 ```
 /absolute/path/to/image1.jpg
@@ -79,7 +79,7 @@ You will need to create or download images, and place them into this directory c
 ```
 - **Required**: A path to a file called `MODEL_STATE_DICT` that contains the saved
 parameters of the maskrcnn_resnet50_fpn model. You will need to download the [mobilenet_v2](https://pytorch.org/vision/stable/_modules/torchvision/models/mobilenetv2.html)
-model from Pytorch's repository of pretrained models. Make sure you have installed `torchvision` too.
+model from Pytorch's repository of pretrained models. Note that this requires `torchvision` library.
 ```
 import torch
 from torchvision.models.detection import mobilenet_v2
@@ -117,7 +117,7 @@ This writes the output to the `predictions.csv` with contents like:
 ## Image segmentation
 
 [`pytorch_image_segmentation.py`](./pytorch_image_segmentation.py) contains
-an implementation for a RunInference pipeline that peforms image segementation using the
+an implementation for a RunInference pipeline that performs image segementation using the
 maskrcnn_resnet50_fpn architecture.
 
 The pipeline reads images, performs basic preprocessing, passes them to the
@@ -125,7 +125,7 @@ PyTorch implementation of RunInference, and then writes the predictions
 to a text file.
 
 ### Dataset and model for image segmentation
-You will need to create or download images, and place them into this directory called `IMAGES_DIR`. Another popular dataset is from [Coco](https://cocodataset.org/#home). Please follow their instructions to download the images.
+You will need to create or download images, and place them into your `IMAGES_DIR` directory. Another popular dataset is from [Coco](https://cocodataset.org/#home). Please follow their instructions to download the images.
 - **Required**: A path to a file called `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` on which you want to run image segmentation. For example:
 ```
 /absolute/path/to/image1.jpg
@@ -133,7 +133,7 @@ You will need to create or download images, and place them into this directory c
 ```
 - **Required**: A path to a file called `MODEL_STATE_DICT` that contains the saved
 parameters of the maskrcnn_resnet50_fpn model. You will need to download the [maskrcnn_resnet50_fpn](https://pytorch.org/vision/0.12/models.html#id70)
-model from Pytorch's repository of pretrained models. Make sure you have installed `torchvision` too.
+model from Pytorch's repository of pretrained models. Note that this requires `torchvision` library.
 ```
 import torch
 from torchvision.models.detection import maskrcnn_resnet50_fpn
@@ -173,7 +173,7 @@ The first item is the file name. The second item are a list of predicted instanc
 ## Language modeling
 
 [`pytorch_language_modeling.py`](./pytorch_language_modeling.py) contains
-an implementation for a RunInference pipeline that peforms masked language
+an implementation for a RunInference pipeline that performs masked language
 modeling (i.e. decoding a masked token in a sentence) using the BertForMaskedLM
 architecture from Hugging Face.
 
@@ -228,11 +228,10 @@ python -m apache_beam.examples.inference.pytorch_language_modeling \
 
 This writes the output to the `predictions.csv` with contents like:
 ```
-The capital of France is [MASK] .;The capital of France is Paris .;paris
-It is raining cats and [MASK] .;It is raining cats and dogs .;dogs
+The capital of France is Paris .;paris
+It is raining cats and dogs .;dogs
 ...
 ```
 Each line has data separated by a semicolon ";".
-The first item is the sentence with the last word masked. The second item is
-the original sentence. The last item is the word that the model predicts
-for the mask.
+The first item is the sentence with the last word masked. The second item
+is the word that the model predicts for the mask.
