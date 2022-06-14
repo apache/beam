@@ -82,6 +82,8 @@ var directFilters = []string{
 	"TestCheckpointing",
 	// The direct runner does not support pipeline drain for SDF.
 	"TestDrain",
+	// FhirIO currently only supports Dataflow runner
+	"TestFhirIO_.*",
 }
 
 var portableFilters = []string{
@@ -98,6 +100,8 @@ var portableFilters = []string{
 	"TestCheckpointing",
 	// The portable runner does not support pipeline drain for SDF.
 	"TestDrain",
+	// FhirIO currently only supports Dataflow runner
+	"TestFhirIO_.*",
 }
 
 var flinkFilters = []string{
@@ -106,12 +110,14 @@ var flinkFilters = []string{
 	// TODO(BEAM-12815): Test fails on post commits: "Insufficient number of network buffers".
 	"TestXLang_Multi",
 	"TestDebeziumIO_BasicRead",
-	// Triggers are not yet supported
-	"TestTrigger.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	// The number of produced outputs in AfterSynchronizedProcessingTime varies in different runs.
+	"TestTriggerAfterSynchronizedProcessingTime",
 	// The flink runner does not support pipeline drain for SDF.
 	"TestDrain",
+	// FhirIO currently only supports Dataflow runner
+	"TestFhirIO_.*",
 }
 
 var samzaFilters = []string{
@@ -131,6 +137,8 @@ var samzaFilters = []string{
 	"TestCheckpointing",
 	// The samza runner does not support pipeline drain for SDF.
 	"TestDrain",
+	// FhirIO currently only supports Dataflow runner
+	"TestFhirIO_.*",
 }
 
 var sparkFilters = []string{
@@ -151,6 +159,8 @@ var sparkFilters = []string{
 	"TestCheckpointing",
 	// The spark runner does not support pipeline drain for SDF.
 	"TestDrain",
+	// FhirIO currently only supports Dataflow runner
+	"TestFhirIO_.*",
 }
 
 var dataflowFilters = []string{
