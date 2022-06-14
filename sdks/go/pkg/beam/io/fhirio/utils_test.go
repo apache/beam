@@ -18,8 +18,9 @@ package fhirio
 import (
 	"errors"
 	"fmt"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"net/http"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
 var (
