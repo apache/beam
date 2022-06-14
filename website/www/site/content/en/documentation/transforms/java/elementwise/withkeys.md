@@ -39,7 +39,7 @@ There are two versions of `WithKeys`, depending on how the key should be determi
 {{< highlight java >}}
 PCollection<String> words = Create.of("Hello", "World", "Beam", "is", "fun");
 PCollection<KV<Integer, String>> lengthAndWord =
-  words.apply(WithKeys.of(new SerialiazableFunction<String, Integer>() {
+  words.apply(WithKeys.of(new SerializableFunction<String, Integer>() {
     @Override
     public Integer apply(String s) {
       return s.length();
