@@ -122,7 +122,7 @@ class PytorchLinearRegression(torch.nn.Module):
     return out
 
 
-class PytorchLinearRegressionKeyedBatchAndExtraKwargs(torch.nn.Module):
+class PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs(torch.nn.Module):
   """
   A linear model with batched keyed inputs and non-batchable extra args.
 
@@ -222,19 +222,19 @@ class PytorchRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(predictions, KEYED_TORCH_PREDICTIONS):
       self.assertTrue(_compare_prediction_result(actual, expected))
 
-  def test_inference_runner_extra_kwargs(self):
+  def test_inference_runner_inference_args(self):
     """
     This tests for non-batchable input arguments. Since we do the batching
     for the user, we have to distinguish between the inputs that should be
     batched and the ones that should not be batched.
     """
-    extra_kwargs = {
+    inference_args = {
         'prediction_param_array': torch.from_numpy(
             np.array([1, 2], dtype="float32")),
         'prediction_param_bool': True
     }
 
-    model = PytorchLinearRegressionKeyedBatchAndExtraKwargs(
+    model = PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs(
         input_dim=1, output_dim=1)
     model.load_state_dict(
         OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
@@ -244,7 +244,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
     inference_runner = TestPytorchModelHandlerKeyedTensorForInferenceOnly(
         torch.device('cpu'))
     predictions = inference_runner.run_inference(
-        batch=KEYED_TORCH_EXAMPLES, model=model, extra_kwargs=extra_kwargs)
+        batch=KEYED_TORCH_EXAMPLES, model=model, inference_args=inference_args)
     for actual, expected in zip(predictions, KEYED_TORCH_PREDICTIONS):
       self.assertEqual(actual, expected)
 
@@ -293,9 +293,9 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           equal_to(
               TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
 
-  def test_pipeline_local_model_extra_args(self):
+  def test_pipeline_local_model_extra_inference_args(self):
     with TestPipeline() as pipeline:
-      extra_kwargs = {
+      inference_args = {
           'prediction_param_array': torch.from_numpy(
               np.array([1, 2], dtype="float32")),
           'prediction_param_bool': True
@@ -308,17 +308,17 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
 
       model_handler = PytorchModelHandlerKeyedTensor(
           state_dict_path=path,
-          model_class=PytorchLinearRegressionKeyedBatchAndExtraKwargs,
+          model_class=PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs,
           model_params={
               'input_dim': 1, 'output_dim': 1
           })
 
       pcoll = pipeline | 'start' >> beam.Create(KEYED_TORCH_EXAMPLES)
-      extra_kwargs_side_input = (
-          pipeline | 'create side' >> beam.Create(extra_kwargs))
+      inference_args_side_input = (
+          pipeline | 'create side' >> beam.Create(inference_args))
       predictions = pcoll | RunInference(
           model_handler=model_handler,
-          extra_kwargs=beam.pvalue.AsDict(extra_kwargs_side_input))
+          inference_args=beam.pvalue.AsDict(inference_args_side_input))
       assert_that(
           predictions,
           equal_to(

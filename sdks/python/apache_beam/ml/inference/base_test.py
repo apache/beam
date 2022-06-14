@@ -48,7 +48,7 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       self,
       batch: Sequence[int],
       model: FakeModel,
-      extra_kwargs=None) -> Iterable[int]:
+      inference_args=None) -> Iterable[int]:
     if self._fake_clock:
       self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
     for example in batch:
@@ -70,7 +70,7 @@ class ExtractInferences(beam.DoFn):
 
 
 class FakeModelHandlerNeedsBigBatch(FakeModelHandler):
-  def run_inference(self, batch, unused_model, extra_kwargs=None):
+  def run_inference(self, batch, unused_model, inference_args=None):
     if len(batch) < 100:
       raise ValueError('Unexpectedly small batch')
     return batch
@@ -79,10 +79,10 @@ class FakeModelHandlerNeedsBigBatch(FakeModelHandler):
     return {'min_batch_size': 9999}
 
 
-class FakeModelHandlerExtraKwargs(FakeModelHandler):
-  def run_inference(self, batch, unused_model, extra_kwargs=None):
-    if not extra_kwargs:
-      raise ValueError('extra_kwargs should exist')
+class FakeModelHandlerExtraInferenceArgs(FakeModelHandler):
+  def run_inference(self, batch, unused_model, inference_args=None):
+    if not inference_args:
+      raise ValueError('inference_args should exist')
     return batch
 
 
@@ -122,13 +122,13 @@ class RunInferenceBaseTest(unittest.TestCase):
           model_handler)
       assert_that(keyed_actual, equal_to(keyed_expected), label='CheckKeyed')
 
-  def test_run_inference_impl_extra_kwargs(self):
+  def test_run_inference_impl_inference_args(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      extra_kwargs = {'key': True}
+      inference_args = {'key': True}
       actual = pcoll | base.RunInference(
-          FakeModelHandlerExtraKwargs(), extra_kwargs=extra_kwargs)
+          FakeModelHandlerExtraInferenceArgs(), inference_args=inference_args)
       assert_that(actual, equal_to(examples), label='assert:inferences')
 
   def test_counted_metrics(self):

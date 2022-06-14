@@ -95,8 +95,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       self,
       batch: Sequence[torch.Tensor],
       model: torch.nn.Module,
-      extra_kwargs: Optional[Dict[str,
-                                  Any]] = None) -> Iterable[PredictionResult]:
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
     Tensor Predictions.
@@ -104,11 +104,11 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     This method stacks the list of Tensors in a vectorized format to optimize
     the inference call.
     """
-    extra_kwargs = {} if not extra_kwargs else extra_kwargs
+    inference_args = {} if not inference_args else inference_args
 
     batched_tensors = torch.stack(batch)
     batched_tensors = _convert_to_device(batched_tensors, self._device)
-    predictions = model(batched_tensors, **extra_kwargs)
+    predictions = model(batched_tensors, **inference_args)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
@@ -168,8 +168,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       self,
       batch: Sequence[Dict[str, torch.Tensor]],
       model: torch.nn.Module,
-      extra_kwargs: Optional[Dict[str,
-                                  Any]] = None) -> Iterable[PredictionResult]:
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Keyed Tensors and returns an Iterable of
     Tensor Predictions.
@@ -177,7 +177,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     For the same key across all examples, this will stack all Tensors values
     in a vectorized format to optimize the inference call.
     """
-    extra_kwargs = {} if not extra_kwargs else extra_kwargs
+    inference_args = {} if not inference_args else inference_args
 
     # If elements in `batch` are provided as a dictionaries from key to Tensors,
     # then iterate through the batch list, and group Tensors to the same key
@@ -190,7 +190,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       batched_tensors = torch.stack(key_to_tensor_list[key])
       batched_tensors = _convert_to_device(batched_tensors, self._device)
       key_to_batched_tensors[key] = batched_tensors
-    predictions = model(**key_to_batched_tensors, **extra_kwargs)
+    predictions = model(**key_to_batched_tensors, **inference_args)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
