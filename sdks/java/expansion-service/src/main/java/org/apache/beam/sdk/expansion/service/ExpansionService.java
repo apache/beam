@@ -53,6 +53,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProvider.AllowList;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -571,6 +572,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   protected Pipeline createPipeline() {
     // TODO: [https://github.com/apache/beam/issues/21064]: implement proper validation
     PipelineOptions effectiveOpts = PipelineOptionsFactory.create();
+    GcpOptions gcpOptions = effectiveOpts.as(GcpOptions.class);
+    Optional.ofNullable(gcpOptions.getProject()).ifPresent(gcpOptions::setProject);
     PortablePipelineOptions portableOptions = effectiveOpts.as(PortablePipelineOptions.class);
     PortablePipelineOptions specifiedOptions = pipelineOptions.as(PortablePipelineOptions.class);
     Optional.ofNullable(specifiedOptions.getDefaultEnvironmentType())

@@ -40,6 +40,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":runners:core-construction-java")
   implementation project(path: ":runners:java-fn-execution")
+  implementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
   implementation project(path: ":sdks:java:fn-execution")
   permitUnusedDeclared project(path: ":sdks:java:fn-execution")
   implementation library.java.jackson_annotations
