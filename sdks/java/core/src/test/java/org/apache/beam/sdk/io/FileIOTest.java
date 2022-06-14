@@ -48,6 +48,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.Requirements;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
@@ -56,6 +57,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -215,43 +217,69 @@ public class FileIOTest implements Serializable {
     watchPath.toFile().mkdir();
     PCollection<MatchResult.Metadata> matchMetadata =
         p.apply(
+            "match filename through match",
             FileIO.match()
                 .filepattern(watchPath.resolve("*").toString())
                 .continuously(
                     Duration.millis(100),
                     Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
     PCollection<MatchResult.Metadata> matchAllMetadata =
-        p.apply(Create.of(watchPath.resolve("*").toString()))
+        p.apply("create for matchAll new files", Create.of(watchPath.resolve("*").toString()))
             .apply(
+                "match filename through matchAll",
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(100),
                         Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+    PCollection<MatchResult.Metadata> matchUpdatedMetadata =
+        p.apply(
+            "match updated",
+            FileIO.match()
+                .filepattern(watchPath.resolve("first").toString())
+                .continuously(
+                    Duration.millis(100),
+                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3)),
+                    true));
+    PCollection<MatchResult.Metadata> matchAllUpdatedMetadata =
+        p.apply("create for matchAll updated files", Create.of(watchPath.resolve("*").toString()))
+            .apply(
+                "matchAll updated",
+                FileIO.matchAll()
+                    .continuously(
+                        Duration.millis(100),
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3)),
+                        true));
     assertEquals(PCollection.IsBounded.UNBOUNDED, matchMetadata.isBounded());
     assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllMetadata.isBounded());
+    assertEquals(PCollection.IsBounded.UNBOUNDED, matchUpdatedMetadata.isBounded());
+    assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllUpdatedMetadata.isBounded());
 
     // Copy the files to the "watch" directory, preserving the lastModifiedTime;
     // the COPY_ATTRIBUTES option ensures that we will at a minimum copy lastModifiedTime.
     CopyOption[] copyOptions = {StandardCopyOption.COPY_ATTRIBUTES};
+    CopyOption[] updateOptions = {StandardCopyOption.REPLACE_EXISTING};
     Thread writer =
         new Thread(
             () -> {
               try {
-                Thread.sleep(1000);
+                Thread.sleep(800);
                 Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), copyOptions);
-                Thread.sleep(300);
+                Thread.sleep(400);
+                Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), updateOptions);
                 Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), copyOptions);
-                Thread.sleep(300);
+                Thread.sleep(400);
+                Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), updateOptions);
+                Files.copy(
+                    sourcePath.resolve("second"), watchPath.resolve("second"), updateOptions);
                 Files.copy(sourcePath.resolve("third"), watchPath.resolve("third"), copyOptions);
               } catch (IOException | InterruptedException e) {
                 throw new RuntimeException(e);
               }
             });
-    writer.start();
 
     // We fetch lastModifiedTime from the files in the "source" directory to avoid a race condition
     // with the writer thread.
-    List<MatchResult.Metadata> expected =
+    List<MatchResult.Metadata> expectedMatchNew =
         Arrays.asList(
             metadata(
                 watchPath.resolve("first"), 42, lastModifiedMillis(sourcePath.resolve("first"))),
@@ -259,8 +287,29 @@ public class FileIOTest implements Serializable {
                 watchPath.resolve("second"), 37, lastModifiedMillis(sourcePath.resolve("second"))),
             metadata(
                 watchPath.resolve("third"), 99, lastModifiedMillis(sourcePath.resolve("third"))));
-    PAssert.that(matchMetadata).containsInAnyOrder(expected);
-    PAssert.that(matchAllMetadata).containsInAnyOrder(expected);
+    PAssert.that(matchMetadata).containsInAnyOrder(expectedMatchNew);
+    PAssert.that(matchAllMetadata).containsInAnyOrder(expectedMatchNew);
+
+    List<String> expectedMatchUpdated = Arrays.asList("first", "first", "first");
+    PCollection<String> matchUpdatedCount =
+        matchUpdatedMetadata.apply(
+            "pick up match file name",
+            MapElements.into(TypeDescriptors.strings())
+                .via((metadata) -> metadata.resourceId().getFilename()));
+    PAssert.that(matchUpdatedCount).containsInAnyOrder(expectedMatchUpdated);
+
+    // Check watch for file updates. Compare only filename since modified time of copied files are
+    // uncontrolled.
+    List<String> expectedMatchAllUpdated =
+        Arrays.asList("first", "first", "first", "second", "second", "third");
+    PCollection<String> matchAllUpdatedCount =
+        matchAllUpdatedMetadata.apply(
+            "pick up matchAll file names",
+            MapElements.into(TypeDescriptors.strings())
+                .via((metadata) -> metadata.resourceId().getFilename()));
+    PAssert.that(matchAllUpdatedCount).containsInAnyOrder(expectedMatchAllUpdated);
+
+    writer.start();
     p.run();
 
     writer.join();
