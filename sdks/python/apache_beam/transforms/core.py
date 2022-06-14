@@ -797,7 +797,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       self, input_element_type
   ) -> typing.Optional[typing.Union[TypeConstraint, type]]:
     """Determine the batch type produced by this DoFn's ``process_batch``
-    implementation and/or it's ``process`` implementation with
+    implementation and/or its ``process`` implementation with
     ``@yields_batch``.
 
     The default implementation of this method observes the return type
