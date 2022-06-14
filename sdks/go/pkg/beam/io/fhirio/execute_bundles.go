@@ -36,27 +36,27 @@ const (
 )
 
 func init() {
-	register.DoFn4x0[context.Context, []byte, func(string), func(string)]((*executeBundlesFn)(nil))
+	register.DoFn4x0[context.Context, []byte, func(string), func(string)]((*executeBundleFn)(nil))
 	register.Emitter1[string]()
 }
 
-type executeBundlesFn struct {
+type executeBundleFn struct {
 	fhirioFnCommon
 	successesCount beam.Counter
 	// Path to FHIR store where bundle requests will be executed on.
 	FhirStorePath string
 }
 
-func (fn executeBundlesFn) String() string {
-	return "executeBundlesFn"
+func (fn executeBundleFn) String() string {
+	return "executeBundleFn"
 }
 
-func (fn *executeBundlesFn) Setup() {
+func (fn *executeBundleFn) Setup() {
 	fn.fhirioFnCommon.setup(fn.String())
 	fn.successesCount = beam.NewCounter(fn.String(), baseMetricPrefix+"success_count")
 }
 
-func (fn *executeBundlesFn) ProcessElement(ctx context.Context, inputBundleBody []byte, emitSuccess, emitFailure func(string)) {
+func (fn *executeBundleFn) ProcessElement(ctx context.Context, inputBundleBody []byte, emitSuccess, emitFailure func(string)) {
 	response, err := executeRequestAndRecordLatency(ctx, &fn.latencyMs, func() (*http.Response, error) {
 		return fn.client.executeBundle(fn.FhirStorePath, inputBundleBody)
 	})
@@ -76,7 +76,7 @@ func (fn *executeBundlesFn) ProcessElement(ctx context.Context, inputBundleBody 
 	fn.processResponseBody(ctx, body, emitSuccess, emitFailure)
 }
 
-func (fn *executeBundlesFn) processResponseBody(ctx context.Context, body string, emitSuccess, emitFailure func(string)) {
+func (fn *executeBundleFn) processResponseBody(ctx context.Context, body string, emitSuccess, emitFailure func(string)) {
 	var bodyFields struct {
 		Type    string        `json:"type"`
 		Entries []interface{} `json:"entry"`
@@ -142,5 +142,5 @@ func ExecuteBundles(s beam.Scope, fhirStorePath string, bundles beam.PCollection
 
 // This is useful as an entry point for testing because we can provide a fake FHIR store client.
 func executeBundles(s beam.Scope, fhirStorePath string, bundles beam.PCollection, client fhirStoreClient) (beam.PCollection, beam.PCollection) {
-	return beam.ParDo2(s, &executeBundlesFn{fhirioFnCommon: fhirioFnCommon{client: client}, FhirStorePath: fhirStorePath}, bundles)
+	return beam.ParDo2(s, &executeBundleFn{fhirioFnCommon: fhirioFnCommon{client: client}, FhirStorePath: fhirStorePath}, bundles)
 }
