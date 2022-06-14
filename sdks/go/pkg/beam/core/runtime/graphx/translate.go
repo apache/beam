@@ -91,7 +91,7 @@ func goCapabilities() []string {
 		URNMultiCore,
 		URNTruncate,
 		URNWorkerStatus,
-    URNMonitoringInfoShortID,
+		URNMonitoringInfoShortID,
 		// TOOD(Issue 20287): Make this versioned.
 		"beam:version:sdk_base:go",
 	}
