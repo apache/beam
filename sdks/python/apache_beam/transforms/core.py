@@ -743,8 +743,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     input_type = list(
         inspect.signature(self.process_batch).parameters.values())[0].annotation
     if input_type == inspect.Signature.empty:
-      # TODO(https://github.com/apache/beam/issues/21652): Consider supporting an alternative (dynamic?)
-      # approach for declaring input type
+      # TODO(https://github.com/apache/beam/issues/21652): Consider supporting
+      # an alternative (dynamic?) approach for declaring input type
       raise TypeError(
           f"{self.__class__.__name__}.process_batch() does not have a type "
           "annotation on its first parameter. This is required for "
