@@ -888,8 +888,8 @@ class DoOperation(Operation):
       self.dofn_runner.start()
 
   def get_batching_preference(self):
-    if self.fn.process_batch_defined:
-      if self.fn.process_defined:
+    if self.fn._process_batch_defined:
+      if self.fn._process_defined:
         return common.BatchingPreference.DO_NOT_CARE
       else:
         return common.BatchingPreference.BATCH_REQUIRED
