@@ -28,7 +28,7 @@ plugins {
   // Enable gradle-based release management
   id("net.researchgate.release") version "2.8.1"
   id("org.apache.beam.module")
-  id("org.sonarqube") version "3.0"
+  id("org.sonarqube") version "3.4.0.2513"
 }
 
 /*************************************************************************************************/
