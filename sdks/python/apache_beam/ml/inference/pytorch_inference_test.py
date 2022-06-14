@@ -37,7 +37,8 @@ try:
   import torch
   from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
-  from apache_beam.ml.inference.pytorch_inference import PytorchModelHandler
+  from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
+  from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
 
@@ -90,7 +91,13 @@ KWARGS_TORCH_PREDICTIONS = [
 ]
 
 
-class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandler):
+class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandlerTensor):
+  def __init__(self, device):
+    self._device = device
+
+
+class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
+    PytorchModelHandlerKeyedTensor):
   def __init__(self, device):
     self._device = device
 
@@ -209,7 +216,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
                      ('linear.bias', torch.Tensor([0.5]))]))
     model.eval()
 
-    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+    inference_runner = TestPytorchModelHandlerKeyedTensorForInferenceOnly(
         torch.device('cpu'))
     predictions = inference_runner.run_inference(KWARGS_TORCH_EXAMPLES, model)
     for actual, expected in zip(predictions, KWARGS_TORCH_PREDICTIONS):
@@ -234,7 +241,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
                      ('linear.bias', torch.Tensor([0.5]))]))
     model.eval()
 
-    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+    inference_runner = TestPytorchModelHandlerKeyedTensorForInferenceOnly(
         torch.device('cpu'))
     predictions = inference_runner.run_inference(
         batch=KWARGS_TORCH_EXAMPLES,
@@ -274,7 +281,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       path = os.path.join(self.tmpdir, 'my_state_dict_path')
       torch.save(state_dict, path)
 
-      model_handler = PytorchModelHandler(
+      model_handler = PytorchModelHandlerTensor(
           state_dict_path=path,
           model_class=PytorchLinearRegression,
           model_params={
@@ -301,7 +308,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       path = os.path.join(self.tmpdir, 'my_state_dict_path')
       torch.save(state_dict, path)
 
-      model_handler = PytorchModelHandler(
+      model_handler = PytorchModelHandlerKeyedTensor(
           state_dict_path=path,
           model_class=PytorchLinearRegressionKwargsPredictionParams,
           model_params={
@@ -334,7 +341,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
 
       gs_pth = 'gs://apache-beam-ml/models/' \
           'pytorch_lin_reg_model_2x+0.5_state_dict.pth'
-      model_handler = PytorchModelHandler(
+      model_handler = PytorchModelHandlerTensor(
           state_dict_path=gs_pth,
           model_class=PytorchLinearRegression,
           model_params={
@@ -357,7 +364,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
         path = os.path.join(self.tmpdir, 'my_state_dict_path')
         torch.save(state_dict, path)
 
-        model_handler = PytorchModelHandler(
+        model_handler = PytorchModelHandlerTensor(
             state_dict_path=path,
             model_class=PytorchLinearRegression,
             model_params={

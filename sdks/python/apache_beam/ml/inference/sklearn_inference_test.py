@@ -225,9 +225,9 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     with self.assertRaisesRegex(AssertionError,
                                 'Unsupported serialization type'):
       with tempfile.NamedTemporaryFile() as file:
-        model_loader = SklearnModelHandlerNumpy(
+        model_handler = SklearnModelHandlerNumpy(
             model_uri=file.name, model_file_type=None)
-        model_loader.load_model()
+        model_handler.load_model()
 
   @unittest.skipIf(platform.system() == 'Windows', 'BEAM-14359')
   def test_pipeline_pandas(self):
