@@ -39,6 +39,9 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
+// URNMonitoringInfoShortID is a URN indicating support for short monitoring info IDs.
+const URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
+
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
@@ -49,8 +52,16 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 
 	// Extract environment variables. These are optional runner supported capabilities.
 	// Expected env variables:
+	// RUNNER_CAPABILITIES : list of runner supported capability urn.
 	// STATUS_ENDPOINT : Endpoint to connect to status server used for worker status reporting.
 	statusEndpoint := os.Getenv("STATUS_ENDPOINT")
+	runnerCapabilities := strings.Split(os.Getenv("RUNNER_CAPABILITIES"), " ")
+	rcMap := make(map[string]bool)
+	if len(runnerCapabilities) > 0 {
+		for _, capability := range runnerCapabilities {
+			rcMap[capability] = true
+		}
+	}
 
 	// Pass in the logging endpoint for use w/the default remote logging hook.
 	ctx = context.WithValue(ctx, loggingEndpointCtxKey, loggingEndpoint)
@@ -121,6 +132,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		data:                 &DataChannelManager{},
 		state:                &StateChannelManager{},
 		cache:                &sideCache,
+		runnerCapabilities:   rcMap,
 	}
 
 	// if the runner supports worker status api then expose SDK harness status
@@ -270,7 +282,8 @@ type control struct {
 	data  *DataChannelManager
 	state *StateChannelManager
 	// TODO(BEAM-11097): Cache is currently unused.
-	cache *statecache.SideInputCache
+	cache              *statecache.SideInputCache
+	runnerCapabilities map[string]bool
 }
 
 func (c *control) metStoreToString(statusInfo *strings.Builder) {
@@ -375,7 +388,8 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		c.cache.CompleteBundle(tokens...)
 
-		mons, pylds := monitoring(plan, store)
+		mons, pylds := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
+
 		requiresFinalization := false
 		// Move the plan back to the candidate state
 		c.mu.Lock()
@@ -498,7 +512,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			}
 		}
 
-		mons, pylds := monitoring(plan, store)
+		mons, pylds := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
 
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),

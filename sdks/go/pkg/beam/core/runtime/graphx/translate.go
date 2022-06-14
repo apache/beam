@@ -63,9 +63,10 @@ const (
 	URNWindowMappingFixed   = "beam:go:windowmapping:fixed:v1"
 	URNWindowMappingSliding = "beam:go:windowmapping:sliding:v1"
 
-	URNLegacyProgressReporting = "beam:protocol:progress_reporting:v0"
-	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
-	URNWorkerStatus            = "beam:protocol:worker_status:v1"
+	URNProgressReporting     = "beam:protocol:progress_reporting:v1"
+	URNMultiCore             = "beam:protocol:multi_core_bundle_processing:v1"
+	URNWorkerStatus          = "beam:protocol:worker_status:v1"
+	URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
 
 	URNRequiresSplittableDoFn     = "beam:requirement:pardo:splittable_dofn:v1"
 	URNRequiresBundleFinalization = "beam:requirement:pardo:finalization:v1"
@@ -86,10 +87,11 @@ const (
 
 func goCapabilities() []string {
 	capabilities := []string{
-		URNLegacyProgressReporting,
+		URNProgressReporting,
 		URNMultiCore,
 		URNTruncate,
 		URNWorkerStatus,
+		URNMonitoringInfoShortID,
 		// TOOD(BEAM-9614): Make this versioned.
 		"beam:version:sdk_base:go",
 	}
@@ -1168,6 +1170,23 @@ func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterSynchronizedProcessingTime_{
 				AfterSynchronizedProcessingTime: &pipepb.Trigger_AfterSynchronizedProcessingTime{},
+			},
+		}
+	case *trigger.OrFinallyTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_OrFinally_{
+				OrFinally: &pipepb.Trigger_OrFinally{
+					Main:    makeTrigger(t.Main()),
+					Finally: makeTrigger(t.Finally()),
+				},
+			},
+		}
+	case *trigger.AfterEachTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterEach_{
+				AfterEach: &pipepb.Trigger_AfterEach{
+					Subtriggers: extractSubtriggers(t.Subtriggers()),
+				},
 			},
 		}
 	default:

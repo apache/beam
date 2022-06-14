@@ -325,7 +325,7 @@ class PortableRunner(runner.PipelineRunner):
         default_environment=PortableRunner._create_environment(
             portable_options))
 
-    # TODO: https://github.com/apache/beam/issues/181099
+    # TODO: https://github.com/apache/beam/issues/19493
     # Eventually remove the 'pre_optimize' option alltogether and only perform
     # the equivalent of the 'default' case below (minus the 'lift_combiners'
     # part).

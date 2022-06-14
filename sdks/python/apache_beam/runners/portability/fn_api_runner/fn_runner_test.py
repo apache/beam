@@ -293,6 +293,51 @@ class FnApiRunnerTest(unittest.TestCase):
                                  9*9                        # [ 9, 14)
                                  ]))
 
+  def test_batch_to_element_pardo(self):
+    class ArraySumDoFn(beam.DoFn):
+      @beam.DoFn.yields_elements
+      def process_batch(self, batch: np.ndarray, *unused_args,
+                        **unused_kwargs) -> Iterator[np.int64]:
+        yield batch.sum()
+
+      def infer_output_type(self, input_type):
+        assert input_type == np.int64
+        return np.int64
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array(range(100), dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayMultiplyDoFn())
+          | beam.ParDo(ArraySumDoFn())
+          | beam.CombineGlobally(sum))
+
+      assert_that(res, equal_to([99 * 50 * 2]))
+
+  def test_element_to_batch_pardo(self):
+    class ArrayProduceDoFn(beam.DoFn):
+      @beam.DoFn.yields_batches
+      def process(self, element: np.int64, *unused_args,
+                  **unused_kwargs) -> Iterator[np.ndarray]:
+        yield np.array([element] * int(element))
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return np.int64
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayProduceDoFn())
+          | beam.ParDo(ArrayMultiplyDoFn())
+          | beam.Map(lambda x: x * 3))
+
+      assert_that(res, equal_to([6, 12, 12, 18, 18, 18]))
+
   def test_pardo_large_input(self):
     try:
       utils.check_compiled('apache_beam.coders.coder_impl')
