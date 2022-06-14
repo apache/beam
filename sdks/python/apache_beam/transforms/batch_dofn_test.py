@@ -143,7 +143,6 @@ def get_test_class_name(cls, num, params_dict):
 ],
                      class_name_func=get_test_class_name)
 class BatchDoFnParameterizedTest(unittest.TestCase):
-
   def test_process_defined(self):
     self.assertEqual(self.dofn._process_defined, self.expected_process_defined)
 
@@ -167,13 +166,11 @@ class BatchDoFnParameterizedTest(unittest.TestCase):
 
 
 class BatchDoFnNoInputAnnotation(beam.DoFn):
-
   def process_batch(self, batch, *args, **kwargs):
     yield [element * 2 for element in batch]
 
 
 class BatchDoFnTest(unittest.TestCase):
-
   def test_map_pardo(self):
     # verify batch dofn accessors work well with beam.Map generated DoFn
     # checking this in parameterized test causes a circular reference issue
