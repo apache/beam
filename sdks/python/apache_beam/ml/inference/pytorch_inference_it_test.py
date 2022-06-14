@@ -31,7 +31,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
   import torch
-  from apache_beam.examples.inference import pytorch_bert
+  from apache_beam.examples.inference import pytorch_language_modeling
   from apache_beam.examples.inference import pytorch_image_classification
 except ImportError as e:
   torch = None
@@ -105,7 +105,7 @@ class PyTorchInference(unittest.TestCase):
         'output': output_file,
         'model_state_dict_path': model_state_dict_path,
     }
-    pytorch_bert.run(
+    pytorch_language_modeling.run(
         test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
 
