@@ -66,6 +66,8 @@
 * Go SDK users can now use generic registration functions to optimize their DoFn execution. ([BEAM-14347](https://issues.apache.org/jira/browse/BEAM-14347))
 * Go SDK users may now write self-checkpointing Splittable DoFns to read from streaming sources. ([BEAM-11104](https://issues.apache.org/jira/browse/BEAM-11104))
 * Go SDK textio Reads have been moved to Splittable DoFns exclusively. ([BEAM-14489](https://issues.apache.org/jira/browse/BEAM-14489))
+* Pipeline drain support added for Go SDK has now been tested. ([BEAM-11106](https://issues.apache.org/jira/browse/BEAM-11106))
+* Go SDK users can now see heap usage, sideinput cache stats, and active process bundle stats in Worker Status. ([BEAM-13829](https://issues.apache.org/jira/browse/BEAM-13829))
 * The serialization (pickling)  library for Python is updated to dill==0.3.5.1 ([BEAM-11167](https://issues.apache.org/jira/browse/BEAM-11167))
 
 ## Breaking Changes
