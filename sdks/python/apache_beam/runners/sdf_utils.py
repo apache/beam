@@ -50,7 +50,7 @@ SplitResultResidual = NamedTuple(
 
 
 class ThreadsafeRestrictionTracker(object):
-  """A thread-safe wrapper which wraps a `RestritionTracker`.
+  """A thread-safe wrapper which wraps a `RestrictionTracker`.
 
   This wrapper guarantees synchronization of modifying restrictions across
   multi-thread.
