@@ -24,6 +24,7 @@ import (
 	"flag"
 	"fmt"
 	"math/big"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -204,7 +205,7 @@ func TestFhirIO_InvalidRead(t *testing.T) {
 	passert.Count(s, failedReads, "", 1)
 	passert.Empty(s, resources)
 	passert.True(s, failedReads, func(errorMsg string) bool {
-		return strings.Contains(errorMsg, "404")
+		return strings.Contains(errorMsg, strconv.Itoa(http.StatusNotFound))
 	})
 
 	ptest.RunAndValidate(t, p)
@@ -222,7 +223,7 @@ func TestFhirIO_ExecuteBundles(t *testing.T) {
 	passert.Count(s, successBodies, "", 2)
 	passert.Count(s, failures, "", 2)
 	passert.True(s, failures, func(errorMsg string) bool {
-		return strings.Contains(errorMsg, "400")
+		return strings.Contains(errorMsg, strconv.Itoa(http.StatusBadRequest))
 	})
 	ptest.RunAndValidate(t, p)
 }
