@@ -54,10 +54,10 @@ class PostcommitJobBuilder {
   }
 
   static void postCommitJobWithTrigger(nameBase,
-                            triggerPhrase,
-                            githubUiHint,
-                            scope,
-                            jobDefinition = {}) {
+      triggerPhrase,
+      githubUiHint,
+      scope,
+      jobDefinition = {}) {
     PostcommitJobBuilder jb = new PostcommitJobBuilder(scope, jobDefinition)
     jb.defineAutoPostCommitJob(nameBase)
 
