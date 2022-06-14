@@ -108,7 +108,7 @@ func main() {
 		"--options=" + options,
 	}
 	if info.GetStatusEndpoint() != nil {
-		args = append(args, "--status_endpoint="+info.GetStatusEndpoint().GetUrl())
+		os.Setenv("STATUS_ENDPOINT", info.GetStatusEndpoint().GetUrl())
 	}
 
 	if len(info.GetRunnerCapabilities()) > 0 {
@@ -135,7 +135,7 @@ func getGoWorkerArtifactName(artifacts []*pipepb.ArtifactInformation) (string, e
 				return name, nil
 			}
 		}
-		// TODO(BEAM-13647): Remove legacy hack once aged out.
+		// TODO(Issue 21459): Remove legacy hack once aged out.
 		for _, a := range artifacts {
 			n, _ := artifact.MustExtractFilePayload(a)
 			if n == worker {

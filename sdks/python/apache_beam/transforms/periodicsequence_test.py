@@ -52,7 +52,7 @@ class PeriodicSequenceTest(unittest.TestCase):
           start_time + x * interval
           for x in range(0, int(duration / interval), 1)
       ]
-
+      self.assertEqual(result.is_bounded, False)
       assert_that(result, equal_to(k))
 
   def test_periodicimpulse_windowing_on_si(self):
@@ -92,6 +92,7 @@ class PeriodicSequenceTest(unittest.TestCase):
       result = p | 'PeriodicImpulse' >> PeriodicImpulse(it, et, interval)
 
       k = [it + x * interval for x in range(0, int(duration / interval))]
+      self.assertEqual(result.is_bounded, False)
       assert_that(result, equal_to(k))
 
   def test_periodicsequence_outputs_valid_sequence_in_past(self):
@@ -108,6 +109,7 @@ class PeriodicSequenceTest(unittest.TestCase):
           | 'ImpulseSeqGen' >> PeriodicSequence())
 
       k = [it + x * interval for x in range(0, int(duration / interval), 1)]
+      self.assertEqual(result.is_bounded, False)
       assert_that(result, equal_to(k))
 
 

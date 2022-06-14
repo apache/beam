@@ -17,7 +17,7 @@
     under the License.
 -->
 
-# Example RunInference API Pipelines
+# Example RunInference API pipelines
 
 This module contains example pipelines that use the Beam RunInference
 API. <!---TODO: Add link to full documentation on Beam website when it's published.-->
@@ -30,8 +30,9 @@ because the `apache_beam.examples.inference` module was added in that release.
 pip install apache-beam==2.40.0
 ```
 
-### Pytorch dependencies
-The RunInference API has support for the Pytorch framework. To use Pytorch locally, first install `torch`.
+### PyTorch dependencies
+
+The RunInference API supports the PyTorch framework. To use PyTorch locally, first install `torch`.
 ```
 pip install torch==1.11.0
 ```
@@ -111,7 +112,7 @@ This writes the output to the `predictions.csv` with contents like:
 /absolute/path/to/image1.jpg;1
 /absolute/path/to/image2.jpg;333
 ...
-``
+```
 ---
 ## Image segmentation
 
@@ -167,6 +168,7 @@ This writes the output to the `predictions.csv` with contents like:
 ```
 Each line has data separated by a semicolon ";".
 The first item is the file name. The second item are a list of predicted instances.
+
 ---
 ## Language modeling
 

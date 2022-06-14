@@ -337,7 +337,7 @@ func (n *LiftedCombine) Up(ctx context.Context) error {
 	if err := n.Combine.Up(ctx); err != nil {
 		return err
 	}
-	// TODO(BEAM-4468): replace with some better implementation
+	// TODO(Issue 18944): replace with some better implementation
 	// once adding dependencies is easier.
 	// Arbitrary limit until a broader improvement can be demonstrated.
 	const cacheMax = 2000
