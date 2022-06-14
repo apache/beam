@@ -41,7 +41,7 @@
 //    - Reference Class: org.apache.beam.sdk.io.kafka.KafkaIO
 package kafkaio
 
-// TODO(BEAM-12492): Implement an API for specifying Kafka type serializers and
+// TODO(Issue 21000): Implement an API for specifying Kafka type serializers and
 // deserializers.
 
 import (
