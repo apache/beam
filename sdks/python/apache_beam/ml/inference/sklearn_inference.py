@@ -37,6 +37,7 @@ except ImportError:
 
 
 class ModelFileType(enum.Enum):
+  """Defines how a model file is serialized. Options are pickle or joblib."""
   PICKLE = 1
   JOBLIB = 2
 
@@ -59,13 +60,21 @@ def _load_model(model_uri, file_type):
 class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
                                             PredictionResult,
                                             BaseEstimator]):
-  """ Implementation of the ModelHandler interface for scikit-learn
-      using numpy arrays as input.
-  """
   def __init__(
       self,
       model_uri: str,
       model_file_type: ModelFileType = ModelFileType.PICKLE):
+    """ Implementation of the ModelHandler interface for scikit-learn
+    using numpy arrays as input.
+
+    Example Usage:
+      pcol | RunInference(SklearnModelHandlerNumpy(model_uri="my_uri"))
+
+    Args:
+      model_uri: The URI to where the model is saved.
+      model_file_type: The method of serialization of the argument.
+        default=pickle
+    """
     self._model_uri = model_uri
     self._model_file_type = model_file_type
 
@@ -76,29 +85,47 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
   def run_inference(
       self, batch: Sequence[numpy.ndarray], model: BaseEstimator,
       **kwargs) -> Iterable[PredictionResult]:
+    """Runs inferences on a batch of numpy arrays.
+
+    Returns:
+      An Iterable of type PredictionResult.
+    """
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
-    """Returns the number of bytes of data for a batch."""
+    """
+    Returns:
+      The number of bytes of data for a batch.
+    """
     return sum(sys.getsizeof(element) for element in batch)
 
 
 class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
                                              PredictionResult,
                                              BaseEstimator]):
-  """ Implementation of the ModelHandler interface for scikit-learn that
-      supports pandas dataframes.
-
-      NOTE: This API and its implementation are under development and
-      do not provide backward compatibility guarantees.
-  """
   def __init__(
       self,
       model_uri: str,
       model_file_type: ModelFileType = ModelFileType.PICKLE):
+    """Implementation of the ModelHandler interface for scikit-learn that
+    supports pandas dataframes.
+
+    Example Usage:
+      pcol | RunInference(SklearnModelHandlerPandas(model_uri="my_uri"))
+
+    NOTE::
+      This API and its implementation are under development and
+      do not provide backward compatibility guarantees.
+
+
+    Args:
+      model_uri: The URI to where the model is saved.
+      model_file_type: The method of serialization of the argument.
+        default=pickle
+    """
     self._model_uri = model_uri
     self._model_file_type = model_file_type
 
@@ -109,6 +136,12 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
   def run_inference(
       self, batch: Sequence[pandas.DataFrame], model: BaseEstimator,
       **kwargs) -> Iterable[PredictionResult]:
+    """
+    Runs inferences on a batch of pandas dataframes.
+
+    Returns:
+      An Iterable of type PredictionResult.
+    """
     # sklearn_inference currently only supports single rowed dataframes.
     for dataframe in batch:
       if dataframe.shape[0] != 1:
@@ -126,5 +159,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     ]
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
-    """Returns the number of bytes of data for a batch."""
+    """
+    Returns:
+      The number of bytes of data for a batch.
+    """
     return sum(df.memory_usage(deep=True).sum() for df in batch)

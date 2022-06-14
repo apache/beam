@@ -19,15 +19,12 @@
 
 """An extensible run inference transform.
 
-Users of this module can extend the ModelHandler class for any MLframework. Then
-pass their extended ModelHandler object into RunInference to create a
-RunInference Beam transform for that framework.
+Users of this module can extend the ModelHandler class for any machine learning
+framework. Then pass their extended ModelHandler object into RunInference to
+create a RunInference Beam transform for that framework.
 
 The transform will handle standard inference functionality like metric
 collection, sharing model between threads and batching elements.
-
-Note: This module is still actively being developed and users should have
-no expectation that these interfaces will not change.
 """
 
 import logging
@@ -86,24 +83,38 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
 
   def run_inference(self, batch: Sequence[ExampleT], model: ModelT,
                     **kwargs) -> Iterable[PredictionT]:
-    """Runs inferences on a batch of examples and
-    returns an Iterable of Predictions."""
+    """Runs inferences on a batch of examples.
+    Returns:
+      An Iterable of Predictions.
+    """
     raise NotImplementedError(type(self))
 
   def get_num_bytes(self, batch: Sequence[ExampleT]) -> int:
-    """Returns the number of bytes of data for a batch."""
+    """
+    Returns:
+       The number of bytes of data for a batch.
+    """
     return len(pickle.dumps(batch))
 
   def get_metrics_namespace(self) -> str:
-    """Returns a namespace for metrics collected by RunInference transform."""
+    """
+    Returns:
+       A namespace for metrics collected by RunInference transform.
+    """
     return 'RunInference'
 
   def get_resource_hints(self) -> dict:
-    """Returns resource hints for the transform."""
+    """
+    Returns:
+       Resource hints for the transform.
+    """
     return {}
 
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
-    """Returns kwargs suitable for beam.BatchElements."""
+    """
+    Returns:
+       kwargs suitable for beam.BatchElements.
+    """
     return {}
 
 
@@ -214,9 +225,6 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                                    beam.PCollection[PredictionT]]):
   """An extensible transform for running inferences.
-  Args:
-      model_handler: An implementation of ModelHandler.
-      clock: A clock implementing get_current_time_in_microseconds.
 
   A transform that takes a PCollection of examples (or features) to be used on
   an ML model. It will then output inferences (or predictions) for those
@@ -236,6 +244,11 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock=time,
       **kwargs):
+    """
+      Args:
+        model_handler: An implementation of ModelHandler.
+        clock: A clock implementing the same interface as time.
+    """
     self._model_handler = model_handler
     self._kwargs = kwargs
     self._clock = clock
@@ -359,7 +372,10 @@ def _is_darwin() -> bool:
 
 
 def _get_current_process_memory_in_bytes():
-  """Returns memory usage in bytes."""
+  """
+  Returns:
+    memory usage in bytes.
+  """
 
   if resource is not None:
     usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
