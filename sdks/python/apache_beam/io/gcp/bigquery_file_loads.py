@@ -564,6 +564,7 @@ class TriggerLoadJobs(beam.DoFn):
       schema=None,
       create_disposition=None,
       write_disposition=None,
+      schema_update_options=None,
       test_client=None,
       temporary_tables=False,
       additional_bq_parameters=None,
@@ -583,14 +584,17 @@ class TriggerLoadJobs(beam.DoFn):
       # and write dispositions, which mean that a new table will be created.
       self.create_disposition = None
       self.write_disposition = None
+      self.schema_update_options = None
     else:
       self.create_disposition = create_disposition
       self.write_disposition = write_disposition
+      self.schema_update_options = schema_update_options
 
   def display_data(self):
     result = {
         'create_disposition': str(self.create_disposition),
         'write_disposition': str(self.write_disposition),
+        'schema_update_options': str(self.schema_update_options),
         'additional_bq_params': str(self.additional_bq_parameters),
         'schema': str(self.schema),
         'launchesBigQueryJobs': DisplayDataItem(
@@ -672,6 +676,7 @@ class TriggerLoadJobs(beam.DoFn):
         schema=schema,
         write_disposition=self.write_disposition,
         create_disposition=create_disposition,
+        schema_update_options=self.schema_update_options,
         additional_load_parameters=additional_parameters,
         source_format=self.source_format,
         job_labels=self.bq_io_metadata.add_additional_bq_job_labels(),
@@ -789,6 +794,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       custom_gcs_temp_location=None,
       create_disposition=None,
       write_disposition=None,
+      schema_update_options=None,
       triggering_frequency=None,
       with_auto_sharding=False,
       temp_file_format=None,
@@ -806,6 +812,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
     self.destination = destination
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
+    self.schema_update_options = schema_update_options
     self.triggering_frequency = triggering_frequency
     self.with_auto_sharding = with_auto_sharding
     self.max_file_size = max_file_size or _DEFAULT_MAX_FILE_SIZE
@@ -1015,6 +1022,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 schema=self.schema,
                 write_disposition=self.write_disposition,
                 create_disposition=self.create_disposition,
+                schema_update_options=self.schema_update_options,
                 test_client=self.test_client,
                 temporary_tables=True,
                 additional_bq_parameters=self.additional_bq_parameters,
@@ -1095,6 +1103,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 schema=self.schema,
                 write_disposition=self.write_disposition,
                 create_disposition=self.create_disposition,
+                schema_update_options=self.schema_update_options,
                 test_client=self.test_client,
                 temporary_tables=False,
                 additional_bq_parameters=self.additional_bq_parameters,

@@ -497,6 +497,7 @@ class BigQueryWrapper(object):
       schema=None,
       write_disposition=None,
       create_disposition=None,
+      schema_update_options=None,
       additional_load_parameters=None,
       source_format=None,
       job_labels=None):
@@ -514,6 +515,9 @@ class BigQueryWrapper(object):
     if source_uris is None:
       source_uris = []
 
+    if schema_update_options is None:
+      schema_update_options = []
+
     additional_load_parameters = additional_load_parameters or {}
     job_schema = None if schema == 'SCHEMA_AUTODETECT' else schema
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
@@ -527,6 +531,7 @@ class BigQueryWrapper(object):
                     schema=job_schema,
                     writeDisposition=write_disposition,
                     createDisposition=create_disposition,
+                    schemaUpdateOptions=schema_update_options,
                     sourceFormat=source_format,
                     useAvroLogicalTypes=True,
                     autodetect=schema == 'SCHEMA_AUTODETECT',
@@ -992,6 +997,7 @@ class BigQueryWrapper(object):
       schema=None,
       write_disposition=None,
       create_disposition=None,
+      schema_update_options=None,
       additional_load_parameters=None,
       source_format=None,
       job_labels=None,
@@ -1014,6 +1020,7 @@ class BigQueryWrapper(object):
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
+        schema_update_options=schema_update_options,
         additional_load_parameters=additional_load_parameters,
         source_format=source_format,
         job_labels=job_labels)

@@ -473,6 +473,8 @@ class BigQueryDisposition(object):
   WRITE_TRUNCATE = 'WRITE_TRUNCATE'
   WRITE_APPEND = 'WRITE_APPEND'
   WRITE_EMPTY = 'WRITE_EMPTY'
+  ALLOW_FIELD_ADDITION = 'ALLOW_FIELD_ADDITION'
+  ALLOW_FIELD_RELAXATION = 'ALLOW_FIELD_RELAXATION'
 
   @staticmethod
   def validate_create(disposition):
@@ -493,6 +495,30 @@ class BigQueryDisposition(object):
       raise ValueError(
           'Invalid write disposition %s. Expecting %s' % (disposition, values))
     return disposition
+
+  @staticmethod
+  def validate_update(disposition):
+    values = (
+      BigQueryDisposition.ALLOW_FIELD_ADDITION,
+      BigQueryDisposition.ALLOW_FIELD_RELAXATION)
+    if disposition not in values:
+      raise ValueError(
+        'Invalid schema update option %s. Expecting %s' % (disposition, values))
+    return disposition
+
+  @staticmethod
+  def parse_update(disposition):
+    result = []
+    if disposition:
+      if isinstance(disposition, str):
+        result.append(
+          BigQueryDisposition.validate_update(disposition))
+      elif isinstance(disposition, (tuple, list)):
+        for opt in disposition:
+          result.append(
+            BigQueryDisposition.validate_update(opt))
+    return result
+
 
 
 class BigQueryQueryPriority(object):
@@ -1345,6 +1371,7 @@ class BigQuerySink(dataflow_io.NativeSink):
       schema=None,
       create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
       write_disposition=BigQueryDisposition.WRITE_EMPTY,
+      schema_update_options=None,
       validate=False,
       coder=None,
       kms_key=None):
@@ -1386,6 +1413,18 @@ bigquery_v2_messages.TableSchema` object or a single string  of the form
           * :attr:`BigQueryDisposition.WRITE_APPEND`: add to existing rows.
           * :attr:`BigQueryDisposition.WRITE_EMPTY`: fail the write if table not
             empty.
+
+      schema_update_options (Iterable[BigQueryDisposition]): An iterable of
+        strings describing which schema mutations are allowed as side effects.
+        Schema update options are supported when `write_disposition` is set
+        to `WRITE_APPEND`, or when `write_disposition` is set to
+        `WRITE_TRUNCATE` for a destination that is a partition of an
+        existing table. Possible values are:
+
+          * :attr:`BigQueryDisposition.ALLOW_FIELD_ADDITION`: allow adding
+            a nullable field to the schema.
+          * :attr:`BigQueryDisposition.ALLOW_FIELD_RELAXATION`: allow relaxing
+            a required field in the original schema to nullable.
 
       validate (bool): If :data:`True`, various checks will be done when sink
         gets initialized (e.g., is table present given the disposition
@@ -1446,6 +1485,9 @@ bigquery_v2_messages.TableSchema` object.
         create_disposition)
     self.write_disposition = BigQueryDisposition.validate_write(
         write_disposition)
+    self.schema_update_options = BigQueryDisposition.parse_update(
+        schema_update_options)
+
     self.validate = validate
     self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
     self.kms_key = kms_key
@@ -1513,6 +1555,7 @@ class BigQueryWriteFn(DoFn):
       schema=None,
       create_disposition=None,
       write_disposition=None,
+      schema_update_options=None,
       kms_key=None,
       test_client=None,
       max_buffered_rows=None,
@@ -1539,10 +1582,18 @@ class BigQueryWriteFn(DoFn):
         - BigQueryDisposition.CREATE_NEVER: fail the write if does not exist.
       write_disposition: A string describing what happens if the table has
         already some data. Possible values are:
-        -  BigQueryDisposition.WRITE_TRUNCATE: delete existing rows.
-        -  BigQueryDisposition.WRITE_APPEND: add to existing rows.
-        -  BigQueryDisposition.WRITE_EMPTY: fail the write if table not empty.
+        - BigQueryDisposition.WRITE_TRUNCATE: delete existing rows.
+        - BigQueryDisposition.WRITE_APPEND: add to existing rows.
+        - BigQueryDisposition.WRITE_EMPTY: fail the write if table not empty.
         For streaming pipelines WriteTruncate can not be used.
+      schema_update_options: An iterable of strings describing which schema
+        mutations are allowed as side effects.  Possible values are:
+        - BigQueryDisposition.ALLOW_FIELD_ADDIION: allow adding a nullable
+          field to the schema.
+        - BigQueryDisposition.ALLOW_FIELD_ELAXATION: allow relaxing a required
+          field in the original schema to nullable.
+        Schema update options are supported when `write_disposition` is set
+        to `WRITE_APPEND`.
       kms_key: Optional Cloud KMS key name for use when creating new tables.
       test_client: Override the default bigquery client used for testing.
 
@@ -1583,6 +1634,7 @@ class BigQueryWriteFn(DoFn):
       raise ValueError(
           'Write disposition %s is not supported for'
           ' streaming inserts to BigQuery' % write_disposition)
+    self.schema_update_options = schema_update_options
     self._rows_buffer = []
     self._reset_rows_buffer()
 
@@ -1618,6 +1670,7 @@ class BigQueryWriteFn(DoFn):
         'retry_strategy': self._retry_strategy,
         'create_disposition': str(self.create_disposition),
         'write_disposition': str(self.write_disposition),
+        'schema_update_options': str(self.schema_update_options),
         'additional_bq_parameters': str(self.additional_bq_parameters),
         'ignore_insert_ids': str(self.ignore_insert_ids),
         'ignore_unknown_columns': str(self.ignore_unknown_columns)
@@ -1845,6 +1898,7 @@ class _StreamToBigQuery(PTransform):
       triggering_frequency,
       create_disposition,
       write_disposition,
+      schema_update_options,
       kms_key,
       retry_strategy,
       additional_bq_parameters,
@@ -1861,6 +1915,7 @@ class _StreamToBigQuery(PTransform):
     self.triggering_frequency = triggering_frequency
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
+    self.schema_update_options = schema_update_options
     self.kms_key = kms_key
     self.retry_strategy = retry_strategy
     self.test_client = test_client
@@ -1888,6 +1943,7 @@ class _StreamToBigQuery(PTransform):
         batch_size=self.batch_size,
         create_disposition=self.create_disposition,
         write_disposition=self.write_disposition,
+        schema_update_options=self.schema_update_options,
         kms_key=self.kms_key,
         retry_strategy=self.retry_strategy,
         test_client=self.test_client,
@@ -1973,6 +2029,7 @@ class WriteToBigQuery(PTransform):
       schema=None,
       create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
       write_disposition=BigQueryDisposition.WRITE_APPEND,
+      schema_update_options=None,
       kms_key=None,
       batch_size=None,
       max_file_size=None,
@@ -2042,6 +2099,19 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           empty.
 
         For streaming pipelines WriteTruncate can not be used.
+
+      schema_update_options (Iterable[BigQueryDisposition]): An iterable of
+        strings describing which schema mutations are allowed as side effects.
+        Schema update options are supported when `write_disposition` is set
+        to `WRITE_APPEND`, or when `write_disposition` is set to
+        `WRITE_TRUNCATE` for a destination that is a partition of an
+        existing table. Possible values are:
+
+        * :attr:`BigQueryDisposition.ALLOW_FIELD_ADDITION`: allow adding
+          a nullable field to the schema.
+        * :attr:`BigQueryDisposition.ALLOW_FIELD_RELAXATION`: allow relaxing
+          a required field in the original schema to nullable.
+
       kms_key (str): Optional Cloud KMS key name for use when creating new
         tables.
       batch_size (int): Number of rows to be written to BQ per streaming API
@@ -2146,6 +2216,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         create_disposition)
     self.write_disposition = BigQueryDisposition.validate_write(
         write_disposition)
+    self.schema_update_options = BigQueryDisposition.parse_update(
+        schema_update_options)
+
     if schema == SCHEMA_AUTODETECT:
       self.schema = schema
     else:
@@ -2227,6 +2300,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           triggering_frequency=self.triggering_frequency,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
+          schema_update_options=self.schema_update_options,
           kms_key=self.kms_key,
           retry_strategy=self.insert_retry_strategy,
           additional_bq_parameters=self.additional_bq_parameters,
@@ -2281,6 +2355,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           schema=self.schema,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
+          schema_update_options=self.schema_update_options,
           triggering_frequency=triggering_frequency,
           with_auto_sharding=self.with_auto_sharding,
           temp_file_format=self._temp_file_format,
@@ -2330,6 +2405,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         'schema': self.schema,
         'create_disposition': self.create_disposition,
         'write_disposition': self.write_disposition,
+        'schema_update_options': self.schema_update_options,
         'kms_key': self.kms_key,
         'batch_size': self.batch_size,
         'max_file_size': self.max_file_size,
