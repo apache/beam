@@ -149,5 +149,10 @@ public class ShardedKey<K> {
       shardCoder.registerByteSizeObserver(shardedKey.shardId, observer);
       keyCoder.registerByteSizeObserver(shardedKey.key, observer);
     }
+
+    @Override
+    public List<? extends org.apache.beam.sdk.coders.Coder<?>> getComponents() {
+      return Collections.singletonList(keyCoder);
+    }
   }
 }

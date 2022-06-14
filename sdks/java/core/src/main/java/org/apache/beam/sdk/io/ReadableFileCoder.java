@@ -82,4 +82,9 @@ public class ReadableFileCoder extends StructuredCoder<FileIO.ReadableFile> {
       verifyDeterministic(this, "Metadata coder must be deterministic", getMetadataCoder());
     }
   }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Collections.singletonList(metadataCoder);
+  }
 }

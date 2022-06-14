@@ -401,5 +401,10 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {}
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Collections.singletonList(elementCoder);
+    }
   }
 }

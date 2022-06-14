@@ -923,6 +923,11 @@ public class PCollectionViews {
       verifyDeterministic(valueCoder, "value coder");
       verifyDeterministic(metadataCoder, "metadata coder");
     }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Arrays.asList(valueCoder, metadataCoder);
+    }
   }
 
   /**

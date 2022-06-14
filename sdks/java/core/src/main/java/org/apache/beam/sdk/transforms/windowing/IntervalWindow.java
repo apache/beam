@@ -192,5 +192,10 @@ public class IntervalWindow extends BoundedWindow implements Comparable<Interval
     public List<? extends Coder<?>> getCoderArguments() {
       return Collections.emptyList();
     }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Collections.emptyList();
+    }
   }
 }

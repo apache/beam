@@ -45,9 +45,7 @@ public abstract class StructuredCoder<T> extends Coder<T> {
    *
    * <p>The default components will be equal to the value returned by {@link #getCoderArguments()}.
    */
-  public List<? extends Coder<?>> getComponents() {
-    return getCoderArguments();
-  }
+  public abstract List<? extends Coder<?>> getComponents();
 
   /**
    * {@inheritDoc}

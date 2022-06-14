@@ -20,6 +20,7 @@ package org.apache.beam.sdk.coders;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -61,5 +62,10 @@ public class SnappyCoder<T> extends StructuredCoder<T> {
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     innerCoder.verifyDeterministic();
+  }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Collections.singletonList(innerCoder);
   }
 }

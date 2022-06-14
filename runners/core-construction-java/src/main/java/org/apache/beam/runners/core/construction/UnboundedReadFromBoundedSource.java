@@ -253,6 +253,11 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
         throw new NonDeterministicException(
             this, "CheckpointCoder uses Java Serialization, which may be non-deterministic.");
       }
+
+      @Override
+      public List<? extends Coder<?>> getComponents() {
+        return Collections.singletonList(elemCoder);
+      }
     }
 
     /**

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -70,5 +71,10 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
 
   protected SetCoder(Coder<T> elemCoder) {
     super(elemCoder, "Set");
+  }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Collections.singletonList(getElemCoder());
   }
 }

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.kafka;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -54,4 +55,9 @@ public class TopicPartitionCoder extends StructuredCoder<TopicPartition> {
 
   @Override
   public void verifyDeterministic() throws NonDeterministicException {}
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Collections.emptyList();
+  }
 }

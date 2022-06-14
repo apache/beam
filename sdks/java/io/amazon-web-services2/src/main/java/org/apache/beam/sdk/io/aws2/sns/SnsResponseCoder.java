@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.aws2.sns;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -94,5 +95,10 @@ class SnsResponseCoder<T> extends StructuredCoder<SnsResponse<T>> {
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     elementCoder.verifyDeterministic();
+  }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Collections.singletonList(elementCoder);
   }
 }

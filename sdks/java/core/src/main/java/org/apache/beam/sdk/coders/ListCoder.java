@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.coders;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
@@ -76,5 +77,10 @@ public class ListCoder<T> extends IterableLikeCoder<T, List<T>> {
   public TypeDescriptor<List<T>> getEncodedTypeDescriptor() {
     return new TypeDescriptor<List<T>>(getClass()) {}.where(
         new TypeParameter<T>() {}, getElemCoder().getEncodedTypeDescriptor());
+  }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Collections.singletonList(getElemCoder());
   }
 }

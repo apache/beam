@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.coders;
 
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -78,5 +79,10 @@ public class DequeCoder<T> extends IterableLikeCoder<T, Deque<T>> {
   public TypeDescriptor<Deque<T>> getEncodedTypeDescriptor() {
     return new TypeDescriptor<Deque<T>>(getClass()) {}.where(
         new TypeParameter<T>() {}, getElemCoder().getEncodedTypeDescriptor());
+  }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Collections.singletonList(getElemCoder());
   }
 }

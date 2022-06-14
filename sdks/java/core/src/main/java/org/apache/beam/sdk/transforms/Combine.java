@@ -645,6 +645,11 @@ public class Combine {
     public void verifyDeterministic() throws NonDeterministicException {
       valueCoder.verifyDeterministic();
     }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Collections.singletonList(valueCoder);
+    }
   }
 
   /**
@@ -2048,6 +2053,11 @@ public class Combine {
         public void verifyDeterministic() throws Coder.NonDeterministicException {
           inputCoder.verifyDeterministic();
           accumCoder.verifyDeterministic();
+        }
+
+        @Override
+        public List<? extends Coder<?>> getComponents() {
+          return Arrays.asList(inputCoder, accumCoder);
         }
       }
     }

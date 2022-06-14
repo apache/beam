@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -59,5 +60,10 @@ public class ShardedKeyCoder<KeyT> extends StructuredCoder<ShardedKey<KeyT>> {
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     keyCoder.verifyDeterministic();
+  }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Collections.singletonList(keyCoder);
   }
 }

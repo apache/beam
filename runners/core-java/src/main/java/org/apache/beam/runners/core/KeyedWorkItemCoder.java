@@ -20,6 +20,7 @@ package org.apache.beam.runners.core;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.TimerInternals.TimerDataCoderV2;
@@ -103,5 +104,10 @@ public class KeyedWorkItemCoder<K, ElemT> extends StructuredCoder<KeyedWorkItem<
   @Override
   public boolean consistentWithEquals() {
     return false;
+  }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Arrays.asList(keyCoder, elemCoder, windowCoder);
   }
 }

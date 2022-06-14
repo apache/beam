@@ -20,6 +20,7 @@ package org.apache.beam.sdk.coders;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
@@ -87,5 +88,10 @@ public class TimestampPrefixingWindowCoder<T extends BoundedWindow> extends Stru
   public void registerByteSizeObserver(T value, ElementByteSizeObserver observer) throws Exception {
     InstantCoder.of().registerByteSizeObserver(value.maxTimestamp(), observer);
     windowCoder.registerByteSizeObserver(value, observer);
+  }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Collections.singletonList(windowCoder);
   }
 }

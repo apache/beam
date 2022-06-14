@@ -151,4 +151,9 @@ public class ProducerRecordCoder<K, V> extends StructuredCoder<ProducerRecord<K,
   public boolean consistentWithEquals() {
     return kvCoder.consistentWithEquals();
   }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return kvCoder.getComponents();
+  }
 }

@@ -1334,5 +1334,10 @@ public class Watch {
     public void verifyDeterministic() throws NonDeterministicException {
       outputCoder.verifyDeterministic();
     }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Arrays.asList(outputCoder, terminationStateCoder);
+    }
   }
 }

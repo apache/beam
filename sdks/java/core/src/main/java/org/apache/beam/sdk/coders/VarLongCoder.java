@@ -45,6 +45,11 @@ public class VarLongCoder extends StructuredCoder<Long> {
   private VarLongCoder() {}
 
   @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Collections.emptyList();
+  }
+
+  @Override
   public void encode(Long value, OutputStream outStream) throws IOException, CoderException {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");

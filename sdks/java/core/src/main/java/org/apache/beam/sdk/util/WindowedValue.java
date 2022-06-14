@@ -725,6 +725,11 @@ public abstract class WindowedValue<T> {
     public List<? extends Coder<?>> getCoderArguments() {
       return Collections.singletonList(valueCoder);
     }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Collections.singletonList(valueCoder);
+    }
   }
 
   /**

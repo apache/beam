@@ -705,6 +705,11 @@ public class CombineFns {
         coders.get(i).verifyDeterministic();
       }
     }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return coders;
+    }
   }
 
   private static <OutputT> void checkUniqueness(

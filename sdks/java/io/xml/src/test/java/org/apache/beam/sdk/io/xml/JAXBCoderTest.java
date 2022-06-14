@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
@@ -206,6 +207,11 @@ public class JAXBCoderTest {
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
       jaxbCoder.verifyDeterministic();
+    }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Collections.singletonList(jaxbCoder);
     }
   }
 

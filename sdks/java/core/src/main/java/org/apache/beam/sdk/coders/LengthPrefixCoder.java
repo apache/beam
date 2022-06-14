@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -123,5 +124,10 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   @Override
   public boolean isRegisterByteSizeObserverCheap(T value) {
     return valueCoder.isRegisterByteSizeObserverCheap(value);
+  }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Collections.singletonList(valueCoder);
   }
 }

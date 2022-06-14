@@ -20,6 +20,7 @@ package org.apache.beam.sdk.coders;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -186,5 +187,10 @@ public class NullableCoder<T> extends StructuredCoder<@Nullable T> {
   @Override
   public TypeDescriptor<T> getEncodedTypeDescriptor() {
     return valueCoder.getEncodedTypeDescriptor();
+  }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Collections.singletonList(valueCoder);
   }
 }

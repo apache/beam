@@ -696,6 +696,11 @@ public class Read {
         verifyDeterministic(checkpointCoder, "checkpoint coder not deterministic");
         verifyDeterministic(InstantCoder.of(), "watermark coder not deterministic");
       }
+
+      @Override
+      public List<? extends Coder<?>> getComponents() {
+        return Arrays.asList(sourceCoder, checkpointCoder);
+      }
     }
 
     /**

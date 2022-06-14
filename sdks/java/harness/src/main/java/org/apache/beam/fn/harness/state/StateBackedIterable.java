@@ -170,6 +170,11 @@ public class StateBackedIterable<T> implements Iterable<T>, Serializable {
           stateBackedIterable.request.getStateKey().getRunner().getKey().size(), outStream);
       stateBackedIterable.request.getStateKey().getRunner().getKey().writeTo(outStream);
     }
+
+    @Override
+    public List<? extends org.apache.beam.sdk.coders.Coder<?>> getComponents() {
+      return Collections.singletonList(getElemCoder());
+    }
   }
 
   /** Additional parameters required by the {@link StateBackedIterable.Coder}. */

@@ -185,4 +185,9 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
             new TypeParameter<K>() {}, keyCoder.getEncodedTypeDescriptor())
         .where(new TypeParameter<V>() {}, valueCoder.getEncodedTypeDescriptor());
   }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Arrays.asList(keyCoder, valueCoder);
+  }
 }

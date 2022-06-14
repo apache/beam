@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Internal;
@@ -130,6 +131,11 @@ public class ValueWithRecordId<ValueT> {
 
     Coder<ValueT> valueCoder;
     ByteArrayCoder idCoder;
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Collections.singletonList(valueCoder);
+    }
   }
 
   /** {@link DoFn} to turn a {@code ValueWithRecordId<T>} back to the value {@code T}. */

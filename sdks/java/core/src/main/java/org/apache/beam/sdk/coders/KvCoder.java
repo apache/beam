@@ -136,4 +136,9 @@ public class KvCoder<K extends @Nullable Object, V extends @Nullable Object>
             new TypeParameter<K>() {}, keyCoder.getEncodedTypeDescriptor())
         .where(new TypeParameter<V>() {}, valueCoder.getEncodedTypeDescriptor());
   }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return Arrays.asList(keyCoder, valueCoder);
+  }
 }

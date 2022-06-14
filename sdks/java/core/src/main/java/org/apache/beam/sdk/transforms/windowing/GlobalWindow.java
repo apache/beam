@@ -22,6 +22,7 @@ import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -82,6 +83,11 @@ public class GlobalWindow extends BoundedWindow {
     }
 
     private Coder() {}
+
+    @Override
+    public List<? extends org.apache.beam.sdk.coders.Coder<?>> getComponents() {
+      return Collections.emptyList();
+    }
   }
 
   /** Parses the max timestamp for global windows from the proto. */

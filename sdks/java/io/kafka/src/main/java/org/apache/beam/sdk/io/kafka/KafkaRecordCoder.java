@@ -142,4 +142,9 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
   public boolean consistentWithEquals() {
     return kvCoder.consistentWithEquals();
   }
+
+  @Override
+  public List<? extends Coder<?>> getComponents() {
+    return kvCoder.getComponents();
+  }
 }

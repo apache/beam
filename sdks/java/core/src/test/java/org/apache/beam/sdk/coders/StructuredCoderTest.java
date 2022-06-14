@@ -80,6 +80,11 @@ public class StructuredCoderTest {
     public boolean consistentWithEquals() {
       return true;
     }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Collections.emptyList();
+    }
   }
 
   /** A boxed {@code int} with {@code equals()} that compares object identity. */
@@ -138,6 +143,11 @@ public class StructuredCoderTest {
     public boolean consistentWithEquals() {
       return false;
     }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Collections.emptyList();
+    }
   }
 
   /**
@@ -175,7 +185,7 @@ public class StructuredCoderTest {
     ObjectIdentityBooleanCoder coderWithArgs =
         new ObjectIdentityBooleanCoder() {
           @Override
-          public List<? extends Coder<?>> getCoderArguments() {
+          public List<? extends Coder<?>> getComponents() {
             return ImmutableList.<Coder<?>>builder()
                 .add(BigDecimalCoder.of(), BigIntegerCoder.of())
                 .build();
@@ -220,6 +230,11 @@ public class StructuredCoderTest {
 
     @Override
     public void verifyDeterministic() throws Coder.NonDeterministicException {}
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      throw new UnsupportedOperationException();
+    }
   }
 
   private static class FooTwo extends Foo<String> {}

@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -326,6 +327,11 @@ public interface TimerInternals {
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(this, "window coder must be deterministic", windowCoder);
     }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Collections.singletonList(windowCoder);
+    }
   }
 
   /**
@@ -371,6 +377,11 @@ public interface TimerInternals {
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(this, "window coder must be deterministic", windowCoder);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Collections.singletonList(windowCoder);
     }
   }
 }

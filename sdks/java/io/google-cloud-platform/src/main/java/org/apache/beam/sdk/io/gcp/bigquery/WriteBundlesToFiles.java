@@ -158,6 +158,11 @@ class WriteBundlesToFiles<DestinationT extends @NonNull Object, ElementT>
 
     @Override
     public void verifyDeterministic() {}
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Collections.singletonList(destinationCoder);
+    }
   }
 
   WriteBundlesToFiles(
