@@ -1494,6 +1494,91 @@ bigquery_v2_messages.TableSchema` object.
         buffer_size=buffer_size)
 
 
+class WriteResult:
+  def __init__(
+      self,
+      method=None,
+      destination=None,
+      schema=None,
+      destination_load_jobid_pairs=None,
+      destination_file_pairs=None,
+      destination_copy_jobid_pairs=None,
+      failed_rows=None,
+      failed_rows_with_errors=None):
+
+    self.method = method
+    self.destination = destination
+    self.schema = schema
+    self.destination_load_jobid_pairs = destination_load_jobid_pairs
+    self.destination_file_pairs = destination_file_pairs
+    self.destination_copy_jobid_pairs = destination_copy_jobid_pairs
+    self.failed_rows = failed_rows
+    self.failed_rows_with_errors = failed_rows_with_errors
+
+    self.config = {
+        'method': method,
+        'destination': destination,
+        'schema': schema,
+    }
+
+    from apache_beam.io.gcp.bigquery_file_loads import BigQueryBatchFileLoads
+    self.attributes = {
+        BigQueryWriteFn.FAILED_ROWS: self.get_failed_rows,
+        BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS: self.
+        get_failed_rows_with_errors,
+        BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS: self.
+        get_destination_load_jobid_pairs,
+        BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS: self.
+        get_destination_file_pairs,
+        BigQueryBatchFileLoads.DESTINATION_COPY_JOBID_PAIRS: self.
+        get_destination_copy_jobid_pairs,
+        'write_configuration': self.get_write_configuration
+    }
+
+  def get_write_configuration(self):
+    return self.config
+
+  def validate(self, method, attribute):
+    if self.method != method:
+      raise ValueError(
+          f'Cannot get {attribute} because they are not produced '
+          f'by {self.method} write method. Note: only {method} '
+          'produces this attribute.')
+
+  def get_destination_load_jobid_pairs(self):
+    self.validate('FILE_LOADS', 'destination-load job ID pairs')
+
+    return self.destination_load_jobid_pairs
+
+  def get_destination_file_pairs(self):
+    self.validate('FILE_LOADS', 'destination-file pairs')
+
+    return self.destination_file_pairs
+
+  def get_destination_copy_jobid_pairs(self):
+    self.validate('FILE_LOADS', 'destination-copy job ID pairs')
+
+    return self.destination_copy_jobid_pairs
+
+  def get_failed_rows(self):
+    self.validate('STREAMING_INSERTS', 'failed rows')
+
+    return self.failed_rows
+
+  def get_failed_rows_with_errors(self):
+    self.validate('STREAMING_INSERTS', 'failed rows with errors')
+
+    return self.failed_rows_with_errors
+
+  def __getitem__(self, key):
+    if key not in self.attributes:
+      raise ValueError(
+          f'Error trying to access nonexistent attribute `{key}` in write '
+          'result. Please see __documentation__ for available attributes.')
+
+    return self.attributes[key].__call__()
+
+
 _KNOWN_TABLES = set()
 
 
@@ -2235,11 +2320,13 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           with_auto_sharding=self.with_auto_sharding,
           test_client=self.test_client)
 
-      return {
-          BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS],
-          BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS: outputs[
-              BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS],
-      }
+      return WriteResult(
+          method=WriteToBigQuery.Method.STREAMING_INSERTS,
+          destination=self.table_reference,
+          schema=self.schema,
+          failed_rows=outputs[BigQueryWriteFn.FAILED_ROWS],
+          failed_rows_with_errors=outputs[
+              BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS])
     else:
       if self._temp_file_format == bigquery_tools.FileFormat.AVRO:
         if self.schema == SCHEMA_AUTODETECT:
@@ -2269,14 +2356,14 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
 
         find_in_nested_dict(self.schema)
 
-      from apache_beam.io.gcp import bigquery_file_loads
+      from apache_beam.io.gcp.bigquery_file_loads import BigQueryBatchFileLoads
       # Only cast to int when a value is given.
       # We only use an int for BigQueryBatchFileLoads
       if self.triggering_frequency is not None:
         triggering_frequency = int(self.triggering_frequency)
       else:
         triggering_frequency = self.triggering_frequency
-      return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
+      output = pcoll | BigQueryBatchFileLoads(
           destination=self.table_reference,
           schema=self.schema,
           create_disposition=self.create_disposition,
@@ -2294,6 +2381,17 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           validate=self._validate,
           is_streaming_pipeline=is_streaming_pipeline,
           load_job_project_id=self.load_job_project_id)
+
+      return WriteResult(
+          method=WriteToBigQuery.Method.FILE_LOADS,
+          destination=self.table_reference,
+          schema=self.schema,
+          destination_load_jobid_pairs=output[
+              BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS],
+          destination_file_pairs=output[
+              BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS],
+          destination_copy_jobid_pairs=output[
+              BigQueryBatchFileLoads.DESTINATION_COPY_JOBID_PAIRS])
 
   def display_data(self):
     res = {}
