@@ -105,8 +105,11 @@ func hook() {
 
 	// Since Init() is hijacking main, it's appropriate to do as main
 	// does, and establish the background context here.
-
-	ctx := grpcx.WriteWorkerID(context.Background(), *id)
+	// We produce a cancelFn here so runs in Loopback mode and similar can clean up
+	// any leftover goroutines.
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+	ctx = grpcx.WriteWorkerID(ctx, *id)
 	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint); err != nil {
 		fmt.Fprintf(os.Stderr, "Worker failed: %v\n", err)
 		switch ShutdownMode {
