@@ -23,7 +23,7 @@ import InfluxDBCredentialsHelper
 String jobName = "beam_PerformanceTests_JDBC"
 
 job(jobName) {
-  common.setTopLevelMainJobProperties(delegate)
+  common.setTopLevelMainJobProperties(delegate, 'master', 100, true, 'beam-perf')
   common.setAutoJob(delegate, 'H H/6 * * *')
   // [Issue#21824] Disable trigger
   //  common.enablePhraseTriggeringFromPullRequest(

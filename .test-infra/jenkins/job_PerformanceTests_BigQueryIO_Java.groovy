@@ -117,7 +117,7 @@ jobConfigs.forEach { jobConfig -> createPostCommitJob(jobConfig)}
 private void createPostCommitJob(jobConfig) {
   job(jobConfig.name) {
     description(jobConfig.description)
-    common.setTopLevelMainJobProperties(delegate)
+    common.setTopLevelMainJobProperties(delegate, 'master', 100, true, 'beam-perf')
     // [Issue#21824] Disable trigger
     // common.enablePhraseTriggeringFromPullRequest(delegate, jobConfig.title, jobConfig.triggerPhrase)
     common.setAutoJob(delegate, 'H H/6 * * *')

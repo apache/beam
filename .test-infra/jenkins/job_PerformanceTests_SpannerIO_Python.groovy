@@ -78,7 +78,7 @@ def spannerio_write_test_2gb = [
 ]
 
 def executeJob = { scope, testConfig ->
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 480)
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 480, true, 'beam-perf')
 
   loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test)
 }

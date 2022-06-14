@@ -65,7 +65,7 @@ private void createPythonPerformanceTestJob(Map testConfig) {
   // This job runs the Beam Python performance tests
   job(testConfig.jobName) {
     // Set default Beam job properties.
-    commonJobProperties.setTopLevelMainJobProperties(delegate)
+    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 100, true, 'beam-perf')
 
     InfluxDBCredentialsHelper.useCredentials(delegate)
 

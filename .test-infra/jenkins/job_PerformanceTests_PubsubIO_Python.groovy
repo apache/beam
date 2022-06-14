@@ -55,7 +55,7 @@ def psio_test = [
 ]
 
 def executeJob = { scope, testConfig ->
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240, true, 'beam-perf')
 
   loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner,
       CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, JOB_SPECIFIC_SWITCHES)

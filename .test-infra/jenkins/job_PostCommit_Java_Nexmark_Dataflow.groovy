@@ -34,7 +34,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       description('Runs the Nexmark suite on the Dataflow runner.')
 
       // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf')
       InfluxDBCredentialsHelper.useCredentials(delegate)
 
       // Gradle goals for this job.

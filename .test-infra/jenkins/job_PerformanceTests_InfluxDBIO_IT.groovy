@@ -21,7 +21,7 @@ import Kubernetes
 String jobName = "beam_PerformanceTests_InfluxDbIO_IT"
 
 job(jobName) {
-  common.setTopLevelMainJobProperties(delegate)
+  common.setTopLevelMainJobProperties(delegate, 'master', 100, true, 'beam-perf')
   common.setAutoJob(delegate,'H H/6 * * *')
   // [Issue#21824] Disable trigger
   //  common.enablePhraseTriggeringFromPullRequest(
