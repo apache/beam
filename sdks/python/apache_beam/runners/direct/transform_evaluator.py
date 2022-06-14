@@ -593,7 +593,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
   """TransformEvaluator for PubSub read."""
 
   # A mapping of transform to _PubSubSubscriptionWrapper.
-  # TODO(Issue 19751): Prevents garbage collection of pipeline instances.
+  # TODO(https://github.com/apache/beam/issues/19751): Prevents garbage collection of pipeline instances.
   _subscription_cache = {}  # type: Dict[AppliedPTransform, str]
 
   def __init__(
@@ -924,7 +924,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     self.output_pcollection = list(self._outputs)[0]
 
     # The output type of a GroupByKey will be Tuple[Any, Any] or more specific.
-    # TODO(Issue 18490): Infer coders earlier.
+    # TODO(https://github.com/apache/beam/issues/18490): Infer coders earlier.
     kv_type_hint = (
         self._applied_ptransform.outputs[None].element_type or
         self._applied_ptransform.transform.get_type_hints().input_types[0][0])

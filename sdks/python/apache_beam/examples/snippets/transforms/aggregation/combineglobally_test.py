@@ -77,7 +77,7 @@ class CombineGloballyTest(unittest.TestCase):
     combineglobally.combineglobally_side_inputs_singleton(
         check_common_items_with_exceptions)
 
-  # TODO: enable side inputs tests after [Issue 19851] is fixed.
+  # TODO: enable side inputs tests after [https://github.com/apache/beam/issues/19851] is fixed.
   # https://github.com/apache/beam/issues/19851
   # def test_combineglobally_side_inputs_iter(self):
   #   combineglobally.combineglobally_side_inputs_iter(

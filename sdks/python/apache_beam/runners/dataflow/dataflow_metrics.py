@@ -288,7 +288,7 @@ def main(argv):
   main method to display MetricResults for a specific --job_id and --project
   which takes only a few seconds.
   """
-  # TODO(Issue 19452): The MetricResults do not show translated step names as
+  # TODO(https://github.com/apache/beam/issues/19452): The MetricResults do not show translated step names as
   # the job_graph is not provided to DataflowMetrics.
   # Import here to avoid adding the dependency for local running scenarios.
   try:

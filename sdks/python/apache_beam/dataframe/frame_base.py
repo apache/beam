@@ -415,12 +415,12 @@ def wont_implement_method(base_type, name, reason=None, explanation=None):
   return wrapper
 
 
-def not_implemented_method(op, issue='Issue 20318', base_type=None):
+def not_implemented_method(op, issue='20318', base_type=None):
   """Generate a stub method for ``op`` that simply raises a NotImplementedError.
 
   For internal use only. No backwards compatibility guarantees."""
   assert base_type is not None, "base_type must be specified"
-  issue_url = f"https://issues.apache.org/jira/{issue}." if issue.startswith("BEAM-") else f"https://github.com/apache/beam/issues/{issue.split(' ')[-1]}"
+  issue_url = f"https://issues.apache.org/jira/{issue}." if issue.startswith("BEAM-") else f"https://github.com/apache/beam/issues/{issue}"
 
   def wrapper(*args, **kwargs):
     raise NotImplementedError(

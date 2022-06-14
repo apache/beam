@@ -1043,7 +1043,7 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
 
     # Elements are encoded as a json strings to allow other languages to
     # decode elements while executing the test stream.
-    # TODO(Issue 19934): Eliminate these gymnastics.
+    # TODO(https://github.com/apache/beam/issues/19934): Eliminate these gymnastics.
     test_stream = TestStream(coder=coders.StrUtf8Coder()).with_output_types(str)
     for action, params in transcript:
       if action == 'expect':
@@ -1180,7 +1180,7 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
        | beam.ParDo(Check(self.allow_out_of_order)))
 
     with TestPipeline() as p:
-      # TODO(Issue 19933): Pass this during pipeline construction.
+      # TODO(https://github.com/apache/beam/issues/19933): Pass this during pipeline construction.
       p._options.view_as(StandardOptions).streaming = True
       p._options.view_as(TypeOptions).allow_unsafe_triggers = True
 

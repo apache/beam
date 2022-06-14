@@ -65,7 +65,7 @@ class DictToObject(object):
 
 class TestDataflowMetrics(unittest.TestCase):
 
-  # TODO(Issue 19258): Write a dump tool to generate this fake data, or
+  # TODO(https://github.com/apache/beam/issues/19258): Write a dump tool to generate this fake data, or
   # somehow make this easier to maintain.
   ONLY_COUNTERS_LIST = {
       "metrics": [

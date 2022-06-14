@@ -19,7 +19,7 @@
 
 It demonstrate the use of logging and assert_that in streaming mode.
 
-This workflow only works with the DirectRunner (Issue 18709).
+This workflow only works with the DirectRunner (https://github.com/apache/beam/issues/18709).
 
 Usage:
 python streaming_wordcount_debugging.py

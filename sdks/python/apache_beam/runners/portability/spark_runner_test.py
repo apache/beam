@@ -139,38 +139,38 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
 
   def test_metrics(self):
     # Skip until Spark runner supports metrics.
-    raise unittest.SkipTest("Issue 19496")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19496")
 
   def test_sdf(self):
     # Skip until Spark runner supports SDF.
-    raise unittest.SkipTest("Issue 19468")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
 
   def test_sdf_with_watermark_tracking(self):
     # Skip until Spark runner supports SDF.
-    raise unittest.SkipTest("Issue 19468")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
 
   def test_sdf_with_sdf_initiated_checkpointing(self):
     # Skip until Spark runner supports SDF.
-    raise unittest.SkipTest("Issue 19468")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
 
   def test_sdf_synthetic_source(self):
     # Skip until Spark runner supports SDF.
-    raise unittest.SkipTest("Issue 19468")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
 
   def test_callbacks_with_exception(self):
     # Skip until Spark runner supports bundle finalization.
-    raise unittest.SkipTest("Issue 19517")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19517")
 
   def test_register_finalizations(self):
     # Skip until Spark runner supports bundle finalization.
-    raise unittest.SkipTest("Issue 19517")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19517")
 
   def test_sdf_with_dofn_as_watermark_estimator(self):
     # Skip until Spark runner supports SDF and self-checkpoint.
-    raise unittest.SkipTest("Issue 19468")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
 
   def test_pardo_dynamic_timer(self):
-    raise unittest.SkipTest("Issue 20179")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/20179")
 
   def test_flattened_side_input(self):
     # Blocked on support for transcoding
@@ -178,7 +178,7 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     super().test_flattened_side_input(with_transcoding=False)
 
   def test_custom_merging_window(self):
-    raise unittest.SkipTest("Issue 20641")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/20641")
 
   # Inherits all other tests from PortableRunnerTest.
 

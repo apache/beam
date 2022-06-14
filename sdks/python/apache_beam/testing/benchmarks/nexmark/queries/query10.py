@@ -47,7 +47,7 @@ class OutputFile(object):
 
 
 def open_writable_gcs_file(options, filename):
-  # TODO: [Issue 20670] it seems that beam team has not yet decided about this
+  # TODO: [https://github.com/apache/beam/issues/20670] it seems that beam team has not yet decided about this
   #   method and it is left blank and unspecified.
   pass
 

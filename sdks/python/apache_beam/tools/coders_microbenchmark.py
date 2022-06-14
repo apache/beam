@@ -207,7 +207,7 @@ def run_coder_benchmarks(
     num_runs, input_size, seed, verbose, filter_regex='.*'):
   random.seed(seed)
 
-  # TODO(Issue 18788): Pick coders using type hints, for example:
+  # TODO(https://github.com/apache/beam/issues/18788): Pick coders using type hints, for example:
   # tuple_coder = typecoders.registry.get_coder(typing.Tuple[int, ...])
   benchmarks = [
       coder_benchmark_factory(coders.FastPrimitivesCoder(), small_int),

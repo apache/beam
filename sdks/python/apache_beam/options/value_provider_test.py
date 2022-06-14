@@ -31,7 +31,7 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 
 
-# TODO(Issue 18197): Require unique names only within a test.
+# TODO(https://github.com/apache/beam/issues/18197): Require unique names only within a test.
 # For now, <file name acronym>_vp_arg<number> will be the convention
 # to name value-provider arguments in tests, as opposed to
 # <file name acronym>_non_vp_arg<number> for non-value-provider arguments.

@@ -405,7 +405,7 @@ class Clusters:
   # The minimum worker number to create a Dataproc cluster.
   DATAPROC_MINIMUM_WORKER_NUM = 2
 
-  # TODO(Issue 21527): Fix the Dataproc image version after a released image
+  # TODO(https://github.com/apache/beam/issues/21527): Fix the Dataproc image version after a released image
   # contains all missing dependencies for Flink to run.
   # DATAPROC_IMAGE_VERSION = '2.0.XX-debian10'
 

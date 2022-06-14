@@ -795,7 +795,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   def create_data_channel(self, remote_grpc_port):
     # type: (beam_fn_api_pb2.RemoteGrpcPort) -> GrpcClientDataChannel
     url = remote_grpc_port.api_service_descriptor.url
-    # TODO(Issue 19737): this can return None if url is falsey, but this seems
+    # TODO(https://github.com/apache/beam/issues/19737): this can return None if url is falsey, but this seems
     #  incorrect, as code that calls this method seems to always expect
     #  non-Optional values.
     return self.create_data_channel_from_url(url)  # type: ignore[return-value]

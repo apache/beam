@@ -543,7 +543,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                     if row['foundation'] == 'apache']),
           label='verifyApache')
 
-  @unittest.skip('Issue 21269')
+  @unittest.skip('https://github.com/apache/beam/issues/21269')
   def test_find_orphaned_files(self):
     dir = self._new_tempdir()
 
@@ -639,7 +639,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
     # Use state on the TestCase class, since other references would be pickled
     # into a closure and not have the desired side effects.
     #
-    # TODO(Issue 18987): Use assert_that after it works for the cases here in
+    # TODO(https://github.com/apache/beam/issues/18987): Use assert_that after it works for the cases here in
     # streaming mode.
     WriteFilesTest.all_records = []
 
@@ -652,7 +652,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
 
       ts.add_elements([('key', '%s' % elm)])
       if timestamp % 5 == 0 and timestamp != 0:
-        # TODO(Issue 18721): Add many firings per window after getting PaneInfo.
+        # TODO(https://github.com/apache/beam/issues/18721): Add many firings per window after getting PaneInfo.
         ts.advance_processing_time(5)
         ts.advance_watermark_to(timestamp)
     ts.advance_watermark_to_infinity()

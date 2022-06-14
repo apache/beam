@@ -229,7 +229,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
   Models for supported frameworks can be loaded via a URI. Supported services
   can also be used.
 
-  TODO(Issue 21436): Add and link to help documentation
+  TODO(https://github.com/apache/beam/issues/21436): Add and link to help documentation
   """
   def __init__(
       self,
@@ -240,14 +240,14 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     self._kwargs = kwargs
     self._clock = clock
 
-  # TODO(Issue 21447): Add batch_size back off in the case there
+  # TODO(https://github.com/apache/beam/issues/21447): Add batch_size back off in the case there
   # are functional reasons large batch sizes cannot be handled.
   def expand(
       self, pcoll: beam.PCollection[ExampleT]) -> beam.PCollection[PredictionT]:
     resource_hints = self._model_handler.get_resource_hints()
     return (
         pcoll
-        # TODO(Issue 21440): Hook into the batching DoFn APIs.
+        # TODO(https://github.com/apache/beam/issues/21440): Hook into the batching DoFn APIs.
         | beam.BatchElements(**self._model_handler.batch_elements_kwargs())
         | (
             beam.ParDo(
@@ -327,7 +327,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
           load_model_latency_ms, model_byte_size)
       return model
 
-    # TODO(Issue 21443): Investigate releasing model.
+    # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing model.
     return self._shared_model_handle.acquire(load)
 
   def setup(self):
@@ -350,7 +350,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     return predictions
 
   def finish_bundle(self):
-    # TODO(Issue 21435): Figure out why there is a cache.
+    # TODO(https://github.com/apache/beam/issues/21435): Figure out why there is a cache.
     self._metrics_collector.update_metrics_with_cache()
 
 

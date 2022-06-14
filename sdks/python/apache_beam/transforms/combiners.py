@@ -373,7 +373,7 @@ class _MergeTopPerBundle(core.DoFn):
               for element in bundle
           ]
           continue
-        # TODO(Issue 21205): Remove this workaround once legacy dataflow
+        # TODO(https://github.com/apache/beam/issues/21205): Remove this workaround once legacy dataflow
         # correctly handles coders with combiner packing and/or is deprecated.
         if not isinstance(bundle, list):
           bundle = list(bundle)
@@ -389,7 +389,7 @@ class _MergeTopPerBundle(core.DoFn):
     else:
       heap = []
       for bundle in bundles:
-        # TODO(Issue 21205): Remove this workaround once legacy dataflow
+        # TODO(https://github.com/apache/beam/issues/21205): Remove this workaround once legacy dataflow
         # correctly handles coders with combiner packing and/or is deprecated.
         if not isinstance(bundle, list):
           bundle = list(bundle)

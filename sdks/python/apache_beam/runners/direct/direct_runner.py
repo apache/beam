@@ -416,7 +416,7 @@ class _DirectWriteToPubSubFn(DoFn):
     self.timestamp_attribute = transform.timestamp_attribute
     self.with_attributes = transform.with_attributes
 
-    # TODO(Issue 18939): Add support for id_label and timestamp_attribute.
+    # TODO(https://github.com/apache/beam/issues/18939): Add support for id_label and timestamp_attribute.
     if transform.id_label:
       raise NotImplementedError(
           'DirectRunner: id_label is not supported for '

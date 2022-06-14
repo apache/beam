@@ -221,7 +221,7 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
     raise unittest.SkipTest("Portable runners don't support drain yet.")
 
 
-@unittest.skip("Issue 19422")
+@unittest.skip("https://github.com/apache/beam/issues/19422")
 class PortableRunnerOptimized(PortableRunnerTest):
   def create_options(self):
     options = super().create_options()
@@ -232,7 +232,7 @@ class PortableRunnerOptimized(PortableRunnerTest):
     return options
 
 
-# TODO(Issue 19422): Delete this test after PortableRunner supports
+# TODO(https://github.com/apache/beam/issues/19422): Delete this test after PortableRunner supports
 # beam:runner:executable_stage:v1.
 class PortableRunnerOptimizedWithoutFusion(PortableRunnerTest):
   def create_options(self):
@@ -263,7 +263,7 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
     return options
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="[Issue 20427]")
+@pytest.mark.skipif(sys.platform == "win32", reason="[https://github.com/apache/beam/issues/20427]")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_subprocesses = True
 

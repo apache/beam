@@ -52,7 +52,7 @@ class TestDataflowRunner(DataflowRunner):
 
     self.result = super().run_pipeline(pipeline, options)
     if self.result.has_job:
-      # TODO(markflyhigh)(Issue 18254): Use print since Nose dosen't show logs
+      # TODO(markflyhigh)(https://github.com/apache/beam/issues/18254): Use print since Nose dosen't show logs
       # in some cases.
       print('Worker logs: %s' % self.build_console_url(options))
       _LOGGER.info('Console log: ')

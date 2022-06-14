@@ -240,7 +240,7 @@ class SchemasTest(unittest.TestCase):
           | schemas.UnbatchPandas(proxy))
 
       # Verify that the unbatched PCollection has the expected typehint
-      # TODO(Issue 19923): typehints should support NamedTuple so we can use
+      # TODO(https://github.com/apache/beam/issues/19923): typehints should support NamedTuple so we can use
       # typehints.is_consistent_with here instead
       self.assert_typehints_equal(res.element_type, beam_type)
 

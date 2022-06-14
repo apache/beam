@@ -138,7 +138,7 @@ def retry_on_server_errors_filter(exception):
   return not isinstance(exception, PermanentException)
 
 
-# TODO(Issue 19350): Dataflow returns 404 for job ids that actually exist.
+# TODO(https://github.com/apache/beam/issues/19350): Dataflow returns 404 for job ids that actually exist.
 # Retry on those errors.
 def retry_on_server_errors_and_notfound_filter(exception):
   if HttpError is not None and isinstance(exception, HttpError):

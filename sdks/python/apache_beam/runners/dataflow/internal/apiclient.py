@@ -1310,7 +1310,7 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 # This is required for the legacy python dataflow runner, as portability
 # does not communicate to the service via python code, but instead via a
 # a runner harness (in C++ or Java).
-# TODO(Issue 19433) : Remove this antipattern, legacy dataflow python
+# TODO(https://github.com/apache/beam/issues/19433) : Remove this antipattern, legacy dataflow python
 # pipelines will break whenever a new cy_combiner type is used.
 structured_counter_translations = {
     cy_combiners.CountCombineFn: (

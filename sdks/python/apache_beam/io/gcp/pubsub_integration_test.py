@@ -54,7 +54,7 @@ class PubSubIntegrationTest(unittest.TestCase):
   ID_LABEL = 'id'
   TIMESTAMP_ATTRIBUTE = 'timestamp'
   INPUT_MESSAGES = {
-      # TODO(Issue 18939): DirectRunner doesn't support reading or writing
+      # TODO(https://github.com/apache/beam/issues/18939): DirectRunner doesn't support reading or writing
       # label_ids, nor writing timestamp attributes. Once these features exist,
       # TestDirectRunner and TestDataflowRunner should behave identically.
       'TestDirectRunner': [

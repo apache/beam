@@ -519,7 +519,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         to_group = self.set_index(by)._expr
 
       if grouping_columns:
-        # TODO(Issue 20759): It should be possible to do this without creating
+        # TODO(https://github.com/apache/beam/issues/20759):
+        # It should be possible to do this without creating
         # an expression manually, by using DeferredDataFrame.set_index, i.e.:
         #   to_group_with_index = self.set_index([self.index] +
         #                                        grouping_columns)._expr
@@ -575,12 +576,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     if level is not None and not isinstance(level, (tuple, list)):
       level = [level]
     if level is None or len(level) == self._expr.proxy().index.nlevels:
-      # TODO(Issue 20859): Could do distributed re-index with offsets.
+      # TODO(https://github.com/apache/beam/issues/20859):
+      # Could do distributed re-index with offsets.
       requires_partition_by = partitionings.Singleton(
           reason=(
               f"reset_index(level={level!r}) drops the entire index and "
               "creates a new one, so it cannot currently be parallelized "
-              "(Issue 20859)."))
+              "(https://github.com/apache/beam/issues/20859)."))
     else:
       requires_partition_by = partitionings.Arbitrary()
     return frame_base.DeferredFrame.wrap(
@@ -1175,7 +1177,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   sparse = property(
       frame_base.not_implemented_method(
-          'sparse', 'Issue 20902', base_type=pd.DataFrame))
+          'sparse', '20902', base_type=pd.DataFrame))
 
   transform = frame_base._elementwise_method('transform', base=pd.DataFrame)
 
@@ -1537,13 +1539,14 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     `Issue 20933 <https://github.com/apache/beam/issues/20933>`_ tracking
     the possible addition of an approximate, parallelizable implementation of
     quantile."""
-    # TODO(Issue 20933): Provide an option for approximate distributed
-    # quantiles
+    # TODO(https://github.com/apache/beam/issues/20933): Provide an option for
+    #  approximate distributed quantiles
     requires = partitionings.Singleton(
         reason=(
             "Computing quantiles across index cannot currently be "
-            "parallelized. See Issue 20933 tracking the possible addition of "
-            "an approximate, parallelizable implementation of quantile."))
+            "parallelized. See https://github.com/apache/beam/issues/20933 "
+            "tracking the possible addition of an approximate, parallelizable "
+            "implementation of quantile."))
 
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -1921,7 +1924,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def sample(self, **kwargs):
     """Only ``n`` and/or ``weights`` may be specified.  ``frac``,
     ``random_state``, and ``replace=True`` are not yet supported.
-    See `Issue 21010 <https://issues.apache.org/jira/Issue 21010>`_.
+    See `Issue 21010 <https://issues.apache.org/jira/https://github.com/apache/beam/issues/21010>`_.
 
     Note that pandas will raise an error if ``n`` is larger than the length
     of the dataset, while the Beam DataFrame API will simply return the full
@@ -2347,18 +2350,20 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             'mode',
             lambda df: df.mode(*args, **kwargs),
             [self._expr],
-            #TODO(Issue 20946): Can we add an approximate implementation?
+            #TODO(https://github.com/apache/beam/issues/20946):
+            # Can we add an approximate implementation?
             requires_partition_by=partitionings.Singleton(
                 reason=(
                     "mode cannot currently be parallelized. See "
-                    "Issue 20946 tracking the possble addition of "
-                    "an approximate, parallelizable implementation of mode.")),
+                    "https://github.com/apache/beam/issues/20946 tracking the "
+                    "possble addition of an approximate, parallelizable "
+                    "implementation of mode.")),
             preserves_partition_by=partitionings.Singleton()))
 
   apply = frame_base._elementwise_method('apply', base=pd.Series)
   map = frame_base._elementwise_method('map', base=pd.Series)
-  # TODO(Issue 20764): Implement transform using type inference to determine the
-  # proxy
+  # TODO(https://github.com/apache/beam/issues/20764): Implement transform
+  # using type inference to determine the proxy
   #transform = frame_base._elementwise_method('transform', base=pd.Series)
 
   @frame_base.with_docs_from(pd.Series)
@@ -2610,7 +2615,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     if any(isinstance(k, (_DeferredIndex, frame_base.DeferredFrame))
            for k in keys):
       raise NotImplementedError("set_index with Index or Series instances is "
-                                "not yet supported (Issue 20759).")
+                                "not yet supported "
+                                "(https://github.com/apache/beam/issues/20759).")
 
     return frame_base.DeferredFrame.wrap(
       expressions.ComputedExpression(
@@ -3121,7 +3127,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def sample(self, n, frac, replace, weights, random_state, axis):
     """When ``axis='index'``, only ``n`` and/or ``weights`` may be specified.
     ``frac``, ``random_state``, and ``replace=True`` are not yet supported.
-    See `Issue 21010 <https://issues.apache.org/jira/Issue 21010>`_.
+    See `Issue 21010 <https://issues.apache.org/jira/https://github.com/apache/beam/issues/21010>`_.
 
     Note that pandas will raise an error if ``n`` is larger than the length
     of the dataset, while the Beam DataFrame API will simply return the full
@@ -3144,7 +3150,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           f"When axis={axis!r}, only n and/or weights may be specified. "
           "frac, random_state, and replace=True are not yet supported "
           f"(got frac={frac!r}, random_state={random_state!r}, "
-          f"replace={replace!r}). See Issue 21010.")
+          f"replace={replace!r}). See "
+          "https://github.com/apache/beam/issues/21010.")
 
     if n is None:
       n = 1
@@ -3223,7 +3230,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
     mode with axis="index" is not currently parallelizable. An approximate,
     parallelizable implementation of mode may be added in the future
-    (`Issue 20946 <https://issues.apache.org/jira/Issue 20946>`_)."""
+    (`Issue 20946 <https://issues.apache.org/jira/https://github.com/apache/beam/issues/20946>`_)."""
 
     if axis == 1 or axis == 'columns':
       # Number of columns is max(number mode values for each row), so we can't
@@ -3237,11 +3244,13 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             'mode',
             lambda df: df.mode(*args, **kwargs),
             [self._expr],
-            #TODO(Issue 20946): Can we add an approximate implementation?
+            #TODO(https://github.com/apache/beam/issues/20946):
+            # Can we add an approximate implementation?
             requires_partition_by=partitionings.Singleton(reason=(
                 "mode(axis='index') cannot currently be parallelized. See "
-                "Issue 20946 tracking the possble addition of an approximate, "
-                "parallelizable implementation of mode."
+                "https://github.com/apache/beam/issues/20946 tracking the "
+                "possble addition of an approximate, parallelizable "
+                "implementation of mode."
             )),
             preserves_partition_by=partitionings.Singleton()))
 
@@ -3276,7 +3285,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     # look for '@<py identifier>'
     if re.search(r'\@[^\d\W]\w*', expr, re.UNICODE):
       raise NotImplementedError("Accessing locals with @ is not yet supported "
-                                "(Issue 20626)")
+                                "(https://github.com/apache/beam/issues/20626)"
+                                )
 
     result_expr = expressions.ComputedExpression(
         name,
@@ -3574,12 +3584,13 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       else:
         requires = partitionings.Arbitrary()
     else: # axis='index'
-      # TODO(Issue 20933): Provide an option for approximate distributed
-      # quantiles
+      # TODO(https://github.com/apache/beam/issues/20933): Provide an option
+      # for approximate distributed quantiles
       requires = partitionings.Singleton(reason=(
           "Computing quantiles across index cannot currently be parallelized. "
-          "See Issue 20933 tracking the possible addition of an approximate, "
-          "parallelizable implementation of quantile."
+          "See https://github.com/apache/beam/issues/20933 tracking the "
+          "possible addition of an approximate, parallelizable implementation "
+          "of quantile."
       ))
 
     return frame_base.DeferredFrame.wrap(
@@ -4119,7 +4130,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         self._ungrouped.proxy().index.nlevels > 1):
       raise NotImplementedError(
           "dropna=False does not work as intended in the Beam DataFrame API "
-          "when grouping on multiple columns or indexes (See Issue 21014).")
+          "when grouping on multiple columns or indexes (See "
+          "https://github.com/apache/beam/issues/21014).")
 
   def __getattr__(self, name):
     return DeferredGroupBy(
@@ -4465,7 +4477,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   ohlc = frame_base.wont_implement_method(DataFrameGroupBy, 'ohlc',
                                           reason='order-sensitive')
 
-  # TODO(Issue 20958): Consider allowing this for categorical keys.
+  # TODO(https://github.com/apache/beam/issues/20958): Consider allowing this
+  # for categorical keys.
   __len__ = frame_base.wont_implement_method(
       DataFrameGroupBy, '__len__', reason="non-deferred-result")
   groups = property(frame_base.wont_implement_method(
@@ -4541,7 +4554,7 @@ def _liftable_agg(meth, postagg_meth=None):
         [pre_agg],
         requires_partition_by=(partitionings.Singleton(reason=(
             "Aggregations grouped by a categorical column are not currently "
-            "parallelizable (Issue 21827)."
+            "parallelizable (https://github.com/apache/beam/issues/21827)."
         ))
                                if is_categorical_grouping
                                else partitionings.Index()),
@@ -4573,7 +4586,7 @@ def _unliftable_agg(meth):
         [self._ungrouped],
         requires_partition_by=(partitionings.Singleton(reason=(
             "Aggregations grouped by a categorical column are not currently "
-            "parallelizable (Issue 21827)."
+            "parallelizable (https://github.com/apache/beam/issues/21827)."
         ))
                                if is_categorical_grouping
                                else partitionings.Index()),
@@ -4890,9 +4903,9 @@ class _DeferredStringMethods(frame_base.DeferredBase):
               'repeat',
               lambda series: series.str.repeat(repeats),
               [self._expr],
-              # TODO(Issue 20573): Defer to pandas to compute this proxy.
-              # Currently it incorrectly infers dtype bool, may require upstream
-              # fix.
+              # TODO(https://github.com/apache/beam/issues/20573): Defer to
+              # pandas to compute this proxy. Currently it incorrectly infers
+              # dtype bool, may require upstream fix.
               proxy=self._expr.proxy(),
               requires_partition_by=partitionings.Arbitrary(),
               preserves_partition_by=partitionings.Arbitrary()))
@@ -4902,9 +4915,9 @@ class _DeferredStringMethods(frame_base.DeferredBase):
               'repeat',
               lambda series, repeats_series: series.str.repeat(repeats_series),
               [self._expr, repeats._expr],
-              # TODO(Issue 20573): Defer to pandas to compute this proxy.
-              # Currently it incorrectly infers dtype bool, may require upstream
-              # fix.
+              # TODO(https://github.com/apache/beam/issues/20573): Defer to
+              # pandas to compute this proxy. Currently it incorrectly infers
+              # dtype bool, may require upstream fix.
               proxy=self._expr.proxy(),
               requires_partition_by=partitionings.Index(),
               preserves_partition_by=partitionings.Arbitrary()))

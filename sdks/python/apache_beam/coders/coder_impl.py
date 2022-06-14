@@ -1222,7 +1222,7 @@ class SequenceCoderImpl(StreamCoderImpl):
               elem, nested=True))
       estimated_size += child_size
       observables += child_observables
-    # TODO: (Issue 18169) Update to use an accurate count depending on size and
+    # TODO: (https://github.com/apache/beam/issues/18169) Update to use an accurate count depending on size and
     # count, currently we are underestimating the size by up to 10 bytes
     # per block of data since we are not including the count prefix which
     # occurs at most once per 64k of data and is upto 10 bytes long. The upper
@@ -1265,7 +1265,7 @@ class _AbstractIterable(object):
 
 FastPrimitivesCoderImpl.register_iterable_like_type(_AbstractIterable)
 
-# TODO(Issue 21167): Enable using abstract iterables permanently
+# TODO(https://github.com/apache/beam/issues/21167): Enable using abstract iterables permanently
 _iterable_coder_uses_abstract_iterable_by_default = False
 
 
@@ -1386,7 +1386,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
 
   # Ensure that lexicographic ordering of the bytes corresponds to
   # chronological order of timestamps.
-  # TODO(Issue 18190): Clean this up once we have a BEAM wide consensus on
+  # TODO(https://github.com/apache/beam/issues/18190): Clean this up once we have a BEAM wide consensus on
   # byte representation of timestamps.
   def _to_normal_time(self, value):
     """Convert "lexicographically ordered unsigned" to signed."""
@@ -1412,7 +1412,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         # Convert to postive number and divide, since python rounds off to the
         # lower negative number. For ex: -3 / 2 = -2, but we expect it to be -1,
         # to be consistent across SDKs.
-        # TODO(Issue 18190): Clean this up once we have a BEAM wide consensus on
+        # TODO(https://github.com/apache/beam/issues/18190): Clean this up once we have a BEAM wide consensus on
         # precision of timestamps.
         self._from_normal_time(
             restore_sign * (
@@ -1431,7 +1431,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # of precision while converting to millis.
     # Note: This is only a best effort here as there is no way to know if these
     # were indeed MIN/MAX timestamps.
-    # TODO(Issue 18190): Clean this up once we have a BEAM wide consensus on
+    # TODO(https://github.com/apache/beam/issues/18190): Clean this up once we have a BEAM wide consensus on
     # precision of timestamps.
     if timestamp <= -(abs(MIN_TIMESTAMP_micros) // 1000):
       timestamp = MIN_TIMESTAMP_micros

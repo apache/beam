@@ -238,7 +238,7 @@ class Coder(object):
     return self.__dict__
 
   def to_type_hint(self):
-    raise NotImplementedError('Issue 18490: %s' % self.__class__.__name__)
+    raise NotImplementedError('https://github.com/apache/beam/issues/18490: %s' % self.__class__.__name__)
 
   @classmethod
   def from_type_hint(cls, unused_typehint, unused_registry):
@@ -1129,7 +1129,7 @@ class AvroGenericCoder(FastCoder):
     return coder_impl.AvroCoderImpl(self.schema)
 
   def is_deterministic(self):
-    # TODO(Issue 19628): need to confirm if it's deterministic
+    # TODO(https://github.com/apache/beam/issues/19628): need to confirm if it's deterministic
     return False
 
   def __eq__(self, other):
