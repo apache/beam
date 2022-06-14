@@ -32,6 +32,7 @@ the stored person record.
 """
 
 import logging
+import typing
 
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
@@ -109,7 +110,11 @@ class JoinFn(beam.DoFn):
 
   def process(
       self,
-      element,
+      element: typing.Tuple[
+          typing.AnyStr,
+          typing.Dict[typing.AnyStr,
+                      typing.Union[typing.List[nexmark_model.Auction],
+                                   typing.List[nexmark_model.Person]]]],
       auction_state=beam.DoFn.StateParam(auction_spec),
       person_state=beam.DoFn.StateParam(person_spec),
       person_timer=beam.DoFn.TimerParam(person_timer_spec)):
