@@ -137,9 +137,7 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([6, 12, 18]))
 
   def test_batch_pardo_override_type_inference(self):
-
-    class ArrayMultiplyTransposedDoFn(beam.DoFn):
-
+    class ArrayMultiplyDoFnOverride(beam.DoFn):
       def process_batch(self, batch, *unused_args,
                         **unused_kwargs) -> Iterator[np.ndarray]:
         assert isinstance(batch, np.ndarray)
@@ -162,7 +160,7 @@ class FnApiRunnerTest(unittest.TestCase):
           p
           | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
               np.int64)
-          | beam.ParDo(ArrayMultiplyTransposedDoFn())
+          | beam.ParDo(ArrayMultiplyDoFnOverride())
           | beam.Map(lambda x: x * 3))
 
       assert_that(res, equal_to([6, 12, 18]))

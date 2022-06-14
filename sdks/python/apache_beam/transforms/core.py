@@ -751,8 +751,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
         DoFn is being applied to.
 
     Returns:
-      ``None`` if this DoFn cannot accept batches, a Beam typehint or a native
-      Python typehint if the DoFn can accept batches.
+      ``None`` if this DoFn cannot accept batches, else a Beam typehint or
+      a native Python typehint.
     """
     if not self.process_batch_defined:
       return None
@@ -809,8 +809,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
         DoFn is being applied to.
 
     Returns:
-      ``None`` if this DoFn will never yield batches, a Beam typehint or
-      a native Python typehint if the DoFn can yield batches.
+      ``None`` if this DoFn will never yield batches, else a Beam typehint or
+      a native Python typehint.
     """
     output_batch_type = None
     if self.process_defined and self.process_yields_batches:
