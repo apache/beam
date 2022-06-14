@@ -1541,32 +1541,32 @@ class WriteResult:
   def validate(self, method, attribute):
     if self.method != method:
       raise ValueError(
-          f'Cannot get {attribute} because they are not produced '
+          f'Cannot get {attribute} because it is not produced '
           f'by {self.method} write method. Note: only {method} '
           'produces this attribute.')
 
   def get_destination_load_jobid_pairs(self):
-    self.validate('FILE_LOADS', 'destination-load job ID pairs')
+    self.validate('FILE_LOADS', 'DESTINATION_JOBID_PAIRS')
 
     return self.destination_load_jobid_pairs
 
   def get_destination_file_pairs(self):
-    self.validate('FILE_LOADS', 'destination-file pairs')
+    self.validate('FILE_LOADS', 'DESTINATION_FILE_PAIRS')
 
     return self.destination_file_pairs
 
   def get_destination_copy_jobid_pairs(self):
-    self.validate('FILE_LOADS', 'destination-copy job ID pairs')
+    self.validate('FILE_LOADS', 'DESTINATION_COPY_JOBID_PAIRS')
 
     return self.destination_copy_jobid_pairs
 
   def get_failed_rows(self):
-    self.validate('STREAMING_INSERTS', 'failed rows')
+    self.validate('STREAMING_INSERTS', 'FAILED_ROWS')
 
     return self.failed_rows
 
   def get_failed_rows_with_errors(self):
-    self.validate('STREAMING_INSERTS', 'failed rows with errors')
+    self.validate('STREAMING_INSERTS', 'FAILED_ROWS_WITH_ERRORS')
 
     return self.failed_rows_with_errors
 
