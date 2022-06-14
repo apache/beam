@@ -94,8 +94,8 @@ class PyTorchInference(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_torch_run_inference_bert_for_masked_lm(self):
     test_pipeline = TestPipeline(is_integration_test=True)
-    # text files containing absolute path to the bookcorpus parquet data on GCS
-    file_of_sentences = 'gs://apache-beam-ml/datasets/bookcorpus/bookcorpus_subset.parquet'  # disable: line-too-long
+    # Path to text file containing some sentences
+    file_of_sentences = 'gs://apache-beam-ml/datasets/custom/sentences.txt'  # disable: line-too-long
     output_file_dir = 'gs://apache-beam-ml/testing/predictions'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 

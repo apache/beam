@@ -17,7 +17,7 @@
 
 """"A pipeline that uses RunInference to perform Language Modeling with Bert.
 
-This pipeline takes sentences from the bookcorpus dataset, removes the last word
+This pipeline takes sentences from a custom text file, removes the last word
 of the sentence, and then uses the BertForMaskedLM from Hugging Face to predict
 the best word to follow or continue that sentence given all the words already in
 the sentence. The pipeline then writes the prediction to an output file in
@@ -25,8 +25,8 @@ which users can then compare against the original sentence.
 """
 
 import argparse
-from typing import Iterable
 from typing import Dict
+from typing import Iterable
 from typing import Tuple
 
 import apache_beam as beam
@@ -37,7 +37,9 @@ from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandler
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from transformers import BertTokenizer, BertForMaskedLM, BertConfig
+from transformers import BertConfig
+from transformers import BertForMaskedLM
+from transformers import BertTokenizer
 
 BERT_TOKENIZER = BertTokenizer.from_pretrained('bert-base-uncased')
 
@@ -81,8 +83,7 @@ def parse_known_args(argv):
   parser.add_argument(
       '--input',
       dest='input',
-      default=
-      'gs://apache-beam-ml/datasets/bookcorpus/bookcorpus_subset.parquet',
+      default='gs://apache-beam-ml/datasets/custom/sentences.txt',
       help='Path to the text file containing image names.')
   parser.add_argument(
       '--output',
@@ -179,10 +180,7 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
       model_params=model_params)
 
   with beam.Pipeline(options=pipeline_options) as p:
-    text = (
-        p
-        | 'ReadSentences' >> beam.io.ReadFromParquet(known_args.input)
-        | 'ExtractTextFromDict' >> beam.Map(lambda x: x['text']))
+    text = (p | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))
     text_and_masked_text_tuple = (
         text
         | 'AddMask' >> beam.Map(add_mask_to_last_word))
