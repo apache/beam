@@ -25,7 +25,6 @@ which users can then compare against the original sentence.
 """
 
 import argparse
-import os
 from typing import Dict
 from typing import Iterable
 from typing import Tuple
@@ -93,7 +92,6 @@ def parse_known_args(argv):
   parser.add_argument(
       '--input',
       dest='input',
-      default=os.path.join(os.path.dirname(__file__), 'data', 'sentences.txt'),
       help='Path to the text file containing sentences.')
   parser.add_argument(
       '--output',
@@ -189,7 +187,21 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
       model_params=model_params)
 
   with beam.Pipeline(options=pipeline_options) as p:
-    text = (p | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))
+    if not known_args.input:
+      text = (p | 'CreateSentences' >> beam.Create([
+        'The capital of France is Paris .',
+        'It is raining cats and dogs .',
+        'He looked up and saw the sun and stars .',
+        'Today is Monday and tomorrow is Tuesday .',
+        'There are 5 coconuts on this palm tree .',
+        'The richest person in the world is not here .',
+        'Malls are amazing places to shop because you can find everything you need under one roof .', # pylint: disable=line-too-long
+        'This audiobook is sure to liquefy your brain .',
+        'The secret ingredient to his wonderful life was gratitude .',
+        'The biggest animal in the world is the whale .',
+      ]))
+    else:
+      text = (p | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))
     text_and_masked_text_tuple = (
         text
         | 'AddMask' >> beam.Map(add_mask_to_last_word))
