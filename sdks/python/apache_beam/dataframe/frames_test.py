@@ -777,7 +777,7 @@ class DeferredFrameTest(_AbstractFrameTest):
 
   def test_loc(self):
     dates = pd.date_range('1/1/2000', periods=8)
-    # TODO(https://github.com/apache/beam/issues/20765): 
+    # TODO(https://github.com/apache/beam/issues/20765):
     # We do not preserve the freq attribute on a DateTime index
     dates.freq = None
     df = pd.DataFrame(
@@ -1909,7 +1909,7 @@ class GroupByTest(_AbstractFrameTest):
   def test_groupby_multiindex_keep_nans(self):
     # Due to https://github.com/pandas-dev/pandas/issues/36470
     # groupby(dropna=False) doesn't work with multiple columns
-    with self.assertRaisesRegex(NotImplementedError, 
+    with self.assertRaisesRegex(NotImplementedError,
                                 "https://github.com/apache/beam/issues/21014"):
       self._run_test(
           lambda df: df.groupby(['foo', 'bar'], dropna=False).sum(), GROUPBY_DF)

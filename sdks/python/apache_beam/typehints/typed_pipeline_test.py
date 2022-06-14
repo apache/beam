@@ -960,7 +960,9 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int, ), {}))
     self.assertEqual(th.output_types, ((int, ), {}))
 
-  @unittest.skip('https://github.com/apache/beam/issues/19961: Py3 annotations not yet supported for MapTuple')
+  @unittest.skip(
+    'https://github.com/apache/beam/issues/19961: Py3 annotations not yet supported for MapTuple'
+  )
   def test_flat_map_tuple_wrapper(self):
     # TODO(https://github.com/apache/beam/issues/19961): Also test with a fn that accepts default arguments.
     def tuple_map_fn(a: str, b: str, c: str) -> typehints.Iterable[str]:
@@ -987,7 +989,9 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int, ), {}))
     self.assertEqual(th.output_types, ((typehints.Optional[int], ), {}))
 
-  @unittest.skip('https://github.com/apache/beam/issues/19961: Py3 annotations not yet supported for MapTuple')
+  @unittest.skip(
+    'https://github.com/apache/beam/issues/19961: Py3 annotations not yet supported for MapTuple'
+  )
   def test_map_tuple(self):
     # TODO(https://github.com/apache/beam/issues/19961): Also test with a fn that accepts default arguments.
     def tuple_map_fn(a: str, b: str, c: str) -> str:

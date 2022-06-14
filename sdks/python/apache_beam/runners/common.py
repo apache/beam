@@ -1047,7 +1047,9 @@ class PerWindowInvoker(DoFnInvoker):
       if core.DoFn.ElementParam == p:
         args_for_process_batch[i] = windowed_batch.values
       elif core.DoFn.KeyParam == p:
-        raise NotImplementedError("https://github.com/apache/beam/issues/21653: Per-key process_batch")
+        raise NotImplementedError(
+          "https://github.com/apache/beam/issues/21653: Per-key process_batch"
+        )
       elif core.DoFn.WindowParam == p:
         args_for_process_batch[i] = window
       elif core.DoFn.TimestampParam == p:
@@ -1056,9 +1058,13 @@ class PerWindowInvoker(DoFnInvoker):
         assert isinstance(windowed_batch, HomogeneousWindowedBatch)
         args_for_process_batch[i] = windowed_batch.pane_info
       elif isinstance(p, core.DoFn.StateParam):
-        raise NotImplementedError("https://github.com/apache/beam/issues/21653: Per-key process_batch")
+        raise NotImplementedError(
+          "https://github.com/apache/beam/issues/21653: Per-key process_batch"
+        )
       elif isinstance(p, core.DoFn.TimerParam):
-        raise NotImplementedError("https://github.com/apache/beam/issues/21653: Per-key process_batch")
+        raise NotImplementedError(
+          "https://github.com/apache/beam/issues/21653: Per-key process_batch"
+        )
 
     kwargs_for_process_batch = kwargs_for_process_batch or {}
 

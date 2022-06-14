@@ -189,7 +189,8 @@ class Timestamp(object):
           "because this loses precision. Please make sure that " +
           "this is the correct behavior you want and manually " +
           "truncate the precision to the nearest microseconds. " +
-          "See [https://github.com/apache/beam/issues/19922] for more information.")
+          "See [https://github.com/apache/beam/issues/19922] for more information."
+      )
 
     return Timestamp(
         seconds=timestamp_proto.seconds, micros=timestamp_proto.nanos // 1000)
@@ -337,7 +338,8 @@ class Duration(object):
           "because this loses precision. Please make sure that " +
           "this is the correct behavior you want and manually " +
           "truncate the precision to the nearest microseconds. " +
-          "See [https://github.com/apache/beam/issues/19922] for more information.")
+          "See [https://github.com/apache/beam/issues/19922] for more information."
+      )
 
     return Duration(
         seconds=duration_proto.seconds, micros=duration_proto.nanos // 1000)
