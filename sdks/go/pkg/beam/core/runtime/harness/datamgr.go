@@ -524,7 +524,7 @@ func (w *dataWriter) Close() error {
 			{
 				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,
-				// TODO(BEAM-13142): Set IsLast true on final flush instead of w/empty sentinel?
+				// TODO(Issue 21164): Set IsLast true on final flush instead of w/empty sentinel?
 				// Empty data == sentinel
 				IsLast: true,
 			},

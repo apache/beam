@@ -864,7 +864,7 @@ func TestSchemaProviderInterface(t *testing.T) {
 }
 
 func TestRowHeader_TrailingZeroBytes(t *testing.T) {
-	// BEAM-13081: The row header should elide trailing 0 bytes.
+	// Issue 21232: The row header should elide trailing 0 bytes.
 	// But be tolerant of trailing 0 bytes.
 
 	const count = 255
