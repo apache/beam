@@ -197,9 +197,11 @@ def convert_to_beam_type(typ):
     return typ
 
   type_map = [
-      # TODO(https://github.com/apache/beam/issues/20076): Currently unsupported.
+      # TODO(https://github.com/apache/beam/issues/20076): Currently
+      # unsupported.
       _TypeMapEntry(match=is_new_type, arity=0, beam_type=typehints.Any),
-      # TODO(https://github.com/apache/beam/issues/19954): Currently unsupported.
+      # TODO(https://github.com/apache/beam/issues/19954): Currently
+      # unsupported.
       _TypeMapEntry(match=is_forward_ref, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(match=is_any, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(

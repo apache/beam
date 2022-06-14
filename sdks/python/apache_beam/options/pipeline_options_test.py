@@ -517,9 +517,9 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(['--redefined_flag'])
     self.assertTrue(options.get_all_options()['redefined_flag'])
 
-  # TODO(https://github.com/apache/beam/issues/18197): Require unique names only within a test.
-  # For now, <file name acronym>_vp_arg<number> will be the convention
-  # to name value-provider arguments in tests, as opposed to
+  # TODO(https://github.com/apache/beam/issues/18197): Require unique names
+  # only within a test. For now, <file name acronym>_vp_arg<number> will be
+  # the convention to name value-provider arguments in tests, as opposed to
   # <file name acronym>_non_vp_arg<number> for non-value-provider arguments.
   # The number will grow per file as tests are added.
   def test_value_provider_options(self):

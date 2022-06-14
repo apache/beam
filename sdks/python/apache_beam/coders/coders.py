@@ -1131,7 +1131,8 @@ class AvroGenericCoder(FastCoder):
     return coder_impl.AvroCoderImpl(self.schema)
 
   def is_deterministic(self):
-    # TODO(https://github.com/apache/beam/issues/19628): need to confirm if it's deterministic
+    # TODO(https://github.com/apache/beam/issues/19628): need to confirm if
+    # it's deterministic
     return False
 
   def __eq__(self, other):

@@ -654,8 +654,8 @@ def _get_arg_placeholders(
       self.placeholder = placeholder
 
   if all(core.DoFn.ElementParam != arg for arg in default_arg_values):
-    # TODO(https://github.com/apache/beam/issues/19631): Handle cases in which len(arg_names) ==
-    #   len(default_arg_values).
+    # TODO(https://github.com/apache/beam/issues/19631): Handle cases in which
+    #   len(arg_names) == len(default_arg_values).
     args_to_pick = len(arg_names) - len(default_arg_values) - 1
     # Positional argument values for process(), with placeholders for special
     # values such as the element, timestamp, etc.
@@ -1049,8 +1049,7 @@ class PerWindowInvoker(DoFnInvoker):
       elif core.DoFn.KeyParam == p:
         raise NotImplementedError(
             "https://github.com/apache/beam/issues/21653: "
-            "Per-key process_batch"
-        )
+            "Per-key process_batch")
       elif core.DoFn.WindowParam == p:
         args_for_process_batch[i] = window
       elif core.DoFn.TimestampParam == p:
@@ -1061,13 +1060,11 @@ class PerWindowInvoker(DoFnInvoker):
       elif isinstance(p, core.DoFn.StateParam):
         raise NotImplementedError(
             "https://github.com/apache/beam/issues/21653: "
-            "Per-key process_batch"
-        )
+            "Per-key process_batch")
       elif isinstance(p, core.DoFn.TimerParam):
         raise NotImplementedError(
             "https://github.com/apache/beam/issues/21653: "
-            "Per-key process_batch"
-        )
+            "Per-key process_batch")
 
     kwargs_for_process_batch = kwargs_for_process_batch or {}
 

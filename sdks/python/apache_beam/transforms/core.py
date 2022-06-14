@@ -3339,7 +3339,8 @@ class Create(PTransform):
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> typing.Tuple[str, bytes]
     # Required as this is identified by type in PTransformOverrides.
-    # TODO(https://github.com/apache/beam/issues/18713): Use an actual URN here.
+    # TODO(https://github.com/apache/beam/issues/18713): Use an actual URN
+    # here.
     return self.to_runner_api_pickled(context)
 
   def infer_output_type(self, unused_input_type):

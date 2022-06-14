@@ -124,6 +124,6 @@ class AugmentedPipeline:
           self._context,
           self._cache_manager,
           self._cacheables[writecache_pcoll]).write_cache()
-    # TODO(https://github.com/apache/beam/issues/20526): Support streaming, add pruning logic, and integrate
-    # pipeline fragment logic.
+    # TODO(https://github.com/apache/beam/issues/20526): Support streaming, add
+    # pruning logic, and integrate pipeline fragment logic.
     return pipeline
