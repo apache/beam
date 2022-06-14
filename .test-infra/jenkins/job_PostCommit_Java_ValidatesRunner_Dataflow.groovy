@@ -22,7 +22,7 @@ import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow
 // runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflow',
+PostcommitJobBuilder.postCommitJobWithTrigger('beam_PostCommit_Java_ValidatesRunner_Dataflow',
     'Run Dataflow ValidatesRunner', 'Google Cloud Dataflow Runner ValidatesRunner Tests (streaming/batch auto)', this) {
 
       description('Runs the ValidatesRunner suite on the Dataflow runner.')

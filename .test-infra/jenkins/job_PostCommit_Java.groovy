@@ -22,7 +22,7 @@ import PostcommitJobBuilder
 
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java', 'Run Java PostCommit',
+PostcommitJobBuilder.postCommitJobWithTrigger('beam_PostCommit_Java', 'Run Java PostCommit',
     'Java SDK Post Commit Tests', this) {
 
       description('Runs PostCommit tests on the Java SDK.')

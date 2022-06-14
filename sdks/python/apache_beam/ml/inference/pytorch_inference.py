@@ -24,7 +24,6 @@ from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
-from typing import Union
 
 import torch
 from apache_beam.io.filesystems import FileSystems
@@ -32,14 +31,32 @@ from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 
 
-class PytorchModelHandler(ModelHandler[torch.Tensor,
-                                       PredictionResult,
-                                       torch.nn.Module]):
-  """ Implementation of the ModelHandler interface for PyTorch.
+def _load_model(
+    model_class: torch.nn.Module, state_dict_path, device, **model_params):
+  model = model_class(**model_params)
+  model.to(device)
+  file = FileSystems.open(state_dict_path, 'rb')
+  model.load_state_dict(torch.load(file))
+  model.eval()
+  return model
 
-      NOTE: This API and its implementation are under development and
-      do not provide backward compatibility guarantees.
+
+def _convert_to_device(examples: torch.Tensor, device) -> torch.Tensor:
   """
+  Converts samples to a style matching given device.
+
+  Note: A user may pass in device='GPU' but if GPU is not detected in the
+  environment it must be converted back to CPU.
+  """
+  if examples.device != device:
+    examples = examples.to(device)
+  return examples
+
+
+class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
+                                             PredictionResult,
+                                             torch.nn.Module]):
+  """ Implementation of the ModelHandler interface for PyTorch."""
   def __init__(
       self,
       state_dict_path: str,
@@ -47,7 +64,7 @@ class PytorchModelHandler(ModelHandler[torch.Tensor,
       model_params: Dict[str, Any],
       device: str = 'CPU'):
     """
-    Initializes a PytorchModelHandler
+    Initializes a PytorchModelHandlerTensor
     :param state_dict_path: path to the saved dictionary of the model state.
     :param model_class: class of the Pytorch model that defines the model
     structure.
@@ -68,27 +85,15 @@ class PytorchModelHandler(ModelHandler[torch.Tensor,
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
-    model = self._model_class(**self._model_params)
-    model.to(self._device)
-    file = FileSystems.open(self._state_dict_path, 'rb')
-    model.load_state_dict(torch.load(file))
-    model.eval()
-    return model
-
-  def _convert_to_device(self, examples: torch.Tensor) -> torch.Tensor:
-    """
-    Converts samples to a style matching given device.
-
-    Note: A user may pass in device='GPU' but if GPU is not detected in the
-    environment it must be converted back to CPU.
-    """
-    if examples.device != self._device:
-      examples = examples.to(self._device)
-    return examples
+    return _load_model(
+        self._model_class,
+        self._state_dict_path,
+        self._device,
+        **self._model_params)
 
   def run_inference(
       self,
-      batch: Sequence[Union[torch.Tensor, Dict[str, torch.Tensor]]],
+      batch: Sequence[torch.Tensor],
       model: torch.nn.Module,
       extra_kwargs: Optional[Dict[str,
                                   Any]] = None) -> Iterable[PredictionResult]:
@@ -99,37 +104,100 @@ class PytorchModelHandler(ModelHandler[torch.Tensor,
     This method stacks the list of Tensors in a vectorized format to optimize
     the inference call.
     """
-    extra_kwargs = extra_kwargs if extra_kwargs else {}
+    extra_kwargs = {} if not extra_kwargs else extra_kwargs
 
-    # If elements in `batch` are provided as a dictionaries from key to Tensors,
-    # then iterate through the batch list, and group Tensors to the same key
-    if isinstance(batch[0], dict):
-      key_to_tensor_list = defaultdict(list)
-      for example in batch:
-        for key, tensor in example.items():
-          key_to_tensor_list[key].append(tensor)
-      key_to_batched_tensors = {}
-      for key in key_to_tensor_list:
-        batched_tensors = torch.stack(key_to_tensor_list[key])
-        batched_tensors = self._convert_to_device(batched_tensors)
-        key_to_batched_tensors[key] = batched_tensors
-      predictions = model(**key_to_batched_tensors, **extra_kwargs)
-    else:
-      # If elements in `batch` are provided as Tensors, then do a regular stack
-      batched_tensors = torch.stack(batch)
-      batched_tensors = self._convert_to_device(batched_tensors)
-      predictions = model(batched_tensors, **extra_kwargs)
+    batched_tensors = torch.stack(batch)
+    batched_tensors = _convert_to_device(batched_tensors, self._device)
+    predictions = model(batched_tensors, **extra_kwargs)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """Returns the number of bytes of data for a batch of Tensors."""
-    # If elements in `batch` are provided as a dictionaries from key to Tensors
-    if isinstance(batch[0], dict):
-      return sum(
-          (el.element_size() for tensor in batch for el in tensor.values()))
+    return sum((el.element_size() for tensor in batch for el in tensor))
+
+  def get_metrics_namespace(self) -> str:
+    """
+    Returns a namespace for metrics collected by the RunInference transform.
+    """
+    return 'RunInferencePytorch'
+
+
+class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
+                                                  PredictionResult,
+                                                  torch.nn.Module]):
+  """ Implementation of the ModelHandler interface for PyTorch.
+
+      NOTE: This API and its implementation are under development and
+      do not provide backward compatibility guarantees.
+  """
+  def __init__(
+      self,
+      state_dict_path: str,
+      model_class: Callable[..., torch.nn.Module],
+      model_params: Dict[str, Any],
+      device: str = 'CPU'):
+    """
+    Initializes a PytorchModelHandlerKeyedTensor
+    :param state_dict_path: path to the saved dictionary of the model state.
+    :param model_class: class of the Pytorch model that defines the model
+    structure.
+    :param device: the device on which you wish to run the model. If
+    ``device = GPU`` then a GPU device will be used if it is available.
+    Otherwise, it will be CPU.
+
+    See https://pytorch.org/tutorials/beginner/saving_loading_models.html
+    for details
+    """
+    self._state_dict_path = state_dict_path
+    if device == 'GPU' and torch.cuda.is_available():
+      self._device = torch.device('cuda')
     else:
-      # If elements in `batch` are provided as Tensors
-      return sum((el.element_size() for tensor in batch for el in tensor))
+      self._device = torch.device('cpu')
+    self._model_class = model_class
+    self._model_params = model_params
+
+  def load_model(self) -> torch.nn.Module:
+    """Loads and initializes a Pytorch model for processing."""
+    return _load_model(
+        self._model_class,
+        self._state_dict_path,
+        self._device,
+        **self._model_params)
+
+  def run_inference(
+      self,
+      batch: Sequence[Dict[str, torch.Tensor]],
+      model: torch.nn.Module,
+      extra_kwargs: Optional[Dict[str,
+                                  Any]] = None) -> Iterable[PredictionResult]:
+    """
+    Runs inferences on a batch of Keyed Tensors and returns an Iterable of
+    Tensor Predictions.
+
+    For the same key across all examples, this will stack all Tensors values
+    in a vectorized format to optimize the inference call.
+    """
+    extra_kwargs = {} if not extra_kwargs else extra_kwargs
+
+    # If elements in `batch` are provided as a dictionaries from key to Tensors,
+    # then iterate through the batch list, and group Tensors to the same key
+    key_to_tensor_list = defaultdict(list)
+    for example in batch:
+      for key, tensor in example.items():
+        key_to_tensor_list[key].append(tensor)
+    key_to_batched_tensors = {}
+    for key in key_to_tensor_list:
+      batched_tensors = torch.stack(key_to_tensor_list[key])
+      batched_tensors = _convert_to_device(batched_tensors, self._device)
+      key_to_batched_tensors[key] = batched_tensors
+    predictions = model(**key_to_batched_tensors, **extra_kwargs)
+    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+
+  def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
+    """Returns the number of bytes of data for a batch of Dict of Tensors."""
+    # If elements in `batch` are provided as a dictionaries from key to Tensors
+    return sum(
+        (el.element_size() for tensor in batch for el in tensor.values()))
 
   def get_metrics_namespace(self) -> str:
     """

@@ -64,6 +64,7 @@ var directFilters = []string{
 	// The direct runner does not yet support cross-language.
 	"TestXLang.*",
 	"TestKafkaIO.*",
+	"TestBigQueryIO.*",
 	"TestDebeziumIO_BasicRead",
 	"TestJDBCIO_BasicReadWrite",
 	"TestJDBCIO_PostgresReadWrite",
@@ -93,6 +94,8 @@ var portableFilters = []string{
 	"TestPanes",
 	// TODO(BEAM-12797): Python portable runner times out on Kafka reads.
 	"TestKafkaIO.*",
+	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
+	"TestBigQueryIO.*",
 	// The portable runner does not support self-checkpointing
 	"TestCheckpointing",
 	// The portable runner does not support pipeline drain for SDF.
@@ -107,8 +110,10 @@ var flinkFilters = []string{
 	// TODO(BEAM-12815): Test fails on post commits: "Insufficient number of network buffers".
 	"TestXLang_Multi",
 	"TestDebeziumIO_BasicRead",
-	// Triggers are not yet supported
-	"TestTrigger.*",
+	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
+	"TestBigQueryIO.*",
+	// The number of produced outputs in AfterSynchronizedProcessingTime varies in different runs.
+	"TestTriggerAfterSynchronizedProcessingTime",
 	// The flink runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
@@ -126,6 +131,8 @@ var samzaFilters = []string{
 	"TestPanes",
 	// TODO(BEAM-13006): Samza doesn't yet support post job metrics, used by WordCount
 	"TestWordCount.*",
+	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
+	"TestBigQueryIO.*",
 	// The Samza runner does not support self-checkpointing
 	"TestCheckpointing",
 	// The samza runner does not support pipeline drain for SDF.
@@ -146,6 +153,8 @@ var sparkFilters = []string{
 	"TestPanes",
 	// [BEAM-13921]: Spark doesn't support side inputs to executable stages
 	"TestDebeziumIO_BasicRead",
+	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
+	"TestBigQueryIO.*",
 	// The spark runner does not support self-checkpointing
 	"TestCheckpointing",
 	// The spark runner does not support pipeline drain for SDF.
@@ -174,6 +183,8 @@ var dataflowFilters = []string{
 	// Dataflow does not automatically terminate the TestCheckpointing pipeline when
 	// complete.
 	"TestCheckpointing",
+	// TODO(21761): This test needs to provide GCP project to expansion service.
+	"TestBigQueryIO_BasicWriteQueryRead",
 	// Dataflow does not drain jobs by itself.
 	"TestDrain",
 }

@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -40,6 +42,9 @@ import (
 // StatusAddress is a type of status endpoint address as an optional argument to harness.Main().
 type StatusAddress string
 
+// URNMonitoringInfoShortID is a URN indicating support for short monitoring info IDs.
+const URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
+
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
@@ -55,6 +60,17 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 			statusEndpoint = string(option)
 		default:
 			return errors.Errorf("unknown type %T, value %v in error call", option, option)
+		}
+	}
+
+	// Extract environment variables. These are optional runner supported capabilities.
+	// Expected env variables:
+	// RUNNER_CAPABILITIES : list of runner supported capability urn.
+	runnerCapabilities := strings.Split(os.Getenv("RUNNER_CAPABILITIES"), " ")
+	rcMap := make(map[string]bool)
+	if len(runnerCapabilities) > 0 {
+		for _, capability := range runnerCapabilities {
+			rcMap[capability] = true
 		}
 	}
 
@@ -139,6 +155,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		data:                 &DataChannelManager{},
 		state:                &StateChannelManager{},
 		cache:                &sideCache,
+		runnerCapabilities:   rcMap,
 	}
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
 	// is responsible for managing the network data. All it does is pull data from
@@ -275,7 +292,8 @@ type control struct {
 	data  *DataChannelManager
 	state *StateChannelManager
 	// TODO(BEAM-11097): Cache is currently unused.
-	cache *statecache.SideInputCache
+	cache              *statecache.SideInputCache
+	runnerCapabilities map[string]bool
 }
 
 func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
@@ -370,7 +388,8 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		c.cache.CompleteBundle(tokens...)
 
-		mons, pylds := monitoring(plan, store)
+		mons, pylds := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
+
 		requiresFinalization := false
 		// Move the plan back to the candidate state
 		c.mu.Lock()
@@ -493,7 +512,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			}
 		}
 
-		mons, pylds := monitoring(plan, store)
+		mons, pylds := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
 
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
