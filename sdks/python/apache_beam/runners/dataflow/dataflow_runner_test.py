@@ -66,7 +66,8 @@ except ImportError:
 
 
 # SpecialParDo and SpecialDoFn are used in test_remote_runner_display_data.
-# Due to https://github.com/apache/beam/issues/19848, these need to be declared outside of the test method.
+# Due to https://github.com/apache/beam/issues/19848, these need to be declared
+# outside of the test method.
 # TODO: Should not subclass ParDo. Switch to PTransform as soon as
 # composite transforms support display data.
 class SpecialParDo(beam.ParDo):
@@ -294,7 +295,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         p | ptransform.Create([1, 2, 3, 4, 5])
         | 'Do' >> SpecialParDo(SpecialDoFn(), now))
 
-    # TODO(https://github.com/apache/beam/issues/18012) Enable runner API on this test.
+    # TODO(https://github.com/apache/beam/issues/18012) Enable runner API on
+    # this test.
     p.run(test_runner_api=False)
     job_dict = json.loads(str(remote_runner.job))
     steps = [
@@ -749,7 +751,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         out['destination_file_pairs'] | 'MyTransform' >> beam.Map(lambda _: _)
 
   @unittest.skip(
-      'https://github.com/apache/beam/issues/18716: enable once CombineFnVisitor is fixed'
+      'https://github.com/apache/beam/issues/18716: enable once '
+      'CombineFnVisitor is fixed'
   )
   def test_unsupported_combinefn_detection(self):
     class CombinerWithNonDefaultSetupTeardown(combiners.CountCombineFn):

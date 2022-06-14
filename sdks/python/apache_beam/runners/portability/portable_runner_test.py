@@ -232,8 +232,8 @@ class PortableRunnerOptimized(PortableRunnerTest):
     return options
 
 
-# TODO(https://github.com/apache/beam/issues/19422): Delete this test after PortableRunner supports
-# beam:runner:executable_stage:v1.
+# TODO(https://github.com/apache/beam/issues/19422): Delete this test after
+# PortableRunner supports beam:runner:executable_stage:v1.
 class PortableRunnerOptimizedWithoutFusion(PortableRunnerTest):
   def create_options(self):
     options = super().create_options()

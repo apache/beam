@@ -1924,7 +1924,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def sample(self, **kwargs):
     """Only ``n`` and/or ``weights`` may be specified.  ``frac``,
     ``random_state``, and ``replace=True`` are not yet supported.
-    See `Issue 21010 <https://issues.apache.org/jira/https://github.com/apache/beam/issues/21010>`_.
+    See `Issue 21010 <https://github.com/apache/beam/issues/21010>`_.
 
     Note that pandas will raise an error if ``n`` is larger than the length
     of the dataset, while the Beam DataFrame API will simply return the full
@@ -2616,7 +2616,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
            for k in keys):
       raise NotImplementedError("set_index with Index or Series instances is "
                                 "not yet supported "
-                                "(https://github.com/apache/beam/issues/20759).")
+                                "(https://github.com/apache/beam/issues/20759)"
+                                ".")
 
     return frame_base.DeferredFrame.wrap(
       expressions.ComputedExpression(
@@ -3127,7 +3128,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def sample(self, n, frac, replace, weights, random_state, axis):
     """When ``axis='index'``, only ``n`` and/or ``weights`` may be specified.
     ``frac``, ``random_state``, and ``replace=True`` are not yet supported.
-    See `Issue 21010 <https://issues.apache.org/jira/https://github.com/apache/beam/issues/21010>`_.
+    See `Issue 21010 <https://github.com/apache/beam/issues/21010>`_.
 
     Note that pandas will raise an error if ``n`` is larger than the length
     of the dataset, while the Beam DataFrame API will simply return the full
@@ -3230,7 +3231,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
     mode with axis="index" is not currently parallelizable. An approximate,
     parallelizable implementation of mode may be added in the future
-    (`Issue 20946 <https://issues.apache.org/jira/https://github.com/apache/beam/issues/20946>`_)."""
+    (`Issue 20946 <https://github.com/apache/beam/issues/20946>`_)."""
 
     if axis == 1 or axis == 'columns':
       # Number of columns is max(number mode values for each row), so we can't

@@ -333,8 +333,9 @@ class DoctestTest(unittest.TestCase):
                 'df.rename(index=str).index',
             ],
             'pandas.core.frame.DataFrame.set_index': [
-                # TODO(https://github.com/apache/beam/issues/20759): This could pass in the index as
-                # a DeferredIndex, and we should fail it as order-sensitive.
+                # TODO(https://github.com/apache/beam/issues/20759): This could
+                # pass in the index as a DeferredIndex, and we should fail it
+                # as order-sensitive.
                 "df.set_index([pd.Index([1, 2, 3, 4]), 'year'])",
             ],
             'pandas.core.frame.DataFrame.set_axis': [
@@ -518,10 +519,10 @@ class DoctestTest(unittest.TestCase):
             # Relies on setting values with iloc
             'pandas.core.series.Series': ['ser', 'r'],
             'pandas.core.series.Series.groupby': [
-                # TODO(https://github.com/apache/beam/issues/20643): This example requires aligning two series
-                # with non-unique indexes. It only works in pandas because
-                # pandas can recognize the indexes are identical and elide the
-                # alignment.
+                # TODO(https://github.com/apache/beam/issues/20643): This
+                # example requires aligning two series with non-unique indexes.
+                # It only works in pandas because pandas can recognize the
+                # indexes are identical and elide the alignment.
                 'ser.groupby(ser > 100).mean()',
             ],
             'pandas.core.series.Series.asfreq': ['*'],
@@ -643,7 +644,8 @@ class DoctestTest(unittest.TestCase):
                 'seconds_series.dt.seconds'
             ],
 
-            # TODO(https://github.com/apache/beam/issues/21013): Test data creation fails for these
+            # TODO(https://github.com/apache/beam/issues/21013): Test data
+            # creation fails for these
             #   s = pd.Series(pd.to_timedelta(np.arange(5), unit="d"))
             # pylint: disable=line-too-long
             'pandas.core.indexes.accessors.DatetimeProperties.to_pydatetime': [

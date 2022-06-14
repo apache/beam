@@ -401,7 +401,8 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
 
 
 class FlinkRunnerTestOptimized(FlinkRunnerTest):
-  # TODO: Remove these tests after resolving https://github.com/apache/beam/issues/19422 and enabling
+  # TODO: Remove these tests after resolving
+  #  https://github.com/apache/beam/issues/19422 and enabling
   #  PortableRunnerOptimized
   def create_options(self):
     options = super().create_options()

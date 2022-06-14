@@ -70,8 +70,9 @@ class AugmentedPipeline:
   def augmented_pipeline(self) -> beam_runner_api_pb2.Pipeline:
     return self.augment()
 
-  # TODO(https://github.com/apache/beam/issues/20526): Support generating a background recording job that
-  # contains unbound source recording transforms only.
+  # TODO(https://github.com/apache/beam/issues/20526): Support generating a
+  # background recording job that contains unbound source recording transforms
+  # only.
   @property
   def background_recording_pipeline(self) -> beam_runner_api_pb2.Pipeline:
     raise NotImplementedError

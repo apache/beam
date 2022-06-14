@@ -593,7 +593,8 @@ class _PubSubReadEvaluator(_TransformEvaluator):
   """TransformEvaluator for PubSub read."""
 
   # A mapping of transform to _PubSubSubscriptionWrapper.
-  # TODO(https://github.com/apache/beam/issues/19751): Prevents garbage collection of pipeline instances.
+  # TODO(https://github.com/apache/beam/issues/19751): Prevents garbage
+  # collection of pipeline instances.
   _subscription_cache = {}  # type: Dict[AppliedPTransform, str]
 
   def __init__(
