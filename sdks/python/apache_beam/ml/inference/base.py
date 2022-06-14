@@ -14,11 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# TODO: https://github.com/apache/beam/issues/21822
+# mypy: ignore-errors
 
 """An extensible run inference transform.
 
-Users of this module can extend the ModelLoader class for any MLframework. Then
-pass their extended ModelLoader object into RunInference to create a
+Users of this module can extend the ModelHandler class for any MLframework. Then
+pass their extended ModelHandler object into RunInference to create a
 RunInference Beam transform for that framework.
 
 The transform will handle standard inference functionality like metric
@@ -32,12 +34,15 @@ import logging
 import pickle
 import sys
 import time
+from dataclasses import dataclass
 from typing import Any
 from typing import Generic
 from typing import Iterable
-from typing import List
 from typing import Mapping
+from typing import Sequence
+from typing import Tuple
 from typing import TypeVar
+from typing import Union
 
 import apache_beam as beam
 from apache_beam.utils import shared
@@ -54,6 +59,15 @@ _NANOSECOND_TO_MICROSECOND = 1_000
 ModelT = TypeVar('ModelT')
 ExampleT = TypeVar('ExampleT')
 PredictionT = TypeVar('PredictionT')
+_INPUT_TYPE = TypeVar('_INPUT_TYPE')
+_OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
+KeyT = TypeVar('KeyT')
+
+
+@dataclass
+class PredictionResult:
+  example: _INPUT_TYPE
+  inference: _OUTPUT_TYPE
 
 
 def _to_milliseconds(time_ns: int) -> int:
@@ -64,33 +78,25 @@ def _to_microseconds(time_ns: int) -> int:
   return int(time_ns / _NANOSECOND_TO_MICROSECOND)
 
 
-class InferenceRunner(Generic[ExampleT, PredictionT, ModelT]):
-  """Implements running inferences for a framework."""
-  def run_inference(self, batch: List[ExampleT], model: ModelT,
+class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
+  """Has the ability to load and apply an ML model."""
+  def load_model(self) -> ModelT:
+    """Loads and initializes a model for processing."""
+    raise NotImplementedError(type(self))
+
+  def run_inference(self, batch: Sequence[ExampleT], model: ModelT,
                     **kwargs) -> Iterable[PredictionT]:
     """Runs inferences on a batch of examples and
     returns an Iterable of Predictions."""
     raise NotImplementedError(type(self))
 
-  def get_num_bytes(self, batch: List[ExampleT]) -> int:
+  def get_num_bytes(self, batch: Sequence[ExampleT]) -> int:
     """Returns the number of bytes of data for a batch."""
     return len(pickle.dumps(batch))
 
   def get_metrics_namespace(self) -> str:
     """Returns a namespace for metrics collected by RunInference transform."""
     return 'RunInference'
-
-
-class ModelLoader(Generic[ExampleT, PredictionT, ModelT]):
-  """Has the ability to load an ML model."""
-  def load_model(self) -> ModelT:
-    """Loads and initializes a model for processing."""
-    raise NotImplementedError(type(self))
-
-  def get_inference_runner(
-      self) -> InferenceRunner[ExampleT, PredictionT, ModelT]:
-    """Returns an implementation of InferenceRunner for this model."""
-    raise NotImplementedError(type(self))
 
   def get_resource_hints(self) -> dict:
     """Returns resource hints for the transform."""
@@ -101,34 +107,154 @@ class ModelLoader(Generic[ExampleT, PredictionT, ModelT]):
     return {}
 
 
+class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
+                        ModelHandler[Tuple[KeyT, ExampleT],
+                                     Tuple[KeyT, PredictionT],
+                                     ModelT]):
+  """A ModelHandler that takes keyed examples and returns keyed predictions.
+
+  For example, if the original model was used with RunInference to take a
+  PCollection[E] to a PCollection[P], this would take a
+  PCollection[Tuple[K, E]] to a PCollection[Tuple[K, P]], allowing one to
+  associate the outputs with the inputs based on the key.
+  """
+  def __init__(self, unkeyed: ModelHandler[ExampleT, PredictionT, ModelT]):
+    self._unkeyed = unkeyed
+
+  def load_model(self) -> ModelT:
+    return self._unkeyed.load_model()
+
+  def run_inference(
+      self, batch: Sequence[Tuple[KeyT, ExampleT]], model: ModelT,
+      **kwargs) -> Iterable[Tuple[KeyT, PredictionT]]:
+    keys, unkeyed_batch = zip(*batch)
+    return zip(
+        keys, self._unkeyed.run_inference(unkeyed_batch, model, **kwargs))
+
+  def get_num_bytes(self, batch: Sequence[Tuple[KeyT, ExampleT]]) -> int:
+    keys, unkeyed_batch = zip(*batch)
+    return len(pickle.dumps(keys)) + self._unkeyed.get_num_bytes(unkeyed_batch)
+
+  def get_metrics_namespace(self) -> str:
+    return self._unkeyed.get_metrics_namespace()
+
+  def get_resource_hints(self):
+    return self._unkeyed.get_resource_hints()
+
+  def batch_elements_kwargs(self):
+    return self._unkeyed.batch_elements_kwargs()
+
+
+class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
+                             ModelHandler[Union[ExampleT, Tuple[KeyT,
+                                                                ExampleT]],
+                                          Union[PredictionT,
+                                                Tuple[KeyT, PredictionT]],
+                                          ModelT]):
+  """A ModelHandler that takes possibly keyed examples and returns possibly
+  keyed predictions.
+
+  For example, if the original model was used with RunInference to take a
+  PCollection[E] to a PCollection[P], this would take either PCollection[E] to a
+  PCollection[P] or PCollection[Tuple[K, E]] to a PCollection[Tuple[K, P]],
+  depending on the whether the elements happen to be tuples, allowing one to
+  associate the outputs with the inputs based on the key.
+
+  Note that this cannot be used if E happens to be a tuple type.  In addition,
+  either all examples should be keyed, or none of them.
+  """
+  def __init__(self, unkeyed: ModelHandler[ExampleT, PredictionT, ModelT]):
+    self._unkeyed = unkeyed
+
+  def load_model(self) -> ModelT:
+    return self._unkeyed.load_model()
+
+  def run_inference(
+      self,
+      batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]],
+      model: ModelT,
+      **kwargs
+  ) -> Union[Iterable[PredictionT], Iterable[Tuple[KeyT, PredictionT]]]:
+    # Really the input should be
+    #    Union[Sequence[ExampleT], Sequence[Tuple[KeyT, ExampleT]]]
+    # but there's not a good way to express (or check) that.
+    if isinstance(batch[0], tuple):
+      is_keyed = True
+      keys, unkeyed_batch = zip(*batch)  # type: ignore[arg-type]
+    else:
+      is_keyed = False
+      unkeyed_batch = batch  # type: ignore[assignment]
+    unkeyed_results = self._unkeyed.run_inference(
+        unkeyed_batch, model, **kwargs)
+    if is_keyed:
+      return zip(keys, unkeyed_results)
+    else:
+      return unkeyed_results
+
+  def get_num_bytes(
+      self, batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]]) -> int:
+    # MyPy can't follow the branching logic.
+    if isinstance(batch[0], tuple):
+      keys, unkeyed_batch = zip(*batch)  # type: ignore[arg-type]
+      return len(
+          pickle.dumps(keys)) + self._unkeyed.get_num_bytes(unkeyed_batch)
+    else:
+      return self._unkeyed.get_num_bytes(batch)  # type: ignore[arg-type]
+
+  def get_metrics_namespace(self) -> str:
+    return self._unkeyed.get_metrics_namespace()
+
+  def get_resource_hints(self):
+    return self._unkeyed.get_resource_hints()
+
+  def batch_elements_kwargs(self):
+    return self._unkeyed.batch_elements_kwargs()
+
+
 class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                                    beam.PCollection[PredictionT]]):
   """An extensible transform for running inferences.
   Args:
-      model_loader: An implementation of ModelLoader.
+      model_handler: An implementation of ModelHandler.
       clock: A clock implementing get_current_time_in_microseconds.
+
+  A transform that takes a PCollection of examples (or features) to be used on
+  an ML model. It will then output inferences (or predictions) for those
+  examples in a PCollection of PredictionResults, containing the input examples
+  and output inferences.
+
+  If examples are paired with keys, it will output a tuple
+  (key, PredictionResult) for each (key, example) input.
+
+  Models for supported frameworks can be loaded via a URI. Supported services
+  can also be used.
+
+  TODO(https://github.com/apache/beam/issues/21436): Add and link to help
+  documentation
   """
   def __init__(
       self,
-      model_loader: ModelLoader[ExampleT, PredictionT, Any],
+      model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock=time,
       **kwargs):
-    self._model_loader = model_loader
+    self._model_handler = model_handler
     self._kwargs = kwargs
     self._clock = clock
 
-  # TODO(BEAM-14208): Add batch_size back off in the case there
-  # are functional reasons large batch sizes cannot be handled.
+  # TODO(https://github.com/apache/beam/issues/21447): Add batch_size back off
+  # in the case there are functional reasons large batch sizes cannot be
+  # handled.
   def expand(
       self, pcoll: beam.PCollection[ExampleT]) -> beam.PCollection[PredictionT]:
-    resource_hints = self._model_loader.get_resource_hints()
+    resource_hints = self._model_handler.get_resource_hints()
     return (
         pcoll
-        # TODO(BEAM-14044): Hook into the batching DoFn APIs.
-        | beam.BatchElements(**self._model_loader.batch_elements_kwargs())
+        # TODO(https://github.com/apache/beam/issues/21440): Hook into the
+        # batching DoFn APIs.
+        | beam.BatchElements(**self._model_handler.batch_elements_kwargs())
         | (
             beam.ParDo(
-                _RunInferenceDoFn(self._model_loader, self._clock),
+                _RunInferenceDoFn(self._model_handler, self._clock),
                 **self._kwargs).with_resource_hints(**resource_hints)))
 
 
@@ -184,8 +310,8 @@ class _MetricsCollector:
 class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   """A DoFn implementation generic to frameworks."""
   def __init__(
-      self, model_loader: ModelLoader[ExampleT, PredictionT, Any], clock):
-    self._model_loader = model_loader
+      self, model_handler: ModelHandler[ExampleT, PredictionT, Any], clock):
+    self._model_handler = model_handler
     self._shared_model_handle = shared.Shared()
     self._clock = clock
     self._model = None
@@ -195,7 +321,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
       start_time = _to_milliseconds(self._clock.time_ns())
-      model = self._model_loader.load_model()
+      model = self._model_handler.load_model()
       end_time = _to_milliseconds(self._clock.time_ns())
       memory_after = _get_current_process_memory_in_bytes()
       load_model_latency_ms = end_time - start_time
@@ -204,45 +330,32 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
           load_model_latency_ms, model_byte_size)
       return model
 
-    # TODO(BEAM-14207): Investigate releasing model.
+    # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
+    # model.
     return self._shared_model_handle.acquire(load)
 
   def setup(self):
-    self._inference_runner = self._model_loader.get_inference_runner()
     self._metrics_collector = _MetricsCollector(
-        self._inference_runner.get_metrics_namespace())
+        self._model_handler.get_metrics_namespace())
     self._model = self._load_model()
 
   def process(self, batch, **kwargs):
-    # Process supports both keyed data, and example only data.
-    # First keys and samples are separated (if there are keys)
-    has_keys = isinstance(batch[0], tuple)
-    if has_keys:
-      examples = [example for _, example in batch]
-      keys = [key for key, _ in batch]
-    else:
-      examples = batch
-      keys = None
-
     start_time = _to_microseconds(self._clock.time_ns())
-    result_generator = self._inference_runner.run_inference(
-        examples, self._model, **kwargs)
+    result_generator = self._model_handler.run_inference(
+        batch, self._model, **kwargs)
     predictions = list(result_generator)
 
     end_time = _to_microseconds(self._clock.time_ns())
     inference_latency = end_time - start_time
-    num_bytes = self._inference_runner.get_num_bytes(examples)
+    num_bytes = self._model_handler.get_num_bytes(batch)
     num_elements = len(batch)
     self._metrics_collector.update(num_elements, num_bytes, inference_latency)
 
-    # Keys are recombined with predictions in the RunInference PTransform.
-    if has_keys:
-      yield from zip(keys, predictions)
-    else:
-      yield from predictions
+    return predictions
 
   def finish_bundle(self):
-    # TODO(BEAM-13970): Figure out why there is a cache.
+    # TODO(https://github.com/apache/beam/issues/21435): Figure out why there
+    # is a cache.
     self._metrics_collector.update_metrics_with_cache()
 
 

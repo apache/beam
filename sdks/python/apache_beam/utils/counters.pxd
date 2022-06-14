@@ -28,3 +28,4 @@ cdef class Counter(object):
 
 cdef class AccumulatorCombineFnCounter(Counter):
   cdef readonly object _fast_add_input
+  cdef readonly object _fast_add_input_n

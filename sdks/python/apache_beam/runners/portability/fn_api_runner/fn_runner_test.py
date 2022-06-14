@@ -136,13 +136,42 @@ class FnApiRunnerTest(unittest.TestCase):
 
       assert_that(res, equal_to([6, 12, 18]))
 
+  def test_batch_pardo_override_type_inference(self):
+    class ArrayMultiplyDoFnOverride(beam.DoFn):
+      def process_batch(self, batch, *unused_args,
+                        **unused_kwargs) -> Iterator[np.ndarray]:
+        assert isinstance(batch, np.ndarray)
+        yield batch * 2
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return input_type
+
+      def get_input_batch_type(self, input_element_type):
+        from apache_beam.typehints.batch import NumpyArray
+        return NumpyArray[input_element_type]
+
+      def get_output_batch_type(self, input_element_type):
+        return self.get_input_batch_type(input_element_type)
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayMultiplyDoFnOverride())
+          | beam.Map(lambda x: x * 3))
+
+      assert_that(res, equal_to([6, 12, 18]))
+
   def test_batch_pardo_trigger_flush(self):
     try:
       utils.check_compiled('apache_beam.coders.coder_impl')
     except RuntimeError:
       self.skipTest(
-          'BEAM-14410: FnRunnerTest with non-trivial inputs flakes '
-          'in non-cython environments')
+          'https://github.com/apache/beam/issues/21643: FnRunnerTest with '
+          'non-trivial inputs flakes in non-cython environments')
 
     with self.create_pipeline() as p:
       res = (
@@ -293,13 +322,58 @@ class FnApiRunnerTest(unittest.TestCase):
                                  9*9                        # [ 9, 14)
                                  ]))
 
+  def test_batch_to_element_pardo(self):
+    class ArraySumDoFn(beam.DoFn):
+      @beam.DoFn.yields_elements
+      def process_batch(self, batch: np.ndarray, *unused_args,
+                        **unused_kwargs) -> Iterator[np.int64]:
+        yield batch.sum()
+
+      def infer_output_type(self, input_type):
+        assert input_type == np.int64
+        return np.int64
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array(range(100), dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayMultiplyDoFn())
+          | beam.ParDo(ArraySumDoFn())
+          | beam.CombineGlobally(sum))
+
+      assert_that(res, equal_to([99 * 50 * 2]))
+
+  def test_element_to_batch_pardo(self):
+    class ArrayProduceDoFn(beam.DoFn):
+      @beam.DoFn.yields_batches
+      def process(self, element: np.int64, *unused_args,
+                  **unused_kwargs) -> Iterator[np.ndarray]:
+        yield np.array([element] * int(element))
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return np.int64
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayProduceDoFn())
+          | beam.ParDo(ArrayMultiplyDoFn())
+          | beam.Map(lambda x: x * 3))
+
+      assert_that(res, equal_to([6, 12, 12, 18, 18, 18]))
+
   def test_pardo_large_input(self):
     try:
       utils.check_compiled('apache_beam.coders.coder_impl')
     except RuntimeError:
       self.skipTest(
-          'BEAM-14410: FnRunnerTest with non-trivial inputs flakes in '
-          'non-cython environments')
+          'https://github.com/apache/beam/issues/21643: FnRunnerTest with '
+          'non-trivial inputs flakes in non-cython environments')
     with self.create_pipeline() as p:
       res = (
           p
@@ -380,7 +454,7 @@ class FnApiRunnerTest(unittest.TestCase):
                 ExpectingSideInputsFn(f'Do{k}'),
                 *[beam.pvalue.AsList(inputs[s]) for s in range(1, k)]))
 
-  @unittest.skip('BEAM-13040')
+  @unittest.skip('https://github.com/apache/beam/issues/21228')
   def test_pardo_side_input_sparse_dependencies(self):
     with self.create_pipeline() as p:
       inputs = []
@@ -1710,7 +1784,7 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(is_drain=is_drain),
         options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests.
+    #TODO(https://github.com/apache/beam/issues/19936): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
@@ -1740,7 +1814,7 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(is_drain=is_drain),
         options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests.
+    #TODO(https://github.com/apache/beam/issues/19936): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
@@ -1778,7 +1852,7 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3, is_drain=is_drain),
         options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests.
+    #TODO(https://github.com/apache/beam/issues/19936): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 

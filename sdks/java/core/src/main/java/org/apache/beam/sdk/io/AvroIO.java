@@ -649,15 +649,28 @@ public class AvroIO {
     /**
      * Continuously watches for new files matching the filepattern, polling it at the given
      * interval, until the given termination condition is reached. The returned {@link PCollection}
-     * is unbounded.
+     * is unbounded. If {@code matchUpdatedFiles} is set, also watches for files with timestamp
+     * change.
      *
      * <p>This works only in runners supporting splittable {@link
      * org.apache.beam.sdk.transforms.DoFn}.
      */
     public Read<T> watchForNewFiles(
-        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
       return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
+          getMatchConfiguration()
+              .continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
+    /**
+     * Same as {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)} with {@code
+     * matchUpdatedFiles=false}.
+     */
+    public Read<T> watchForNewFiles(
+        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+      return watchForNewFiles(pollInterval, terminationCondition, false);
     }
 
     /**
@@ -1236,11 +1249,20 @@ public class AvroIO {
       return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
-    /** Like {@link Read#watchForNewFiles}. */
+    /** Like {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)}. */
+    public ParseAll<T> watchForNewFiles(
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
+      return withMatchConfiguration(
+          getMatchConfiguration()
+              .continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
+    /** Like {@link Read#watchForNewFiles(Duration, TerminationCondition)}. */
     public ParseAll<T> watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
+      return watchForNewFiles(pollInterval, terminationCondition, false);
     }
 
     /** Specifies the coder for the result of the {@code parseFn}. */
