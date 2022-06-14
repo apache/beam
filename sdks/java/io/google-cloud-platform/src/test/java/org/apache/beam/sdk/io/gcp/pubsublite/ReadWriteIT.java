@@ -151,8 +151,8 @@ public class ReadWriteIT {
     }
   }
 
-  // Workaround for Issue 21257
-  // TODO(Issue 21257): Remove this.
+  // Workaround for https://github.com/apache/beam/issues/21257
+  // TODO(https://github.com/apache/beam/issues/21257): Remove this.
   private static class CustomCreate extends PTransform<PCollection<Void>, PCollection<Integer>> {
     @Override
     public PCollection<Integer> expand(PCollection<Void> input) {
@@ -196,7 +196,7 @@ public class ReadWriteIT {
             PubsubLiteIO.read(
                 SubscriberOptions.newBuilder().setSubscriptionPath(subscriptionPath).build()));
     return messages;
-    // TODO(Issue 21157): Fix and re-enable
+    // TODO(https://github.com/apache/beam/issues/21157): Fix and re-enable
     // Deduplicate messages based on the uuids added in PubsubLiteIO.addUuids() when writing.
     // return messages.apply(
     //   "dedupeMessages", PubsubLiteIO.deduplicate(UuidDeduplicationOptions.newBuilder().build()));

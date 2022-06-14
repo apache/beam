@@ -290,7 +290,7 @@ public class FnHarness {
                 processWideCache);
       }
 
-      // TODO(Issue 20270): Remove once runners no longer send this instruction.
+      // TODO(https://github.com/apache/beam/issues/20270): Remove once runners no longer send this instruction.
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.REGISTER,
           request ->

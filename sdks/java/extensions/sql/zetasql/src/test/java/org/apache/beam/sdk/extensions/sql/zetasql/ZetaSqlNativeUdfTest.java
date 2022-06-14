@@ -257,7 +257,7 @@ public class ZetaSqlNativeUdfTest extends ZetaSqlTestBase {
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage("Native SQL aggregate functions are not supported (Issue 20193).");
+    thrown.expectMessage("Native SQL aggregate functions are not supported (https://github.com/apache/beam/issues/20193).");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 }

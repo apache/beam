@@ -117,7 +117,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       implements ExternalTransformBuilder<ReadBuilder.Configuration, PBegin, PCollection<Row>> {
 
     public static class Configuration extends CrossLanguageConfiguration {
-      // TODO: Issue 20415 Come up with something to determine schema without this explicit
+      // TODO: https://github.com/apache/beam/issues/20415 Come up with something to determine schema without this explicit
       // parameter
       private Schema schema = Schema.builder().build();
       private @Nullable String sql;

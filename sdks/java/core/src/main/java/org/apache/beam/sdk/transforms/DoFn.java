@@ -859,7 +859,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *       commits the output of this bundle. See <a
    *       href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
    *       Finalize Bundles</a> for further details.
-   *   <li>TODO(Issue 18203): Add support for an {@link OutputReceiver} and {@link
+   *   <li>TODO(https://github.com/apache/beam/issues/18203): Add support for an {@link OutputReceiver} and {@link
    *       MultiOutputReceiver} that can output to a window.
    * </ul>
    *

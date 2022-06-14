@@ -91,7 +91,7 @@ import org.slf4j.LoggerFactory;
 /** A transform to write sharded records to BigQuery using the Storage API. */
 @SuppressWarnings({
   "FutureReturnValueIgnored",
-  "unused" // TODO(Issue 21230): Remove when new version of errorprone is released (2.11.0)
+  "unused" // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is released (2.11.0)
 })
 public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object, ElementT>
     extends PTransform<

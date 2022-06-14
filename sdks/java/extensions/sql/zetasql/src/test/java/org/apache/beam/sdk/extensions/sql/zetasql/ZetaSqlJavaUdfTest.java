@@ -259,7 +259,7 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
             jarPath);
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    // TODO(Issue 20614) This should fail earlier, before compiling the CalcFn.
+    // TODO(https://github.com/apache/beam/issues/20614) This should fail earlier, before compiling the CalcFn.
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("Could not compile CalcFn");
     thrown.expectCause(
@@ -283,7 +283,7 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
             jarPath);
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    // TODO(Issue 20614) This should fail earlier, before compiling the CalcFn.
+    // TODO(https://github.com/apache/beam/issues/20614) This should fail earlier, before compiling the CalcFn.
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("Could not compile CalcFn");
     thrown.expectCause(

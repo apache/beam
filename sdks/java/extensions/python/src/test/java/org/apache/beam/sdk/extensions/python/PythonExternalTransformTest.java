@@ -45,7 +45,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class PythonExternalTransformTest implements Serializable {
-  @Ignore("Issue 21561")
+  @Ignore("https://github.com/apache/beam/issues/21561")
   @Test
   public void trivialPythonTransform() {
     Pipeline p = Pipeline.create();

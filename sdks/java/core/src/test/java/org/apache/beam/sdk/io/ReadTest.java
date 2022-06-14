@@ -176,7 +176,7 @@ public class ReadTest implements Serializable {
     PAssert.that(input)
         .containsInAnyOrder(
             LongStream.rangeClosed(1L, numElements).boxed().collect(Collectors.toList()));
-    // TODO(Issue 20530): Remove additional experiments when SDF read is default.
+    // TODO(https://github.com/apache/beam/issues/20530): Remove additional experiments when SDF read is default.
     ExperimentalOptions.addExperiment(
         pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
     // Force the pipeline to run with one thread to ensure the reader will be reused on one DoFn

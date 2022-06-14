@@ -92,7 +92,7 @@ import org.slf4j.LoggerFactory;
 /** Odd's 'n Ends used throughout queries and driver. */
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "unused" // TODO(Issue 21230): Remove when new version of errorprone is released (2.11.0)
+  "unused" // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is released (2.11.0)
 })
 public class NexmarkUtils {
   private static final Logger LOG = LoggerFactory.getLogger(NexmarkUtils.class);

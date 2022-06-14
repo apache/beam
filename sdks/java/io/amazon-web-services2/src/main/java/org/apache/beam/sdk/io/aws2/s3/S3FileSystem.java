@@ -229,7 +229,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
                 exception = pathWithEncoding.getException();
                 break;
               } else {
-                // TODO(Issue 20755): Support file checksum in this method.
+                // TODO(https://github.com/apache/beam/issues/20755): Support file checksum in this method.
                 metadatas.add(
                     createBeamMetadata(
                         pathWithEncoding.getPath(), pathWithEncoding.getContentEncoding(), null));

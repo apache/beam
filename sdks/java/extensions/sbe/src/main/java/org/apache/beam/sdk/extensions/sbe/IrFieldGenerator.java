@@ -54,7 +54,7 @@ final class IrFieldGenerator {
           fields.add(processPrimitive(iterator));
           break;
         default:
-          // TODO(Issue 21102): Support remaining field types
+          // TODO(https://github.com/apache/beam/issues/21102): Support remaining field types
           break;
       }
     }

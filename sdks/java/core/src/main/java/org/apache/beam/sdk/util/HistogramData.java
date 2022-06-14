@@ -43,7 +43,7 @@ public class HistogramData implements Serializable {
 
   private final BucketType bucketType;
 
-  // TODO(Issue 20853): Update this function to remove the numTopRecords and numBottomRecords
+  // TODO(https://github.com/apache/beam/issues/20853): Update this function to remove the numTopRecords and numBottomRecords
   // and include those counters in the buckets array.
   private long[] buckets;
   private long numBoundedBucketRecords;
@@ -68,7 +68,7 @@ public class HistogramData implements Serializable {
   }
 
   /**
-   * TODO(Issue 20853): Update this function to define numBuckets total, including the infinite
+   * TODO(https://github.com/apache/beam/issues/20853): Update this function to define numBuckets total, including the infinite
    * buckets. Create a histogram with linear buckets.
    *
    * @param start Lower bound of a starting bucket.
@@ -103,7 +103,7 @@ public class HistogramData implements Serializable {
     }
   }
 
-  // TODO(Issue 20853): Update this function to allow incrementing the infinite buckets as well.
+  // TODO(https://github.com/apache/beam/issues/20853): Update this function to allow incrementing the infinite buckets as well.
   // and remove the incTopBucketCount and incBotBucketCount methods.
   // Using 0 and length -1 as the bucketIndex.
   public synchronized void incBucketCount(int bucketIndex, long count) {
@@ -150,7 +150,7 @@ public class HistogramData implements Serializable {
   }
 
   /**
-   * TODO(Issue 20853): Update this function to allow indexing the -INF and INF bucket (using 0 and
+   * TODO(https://github.com/apache/beam/issues/20853): Update this function to allow indexing the -INF and INF bucket (using 0 and
    * length -1) Get the bucket count for the given bucketIndex.
    *
    * <p>This method does not guarantee the atomicity when sequentially accessing the multiple
