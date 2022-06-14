@@ -53,6 +53,19 @@ class PostcommitJobBuilder {
     jb.defineAutoPostCommitJob(nameBase)
   }
 
+  static void postCommitJobWithTrigger(nameBase,
+                            triggerPhrase,
+                            githubUiHint,
+                            scope,
+                            jobDefinition = {}) {
+    PostcommitJobBuilder jb = new PostcommitJobBuilder(scope, jobDefinition)
+    jb.defineAutoPostCommitJob(nameBase)
+
+    if (triggerPhrase) {
+      jb.defineGhprbTriggeredJob(nameBase + "_PR", triggerPhrase, githubUiHint, false)
+    }
+  }
+
   void defineAutoPostCommitJob(name) {
     def autoBuilds = scope.job(name) {
       commonJobProperties.setAutoJob delegate, 'H H/6 * * *', 'builds@beam.apache.org', true, true
@@ -70,12 +83,11 @@ class PostcommitJobBuilder {
         maxTotal(3)
       }
 
-      // [Issue#21824] Disable trigger
-      //      commonJobProperties.setPullRequestBuildTrigger(
-      //          delegate,
-      //          githubUiHint,
-      //          triggerPhrase,
-      //          !triggerOnPrCommit)
+      commonJobProperties.setPullRequestBuildTrigger(
+          delegate,
+          githubUiHint,
+          triggerPhrase,
+          !triggerOnPrCommit)
     }
     ghprbBuilds.with(jobDefinition)
   }
