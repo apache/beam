@@ -18,8 +18,10 @@ package harness
 import (
 	"context"
 	"fmt"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 	"log"
 	"net"
+	"strings"
 	"testing"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -75,7 +77,9 @@ func TestSendStatusResponse(t *testing.T) {
 		t.Fatalf("unable to start test server: %v", err)
 	}
 
-	statusHandler := workerStatusHandler{conn: conn}
+	statusHandler := workerStatusHandler{conn: conn, cache: &statecache.SideInputCache{}, metStoreToString: func(builder *strings.Builder) {
+		builder.WriteString("metStore metadata")
+	}}
 	if err := statusHandler.start(ctx); err != nil {
 		t.Fatal(err)
 	}
