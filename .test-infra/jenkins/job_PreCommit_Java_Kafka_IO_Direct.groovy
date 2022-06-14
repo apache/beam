@@ -27,7 +27,6 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^sdks/java/io/kafka/.*$',
-      '^runners/direct-java/.*$',
     ],
     timeoutMins: 120,
     )

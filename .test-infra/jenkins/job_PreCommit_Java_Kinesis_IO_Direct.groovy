@@ -27,7 +27,6 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^sdks/java/io/kinesis/.*$',
-      '^runners/direct-java/.*$',
     ],
     timeoutMins: 60,
     )
