@@ -57,8 +57,7 @@ class MyRow(typing.NamedTuple):
 
 @unittest.skipIf(
     platform.system() == 'Windows',
-    'https://github.com/apache/beam/issues/20642'
-)
+    'https://github.com/apache/beam/issues/20642')
 class IOTest(unittest.TestCase):
   def setUp(self):
     self._temp_roots = []
