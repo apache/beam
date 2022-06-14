@@ -44,6 +44,7 @@ from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery as beam_bq
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
@@ -660,6 +661,40 @@ class TestBigQuerySink(unittest.TestCase):
     },
                      json.loads(sink.schema_as_json()))
 
+  def test_disposition_exceptions(self):
+    """Test bad parameter value errors for disposition args."""
+    with self.assertRaises(ValueError):
+      beam.io.BigQuerySink('dataset.table',
+                           create_disposition="BAD")
+
+    with self.assertRaises(ValueError):
+      beam.io.BigQuerySink('dataset.table',
+                           write_disposition="BAD")
+
+    with self.assertRaises(ValueError):
+      beam.io.BigQuerySink('dataset.table',
+                           schema_update_options="BAD")
+
+  def test_disposition_update_opts(self):
+    """Test schema update options from args."""
+    obj1 = beam.io.BigQuerySink('dataset.table')
+    self.assertEquals(obj1.schema_update_options, [],
+                      'Schema Update Options passed as None')
+
+    opt2 = BigQueryDisposition.ALLOW_FIELD_ADDITION
+    obj2 = beam.io.BigQuerySink('dataset.table',
+                                schema_update_options=opt2)
+    self.assertEquals(obj2.schema_update_options, [opt2],
+                      'Schema Update Options passed as single string')
+
+    opt3 = BigQueryDisposition.ALLOW_FIELD_RELAXATION
+    obj3 = beam.io.BigQuerySink('dataset.table',
+                                schema_update_options=(opt2, opt3))
+
+    cmp1, cmp2 = set(obj3.schema_update_options), {opt2, opt3}
+    self.assertEqual(cmp1, cmp2,
+                     'Schema Update Options passed as iterable')
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestWriteToBigQuery(unittest.TestCase):
@@ -1034,6 +1069,26 @@ class TestWriteToBigQuery(unittest.TestCase):
 
     self.assertEqual(4, mock_insert_copy_job.call_count)
     self.assertIn(error_message, exc.exception.args[0])
+
+  def test_disposition_update_opts(self):
+    """Test schema update options from args."""
+    obj1 = beam.io.WriteToBigQuery('project:dataset.table')
+    self.assertEquals(obj1.schema_update_options, [],
+                      'Schema Update Options passed as None')
+
+    opt2 = BigQueryDisposition.ALLOW_FIELD_ADDITION
+    obj2 = beam.io.WriteToBigQuery('project:dataset.table',
+                                   schema_update_options=opt2)
+    self.assertEquals(obj2.schema_update_options, [opt2],
+                      'Schema Update Options passed as single string')
+
+    opt3 = BigQueryDisposition.ALLOW_FIELD_RELAXATION
+    obj3 = beam.io.WriteToBigQuery('project:dataset.table',
+                                   schema_update_options=(opt2, opt3))
+
+    cmp1, cmp2 = set(obj3.schema_update_options), {opt2, opt3}
+    self.assertEqual(cmp1, cmp2,
+                     'Schema Update Options passed as iterable')
 
 
 @unittest.skipIf(
