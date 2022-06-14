@@ -25,6 +25,7 @@ which users can then compare against the original sentence.
 """
 
 import argparse
+import os
 from typing import Dict
 from typing import Iterable
 from typing import Tuple
@@ -56,7 +57,9 @@ def tokenize_sentence(
       masked_text, return_tensors="pt")
 
   # Workaround to manually remove batch dim until we have the feature to
-  # add optional batching flag. TODO: Remove once optional batching flag added
+  # add optional batching flag.
+  # TODO(https://github.com/apache/beam/issues/21863): Remove once optional
+  # batching flag added
   return text, {
       k: torch.squeeze(v)
       for k, v in dict(tokenized_sentence).items()
@@ -64,6 +67,13 @@ def tokenize_sentence(
 
 
 class PostProcessor(beam.DoFn):
+  """Processes the PredictionResult to get the predicted word.
+
+  The logits are the output of the BERT Model. After applying a softmax
+  activation function to the logits, we get probabilistic distributions for each
+  of the words in BERT’s vocabulary. We can get the word with the highest
+  probability of being a candidate replacement word by taking the argmax.
+  """
   def process(
       self, element: Tuple[str, PredictionResult]) -> Iterable[Tuple[str, str]]:
     text, prediction_result = element
@@ -73,8 +83,8 @@ class PostProcessor(beam.DoFn):
         inputs['input_ids'] == BERT_TOKENIZER.mask_token_id).nonzero(
             as_tuple=True)[0]
     predicted_token_id = logits[mask_token_index].argmax(axis=-1)
-    decoded_text = BERT_TOKENIZER.decode(predicted_token_id)
-    yield (text, decoded_text)
+    decoded_word = BERT_TOKENIZER.decode(predicted_token_id)
+    yield (text, decoded_word)
 
 
 def parse_known_args(argv):
@@ -83,20 +93,18 @@ def parse_known_args(argv):
   parser.add_argument(
       '--input',
       dest='input',
-      default='gs://apache-beam-ml/datasets/custom/sentences.txt',
-      help='Path to the text file containing image names.')
+      default=os.path.join(os.path.dirname(__file__), 'data', 'sentences.txt'),
+      help='Path to the text file containing sentences.')
   parser.add_argument(
       '--output',
       dest='output',
-      help='Path where to save output predictions.'
-      ' text file.')
+      required=True,
+      help='Path of file in which to save the output predictions.')
   parser.add_argument(
       '--model_state_dict_path',
       dest='model_state_dict_path',
-      default='gs://apache-beam-ml/models/'
-      'huggingface.BertForMaskedLM.bert-base-uncased.pth',
-      help="Path to the model's state_dict. "
-      "Default state_dict would be for the bert-base-uncased model.")
+      required=True,
+      help="Path to the model's state_dict.")
   return parser.parse_known_args(argv)
 
 
@@ -119,12 +127,13 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
     model_class = BertForMaskedLM
     model_params = {'config': model_config}
 
-  # TODO: Remove once optional batching flag added
+  # TODO(https://github.com/apache/beam/issues/21863): Remove once optional
+  # batching flag added
   class HuggingFaceStripBatchingWrapper(model_class):
     """Wrapper class to convert output from dict of lists to list of dicts
 
-    The `forward()` function in Hugging Face models don't return a just a
-    standard torch.Tensor output. Instead, they can return a dictionary of
+    The `forward()` function in Hugging Face models doesn't return a
+    standard torch.Tensor output. Instead, it can return a dictionary of
     different outputs. To work with current RunInference implementation which
     returns a PredictionResult object for each example, we must override the
     `forward()` function and convert the standard Hugging Face forward output
@@ -189,9 +198,8 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
         | 'TokenizeSentence' >> beam.Map(tokenize_sentence))
     text_and_predictions = (
         text_and_tokenized_text_tuple
-        | 'PyTorchRunInference' >> RunInference(
-            KeyedModelHandler(model_handler)).with_output_types(
-                Tuple[str, PredictionResult])
+        |
+        'PyTorchRunInference' >> RunInference(KeyedModelHandler(model_handler))
         | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
     combined_text = (({
         'masked_text': text_and_masked_text_tuple,
@@ -202,11 +210,10 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
                          lambda x: x[1]['masked_text'][0] + ';' + x[0] + ';' +
                          x[1]['predicted_text'][0]))
 
-    if known_args.output:
-      combined_text | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
-        known_args.output,
-        shard_name_template='',
-        append_trailing_newlines=True)
+    combined_text | "WriteOutput" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
+      known_args.output,
+      shard_name_template='',
+      append_trailing_newlines=True)
 
 
 if __name__ == '__main__':
