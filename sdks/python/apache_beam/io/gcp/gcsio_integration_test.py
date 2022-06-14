@@ -177,7 +177,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
     self._test_copy_batch("test_copy_batch_kms", self.kms_key_name)
 
   @pytest.mark.it_postcommit_sickbay
-  #@pytest.mark.it_postcommit https://github.com/apache/beam/issues/20934 
+  #@pytest.mark.it_postcommit https://github.com/apache/beam/issues/20934
   # maxBytesRewrittenPerCall
   def test_copy_batch_rewrite_token(self):
     # Tests a multi-part copy (rewrite) operation. This is triggered by a
