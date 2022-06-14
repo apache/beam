@@ -234,6 +234,7 @@ class WindmillTimerInternals implements TimerInternals {
       } else {
         // Deleting a timer. If it is a user timer, clear the hold
         timer.clearTimestamp();
+        timer.clearMetadataTimestamp();
         // Clear the hold even if it's the end of the global window in order to maintain update
         // compatibility.
         if (needsWatermarkHold(timerData)) {
@@ -283,10 +284,10 @@ class WindmillTimerInternals implements TimerInternals {
     }
 
     builder.setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getTimestamp()));
+
     // Store the output timestamp in the metadata timestamp.
     builder.setMetadataTimestamp(
         WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getOutputTimestamp()));
-
     return builder;
   }
 
