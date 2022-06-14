@@ -239,8 +239,8 @@ class Coder(object):
 
   def to_type_hint(self):
     raise NotImplementedError(
-      'https://github.com/apache/beam/issues/18490: %s' %
-      self.__class__.__name__)
+        'https://github.com/apache/beam/issues/18490: %s' %
+        self.__class__.__name__)
 
   @classmethod
   def from_type_hint(cls, unused_typehint, unused_registry):

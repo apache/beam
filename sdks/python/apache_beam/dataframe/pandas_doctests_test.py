@@ -24,7 +24,8 @@ from apache_beam.dataframe.frames import PD_VERSION
 from apache_beam.dataframe.pandas_top_level_functions import _is_top_level_function
 
 
-@unittest.skipIf(sys.platform == 'win32', '[https://github.com/apache/beam/issues/20361]')
+@unittest.skipIf(
+    sys.platform == 'win32', '[https://github.com/apache/beam/issues/20361]')
 class DoctestTest(unittest.TestCase):
   def test_ndframe_tests(self):
     # IO methods are tested in io_test.py

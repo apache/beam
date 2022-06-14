@@ -173,9 +173,8 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         inference_runner.get_num_bytes(batched_examples_float))
 
   @unittest.skipIf(
-    platform.system() == 'Windows',
-    'https://github.com/apache/beam/issues/21449'
-  )
+      platform.system() == 'Windows',
+      'https://github.com/apache/beam/issues/21449')
   def test_pipeline_pickled(self):
     temp_file_name = self.tmpdir + os.sep + 'pickled_file'
     with open(temp_file_name, 'wb') as file:
@@ -195,9 +194,8 @@ class SkLearnRunInferenceTest(unittest.TestCase):
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
   @unittest.skipIf(
-    platform.system() == 'Windows',
-    'https://github.com/apache/beam/issues/21449'
-    )
+      platform.system() == 'Windows',
+      'https://github.com/apache/beam/issues/21449')
   def test_pipeline_joblib(self):
     temp_file_name = self.tmpdir + os.sep + 'joblib_file'
     with open(temp_file_name, 'wb') as file:
@@ -229,9 +227,8 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         pipeline.run()
 
   @unittest.skipIf(
-    platform.system() == 'Windows',
-    'https://github.com/apache/beam/issues/21449'
-  )
+      platform.system() == 'Windows',
+      'https://github.com/apache/beam/issues/21449')
   def test_bad_input_type_raises(self):
     with self.assertRaisesRegex(AssertionError,
                                 'Unsupported serialization type'):
@@ -241,9 +238,8 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         model_loader.load_model()
 
   @unittest.skipIf(
-    platform.system() == 'Windows',
-    'https://github.com/apache/beam/issues/21449'
-  )
+      platform.system() == 'Windows',
+      'https://github.com/apache/beam/issues/21449')
   def test_pipeline_pandas(self):
     temp_file_name = self.tmpdir + os.sep + 'pickled_file'
     with open(temp_file_name, 'wb') as file:
@@ -266,9 +262,8 @@ class SkLearnRunInferenceTest(unittest.TestCase):
           actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
 
   @unittest.skipIf(
-    platform.system() == 'Windows',
-    'https://github.com/apache/beam/issues/21449'
-  )
+      platform.system() == 'Windows',
+      'https://github.com/apache/beam/issues/21449')
   def test_pipeline_pandas_with_keys(self):
     temp_file_name = self.tmpdir + os.sep + 'pickled_file'
     with open(temp_file_name, 'wb') as file:

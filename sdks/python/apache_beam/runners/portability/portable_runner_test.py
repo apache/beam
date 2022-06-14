@@ -264,8 +264,8 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
 
 
 @pytest.mark.skipif(
-  sys.platform == "win32",
-  reason="[https://github.com/apache/beam/issues/20427]")
+    sys.platform == "win32",
+    reason="[https://github.com/apache/beam/issues/20427]")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_subprocesses = True
 
