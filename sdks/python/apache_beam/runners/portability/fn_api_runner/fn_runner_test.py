@@ -136,6 +136,37 @@ class FnApiRunnerTest(unittest.TestCase):
 
       assert_that(res, equal_to([6, 12, 18]))
 
+  def test_batch_pardo_override_type_inference(self):
+
+    class ArrayMultiplyTransposedDoFn(beam.DoFn):
+
+      def process_batch(self, batch, *unused_args,
+                        **unused_kwargs) -> Iterator[np.ndarray]:
+        assert isinstance(batch, np.ndarray)
+        yield batch * 2
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return input_type
+
+      def get_input_batch_type(self, input_element_type):
+        from apache_beam.typehints.batch import NumpyArray
+        return NumpyArray[input_element_type]
+
+      def get_output_batch_type(self, input_element_type):
+        return self.get_input_batch_type(input_element_type)
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayMultiplyTransposedDoFn())
+          | beam.Map(lambda x: x * 3))
+
+      assert_that(res, equal_to([6, 12, 18]))
+
   def test_batch_pardo_trigger_flush(self):
     try:
       utils.check_compiled('apache_beam.coders.coder_impl')
