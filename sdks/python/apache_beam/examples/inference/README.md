@@ -22,7 +22,7 @@
 This module contains example pipelines that use the Beam RunInference
 API. <!---TODO: Add link to full documentation on Beam website when it's published.-->
 
-## Pre-requisites
+## Prerequisites
 
 You must have `apache-beam>=2.40.0` installed in order to run these pipelines,
 because the `apache_beam.examples.inference` module was added in that release.
@@ -36,6 +36,16 @@ The RunInference API has support for the Pytorch framework. To use Pytorch local
 pip install torch==1.11.0
 ```
 
+If you are using pretrained models from Pytorch's `torchvision.models` [subpackage](https://pytorch.org/vision/0.12/models.html#models-and-pre-trained-weights), you may also need to install `torchvision`.
+```
+pip install torchvision
+```
+
+If you are using pretrained models from Hugging Face's `transformers` [package](https://huggingface.co/docs/transformers/index), you may also need to install `transformers`.
+```
+pip install transformers
+```
+
 For installation of the `torch` dependency on a distributed runner, like Dataflow, refer to these
 [instructions](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pypi-dependencies).
 
@@ -47,68 +57,180 @@ i.e. "See the
 for details."
 -->
 
-### Datasets and Models for RunInference
-Data related to RunInference has been staged in
-`gs://apache-beam-ml/` for use with these example pipelines. You can view the data [here](https://console.cloud.google.com/storage/browser/apache-beam-ml). You also can see this by using the [gsutil tool](https://cloud.google.com/storage/docs/gsutil#gettingstarted).
-```
-gsutil ls gs://apache-beam-ml
-```
-
 ---
-## Image Classification with ImageNet dataset
+## Image classification
 
 [`pytorch_image_classification.py`](./pytorch_image_classification.py) contains
-an implementation for a RunInference pipeline thatpeforms image classification
-on [ImageNet dataset](https://www.image-net.org/) using the MobileNetV2
+an implementation for a RunInference pipeline thatpeforms image classification using the mobilenet_v2
 architecture.
 
 The pipeline reads the images, performs basic preprocessing, passes them to the
 PyTorch implementation of RunInference, and then writes the predictions
-to a text file in GCS.
+to a text file.
 
-### Dataset and model for Image Classification
+### Dataset and model for image classification
 
-<!---
-TODO: Add once benchmark test is released
-- `gs://apache-beam-ml/testing/inputs/imagenet_validation_inputs.txt`:
-  text file containing the GCS paths of the images of all 5000 imagenet validation data
-    - gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00000001.JPEG
-    - ...
-    - gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00050000.JPEG
--->
-- `gs://apache-beam-ml/testing/inputs/it_imagenet_validation_inputs.txt`:
-  text file containing the GCS paths of the images of a subset of 15 imagenet
-  validation data. See the following example command to view contents of the file:
+You will need to create or download images, and place them into this directory called `IMAGES_DIR`. One popular dataset is from [ImageNet](https://www.image-net.org/). Please follow their instructions to download the images.
+- **Required**: A path to a file called `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` on which you want to run image segmentation. For example:
 ```
-$ gsutil cat gs://apache-beam-ml/testing/inputs/it_imagenet_validation_inputs.txt
-gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00000001.JPEG
-...
-gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00000015.JPEG
+/absolute/path/to/image1.jpg
+/absolute/path/to/image2.jpg
 ```
-
-- `gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_*.JPEG`:
-  JPEG images for the entire validation dataset.
-
-- `gs://apache-beam-ml/models/torchvision.models.mobilenet_v2.pth`: Path to
-  the location of the saved state_dict of the pretrained mobilenet_v2 model
-  from the `torchvision.models` subdirectory.
+- **Required**: A path to a file called `MODEL_STATE_DICT` that contains the saved
+parameters of the maskrcnn_resnet50_fpn model. You will need to download the [mobilenet_v2](https://pytorch.org/vision/stable/_modules/torchvision/models/mobilenetv2.html)
+model from Pytorch's repository of pretrained models. Make sure you have installed `torchvision` too.
+```
+import torch
+from torchvision.models.detection import mobilenet_v2
+model = mobilenet_v2(pretrained=True)
+torch.save(model.state_dict(), 'mobilenet_v2.pth')
+```
+- **Required**: A path to a file called `OUTPUT`, to which the pipeline will
+write the predictions.
+- **Optional**: `IMAGES_DIR`, which is the path to the directory where images are stored. that contains the images you want to feed into your model. Not required if image names in the input file `IMAGE_FILE_NAMES` have absolute path.
 
 ### Running `pytorch_image_classification.py`
 
 To run the image classification pipeline locally, use the following command:
 ```sh
 python -m apache_beam.examples.inference.pytorch_image_classification \
-  --input gs://apache-beam-ml/testing/inputs/it_imagenet_validation_inputs.txt \
+  --input IMAGE_FILE_NAMES \
+  --images_dir IMAGES_DIR \
+  --output OUTPUT \
+  --model_state_dict_path MODEL_STATE_DICT
+```
+For example:
+```sh
+python -m apache_beam.examples.inference.pytorch_image_classification \
+  --input image_file_names.txt \
   --output predictions.csv \
-  --model_state_dict_path gs://apache-beam-ml/models/torchvision.models.mobilenet_v2.pth
+  --model_state_dict_path maskrcnn_resnet50_fpn.pth
 ```
+This writes the output to the `predictions.csv` with contents like:
+```
+/absolute/path/to/image1.jpg;1
+/absolute/path/to/image2.jpg;333
+...
+``
+---
+## Image segmentation
 
-This will write the output to the `predictions.csv` with contents like:
+[`pytorch_image_segmentation.py`](./pytorch_image_segmentation.py) contains
+an implementation for a RunInference pipeline that peforms image segementation using the
+maskrcnn_resnet50_fpn architecture.
+
+The pipeline reads images, performs basic preprocessing, passes them to the
+PyTorch implementation of RunInference, and then writes the predictions
+to a text file.
+
+### Dataset and model for image segmentation
+You will need to create or download images, and place them into this directory called `IMAGES_DIR`. Another popular dataset is from [Coco](https://cocodataset.org/#home). Please follow their instructions to download the images.
+- **Required**: A path to a file called `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` on which you want to run image segmentation. For example:
 ```
-gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005002.JPEG,333
-gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005003.JPEG,711
-gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005004.JPEG,286
+/absolute/path/to/image1.jpg
+/absolute/path/to/image2.jpg
+```
+- **Required**: A path to a file called `MODEL_STATE_DICT` that contains the saved
+parameters of the maskrcnn_resnet50_fpn model. You will need to download the [maskrcnn_resnet50_fpn](https://pytorch.org/vision/0.12/models.html#id70)
+model from Pytorch's repository of pretrained models. Make sure you have installed `torchvision` too.
+```
+import torch
+from torchvision.models.detection import maskrcnn_resnet50_fpn
+model = maskrcnn_resnet50_fpn(pretrained=True)
+torch.save(model.state_dict(), 'maskrcnn_resnet50_fpn.pth')
+```
+- **Required**: A path to a file called `OUTPUT`, to which the pipeline will
+write the predictions.
+- **Optional**: `IMAGES_DIR`, which is the path to the directory where images are stored. that contains the images you want to feed into your model. Not required if image names in the input file `IMAGE_FILE_NAMES` have absolute path.
+### Running `pytorch_image_segmentation.py`
+
+To run the image segmentation pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.pytorch_image_segmentation \
+  --input IMAGE_FILE_NAMES \
+  --images_dir IMAGES_DIR \
+  --output OUTPUT \
+  --model_state_dict_path MODEL_STATE_DICT
+```
+For example:
+```sh
+python -m apache_beam.examples.inference.pytorch_image_segmentation \
+  --input image_file_names.txt \
+  --output predictions.csv \
+  --model_state_dict_path maskrcnn_resnet50_fpn.pth
+```
+This writes the output to the `predictions.csv` with contents like:
+```
+/absolute/path/to/image1.jpg;['parking meter', 'bottle', 'person', 'traffic light', 'traffic light', 'traffic light']
+/absolute/path/to/image2.jpg;['bottle', 'person', 'person']
 ...
 ```
-where the second item in each line is the integer representing the predicted class of the
-image.
+Each line has data separated by a semicolon ";".
+The first item is the file name. The second item are a list of predicted instances.
+---
+## Language modeling
+
+[`pytorch_language_modeling.py`](./pytorch_language_modeling.py) contains
+an implementation for a RunInference pipeline that peforms masked language
+modeling (i.e. decoding a masked token in a sentence) using the BertForMaskedLM
+architecture from Hugging Face.
+
+The pipeline reads sentences, performs basic preprocessing to conver the last
+word into a `[MASK]` token, passes the masked sentence to PyTorch
+implementation of RunInference, and then writes the predictions to a text file.
+
+### Dataset and model for language modeling
+
+- **Required**: A path to a file called `MODEL_STATE_DICT` that contains the saved
+parameters of the BertForMaskedLM model. You will need to download the [BertForMaskedLM](https://huggingface.co/docs/transformers/model_doc/bert#transformers.BertForMaskedLM)
+model from Hugging Face's repository of pretrained models.
+Make sure you have installed `transformers` too.
+```
+import torch
+from transformers import BertForMaskedLM
+model = BertForMaskedLM.from_pretrained('bert-base-uncased', return_dict=True)
+torch.save(model.state_dict(), 'BertForMaskedLM.pth')
+```
+- **Required**: A path to a file called `OUTPUT`, to which the pipeline will
+write the predictions.
+- **Optional**: A path to a file called `SENTENCES` that contains sentences to
+feed into the model. It should look something like this:
+```
+The capital of France is Paris .
+It is raining cats and dogs .
+...
+```
+### Running `pytorch_language_modeling.py`
+
+To run the language modeling pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.pytorch_language_modeling \
+  --input SENTENCES \
+  --output OUTPUT \
+  --model_state_dict_path MODEL_STATE_DICT
+```
+For example:
+```sh
+python -m apache_beam.examples.inference.pytorch_language_modeling \
+  --input sentences.txt \
+  --output predictions.csv \
+  --model_state_dict_path BertForMaskedLM.pth
+```
+If you don't provide a sentences file, it will run the pipeline with some
+example sentences we created.
+```
+python -m apache_beam.examples.inference.pytorch_language_modeling \
+  --output predictions.csv \
+  --model_state_dict_path BertForMaskedLM.pth
+```
+
+This writes the output to the `predictions.csv` with contents like:
+```
+The capital of France is [MASK] .;The capital of France is Paris .;paris
+It is raining cats and [MASK] .;It is raining cats and dogs .;dogs
+...
+```
+Each line has data separated by a semicolon ";".
+The first item is the sentence with the last word masked. The second item is
+the original sentence. The last item is the word that the model predicts
+for the mask.
