@@ -249,7 +249,6 @@ public class BigtableIO {
           BigtableConfig.builder()
               .setTableId(StaticValueProvider.of(""))
               .setValidate(true)
-              .setDataflowThrottleReporting(false)
               .build();
 
       return new AutoValue_BigtableIO_Read.Builder()
@@ -589,7 +588,6 @@ public class BigtableIO {
           BigtableConfig.builder()
               .setTableId(StaticValueProvider.of(""))
               .setValidate(true)
-              .setDataflowThrottleReporting(false)
               .setBigtableOptionsConfigurator(enableBulkApiConfigurator(null))
               .build();
 
