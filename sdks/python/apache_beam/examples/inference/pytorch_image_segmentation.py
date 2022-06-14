@@ -171,24 +171,22 @@ def parse_known_args(argv):
   parser.add_argument(
       '--input',
       dest='input',
-      default='gs://apache-beam-ml/testing/inputs/'
-      'it_coco_validation_inputs.txt',
+      required=True,
       help='Path to the text file containing image names.')
   parser.add_argument(
       '--output',
       dest='output',
+      required=True,
       help='Path where to save output predictions.'
       ' text file.')
   parser.add_argument(
       '--model_state_dict_path',
       dest='model_state_dict_path',
-      default='gs://apache-beam-ml/'
-      'models/torchvision.models.detection.maskrcnn_resnet50_fpn.pth',
+      required=True,
       help="Path to the model's state_dict. "
       "Default state_dict would be maskrcnn_resnet50_fpn.")
   parser.add_argument(
       '--images_dir',
-      default='gs://apache-beam-ml/datasets/coco/raw-data/val2017',
       help='Path to the directory where images are stored.'
       'Not required if image names in the input file have absolute path.')
   return parser.parse_known_args(argv)
@@ -229,13 +227,11 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
             lambda file_name, data: (file_name, preprocess_image(data))))
     predictions = (
         filename_value_pair
-        | 'PyTorchRunInference' >> RunInference(
-            KeyedModelHandler(model_handler)).with_output_types(
-                Tuple[str, PredictionResult])
+        |
+        'PyTorchRunInference' >> RunInference(KeyedModelHandler(model_handler))
         | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 
-    if known_args.output:
-      predictions | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
+    _ = predictions | "WriteOutput" >> beam.io.WriteToText(
         known_args.output,
         shard_name_template='',
         append_trailing_newlines=True)
