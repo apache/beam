@@ -1346,7 +1346,8 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("[https://github.com/apache/beam/issues/20101] CAST operator does not work fully due to bugs in unparsing")
+  @Ignore(
+      "[https://github.com/apache/beam/issues/20101] CAST operator does not work fully due to bugs in unparsing")
   public void testZetaSQLStructFieldAccessInCast2() {
     String sql =
         "SELECT CAST(A.struct_col.struct_col_str AS TIMESTAMP) FROM table_with_struct_ts_string AS"
@@ -2293,7 +2294,8 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("[https://github.com/apache/beam/issues/20139] ArrayScanToUncollectConverter Unnest does not support sub-queries")
+  @Ignore(
+      "[https://github.com/apache/beam/issues/20139] ArrayScanToUncollectConverter Unnest does not support sub-queries")
   public void testUNNESTExpression() {
     String sql = "SELECT * FROM UNNEST(ARRAY(SELECT Value FROM KeyValue));";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);

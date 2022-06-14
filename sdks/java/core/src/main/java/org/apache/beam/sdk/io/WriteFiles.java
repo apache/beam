@@ -744,7 +744,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       // records buffered or they have been buffered for a certain time, controlled by
       // FILE_TRIGGERING_RECORD_COUNT and BUFFERING_DURATION respectively.
       //
-      // TODO(https://github.com/apache/beam/issues/20928): The implementation doesn't currently work with merging windows.
+      // TODO(https://github.com/apache/beam/issues/20928): The implementation doesn't currently
+      // work with merging windows.
       PCollection<KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>> shardedInput =
           input
               .apply(

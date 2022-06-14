@@ -1880,7 +1880,8 @@ public class SpannerIO {
       }
     }
 
-    // TODO(https://github.com/apache/beam/issues/18203): Remove this when FinishBundle has added support for an {@link
+    // TODO(https://github.com/apache/beam/issues/18203): Remove this when FinishBundle has added
+    // support for an {@link
     // OutputReceiver}
     private static class OutputReceiverForFinishBundle
         implements OutputReceiver<Iterable<MutationGroup>> {

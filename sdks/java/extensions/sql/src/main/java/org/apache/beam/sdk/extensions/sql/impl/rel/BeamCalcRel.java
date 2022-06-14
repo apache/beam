@@ -113,7 +113,8 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "keyfor",
   "nullness",
-  "unused" // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is released (2.11.0)
+  "unused" // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
 }) // TODO(https://github.com/apache/beam/issues/20497)
 public class BeamCalcRel extends AbstractBeamCalcRel {
 
@@ -410,13 +411,15 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           if (value instanceof Date) {
             value = SqlFunctions.toInt((Date) value);
           }
-          // https://github.com/apache/beam/issues/20865: value should always be Integer here, but it isn't.
+          // https://github.com/apache/beam/issues/20865: value should always be Integer here, but
+          // it isn't.
           return LocalDate.ofEpochDay(((Number) value).longValue());
         } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
           if (value instanceof Time) {
             value = SqlFunctions.toInt((Time) value);
           }
-          // https://github.com/apache/beam/issues/20865: value should always be Integer here, but it isn't.
+          // https://github.com/apache/beam/issues/20865: value should always be Integer here, but
+          // it isn't.
           return LocalTime.ofNanoOfDay(((Number) value).longValue() * NANOS_PER_MILLISECOND);
         } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
           if (value instanceof Timestamp) {

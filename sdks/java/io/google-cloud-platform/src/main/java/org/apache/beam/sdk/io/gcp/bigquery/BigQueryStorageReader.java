@@ -27,7 +27,8 @@ interface BigQueryStorageReader extends AutoCloseable {
 
   long getRowCount();
 
-  // TODO(https://github.com/apache/beam/issues/21076): BigQueryStorageReader should produce Rows, rather than GenericRecords
+  // TODO(https://github.com/apache/beam/issues/21076): BigQueryStorageReader should produce Rows,
+  // rather than GenericRecords
   GenericRecord readSingleRecord() throws IOException;
 
   boolean readyForNextReadResponse() throws IOException;

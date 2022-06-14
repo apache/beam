@@ -465,7 +465,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     if (!isUseDeprecatedRead) {
       ExperimentalOptions.addExperiment(
           pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
-      // TODO(https://github.com/apache/beam/issues/20530): Remove this when we address performance issue.
+      // TODO(https://github.com/apache/beam/issues/20530): Remove this when we address performance
+      // issue.
       ExperimentalOptions.addExperiment(
           pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
     } else {

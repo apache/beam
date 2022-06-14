@@ -74,7 +74,8 @@ import org.joda.time.Instant;
  * expression evaluator.
  */
 @SuppressWarnings(
-    "unused") // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is released (2.11.0)
+    "unused") // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+// errorprone is released (2.11.0)
 @Internal
 public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
@@ -280,7 +281,8 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       }
     }
 
-    // TODO(https://github.com/apache/beam/issues/18203): Remove this when FinishBundle has added support for an {@link
+    // TODO(https://github.com/apache/beam/issues/18203): Remove this when FinishBundle has added
+    // support for an {@link
     // OutputReceiver}
     private static class OutputReceiverForFinishBundle implements OutputReceiver<Row> {
 
