@@ -347,11 +347,6 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
   def process(self, batch, extra_kwargs):
     start_time = _to_microseconds(self._clock.time_ns())
-    # if extra_kwargs:
-    #   result_generator = self._model_handler.run_inference(
-    #       batch, self._model, extra_kwargs)
-    # else:
-    #   result_generator = self._model_handler.run_inference(batch, self._model)
     result_generator = self._model_handler.run_inference(
         batch, self._model, extra_kwargs)
     predictions = list(result_generator)
