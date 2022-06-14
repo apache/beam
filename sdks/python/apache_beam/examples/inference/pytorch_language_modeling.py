@@ -73,8 +73,7 @@ class PostProcessor(beam.DoFn):
   of the words in BERT’s vocabulary. We can get the word with the highest
   probability of being a candidate replacement word by taking the argmax.
   """
-  def process(
-      self, element: Tuple[str, PredictionResult]) -> Iterable[Tuple[str, str]]:
+  def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
     text, prediction_result = element
     inputs = prediction_result.example
     logits = prediction_result.inference['logits']
@@ -83,7 +82,7 @@ class PostProcessor(beam.DoFn):
             as_tuple=True)[0]
     predicted_token_id = logits[mask_token_index].argmax(axis=-1)
     decoded_word = BERT_TOKENIZER.decode(predicted_token_id)
-    yield (text, decoded_word)
+    yield text + ';' + decoded_word
 
 
 def parse_known_args(argv):
@@ -202,27 +201,16 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
       ]))
     else:
       text = (p | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))
-    text_and_masked_text_tuple = (
-        text
-        | 'AddMask' >> beam.Map(add_mask_to_last_word))
     text_and_tokenized_text_tuple = (
-        text_and_masked_text_tuple
+        text
+        | 'AddMask' >> beam.Map(add_mask_to_last_word)
         | 'TokenizeSentence' >> beam.Map(tokenize_sentence))
-    text_and_predictions = (
+    output = (
         text_and_tokenized_text_tuple
         |
         'PyTorchRunInference' >> RunInference(KeyedModelHandler(model_handler))
         | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
-    combined_text = (({
-        'masked_text': text_and_masked_text_tuple,
-        'predicted_text': text_and_predictions
-    })
-                     | 'Merge' >> beam.CoGroupByKey()
-                     | beam.Map(
-                         lambda x: x[1]['masked_text'][0] + ';' + x[0] + ';' +
-                         x[1]['predicted_text'][0]))
-
-    combined_text | "WriteOutput" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
+    output | "WriteOutput" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
       known_args.output,
       shard_name_template='',
       append_trailing_newlines=True)
