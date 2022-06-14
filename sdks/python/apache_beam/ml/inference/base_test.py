@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pylint: skip-file
 
 """Tests for apache_beam.ml.base."""
 
@@ -185,6 +186,27 @@ class RunInferenceBaseTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(FakeModelHandlerNeedsBigBatch())
       assert_that(actual, equal_to(examples), label='assert:inferences')
+
+  def test_run_inference_unkeyed_examples_with_keyed_model_handler(self):
+    pipeline = TestPipeline()
+    with self.assertRaises(TypeError) as e:
+      examples = [1, 3, 5]
+      model_handler = base.KeyedModelHandler(FakeModelHandler())
+      (
+          pipeline | 'Unkeyed' >> beam.Create(examples)
+          | 'RunUnkeyed' >> base.RunInference(model_handler))
+      pipeline.run()
+
+  def test_run_inference_keyed_examples_with_unkeyed_model_handler(self):
+    pipeline = TestPipeline()
+    examples = [1, 3, 5]
+    keyed_examples = [(i, example) for i, example in enumerate(examples)]
+    model_handler = FakeModelHandler()
+    with self.assertRaises(TypeError) as e:
+      (
+          pipeline | 'keyed' >> beam.Create(keyed_examples)
+          | 'RunKeyed' >> base.RunInference(model_handler))
+      pipeline.run()
 
 
 if __name__ == '__main__':
