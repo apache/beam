@@ -673,8 +673,9 @@ class _BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
-# TODO(BEAM-14331): remove the serialization restriction in transform
-# implementation once InteractiveRunner can work without runner api roundtrips.
+# TODO(https://github.com/apache/beam/issues/21622): remove the serialization
+# restriction in transform implementation once InteractiveRunner can work
+# without runner api roundtrips.
 @dataclass
 class _BigQueryExportResult:
   coder: beam.coders.Coder
@@ -1235,7 +1236,8 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
   def estimate_size(self):
     # The size of stream source cannot be estimate due to server-side liquid
     # sharding.
-    # TODO(BEAM-12990): Implement progress reporting.
+    # TODO(https://github.com/apache/beam/issues/21126): Implement progress
+    # reporting.
     return None
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
@@ -1250,7 +1252,8 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
         stop_position=None)
 
   def get_range_tracker(self, start_position, stop_position):
-    # TODO(BEAM-12989): Implement dynamic work rebalancing.
+    # TODO(https://github.com/apache/beam/issues/21127): Implement dynamic work
+    # rebalancing.
     assert start_position is None
     # Defaulting to the start of the stream.
     start_position = 0
@@ -1988,7 +1991,8 @@ class WriteToBigQuery(PTransform):
       validate=True,
       temp_file_format=None,
       ignore_insert_ids=False,
-      # TODO(BEAM-11857): Switch the default when the feature is mature.
+      # TODO(https://github.com/apache/beam/issues/20712): Switch the default
+      # when the feature is mature.
       with_auto_sharding=False,
       ignore_unknown_columns=False,
       load_job_project_id=None):
@@ -2518,7 +2522,8 @@ class ReadFromBigQuery(PTransform):
           'or DIRECT_READ.')
 
   def _expand_export(self, pcoll):
-    # TODO(BEAM-11115): Make ReadFromBQ rely on ReadAllFromBQ implementation.
+    # TODO(https://github.com/apache/beam/issues/20683): Make ReadFromBQ rely
+    # on ReadAllFromBQ implementation.
     temp_location = pcoll.pipeline.options.view_as(
         GoogleCloudOptions).temp_location
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
