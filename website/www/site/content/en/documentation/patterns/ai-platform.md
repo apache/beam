@@ -212,5 +212,5 @@ with beam.Pipeline() as p:
 {{< /highlight >}}
 
 {{< highlight java >}}
-// Getting predictions is not yet available for Java. [Issue 20001]
+// Getting predictions is not yet available for Java. [https://github.com/apache/beam/issues/20001]
 {{< /highlight >}}

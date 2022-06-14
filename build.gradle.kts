@@ -302,7 +302,7 @@ tasks.register("pythonDockerBuildPreCommit") {
 }
 
 tasks.register("pythonLintPreCommit") {
-  // TODO(Issue 20209): Find a better way to specify lint and formatter tasks without hardcoding py version.
+  // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify lint and formatter tasks without hardcoding py version.
   dependsOn(":sdks:python:test-suites:tox:py37:lint")
 }
 
@@ -384,14 +384,14 @@ tasks.register("runBeamDependencyCheck") {
 }
 
 tasks.register("whitespacePreCommit") {
-  // TODO(Issue 20209): Find a better way to specify the tasks without hardcoding py version.
+  // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
   dependsOn(":sdks:python:test-suites:tox:py38:archiveFilesToLint")
   dependsOn(":sdks:python:test-suites:tox:py38:unpackFilesToLint")
   dependsOn(":sdks:python:test-suites:tox:py38:whitespacelint")
 }
 
 tasks.register("typescriptPreCommit") {
-  // TODO(Issue 20209): Find a better way to specify the tasks without hardcoding py version.
+  // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
   dependsOn(":sdks:python:test-suites:tox:py38:eslint")
   dependsOn(":sdks:python:test-suites:tox:py38:jest")
 }
