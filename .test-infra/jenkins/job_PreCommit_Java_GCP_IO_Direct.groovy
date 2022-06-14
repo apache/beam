@@ -28,24 +28,10 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     timeoutMins: 120,
     triggerPathPatterns: [
       '^sdks/java/io/google-cloud-platform/.*$',
-      '^runners/direct-java/.*$',
     ]
     )
 builder.build {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
-    recordIssues {
-      tools {
-        errorProne()
-        java()
-        checkStyle {
-          pattern('**/build/reports/checkstyle/*.xml')
-        }
-        spotBugs {
-          pattern('**/build/reports/spotbugs/*.xml')
-        }
-      }
-      enabledForFailure(true)
-    }
   }
 }
