@@ -108,7 +108,7 @@ func main() {
 		"--options=" + options,
 	}
 	if info.GetStatusEndpoint() != nil {
-		args = append(args, "--status_endpoint="+info.GetStatusEndpoint().GetUrl())
+		os.Setenv("STATUS_ENDPOINT", info.GetStatusEndpoint().GetUrl())
 	}
 
 	if len(info.GetRunnerCapabilities()) > 0 {
