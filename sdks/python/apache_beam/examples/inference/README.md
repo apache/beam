@@ -220,7 +220,7 @@ python -m apache_beam.examples.inference.pytorch_language_modeling \
 ```
 If you don't provide a sentences file, it will run the pipeline with some
 example sentences we created.
-```
+```sh
 python -m apache_beam.examples.inference.pytorch_language_modeling \
   --output predictions.csv \
   --model_state_dict_path BertForMaskedLM.pth
