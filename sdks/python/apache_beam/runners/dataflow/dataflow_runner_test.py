@@ -752,8 +752,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
   @unittest.skip(
       'https://github.com/apache/beam/issues/18716: enable once '
-      'CombineFnVisitor is fixed'
-  )
+      'CombineFnVisitor is fixed')
   def test_unsupported_combinefn_detection(self):
     class CombinerWithNonDefaultSetupTeardown(combiners.CountCombineFn):
       def setup(self, *args, **kwargs):

@@ -963,8 +963,7 @@ class AnnotationsTest(unittest.TestCase):
 
   @unittest.skip(
       'https://github.com/apache/beam/issues/19961: Py3 annotations not yet '
-      'supported for MapTuple'
-  )
+      'supported for MapTuple')
   def test_flat_map_tuple_wrapper(self):
     # TODO(https://github.com/apache/beam/issues/19961): Also test with a fn
     # that accepts default arguments.
@@ -994,8 +993,7 @@ class AnnotationsTest(unittest.TestCase):
 
   @unittest.skip(
       'https://github.com/apache/beam/issues/19961: Py3 annotations not yet '
-      'supported for MapTuple'
-  )
+      'supported for MapTuple')
   def test_map_tuple(self):
     # TODO(https://github.com/apache/beam/issues/19961): Also test with a fn
     # that accepts default arguments.
