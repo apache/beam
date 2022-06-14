@@ -73,7 +73,10 @@ func TestExecuteBundles(t *testing.T) {
 				return strings.Contains(errorMsg, testCase.containedError)
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
-			validateResourceErrorCounter(t, pipelineResult, len(testBundles))
+			err := validateResourceErrorCounter(pipelineResult, len(testBundles))
+			if err != nil {
+				t.Fatal(err.Error())
+			}
 		})
 	}
 }
