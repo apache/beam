@@ -72,8 +72,7 @@ to a text file.
 ### Dataset and model for image classification
 
 You will need to create or download images, and place them into your `IMAGES_DIR` directory. One popular dataset is from [ImageNet](https://www.image-net.org/). Please follow their instructions to download the images.
-- **Required**: A path to a file called `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` on which you want to run image segmentation. For example:
-  - Note: Paths can be different types of URIs such as your local file system, a AWS S3 bucket or GCP Cloud Storage bucket.
+- **Required**: A path to a file called `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` on which you want to run image segmentation. Paths can be different types of URIs such as your local file system, a AWS S3 bucket or GCP Cloud Storage bucket. For example:
 ```
 /absolute/path/to/image1.jpg
 /absolute/path/to/image2.jpg
@@ -127,8 +126,7 @@ to a text file.
 
 ### Dataset and model for image segmentation
 You will need to create or download images, and place them into your `IMAGES_DIR` directory. Another popular dataset is from [Coco](https://cocodataset.org/#home). Please follow their instructions to download the images.
-- **Required**: A path to a file called `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` on which you want to run image segmentation. For example:
-  - Note: Paths can be different types of URIs such as your local file system, a AWS S3 bucket or GCP Cloud Storage bucket.
+- **Required**: A path to a file called `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` on which you want to run image segmentation. Paths can be different types of URIs such as your local file system, a AWS S3 bucket or GCP Cloud Storage bucket. For example:
 ```
 /absolute/path/to/image1.jpg
 /absolute/path/to/image2.jpg
