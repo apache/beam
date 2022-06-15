@@ -618,9 +618,10 @@ class BigQueryServicesImpl implements BigQueryServices {
         throws IOException, InterruptedException {
       return getTable(tableRef, selectedFields, null);
     }
-    
+
     @Override
-    public @Nullable Table getTable(TableReference tableRef, List<String> selectedFields, String view)
+    public @Nullable Table getTable(
+        TableReference tableRef, List<String> selectedFields, String view)
         throws IOException, InterruptedException {
       return getTable(tableRef, selectedFields, view, createDefaultBackoff(), Sleeper.DEFAULT);
     }
@@ -628,7 +629,11 @@ class BigQueryServicesImpl implements BigQueryServices {
     @VisibleForTesting
     @Nullable
     Table getTable(
-        TableReference ref, List<String> selectedFields, String view, BackOff backoff, Sleeper sleeper)
+        TableReference ref,
+        List<String> selectedFields,
+        String view,
+        BackOff backoff,
+        Sleeper sleeper)
         throws IOException, InterruptedException {
       Tables.Get get =
           client

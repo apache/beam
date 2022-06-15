@@ -168,9 +168,10 @@ public class TableSchemaCache {
     if (!schemaHolder.isPresent()) {
       // Not initialized. Query the new schema with the monitor released and then update the cache.
       try {
-        // requesting the BASIC view will prevent BQ backend to run calculations 
+        // requesting the BASIC view will prevent BQ backend to run calculations
         // related with storage stats that are not needed here
-        @Nullable Table table = datasetService.getTable(tableReference, Collections.emptyList(), BASIC_VIEW);
+        @Nullable
+        Table table = datasetService.getTable(tableReference, Collections.emptyList(), BASIC_VIEW);
         schemaHolder =
             Optional.ofNullable((table == null) ? null : SchemaHolder.of(table.getSchema(), 0));
       } catch (Exception e) {
