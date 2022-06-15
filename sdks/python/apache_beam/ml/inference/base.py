@@ -241,9 +241,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
   Models for supported frameworks can be loaded via a URI. Supported services
   can also be used.
-
-  TODO(BEAM-14046): Add and link to help documentation
   """
+
+  # TODO(BEAM-14046): Add and link to help documentation.
   def __init__(
       self,
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
