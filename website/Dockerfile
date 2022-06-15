@@ -67,6 +67,9 @@ RUN HUGOHOME="$(mktemp -d)" \
     && tar -xzvf "${HUGOHOME}/hugo.tar.gz" hugo \
     && mv hugo /usr/local/bin/hugo \
     && chmod +x /usr/local/bin/hugo \
-    && rm -r "${HUGOHOME}"
+    && rm -r "${HUGOHOME}"\
+    && chmod +rwx /opt/
+
+RUN mkdir -p /opt/website/www/site/ && chmod +xwr /opt/website/www/site/
 
 WORKDIR /opt/
