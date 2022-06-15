@@ -19,7 +19,6 @@
 set -ex
 rm -rf /output/*
 
-export GO111MODULE=off
 go get github.com/google/go-licenses@v1.0.0
 go get $sdk_location
 
