@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-""""A pipeline that uses RunInference API to perform image classification."""
+"""A pipeline that uses RunInference API to perform image classification."""
 
 import argparse
 import io
@@ -30,7 +30,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.pytorch_inference import PytorchModelHandler
+from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from PIL import Image
@@ -74,8 +74,6 @@ def parse_known_args(argv):
   parser.add_argument(
       '--input',
       dest='input',
-      default='gs://apache-beam-ml/testing/inputs/'
-      'it_mobilenetv2_imagenet_validation_inputs.txt',
       help='Path to the text file containing image names.')
   parser.add_argument(
       '--output',
@@ -85,10 +83,7 @@ def parse_known_args(argv):
   parser.add_argument(
       '--model_state_dict_path',
       dest='model_state_dict_path',
-      default='gs://apache-beam-ml/'
-      'models/imagenet_classification_mobilenet_v2.pt',
-      help="Path to the model's state_dict. "
-      "Default state_dict would be MobilenetV2.")
+      help="Path to the model's state_dict.")
   parser.add_argument(
       '--images_dir',
       default=None,
@@ -102,7 +97,6 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
   Args:
     argv: Command line arguments defined for this example.
     model_class: Reference to the class definition of the model.
-                If None, MobilenetV2 will be used as default .
     model_params: Parameters passed to the constructor of the model_class.
                   These will be used to instantiate the model object in the
                   RunInference API.
@@ -118,7 +112,7 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
   # In this example we pass keyed inputs to RunInference transform.
   # Therefore, we use KeyedModelHandler wrapper over PytorchModelHandler.
   model_handler = KeyedModelHandler(
-      PytorchModelHandler(
+      PytorchModelHandlerTensor(
           state_dict_path=known_args.model_state_dict_path,
           model_class=model_class,
           model_params=model_params))
