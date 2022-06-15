@@ -15,19 +15,26 @@
 # limitations under the License.
 #
 
-"""A pipeline that uses RunInference API to perform image classification."""
+"""A pipeline that uses RunInference API to classify MNIST data.
+
+This pipeline takes a text file in which data is comma separated ints. The first
+column would be the true label and the rest would be the pixel values. The data
+is processed and then a model trained on the MNIST data would be used to perform
+the inference. The pipeline writes the prediction to an output file in which
+users can then compare against the true label.
+"""
 
 import argparse
-from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Tuple
 
 import apache_beam as beam
-from apache_beam.ml.inference.api import PredictionResult
-from apache_beam.ml.inference.api import RunInference
+from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.sklearn_inference import ModelFileType
-from apache_beam.ml.inference.sklearn_inference import SklearnModelLoader
+from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
@@ -40,10 +47,13 @@ def process_input(row: str) -> Tuple[int, List[int]]:
 
 
 class PostProcessor(beam.DoFn):
-  def process(self, element: Tuple[int, PredictionResult]) -> Iterable[Dict]:
+  """Process the PredictionResult to get the predicted label.
+  Returns a comma separated string with true label and predicted label.
+  """
+  def process(self, element: Tuple[int, PredictionResult]) -> Iterable[str]:
     label, prediction_result = element
     prediction = prediction_result.inference
-    yield {label: prediction}
+    yield '{},{}'.format(label, prediction)
 
 
 def parse_known_args(argv):
@@ -52,12 +62,17 @@ def parse_known_args(argv):
   parser.add_argument(
       '--input_file',
       dest='input',
+      required=True,
       help='CSV file with row containing label and pixel values.')
   parser.add_argument(
-      '--output', dest='output', help='Path to save output predictions.')
+      '--output',
+      dest='output',
+      required=True,
+      help='Path to save output predictions.')
   parser.add_argument(
       '--model_path',
       dest='model_path',
+      required=True,
       help='Path to load the Sklearn model for Inference.')
   return parser.parse_known_args(argv)
 
@@ -68,24 +83,26 @@ def run(argv=None, save_main_session=True):
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
-  model_loader = SklearnModelLoader(
-      model_file_type=ModelFileType.PICKLE, model_uri=known_args.model_path)
+  # In this example we pass keyed inputs to RunInference transform.
+  # Therefore, we use KeyedModelHandler wrapper over SklearnModelHandlerNumpy.
+  model_loader = KeyedModelHandler(
+      SklearnModelHandlerNumpy(
+          model_file_type=ModelFileType.PICKLE,
+          model_uri=known_args.model_path))
 
   with beam.Pipeline(options=pipeline_options) as p:
     label_pixel_tuple = (
         p
         | "ReadFromInput" >> beam.io.ReadFromText(
             known_args.input, skip_header_lines=1)
-        | "Process inputs" >> beam.Map(process_input))
+        | "PreProcessInputs" >> beam.Map(process_input))
 
     predictions = (
         label_pixel_tuple
-        | "RunInference" >> RunInference(model_loader).with_output_types(
-            Tuple[int, PredictionResult])
-        | "PostProcessor" >> beam.ParDo(PostProcessor()))
+        | "RunInference" >> RunInference(model_loader)
+        | "PostProcessOutputs" >> beam.ParDo(PostProcessor()))
 
-    if known_args.output:
-      predictions | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
+    _ = predictions | "WriteOutputToGCS" >> beam.io.WriteToText(
         known_args.output,
         shard_name_template='',
         append_trailing_newlines=True)
