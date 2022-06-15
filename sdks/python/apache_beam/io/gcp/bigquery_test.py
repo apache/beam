@@ -665,27 +665,27 @@ class TestBigQuerySink(unittest.TestCase):
     """Test bad parameter value errors for disposition args."""
     with self.assertRaises(ValueError):
       beam.io.BigQuerySink('dataset.table',
-                           create_disposition="BAD")
+                           create_disposition='BAD')
 
     with self.assertRaises(ValueError):
       beam.io.BigQuerySink('dataset.table',
-                           write_disposition="BAD")
+                           write_disposition='BAD')
 
     with self.assertRaises(ValueError):
       beam.io.BigQuerySink('dataset.table',
-                           schema_update_options="BAD")
+                           schema_update_options='BAD')
 
   def test_disposition_update_opts(self):
     """Test schema update options from args."""
     obj1 = beam.io.BigQuerySink('dataset.table')
-    self.assertEquals(obj1.schema_update_options, [],
-                      'Schema Update Options passed as None')
+    self.assertEqual(obj1.schema_update_options, [],
+                     'Schema Update Options passed as None')
 
     opt2 = BigQueryDisposition.ALLOW_FIELD_ADDITION
     obj2 = beam.io.BigQuerySink('dataset.table',
                                 schema_update_options=opt2)
-    self.assertEquals(obj2.schema_update_options, [opt2],
-                      'Schema Update Options passed as single string')
+    self.assertEqual(obj2.schema_update_options, [opt2],
+                     'Schema Update Options passed as single string')
 
     opt3 = BigQueryDisposition.ALLOW_FIELD_RELAXATION
     obj3 = beam.io.BigQuerySink('dataset.table',
@@ -1073,14 +1073,14 @@ class TestWriteToBigQuery(unittest.TestCase):
   def test_disposition_update_opts(self):
     """Test schema update options from args."""
     obj1 = beam.io.WriteToBigQuery('project:dataset.table')
-    self.assertEquals(obj1.schema_update_options, [],
-                      'Schema Update Options passed as None')
+    self.assertEqual(obj1.schema_update_options, [],
+                     'Schema Update Options passed as None')
 
     opt2 = BigQueryDisposition.ALLOW_FIELD_ADDITION
     obj2 = beam.io.WriteToBigQuery('project:dataset.table',
                                    schema_update_options=opt2)
-    self.assertEquals(obj2.schema_update_options, [opt2],
-                      'Schema Update Options passed as single string')
+    self.assertEqual(obj2.schema_update_options, [opt2],
+                     'Schema Update Options passed as single string')
 
     opt3 = BigQueryDisposition.ALLOW_FIELD_RELAXATION
     obj3 = beam.io.WriteToBigQuery('project:dataset.table',
