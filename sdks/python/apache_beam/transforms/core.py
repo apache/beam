@@ -705,7 +705,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
   # the DoFn or maybe the runner
   def infer_output_type(self, input_type):
-    # TODO(BEAM-8247): Side inputs types.
+    # TODO(https://github.com/apache/beam/issues/19824): Side inputs types.
     return trivial_inference.element_type(
         self._strip_output_annotations(
             trivial_inference.infer_return_type(self.process, [input_type])))
@@ -737,19 +737,43 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def process_batch_yields_elements(self) -> bool:
     return getattr(self.process_batch, '_beam_yields_elements', False)
 
-  def get_input_batch_type(self) -> typing.Optional[TypeConstraint]:
+  def get_input_batch_type(
+      self, input_element_type
+  ) -> typing.Optional[typing.Union[TypeConstraint, type]]:
+    """Determine the batch type expected as input to process_batch.
+
+    The default implementation of ``get_input_batch_type`` simply observes the
+    input typehint for the first parameter of ``process_batch``. A Batched DoFn
+    may override this method if a dynamic approach is required.
+
+    Args:
+      input_element_type: The **element type** of the input PCollection this
+        DoFn is being applied to.
+
+    Returns:
+      ``None`` if this DoFn cannot accept batches, else a Beam typehint or
+      a native Python typehint.
+    """
     if not self.process_batch_defined:
       return None
     input_type = list(
         inspect.signature(self.process_batch).parameters.values())[0].annotation
     if input_type == inspect.Signature.empty:
-      # TODO(BEAM-14340): Consider supporting an alternative (dynamic?) approach
-      # for declaring input type
+      # TODO(https://github.com/apache/beam/issues/21652): Consider supporting
+      # an alternative (dynamic?) approach for declaring input type
       raise TypeError(
-          f"{self.__class__.__name__}.process_batch() does not have a type "
-          "annotation on its first parameter. This is required for "
-          "process_batch implementations.")
-    return typehints.native_type_compatibility.convert_to_beam_type(input_type)
+          f"Either {self.__class__.__name__}.process_batch() must have a type "
+          f"annotation on its first parameter, or {self.__class__.__name__} "
+          "must override get_input_batch_type.")
+    return input_type
+
+  def _get_input_batch_type_normalized(self, input_element_type):
+    return typehints.native_type_compatibility.convert_to_beam_type(
+        self.get_input_batch_type(input_element_type))
+
+  def _get_output_batch_type_normalized(self, input_element_type):
+    return typehints.native_type_compatibility.convert_to_beam_type(
+        self.get_output_batch_type(input_element_type))
 
   @staticmethod
   def _get_element_type_from_return_annotation(method, input_type):
@@ -770,16 +794,32 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
           f"{method!r}, did you mean Iterator[{return_type}]?")
 
   def get_output_batch_type(
-      self, input_element_type) -> typing.Optional[TypeConstraint]:
+      self, input_element_type
+  ) -> typing.Optional[typing.Union[TypeConstraint, type]]:
+    """Determine the batch type produced by this DoFn's ``process_batch``
+    implementation and/or its ``process`` implementation with
+    ``@yields_batch``.
+
+    The default implementation of this method observes the return type
+    annotations on ``process_batch`` and/or ``process``.  A Batched DoFn may
+    override this method if a dynamic approach is required.
+
+    Args:
+      input_element_type: The **element type** of the input PCollection this
+        DoFn is being applied to.
+
+    Returns:
+      ``None`` if this DoFn will never yield batches, else a Beam typehint or
+      a native Python typehint.
+    """
     output_batch_type = None
     if self.process_defined and self.process_yields_batches:
-      # TODO: Use the element_type passed to infer_output_type instead of
-      # typehints.Any
       output_batch_type = self._get_element_type_from_return_annotation(
           self.process, input_element_type)
     if self.process_batch_defined and not self.process_batch_yields_elements:
       process_batch_type = self._get_element_type_from_return_annotation(
-          self.process_batch, self.get_input_batch_type())
+          self.process_batch,
+          self._get_input_batch_type_normalized(input_element_type))
 
       # TODO: Consider requiring an inheritance relationship rather than
       # equality
@@ -1415,7 +1455,8 @@ class ParDo(PTransformWithSideInputs):
   def infer_batch_converters(self, input_element_type):
     # TODO: Test this code (in batch_dofn_test)
     if self.fn.process_batch_defined:
-      input_batch_type = self.fn.get_input_batch_type()
+      input_batch_type = self.fn._get_input_batch_type_normalized(
+          input_element_type)
 
       if input_batch_type is None:
         raise TypeError(
@@ -1430,7 +1471,8 @@ class ParDo(PTransformWithSideInputs):
       self.fn.input_batch_converter = None
 
     if self.fn.can_yield_batches:
-      output_batch_type = self.fn.get_output_batch_type(input_element_type)
+      output_batch_type = self.fn._get_output_batch_type_normalized(
+          input_element_type)
       if output_batch_type is None:
         # TODO: Mention process method in this error
         raise TypeError(
@@ -1482,9 +1524,14 @@ class ParDo(PTransformWithSideInputs):
             key_coder,
             self)
 
+    if self._signature.is_unbounded_per_element():
+      is_bounded = False
+    else:
+      is_bounded = pcoll.is_bounded
+
     self.infer_batch_converters(pcoll.element_type)
 
-    return pvalue.PCollection.from_(pcoll)
+    return pvalue.PCollection.from_(pcoll, is_bounded=is_bounded)
 
   def with_outputs(self, *tags, main=None, allow_unknown_tags=None):
     """Returns a tagged tuple allowing access to the outputs of a
@@ -3339,7 +3386,8 @@ class Create(PTransform):
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> typing.Tuple[str, bytes]
     # Required as this is identified by type in PTransformOverrides.
-    # TODO(BEAM-3812): Use an actual URN here.
+    # TODO(https://github.com/apache/beam/issues/18713): Use an actual URN
+    # here.
     return self.to_runner_api_pickled(context)
 
   def infer_output_type(self, unused_input_type):

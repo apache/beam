@@ -39,9 +39,6 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
-// StatusAddress is a type of status endpoint address as an optional argument to harness.Main().
-type StatusAddress string
-
 // URNMonitoringInfoShortID is a URN indicating support for short monitoring info IDs.
 const URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
 
@@ -50,22 +47,14 @@ const URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
 // "pipeline-construction time" -- on each worker. It is a FnAPI client and
 // ultimately responsible for correctly executing user code.
-func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options ...interface{}) error {
+func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	hooks.DeserializeHooksFromOptions(ctx)
-
-	statusEndpoint := ""
-	for _, option := range options {
-		switch option := option.(type) {
-		case StatusAddress:
-			statusEndpoint = string(option)
-		default:
-			return errors.Errorf("unknown type %T, value %v in error call", option, option)
-		}
-	}
 
 	// Extract environment variables. These are optional runner supported capabilities.
 	// Expected env variables:
 	// RUNNER_CAPABILITIES : list of runner supported capability urn.
+	// STATUS_ENDPOINT : Endpoint to connect to status server used for worker status reporting.
+	statusEndpoint := os.Getenv("STATUS_ENDPOINT")
 	runnerCapabilities := strings.Split(os.Getenv("RUNNER_CAPABILITIES"), " ")
 	rcMap := make(map[string]bool)
 	if len(runnerCapabilities) > 0 {
@@ -128,18 +117,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		log.Debugf(ctx, "control response channel closed")
 	}()
 
-	// if the runner supports worker status api then expose SDK harness status
-	if statusEndpoint != "" {
-		statusHandler, err := newWorkerStatusHandler(ctx, statusEndpoint)
-		if err != nil {
-			log.Errorf(ctx, "error establishing connection to worker status API: %v", err)
-		} else {
-			if err := statusHandler.start(ctx); err == nil {
-				defer statusHandler.stop(ctx)
-			}
-		}
-	}
-
 	sideCache := statecache.SideInputCache{}
 	sideCache.Init(cacheSize)
 
@@ -157,6 +134,19 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		cache:                &sideCache,
 		runnerCapabilities:   rcMap,
 	}
+
+	// if the runner supports worker status api then expose SDK harness status
+	if statusEndpoint != "" {
+		statusHandler, err := newWorkerStatusHandler(ctx, statusEndpoint, ctrl.cache, func(statusInfo *strings.Builder) { ctrl.metStoreToString(statusInfo) })
+		if err != nil {
+			log.Errorf(ctx, "error establishing connection to worker status API: %v", err)
+		} else {
+			if err := statusHandler.start(ctx); err == nil {
+				defer statusHandler.stop(ctx)
+			}
+		}
+	}
+
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
 	// is responsible for managing the network data. All it does is pull data from
 	// the stream, and hand off the message to a goroutine to actually be handled,
@@ -294,6 +284,16 @@ type control struct {
 	// TODO(BEAM-11097): Cache is currently unused.
 	cache              *statecache.SideInputCache
 	runnerCapabilities map[string]bool
+}
+
+func (c *control) metStoreToString(statusInfo *strings.Builder) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for bundleID, store := range c.metStore {
+		statusInfo.WriteString(fmt.Sprintf("Bundle ID: %v\n", bundleID))
+		statusInfo.WriteString(fmt.Sprintf("\t%s", store.BundleState()))
+		statusInfo.WriteString(fmt.Sprintf("\t%s", store.StateRegistry()))
+	}
 }
 
 func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {

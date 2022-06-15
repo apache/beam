@@ -365,7 +365,8 @@ def validate_composite_type_param(type_param, error_msg_prefix):
         (error_msg_prefix, type_param, type_param.__class__.__name__))
 
 
-# TODO(BEAM-12469): Remove this function and use plain repr() instead.
+# TODO(https://github.com/apache/beam/issues/20982): Remove this function and
+# use plain repr() instead.
 def _unified_repr(o):
   """Given an object return a qualified name for the object.
 
@@ -430,7 +431,8 @@ class AnyTypeConstraint(TypeConstraint):
     return 'Any'
 
   def __hash__(self):
-    # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
+    # TODO(https://github.com/apache/beam/issues/18633): Fix
+    # typehints.TypeVariable issues with __hash__.
     return hash(id(self))
 
   def type_check(self, instance):
@@ -452,7 +454,8 @@ class TypeVariable(AnyTypeConstraint):
     return type(self) == type(other)
 
   def __hash__(self):
-    # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
+    # TODO(https://github.com/apache/beam/issues/18633): Fix
+    # typehints.TypeVariable issues with __hash__.
     return hash(id(self))
 
   def __repr__(self):

@@ -34,12 +34,12 @@ import logging
 import pickle
 import sys
 import time
-from dataclasses import dataclass
 from typing import Any
 from typing import Dict
 from typing import Generic
 from typing import Iterable
 from typing import Mapping
+from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -65,11 +65,11 @@ _INPUT_TYPE = TypeVar('_INPUT_TYPE')
 _OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
 KeyT = TypeVar('KeyT')
 
-
-@dataclass
-class PredictionResult:
-  example: _INPUT_TYPE
-  inference: _OUTPUT_TYPE
+PredictionResult = NamedTuple(
+    'PredictionResult', [
+        ('example', _INPUT_TYPE),
+        ('inference', _OUTPUT_TYPE),
+    ])
 
 
 def _to_milliseconds(time_ns: int) -> int:
@@ -239,7 +239,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
   Models for supported frameworks can be loaded via a URI. Supported services
   can also be used.
 
-  TODO(BEAM-14046): Add and link to help documentation
+  TODO(https://github.com/apache/beam/issues/21436): Add and link to help
+  documentation
   """
   def __init__(
       self,
@@ -250,14 +251,29 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     self._inference_args = inference_args
     self._clock = clock
 
-  # TODO(BEAM-14208): Add batch_size back off in the case there
-  # are functional reasons large batch sizes cannot be handled.
+  @classmethod
+  def create(cls, model_handler_provider, **kwargs):
+    """Multi-language friendly constructor.
+    Args:
+      model_handler_provider: A callable object that returns ModelHandler.
+      kwargs: Keyword arguments for model_handler_provider.
+
+    This constructor can be used with fully_qualified_named_transform to
+    initialize RunInference transform from PythonCallableSource provided
+    by foreign SDKs.
+    """
+    return cls(model_handler_provider(**kwargs))
+
+  # TODO(https://github.com/apache/beam/issues/21447): Add batch_size back off
+  # in the case there are functional reasons large batch sizes cannot be
+  # handled.
   def expand(
       self, pcoll: beam.PCollection[ExampleT]) -> beam.PCollection[PredictionT]:
     resource_hints = self._model_handler.get_resource_hints()
     return (
         pcoll
-        # TODO(BEAM-14044): Hook into the batching DoFn APIs.
+        # TODO(https://github.com/apache/beam/issues/21440): Hook into the
+        # batching DoFn APIs.
         | beam.BatchElements(**self._model_handler.batch_elements_kwargs())
         | (
             beam.ParDo(
@@ -337,7 +353,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
           load_model_latency_ms, model_byte_size)
       return model
 
-    # TODO(BEAM-14207): Investigate releasing model.
+    # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
+    # model.
     return self._shared_model_handle.acquire(load)
 
   def setup(self):
@@ -360,7 +377,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     return predictions
 
   def finish_bundle(self):
-    # TODO(BEAM-13970): Figure out why there is a cache.
+    # TODO(https://github.com/apache/beam/issues/21435): Figure out why there
+    # is a cache.
     self._metrics_collector.update_metrics_with_cache()
 
 
