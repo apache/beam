@@ -173,8 +173,7 @@ public class KafkaIOTest {
   @Rule
   public ExpectedLogs unboundedReaderExpectedLogs = ExpectedLogs.none(KafkaUnboundedReader.class);
 
-  @Rule
-  public ExpectedLogs kafkaIOExpectedLogs = ExpectedLogs.none(KafkaIO.class);
+  @Rule public ExpectedLogs kafkaIOExpectedLogs = ExpectedLogs.none(KafkaIO.class);
 
   private static final Instant LOG_APPEND_START_TIME = new Instant(600 * 1000);
   private static final String TIMESTAMP_START_MILLIS_CONFIG = "test.timestamp.start.millis";
@@ -596,15 +595,17 @@ public class KafkaIOTest {
     p.getOptions().as(FakeFlinkPipelineOptions.class).setCheckpointingInterval(1L);
 
     PCollection<Long> input =
-        p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
-                .withConsumerConfigUpdates(ImmutableMap.of(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,true))
-                .withoutMetadata()
-            )
+        p.apply(
+                mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+                    .withConsumerConfigUpdates(
+                        ImmutableMap.of(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true))
+                    .withoutMetadata())
             .apply(Values.create());
 
     addCountingAsserts(input, numElements);
 
-    kafkaIOExpectedLogs.verifyWarn("When using the Flink runner with checkpointingInterval enabled");
+    kafkaIOExpectedLogs.verifyWarn(
+        "When using the Flink runner with checkpointingInterval enabled");
     p.run();
   }
 
