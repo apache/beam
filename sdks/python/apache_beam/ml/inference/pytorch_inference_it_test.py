@@ -129,6 +129,8 @@ class PyTorchInference(unittest.TestCase):
       prediction_labels = predictions_dict[filename]
       self.assertEqual(actual_labels, prediction_labels)
 
+  @pytest.mark.uses_pytorch
+  @pytest.mark.it_postcommit
   def test_torch_run_inference_bert_for_masked_lm(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # Path to text file containing some sentences
