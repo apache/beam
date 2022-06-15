@@ -133,7 +133,7 @@ rules:
   addLabels: ['io', 'java', 'files']
 - valueFor: 'Component'
   contains: 'io-java-gcp'
-  addLabels: ['io', 'java, 'gcp']
+  addLabels: ['io', 'java', 'gcp']
 - valueFor: 'Component'
   contains: 'io-java-hadoop-file-system'
   addLabels: ['io', java', 'hadoop-file-system']
@@ -207,7 +207,7 @@ rules:
   contains: 'io-java-utilities'
   addLabels: ['io', 'java', 'utilities']
 - valueFor: 'Component'
-  contains: 'io', 'java', 'xml'
+  contains: 'io-java-xml'
   addLabels: ['io', 'java', 'xml']
 - valueFor: 'Component'
   contains: 'io-py-avro'
