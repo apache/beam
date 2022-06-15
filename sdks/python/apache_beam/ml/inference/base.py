@@ -20,7 +20,7 @@
 """An extensible run inference transform.
 
 Users of this module can extend the ModelHandler class for any machine learning
-framework. A ModelHandler Implementation is a required parameter of
+framework. A ModelHandler implementation is a required parameter of
 RunInference.
 
 The transform will handle standard inference functionality like metric
@@ -237,41 +237,41 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
 class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                                    beam.PCollection[PredictionT]]):
-  """A transform that takes a PCollection of examples (or features) to be used
-  on an ML model. It will then output inferences (or predictions) for those
-  examples in a PCollection of PredictionResults, containing the input examples
-  and output inferences.
-
-  Models for supported frameworks can be loaded via a URI. Supported services
-  can also be used.
-
-  Args:
-      model_handler: An implementation of ModelHandler.
-      clock: A clock implementing time_ns.
-      inference_args: Extra arguments for models whose inference call requires
-      extra parameters.
-  """
-
-  # TODO(BEAM-14046): Add and link to help documentation.
   def __init__(
       self,
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock=time,
       inference_args: Optional[Dict[str, Any]] = None):
+    """A transform that takes a PCollection of examples (or features) to be used
+    on an ML model. It will then output inferences (or predictions) for those
+    examples in a PCollection of PredictionResults, containing the input
+    examples and output inferences.
+
+    Models for supported frameworks can be loaded via a URI. Supported services
+    can also be used.
+
+    Args:
+        model_handler: An implementation of ModelHandler.
+        clock: A clock implementing time_ns.
+        inference_args: Extra arguments for models whose inference call requires
+          extra parameters.
+    """
     self._model_handler = model_handler
     self._inference_args = inference_args
     self._clock = clock
 
+  # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
   def create(cls, model_handler_provider, **kwargs):
     """Multi-language friendly constructor.
-    Args:
-      model_handler_provider: A callable object that returns ModelHandler.
-      kwargs: Keyword arguments for model_handler_provider.
 
     This constructor can be used with fully_qualified_named_transform to
     initialize RunInference transform from PythonCallableSource provided
     by foreign SDKs.
+
+    Args:
+      model_handler_provider: A callable object that returns ModelHandler.
+      kwargs: Keyword arguments for model_handler_provider.
     """
     return cls(model_handler_provider(**kwargs))
 
