@@ -270,7 +270,7 @@ class ReadFromPubSub(PTransform):
 
   def to_runner_api_parameter(self, context):
     # Required as this is identified by type in PTransformOverrides.
-    # TODO(BEAM-3812): Use an actual URN here.
+    # TODO(https://github.com/apache/beam/issues/18713): Use an actual URN here.
     return self.to_runner_api_pickled(context)
 
 
@@ -380,7 +380,7 @@ class WriteToPubSub(PTransform):
 
   def to_runner_api_parameter(self, context):
     # Required as this is identified by type in PTransformOverrides.
-    # TODO(BEAM-3812): Use an actual URN here.
+    # TODO(https://github.com/apache/beam/issues/18713): Use an actual URN here.
     return self.to_runner_api_pickled(context)
 
   def display_data(self):
