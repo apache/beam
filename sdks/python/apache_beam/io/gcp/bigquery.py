@@ -511,12 +511,10 @@ class BigQueryDisposition(object):
     result = []
     if disposition:
       if isinstance(disposition, str):
-        result.append(
-          BigQueryDisposition.validate_update(disposition))
+        result.append(BigQueryDisposition.validate_update(disposition))
       elif isinstance(disposition, (tuple, list)):
         for opt in disposition:
-          result.append(
-            BigQueryDisposition.validate_update(opt))
+          result.append(BigQueryDisposition.validate_update(opt))
     return result
 
 
