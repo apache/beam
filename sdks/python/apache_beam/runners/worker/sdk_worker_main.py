@@ -78,7 +78,8 @@ def create_harness(environment, dry_run=False):
 
       # Send all logs to the runner.
       fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
-      # TODO(BEAM-5468): This should be picked up from pipeline options.
+      # TODO(https://github.com/apache/beam/issues/19242): This should be
+      # picked up from pipeline options.
       logging.getLogger().setLevel(logging.INFO)
       logging.getLogger().addHandler(fn_log_handler)
       _LOGGER.info('Logging handler created.')

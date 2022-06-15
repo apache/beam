@@ -86,7 +86,8 @@ class InteractiveRunner(runners.PipelineRunner):
     self._blocking = blocking
 
   def is_fnapi_compatible(self):
-    # TODO(BEAM-8436): return self._underlying_runner.is_fnapi_compatible()
+    # TODO(https://github.com/apache/beam/issues/19937):
+    # return self._underlying_runner.is_fnapi_compatible()
     return False
 
   def set_render_option(self, render_option):

@@ -304,8 +304,8 @@ def deferred_df_to_pcollection(df):
 
   # The proxy is used to output a DataFrame with the correct columns.
   #
-  # TODO(BEAM-11064): Once type hints are implemented for pandas, use those
-  # instead of the proxy.
+  # TODO(https://github.com/apache/beam/issues/20577): Once type hints are
+  # implemented for pandas, use those instead of the proxy.
   cache = ExpressionCache()
   cache.replace_with_cached(df._expr)
 
