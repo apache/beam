@@ -75,6 +75,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -85,7 +86,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
@@ -2279,7 +2279,9 @@ public class ElasticsearchIO {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
       checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
 
-      WindowingStrategy<?, ?> originalStrategy = input.getWindowingStrategy();
+      @SuppressWarnings("unchecked")
+      WindowFn<Document, ?> originalWindowFn =
+          (WindowFn<Document, ?>) input.getWindowingStrategy().getWindowFn();
 
       PCollection<Document> docResults;
       PCollection<Document> globalDocs = input.apply(Window.into(new GlobalWindows()));
@@ -2294,7 +2296,8 @@ public class ElasticsearchIO {
       }
 
       return docResults
-          .setWindowingStrategyInternal(originalStrategy)
+          // Restore windowing of input
+          .apply(Window.into(originalWindowFn))
           .apply(
               ParDo.of(new ResultFilteringFn())
                   .withOutputTags(Write.SUCCESSFUL_WRITES, TupleTagList.of(Write.FAILED_WRITES)));
