@@ -20,7 +20,7 @@ set -ex
 rm -rf /output/*
 
 export GO111MODULE=off
-go get $sdk_location
+go install $sdk_location
 
 go-licenses save $sdk_location --save_path=/output/licenses
 go-licenses csv $sdk_location | tee /output/licenses/list.csv
