@@ -23,8 +23,8 @@ import unittest
 import uuid
 from typing import List
 
-from apache_beam.io.filesystems import FileSystems
 from apache_beam.examples.inference import sklearn_mnist_classification
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
