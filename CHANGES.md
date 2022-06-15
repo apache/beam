@@ -59,6 +59,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Upgraded to Hive 3.1.3 for HCatalogIO. Users can still provide their own version of Hive. (Java) ([Issue-19554](https://github.com/apache/beam/issues/19554)).
 
 ## New Features / Improvements
 

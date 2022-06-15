@@ -26,8 +26,9 @@ import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.ql.CommandNeedRetryException;
-import org.apache.hadoop.hive.ql.Driver;
+import org.apache.hadoop.hive.ql.DriverFactory;
+import org.apache.hadoop.hive.ql.IDriver;
+import org.apache.hadoop.hive.ql.processors.CommandProcessorResponse;
 import org.apache.hadoop.hive.ql.session.SessionState;
 
 /**
@@ -40,7 +41,7 @@ import org.apache.hadoop.hive.ql.session.SessionState;
  */
 @Internal
 public final class EmbeddedMetastoreService implements AutoCloseable {
-  private final Driver driver;
+  private final IDriver driver;
   private final HiveConf hiveConf;
   private final SessionState sessionState;
 
@@ -64,21 +65,19 @@ public final class EmbeddedMetastoreService implements AutoCloseable {
     hiveConf.setBoolVar(HiveConf.ConfVars.HIVEOPTIMIZEMETADATAQUERIES, true);
     hiveConf.setVar(
         HiveConf.ConfVars.HIVE_AUTHORIZATION_MANAGER,
-        "org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd."
-            + "SQLStdHiveAuthorizerFactory");
+        "org.apache.hadoop.hive.ql.security.authorization.DefaultHiveAuthorizationProvider");
     hiveConf.set("test.tmp.dir", hiveDirPath);
 
     System.setProperty("derby.stream.error.file", "/dev/null");
-    driver = new Driver(hiveConf);
+    driver = DriverFactory.newDriver(hiveConf);
     sessionState = SessionState.start(new SessionState(hiveConf));
   }
 
   /** Executes the passed query on the embedded metastore service. */
   public void executeQuery(String query) {
-    try {
-      driver.run(query);
-    } catch (CommandNeedRetryException e) {
-      throw new RuntimeException(e);
+    CommandProcessorResponse response = driver.run(query);
+    if (response.failed()) {
+      throw new RuntimeException(response.getException());
     }
   }
 
