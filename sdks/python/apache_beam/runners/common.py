@@ -353,7 +353,7 @@ class DoFnSignature(object):
         raise NotImplementedError(
             f"DoFn {self.do_fn!r} has unsupported per-key DoFn param {d}. "
             "Per-key DoFn params are not yet supported for process_batch "
-            "(BEAM-14409).")
+            "(https://github.com/apache/beam/issues/21653).")
 
       # Fallback to catch anything not explicitly supported
       if not d in (core.DoFn.WindowParam,
@@ -654,8 +654,8 @@ def _get_arg_placeholders(
       self.placeholder = placeholder
 
   if all(core.DoFn.ElementParam != arg for arg in default_arg_values):
-    # TODO(BEAM-7867): Handle cases in which len(arg_names) ==
-    #   len(default_arg_values).
+    # TODO(https://github.com/apache/beam/issues/19631): Handle cases in which
+    #   len(arg_names) == len(default_arg_values).
     args_to_pick = len(arg_names) - len(default_arg_values) - 1
     # Positional argument values for process(), with placeholders for special
     # values such as the element, timestamp, etc.
@@ -1047,7 +1047,9 @@ class PerWindowInvoker(DoFnInvoker):
       if core.DoFn.ElementParam == p:
         args_for_process_batch[i] = windowed_batch.values
       elif core.DoFn.KeyParam == p:
-        raise NotImplementedError("BEAM-14409: Per-key process_batch")
+        raise NotImplementedError(
+            "https://github.com/apache/beam/issues/21653: "
+            "Per-key process_batch")
       elif core.DoFn.WindowParam == p:
         args_for_process_batch[i] = window
       elif core.DoFn.TimestampParam == p:
@@ -1056,9 +1058,13 @@ class PerWindowInvoker(DoFnInvoker):
         assert isinstance(windowed_batch, HomogeneousWindowedBatch)
         args_for_process_batch[i] = windowed_batch.pane_info
       elif isinstance(p, core.DoFn.StateParam):
-        raise NotImplementedError("BEAM-14409: Per-key process_batch")
+        raise NotImplementedError(
+            "https://github.com/apache/beam/issues/21653: "
+            "Per-key process_batch")
       elif isinstance(p, core.DoFn.TimerParam):
-        raise NotImplementedError("BEAM-14409: Per-key process_batch")
+        raise NotImplementedError(
+            "https://github.com/apache/beam/issues/21653: "
+            "Per-key process_batch")
 
     kwargs_for_process_batch = kwargs_for_process_batch or {}
 
@@ -1362,7 +1368,8 @@ class DoFnRunner:
     # Optimize for the common case.
     main_receivers = tagged_receivers[None]
 
-    # TODO(BEAM-3937): Remove if block after output counter released.
+    # TODO(https://github.com/apache/beam/issues/18886): Remove if block after
+    # output counter released.
     if 'outputs_per_element_counter' in RuntimeValueProvider.experiments:
       # TODO(BEAM-3955): Make step_name and operation_name less confused.
       output_counter_name = (
@@ -1556,8 +1563,9 @@ class _OutputHandler(OutputHandler):
     """
     results = results or []
 
-    # TODO(BEAM-10782): Verify that the results object is a valid iterable type
-    #  if performance_runtime_type_check is active, without harming performance
+    # TODO(https://github.com/apache/beam/issues/20404): Verify that the
+    #  results object is a valid iterable type if
+    #  performance_runtime_type_check is active, without harming performance
     output_element_count = 0
     for result in results:
       tag, result = self._handle_tagged_output(result)
@@ -1590,8 +1598,9 @@ class _OutputHandler(OutputHandler):
 
         self._write_batch_to_tag(tag, windowed_batch, watermark_estimator)
 
-    # TODO(BEAM-3937): Remove if block after output counter released.
-    # Only enable per_element_output_counter when counter cythonized
+    # TODO(https://github.com/apache/beam/issues/18886): Remove if block after
+    # output counter released. Only enable per_element_output_counter when
+    # counter cythonized
     if self.per_element_output_counter is not None:
       self.per_element_output_counter.add_input(output_element_count)
 
@@ -1640,8 +1649,9 @@ class _OutputHandler(OutputHandler):
 
         self._write_value_to_tag(tag, windowed_value, watermark_estimator)
 
-    # TODO(BEAM-3937): Remove if block after output counter released.
-    # Only enable per_element_output_counter when counter cythonized
+    # TODO(https://github.com/apache/beam/issues/18886): Remove if block after
+    # output counter released. Only enable per_element_output_counter when
+    # counter cythonized
     if self.per_element_output_counter is not None:
       self.per_element_output_counter.add_input(output_element_count)
 

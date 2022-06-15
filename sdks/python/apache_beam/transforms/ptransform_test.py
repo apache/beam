@@ -700,7 +700,8 @@ class PTransformTest(unittest.TestCase):
       result = (pcoll, ) | 'Single Flatten' >> beam.Flatten()
       assert_that(result, equal_to(input))
 
-  # TODO(BEAM-9002): Does not work in streaming mode on Dataflow.
+  # TODO(https://github.com/apache/beam/issues/20067): Does not work in
+  # streaming mode on Dataflow.
   @pytest.mark.no_sickbay_streaming
   @pytest.mark.it_validatesrunner
   def test_flatten_same_pcollections(self):
