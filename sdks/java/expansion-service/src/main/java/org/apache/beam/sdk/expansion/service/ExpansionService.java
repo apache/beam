@@ -53,7 +53,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProvider.AllowList;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -569,13 +568,13 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .build();
   }
 
-  protected Pipeline createPipeline() {
+  // configPipelineOptions is set up to be overridden for expansion service subclasses that may want
+  // to change which pipeline options are read.
+  protected PipelineOptions configPipelineOptions(PipelineOptions providedOpts) {
     // TODO: [https://github.com/apache/beam/issues/21064]: implement proper validation
     PipelineOptions effectiveOpts = PipelineOptionsFactory.create();
-    GcpOptions gcpOptions = effectiveOpts.as(GcpOptions.class);
-    Optional.ofNullable(gcpOptions.getProject()).ifPresent(gcpOptions::setProject);
     PortablePipelineOptions portableOptions = effectiveOpts.as(PortablePipelineOptions.class);
-    PortablePipelineOptions specifiedOptions = pipelineOptions.as(PortablePipelineOptions.class);
+    PortablePipelineOptions specifiedOptions = providedOpts.as(PortablePipelineOptions.class);
     Optional.ofNullable(specifiedOptions.getDefaultEnvironmentType())
         .ifPresent(portableOptions::setDefaultEnvironmentType);
     Optional.ofNullable(specifiedOptions.getDefaultEnvironmentConfig())
@@ -586,9 +585,14 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     }
     effectiveOpts
         .as(ExperimentalOptions.class)
-        .setExperiments(pipelineOptions.as(ExperimentalOptions.class).getExperiments());
+        .setExperiments(providedOpts.as(ExperimentalOptions.class).getExperiments());
     effectiveOpts.setRunner(NotRunnableRunner.class);
-    return Pipeline.create(effectiveOpts);
+    return effectiveOpts;
+  }
+
+  protected Pipeline createPipeline() {
+    PipelineOptions options = configPipelineOptions(pipelineOptions);
+    return Pipeline.create(options);
   }
 
   @Override
@@ -612,15 +616,15 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     // Nothing to do because the expansion service is stateless.
   }
 
-  public static void main(String[] args) throws Exception {
-    int port = Integer.parseInt(args[0]);
-    System.out.println("Starting expansion service at localhost:" + port);
-
-    // Register the options class used by the expansion service.
-    PipelineOptionsFactory.register(ExpansionServiceOptions.class);
-
-    @SuppressWarnings("nullness")
-    ExpansionService service = new ExpansionService(Arrays.copyOfRange(args, 1, args.length));
+  /**
+   * StartServer accepts an {@link ExpansionService}, including subclasses, and starts up a server.
+   * This is a utility function for writing main functions in {@link ExpansionService} subclasses.
+   *
+   * @param service The {@link ExpansionService} implementation to start as a server.
+   * @param port The integer port to start the server on.
+   * @throws Exception Thrown if the server fails to start.
+   */
+  public static void StartServer(ExpansionService service, int port) throws Exception {
     for (Map.Entry<String, TransformProvider> entry :
         service.getRegisteredTransforms().entrySet()) {
       System.out.println("\t" + entry.getKey() + ": " + entry.getValue());
@@ -633,6 +637,19 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
             .build();
     server.start();
     server.awaitTermination();
+  }
+
+  public static void main(String[] args) throws Exception {
+    int port = Integer.parseInt(args[0]);
+    System.out.println("Starting expansion service at localhost:" + port);
+
+    // Register the options class used by the expansion service.
+    PipelineOptionsFactory.register(ExpansionServiceOptions.class);
+
+    @SuppressWarnings("nullness")
+    ExpansionService service = new ExpansionService(Arrays.copyOfRange(args, 1, args.length));
+
+    StartServer(service, port);
   }
 
   private static class NotRunnableRunner extends PipelineRunner<PipelineResult> {
