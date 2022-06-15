@@ -235,7 +235,7 @@ public class BeamSqlHiveSchemaTest implements Serializable {
     pipeline.run();
   }
 
-  private void reCreateTestTable() throws Exception {
+  private void reCreateTestTable() {
     service.executeQuery("drop table " + TEST_TABLE);
     service.executeQuery("create table " + TEST_TABLE + "(f_str string, f_int int)");
   }
