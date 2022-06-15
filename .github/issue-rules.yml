@@ -36,11 +36,8 @@ rules:
   contains: 'beam-playground'
   addLabels: ['beam-playground']
 - valueFor: 'Component'
-  contains: 'benchmarking-py'
-  addLabels: ['benchmarking-py']
-- valueFor: 'Component'
   contains: 'build-system'
-  addLabels: ['build-system']
+  addLabels: ['build']
 - valueFor: 'Component'
   contains: 'community-metrics'
   addLabels: ['community-metrics']
@@ -52,211 +49,205 @@ rules:
   addLabels: ['dependencies']
 - valueFor: 'Component'
   contains: 'dsl-dataframe'
-  addLabels: ['dsl-dataframe']
+  addLabels: ['dsl', 'dataframe']
 - valueFor: 'Component'
   contains: 'dsl-euphoria'
-  addLabels: ['dsl-euphoria']
+  addLabels: ['dsl', 'euphoria']
 - valueFor: 'Component'
   contains: 'dsl-sql'
-  addLabels: ['dsl-sql']
+  addLabels: ['dsl', 'sql']
 - valueFor: 'Component'
   contains: 'dsl-sql-zetasql'
-  addLabels: ['dsl-sql-zetasql']
+  addLabels: ['dsl', 'sql', 'zetasql']
 - valueFor: 'Component'
   contains: 'examples-java'
-  addLabels: ['examples-java']
+  addLabels: ['examples', 'java']
 - valueFor: 'Component'
   contains: 'examples-python'
-  addLabels: ['examples-python']
+  addLabels: ['examples', 'python']
 - valueFor: 'Component'
   contains: 'extensions-ideas'
-  addLabels: ['extensions-ideas']
+  addLabels: ['extensions', 'ideas']
 - valueFor: 'Component'
   contains: 'extensions-java-gcp'
-  addLabels: ['extensions-java-gcp']
+  addLabels: ['extensions', 'java', 'gcp']
 - valueFor: 'Component'
   contains: 'extensions-java-join-library'
-  addLabels: ['extensions-java-join-library']
+  addLabels: ['extensions', 'java', 'join-library']
 - valueFor: 'Component'
   contains: 'extensions-java-json'
-  addLabels: ['extensions-java-json']
+  addLabels: ['extensions', 'java', 'json']
 - valueFor: 'Component'
   contains: 'extensions-java-kyro'
-  addLabels: ['extensions-java-kyro']
+  addLabels: ['extensions', 'java', 'kyro']
 - valueFor: 'Component'
   contains: 'extensions-java-protobuf'
-  addLabels: ['extensions-java-protobuf']
+  addLabels: ['extensions', 'java', 'protobuf']
 - valueFor: 'Component'
   contains: 'extensions-java-sketching'
-  addLabels: ['extensions-java-sketching']
+  addLabels: ['extensions', 'java', 'sketching']
 - valueFor: 'Component'
   contains: 'extensions-java-sorter'
-  addLabels: ['extensions-java-sorter']
-- valueFor: 'Component'
-  contains: 'gcp-quota'
-  addLabels: ['gcp-quota']
+  addLabels: ['extensions', 'java', 'sorter']
 - valueFor: 'Component'
   contains: 'infrastructure'
-  addLabels: ['infrastructure']
+  addLabels: ['infra']
 - valueFor: 'Component'
   contains: 'io-common'
-  addLabels: ['io-common']
+  addLabels: ['io']
 - valueFor: 'Component'
   contains: 'io-go-gcp'
-  addLabels: ['io-go-gcp']
+  addLabels: ['io', 'go', 'gcp']
 - valueFor: 'Component'
   contains: 'io-ideas'
-  addLabels: ['io-ideas']
+  addLabels: ['io', 'ideas']
 - valueFor: 'Component'
   contains: 'io-java-amqp'
-  addLabels: ['io-java-amqp']
+  addLabels: ['io', 'java', 'amqp']
 - valueFor: 'Component'
   contains: 'io-java-avro'
-  addLabels: ['io-java-avro']
+  addLabels: ['io', 'java', 'avro']
 - valueFor: 'Component'
   contains: 'io-java-aws'
-  addLabels: ['io-java-aws']
+  addLabels: ['io', 'java', 'aws']
 - valueFor: 'Component'
   contains: 'io-java-azure'
-  addLabels: ['io-java-azure']
+  addLabels: ['io', 'java', 'azure']
 - valueFor: 'Component'
   contains: 'io-java-cassandra'
-  addLabels: ['io-java-cassandra']
+  addLabels: ['io', 'java', 'cassandra']
 - valueFor: 'Component'
   contains: 'io-java-cdap'
-  addLabels: ['io-java-cdap']
+  addLabels: ['io', 'java', 'cdap']
 - valueFor: 'Component'
   contains: 'io-java-clickhouse'
-  addLabels: ['io-java-clickhouse']
+  addLabels: ['io', 'java', 'clickhouse']
 - valueFor: 'Component'
   contains: 'io-java-debezium'
-  addLabels: ['io-java-debezium']
+  addLabels: ['io', 'java', 'debezium']
 - valueFor: 'Component'
   contains: 'io-java-elasticsearch'
-  addLabels: ['io-java-elasticsearch']
+  addLabels: ['io', 'java', 'elasticsearch']
 - valueFor: 'Component'
   contains: 'io-java-files'
-  addLabels: ['io-java-files']
+  addLabels: ['io', 'java', 'files']
 - valueFor: 'Component'
   contains: 'io-java-gcp'
-  addLabels: ['io-java-gcp']
+  addLabels: ['io', 'java', 'gcp']
 - valueFor: 'Component'
   contains: 'io-java-hadoop-file-system'
-  addLabels: ['io-java-hadoop-file-system']
+  addLabels: ['io', java', 'hadoop-file-system']
 - valueFor: 'Component'
   contains: 'io-java-hadoop-format'
-  addLabels: ['io-java-hadoop-format']
+  addLabels: ['io', java', 'hadoop-format']
 - valueFor: 'Component'
   contains: 'io-java-hbase'
-  addLabels: ['io-java-hbase']
+  addLabels: ['io', 'java', 'hbase']
 - valueFor: 'Component'
   contains: 'io-java-hcatalog'
-  addLabels: ['io-java-hcatalog']
+  addLabels: ['io', 'java', 'hcatalog']
 - valueFor: 'Component'
   contains: 'io-java-healthcare'
-  addLabels: ['io-java-healthcare']
+  addLabels: ['io', 'java', 'healthcare']
 - valueFor: 'Component'
   contains: 'io-java-influxdb'
-  addLabels: ['io-java-influxdb']
+  addLabels: ['io', 'java', 'influxdb']
 - valueFor: 'Component'
   contains: 'io-java-jdbc'
-  addLabels: ['io-java-jdbc']
+  addLabels: ['io', 'java', 'jdbc']
 - valueFor: 'Component'
   contains: 'io-java-jms'
-  addLabels: ['io-java-jms']
+  addLabels: ['io', 'java', 'jms']
 - valueFor: 'Component'
   contains: 'io-java-kafka'
-  addLabels: ['io-java-kafka']
+  addLabels: ['io', 'java', 'kafka']
 - valueFor: 'Component'
   contains: 'io-java-kinesis'
-  addLabels: ['io-java-kinesis']
+  addLabels: ['io', 'java', 'kinesis']
 - valueFor: 'Component'
   contains: 'io-java-kudu'
-  addLabels: ['io-java-kudu']
+  addLabels: ['io', 'java', 'kudu']
 - valueFor: 'Component'
   contains: 'io-java-mongodb'
-  addLabels: ['io-java-mongodb']
+  addLabels: ['io', 'java', 'mongodb']
 - valueFor: 'Component'
   contains: 'io-java-mqtt'
-  addLabels: ['io-java-mqtt']
+  addLabels: ['io', 'java', 'mqtt']
 - valueFor: 'Component'
   contains: 'io-java-parquet'
-  addLabels: ['io-java-parquet']
+  addLabels: ['io', 'java', 'parquet']
 - valueFor: 'Component'
   contains: 'io-java-pulsar'
-  addLabels: ['io-java-pulsar']
+  addLabels: ['io', 'java', 'pulsar']
 - valueFor: 'Component'
   contains: 'io-java-rabbitmq'
-  addLabels: ['io-java-rabbitmq']
+  addLabels: ['io', 'java', 'rabbitmq']
 - valueFor: 'Component'
   contains: 'io-java-redis'
-  addLabels: ['io-java-redis']
+  addLabels: ['io', 'java', 'redis']
 - valueFor: 'Component'
   contains: 'io-java-snowflake'
-  addLabels: ['io-java-snowflake']
+  addLabels: ['io', 'java', 'snowflake']
 - valueFor: 'Component'
   contains: 'io-java-solr'
-  addLabels: ['io-java-solr']
+  addLabels: ['io', 'java', 'solr']
 - valueFor: 'Component'
   contains: 'io-java-splunk'
-  addLabels: ['io-java-splunk']
+  addLabels: ['io', 'java', 'splunk']
 - valueFor: 'Component'
   contains: 'io-java-text'
-  addLabels: ['io-java-text']
+  addLabels: ['io', 'java', 'text']
 - valueFor: 'Component'
   contains: 'io-java-tfrecord'
-  addLabels: ['io-java-tfrecord']
+  addLabels: ['io', 'java', 'tfrecord']
 - valueFor: 'Component'
   contains: 'io-java-tika'
-  addLabels: ['io-java-tika']
+  addLabels: ['io', 'java', 'tika']
 - valueFor: 'Component'
   contains: 'io-java-utilities'
-  addLabels: ['io-java-utilities']
+  addLabels: ['io', 'java', 'utilities']
 - valueFor: 'Component'
   contains: 'io-java-xml'
-  addLabels: ['io-java-xml']
+  addLabels: ['io', 'java', 'xml']
 - valueFor: 'Component'
   contains: 'io-py-avro'
-  addLabels: ['io-py-avro']
+  addLabels: ['io', 'py', 'avro']
 - valueFor: 'Component'
   contains: 'io-py-aws'
-  addLabels: ['io-py-aws']
+  addLabels: ['io', 'py', 'aws']
 - valueFor: 'Component'
   contains: 'io-py-common'
-  addLabels: ['io-py-common']
+  addLabels: ['io', 'py', 'common']
 - valueFor: 'Component'
   contains: 'io-py-files'
-  addLabels: ['io-py-files']
+  addLabels: ['io', 'py', 'files']
 - valueFor: 'Component'
   contains: 'io-py-gcp'
-  addLabels: ['io-py-gcp']
+  addLabels: ['io', 'py', 'gcp']
 - valueFor: 'Component'
   contains: 'io-py-hadoop'
-  addLabels: ['io-py-hadoop']
+  addLabels: ['io', 'py', 'hadoop']
 - valueFor: 'Component'
   contains: 'io-py-ideas'
-  addLabels: ['io-py-ideas']
+  addLabels: ['io', 'py', 'ideas']
 - valueFor: 'Component'
   contains: 'io-py-kafka'
-  addLabels: ['io-py-kafka']
+  addLabels: ['io', 'py', 'kafka']
 - valueFor: 'Component'
   contains: 'io-py-mongodb'
-  addLabels: ['io-py-mongodb']
+  addLabels: ['io', 'py', 'mongodb']
 - valueFor: 'Component'
   contains: 'io-py-parquet'
-  addLabels: ['io-py-parquet']
+  addLabels: ['io', 'py', 'parquet']
 - valueFor: 'Component'
   contains: 'io-py-tfrecord'
-  addLabels: ['io-py-tfrecord']
+  addLabels: ['io', 'py', 'tfrecord']
 - valueFor: 'Component'
   contains: 'io-py-vcf'
-  addLabels: ['io-py-vcf']
+  addLabels: ['io', 'py', 'vcf']
 - valueFor: 'Component'
   contains: 'java-fn-execution'
-  addLabels: ['java-fn-execution']
-- valueFor: 'Component'
-  contains: 'jobserver'
-  addLabels: ['jobserver']
+  addLabels: ['java', 'fn', 'execution']
 - valueFor: 'Component'
   contains: 'katas'
   addLabels: ['katas']
@@ -268,94 +259,88 @@ rules:
   addLabels: ['release']
 - valueFor: 'Component'
   contains: 'runner-apex'
-  addLabels: ['runner-apex']
+  addLabels: ['runners', 'apex']
 - valueFor: 'Component'
   contains: 'runner-core'
-  addLabels: ['runner-core']
+  addLabels: ['runners', 'core']
 - valueFor: 'Component'
   contains: 'runner-dataflow'
-  addLabels: ['runner-dataflow']
+  addLabels: ['runners', 'dataflow']
 - valueFor: 'Component'
   contains: 'runner-direct'
-  addLabels: ['runner-direct']
-- valueFor: 'Component'
-  contains: 'runner-extensions-metrics'
-  addLabels: ['runner-extensions-metrics']
+  addLabels: ['runners', 'direct']
 - valueFor: 'Component'
   contains: 'runner-flink'
-  addLabels: ['runner-flink']
+  addLabels: ['runners', 'flink']
 - valueFor: 'Component'
   contains: 'runner-gearpump'
-  addLabels: ['runner-gearpump']
+  addLabels: ['runners', 'gearpump']
 - valueFor: 'Component'
   contains: 'runner-ideas'
-  addLabels: ['runner-ideas']
+  addLabels: ['runners', 'ideas']
 - valueFor: 'Component'
   contains: 'runner-jet'
-  addLabels: ['runner-jet']
+  addLabels: ['runners', 'jet']
 - valueFor: 'Component'
   contains: 'runner-jstorm'
-  addLabels: ['runner-jstorm']
+  addLabels: ['runners', 'jstorm']
 - valueFor: 'Component'
   contains: 'runner-mapreduce'
-  addLabels: ['runner-mapreduce']
+  addLabels: ['runners', 'mapreduce']
 - valueFor: 'Component'
   contains: 'runner-py-direct'
-  addLabels: ['runner-py-direct']
+  addLabels: ['runners', 'py', 'direct']
 - valueFor: 'Component'
   contains: 'runner-py-interactive'
-  addLabels: ['runner-py-interactive']
+  addLabels: ['runners', 'py', 'interactive']
 - valueFor: 'Component'
   contains: 'runner-ray'
-  addLabels: ['runner-ray']
+  addLabels: ['runners', 'ray']
 - valueFor: 'Component'
   contains: 'runner-samza'
-  addLabels: ['runner-samza']
+  addLabels: ['runners', 'samza']
 - valueFor: 'Component'
   contains: 'runner-spark'
-  addLabels: ['runner-spark']
+  addLabels: ['runners', 'spark']
 - valueFor: 'Component'
   contains: 'runner-tez'
-  addLabels: ['runner-tez']
+  addLabels: ['runners', 'tez']
 - valueFor: 'Component'
   contains: 'runner-twister2'
-  addLabels: ['runner-twister2']
+  addLabels: ['runners', 'twister2']
 - valueFor: 'Component'
   contains: 'runner-universal'
-  addLabels: ['runner-universal']
+  addLabels: ['runners', 'universal']
 - valueFor: 'Component'
   contains: 'sdk-go'
-  addLabels: ['sdk-go']
+  addLabels: ['go']
 - valueFor: 'Component'
   contains: 'sdk-ideas'
   addLabels: ['sdk-ideas']
 - valueFor: 'Component'
   contains: 'sdk-java-core'
-  addLabels: ['sdk-java-core']
+  addLabels: ['java', 'core']
 - valueFor: 'Component'
   contains: 'sdk-java-harness'
-  addLabels: ['sdk-java-harness']
+  addLabels: ['java', 'harness']
 - valueFor: 'Component'
   contains: 'sdk-py-core'
-  addLabels: ['sdk-py-core']
+  addLabels: ['py', 'core']
 - valueFor: 'Component'
   contains: 'sdk-py-harness'
-  addLabels: ['sdk-py-harness']
+  addLabels: ['py', 'harness']
 - valueFor: 'Component'
   contains: 'sdk-typescript'
-  addLabels: ['sdk-typescript']
+  addLabels: ['typescript']
 - valueFor: 'Component'
   contains: 'test-failures'
   addLabels: ['test-failures']
 - valueFor: 'Component'
   contains: 'testing'
-  addLabels: ['testing']
+  addLabels: ['tests']
 - valueFor: 'Component'
   contains: 'testing-nexmark'
-  addLabels: ['testing-nexmark']
-- valueFor: 'Component'
-  contains: 'testing-tpcds'
-  addLabels: ['testing-tpcds']
+  addLabels: ['tests', 'nexmark']
 - valueFor: 'Component'
   contains: 'website'
   addLabels: ['website']
