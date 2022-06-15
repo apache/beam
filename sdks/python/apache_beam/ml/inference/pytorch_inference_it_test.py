@@ -63,6 +63,8 @@ def process_outputs(filepath):
     os.getenv('FORCE_TORCH_IT') is None and torch is None,
     'Missing dependencies. '
     'Test depends on torch, torchvision, pillow, and transformers')
+# TODO: https://github.com/apache/beam/issues/21859
+@pytest.mark.skip
 class PyTorchInference(unittest.TestCase):
   @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
