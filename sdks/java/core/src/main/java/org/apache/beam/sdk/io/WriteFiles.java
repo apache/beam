@@ -523,7 +523,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                         public void process(ProcessContext c) {
                           c.output(c.element().withShard(UNKNOWN_SHARDNUM));
                         }
-                      }));
+                      }))
+              .setCoder(fileResultCoder);
       return PCollectionList.of(writtenBundleFiles)
           .and(writtenSpilledFiles)
           .apply(Flatten.pCollections())
@@ -807,7 +808,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                         public void process(ProcessContext c) {
                           c.output(c.element().withShard(UNKNOWN_SHARDNUM));
                         }
-                      }));
+                      }))
+              .setCoder(fileResultCoder);
 
       // Group temp file results by destinations again to gather all the results in the same window.
       // This is needed since we don't have shard idx associated with each temp file so have to rely

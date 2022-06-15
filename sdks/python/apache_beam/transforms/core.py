@@ -1482,9 +1482,14 @@ class ParDo(PTransformWithSideInputs):
             key_coder,
             self)
 
+    if self._signature.is_unbounded_per_element():
+      is_bounded = False
+    else:
+      is_bounded = pcoll.is_bounded
+
     self.infer_batch_converters(pcoll.element_type)
 
-    return pvalue.PCollection.from_(pcoll)
+    return pvalue.PCollection.from_(pcoll, is_bounded=is_bounded)
 
   def with_outputs(self, *tags, main=None, allow_unknown_tags=None):
     """Returns a tagged tuple allowing access to the outputs of a
