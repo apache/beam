@@ -214,8 +214,8 @@ task torchInferenceTest {
 }
 // Scikit-learn RunInference IT tests
 task sklearnInferenceTest {
-//   dependsOn 'installGcpTest'
-//   dependsOn ':sdks:python:sdist'
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
   doLast {
       def testOpts = basicTestOpts
       def argMap = [
