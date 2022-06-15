@@ -112,6 +112,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
         be single examples.
       model: A numpy model or pipeline. Must implement predict(X).
         Where the parameter X is a numpy array.
+      inference_args: Any additional arguments for an inference.
 
     Returns:
       An Iterable of type PredictionResult.
@@ -161,6 +162,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     return _load_model(self._model_uri, self._model_file_type)
 
   def run_inference(
+      self,
       batch: Sequence[pandas.DataFrame],
       model: BaseEstimator,
       inference_args: Optional[Dict[str, Any]] = None
@@ -173,6 +175,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
         be single examples.
       model: A dataframe model or pipeline. Must implement predict(X).
         Where the parameter X is a pandas dataframe.
+      inference_args: Any additional arguments for an inference.
 
     Returns:
       An Iterable of type PredictionResult.
