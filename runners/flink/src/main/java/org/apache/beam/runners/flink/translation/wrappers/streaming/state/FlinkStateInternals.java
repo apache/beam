@@ -61,6 +61,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -152,6 +153,10 @@ public class FlinkStateInternals<K> implements StateInternals {
    */
   private final Set<StateAndNamespaceDescriptor<?>> globalWindowStateDescriptors = new HashSet<>();
 
+  /** Watermark holds descriptors created for a specific window. */
+  private final HashMultimap<String, FlinkWatermarkHoldState> watermarkHoldsMap =
+      HashMultimap.create();
+
   // Watermark holds for all keys/windows of this partition, allows efficient lookup of the minimum
   private final TreeMultiset<Long> watermarkHolds = TreeMultiset.create();
   // State to persist combined watermark holds for all keys of this partition
@@ -213,8 +218,10 @@ public class FlinkStateInternals<K> implements StateInternals {
             stateAndNamespace.stateDescriptor,
             (key, state) -> state.clear());
       }
+      watermarkHoldsMap.values().forEach(FlinkWatermarkHoldState::clear);
       // Clear set to avoid repeating the cleanup
       globalWindowStateDescriptors.clear();
+      watermarkHoldsMap.clear();
     } catch (Exception e) {
       throw new RuntimeException("Failed to cleanup global state.", e);
     }
@@ -330,8 +337,15 @@ public class FlinkStateInternals<K> implements StateInternals {
         String id, StateSpec<WatermarkHoldState> spec, TimestampCombiner timestampCombiner) {
       collectGlobalWindowStateDescriptor(
           watermarkHoldStateDescriptor, VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE);
-      return new FlinkWatermarkHoldState(
-          flinkStateBackend, watermarkHoldStateDescriptor, id, namespace, timestampCombiner);
+      FlinkWatermarkHoldState state =
+          new FlinkWatermarkHoldState(
+              flinkStateBackend, watermarkHoldStateDescriptor, id, namespace, timestampCombiner);
+      collectWatermarkHolds(state);
+      return state;
+    }
+
+    private void collectWatermarkHolds(FlinkWatermarkHoldState state) {
+      watermarkHoldsMap.put(namespace.stringKey(), state);
     }
 
     /** Take note of state bound to the global window for cleanup in clearGlobalState(). */
