@@ -32,6 +32,7 @@ jobs:
           echo "Assigning issue $ISSUE_NUMBER to $LOGIN"
           echo "Using the link: https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/assignees"
           curl -H "Authorization: token $GITHUB_TOKEN" -d '{"assignees":["'"$LOGIN"'"]}' https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/assignees
+          curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/labels/awaiting%20triage
         fi
         if [[ $BODY == *"$INPUT_CLOSE"* && $BODY != *"\`$INPUT_CLOSE\`"* ]]; then
           echo "Closing issue $ISSUE_NUMBER"

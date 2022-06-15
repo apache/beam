@@ -28,8 +28,8 @@ import (
 )
 
 const (
+	UserAgent        = "apache-beam-io-google-cloud-platform-healthcare/" + core.SdkVersion
 	baseMetricPrefix = "fhirio/"
-	userAgent        = "apache-beam-io-google-cloud-platform-healthcare/" + core.SdkVersion
 )
 
 type fhirStoreClient interface {
@@ -41,7 +41,7 @@ type fhirStoreClientImpl struct {
 }
 
 func newFhirStoreClient() *fhirStoreClientImpl {
-	healthcareService, err := healthcare.NewService(context.Background(), option.WithUserAgent(userAgent))
+	healthcareService, err := healthcare.NewService(context.Background(), option.WithUserAgent(UserAgent))
 	if err != nil {
 		panic("Failed to initialize Google Cloud Healthcare Service. Reason: " + err.Error())
 	}

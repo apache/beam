@@ -404,7 +404,7 @@ def _format_shard(
     kwargs['start'] = window.start.to_utc_datetime().isoformat()
     kwargs['end'] = window.end.to_utc_datetime().isoformat()
 
-  # TODO(BEAM-3759): Add support for PaneInfo
+  # TODO(https://github.com/apache/beam/issues/18721): Add support for PaneInfo
   # If the PANE is the ONLY firing in the window, we don't add it.
   #if pane and not (pane.is_first and pane.is_last):
   #  kwargs['pane'] = pane.index

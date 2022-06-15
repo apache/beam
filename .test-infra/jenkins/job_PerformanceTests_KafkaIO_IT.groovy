@@ -26,10 +26,10 @@ job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
   // TODO(BEAM-9482): Re-enable once fixed.
   // common.setAutoJob(delegate, 'H H/6 * * *')
-  common.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      'Java KafkaIO Performance Test',
-      'Run Java KafkaIO Performance Test')
+  //  common.enablePhraseTriggeringFromPullRequest(
+  //      delegate,
+  //      'Java KafkaIO Performance Test',
+  //      'Run Java KafkaIO Performance Test')
   InfluxDBCredentialsHelper.useCredentials(delegate)
 
   String namespace = common.getKubernetesNamespace(jobName)

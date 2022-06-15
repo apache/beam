@@ -35,9 +35,10 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import torch
-  from apache_beam.ml.inference.api import PredictionResult
+  from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
-  from apache_beam.ml.inference.pytorch_inference import PytorchModelHandler
+  from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
+  from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
 
@@ -62,7 +63,7 @@ TWO_FEATURES_PREDICTIONS = [
              for f1, f2 in TWO_FEATURES_EXAMPLES]).reshape(-1, 1))
 ]
 
-KWARGS_TORCH_EXAMPLES = [
+KEYED_TORCH_EXAMPLES = [
     {
         'k1': torch.from_numpy(np.array([1], dtype="float32")),
         'k2': torch.from_numpy(np.array([1.5], dtype="float32"))
@@ -81,16 +82,22 @@ KWARGS_TORCH_EXAMPLES = [
     },
 ]
 
-KWARGS_TORCH_PREDICTIONS = [
+KEYED_TORCH_PREDICTIONS = [
     PredictionResult(ex, pred) for ex,
     pred in zip(
-        KWARGS_TORCH_EXAMPLES,
+        KEYED_TORCH_EXAMPLES,
         torch.Tensor([(example['k1'] * 2.0 + 0.5) + (example['k2'] * 2.0 + 0.5)
-                      for example in KWARGS_TORCH_EXAMPLES]).reshape(-1, 1))
+                      for example in KEYED_TORCH_EXAMPLES]).reshape(-1, 1))
 ]
 
 
-class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandler):
+class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandlerTensor):
+  def __init__(self, device):
+    self._device = device
+
+
+class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
+    PytorchModelHandlerKeyedTensor):
   def __init__(self, device):
     self._device = device
 
@@ -115,12 +122,12 @@ class PytorchLinearRegression(torch.nn.Module):
     return out
 
 
-class PytorchLinearRegressionKwargsPredictionParams(torch.nn.Module):
+class PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs(torch.nn.Module):
   """
-  A linear model with kwargs inputs and non-batchable input params.
+  A linear model with batched keyed inputs and non-batchable extra args.
 
-  Note: k1 and k2 are batchable inputs passed in as a kwargs.
-  prediction_param_array, prediction_param_bool are non-batchable inputs
+  Note: k1 and k2 are batchable examples passed in as a dict from str to tensor.
+  prediction_param_array, prediction_param_bool are non-batchable extra args
   (typically model-related info) used to configure the model before its predict
   call is invoked
   """
@@ -179,10 +186,10 @@ class PytorchRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(predictions, TWO_FEATURES_PREDICTIONS):
       self.assertEqual(actual, expected)
 
-  def test_run_inference_kwargs(self):
+  def test_run_inference_keyed(self):
     """
     This tests for inputs that are passed as a dictionary from key to tensor
-    instead of a standard non-kwarg input.
+    instead of a standard non-keyed tensor example.
 
     Example:
     Typical input format is
@@ -209,38 +216,36 @@ class PytorchRunInferenceTest(unittest.TestCase):
                      ('linear.bias', torch.Tensor([0.5]))]))
     model.eval()
 
-    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+    inference_runner = TestPytorchModelHandlerKeyedTensorForInferenceOnly(
         torch.device('cpu'))
-    predictions = inference_runner.run_inference(KWARGS_TORCH_EXAMPLES, model)
-    for actual, expected in zip(predictions, KWARGS_TORCH_PREDICTIONS):
+    predictions = inference_runner.run_inference(KEYED_TORCH_EXAMPLES, model)
+    for actual, expected in zip(predictions, KEYED_TORCH_PREDICTIONS):
       self.assertTrue(_compare_prediction_result(actual, expected))
 
-  def test_run_inference_kwargs_prediction_params(self):
+  def test_inference_runner_inference_args(self):
     """
     This tests for non-batchable input arguments. Since we do the batching
     for the user, we have to distinguish between the inputs that should be
     batched and the ones that should not be batched.
     """
-    prediction_params = {
+    inference_args = {
         'prediction_param_array': torch.from_numpy(
             np.array([1, 2], dtype="float32")),
         'prediction_param_bool': True
     }
 
-    model = PytorchLinearRegressionKwargsPredictionParams(
+    model = PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs(
         input_dim=1, output_dim=1)
     model.load_state_dict(
         OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
                      ('linear.bias', torch.Tensor([0.5]))]))
     model.eval()
 
-    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+    inference_runner = TestPytorchModelHandlerKeyedTensorForInferenceOnly(
         torch.device('cpu'))
     predictions = inference_runner.run_inference(
-        batch=KWARGS_TORCH_EXAMPLES,
-        model=model,
-        prediction_params=prediction_params)
-    for actual, expected in zip(predictions, KWARGS_TORCH_PREDICTIONS):
+        batch=KEYED_TORCH_EXAMPLES, model=model, inference_args=inference_args)
+    for actual, expected in zip(predictions, KEYED_TORCH_PREDICTIONS):
       self.assertEqual(actual, expected)
 
   def test_num_bytes(self):
@@ -274,7 +279,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       path = os.path.join(self.tmpdir, 'my_state_dict_path')
       torch.save(state_dict, path)
 
-      model_loader = PytorchModelHandler(
+      model_handler = PytorchModelHandlerTensor(
           state_dict_path=path,
           model_class=PytorchLinearRegression,
           model_params={
@@ -282,15 +287,15 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           })
 
       pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
-      predictions = pcoll | RunInference(model_loader)
+      predictions = pcoll | RunInference(model_handler)
       assert_that(
           predictions,
           equal_to(
               TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
 
-  def test_pipeline_local_model_kwargs_prediction_params(self):
+  def test_pipeline_local_model_extra_inference_args(self):
     with TestPipeline() as pipeline:
-      prediction_params = {
+      inference_args = {
           'prediction_param_array': torch.from_numpy(
               np.array([1, 2], dtype="float32")),
           'prediction_param_bool': True
@@ -301,23 +306,23 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       path = os.path.join(self.tmpdir, 'my_state_dict_path')
       torch.save(state_dict, path)
 
-      model_loader = PytorchModelHandler(
+      model_handler = PytorchModelHandlerKeyedTensor(
           state_dict_path=path,
-          model_class=PytorchLinearRegressionKwargsPredictionParams,
+          model_class=PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs,
           model_params={
               'input_dim': 1, 'output_dim': 1
           })
 
-      pcoll = pipeline | 'start' >> beam.Create(KWARGS_TORCH_EXAMPLES)
-      prediction_params_side_input = (
-          pipeline | 'create side' >> beam.Create(prediction_params))
+      pcoll = pipeline | 'start' >> beam.Create(KEYED_TORCH_EXAMPLES)
+      inference_args_side_input = (
+          pipeline | 'create side' >> beam.Create(inference_args))
       predictions = pcoll | RunInference(
-          model_loader=model_loader,
-          prediction_params=beam.pvalue.AsDict(prediction_params_side_input))
+          model_handler=model_handler,
+          inference_args=beam.pvalue.AsDict(inference_args_side_input))
       assert_that(
           predictions,
           equal_to(
-              KWARGS_TORCH_PREDICTIONS, equals_fn=_compare_prediction_result))
+              KEYED_TORCH_PREDICTIONS, equals_fn=_compare_prediction_result))
 
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_gcs_model(self):
@@ -334,7 +339,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
 
       gs_pth = 'gs://apache-beam-ml/models/' \
           'pytorch_lin_reg_model_2x+0.5_state_dict.pth'
-      model_loader = PytorchModelHandler(
+      model_handler = PytorchModelHandlerTensor(
           state_dict_path=gs_pth,
           model_class=PytorchLinearRegression,
           model_params={
@@ -342,7 +347,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           })
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      predictions = pcoll | RunInference(model_loader)
+      predictions = pcoll | RunInference(model_handler)
       assert_that(
           predictions,
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
@@ -357,7 +362,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
         path = os.path.join(self.tmpdir, 'my_state_dict_path')
         torch.save(state_dict, path)
 
-        model_loader = PytorchModelHandler(
+        model_handler = PytorchModelHandlerTensor(
             state_dict_path=path,
             model_class=PytorchLinearRegression,
             model_params={
@@ -366,7 +371,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
 
         pcoll = pipeline | 'start' >> beam.Create(examples)
         # pylint: disable=expression-not-assigned
-        pcoll | RunInference(model_loader)
+        pcoll | RunInference(model_handler)
 
 
 if __name__ == '__main__':

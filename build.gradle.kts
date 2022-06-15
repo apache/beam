@@ -196,13 +196,9 @@ tasks.register("javaPreCommitPortabilityApi") {
 tasks.register("javaPostCommit") {
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:postCommit")
   dependsOn(":sdks:java:extensions:zetasketch:postCommit")
-  dependsOn(":sdks:java:io:debezium:integrationTest")
-  dependsOn(":sdks:java:io:jdbc:integrationTest")
   dependsOn(":sdks:java:io:google-cloud-platform:postCommit")
   dependsOn(":sdks:java:io:kinesis:integrationTest")
   dependsOn(":sdks:java:extensions:ml:postCommit")
-  dependsOn(":sdks:java:io:kafka:kafkaVersionsCompatibilityTest")
-  dependsOn(":sdks:java:io:neo4j:integrationTest")
 }
 
 tasks.register("javaPostCommitSickbay") {
