@@ -628,6 +628,8 @@ class BigQueryServicesImpl implements BigQueryServices {
           client
               .tables()
               .get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId())
+              // avoid retrieving the STORAGE_STATS from the table (which is the default option)
+              .set("view", "BASIC")
               .setPrettyPrint(false);
       if (!selectedFields.isEmpty()) {
         get.setSelectedFields(String.join(",", selectedFields));
