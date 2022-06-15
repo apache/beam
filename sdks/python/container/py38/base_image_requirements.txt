@@ -37,7 +37,7 @@ crcmod==1.7
 cryptography==37.0.2
 Cython==0.29.28
 deprecation==2.1.0
-dill==0.3.5.1
+dill==0.3.1.1
 docker==5.0.3
 docopt==0.6.2
 execnet==1.9.0

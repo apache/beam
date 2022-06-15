@@ -211,7 +211,7 @@ if __name__ == '__main__':
         # using older version of dill. It is best to use the same version of
         # dill on client and server, therefore list of allowed versions is very
         # narrow. See: https://github.com/uqfoundation/dill/issues/341.
-        'dill>=0.3.5.1,<0.3.6',
+        'dill>=0.3.1.1,<0.3.2',
         'cloudpickle>=2.1.0,<3',
         'fastavro>=0.23.6,<2',
         'grpcio>=1.33.1,<2',
