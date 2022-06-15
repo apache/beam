@@ -61,7 +61,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class GcsMatchIT {
-  /** A thread that write to Gcs continuously */
+  /** A thread that write to Gcs continuously. */
   private static class WriteToPathContinuously extends Thread {
     public WriteToPathContinuously(Path writePath, long interval) {
       this.writePath = writePath;
