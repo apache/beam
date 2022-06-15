@@ -134,7 +134,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 	case coder.IsCoGBK(c):
 		cp = MakeElementDecoder(c.Components[0])
 
-		// TODO(Issue 18032): Support multiple value streams (coder components) with
+		// TODO(https://github.com/apache/beam/issues/18032): Support multiple value streams (coder components) with
 		// with CoGBK.
 		cvs = []ElementDecoder{MakeElementDecoder(c.Components[1])}
 	default:
@@ -472,7 +472,7 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 		return SplitResult{PI: s, RI: s + 1}, nil
 	}
 
-	// TODO(Issue 20343) Eventually encode elements with the splittable
+	// TODO(https://github.com/apache/beam/issues/20343) Eventually encode elements with the splittable
 	// unit's input coder instead of the DataSource's coder.
 	encodeElms := n.makeEncodeElms()
 

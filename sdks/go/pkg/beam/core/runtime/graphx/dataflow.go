@@ -140,7 +140,7 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 
 		value := refs[1]
 		if len(c.Components) > 2 {
-			// TODO(Issue 18032): don't inject union coder for CoGBK.
+			// TODO(https://github.com/apache/beam/issues/18032): don't inject union coder for CoGBK.
 
 			union := &CoderRef{Type: cogbklistType, Components: refs[1:]}
 			value = &CoderRef{Type: lengthPrefixType, Components: []*CoderRef{union}}
@@ -252,7 +252,7 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 			kind = coder.CoGBK
 			root = typex.CoGBKType
 
-			// TODO(Issue 18032): If CoGBK with > 1 input, handle as special GBK. We expect
+			// TODO(https://github.com/apache/beam/issues/18032): If CoGBK with > 1 input, handle as special GBK. We expect
 			// it to be encoded as CoGBK<K,LP<Union<V,W,..>>. Remove this handling once
 			// CoGBK has a first-class representation.
 

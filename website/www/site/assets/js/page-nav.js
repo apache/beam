@@ -111,11 +111,18 @@ $(document).ready(function() {
           $(itemTags).prepend(img);
       },
 
+      "refreshScrollSpy": function() {
+        $('[data-spy="scroll"]').each(function () {
+          $(this).scrollspy('refresh');
+        });
+      },
+
       "init": function() {
         this.bindEvents();
         this.setPageNav();
         this.prependArrows();
         this.setNavEvents();
+        this.refreshScrollSpy();
       }
     }
   }
