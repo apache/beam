@@ -20,7 +20,7 @@
  * Unit tests for commont Python components.
  */
 
-// TODO(BEAM-9980): See if we can avoid hardcoding python version here.
+// TODO(https://github.com/apache/beam/issues/20209): See if we can avoid hardcoding python version here.
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
