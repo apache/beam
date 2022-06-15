@@ -74,15 +74,18 @@ public class GcsMatchIT {
       // write a file at the beginning
       writeBytesToFile(writePath.resolve("first").toString(), fileSize);
 
-      while (true) {
+      while (!Thread.interrupted() && fileSize < maxFileSize) {
         try {
           Thread.sleep(interval);
         } catch (InterruptedException e) {
-          return;
+          throw new RuntimeException(e);
         }
         // write another file continuously
         writeBytesToFile(writePath.resolve("second").toString(), fileSize);
         fileSize += 1;
+      }
+      if (fileSize >= maxFileSize) {
+        throw new RuntimeException("Maximum number of write reached.");
       }
     }
 
@@ -100,6 +103,7 @@ public class GcsMatchIT {
 
     private final Path writePath;
     private final long interval;
+    private static final long maxFileSize = 1000;
   }
 
   private static class CheckPathFn implements SerializableFunction<Iterable<Metadata>, Void> {
