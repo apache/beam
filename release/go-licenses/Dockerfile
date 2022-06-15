@@ -17,6 +17,9 @@
 ###############################################################################
 
 FROM golang:1.18-bullseye
+
+WORKDIR /usr/src/app
+
 COPY get-licenses.sh /opt/apache/beam/
 COPY go.mod ./
 ARG sdk_location
