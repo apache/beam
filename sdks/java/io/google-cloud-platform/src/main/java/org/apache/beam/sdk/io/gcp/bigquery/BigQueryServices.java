@@ -121,6 +121,10 @@ public interface BigQueryServices extends Serializable {
 
     @Nullable
     Table getTable(TableReference tableRef, List<String> selectedFields)
+        throws InterruptedException, IOException;    
+    
+    @Nullable
+    Table getTable(TableReference tableRef, List<String> selectedFields, String view)
         throws InterruptedException, IOException;
 
     /** Creates the specified table if it does not exist. */

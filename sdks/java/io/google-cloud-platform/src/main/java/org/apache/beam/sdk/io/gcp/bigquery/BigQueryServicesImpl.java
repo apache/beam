@@ -616,23 +616,30 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public @Nullable Table getTable(TableReference tableRef, List<String> selectedFields)
         throws IOException, InterruptedException {
-      return getTable(tableRef, selectedFields, createDefaultBackoff(), Sleeper.DEFAULT);
+      return getTable(tableRef, selectedFields, null);
+    }
+    
+    @Override
+    public @Nullable Table getTable(TableReference tableRef, List<String> selectedFields, String view)
+        throws IOException, InterruptedException {
+      return getTable(tableRef, selectedFields, view, createDefaultBackoff(), Sleeper.DEFAULT);
     }
 
     @VisibleForTesting
     @Nullable
     Table getTable(
-        TableReference ref, List<String> selectedFields, BackOff backoff, Sleeper sleeper)
+        TableReference ref, List<String> selectedFields, String view, BackOff backoff, Sleeper sleeper)
         throws IOException, InterruptedException {
       Tables.Get get =
           client
               .tables()
               .get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId())
-              // avoid retrieving the STORAGE_STATS from the table (which is the default option)
-              .set("view", "BASIC")
               .setPrettyPrint(false);
       if (!selectedFields.isEmpty()) {
         get.setSelectedFields(String.join(",", selectedFields));
+      }
+      if (view != null && !view.isEmpty()) {
+        get.set("view", view);
       }
       try {
         return executeWithRetries(

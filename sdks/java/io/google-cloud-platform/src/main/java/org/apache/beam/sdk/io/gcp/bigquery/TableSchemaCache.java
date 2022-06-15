@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -74,6 +75,7 @@ public class TableSchemaCache {
   private boolean stopped;
   private boolean clearing;
   private static final Logger LOG = LoggerFactory.getLogger(TableSchemaCache.class);
+  private static final String BASIC_VIEW = "BASIC";
 
   TableSchemaCache(Duration minSchemaRefreshFrequency) {
     this.tableUpdateMonitor = new Monitor();
@@ -166,7 +168,9 @@ public class TableSchemaCache {
     if (!schemaHolder.isPresent()) {
       // Not initialized. Query the new schema with the monitor released and then update the cache.
       try {
-        @Nullable Table table = datasetService.getTable(tableReference);
+        // requesting the BASIC view will prevent BQ backend to run calculations 
+        // related with storage stats that are not needed here
+        @Nullable Table table = datasetService.getTable(tableReference, Collections.emptyList(), BASIC_VIEW);
         schemaHolder =
             Optional.ofNullable((table == null) ? null : SchemaHolder.of(table.getSchema(), 0));
       } catch (Exception e) {
