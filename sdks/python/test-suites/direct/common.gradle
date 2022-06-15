@@ -211,6 +211,7 @@ task torchInferenceTest {
         args '-c', ". ${envdir}/bin/activate && export FORCE_TORCH_IT=1 && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
       }
     }
+
 }
 // Scikit-learn RunInference IT tests
 task sklearnInferenceTest {
