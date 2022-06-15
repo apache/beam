@@ -19,6 +19,7 @@
 set -ex
 rm -rf /output/*
 
+go get github.com/google/go-licenses@v1.0.0
 go get $sdk_location
 
 go-licenses save $sdk_location --save_path=/output/licenses
