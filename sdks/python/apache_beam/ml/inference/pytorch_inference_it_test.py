@@ -155,13 +155,12 @@ class PyTorchInference(unittest.TestCase):
 
     predictions_dict = {}
     for prediction in predictions:
-      text, predicted_masked_text, predicted_text = prediction.split(';')
-      predictions_dict[text] = (predicted_masked_text, predicted_text)
+      text, predicted_text = prediction.split(';')
+      predictions_dict[text] = predicted_text
 
     for actual in actuals:
-      text, actual_masked_text, actual_predicted_text = actual.split(';')
-      predicted_masked_text, predicted_predicted_text = predictions_dict[text]
-      self.assertEqual(actual_masked_text, predicted_masked_text)
+      text, actual_predicted_text = actual.split(';')
+      predicted_predicted_text = predictions_dict[text]
       self.assertEqual(actual_predicted_text, predicted_predicted_text)
 
 
