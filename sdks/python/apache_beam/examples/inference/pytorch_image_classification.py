@@ -74,15 +74,18 @@ def parse_known_args(argv):
   parser.add_argument(
       '--input',
       dest='input',
+      required=True,
       help='Path to the text file containing image names.')
   parser.add_argument(
       '--output',
       dest='output',
+      required=True,
       help='Path where to save output predictions.'
       ' text file.')
   parser.add_argument(
       '--model_state_dict_path',
       dest='model_state_dict_path',
+      required=True,
       help="Path to the model's state_dict.")
   parser.add_argument(
       '--images_dir',
