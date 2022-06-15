@@ -73,6 +73,7 @@ to a text file.
 
 You will need to create or download images, and place them into your `IMAGES_DIR` directory. One popular dataset is from [ImageNet](https://www.image-net.org/). Please follow their instructions to download the images.
 - **Required**: A path to a file called `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` on which you want to run image segmentation. For example:
+  - Note: Paths can be different types of URIs such as your local file system, a AWS S3 bucket or GCP Cloud Storage bucket.
 ```
 /absolute/path/to/image1.jpg
 /absolute/path/to/image2.jpg
@@ -88,7 +89,7 @@ torch.save(model.state_dict(), 'mobilenet_v2.pth')
 ```
 - **Required**: A path to a file called `OUTPUT`, to which the pipeline will
 write the predictions.
-- **Optional**: `IMAGES_DIR`, which is the path to the directory where images are stored. that contains the images you want to feed into your model. Not required if image names in the input file `IMAGE_FILE_NAMES` have absolute path.
+- **Optional**: `IMAGES_DIR`, which is the path to the directory where images are stored. Not required if image names in the input file `IMAGE_FILE_NAMES` have absolute paths.
 
 ### Running `pytorch_image_classification.py`
 
@@ -127,6 +128,7 @@ to a text file.
 ### Dataset and model for image segmentation
 You will need to create or download images, and place them into your `IMAGES_DIR` directory. Another popular dataset is from [Coco](https://cocodataset.org/#home). Please follow their instructions to download the images.
 - **Required**: A path to a file called `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` on which you want to run image segmentation. For example:
+  - Note: Paths can be different types of URIs such as your local file system, a AWS S3 bucket or GCP Cloud Storage bucket.
 ```
 /absolute/path/to/image1.jpg
 /absolute/path/to/image2.jpg
@@ -142,7 +144,7 @@ torch.save(model.state_dict(), 'maskrcnn_resnet50_fpn.pth')
 ```
 - **Required**: A path to a file called `OUTPUT`, to which the pipeline will
 write the predictions.
-- **Optional**: `IMAGES_DIR`, which is the path to the directory where images are stored. that contains the images you want to feed into your model. Not required if image names in the input file `IMAGE_FILE_NAMES` have absolute path.
+- **Optional**: `IMAGES_DIR`, which is the path to the directory where images are stored. Not required if image names in the input file `IMAGE_FILE_NAMES` have absolute paths.
 ### Running `pytorch_image_segmentation.py`
 
 To run the image segmentation pipeline locally, use the following command:
@@ -167,7 +169,7 @@ This writes the output to the `predictions.csv` with contents like:
 ...
 ```
 Each line has data separated by a semicolon ";".
-The first item is the file name. The second item are a list of predicted instances.
+The first item is the file name. The second item is a list of predicted instances.
 
 ---
 ## Language modeling
@@ -177,8 +179,8 @@ an implementation for a RunInference pipeline that performs masked language
 modeling (i.e. decoding a masked token in a sentence) using the BertForMaskedLM
 architecture from Hugging Face.
 
-The pipeline reads sentences, performs basic preprocessing to conver the last
-word into a `[MASK]` token, passes the masked sentence to PyTorch
+The pipeline reads sentences, performs basic preprocessing to convert the last
+word into a `[MASK]` token, passes the masked sentence to the PyTorch
 implementation of RunInference, and then writes the predictions to a text file.
 
 ### Dataset and model for language modeling
@@ -219,7 +221,7 @@ python -m apache_beam.examples.inference.pytorch_language_modeling \
   --model_state_dict_path BertForMaskedLM.pth
 ```
 If you don't provide a sentences file, it will run the pipeline with some
-example sentences we created.
+example sentences.
 ```sh
 python -m apache_beam.examples.inference.pytorch_language_modeling \
   --output predictions.csv \
