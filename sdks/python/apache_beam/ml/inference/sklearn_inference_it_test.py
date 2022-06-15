@@ -36,7 +36,8 @@ def process_outputs(filepath):
 
 
 @pytest.mark.skip
-@pytest.mark.it_run_inference
+@pytest.mark.uses_sklearn
+@pytest.mark.it_postcommit
 class SklearnInference(unittest.TestCase):
   def test_sklearn_mnist_classification(self):
     test_pipeline = TestPipeline(is_integration_test=False)

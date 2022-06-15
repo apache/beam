@@ -214,14 +214,14 @@ task torchInferenceTest {
 }
 // Scikit-learn RunInference IT tests
 task sklearnInferenceTest {
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
+//   dependsOn 'installGcpTest'
+//   dependsOn ':sdks:python:sdist'
   doLast {
       def testOpts = basicTestOpts
       def argMap = [
           "test_opts": testOpts,
           "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
-          "collect": "it_run_inference",
+          "collect": "uses_sklearn and it_postcommit" ,
           "runner": "TestDirectRunner"
       ]
       def cmdArgs = mapToArgString(argMap)
@@ -233,7 +233,6 @@ task sklearnInferenceTest {
 }
 
 // Add all the RunInference framework IT tests to this gradle task that runs on Direct Runner Post commit suite.
-// TODO(anandinguva): Add sklearn IT test here
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
   'torchInferenceTest',
