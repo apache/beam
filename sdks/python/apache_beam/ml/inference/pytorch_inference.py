@@ -108,9 +108,14 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     the inference call.
 
     Args:
-      batch: A sequence of Tensors. These Tensors should be batchable, as this method will call `torch.stack()` and pass in batched Tensors with dimensions (batch_size, n_features, etc.) into the model's forward() function.
+      batch: A sequence of Tensors. These Tensors should be batchable, as this
+        method will call `torch.stack()` and pass in batched Tensors with
+        dimensions (batch_size, n_features, etc.) into the model's forward()
+        function.
       model: A PyTorch model.
-      inference_args: Non-batchable arguments required as inputs to the model's forward() function. Unlike Tensors in `batch`, these parameters will not be dynamically batched
+      inference_args: Non-batchable arguments required as inputs to the model's
+        forward() function. Unlike Tensors in `batch`, these parameters will
+        not be dynamically batched
 
     Returns:
       An Iterable of type PredictionResult.
@@ -196,9 +201,14 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     in a vectorized format to optimize the inference call.
 
     Args:
-      batch: A sequence of keyed Tensors. These Tensors should be batchable, as this method will call `torch.stack()` and pass in batched Tensors with dimensions (batch_size, n_features, etc.) into the model's forward() function.
+      batch: A sequence of keyed Tensors. These Tensors should be batchable,
+        as this method will call `torch.stack()` and pass in batched Tensors
+        with dimensions (batch_size, n_features, etc.) into the model's
+        forward() function.
       model: A PyTorch model.
-      inference_args: Non-batchable arguments required as inputs to the model's forward() function. Unlike Tensors in `batch`, these parameters will not be dynamically batched
+      inference_args: Non-batchable arguments required as inputs to the model's
+        forward() function. Unlike Tensors in `batch`, these parameters will
+        not be dynamically batched
 
     Returns:
       An Iterable of type PredictionResult.
