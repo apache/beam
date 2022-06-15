@@ -118,8 +118,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
 
     public static class Configuration extends CrossLanguageConfiguration {
       // TODO: https://github.com/apache/beam/issues/20415 Come up with something to determine
-      // schema without this explicit
-      // parameter
+      // schema without this explicit parameter
       private Schema schema = Schema.builder().build();
       private @Nullable String sql;
       private @Nullable String table;
