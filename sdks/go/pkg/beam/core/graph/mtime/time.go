@@ -37,7 +37,7 @@ const (
 
 	// EndOfGlobalWindowTime is the timestamp at the end of the global window. It
 	// is a day before the max timestamp.
-	// TODO(Issue 18951) Use GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS from the Runner API constants
+	// TODO(https://github.com/apache/beam/issues/18951) Use GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS from the Runner API constants
 	EndOfGlobalWindowTime = MaxTimestamp - 24*60*60*1000
 
 	// ZeroTimestamp is the default zero value time. It corresponds to the unix epoch.

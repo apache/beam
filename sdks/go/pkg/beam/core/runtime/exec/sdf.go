@@ -313,7 +313,7 @@ func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *Full
 	// For the main element, the way we fill it out depends on whether the input element
 	// is a KV or single-element. Single-elements might have been lifted out of
 	// their FullValue if they were decoded, so we need to have a case for that.
-	// TODO(Issue 20196): Optimize this so it's decided in exec/translate.go
+	// TODO(https://github.com/apache/beam/issues/20196): Optimize this so it's decided in exec/translate.go
 	// instead of checking per-element.
 	if e, ok := mainElm.Elm.(*FullValue); ok {
 		mainElm = e
@@ -487,7 +487,7 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 	// is a KV or single-element. Single-elements might have been lifted out of
 	// their FullValue if they were decoded, so we need to have a case for that.
 	// Also, we use the the top-level windows and timestamp.
-	// TODO(Issue 20196): Optimize this so it's decided in exec/translate.go
+	// TODO(https://github.com/apache/beam/issues/20196): Optimize this so it's decided in exec/translate.go
 	// instead of checking per-element.
 	if userElm, ok := elm.Elm.(*FullValue).Elm.(*FullValue); ok {
 		mainIn.Key = FullValue{

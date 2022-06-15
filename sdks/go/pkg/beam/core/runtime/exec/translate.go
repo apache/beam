@@ -464,7 +464,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 					input := unmarshalKeyedValues(transform.GetInputs())
 					for i := 1; i < len(input); i++ {
-						// TODO(Issue 18602) Handle ViewFns for side inputs
+						// TODO(https://github.com/apache/beam/issues/18602) Handle ViewFns for side inputs
 
 						ec, wc, err := b.makeCoderForPCollection(input[i])
 						if err != nil {

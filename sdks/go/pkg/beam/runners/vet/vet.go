@@ -21,7 +21,7 @@
 // can use this as a sanity check on whether a given pipeline avoids known
 // performance bottlenecks.
 //
-// TODO(Issue 19402): Add usage documentation.
+// TODO(https://github.com/apache/beam/issues/19402): Add usage documentation.
 package vet
 
 import (
@@ -503,7 +503,7 @@ func (e *Eval) Bytes() []byte {
 // is used.
 func (e *Eval) extractGraphFn(fn *graph.Fn) {
 	if fn.DynFn != nil {
-		// TODO(Issue 19401) handle dynamics if necessary (probably not since it's got general function handling)
+		// TODO(https://github.com/apache/beam/issues/19401) handle dynamics if necessary (probably not since it's got general function handling)
 		e.diag(" dynamic function")
 		return
 	}
