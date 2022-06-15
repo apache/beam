@@ -64,7 +64,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage:
-      pcol | RunInference(PytorchModelHandlerTensor(state_dict_path="my_uri"))
+      pcoll | RunInference(PytorchModelHandlerTensor(state_dict_path="my_uri"))
 
     Args:
       state_dict_path: path to the saved dictionary of the model state.
@@ -103,6 +103,10 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     This method stacks the list of Tensors in a vectorized format to optimize
     the inference call.
 
+    Args:
+      batch: A sequence of Tensors.
+      model: A pytorch model.
+
     Returns:
       An Iterable of type PredictionResult.
     """
@@ -139,7 +143,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage:
-      pcol | RunInference(
+      pcoll | RunInference(
       PytorchModelHandlerKeyedTensor(state_dict_path="my_uri"))
 
     NOTE: This API and its implementation are under development and
@@ -183,6 +187,10 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
 
     For the same key across all examples, this will stack all Tensors values
     in a vectorized format to optimize the inference call.
+
+    Args:
+      batch: A sequence of Tensors.
+      model: A pytorch model.
 
     Returns:
       An Iterable of type PredictionResult.

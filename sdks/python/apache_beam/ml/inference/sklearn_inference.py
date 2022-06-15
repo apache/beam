@@ -68,7 +68,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     using numpy arrays as input.
 
     Example Usage:
-      pcol | RunInference(SklearnModelHandlerNumpy(model_uri="my_uri"))
+      pcoll | RunInference(SklearnModelHandlerNumpy(model_uri="my_uri"))
 
     Args:
       model_uri: The URI to where the model is saved.
@@ -86,6 +86,12 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self, batch: Sequence[numpy.ndarray], model: BaseEstimator,
       **kwargs) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of numpy arrays.
+
+    Args:
+      batch: A sequence of examples as numpy arrays. They should
+        be single examples.
+      model: A numpy model or pipeline. Must implement predict(X).
+        Where the parameter X is a numpy array.
 
     Returns:
       An Iterable of type PredictionResult.
@@ -114,7 +120,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     supports pandas dataframes.
 
     Example Usage:
-      pcol | RunInference(SklearnModelHandlerPandas(model_uri="my_uri"))
+      pcoll | RunInference(SklearnModelHandlerPandas(model_uri="my_uri"))
 
     NOTE::
       This API and its implementation are under development and
@@ -138,6 +144,12 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       **kwargs) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of pandas dataframes.
+
+    Args:
+      batch: A sequence of examples as numpy arrays. They should
+        be single examples.
+      model: A dataframe model or pipeline. Must implement predict(X).
+        Where the parameter X is a pandas dataframe.
 
     Returns:
       An Iterable of type PredictionResult.

@@ -20,8 +20,8 @@
 """An extensible run inference transform.
 
 Users of this module can extend the ModelHandler class for any machine learning
-framework. Then pass their extended ModelHandler object into RunInference to
-create a RunInference Beam transform for that framework.
+framework. A ModelHandler Implementation is a required parameter of
+RunInference.
 
 The transform will handle standard inference functionality like metric
 collection, sharing model between threads and batching elements.
@@ -84,6 +84,11 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   def run_inference(self, batch: Sequence[ExampleT], model: ModelT,
                     **kwargs) -> Iterable[PredictionT]:
     """Runs inferences on a batch of examples.
+
+    Args:
+      batch: A sequence of examples or features.
+      model: The model used to make inferences.
+
     Returns:
       An Iterable of Predictions.
     """
