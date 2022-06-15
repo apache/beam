@@ -304,7 +304,14 @@ public class TableSchemaCache {
     Map<String, TableSchema> schemas = Maps.newHashMapWithExpectedSize(tables.size());
     for (Map.Entry<String, Refresh> entry : tables.entrySet()) {
       TableReference tableReference = BigQueryHelpers.parseTableSpec(entry.getKey());
-      Table table = entry.getValue().getDatasetService().getTable(tableReference);
+      Table table =
+          entry
+              .getValue()
+              .getDatasetService()
+              .getTable(
+                  tableReference,
+                  Collections.emptyList(),
+                  DatasetService.TABLE_METADATA_BASIC_VIEW);
       if (table == null) {
         throw new RuntimeException("Did not get value for table " + tableReference);
       }
