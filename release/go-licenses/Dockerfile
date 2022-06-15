@@ -19,6 +19,7 @@
 FROM golang:1.18-bullseye
 RUN go get github.com/google/go-licenses@v1.0.0
 COPY get-licenses.sh /opt/apache/beam/
+COPY go.mod /opt/apache/beam/
 ARG sdk_location
 ENV sdk_location=$sdk_location
 ENTRYPOINT /opt/apache/beam/get-licenses.sh

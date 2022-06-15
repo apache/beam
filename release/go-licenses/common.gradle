@@ -21,7 +21,7 @@ def licenseOutput = "${buildDir}/output"
 docker {
   name "golicenses-${sdkName}"
   dockerfile file('../Dockerfile')
-  files '../get-licenses.sh', '../go.mod'
+  files '../get-licenses.sh'
   noCache false
   buildArgs(['sdk_location': "github.com/apache/beam/sdks/${sdkName}/container"])
 }

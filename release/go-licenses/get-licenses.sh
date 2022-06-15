@@ -18,8 +18,6 @@
 
 set -ex
 rm -rf /output/*
-ls
-pwd
 
 go get $sdk_location
 
