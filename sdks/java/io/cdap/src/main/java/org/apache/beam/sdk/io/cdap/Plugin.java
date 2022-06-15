@@ -210,7 +210,9 @@ public abstract class Plugin {
         isUnbounded = pluginType != null && pluginType.startsWith("streaming");
       }
     }
-    checkArgument(isUnbounded != null, "CDAP plugin class must have Plugin annotation!");
+    if (isUnbounded == null) {
+      throw new IllegalArgumentException("CDAP plugin class must have Plugin annotation!");
+    }
     return isUnbounded;
   }
 
