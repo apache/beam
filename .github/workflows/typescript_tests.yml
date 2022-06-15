@@ -25,10 +25,10 @@ on:
     - cron: '10 2 * * *'
   push:
     branches: ['master', 'release-*', 'javascript']
-    tags: 'v*'
+    tags: ['v*']
   pull_request:
     branches: ['master', 'release-*', 'javascript']
-    tags: 'v*'
+    tags: ['v*']
     paths: ['sdks/typescript/**']
 
 
@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ [self-hosted, ubuntu-20.04], macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
