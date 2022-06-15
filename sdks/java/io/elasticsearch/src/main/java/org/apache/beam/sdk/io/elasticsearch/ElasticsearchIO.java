@@ -2284,7 +2284,8 @@ public class ElasticsearchIO {
           (WindowFn<Document, ?>) input.getWindowingStrategy().getWindowFn();
 
       PCollection<Document> docResults;
-      PCollection<Document> globalDocs = input.apply(Window.into(new GlobalWindows()));
+      PCollection<Document> globalDocs =
+          input.apply("Window inputs globally", Window.into(new GlobalWindows()));
 
       if (getUseStatefulBatches()) {
         docResults =
@@ -2297,7 +2298,7 @@ public class ElasticsearchIO {
 
       return docResults
           // Restore windowing of input
-          .apply(Window.into(originalWindowFn))
+          .apply("Restore original windows", Window.into(originalWindowFn))
           .apply(
               ParDo.of(new ResultFilteringFn())
                   .withOutputTags(Write.SUCCESSFUL_WRITES, TupleTagList.of(Write.FAILED_WRITES)));
