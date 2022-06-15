@@ -108,7 +108,7 @@ class JoinFn(beam.DoFn):
   def __init__(self, max_auction_wait_time):
     self.max_auction_wait_time = max_auction_wait_time
 
-  def process(
+  def process(  # type: ignore
       self,
       element: typing.Tuple[
           str,
