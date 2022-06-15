@@ -63,7 +63,7 @@ def parse_known_args(argv):
       '--input_file',
       dest='input',
       required=True,
-      help='CSV file with row containing label and pixel values.')
+      help='text file with comma separated int values.')
   parser.add_argument(
       '--output',
       dest='output',
@@ -102,7 +102,7 @@ def run(argv=None, save_main_session=True):
         | "RunInference" >> RunInference(model_loader)
         | "PostProcessOutputs" >> beam.ParDo(PostProcessor()))
 
-    _ = predictions | "WriteOutputToGCS" >> beam.io.WriteToText(
+    _ = predictions | "WriteOutput" >> beam.io.WriteToText(
         known_args.output,
         shard_name_template='',
         append_trailing_newlines=True)
