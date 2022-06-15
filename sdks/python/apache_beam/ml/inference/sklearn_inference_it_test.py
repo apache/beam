@@ -21,20 +21,29 @@ import logging
 import pytest
 import unittest
 import uuid
+from typing import List
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.examples.inference import sklearn_mnist_classification
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
+def process_outputs(filepath: str) -> List[str]:
+  with FileSystems().open(filepath) as f:
+    lines = f.readlines()
+  lines = [l.decode('utf-8').strip('\n') for l in lines]
+  return lines
+
+
+@pytest.mark.skip
 class SklearnInference(unittest.TestCase):
   @pytest.mark.it_postcommit
-  def test_predictions_output_file(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
+  def test_sklearn_mnist_classification(self):
+    test_pipeline = TestPipeline(is_integration_test=False)
     input_file = 'gs://apache-beam-ml/testing/inputs/it_mnist_data.csv'
-    output_file_dir = 'gs://apache-beam-ml/testing/predictions'  # pylint: disable=line-too-long
+    output_file_dir = 'gs://temp-storage-for-end-to-end-tests'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
-    model_path = 'gs://apache-beam-ml/models/mnist_model_svm.pickle'  # pylint: disable=line-too-long
+    model_path = 'gs://apache-beam-ml/models/mnist_model_svm.pickle'
     extra_opts = {
         'input': input_file,
         'output': output_file,
@@ -44,6 +53,21 @@ class SklearnInference(unittest.TestCase):
         test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
     self.assertEqual(FileSystems().exists(output_file), True)
+
+    expected_output_filepath = 'gs://apache-beam-ml/testing/expected_outputs/test_sklearn_mnist_classification_actuals.txt'  # pylint: disable=line-too-long
+    expected_outputs = process_outputs(expected_output_filepath)
+
+    predicted_outputs = process_outputs(output_file)
+    self.assertEqual(len(expected_outputs), len(predicted_outputs))
+
+    predictions_dict = {}
+    for i in range(len(predicted_outputs)):
+      true_label, prediction = predicted_outputs[i].split(',')
+      predictions_dict[true_label] = prediction
+
+    for i in range(len(expected_outputs)):
+      true_label, expected_prediction = expected_outputs[i].split(',')
+      self.assertEqual(predictions_dict[true_label], expected_prediction)
 
 
 if __name__ == '__main__':
