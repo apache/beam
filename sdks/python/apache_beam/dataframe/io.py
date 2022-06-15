@@ -246,8 +246,8 @@ class _ReadFromPandas(beam.PTransform):
     paths_pcoll = root | beam.Create([self.path])
     match = io.filesystems.FileSystems.match([self.path], limits=[1])[0]
     if not match.metadata_list:
-      # TODO(BEAM-12031): This should be allowed for streaming pipelines if
-      # user provides an explicit schema.
+      # TODO(https://github.com/apache/beam/issues/20858): This should be
+      # allowed for streaming pipelines if user provides an explicit schema.
       raise FileNotFoundError(f"Found no files that match {self.path!r}")
     first_path = match.metadata_list[0].path
     with io.filesystems.FileSystems.open(first_path) as handle:

@@ -163,7 +163,8 @@ class Counter(object):
   BEAM_DISTRIBUTION = cy_combiners.DistributionInt64Fn()
 
   # Dataflow Distribution Accumulator Fn.
-  # TODO(BEAM-4045): Generalize distribution counter if necessary.
+  # TODO(https://github.com/apache/beam/issues/18843): Generalize distribution
+  # counter if necessary.
   DATAFLOW_DISTRIBUTION = cy_combiners.DataflowDistributionCounterFn()
 
   def __init__(self, name, combine_fn):

@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""A pipeline that uses RunInference API to perform image classification."""
+"""A pipeline that uses RunInference API to perform image segmentation."""
 
 import argparse
 import io
@@ -35,7 +35,103 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from PIL import Image
 from torchvision import transforms
-from torchvision.models.mobilenetv2 import MobileNetV2
+from torchvision.models.detection import maskrcnn_resnet50_fpn
+
+COCO_INSTANCE_CLASSES = [
+    '__background__',
+    'person',
+    'bicycle',
+    'car',
+    'motorcycle',
+    'airplane',
+    'bus',
+    'train',
+    'truck',
+    'boat',
+    'traffic light',
+    'fire hydrant',
+    'N/A',
+    'stop sign',
+    'parking meter',
+    'bench',
+    'bird',
+    'cat',
+    'dog',
+    'horse',
+    'sheep',
+    'cow',
+    'elephant',
+    'bear',
+    'zebra',
+    'giraffe',
+    'N/A',
+    'backpack',
+    'umbrella',
+    'N/A',
+    'N/A',
+    'handbag',
+    'tie',
+    'suitcase',
+    'frisbee',
+    'skis',
+    'snowboard',
+    'sports ball',
+    'kite',
+    'baseball bat',
+    'baseball glove',
+    'skateboard',
+    'surfboard',
+    'tennis racket',
+    'bottle',
+    'N/A',
+    'wine glass',
+    'cup',
+    'fork',
+    'knife',
+    'spoon',
+    'bowl',
+    'banana',
+    'apple',
+    'sandwich',
+    'orange',
+    'broccoli',
+    'carrot',
+    'hot dog',
+    'pizza',
+    'donut',
+    'cake',
+    'chair',
+    'couch',
+    'potted plant',
+    'bed',
+    'N/A',
+    'dining table',
+    'N/A',
+    'N/A',
+    'toilet',
+    'N/A',
+    'tv',
+    'laptop',
+    'mouse',
+    'remote',
+    'keyboard',
+    'cell phone',
+    'microwave',
+    'oven',
+    'toaster',
+    'sink',
+    'refrigerator',
+    'N/A',
+    'book',
+    'clock',
+    'vase',
+    'scissors',
+    'teddy bear',
+    'hair drier',
+    'toothbrush'
+]
+
+CLASS_ID_TO_NAME = dict(enumerate(COCO_INSTANCE_CLASSES))
 
 
 def read_image(image_file_name: str,
@@ -64,8 +160,9 @@ def preprocess_image(data: Image.Image) -> torch.Tensor:
 class PostProcessor(beam.DoFn):
   def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
     filename, prediction_result = element
-    prediction = torch.argmax(prediction_result.inference, dim=0)
-    yield filename + ',' + str(prediction.item())
+    prediction_labels = prediction_result.inference['labels']
+    classes = [CLASS_ID_TO_NAME[label.item()] for label in prediction_labels]
+    yield filename + ';' + str(classes)
 
 
 def parse_known_args(argv):
@@ -86,10 +183,10 @@ def parse_known_args(argv):
       '--model_state_dict_path',
       dest='model_state_dict_path',
       required=True,
-      help="Path to the model's state_dict.")
+      help="Path to the model's state_dict. "
+      "Default state_dict would be maskrcnn_resnet50_fpn.")
   parser.add_argument(
       '--images_dir',
-      default=None,
       help='Path to the directory where images are stored.'
       'Not required if image names in the input file have absolute path.')
   return parser.parse_known_args(argv)
@@ -100,6 +197,7 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
   Args:
     argv: Command line arguments defined for this example.
     model_class: Reference to the class definition of the model.
+                If None, maskrcnn_resnet50_fpn will be used as default .
     model_params: Parameters passed to the constructor of the model_class.
                   These will be used to instantiate the model object in the
                   RunInference API.
@@ -109,16 +207,13 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
   if not model_class:
-    model_class = MobileNetV2
-    model_params = {'num_classes': 1000}
+    model_class = maskrcnn_resnet50_fpn
+    model_params = {'num_classes': 91}
 
-  # In this example we pass keyed inputs to RunInference transform.
-  # Therefore, we use KeyedModelHandler wrapper over PytorchModelHandler.
-  model_handler = KeyedModelHandler(
-      PytorchModelHandlerTensor(
-          state_dict_path=known_args.model_state_dict_path,
-          model_class=model_class,
-          model_params=model_params))
+  model_handler = PytorchModelHandlerTensor(
+      state_dict_path=known_args.model_state_dict_path,
+      model_class=model_class,
+      model_params=model_params)
 
   with beam.Pipeline(options=pipeline_options) as p:
     filename_value_pair = (
@@ -132,11 +227,11 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
             lambda file_name, data: (file_name, preprocess_image(data))))
     predictions = (
         filename_value_pair
-        | 'PyTorchRunInference' >> RunInference(model_handler)
+        |
+        'PyTorchRunInference' >> RunInference(KeyedModelHandler(model_handler))
         | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 
-    if known_args.output:
-      predictions | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
+    _ = predictions | "WriteOutput" >> beam.io.WriteToText(
         known_args.output,
         shard_name_template='',
         append_trailing_newlines=True)
