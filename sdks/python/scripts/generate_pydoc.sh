@@ -164,6 +164,7 @@ ignore_identifiers = [
   'apache_beam.coders.coders.FastCoder',
   'apache_beam.coders.coders.ListLikeCoder',
   'apache_beam.io._AvroSource',
+  'apache_beam.io.fileio.FileSink',
   'apache_beam.io.gcp.bigquery.RowAsDictJsonCoder',
   'apache_beam.io.gcp.datastore.v1new.datastoreio._Mutate',
   'apache_beam.io.gcp.datastore.v1new.datastoreio.DatastoreMutateFn',
