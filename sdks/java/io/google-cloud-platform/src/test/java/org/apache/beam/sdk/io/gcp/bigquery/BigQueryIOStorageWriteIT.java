@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -26,23 +27,27 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Integration tests for {@link
- * org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO#write(SerializableFunction)}. This test writes
- * 30MB data to BQ and verify the written row count.
+ * Integration tests for {@link BigQueryIO#write()} rite()}. The batch mode tests write 30MB data to
+ * BQ and verify the written row count; the streaming mode tests write 3k rows of data to BQ and
+ * verify the written row count.
  */
 @RunWith(JUnit4.class)
 public class BigQueryIOStorageWriteIT {
@@ -50,11 +55,12 @@ public class BigQueryIOStorageWriteIT {
   private enum WriteMode {
     EXACT_ONCE,
     AT_LEAST_ONCE
-  };
+  }
 
   private String project;
   private static final String DATASET_ID = "big_query_storage";
   private static final String TABLE_PREFIX = "storage_write_";
+  private static final long EVEN_NUM_ELEMENTS = 10;
 
   private BigQueryOptions bqOptions;
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryStorageIOWriteIT");
@@ -73,14 +79,40 @@ public class BigQueryIOStorageWriteIT {
   }
 
   static class FillRowFn extends DoFn<Long, TableRow> {
+
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new TableRow().set("number", c.element()).set("str", "aaaaaaaaaa"));
     }
   }
 
-  private void runBigQueryIOStorageWritePipeline(int rowCount, WriteMode writeMode) {
-    String tableName = TABLE_PREFIX + System.currentTimeMillis();
+  private TestStream<Long> stream(int rowCount) {
+    int timestampInterval = 1;
+    Instant startInstant = new Instant(0L);
+    TestStream.Builder<Long> streamBuilder =
+        TestStream.create(VarLongCoder.of())
+            .advanceWatermarkTo(startInstant);
+    long offset = 0L;
+    for (long i = 0L; i < rowCount; i++) {
+      streamBuilder =
+          streamBuilder.addElements(
+              TimestampedValue.of(
+                  i,
+                  startInstant.plus(Duration.standardSeconds(offset * timestampInterval))));
+      offset++;
+    }
+    final long windowDuration = 6;
+    return streamBuilder
+        .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(windowDuration - 1)))
+        .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(windowDuration + 1)))
+        .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(EVEN_NUM_ELEMENTS)))
+        .advanceWatermarkToInfinity();
+  }
+
+  private void runBigQueryIOStorageWritePipeline(int rowCount, WriteMode writeMode,
+      Boolean isStreaming) {
+    String tableName = isStreaming ? TABLE_PREFIX + "streaming_" + System.currentTimeMillis()
+        : TABLE_PREFIX + System.currentTimeMillis();
     TableSchema schema =
         new TableSchema()
             .setFields(
@@ -89,7 +121,7 @@ public class BigQueryIOStorageWriteIT {
                     new TableFieldSchema().setName("str").setType("STRING")));
 
     Pipeline p = Pipeline.create(bqOptions);
-    p.apply("Input", GenerateSequence.from(0).to(rowCount))
+    p.apply("Input", isStreaming ? stream(rowCount) : GenerateSequence.from(0).to(rowCount))
         .apply("GenerateMessage", ParDo.of(new FillRowFn()))
         .apply(
             "WriteToBQ",
@@ -109,22 +141,32 @@ public class BigQueryIOStorageWriteIT {
         assertTrue(
             Integer.parseInt((String) response.getRows().get(0).getF().get(0).getV()) >= rowCount);
       }
-    } catch (IOException e) {
-      assertTrue("Unexpected exception: " + e.toString(), false);
-    } catch (InterruptedException e) {
-      assertTrue("Unexpected exception: " + e.toString(), false);
+    } catch (IOException | InterruptedException e) {
+      fail("Unexpected exception: " + e);
     }
   }
 
   @Test
-  public void testBigQueryStorageWrite30MProto() throws Exception {
+  public void testBigQueryStorageWrite30MProto() {
     setUpTestEnvironment(WriteMode.EXACT_ONCE);
-    runBigQueryIOStorageWritePipeline(3000000, WriteMode.EXACT_ONCE);
+    runBigQueryIOStorageWritePipeline(3000000, WriteMode.EXACT_ONCE, false);
   }
 
   @Test
-  public void testBigQueryStorageWrite30MProtoALO() throws Exception {
+  public void testBigQueryStorageWrite30MProtoALO() {
     setUpTestEnvironment(WriteMode.AT_LEAST_ONCE);
-    runBigQueryIOStorageWritePipeline(3000000, WriteMode.AT_LEAST_ONCE);
+    runBigQueryIOStorageWritePipeline(3000000, WriteMode.AT_LEAST_ONCE, false);
+  }
+
+  @Test
+  public void testBigQueryStorageWrite3KProtoStreaming() {
+    setUpTestEnvironment(WriteMode.AT_LEAST_ONCE);
+    runBigQueryIOStorageWritePipeline(3000, WriteMode.EXACT_ONCE, true);
+  }
+
+  @Test
+  public void testBigQueryStorageWrite3KProtoALOStreaming() {
+    setUpTestEnvironment(WriteMode.AT_LEAST_ONCE);
+    runBigQueryIOStorageWritePipeline(3000, WriteMode.AT_LEAST_ONCE, true);
   }
 }
