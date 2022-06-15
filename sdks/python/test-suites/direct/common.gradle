@@ -187,7 +187,7 @@ tasks.register("hdfsIntegrationTest") {
 }
 
 // Pytorch RunInference IT tests
-task torchTests {
+task torchInferenceTest {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
   def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/torch_tests_requirements.txt"
@@ -211,10 +211,32 @@ task torchTests {
         args '-c', ". ${envdir}/bin/activate && export FORCE_TORCH_IT=1 && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
       }
     }
+
+}
+// Scikit-learn RunInference IT tests
+task sklearnInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_sklearn and it_postcommit" ,
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
 }
 
 // Add all the RunInference framework IT tests to this gradle task that runs on Direct Runner Post commit suite.
-// TODO(anandinguva): Add sklearn IT test here
 project.tasks.register("inferencePostCommitIT") {
-  dependsOn = ['torchTests']
+  dependsOn = [
+  'torchInferenceTest',
+  'sklearnInferenceTest'
+  ]
 }
