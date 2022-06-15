@@ -111,6 +111,9 @@ public interface BigQueryServices extends Serializable {
 
   /** An interface to get, create and delete Cloud BigQuery datasets and tables. */
   public interface DatasetService extends AutoCloseable {
+
+    static String TABLE_METADATA_BASIC_VIEW = "BASIC";
+
     /**
      * Gets the specified {@link Table} resource by table ID.
      *
