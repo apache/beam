@@ -73,7 +73,7 @@ func knownStandardCoders() []string {
 		urnIntervalWindow,
 		urnRowCoder,
 		urnNullableCoder,
-		// TODO(Issue 20510): Add urnTimerCoder once finalized.
+		// TODO(https://github.com/apache/beam/issues/20510): Add urnTimerCoder once finalized.
 	}
 }
 
@@ -230,7 +230,7 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			kind = coder.CoGBK
 			root = typex.CoGBKType
 
-			// TODO(Issue 18032): If CoGBK with > 1 input, handle as special GBK. We expect
+			// TODO(https://github.com/apache/beam/issues/18032): If CoGBK with > 1 input, handle as special GBK. We expect
 			// it to be encoded as CoGBK<K,LP<CoGBKList<V,W,..>>>. Remove this handling once
 			// CoGBK has a first-class representation.
 
@@ -489,7 +489,7 @@ func (b *CoderMarshaller) Add(c *coder.Coder) (string, error) {
 		}
 		value := comp[1]
 		if len(comp) > 2 {
-			// TODO(Issue 18032): don't inject union coder for CoGBK.
+			// TODO(https://github.com/apache/beam/issues/18032): don't inject union coder for CoGBK.
 
 			union := b.internBuiltInCoder(urnCoGBKList, comp[1:]...)
 			value = b.internBuiltInCoder(urnLengthPrefixCoder, union)
@@ -537,7 +537,7 @@ func (b *CoderMarshaller) Add(c *coder.Coder) (string, error) {
 		}
 		return b.internRowCoder(s), nil
 
-	// TODO(Issue 20510): Handle coder.Timer support.
+	// TODO(https://github.com/apache/beam/issues/20510): Handle coder.Timer support.
 
 	default:
 		err := errors.Errorf("unexpected coder kind: %v", c.Kind)
