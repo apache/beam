@@ -172,7 +172,7 @@ public class TableSchemaCache {
         @Nullable
         Table table =
             datasetService.getTable(
-                tableReference, Collections.emptyList(), DatasetService.TABLE_METADATA_BASIC_VIEW);
+                tableReference, Collections.emptyList(), DatasetService.TableMetadataView.BASIC);
         schemaHolder =
             Optional.ofNullable((table == null) ? null : SchemaHolder.of(table.getSchema(), 0));
       } catch (Exception e) {
@@ -309,9 +309,7 @@ public class TableSchemaCache {
               .getValue()
               .getDatasetService()
               .getTable(
-                  tableReference,
-                  Collections.emptyList(),
-                  DatasetService.TABLE_METADATA_BASIC_VIEW);
+                  tableReference, Collections.emptyList(), DatasetService.TableMetadataView.BASIC);
       if (table == null) {
         throw new RuntimeException("Did not get value for table " + tableReference);
       }

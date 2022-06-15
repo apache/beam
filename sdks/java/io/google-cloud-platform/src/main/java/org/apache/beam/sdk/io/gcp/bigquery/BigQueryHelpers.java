@@ -518,7 +518,7 @@ public class BigQueryHelpers {
   static void verifyTableNotExistOrEmpty(DatasetService datasetService, TableReference tableRef) {
     try {
       if (datasetService.getTable(
-              tableRef, Collections.emptyList(), DatasetService.TABLE_METADATA_BASIC_VIEW)
+              tableRef, Collections.emptyList(), DatasetService.TableMetadataView.BASIC)
           != null) {
         checkState(
             datasetService.isTableEmpty(tableRef),

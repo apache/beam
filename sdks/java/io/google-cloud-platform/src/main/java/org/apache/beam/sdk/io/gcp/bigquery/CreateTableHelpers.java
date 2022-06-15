@@ -113,7 +113,7 @@ public class CreateTableHelpers {
     try (DatasetService datasetService =
         bqServices.getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class))) {
       if (datasetService.getTable(
-              tableReference, Collections.emptyList(), DatasetService.TABLE_METADATA_BASIC_VIEW)
+              tableReference, Collections.emptyList(), DatasetService.TableMetadataView.BASIC)
           == null) {
         TableSchema tableSchema = schemaSupplier.get();
         Preconditions.checkArgumentNotNull(

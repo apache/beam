@@ -178,13 +178,17 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public Table getTable(
-      TableReference tableRef, @Nullable List<String> selectedFields, @Nullable String view)
+      TableReference tableRef,
+      @Nullable List<String> selectedFields,
+      @Nullable TableMetadataView view)
       throws InterruptedException, IOException {
     return getTableImpl(tableRef, selectedFields, view);
   }
 
   public Table getTableImpl(
-      TableReference tableRef, @Nullable List<String> selectedFields, @Nullable String view)
+      TableReference tableRef,
+      @Nullable List<String> selectedFields,
+      @Nullable TableMetadataView view)
       throws InterruptedException, IOException {
     synchronized (FakeDatasetService.class) {
       Map<String, TableContainer> dataset =
