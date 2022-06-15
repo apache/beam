@@ -127,7 +127,9 @@ public class GcsMatchIT {
       }
       // file "first" is expected to appear exactly once
       assertEquals(1, countFirst);
-      // file "second" is expected to appear in growing sizes by one byte
+      // file "second" is expected to appear more than once
+      assertEquals(true, countSecond > 1);
+      // file "second" is expected to appear in growing sizes each time by one byte
       assertEquals((maxSecondSize * 2L - countSecond + 1) * countSecond / 2, sumSecondSize);
 
       return null;
