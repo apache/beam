@@ -197,7 +197,6 @@ tasks.register("javaPostCommit") {
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:postCommit")
   dependsOn(":sdks:java:extensions:zetasketch:postCommit")
   dependsOn(":sdks:java:io:google-cloud-platform:postCommit")
-  dependsOn(":sdks:java:io:kinesis:integrationTest")
   dependsOn(":sdks:java:extensions:ml:postCommit")
 }
 
