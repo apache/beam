@@ -18,17 +18,17 @@
 """End-to-End test for Sklearn Inference"""
 
 import logging
-import pytest
 import unittest
 import uuid
-from typing import List
+
+import pytest
 
 from apache_beam.examples.inference import sklearn_mnist_classification
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
-def process_outputs(filepath: str) -> List[str]:
+def process_outputs(filepath):
   with FileSystems().open(filepath) as f:
     lines = f.readlines()
   lines = [l.decode('utf-8').strip('\n') for l in lines]
