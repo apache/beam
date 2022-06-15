@@ -188,7 +188,7 @@ func TestIterableCoder(t *testing.T) {
 	}
 }
 
-// TODO(Issue 20510): Update once proper timer support is added
+// TODO(https://github.com/apache/beam/issues/20510): Update once proper timer support is added
 func TestTimerCoder(t *testing.T) {
 	var buf bytes.Buffer
 	tCoder := coder.NewT(coder.NewVarInt(), coder.NewGlobalWindow())

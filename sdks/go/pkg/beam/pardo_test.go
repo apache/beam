@@ -146,7 +146,7 @@ func TestParDoSideInputValidation(t *testing.T) {
 		wFn       *window.Fn
 		isBounded bool
 	}{
-		// TODO(Issue 21596): Re-enable this test case once proper streaming testing support is finished.
+		// TODO(https://github.com/apache/beam/issues/21596): Re-enable this test case once proper streaming testing support is finished.
 		// {
 		// 	"global window unbounded",
 		// 	window.NewGlobalWindows(),

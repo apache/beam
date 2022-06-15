@@ -50,7 +50,7 @@ var unimplementedCoders = map[string]bool{
 
 var filteredCases = []struct{ filter, reason string }{
 	{"logical", "BEAM-9615: Support logical types"},
-	{"30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9", "Issue 21206: Support encoding position."},
+	{"30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9", "https://github.com/apache/beam/issues/21206: Support encoding position."},
 }
 
 // Coder is a representation a serialized beam coder.
@@ -89,7 +89,7 @@ func (s *Spec) testStandardCoder() (err error) {
 		return nil
 	}
 	if s.Coder.Urn == "beam:coder:state_backed_iterable:v1" {
-		log.Printf("skipping unimplemented test coverage for beam:coder:state_backed_iterable:v1. Issue 21324")
+		log.Printf("skipping unimplemented test coverage for beam:coder:state_backed_iterable:v1. https://github.com/apache/beam/issues/21324")
 		return nil
 	}
 	for _, c := range filteredCases {

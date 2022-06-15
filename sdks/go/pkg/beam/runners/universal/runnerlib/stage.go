@@ -83,7 +83,7 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 
 		case *jobpb.ArtifactRequestWrapper_GetArtifact:
 			switch typeUrn := request.GetArtifact.Artifact.TypeUrn; typeUrn {
-			// TODO(Issue 21459): Legacy Type URN. If requested, provide the binary.
+			// TODO(https://github.com/apache/beam/issues/21459): Legacy Type URN. If requested, provide the binary.
 			// To be removed later in 2022, once thoroughly obsolete.
 			case graphx.URNArtifactGoWorker:
 				if err := StageFile(binary, stream); err != nil {

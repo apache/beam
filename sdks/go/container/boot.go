@@ -135,7 +135,7 @@ func getGoWorkerArtifactName(artifacts []*pipepb.ArtifactInformation) (string, e
 				return name, nil
 			}
 		}
-		// TODO(Issue 21459): Remove legacy hack once aged out.
+		// TODO(https://github.com/apache/beam/issues/21459): Remove legacy hack once aged out.
 		for _, a := range artifacts {
 			n, _ := artifact.MustExtractFilePayload(a)
 			if n == worker {
