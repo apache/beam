@@ -111,8 +111,8 @@ class JoinFn(beam.DoFn):
   def process(
       self,
       element: typing.Tuple[
-          typing.AnyStr,
-          typing.Dict[typing.AnyStr,
+          str,
+          typing.Dict[str,
                       typing.Union[typing.List[nexmark_model.Auction],
                                    typing.List[nexmark_model.Person]]]],
       auction_state=beam.DoFn.StateParam(auction_spec),
