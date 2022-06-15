@@ -65,8 +65,8 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 			return nil, fmt.Errorf("main input is global windowed in DoFn %v but side input %v is not, cannot map windows correctly. Consider re-windowing the side input PCollection before use", fn, i)
 		}
 		if (sideWfn.Kind == window.GlobalWindows) && !sideNode.Bounded() {
-			// TODO(Issue 21596): Replace this warning with an error return when proper streaming test functions have been added.
-			log.Warnf(context.Background(), "side input %v is global windowed in DoFn %v but is unbounded, DoFn will block until end of Global Window. Consider windowing your unbounded side input PCollection before use. This will cause your pipeline to fail in a future release, see Issue 21596 for details", i, fn)
+			// TODO(https://github.com/apache/beam/issues/21596): Replace this warning with an error return when proper streaming test functions have been added.
+			log.Warnf(context.Background(), "side input %v is global windowed in DoFn %v but is unbounded, DoFn will block until end of Global Window. Consider windowing your unbounded side input PCollection before use. This will cause your pipeline to fail in a future release, see https://github.com/apache/beam/issues/21596 for details", i, fn)
 		}
 		in = append(in, s.Input.n)
 	}

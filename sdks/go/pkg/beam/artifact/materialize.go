@@ -55,8 +55,8 @@ const (
 // present and uncorrupted. It interprets each artifact name as a relative
 // path under the dest directory. It does not retrieve valid artifacts already
 // present.
-// TODO(Issue 20267): Return a mapping of filename to dependency, rather than []*jobpb.ArtifactMetadata.
-// TODO(Issue 20267): Leverage richness of roles rather than magic names to understand artifacts.
+// TODO(https://github.com/apache/beam/issues/20267): Return a mapping of filename to dependency, rather than []*jobpb.ArtifactMetadata.
+// TODO(https://github.com/apache/beam/issues/20267): Leverage richness of roles rather than magic names to understand artifacts.
 func Materialize(ctx context.Context, endpoint string, dependencies []*pipepb.ArtifactInformation, rt string, dest string) ([]*pipepb.ArtifactInformation, error) {
 	if len(dependencies) > 0 {
 		return newMaterialize(ctx, endpoint, dependencies, dest)
