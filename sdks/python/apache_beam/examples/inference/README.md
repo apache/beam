@@ -199,7 +199,7 @@ write the predictions.
 feed into the model. It should look something like this:
 ```
 The capital of France is Paris .
-It is raining cats and dogs .
+He looked up and saw the sun and stars .
 ...
 ```
 ### Running `pytorch_language_modeling.py`
@@ -229,7 +229,7 @@ python -m apache_beam.examples.inference.pytorch_language_modeling \
 This writes the output to the `predictions.csv` with contents like:
 ```
 The capital of France is Paris .;paris
-It is raining cats and dogs .;dogs
+He looked up and saw the sun and stars .;moon
 ...
 ```
 Each line has data separated by a semicolon ";".
