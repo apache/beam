@@ -34,11 +34,11 @@ import logging
 import pickle
 import sys
 import time
-from dataclasses import dataclass
 from typing import Any
 from typing import Generic
 from typing import Iterable
 from typing import Mapping
+from typing import NamedTuple
 from typing import Sequence
 from typing import Tuple
 from typing import TypeVar
@@ -63,11 +63,11 @@ _INPUT_TYPE = TypeVar('_INPUT_TYPE')
 _OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
 KeyT = TypeVar('KeyT')
 
-
-@dataclass
-class PredictionResult:
-  example: _INPUT_TYPE
-  inference: _OUTPUT_TYPE
+PredictionResult = NamedTuple(
+    'PredictionResult', [
+        ('example', _INPUT_TYPE),
+        ('inference', _OUTPUT_TYPE),
+    ])
 
 
 def _to_milliseconds(time_ns: int) -> int:
@@ -240,6 +240,19 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     self._model_handler = model_handler
     self._kwargs = kwargs
     self._clock = clock
+
+  @classmethod
+  def create(cls, model_handler_provider, **kwargs):
+    """Multi-language friendly constructor.
+    Args:
+      model_handler_provider: A callable object that returns ModelHandler.
+      kwargs: Keyword arguments for model_handler_provider.
+
+    This constructor can be used with fully_qualified_named_transform to
+    initialize RunInference transform from PythonCallableSource provided
+    by foreign SDKs.
+    """
+    return cls(model_handler_provider(**kwargs))
 
   # TODO(https://github.com/apache/beam/issues/21447): Add batch_size back off
   # in the case there are functional reasons large batch sizes cannot be
