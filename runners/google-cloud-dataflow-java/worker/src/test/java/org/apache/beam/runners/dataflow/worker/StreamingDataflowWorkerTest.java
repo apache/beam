@@ -1427,6 +1427,7 @@ public class StreamingDataflowWorkerTest {
             .setStateFamily("MergeWindows");
     if (!delete) {
       builder.setTimestamp(timestampMillis * 1000);
+      builder.setMetadataTimestamp(timestampMillis * 1000);
     }
     return builder.build();
   }
