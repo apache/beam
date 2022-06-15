@@ -29,6 +29,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.hadoop.conf.Configuration;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -90,7 +91,6 @@ public class CdapIO {
     public Read<K, V> withCdapPluginClass(Class<?> cdapPluginClass) {
       checkArgument(cdapPluginClass != null, "Cdap plugin class can not be null");
       Plugin plugin = MappingUtils.getPluginByClass(cdapPluginClass);
-      checkArgument(plugin != null, "Can not instantiate Plugin object from provided plugin class");
       return toBuilder().setCdapPlugin(plugin).build();
     }
 
@@ -120,7 +120,7 @@ public class CdapIO {
 
       if (getCdapPlugin().isUnbounded()) {
         // TODO: implement SparkReceiverIO.<~>read()
-        return null;
+        throw new NotImplementedException("Support for unbounded plugins is not implemented!");
       } else {
         Configuration hConf = getCdapPlugin().getHadoopConfiguration();
         HadoopFormatIO.Read<K, V> readFromHadoop =
@@ -179,7 +179,6 @@ public class CdapIO {
     public Write<K, V> withCdapPluginClass(Class<?> cdapPluginClass) {
       checkArgument(cdapPluginClass != null, "Cdap plugin class can not be null");
       Plugin plugin = MappingUtils.getPluginByClass(cdapPluginClass);
-      checkArgument(plugin != null, "Can not instantiate Plugin object from provided plugin class");
       return toBuilder().setCdapPlugin(plugin).build();
     }
 
@@ -205,6 +204,7 @@ public class CdapIO {
 
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
+      validateTransform();
       getCdapPlugin()
           .withConfig(getPluginConfig())
           .withHadoopConfiguration(getKeyClass(), getValueClass())
@@ -212,7 +212,7 @@ public class CdapIO {
 
       if (getCdapPlugin().isUnbounded()) {
         // TODO: implement SparkReceiverIO.<~>write()
-        return null;
+        throw new NotImplementedException("Support for unbounded plugins is not implemented!");
       } else {
         Configuration hConf = getCdapPlugin().getHadoopConfiguration();
         HadoopFormatIO.Write<K, V> writeHadoop =

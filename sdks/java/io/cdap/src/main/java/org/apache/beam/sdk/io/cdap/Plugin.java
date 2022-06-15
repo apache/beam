@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import com.google.auto.value.AutoValue;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.SubmitterLifecycle;
@@ -26,7 +28,6 @@ import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -89,18 +90,16 @@ public abstract class Plugin {
    */
   public void prepareRun() {
     PluginConfig pluginConfig = getPluginConfig();
-    if (pluginConfig == null) {
-      throw new IllegalArgumentException("PluginConfig should be not null!");
-    }
+    checkArgument(pluginConfig != null, "PluginConfig should be not null!");
     if (cdapPluginObj == null) {
-      for (Constructor<?> constructor : getPluginClass().getDeclaredConstructors()) {
+      try {
+        Constructor<?> constructor =
+            getPluginClass().getDeclaredConstructor(pluginConfig.getClass());
         constructor.setAccessible(true);
-        try {
-          cdapPluginObj = (SubmitterLifecycle) constructor.newInstance(pluginConfig);
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-          LOG.error("Can not instantiate CDAP plugin class", e);
-          throw new IllegalStateException("Can not call prepareRun");
-        }
+        cdapPluginObj = (SubmitterLifecycle) constructor.newInstance(pluginConfig);
+      } catch (Exception e) {
+        LOG.error("Can not instantiate CDAP plugin class", e);
+        throw new IllegalStateException("Can not call prepareRun");
       }
     }
     try {
@@ -211,9 +210,7 @@ public abstract class Plugin {
         isUnbounded = pluginType != null && pluginType.startsWith("streaming");
       }
     }
-    if (isUnbounded == null) {
-      throw new IllegalArgumentException("CDAP plugin class must have Plugin annotation!");
-    }
+    checkArgument(isUnbounded != null, "CDAP plugin class must have Plugin annotation!");
     return isUnbounded;
   }
 

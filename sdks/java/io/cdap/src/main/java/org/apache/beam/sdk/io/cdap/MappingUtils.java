@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import io.cdap.plugin.common.SourceInputFormatProvider;
 import io.cdap.plugin.hubspot.sink.batch.HubspotBatchSink;
 import io.cdap.plugin.hubspot.sink.batch.HubspotOutputFormat;
@@ -36,6 +38,7 @@ import javax.annotation.Nullable;
 public class MappingUtils {
 
   public static @Nullable Plugin getPluginByClass(Class<?> pluginClass) {
+    checkArgument(pluginClass != null, "Plugin class can not be null!");
     if (pluginClass.equals(SalesforceBatchSource.class)) {
       return Plugin.create(
           pluginClass, SalesforceInputFormat.class, SalesforceInputFormatProvider.class);
@@ -49,6 +52,6 @@ public class MappingUtils {
       return Plugin.create(
           pluginClass, ServiceNowInputFormat.class, SourceInputFormatProvider.class);
     }
-    return null;
+    throw new UnsupportedOperationException("Given plugin class is not supported!");
   }
 }

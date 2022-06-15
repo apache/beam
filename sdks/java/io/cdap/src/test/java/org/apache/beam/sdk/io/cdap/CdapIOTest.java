@@ -127,7 +127,7 @@ public class CdapIOTest {
   @Test
   public void testReadObjectCreationFailsIfCdapPluginClassIsNotSupported() {
     assertThrows(
-        IllegalArgumentException.class,
+        UnsupportedOperationException.class,
         () -> CdapIO.<String, String>read().withCdapPluginClass(EmployeeBatchSource.class));
   }
 
@@ -229,7 +229,7 @@ public class CdapIOTest {
   @Test
   public void testWriteObjectCreationFailsIfCdapPluginClassIsNotSupported() {
     assertThrows(
-        IllegalArgumentException.class,
+        UnsupportedOperationException.class,
         () -> CdapIO.<String, String>write().withCdapPluginClass(EmployeeBatchSink.class));
   }
 
