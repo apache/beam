@@ -40,6 +40,7 @@ except ImportError:
 
 
 class ModelFileType(enum.Enum):
+  """Defines how a model file is serialized. Options are pickle or joblib."""
   PICKLE = 1
   JOBLIB = 2
 
@@ -76,13 +77,21 @@ def _validate_inference_args(inference_args):
 class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
                                             PredictionResult,
                                             BaseEstimator]):
-  """ Implementation of the ModelHandler interface for scikit-learn
-      using numpy arrays as input.
-  """
   def __init__(
       self,
       model_uri: str,
       model_file_type: ModelFileType = ModelFileType.PICKLE):
+    """ Implementation of the ModelHandler interface for scikit-learn
+    using numpy arrays as input.
+
+    Example Usage:
+      pcoll | RunInference(SklearnModelHandlerNumpy(model_uri="my_uri"))
+
+    Args:
+      model_uri: The URI to where the model is saved.
+      model_file_type: The method of serialization of the argument.
+        default=pickle
+    """
     self._model_uri = model_uri
     self._model_file_type = model_file_type
 
@@ -96,6 +105,18 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model: BaseEstimator,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
+    """Runs inferences on a batch of numpy arrays.
+
+    Args:
+      batch: A sequence of examples as numpy arrays. They should
+        be single examples.
+      model: A numpy model or pipeline. Must implement predict(X).
+        Where the parameter X is a numpy array.
+      inference_args: Any additional arguments for an inference.
+
+    Returns:
+      An Iterable of type PredictionResult.
+    """
     _validate_inference_args(inference_args)
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
@@ -103,23 +124,36 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
-    """Returns the number of bytes of data for a batch."""
+    """
+    Returns:
+      The number of bytes of data for a batch.
+    """
     return sum(sys.getsizeof(element) for element in batch)
 
 
 class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
                                              PredictionResult,
                                              BaseEstimator]):
-  """ Implementation of the ModelHandler interface for scikit-learn that
-      supports pandas dataframes.
-
-      NOTE: This API and its implementation are under development and
-      do not provide backward compatibility guarantees.
-  """
   def __init__(
       self,
       model_uri: str,
       model_file_type: ModelFileType = ModelFileType.PICKLE):
+    """Implementation of the ModelHandler interface for scikit-learn that
+    supports pandas dataframes.
+
+    Example Usage:
+      pcoll | RunInference(SklearnModelHandlerPandas(model_uri="my_uri"))
+
+    NOTE::
+      This API and its implementation are under development and
+      do not provide backward compatibility guarantees.
+
+
+    Args:
+      model_uri: The URI to where the model is saved.
+      model_file_type: The method of serialization of the argument.
+        default=pickle
+    """
     self._model_uri = model_uri
     self._model_file_type = model_file_type
 
@@ -133,9 +167,22 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       model: BaseEstimator,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
+    """
+    Runs inferences on a batch of pandas dataframes.
+
+    Args:
+      batch: A sequence of examples as numpy arrays. They should
+        be single examples.
+      model: A dataframe model or pipeline. Must implement predict(X).
+        Where the parameter X is a pandas dataframe.
+      inference_args: Any additional arguments for an inference.
+
+    Returns:
+      An Iterable of type PredictionResult.
+    """
     _validate_inference_args(inference_args)
     # sklearn_inference currently only supports single rowed dataframes.
-    for dataframe in batch:
+    for dataframe in iter(batch):
       if dataframe.shape[0] != 1:
         raise ValueError('Only dataframes with single rows are supported.')
 
@@ -151,5 +198,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     ]
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
-    """Returns the number of bytes of data for a batch."""
+    """
+    Returns:
+      The number of bytes of data for a batch.
+    """
     return sum(df.memory_usage(deep=True).sum() for df in batch)
