@@ -709,10 +709,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         // processing-time timers when upstream operators have shut down and will also
         // shut down this operator with pending processing-time timers.
         // TODO(https://github.com/apache/beam/issues/20600, FLINK-18647): It doesn't work
-        // efficiently when the watermark of
-        // upstream
-        // advances
-        // to MAX_TIMESTAMP immediately.
+        // efficiently when the watermark of upstream advances to MAX_TIMESTAMP
+        // immediately.
         if (numProcessingTimeTimers() > 0) {
           timerInternals.processPendingProcessingTimeTimers();
         }
