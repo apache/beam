@@ -84,9 +84,14 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.apache.beam.model.expansion.v1.ExpansionApi;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.ExpansionServiceClient;
+import org.apache.beam.runners.core.construction.ExpansionServiceClientFactory;
+import org.apache.beam.runners.core.construction.External;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
@@ -2223,6 +2228,65 @@ public class DataflowRunnerTest implements Serializable {
     dataflowOptions.setStreaming(true);
     Pipeline p = Pipeline.create(options);
     verifyGroupIntoBatchesOverrideBytes(p, true, true);
+  }
+
+  static class TestExpansionServiceClientFactory implements ExpansionServiceClientFactory {
+    ExpansionApi.ExpansionResponse response;
+
+    @Override
+    public ExpansionServiceClient getExpansionServiceClient(
+        Endpoints.ApiServiceDescriptor endpoint) {
+      return new ExpansionServiceClient() {
+        @Override
+        public ExpansionApi.ExpansionResponse expand(ExpansionApi.ExpansionRequest request) {
+          Pipeline p = TestPipeline.create();
+          p.apply(Create.of(1, 2, 3));
+          SdkComponents sdkComponents =
+              SdkComponents.create(p.getOptions()).withNewIdPrefix(request.getNamespace());
+          RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents);
+          String transformId = Iterables.getOnlyElement(pipelineProto.getRootTransformIdsList());
+          RunnerApi.Components components = pipelineProto.getComponents();
+          ImmutableList.Builder<String> requirementsBuilder = ImmutableList.builder();
+          requirementsBuilder.addAll(pipelineProto.getRequirementsList());
+          requirementsBuilder.add("ExternalTranslationTest_Requirement_URN");
+          response =
+              ExpansionApi.ExpansionResponse.newBuilder()
+                  .setComponents(components)
+                  .setTransform(
+                      components
+                          .getTransformsOrThrow(transformId)
+                          .toBuilder()
+                          .setUniqueName(transformId))
+                  .addAllRequirements(requirementsBuilder.build())
+                  .build();
+          return response;
+        }
+
+        @Override
+        public void close() throws Exception {
+          // do nothing
+        }
+      };
+    }
+
+    @Override
+    public void close() throws Exception {
+      // do nothing
+    }
+  }
+
+  @Test
+  public void testIsMultiLanguage() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<String> col =
+        pipeline
+            .apply(Create.of("1", "2", "3"))
+            .apply(
+                External.of(
+                    "dummy_urn", new byte[] {}, "", new TestExpansionServiceClientFactory()));
+
+    assertTrue(DataflowRunner.isMultiLanguagePipeline(pipeline));
   }
 
   private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {

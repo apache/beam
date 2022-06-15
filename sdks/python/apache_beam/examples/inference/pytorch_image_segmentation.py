@@ -30,7 +30,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.pytorch_inference import PytorchModelHandler
+from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from PIL import Image
@@ -210,7 +210,7 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
     model_class = maskrcnn_resnet50_fpn
     model_params = {'num_classes': 91}
 
-  model_handler = PytorchModelHandler(
+  model_handler = PytorchModelHandlerTensor(
       state_dict_path=known_args.model_state_dict_path,
       model_class=model_class,
       model_params=model_params)

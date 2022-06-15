@@ -33,6 +33,7 @@ try:
   import torch
   from apache_beam.examples.inference import pytorch_image_classification
   from apache_beam.examples.inference import pytorch_image_segmentation
+  from apache_beam.examples.inference import pytorch_language_modeling
 except ImportError as e:
   torch = None
 
@@ -62,7 +63,9 @@ def process_outputs(filepath):
 @unittest.skipIf(
     os.getenv('FORCE_TORCH_IT') is None and torch is None,
     'Missing dependencies. '
-    'Test depends on torch, torchvision and pillow')
+    'Test depends on torch, torchvision, pillow, and transformers')
+# TODO: https://github.com/apache/beam/issues/21859
+# @pytest.mark.skip
 class PyTorchInference(unittest.TestCase):
   @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
@@ -125,6 +128,39 @@ class PyTorchInference(unittest.TestCase):
       filename, actual_labels = actual.split(';')
       prediction_labels = predictions_dict[filename]
       self.assertEqual(actual_labels, prediction_labels)
+
+  def test_torch_run_inference_bert_for_masked_lm(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    # Path to text file containing some sentences
+    file_of_sentences = 'gs://apache-beam-ml/datasets/custom/sentences.txt'  # disable: line-too-long
+    output_file_dir = 'gs://apache-beam-ml/testing/predictions'
+    output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
+
+    model_state_dict_path = 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-base-uncased.pth'
+    extra_opts = {
+        'input': file_of_sentences,
+        'output': output_file,
+        'model_state_dict_path': model_state_dict_path,
+    }
+    pytorch_language_modeling.run(
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
+
+    self.assertEqual(FileSystems().exists(output_file), True)
+    predictions = process_outputs(filepath=output_file)
+    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_torch_run_inference_bert_for_masked_lm_actuals.txt'
+    actuals = process_outputs(filepath=actuals_file)
+
+    predictions_dict = {}
+    for prediction in predictions:
+      text, predicted_masked_text, predicted_text = prediction.split(';')
+      predictions_dict[text] = (predicted_masked_text, predicted_text)
+
+    for actual in actuals:
+      text, actual_masked_text, actual_predicted_text = actual.split(';')
+      predicted_masked_text, predicted_predicted_text = predictions_dict[text]
+      self.assertEqual(actual_masked_text, predicted_masked_text)
+      self.assertEqual(actual_predicted_text, predicted_predicted_text)
 
 
 if __name__ == '__main__':
