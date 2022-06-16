@@ -556,8 +556,7 @@ class TestReadFromBigQuery(unittest.TestCase):
 
       _ = p | ReadFromBigQuery(
           query='SELECT * FROM `project.dataset.table`',
-          gcs_location='gs://temp_location',
-          validate=False)
+          gcs_location='gs://temp_location')
 
     mock_query_job.assert_called()
     self.assertIn(error_message, exc.exception.args[0])
