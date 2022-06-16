@@ -127,7 +127,8 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     for (RuleSet ruleSet : ruleSets) {
       ImmutableList.Builder<RelOptRule> bd = ImmutableList.builder();
       for (RelOptRule rule : ruleSet) {
-        // TODO[BEAM-9075]: Fix join re-ordering for ZetaSQL planner. Currently join re-ordering
+        // TODO[https://github.com/apache/beam/issues/20077]: Fix join re-ordering for ZetaSQL
+        // planner. Currently join re-ordering
         //  requires the JoinCommuteRule, which doesn't work without struct flattening.
         if (rule instanceof JoinCommuteRule) {
           continue;

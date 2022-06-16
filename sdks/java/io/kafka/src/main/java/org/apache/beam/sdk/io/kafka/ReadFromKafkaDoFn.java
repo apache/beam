@@ -88,7 +88,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h4>Splitting</h4>
  *
- * <p>TODO(BEAM-10319): Add support for initial splitting.
+ * <p>TODO(https://github.com/apache/beam/issues/20280): Add support for initial splitting.
  *
  * <h4>Checkpoint and Resume Processing</h4>
  *

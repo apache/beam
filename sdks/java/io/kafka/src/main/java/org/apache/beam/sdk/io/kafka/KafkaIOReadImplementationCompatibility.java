@@ -42,7 +42,7 @@ import org.checkerframework.checker.initialization.qual.UnderInitialization;
  * It is required because the methods used to configure the expected behaviour are shared,<br>
  * and not every configuration is being supported by every implementation.
  */
-// ·TODO(BEAM-14316)·2022-04-15:·Remove·compatibility·testing·related·code·from·KafkaIO.Read·after
+// ·TODO(https://github.com/apache/beam/issues/21482)·2022-04-15:·Remove·compatibility·testing·related·code·from·KafkaIO.Read·after
 // ·SDF·implementation·has·fully·replaced·the·legacy·read
 class KafkaIOReadImplementationCompatibility {
 

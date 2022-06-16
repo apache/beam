@@ -1155,9 +1155,9 @@ class BigQueryServicesImpl implements BigQueryServices {
               if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
                 allErrors.add(error);
                 retryRows.add(rowsToPublish.get(errorIndex));
-                // TODO (BEAM-12139): Select the retry rows(using errorIndex) from the batch of rows
-                // which attempted insertion in this call. Not the entire set of rows in
-                // rowsToPublish.
+                // TODO (https://github.com/apache/beam/issues/20891): Select the retry rows(using
+                // errorIndex) from the batch of rows which attempted insertion in this call.
+                // Not the entire set of rows in rowsToPublish.
                 if (retryIds != null) {
                   retryIds.add(idsToPublish.get(errorIndex));
                 }
