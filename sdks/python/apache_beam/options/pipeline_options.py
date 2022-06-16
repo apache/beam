@@ -302,8 +302,9 @@ class PipelineOptions(HasDisplayData):
       Dictionary of all args and values.
     """
 
-    # TODO(BEAM-1319): PipelineOption sub-classes in the main session might be
-    # repeated. Pick last unique instance of each subclass to avoid conflicts.
+    # TODO(https://github.com/apache/beam/issues/18197): PipelineOption
+    # sub-classes in the main session might be repeated. Pick last unique
+    # instance of each subclass to avoid conflicts.
     subset = {}
     parser = _BeamArgumentParser()
     for cls in PipelineOptions.__subclasses__():
@@ -617,6 +618,13 @@ class DirectOptions(PipelineOptions):
         default='in_memory',
         choices=['in_memory', 'multi_threading', 'multi_processing'],
         help='Workers running environment.')
+    parser.add_argument(
+        '--direct_embed_docker_python',
+        default=False,
+        action='store_true',
+        dest='direct_embed_docker_python',
+        help='DirectRunner uses the embedded Python environment when '
+        'the default Python docker environment is specified.')
 
 
 class GoogleCloudOptions(PipelineOptions):

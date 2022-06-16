@@ -459,6 +459,42 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
 
       assert_that(result, equal_to([row for row in self.SIMPLE_COLLECTION]))
 
+  def test_write_to_dynamic_destination(self):
+
+    sink_params = [
+        fileio.TextSink, # pass a type signature
+        fileio.TextSink() # pass a FileSink object
+    ]
+
+    for sink in sink_params:
+      dir = self._new_tempdir()
+
+      with TestPipeline() as p:
+        _ = (
+            p
+            | "Create" >> beam.Create(range(100))
+            | beam.Map(lambda x: str(x))
+            | fileio.WriteToFiles(
+                path=dir,
+                destination=lambda n: "odd" if int(n) % 2 else "even",
+                sink=sink,
+                file_naming=fileio.destination_prefix_naming("test")))
+
+      with TestPipeline() as p:
+        result = (
+            p
+            | fileio.MatchFiles(FileSystems.join(dir, '*'))
+            | fileio.ReadMatches()
+            | beam.Map(
+                lambda f: (
+                    os.path.basename(f.metadata.path).split('-')[0],
+                    sorted(map(int, f.read_utf8().strip().split('\n'))))))
+
+        assert_that(
+            result,
+            equal_to([('odd', list(range(1, 100, 2))),
+                      ('even', list(range(0, 100, 2)))]))
+
   def test_write_to_different_file_types_some_spilling(self):
 
     dir = self._new_tempdir()
@@ -507,7 +543,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                     if row['foundation'] == 'apache']),
           label='verifyApache')
 
-  @unittest.skip('BEAM-13010')
+  @unittest.skip('https://github.com/apache/beam/issues/21269')
   def test_find_orphaned_files(self):
     dir = self._new_tempdir()
 
@@ -603,8 +639,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
     # Use state on the TestCase class, since other references would be pickled
     # into a closure and not have the desired side effects.
     #
-    # TODO(BEAM-5295): Use assert_that after it works for the cases here in
-    # streaming mode.
+    # TODO(https://github.com/apache/beam/issues/18987): Use assert_that after
+    # it works for the cases here in streaming mode.
     WriteFilesTest.all_records = []
 
     dir = '%s%s' % (self._new_tempdir(), os.sep)
@@ -616,7 +652,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
 
       ts.add_elements([('key', '%s' % elm)])
       if timestamp % 5 == 0 and timestamp != 0:
-        # TODO(BEAM-3759): Add many firings per window after getting PaneInfo.
+        # TODO(https://github.com/apache/beam/issues/18721): Add many firings
+        # per window after getting PaneInfo.
         ts.advance_processing_time(5)
         ts.advance_watermark_to(timestamp)
     ts.advance_watermark_to_infinity()

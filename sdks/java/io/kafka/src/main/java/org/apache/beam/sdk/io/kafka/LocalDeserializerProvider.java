@@ -35,7 +35,7 @@ import org.apache.kafka.common.serialization.Deserializer;
  * Coder}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class LocalDeserializerProvider<T> implements DeserializerProvider<T> {
   private Class<? extends Deserializer<T>> deserializer;

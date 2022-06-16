@@ -116,11 +116,11 @@ static def pipelineOptionsStringCrossPlatformHandling(String[] options) {
 }
 
 def sickbayTests = [
-        // https://issues.apache.org/jira/browse/BEAM-2791
+        // https://github.com/apache/beam/issues/18499
         'org.apache.beam.sdk.testing.UsesLoopingTimer',
-        // https://issues.apache.org/jira/browse/BEAM-8035
+        // https://github.com/apache/beam/issues/19734
         'org.apache.beam.sdk.transforms.WatchTest.testMultiplePollsWithManyResults',
-        // https://issues.apache.org/jira/browse/BEAM-6354
+        // https://github.com/apache/beam/issues/19344
         'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
 ]
 
@@ -187,7 +187,7 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories "org.apache.beam.sdk.testing.UsesJavaExpansionService"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
-    // https://issues.apache.org/jira/browse/BEAM-2791
+    // https://github.com/apache/beam/issues/18499
     excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
   }
 }
@@ -207,7 +207,7 @@ tasks.register("validatesRunnerSickbay", Test) {
       includeTestsMatching test
     }
 
-    // https://issues.apache.org/jira/browse/BEAM-4191
+    // https://github.com/apache/beam/issues/18826
     includeTestsMatching 'org.apache.beam.runners.direct.WatermarkManagerTest.updateWatermarkWithDifferentWindowedValueInstances'
   }
 }

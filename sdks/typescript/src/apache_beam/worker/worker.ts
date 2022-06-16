@@ -111,7 +111,7 @@ export class Worker {
 
   async handleRequest(request) {
     console.log(request);
-    if (request.request.oneofKind == "processBundle") {
+    if (request.request.oneofKind === "processBundle") {
       await this.process(request);
     } else {
       console.log("Unknown instruction type: ", request);
@@ -194,7 +194,7 @@ export class Worker {
       this.bundleProcessors.set(descriptorId, []);
     }
     const processor = this.bundleProcessors.get(descriptorId)?.pop();
-    if (processor != undefined) {
+    if (processor) {
       return processor;
     } else {
       return new BundleProcessor(
@@ -321,8 +321,8 @@ export class BundleProcessor {
   }
 
   getStateProvider() {
-    if (this.stateProvider == undefined) {
-      if (typeof this.getStateChannel == "function") {
+    if (!this.stateProvider) {
+      if (typeof this.getStateChannel === "function") {
         this.stateProvider = new CachingStateProvider(
           new GrpcStateProvider(
             this.getStateChannel(
@@ -339,7 +339,7 @@ export class BundleProcessor {
   }
 
   getBundleId() {
-    if (this.currentBundleId == undefined) {
+    if (this.currentBundleId === null || this.currentBundleId === undefined) {
       throw new Error("Not currently processing a bundle.");
     }
     return this.currentBundleId!;
@@ -373,7 +373,7 @@ function isPrimitive(transform: PTransform): boolean {
     return true;
   } else {
     return (
-      transform.subtransforms.length == 0 &&
+      transform.subtransforms.length === 0 &&
       Object.values(transform.outputs).some((pcoll) => !inputs.includes(pcoll))
     );
   }

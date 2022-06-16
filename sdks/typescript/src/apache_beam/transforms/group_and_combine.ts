@@ -66,7 +66,7 @@ export class GroupBy<T, K> extends PTransformClass<
   ) {
     super();
     [this.keyFn, this.keyNames] = extractFnAndName(key, keyName || "key");
-    this.keyName = typeof this.keyNames == "string" ? this.keyNames : "key";
+    this.keyName = typeof this.keyNames === "string" ? this.keyNames : "key";
   }
 
   expand(input: PCollection<T>): PCollection<KV<K, Iterable<T>>> {
@@ -185,9 +185,9 @@ class GroupByAndCombine<T, O> extends PTransformClass<
       )
       .map(function constructResult(kv) {
         const result = {};
-        if (this_.keyNames == undefined) {
+        if (this_.keyNames === null || this_.keyNames === undefined) {
           // Don't populate a key at all.
-        } else if (typeof this_.keyNames == "string") {
+        } else if (typeof this_.keyNames === "string") {
           result[this_.keyNames] = kv.key;
         } else {
           for (let i = 0; i < this_.keyNames.length; i++) {
@@ -224,7 +224,7 @@ export function countGlobally<T>(): PTransform<
 }
 
 function toCombineFn<I>(combiner: Combiner<I>): CombineFn<I, any, any> {
-  if (typeof combiner == "function") {
+  if (typeof combiner === "function") {
     return binaryCombineFn<I>(combiner);
   } else {
     return combiner;
@@ -244,7 +244,9 @@ function binaryCombineFn<I>(
     createAccumulator: () => undefined,
     addInput: (a, b) => (a === undefined ? b : combiner(a, b)),
     mergeAccumulators: (accs) =>
-      [...accs].filter((a) => a != undefined).reduce(combiner, undefined),
+      [...accs]
+        .filter((a) => a !== null && a !== undefined)
+        .reduce(combiner, undefined),
     extractOutput: (a) => a,
   };
 }

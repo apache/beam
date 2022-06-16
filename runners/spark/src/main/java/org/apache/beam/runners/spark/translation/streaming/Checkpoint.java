@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 
 /** Checkpoint data to make it available in future pipeline runs. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Checkpoint {
   private static final String TEMP_FILE_SUFFIX = ".tmp";

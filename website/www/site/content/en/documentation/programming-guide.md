@@ -1833,7 +1833,7 @@ words = ...
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" model_pardo_side_input_dofn >}}
 
 // The Go SDK doesn't support custom ViewFns.
-// See https://issues.apache.org/jira/browse/BEAM-3305 for details
+// See https://github.com/apache/beam/issues/18602 for details
 // on how to contribute them!
 {{< /highlight >}}
 
@@ -2134,7 +2134,7 @@ you can determine whether this is an early or a late firing, and how many times 
 **PaneInfo:**
 When triggers are used, Beam provides a `DoFn.PaneInfoParam` object that contains information about the current firing. Using `DoFn.PaneInfoParam`
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.
-This feature implementation in Python SDK is not fully completed; see more at [BEAM-3759](https://issues.apache.org/jira/browse/BEAM-3759).
+This feature implementation in Python SDK is not fully completed; see more at [Issue 17821](https://github.com/apache/beam/issues/18721).
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
@@ -2193,7 +2193,7 @@ Timers and States are explained in more detail in the
 
 {{< paragraph class="language-go" >}}
 **Timer and State:**
-This feature isn't implemented in the Go SDK; see more at [BEAM-10660](https://issues.apache.org/jira/browse/BEAM-10660). Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.
+This feature isn't implemented in the Go SDK; see more at [Issue 20510](https://github.com/apache/beam/issues/20510). Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.
 {{< /paragraph >}}
 
 {{< highlight py >}}
@@ -2256,7 +2256,7 @@ class StatefulDoFn(beam.DoFn):
 
 {{< highlight go >}}
 // State and Timers are yet implemented in the Go SDK.
-// See https://issues.apache.org/jira/browse/BEAM-10660 for info
+// See https://github.com/apache/beam/issues/20510 for info
 // on contributing State and Timers.
 {{< /highlight >}}
 
@@ -2543,7 +2543,7 @@ records.apply("WriteToText",
 
 {{< highlight go >}}
 // The Go SDK textio doesn't support sharding on writes yet.
-// See https://issues.apache.org/jira/browse/BEAM-12664 for ways
+// See https://github.com/apache/beam/issues/21031 for ways
 // to contribute a solution.
 {{< /highlight >}}
 
@@ -5378,7 +5378,7 @@ to other nodes in the graph. A `DoFn` can declare multiple state variables.
 
 <span class="language-go">
 
-> **Note:** The Beam SDK for Go does not yet support a State and Timer API. See [BEAM-10660](https://issues.apache.org/jira/browse/BEAM-10660) to contribute.
+> **Note:** The Beam SDK for Go does not yet support a State and Timer API. See [Issue 20510](https://github.com/apache/beam/issues/20510) to contribute.
 
 </span>
 
@@ -6422,7 +6422,7 @@ resource utilization.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-11104.
+{{< code_sample "sdks/go/examples/snippets/12splittabledofns.go" self_checkpoint>}}
 {{< /highlight >}}
 
 ### 12.4. Runner-initiated split {#runner-initiated-split}
@@ -6892,7 +6892,7 @@ Currently Python external transforms are limited to dependencies available in th
 #### 13.1.3. Creating cross-language Go transforms
 
 Go currently does not support creating cross-language transforms, only using cross-language
-transforms from other languages; see more at [BEAM-9923](https://issues.apache.org/jira/browse/BEAM-9923).
+transforms from other languages; see more at [Issue 21767](https://github.com/apache/beam/issues/21767).
 
 #### 13.1.4. Defining a URN
 

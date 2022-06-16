@@ -29,7 +29,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 
 /** Static utility methods for creating and working with {@link CoderProvider}s. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class CoderProviders {
   private CoderProviders() {} // Static utility class

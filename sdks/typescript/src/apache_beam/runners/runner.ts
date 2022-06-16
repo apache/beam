@@ -27,15 +27,15 @@ export interface PipelineResult {
 
 export function createRunner(options): Runner {
   let runnerConstructor: (any) => Runner;
-  if (options.runner == undefined || options.runner == "default") {
+  if (options.runner === undefined || options.runner === "default") {
     runnerConstructor = defaultRunner;
-  } else if (options.runner == "direct") {
+  } else if (options.runner === "direct") {
     runnerConstructor = require("./direct_runner").directRunner;
-  } else if (options.runner == "universal") {
+  } else if (options.runner === "universal") {
     runnerConstructor = require("./universal").universalRunner;
-  } else if (options.runner == "flink") {
+  } else if (options.runner === "flink") {
     runnerConstructor = require("./flink").flinkRunner;
-  } else if (options.runner == "dataflow") {
+  } else if (options.runner === "dataflow") {
     runnerConstructor = require("./dataflow").dataflowRunner;
   } else {
     throw new Error("Unknown runner: " + options.runner);
@@ -96,7 +96,7 @@ export function defaultRunner(defaultOptions: Object): Runner {
     ): Promise<PipelineResult> {
       const directRunner =
         require("./direct_runner").directRunner(defaultOptions);
-      if (directRunner.unsupportedFeatures(pipeline, options).length == 0) {
+      if (directRunner.unsupportedFeatures(pipeline, options).length === 0) {
         return directRunner.runPipeline(pipeline, options);
       } else {
         return require("./universal")

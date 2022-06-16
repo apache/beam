@@ -49,8 +49,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ProtoMessageSchema extends GetterBasedSchemaProvider {
 
@@ -126,7 +126,7 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
 
   // Other modules are not allowed to use non-vendored Message class
   @SuppressWarnings({
-    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
     "unchecked"
   })
   public static <T> SimpleFunction<byte[], Row> getProtoBytesToRowFn(Class<T> clazz) {
@@ -140,7 +140,7 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
 
   // Other modules are not allowed to use non-vendored Message class
   @SuppressWarnings({
-    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
     "unchecked"
   })
   public static <T> SimpleFunction<Row, byte[]> getRowToProtoBytesFn(Class<T> clazz) {

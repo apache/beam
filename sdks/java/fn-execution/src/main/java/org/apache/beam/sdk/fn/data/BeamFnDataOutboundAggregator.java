@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
  * data_buffer_time_limit_ms=<milliseconds>}
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 // The calling thread that invokes sendBufferedDataAndFinishOutboundStreams synchronizes on
 // flushLock effectively making the periodic flushing no longer read or mutate hasFlushedForBundle

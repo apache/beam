@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * to initialize a Dataflow worker harness.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class WorkerPipelineOptionsFactory {
   private static final Logger LOG = LoggerFactory.getLogger(WorkerPipelineOptionsFactory.class);

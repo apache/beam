@@ -32,7 +32,7 @@ import org.joda.time.Duration;
  * to job runtime and the final values of the accumulators.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FlinkRunnerResult implements PipelineResult {
 

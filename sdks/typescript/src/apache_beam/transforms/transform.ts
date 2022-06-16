@@ -27,13 +27,13 @@ export function withName<T>(name: string | (() => string), arg: T): T {
 
 export function extractName<T>(withName: T): string {
   const untyped = withName as any;
-  if (untyped.beamName != undefined) {
-    if (typeof untyped.beamName == "string") {
+  if (untyped.beamName !== null && untyped.beamName !== undefined) {
+    if (typeof untyped.beamName === "string") {
       return untyped.beamName;
     } else {
       return untyped.beamName();
     }
-  } else if (untyped.name && untyped.name != "anonymous") {
+  } else if (untyped.name && untyped.name !== "anonymous") {
     return untyped.name;
   } else {
     const stringified = ("" + withName)
