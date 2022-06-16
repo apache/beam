@@ -1169,7 +1169,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.disableWarningsInGeneratedCode = true
         options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
 
-        // TODO(BEAM-11936): Enable errorprone checks
+        // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
         options.errorprone.errorproneArgs.add("-Xep:AutoValueImmutableFields:OFF")
         options.errorprone.errorproneArgs.add("-Xep:AutoValueSubclassLeaked:OFF")
         options.errorprone.errorproneArgs.add("-Xep:BadImport:OFF")
