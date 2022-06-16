@@ -583,6 +583,13 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   @staticmethod
   def yields_elements(fn):
+    """A decorator to apply to ``process_batch`` indicating it yields elements.
+
+    By default ``process_batch`` is assumed to both consume and produce
+    "batches", which are collections of multiple logical Beam elements. This
+    decorator indicates that ``process_batch`` **produces** individual elements
+    at a time. ``process_batch`` is always expected to consume batches.
+    """
     if not fn.__name__ in ('process', 'process_batch'):
       raise TypeError(
           "@yields_elements must be applied to a process or "
@@ -593,6 +600,13 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   @staticmethod
   def yields_batches(fn):
+    """A decorator to apply to ``process`` indicating it yields batches.
+
+    By default ``process`` is assumed to both consume and produce
+    individual elements at a time. This decorator indicates that ``process``
+    **produces** "batches", which are collections of multiple logical Beam
+    elements.
+    """
     if not fn.__name__ in ('process', 'process_batch'):
       raise TypeError(
           "@yields_elements must be applied to a process or "
@@ -711,30 +725,30 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
             trivial_inference.infer_return_type(self.process, [input_type])))
 
   @property
-  def process_defined(self) -> bool:
+  def _process_defined(self) -> bool:
     return (
         self.process.__func__  # type: ignore
         if hasattr(self.process, '__self__') else self.process) != DoFn.process
 
   @property
-  def process_batch_defined(self) -> bool:
+  def _process_batch_defined(self) -> bool:
     return (
         self.process_batch.__func__  # type: ignore
         if hasattr(self.process_batch, '__self__')
         else self.process_batch) != DoFn.process_batch
 
   @property
-  def can_yield_batches(self) -> bool:
-    return (
-        (self.process_defined and self.process_yields_batches) or
-        (self.process_batch_defined and not self.process_batch_yields_elements))
+  def _can_yield_batches(self) -> bool:
+    return ((self._process_defined and self._process_yields_batches) or (
+        self._process_batch_defined and
+        not self._process_batch_yields_elements))
 
   @property
-  def process_yields_batches(self) -> bool:
+  def _process_yields_batches(self) -> bool:
     return getattr(self.process, '_beam_yields_batches', False)
 
   @property
-  def process_batch_yields_elements(self) -> bool:
+  def _process_batch_yields_elements(self) -> bool:
     return getattr(self.process_batch, '_beam_yields_elements', False)
 
   def get_input_batch_type(
@@ -754,7 +768,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       ``None`` if this DoFn cannot accept batches, else a Beam typehint or
       a native Python typehint.
     """
-    if not self.process_batch_defined:
+    if not self._process_batch_defined:
       return None
     input_type = list(
         inspect.signature(self.process_batch).parameters.values())[0].annotation
@@ -813,10 +827,10 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       a native Python typehint.
     """
     output_batch_type = None
-    if self.process_defined and self.process_yields_batches:
+    if self._process_defined and self._process_yields_batches:
       output_batch_type = self._get_element_type_from_return_annotation(
           self.process, input_element_type)
-    if self.process_batch_defined and not self.process_batch_yields_elements:
+    if self._process_batch_defined and not self._process_batch_yields_elements:
       process_batch_type = self._get_element_type_from_return_annotation(
           self.process_batch,
           self._get_input_batch_type_normalized(input_element_type))
@@ -1454,7 +1468,7 @@ class ParDo(PTransformWithSideInputs):
 
   def infer_batch_converters(self, input_element_type):
     # TODO: Test this code (in batch_dofn_test)
-    if self.fn.process_batch_defined:
+    if self.fn._process_batch_defined:
       input_batch_type = self.fn._get_input_batch_type_normalized(
           input_element_type)
 
@@ -1470,7 +1484,7 @@ class ParDo(PTransformWithSideInputs):
     else:
       self.fn.input_batch_converter = None
 
-    if self.fn.can_yield_batches:
+    if self.fn._can_yield_batches:
       output_batch_type = self.fn._get_output_batch_type_normalized(
           input_element_type)
       if output_batch_type is None:

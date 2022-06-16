@@ -144,11 +144,11 @@ def get_test_class_name(cls, num, params_dict):
                      class_name_func=get_test_class_name)
 class BatchDoFnParameterizedTest(unittest.TestCase):
   def test_process_defined(self):
-    self.assertEqual(self.dofn.process_defined, self.expected_process_defined)
+    self.assertEqual(self.dofn._process_defined, self.expected_process_defined)
 
   def test_process_batch_defined(self):
     self.assertEqual(
-        self.dofn.process_batch_defined, self.expected_process_batch_defined)
+        self.dofn._process_batch_defined, self.expected_process_batch_defined)
 
   def test_get_input_batch_type(self):
     self.assertEqual(
@@ -162,7 +162,7 @@ class BatchDoFnParameterizedTest(unittest.TestCase):
 
   def test_can_yield_batches(self):
     expected = self.expected_output_batch_type is not None
-    self.assertEqual(self.dofn.can_yield_batches, expected)
+    self.assertEqual(self.dofn._can_yield_batches, expected)
 
 
 class BatchDoFnNoInputAnnotation(beam.DoFn):
@@ -176,8 +176,8 @@ class BatchDoFnTest(unittest.TestCase):
     # checking this in parameterized test causes a circular reference issue
     dofn = beam.Map(lambda x: x * 2).dofn
 
-    self.assertTrue(dofn.process_defined)
-    self.assertFalse(dofn.process_batch_defined)
+    self.assertTrue(dofn._process_defined)
+    self.assertFalse(dofn._process_batch_defined)
     self.assertEqual(dofn._get_input_batch_type_normalized(int), None)
     self.assertEqual(dofn._get_output_batch_type_normalized(int), None)
 

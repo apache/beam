@@ -385,6 +385,41 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
 
       assert_that(match_continiously, equal_to(files))
 
+  def test_match_updated_files(self):
+    files = []
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+
+    def _create_extra_file(element):
+      writer = FileSystems.create(FileSystems.join(tempdir, 'extra'))
+      writer.close()
+      return element.path
+
+    # Create two files to be matched before pipeline
+    files.append(self._create_temp_file(dir=tempdir))
+    writer = FileSystems.create(FileSystems.join(tempdir, 'extra'))
+    writer.close()
+
+    # Add file name that will be created mid-pipeline
+    files.append(FileSystems.join(tempdir, 'extra'))
+    files.append(FileSystems.join(tempdir, 'extra'))
+
+    interval = 0.2
+    start = Timestamp.now()
+    stop = start + interval + 0.1
+
+    with TestPipeline() as p:
+      match_continiously = (
+          p
+          | fileio.MatchContinuously(
+              file_pattern=FileSystems.join(tempdir, '*'),
+              interval=interval,
+              start_timestamp=start,
+              stop_timestamp=stop,
+              match_updated_files=True)
+          | beam.Map(_create_extra_file))
+
+      assert_that(match_continiously, equal_to(files))
+
 
 class WriteFilesTest(_TestCaseWithTempDirCleanUp):
 
