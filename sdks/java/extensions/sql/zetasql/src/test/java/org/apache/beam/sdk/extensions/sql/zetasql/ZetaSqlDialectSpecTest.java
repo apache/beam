@@ -30,11 +30,9 @@ import com.google.zetasql.ZetaSQLType.TypeKind;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
@@ -47,6 +45,10 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -3574,52 +3576,103 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
   @Test
   public void testAnalyticOver() {
-    String sql = "select sum(f_int_1) over (ROWS BETWEEN 2 PRECEDING AND 3 FOLLOWING) From aggregate_test_table";
+//    String sql = "select sum(f_int_1) over (ROWS BETWEEN 2 PRECEDING AND 3 FOLLOWING) From aggregate_test_table";
+    String sql = "select SUM(f_int_1) OVER() FROM aggregate_test_table";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    stream.getSchema();
+    final Schema schema = stream.getSchema();
+
+//    PAssert.that(stream).containsInAnyOrder(
+//            Arrays.asList(
+//                    Row.withSchema(schema).addValues(1.0).build()
+//                            ...
+//            )
+//    );
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
-
-
 
   @Test
   public void testAnalyticOver2() {
-    String sql = "select sum(Key) over (PARTITION BY Value) From KeyValue";
+    String sql = "select sum(f_int_1) OVER (ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) From aggregate_test_table";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-//     thrown.expect(UnsupportedOperationException.class);
-//     thrown.expectMessage("Does not support sub-queries");
-    zetaSQLQueryPlanner.convertToBeamRel(sql);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = stream.getSchema();
+
+//    PAssert.that(stream).containsInAnyOrder(
+//            Arrays.asList(
+//                    Row.withSchema(schema).addValues(1.0).build()
+//                            ...
+//            )
+//    );
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testAnalyticOver3() {
-    String sql = "select sum(Key) over (PARTITION BY Value), count(Key) over () From KeyValue";
+    String sql = "select sum(f_int_1) OVER (PARTITION BY Key), count(Key) OVER () From aggregate_test_table";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-//     thrown.expect(UnsupportedOperationException.class);
-//     thrown.expectMessage("Does not support sub-queries");
-    zetaSQLQueryPlanner.convertToBeamRel(sql);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = stream.getSchema();
+
+//    PAssert.that(stream).containsInAnyOrder(
+//            Arrays.asList(
+//                    Row.withSchema(schema).addValues(1.0).build()
+//                            ...
+//            )
+//    );
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testAnalyticOver4() {
-    String sql = "select sum(Key) over (PARTITION BY Value), count(Key) over (ORDER BY Key) From KeyValue";
+    String sql = "select sum(f_int_1) over (PARTITION BY Key), count(Key) over (ORDER BY Key) From KeyValue";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-//     thrown.expect(UnsupportedOperationException.class);
-//     thrown.expectMessage("Does not support sub-queries");
-    zetaSQLQueryPlanner.convertToBeamRel(sql);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = stream.getSchema();
+
+//    PAssert.that(stream).containsInAnyOrder(
+//            Arrays.asList(
+//                    Row.withSchema(schema).addValues(1.0).build()
+//                            ...
+//            )
+//    );
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testAnalyticOver5() {
     String sql = "select sum(Key) over (ROWS BETWEEN 2 PRECEDING AND 3 FOLLOWING) From KeyValue";
+
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    zetaSQLQueryPlanner.convertToBeamRel(sql);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = stream.getSchema();
+
+//    PAssert.that(stream).containsInAnyOrder(
+//            Arrays.asList(
+//                    Row.withSchema(schema).addValues(1.0).build()
+//                            ...
+//            )
+//    );
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
@@ -3627,14 +3680,39 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     String sql = "select sum(Key) over (PARTITION BY Value), count(Key) over(ORDER BY Key RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING) From KeyValue";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    zetaSQLQueryPlanner.convertToBeamRel(sql);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = stream.getSchema();
+
+//    PAssert.that(stream).containsInAnyOrder(
+//            Arrays.asList(
+//                    Row.withSchema(schema).addValues(1.0).build()
+//                            ...
+//            )
+//    );
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testAnalyticOver7() {
     String sql = "select sum(Key) over (ORDER BY Key ASC) From KeyValue";
+
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    zetaSQLQueryPlanner.convertToBeamRel(sql);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = stream.getSchema();
+
+//    PAssert.that(stream).containsInAnyOrder(
+//            Arrays.asList(
+//                    Row.withSchema(schema).addValues(1.0).build()
+//                            ...
+//            )
+//    );
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test

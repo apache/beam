@@ -106,5 +106,13 @@ public class CalciteQueryPlannerTest extends BaseRelTest {
         root.getCluster().getMetadataQuery().getCumulativeCost(root) instanceof BeamCostModel);
     Assert.assertFalse(root.getCluster().getMetadataQuery().getCumulativeCost(root).isInfinite());
   }
+  @Test
+  public void testWindowFunction() {
+    String sql = "select sum(a) over () from T";
+    BeamRelNode root = env.parseQuery(sql);
+    Assert.assertTrue(
+            root.getCluster().getMetadataQuery().getCumulativeCost(root) instanceof BeamCostModel);
+    Assert.assertFalse(root.getCluster().getMetadataQuery().getCumulativeCost(root).isInfinite());
+  }
 
 }

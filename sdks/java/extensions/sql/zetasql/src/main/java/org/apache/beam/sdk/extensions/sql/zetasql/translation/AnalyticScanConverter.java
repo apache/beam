@@ -64,6 +64,7 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
                 ImmutableList.of(),
                 projects,
                 fieldNames);
+
     }
 
     private ImmutableList<RexNode> getProjects(ResolvedAnalyticScan zetaNode){
@@ -71,6 +72,7 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
         List<RexNode> projects = new ArrayList<>();
         int index = 0;
 
+        // Add all columns from input to the list of projects, ResolvedColumn -> RexInputRef
         for(ResolvedColumn resolvedColumn: zetaNode.getInputScan().getColumnList()) {
             RelDataType type = ZetaSqlCalciteTranslationUtils.toCalciteType(resolvedColumn.getType(), false, rexBuilder);
             RexInputRef columnRef = new RexInputRef(index, type);
@@ -78,6 +80,7 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
             projects.add(columnRef);
             index = index+1;
         }
+
 
         for(ResolvedAnalyticFunctionGroup group : zetaNode.getFunctionGroupList()){
             List<RexNode> partitionKeys = new ArrayList<>();
@@ -89,6 +92,7 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
                 }
             }
 
+            // Optional?
             if(group.getOrderBy() != null) {
                 for(ResolvedOrderByItem item: group.getOrderBy().getOrderByItemList()) {
                     RexFieldCollation collation = new RexFieldCollation(
@@ -188,7 +192,6 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
         }
 
     }
-
 
 }
 
