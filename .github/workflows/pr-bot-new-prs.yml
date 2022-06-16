@@ -29,6 +29,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - name: Install npm
+        run: |
+          sudo apt update
+          sudo apt install nodejs
+          node -v
+          sudo apt install npm
       - run: npm install
         working-directory: 'scripts/ci/pr-bot'
 
