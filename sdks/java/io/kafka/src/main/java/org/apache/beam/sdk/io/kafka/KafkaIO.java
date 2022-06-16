@@ -1331,7 +1331,8 @@ public class KafkaIO {
     private boolean runnerPrefersLegacyRead(PipelineOptions options) {
       // Only Dataflow runner requires sdf read at this moment. For other non-portable runners, if
       // it doesn't specify use_sdf_read, it will use legacy read regarding to performance concern.
-      // TODO(BEAM-10670): Remove this special check when we address performance issue.
+      // TODO(https://github.com/apache/beam/issues/20530): Remove this special check when we
+      // address performance issue.
       if (ExperimentalOptions.hasExperiment(options, "use_sdf_read")) {
         return false;
       }
@@ -1667,8 +1668,9 @@ public class KafkaIO {
   @SuppressFBWarnings("URF_UNREAD_FIELD")
   /**
    * Represents a Kafka record with metadata whey key and values are byte arrays. This class should
-   * only be used to represent a Kafka record for external transforms. TODO(BEAM-7345): use regular
-   * KafkaRecord class when Beam Schema inference supports generics.
+   * only be used to represent a Kafka record for external transforms.
+   * TODO(https://github.com/apache/beam/issues/18919): use regular KafkaRecord class when Beam
+   * Schema inference supports generics.
    */
   static class ByteArrayKafkaRecord {
 

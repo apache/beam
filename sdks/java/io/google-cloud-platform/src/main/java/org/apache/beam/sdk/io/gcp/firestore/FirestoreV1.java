@@ -789,8 +789,9 @@ public final class FirestoreV1 {
    * @see <a target="_blank" rel="noopener noreferrer"
    *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.RunQueryResponse">google.firestore.v1.RunQueryResponse</a>
    */
-  // TODO(BEAM-12605): Add dynamic work rebalancing to support a Splittable DoFn
-  // TODO(BEAM-12606): Add support for progress reporting
+  // TODO(https://github.com/apache/beam/issues/21056): Add dynamic work rebalancing to support a
+  // Splittable DoFn
+  // TODO(https://github.com/apache/beam/issues/21050): Add support for progress reporting
   public static final class RunQuery
       extends Transform<
           PCollection<RunQueryRequest>, PCollection<RunQueryResponse>, RunQuery, RunQuery.Builder> {

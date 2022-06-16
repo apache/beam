@@ -135,7 +135,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
-  @Ignore("BEAM-14152")
+  @Ignore("https://github.com/apache/beam/issues/21533")
   public void testUnavailableExceptionRetries() throws InterruptedException {
     DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
     options.setBlockOnRun(false);

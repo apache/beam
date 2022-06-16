@@ -91,7 +91,9 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 class KafkaExactlyOnceSink<K, V>
     extends PTransform<PCollection<ProducerRecord<K, V>>, PCollection<Void>> {
