@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -125,6 +126,7 @@ public class BigQueryUtilTest {
     when(mockClient.tables()).thenReturn(mockTables);
     when(mockTables.get(anyString(), anyString(), anyString())).thenReturn(mockTablesGet);
     when(mockTablesGet.setPrettyPrint(false)).thenReturn(mockTablesGet);
+    when(mockTablesGet.set(anyString(), anyString())).thenReturn(mockTablesGet);
     when(mockTablesGet.execute()).thenReturn(table);
   }
 
@@ -132,6 +134,7 @@ public class BigQueryUtilTest {
     verify(mockClient).tables();
     verify(mockTables).get("project", "dataset", "table");
     verify(mockTablesGet, atLeastOnce()).setPrettyPrint(false);
+    verify(mockTablesGet, atLeastOnce()).set(anyString(), anyString());
     verify(mockTablesGet, atLeastOnce()).execute();
   }
 
