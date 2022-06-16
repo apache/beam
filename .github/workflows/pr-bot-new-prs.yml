@@ -24,7 +24,7 @@ on:
 jobs:
   process-prs:
     # Don't run on forks
-    if: github.repository == 'apache/beam'
+    if: github.repository == 'dannymartinm/beam'
     runs-on: [self-hosted, ubuntu-20.04]
 
     steps:
