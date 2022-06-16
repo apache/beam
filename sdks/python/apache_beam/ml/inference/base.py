@@ -250,6 +250,10 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     Models for supported frameworks can be loaded via a URI. Supported services
     can also be used.
 
+    This transform attempts to find the best batch size by profiling the time
+    taken by (fused) downstream operations through using the beam.BatchElements
+    transform. Batching may be configured using the ModelHandler.
+
     Args:
         model_handler: An implementation of ModelHandler.
         clock: A clock implementing time_ns.
