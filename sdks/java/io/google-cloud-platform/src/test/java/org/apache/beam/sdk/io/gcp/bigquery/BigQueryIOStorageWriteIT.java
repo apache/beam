@@ -160,7 +160,7 @@ public class BigQueryIOStorageWriteIT {
 
   @Test
   public void testBigQueryStorageWrite3KProtoStreaming() {
-    setUpTestEnvironment(WriteMode.AT_LEAST_ONCE);
+    setUpTestEnvironment(WriteMode.EXACT_ONCE);
     runBigQueryIOStorageWritePipeline(3000, WriteMode.EXACT_ONCE, true);
   }
 
