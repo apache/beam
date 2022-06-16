@@ -110,11 +110,11 @@ import org.slf4j.LoggerFactory;
 
 /** BeamRelNode to replace {@code Project} and {@code Filter} node. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "keyfor",
   "nullness",
   "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class BeamCalcRel extends AbstractBeamCalcRel {
 
   private static final long NANOS_PER_MILLISECOND = 1000000L;

@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory;
 
 /** Implementation of {@link MetricResults} for the Dataflow Runner. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 class DataflowMetrics extends MetricResults {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowMetrics.class);

@@ -40,7 +40,7 @@ import org.joda.time.Instant;
 
 /** The Java SDK Harness implementation of the {@link Window.Assign} primitive. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class AssignWindowsRunner<T, W extends BoundedWindow> {
 

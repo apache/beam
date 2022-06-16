@@ -288,11 +288,11 @@ class DataflowRunner(PipelineRunner):
             access_pattern = side_input._side_input_data().access_pattern
             if access_pattern == common_urns.side_inputs.ITERABLE.urn:
               if use_unified_worker or not use_fn_api:
-                # TODO(BEAM-9173): Stop patching up the access pattern to
-                # appease Dataflow when using the UW and hardcode the output
-                # type to be Any since the Dataflow JSON and pipeline proto
-                # can differ in coders which leads to encoding/decoding issues
-                # within the runner.
+                # TODO(https://github.com/apache/beam/issues/20043): Stop
+                # patching up the access pattern to appease Dataflow when
+                # using the UW and hardcode the output type to be Any since
+                # the Dataflow JSON and pipeline proto can differ in coders
+                # which leads to encoding/decoding issues within the runner.
                 side_input.pvalue.element_type = typehints.Any
                 new_side_input = _DataflowIterableSideInput(side_input)
               else:
@@ -377,7 +377,8 @@ class DataflowRunner(PipelineRunner):
 
       @staticmethod
       def _overrides_setup_or_teardown(combinefn):
-        # TODO(BEAM-3736): provide an implementation for this method
+        # TODO(https://github.com/apache/beam/issues/18716): provide an
+        # implementation for this method
         return False
 
     return CombineFnVisitor()
@@ -1663,8 +1664,8 @@ class DataflowPipelineResult(PipelineResult):
           'Job did not reach to a terminal state after waiting indefinitely. '
           '{}'.format(consoleUrl))
 
-      # TODO(BEAM-14291): Also run this check if wait_until_finish was called
-      # after the pipeline completed.
+      # TODO(https://github.com/apache/beam/issues/21695): Also run this check
+      # if wait_until_finish was called after the pipeline completed.
       if terminated and self.state != PipelineState.DONE:
         # TODO(BEAM-1290): Consider converting this to an error log based on
         # theresolution of the issue.

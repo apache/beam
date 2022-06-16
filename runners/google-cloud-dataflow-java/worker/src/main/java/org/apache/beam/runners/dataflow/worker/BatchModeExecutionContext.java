@@ -55,7 +55,7 @@ import org.joda.time.Instant;
 
 /** {@link DataflowExecutionContext} for use in batch mode. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BatchModeExecutionContext
     extends DataflowExecutionContext<BatchModeExecutionContext.StepContext> {
@@ -320,7 +320,7 @@ public class BatchModeExecutionContext
 
   public <K, V> Cache<K, V> getLogicalReferenceCache() {
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     })
     Cache<K, V> rval = (Cache) logicalReferenceCache;

@@ -123,7 +123,7 @@ import org.joda.time.Instant;
  * and then exits.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TriggerExample {
   // Numeric value of fixed window duration, in minutes

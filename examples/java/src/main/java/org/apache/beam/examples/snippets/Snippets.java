@@ -116,8 +116,8 @@ import org.slf4j.LoggerFactory;
 
 /** Code snippets used in webdocs. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 public class Snippets {

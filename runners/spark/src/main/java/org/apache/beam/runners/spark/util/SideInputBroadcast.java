@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  * broadcast transform to value by coder
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SideInputBroadcast<T> implements Serializable {
 

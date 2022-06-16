@@ -21,7 +21,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 
 /** A callback for completing a bundle of input. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 interface CompletionCallback {
   /** Handle a successful result, returning the committed outputs of the result. */
