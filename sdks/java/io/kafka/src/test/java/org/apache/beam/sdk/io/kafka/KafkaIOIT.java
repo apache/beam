@@ -255,6 +255,7 @@ public class KafkaIOIT {
                     ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
                 .withValueDeserializerAndCoder(
                     ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
+                .withMaxNumRecords(1)
                 .externalWithMetadata());
 
     PAssert.thatSingleton(rows)
@@ -296,7 +297,8 @@ public class KafkaIOIT {
                       .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
                       .withTopic(topicName)
                       .withKeyDeserializer(IntegerDeserializer.class)
-                      .withValueDeserializer(StringDeserializer.class))
+                      .withValueDeserializer(StringDeserializer.class)
+                      .withMaxNumRecords(200))
               .apply(
                   "Key by Partition",
                   ParDo.of(
