@@ -45,15 +45,24 @@ import { CheckStatus } from "./shared/checks";
  * (in which case that's all we need to do).
  */
 function needsProcessed(pull: any, prState: typeof Pr): boolean {
-  if (!pull.labels.find((label) => label.name.toLowerCase() === "go" || label.name.toLowerCase() == "python")) {
+  if (
+    !pull.labels.find(
+      (label) =>
+        label.name.toLowerCase() === "go" ||
+        label.name.toLowerCase() == "python"
+    )
+  ) {
     console.log(
       `Skipping PR ${pull.number} because it doesn't contain the go or python labels`
     );
     return false;
   }
-  const firstPrToProcess = new Date(2022, 2, 2, 20);
+  const firstPrToProcess = new Date(2022, 7, 16, 14); // June 16 2022, 14:00 UTC (note that Java months are 0 indexed)
   const createdAt = new Date(pull.created_at);
-  if (createdAt < firstPrToProcess) {
+  if (
+    createdAt < firstPrToProcess &&
+    !pull.labels.find((label) => label.name.toLowerCase() === "go")
+  ) {
     console.log(
       `Skipping PR ${pull.number} because it was created at ${createdAt}, before the first pr to process date of ${firstPrToProcess}`
     );
