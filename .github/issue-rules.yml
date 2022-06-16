@@ -211,40 +211,40 @@ rules:
   addLabels: ['io', 'java', 'xml']
 - valueFor: 'Component'
   contains: 'io-py-avro'
-  addLabels: ['io', 'py', 'avro']
+  addLabels: ['io', 'python', 'avro']
 - valueFor: 'Component'
   contains: 'io-py-aws'
-  addLabels: ['io', 'py', 'aws']
+  addLabels: ['io', 'python', 'aws']
 - valueFor: 'Component'
   contains: 'io-py-common'
-  addLabels: ['io', 'py', 'common']
+  addLabels: ['io', 'python', 'common']
 - valueFor: 'Component'
   contains: 'io-py-files'
-  addLabels: ['io', 'py', 'files']
+  addLabels: ['io', 'python', 'files']
 - valueFor: 'Component'
   contains: 'io-py-gcp'
-  addLabels: ['io', 'py', 'gcp']
+  addLabels: ['io', 'python', 'gcp']
 - valueFor: 'Component'
   contains: 'io-py-hadoop'
-  addLabels: ['io', 'py', 'hadoop']
+  addLabels: ['io', 'python', 'hadoop']
 - valueFor: 'Component'
   contains: 'io-py-ideas'
-  addLabels: ['io', 'py', 'ideas']
+  addLabels: ['io', 'python', 'ideas']
 - valueFor: 'Component'
   contains: 'io-py-kafka'
-  addLabels: ['io', 'py', 'kafka']
+  addLabels: ['io', 'python', 'kafka']
 - valueFor: 'Component'
   contains: 'io-py-mongodb'
-  addLabels: ['io', 'py', 'mongodb']
+  addLabels: ['io', 'python', 'mongodb']
 - valueFor: 'Component'
   contains: 'io-py-parquet'
-  addLabels: ['io', 'py', 'parquet']
+  addLabels: ['io', 'python', 'parquet']
 - valueFor: 'Component'
   contains: 'io-py-tfrecord'
-  addLabels: ['io', 'py', 'tfrecord']
+  addLabels: ['io', 'python', 'tfrecord']
 - valueFor: 'Component'
   contains: 'io-py-vcf'
-  addLabels: ['io', 'py', 'vcf']
+  addLabels: ['io', 'python', 'vcf']
 - valueFor: 'Component'
   contains: 'java-fn-execution'
   addLabels: ['java', 'fn-execution']
@@ -289,10 +289,10 @@ rules:
   addLabels: ['runners', 'mapreduce']
 - valueFor: 'Component'
   contains: 'runner-py-direct'
-  addLabels: ['runners', 'py', 'direct']
+  addLabels: ['runners', 'python', 'direct']
 - valueFor: 'Component'
   contains: 'runner-py-interactive'
-  addLabels: ['runners', 'py', 'interactive']
+  addLabels: ['runners', 'python', 'interactive']
 - valueFor: 'Component'
   contains: 'runner-ray'
   addLabels: ['runners', 'ray']
@@ -325,10 +325,10 @@ rules:
   addLabels: ['java', 'harness']
 - valueFor: 'Component'
   contains: 'sdk-py-core'
-  addLabels: ['py', 'core']
+  addLabels: ['python', 'core']
 - valueFor: 'Component'
   contains: 'sdk-py-harness'
-  addLabels: ['py', 'harness']
+  addLabels: ['python', 'harness']
 - valueFor: 'Component'
   contains: 'sdk-typescript'
   addLabels: ['typescript']
