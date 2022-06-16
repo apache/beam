@@ -61,7 +61,7 @@ def executeJob = { scope, testConfig ->
       CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, JOB_SPECIFIC_SWITCHES)
 }
 
-PhraseTriggeringPostCommitBuilder.postCommitJob(
+PhraseTriggeringPostCommitBuilder.tempTrigger(
     'beam_PerformanceTests_PubsubIOIT_Python_Streaming',
     'Run PubsubIO Performance Test Python',
     'PubsubIO Performance Test Python',

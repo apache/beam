@@ -33,4 +33,14 @@ class PhraseTriggeringPostCommitBuilder extends PostcommitJobBuilder {
     //    new PostcommitJobBuilder(scope, jobDefinition).defineGhprbTriggeredJob(
     //        nameBase + "_PR", triggerPhrase, githubUiHint, false)
   }
+
+  static void tempTrigger(nameBase,
+      triggerPhrase,
+      githubUiHint,
+      scope,
+      jobDefinition = {}) {
+
+    new PostcommitJobBuilder(scope, jobDefinition).defineGhprbTriggeredJob(
+        nameBase + "_PR", triggerPhrase, githubUiHint, false)
+  }
 }
