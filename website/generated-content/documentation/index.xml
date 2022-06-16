@@ -342,7 +342,7 @@ score: 0.8999999761581421
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">//&lt;/span> &lt;span class="n">Getting&lt;/span> &lt;span class="n">predictions&lt;/span> &lt;span class="n">is&lt;/span> &lt;span class="n">not&lt;/span> &lt;span class="n">yet&lt;/span> &lt;span class="n">available&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">Java&lt;/span>&lt;span class="o">.&lt;/span> &lt;span class="o">[&lt;/span>&lt;span class="n">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">9501&lt;/span>&lt;span class="o">]&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">//&lt;/span> &lt;span class="n">Getting&lt;/span> &lt;span class="n">predictions&lt;/span> &lt;span class="n">is&lt;/span> &lt;span class="n">not&lt;/span> &lt;span class="n">yet&lt;/span> &lt;span class="n">available&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">Java&lt;/span>&lt;span class="o">.&lt;/span> &lt;span class="o">[&lt;/span>&lt;span class="n">https&lt;/span>&lt;span class="o">://&lt;/span>&lt;span class="n">github&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">20001&lt;/span>&lt;span class="o">]&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div></description></item><item><title>Documentation: Apache Beam: Developing I/O connectors for Java</title><link>/documentation/io/developing-io-java/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/io/developing-io-java/</guid><description>
 &lt;!--
@@ -10239,7 +10239,7 @@ accumulates the number of elements seen.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">10660.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="combiningstate">CombiningState&lt;/h4>
@@ -10278,7 +10278,7 @@ accumulates the number of elements seen.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">10660.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="bagstate">BagState&lt;/h4>
@@ -10331,7 +10331,7 @@ bags larger than available memory.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">10660.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="deferred-state-reads">11.2. Deferred state reads&lt;/h3>
@@ -10365,7 +10365,7 @@ runner can prefetch all of the states necessary. For example:&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">This&lt;/span> &lt;span class="ow">is&lt;/span> &lt;span class="ow">not&lt;/span> &lt;span class="n">supported&lt;/span> &lt;span class="n">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">see&lt;/span> &lt;span class="n">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">11506.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">This&lt;/span> &lt;span class="ow">is&lt;/span> &lt;span class="ow">not&lt;/span> &lt;span class="n">supported&lt;/span> &lt;span class="n">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">see&lt;/span> &lt;span class="n">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="n">github&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20739.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;div class='language-go snippet'>
@@ -10373,7 +10373,7 @@ runner can prefetch all of the states necessary. For example:&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">10660.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
@@ -10467,7 +10467,7 @@ allows for event-time aggregations.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">10660.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="processing-time-timers">11.3.2. Processing-time timers&lt;/h4>
@@ -10523,7 +10523,7 @@ to the current time. In Java, the &lt;code>Timer.offset&lt;/code> and &lt;code>T
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">10660.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="dynamic-timer-tags">11.3.3. Dynamic timer tags&lt;/h4>
@@ -10588,7 +10588,7 @@ tag is an empty string if not specified.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">10660.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="timer-output-timestamps">11.3.4. Timer output timestamps&lt;/h4>
@@ -10697,7 +10697,7 @@ past the timestamp of the minimum element. The following code demonstrates this.
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">Timer&lt;/span> &lt;span class="n">output&lt;/span> &lt;span class="n">timestamps&lt;/span> &lt;span class="ow">is&lt;/span> &lt;span class="ow">not&lt;/span> &lt;span class="n">yet&lt;/span> &lt;span class="n">supported&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">Python&lt;/span> &lt;span class="n">SDK&lt;/span>&lt;span class="o">.&lt;/span> &lt;span class="n">See&lt;/span> &lt;span class="n">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">11507.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">Timer&lt;/span> &lt;span class="n">output&lt;/span> &lt;span class="n">timestamps&lt;/span> &lt;span class="ow">is&lt;/span> &lt;span class="ow">not&lt;/span> &lt;span class="n">yet&lt;/span> &lt;span class="n">supported&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">Python&lt;/span> &lt;span class="n">SDK&lt;/span>&lt;span class="o">.&lt;/span> &lt;span class="n">See&lt;/span> &lt;span class="n">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="n">github&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20705.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;div class='language-go snippet'>
@@ -10705,7 +10705,7 @@ past the timestamp of the minimum element. The following code demonstrates this.
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">10660.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="garbage-collecting-state">11.4. Garbage collecting state&lt;/h3>
@@ -10758,7 +10758,7 @@ garbage-collection strategy.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">10660.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>This &lt;code>ParDo&lt;/code> stores state per day. Once the pipeline is done processing data for a given day, all the state for that
@@ -10841,7 +10841,7 @@ This can be done by updating a timer that garbage collects state. For example&lt
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">10660.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">issues&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mf">20510.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="state-timers-examples">11.5. State and timers examples&lt;/h3>
