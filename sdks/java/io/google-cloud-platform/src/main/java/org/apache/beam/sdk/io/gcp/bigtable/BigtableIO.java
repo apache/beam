@@ -246,10 +246,7 @@ public class BigtableIO {
 
     static Read create() {
       BigtableConfig config =
-          BigtableConfig.builder()
-              .setTableId(StaticValueProvider.of(""))
-              .setValidate(true)
-              .build();
+          BigtableConfig.builder().setTableId(StaticValueProvider.of("")).setValidate(true).build();
 
       return new AutoValue_BigtableIO_Read.Builder()
           .setBigtableConfig(config)
@@ -845,7 +842,7 @@ public class BigtableIO {
       extends DoFn<KV<ByteString, Iterable<Mutation>>, BigtableWriteResult> {
 
     protected final Counter cumulativeThrottlingMilliseconds =
-        Metrics.counter("dataflow-throttling-metrics", "throttling-msecs");
+        Metrics.counter(BigtableWriterFn.class, "throttling-msecs");
     private static Object metricLock = new Object();
     private static long lastAggregatedThrottleTime = 0;
 
@@ -879,8 +876,10 @@ public class BigtableIO {
               });
       if (config.getDataflowThrottleReporting()) {
         long delta = 0;
-        ResourceLimiterStats stats = ResourceLimiterStats.getInstance(new BigtableInstanceName(
-            config.getProjectId().get(), config.getInstanceId().get()));
+        ResourceLimiterStats stats =
+            ResourceLimiterStats.getInstance(
+                new BigtableInstanceName(
+                    config.getProjectId().get(), config.getInstanceId().get()));
         synchronized (metricLock) {
           long newAggregratedThrottleTime =
               TimeUnit.NANOSECONDS.toMillis(stats.getCumulativeThrottlingTimeNanos());
