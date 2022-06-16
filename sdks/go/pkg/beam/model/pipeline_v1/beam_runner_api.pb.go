@@ -933,11 +933,11 @@ const (
 	//
 	// Schema types are mapped to coders as follows:
 	//   AtomicType:
-	//     BYTE:      not yet a standard coder (Issue 19815)
-	//     INT16:     not yet a standard coder (Issue 19815)
+	//     BYTE:      not yet a standard coder (https://github.com/apache/beam/issues/19815)
+	//     INT16:     not yet a standard coder (https://github.com/apache/beam/issues/19815)
 	//     INT32:     beam:coder:varint:v1
 	//     INT64:     beam:coder:varint:v1
-	//     FLOAT:     not yet a standard coder (Issue 19815)
+	//     FLOAT:     not yet a standard coder (https://github.com/apache/beam/issues/19815)
 	//     DOUBLE:    beam:coder:double:v1
 	//     STRING:    beam:coder:string_utf8:v1
 	//     BOOLEAN:   beam:coder:bool:v1

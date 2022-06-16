@@ -73,9 +73,9 @@ var directFilters = []string{
 	"TestPanes",
 	// The direct runner does not support the TestStream primitive
 	"TestTestStream.*",
-	// (Issue 21130): The direct runner does not support windowed side inputs
+	// (https://github.com/apache/beam/issues/21130): The direct runner does not support windowed side inputs
 	"TestValidateWindowedSideInputs",
-	// (Issue 21130): The direct runner does not currently support multimap side inputs
+	// (https://github.com/apache/beam/issues/21130): The direct runner does not currently support multimap side inputs
 	"TestParDoMultiMapSideInput",
 	"TestLargeWordcount_Loopback",
 	// The direct runner does not support self-checkpointing
@@ -92,7 +92,7 @@ var portableFilters = []string{
 	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
 	"TestPanes",
-	// TODO(Issue 21058): Python portable runner times out on Kafka reads.
+	// TODO(https://github.com/apache/beam/issues/21058): Python portable runner times out on Kafka reads.
 	"TestKafkaIO.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
@@ -105,9 +105,9 @@ var portableFilters = []string{
 }
 
 var flinkFilters = []string{
-	// TODO(Issue 20723): Flink tests timing out on reads.
+	// TODO(https://github.com/apache/beam/issues/20723): Flink tests timing out on reads.
 	"TestXLang_Combine.*",
-	// TODO(Issue 21094): Test fails on post commits: "Insufficient number of network buffers".
+	// TODO(https://github.com/apache/beam/issues/21094): Test fails on post commits: "Insufficient number of network buffers".
 	"TestXLang_Multi",
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
@@ -121,7 +121,7 @@ var flinkFilters = []string{
 }
 
 var samzaFilters = []string{
-	// TODO(Issue 20987): Samza tests invalid encoding.
+	// TODO(https://github.com/apache/beam/issues/20987): Samza tests invalid encoding.
 	"TestReshuffle",
 	"TestReshuffleKV",
 	// The Samza runner does not support the TestStream primitive
@@ -129,7 +129,7 @@ var samzaFilters = []string{
 	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
 	"TestPanes",
-	// TODO(Issue 21244): Samza doesn't yet support post job metrics, used by WordCount
+	// TODO(https://github.com/apache/beam/issues/21244): Samza doesn't yet support post job metrics, used by WordCount
 	"TestWordCount.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",

@@ -34,7 +34,7 @@ import torch
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.pytorch_inference import PytorchModelHandler
+from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from transformers import BertConfig
@@ -167,7 +167,7 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
 
   # TODO: Remove once nested tensors https://github.com/pytorch/nestedtensor
   # is officially released.
-  class PytorchNoBatchModelHandler(PytorchModelHandler):
+  class PytorchNoBatchModelHandler(PytorchModelHandlerKeyedTensor):
     """Wrapper to PytorchModelHandler to limit batch size to 1.
 
     The tokenized strings generated from BertTokenizer may have different

@@ -40,6 +40,7 @@ __all__ = [
     'ReadFromText',
     'ReadFromTextWithFilename',
     'ReadAllFromText',
+    'ReadAllFromTextContinuously',
     'WriteToText'
 ]
 
@@ -520,6 +521,7 @@ def _create_text_source(
     compression_type=None,
     strip_trailing_newlines=None,
     coder=None,
+    validate=False,
     skip_header_lines=None,
     delimiter=None,
     escapechar=None):
@@ -529,7 +531,7 @@ def _create_text_source(
       compression_type=compression_type,
       strip_trailing_newlines=strip_trailing_newlines,
       coder=coder,
-      validate=False,
+      validate=validate,
       skip_header_lines=skip_header_lines,
       delimiter=delimiter,
       escapechar=escapechar)
@@ -550,8 +552,10 @@ class ReadAllFromText(PTransform):
 
   This implementation only supports reading text encoded using UTF-8 or ASCII.
   This does not support other encodings such as UTF-16 or UTF-32.
-  """
 
+  This implementation is only tested with batch pipeline. In streaming,
+  reading may happen with delay due to the limitation in ReShuffle involved.
+  """
   DEFAULT_DESIRED_BUNDLE_SIZE = 64 * 1024 * 1024  # 64MB
 
   def __init__(
@@ -560,6 +564,7 @@ class ReadAllFromText(PTransform):
       desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
       compression_type=CompressionTypes.AUTO,
       strip_trailing_newlines=True,
+      validate=False,
       coder=coders.StrUtf8Coder(),  # type: coders.Coder
       skip_header_lines=0,
       with_filename=False,
@@ -596,11 +601,12 @@ class ReadAllFromText(PTransform):
         delimiter, can also escape itself.
     """
     super().__init__(**kwargs)
-    source_from_file = partial(
+    self._source_from_file = partial(
         _create_text_source,
         min_bundle_size=min_bundle_size,
         compression_type=compression_type,
         strip_trailing_newlines=strip_trailing_newlines,
+        validate=validate,
         coder=coder,
         skip_header_lines=skip_header_lines,
         delimiter=delimiter,
@@ -608,16 +614,82 @@ class ReadAllFromText(PTransform):
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._compression_type = compression_type
+    self._with_filename = with_filename
     self._read_all_files = ReadAllFiles(
         True,
-        compression_type,
-        desired_bundle_size,
-        min_bundle_size,
-        source_from_file,
-        with_filename)
+        self._compression_type,
+        self._desired_bundle_size,
+        self._min_bundle_size,
+        self._source_from_file,
+        self._with_filename)
 
   def expand(self, pvalue):
     return pvalue | 'ReadAllFiles' >> self._read_all_files
+
+
+class ReadAllFromTextContinuously(ReadAllFromText):
+  """A ``PTransform`` for reading text files in given file patterns.
+  This PTransform acts as a Source and produces continuously a ``PCollection``
+  of strings.
+
+  For more details, see ``ReadAllFromText`` for text parsing settings;
+  see ``apache_beam.io.fileio.MatchContinuously`` for watching settings.
+
+  ReadAllFromTextContinuously is experimental.  No backwards-compatibility
+  guarantees. Due to the limitation on Reshuffle, current implementation does
+  not scale.
+  """
+  _ARGS_FOR_MATCH = (
+      'interval',
+      'has_deduplication',
+      'start_timestamp',
+      'stop_timestamp',
+      'match_updated_files',
+      'apply_windowing')
+  _ARGS_FOR_READ = (
+      'min_bundle_size',
+      'desired_bundle_size',
+      'compression_type',
+      'strip_trailing_newlines',
+      'validate',
+      'coder',
+      'skip_header_lines',
+      'with_filename',
+      'delimiter',
+      'escapechar')
+
+  def __init__(self, file_pattern, **kwargs):
+    """Initialize the ``ReadAllFromTextContinuously`` transform.
+
+    Accepts args for constructor args of both :class:`ReadAllFromText` and
+    :class:`~apache_beam.io.fileio.MatchContinuously`.
+    """
+    kwargs_for_match = {
+        k: v
+        for (k, v) in kwargs.items() if k in self._ARGS_FOR_MATCH
+    }
+    kwargs_for_read = {
+        k: v
+        for (k, v) in kwargs.items() if k in self._ARGS_FOR_READ
+    }
+    kwargs_additinal = {
+        k: v
+        for (k, v) in kwargs.items()
+        if k not in self._ARGS_FOR_MATCH and k not in self._ARGS_FOR_READ
+    }
+    super().__init__(**kwargs_for_read, **kwargs_additinal)
+    self._file_pattern = file_pattern
+    self._kwargs_for_match = kwargs_for_match
+
+  def expand(self, pbegin):
+    # Importing locally to prevent circular dependency issues.
+    from apache_beam.io.fileio import MatchContinuously
+
+    # TODO(BEAM-14497) always reshuffle once gbk always trigger works.
+    return (
+        pbegin
+        | MatchContinuously(self._file_pattern, **self._kwargs_for_match)
+        | 'ReadAllFiles' >> self._read_all_files._disable_reshuffle())
 
 
 class ReadFromText(PTransform):

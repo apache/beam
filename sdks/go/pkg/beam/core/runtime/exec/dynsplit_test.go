@@ -110,7 +110,7 @@ func TestDynamicSplit(t *testing.T) {
 
 			// Validate split elements are encoded correctly by decoding them
 			// with the input coder to the path.
-			// TODO(Issue 20343) Switch to using splittable unit's input coder
+			// TODO(https://github.com/apache/beam/issues/20343) Switch to using splittable unit's input coder
 			// once that is implemented.
 			p, err := decodeDynSplitElm(splitRes.split.PS[0], cdr)
 			if err != nil {

@@ -188,7 +188,7 @@ const (
 	// It requires special handling in translation to the model pipeline in the latter case
 	// to add the incoming index for each input.
 	//
-	// TODO(Issue 18032): once this JIRA is done, this coder should become the new thing.
+	// TODO(https://github.com/apache/beam/issues/18032): once this JIRA is done, this coder should become the new thing.
 	CoGBK Kind = "CoGBK"
 )
 
@@ -347,7 +347,7 @@ func NewT(c *Coder, w *WindowCoder) *Coder {
 		panic("window must not be nil")
 	}
 
-	// TODO(Issue 20510): Implement proper timer support.
+	// TODO(https://github.com/apache/beam/issues/20510): Implement proper timer support.
 	return &Coder{
 		Kind: Timer,
 		T: typex.New(reflect.TypeOf((*struct {

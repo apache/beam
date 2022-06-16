@@ -76,7 +76,7 @@ var (
 	workerZone             = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
 	dataflowServiceOptions = flag.String("dataflow_service_options", "", "Comma separated list of additional job modes and configurations (optional)")
 	flexRSGoal             = flag.String("flexrs_goal", "", "Which Flexible Resource Scheduling mode to run in (optional)")
-	// TODO(Issue 21604) Turn this on once TO_STRING is implemented
+	// TODO(https://github.com/apache/beam/issues/21604) Turn this on once TO_STRING is implemented
 	// enableHotKeyLogging    = flag.Bool("enable_hot_key_logging", false, "Specifies that when a hot key is detected in the pipeline, the literal, human-readable key is printed in the user's Cloud Logging project (optional).")
 
 	// Streaming update flags
