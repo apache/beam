@@ -123,24 +123,24 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-        // TODO (BEAM-7222) SplittableDoFnTests
+        // TODO (https://github.com/apache/beam/issues/19468) SplittableDoFnTests
         excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
         // Currently unsupported in portable streaming:
-        // TODO (BEAM-10712)
+        // TODO (https://github.com/apache/beam/issues/20395)
         excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
-        // TODO (BEAM-10754)
+        // TODO (https://github.com/apache/beam/issues/20396)
         excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
-        // TODO (BEAM-10755)
+        // TODO (https://github.com/apache/beam/issues/20397)
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
       }
 
       testFilter = {
-        // TODO (BEAM-10094)
+        // TODO (https://github.com/apache/beam/issues/20189)
         excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
-        // TODO (BEAM-10784) Currently unsupported in portable streaming:
+        // TODO (https://github.com/apache/beam/issues/20429) Currently unsupported in portable streaming:
         // // Timeout error
         excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedContainsInAnyOrder'
         excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedSerializablePredicate'
@@ -182,14 +182,14 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-        // TODO (BEAM-7222) SplittableDoFnTests
+        // TODO (https://github.com/apache/beam/issues/19468) SplittableDoFnTests
         excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       }
       testFilter = {
-        // TODO (BEAM-10094)
+        // TODO (https://github.com/apache/beam/issues/20189)
         excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
 
         for (String test : sickbayTests) {

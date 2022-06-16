@@ -512,9 +512,10 @@ public class SdkHarnessClient implements AutoCloseable {
               finalizationHandler.requestsFinalization(bundleId);
             }
           } else {
-            // TODO: [BEAM-3962] Handle aborting the bundle being processed.
+            // TODO: [https://github.com/apache/beam/issues/18756] Handle aborting the bundle being
+            // processed.
             throw new IllegalStateException(
-                "Processing bundle failed, TODO: [BEAM-3962] abort bundle.");
+                "Processing bundle failed, TODO: [https://github.com/apache/beam/issues/18756] abort bundle.");
           }
         } catch (Exception e) {
           if (exception == null) {

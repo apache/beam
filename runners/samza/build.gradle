@@ -87,25 +87,25 @@ configurations.all {
 }
 
 def sickbayTests = [
-        // TODO(BEAM-12750)
+        // TODO(https://github.com/apache/beam/issues/21033)
         'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInGlobalWindowBatchSizeByteSizeFn',
         'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode',
         'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
-        // TODO(BEAM-12749)
+        // TODO(https://github.com/apache/beam/issues/21036)
         'org.apache.beam.sdk.transforms.MapElementsTest.testMapSimpleFunction',
-        // TODO(BEAM-12748)
+        // TODO(https://github.com/apache/beam/issues/21035)
         'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput',
         'org.apache.beam.sdk.transforms.ViewTest.testNonSingletonSideInput',
-        // TODO(BEAM-12747)
+        // TODO(https://github.com/apache/beam/issues/21037)
         'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsBackwardsInTimeShouldThrow',
         'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsWithNullTimestampShouldThrow',
-        // TODO(BEAM-12746)
+        // TODO(https://github.com/apache/beam/issues/21039)
         'org.apache.beam.sdk.io.FileIOTest*',
-        // TODO(BEAM-12745)
+        // TODO(https://github.com/apache/beam/issues/21038)
         'org.apache.beam.sdk.io.AvroIOTest*',
-        // TODO(BEAM-12744)
+        // TODO(https://github.com/apache/beam/issues/21040)
         'org.apache.beam.sdk.PipelineTest.testEmptyPipeline',
-        // TODO(BEAM-12743)
+        // TODO(https://github.com/apache/beam/issues/21041)
         'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingNPException',
         'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingIOException',
         'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingNPException',
@@ -148,13 +148,13 @@ tasks.register("validatesRunner", Test) {
     }
     // TODO(BEAM-10025)
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
-    // TODO(BEAM-11479)
+    // TODO(https://github.com/apache/beam/issues/20703)
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
-    // TODO(BEAM-11479)
+    // TODO(https://github.com/apache/beam/issues/20703)
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testRelativeTimerWithOutputTimestamp'
-    // TODO(BEAM-12035)
+    // TODO(https://github.com/apache/beam/issues/20847)
     excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
-    // TODO(BEAM-12036)
+    // TODO(https://github.com/apache/beam/issues/20846)
     excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
 
     // These tests fail since there is no support for side inputs in Samza's unbounded splittable DoFn integration

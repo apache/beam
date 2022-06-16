@@ -173,7 +173,8 @@ public final class SparkStructuredStreamingRunner
 
     // Default to using the primitive versions of Read.Bounded and Read.Unbounded for non-portable
     // execution.
-    // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
+    // TODO(https://github.com/apache/beam/issues/20530): Use SDF read as default when we address
+    // performance issue.
     if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }
