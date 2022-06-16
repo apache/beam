@@ -110,7 +110,7 @@ def sickbayTests = [
         'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingIOException',
         'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingNPException',
         'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingIOException',
-        // https://issues.apache.org/jira/browse/BEAM-6354
+        // https://github.com/apache/beam/issues/19344
         'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
 ]
 tasks.register("validatesRunner", Test) {
