@@ -62,7 +62,7 @@ Examples:
 
 Beam DataFrame operations are deferred, but the schemas of the resulting DataFrames are not, meaning that result columns must be computable without access to the data. Some DataFrame operations can’t support this usage, so they can’t be implemented. These operations raise a [WontImplementError](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.dataframe.frame_base.html#apache_beam.dataframe.frame_base.WontImplementError).
 
-<!-- TODO(BEAM-12169): Document the use of categorical columns as a workaround -->
+<!-- TODO(https://github.com/apache/beam/issues/20958): Document the use of categorical columns as a workaround -->
 Currently there’s no workaround for this issue. But in the future, Beam Dataframe may support non-deferred column operations on categorical columns. This work is being tracked in [Issue 20958](https://github.com/apache/beam/issues/20958).
 
 ### Operations that produce non-deferred values or plots
