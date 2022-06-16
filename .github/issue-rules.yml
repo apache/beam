@@ -136,10 +136,10 @@ rules:
   addLabels: ['io', 'java', 'gcp']
 - valueFor: 'Component'
   contains: 'io-java-hadoop-file-system'
-  addLabels: ['io', java', 'hadoop-file-system']
+  addLabels: ['io', 'java', 'hadoop-file-system']
 - valueFor: 'Component'
   contains: 'io-java-hadoop-format'
-  addLabels: ['io', java', 'hadoop-format']
+  addLabels: ['io', 'java', 'hadoop-format']
 - valueFor: 'Component'
   contains: 'io-java-hbase'
   addLabels: ['io', 'java', 'hbase']
@@ -247,7 +247,7 @@ rules:
   addLabels: ['io', 'py', 'vcf']
 - valueFor: 'Component'
   contains: 'java-fn-execution'
-  addLabels: ['java', 'fn', 'execution']
+  addLabels: ['java', 'fn-execution']
 - valueFor: 'Component'
   contains: 'katas'
   addLabels: ['katas']
