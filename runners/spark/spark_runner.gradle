@@ -371,7 +371,7 @@ tasks.register("examplesIntegrationTest", Test) {
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
   useJUnit {
     filter {
-      // TODO (BEAM-14019) Fix integration Tests to run with SparkRunner: Failed to read from sharded output
+      // TODO (https://github.com/apache/beam/issues/21344) Fix integration Tests to run with SparkRunner: Failed to read from sharded output
       excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInStreamingStaticSharding'
       excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
     }
