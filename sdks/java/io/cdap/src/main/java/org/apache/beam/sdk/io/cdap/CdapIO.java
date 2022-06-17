@@ -37,12 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * An unbounded/bounded sources and sinks from <a
  * href="https://github.com/data-integrations">CDAP</a> plugins.
  */
-@SuppressWarnings({
-  "argument.type.incompatible",
-  "return.type.incompatible",
-  "dereference.of.nullable",
-  "UnnecessaryParentheses"
-})
+@SuppressWarnings("nullness")
 public class CdapIO {
 
   public static <K, V> Read<K, V> read() {
