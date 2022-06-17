@@ -293,19 +293,7 @@ public class KafkaIOIT {
                       .withKeyDeserializer(IntegerDeserializer.class)
                       .withValueDeserializer(StringDeserializer.class)
                       .withMaxNumRecords(200))
-              .apply(
-                  "Key by Partition",
-                  ParDo.of(
-                      new DoFn<
-                          KafkaRecord<Integer, String>,
-                          KV<Integer, KafkaRecord<Integer, String>>>() {
-                        @ProcessElement
-                        public void processElement(
-                            @Element KafkaRecord<Integer, String> record,
-                            OutputReceiver<KV<Integer, KafkaRecord<Integer, String>>> receiver) {
-                          receiver.output(KV.of(record.getPartition(), record));
-                        }
-                      }))
+              .apply("Key by Partition", ParDo.of(new KeyByPartition()))
               .apply(Window.into(FixedWindows.of(Duration.standardMinutes(5))))
               .apply("Group by Partition", GroupByKey.create())
               .apply("Get Partitions", Keys.create());
@@ -344,6 +332,17 @@ public class KafkaIOIT {
 
     } finally {
       client.deleteTopics(ImmutableSet.of(topicName));
+    }
+  }
+
+  private static class KeyByPartition
+      extends DoFn<KafkaRecord<Integer, String>, KV<Integer, KafkaRecord<Integer, String>>> {
+
+    @ProcessElement
+    public void processElement(
+        @Element KafkaRecord<Integer, String> record,
+        OutputReceiver<KV<Integer, KafkaRecord<Integer, String>>> receiver) {
+      receiver.output(KV.of(record.getPartition(), record));
     }
   }
 
