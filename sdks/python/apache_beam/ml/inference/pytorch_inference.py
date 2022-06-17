@@ -45,7 +45,7 @@ def _convert_to_device(examples: torch.Tensor, device) -> torch.Tensor:
   """
   Converts samples to a style matching given device.
 
-  Note: A user may pass in device='GPU' but if GPU is not detected in the
+  **NOTE:** A user may pass in device='GPU' but if GPU is not detected in the
   environment it must be converted back to CPU.
   """
   if examples.device != device:
@@ -64,7 +64,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       device: str = 'CPU'):
     """Implementation of the ModelHandler interface for PyTorch.
 
-    Example Usage:
+    Example Usage::
+
       pcoll | RunInference(PytorchModelHandlerTensor(state_dict_path="my_uri"))
 
     Args:
@@ -153,11 +154,12 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       device: str = 'CPU'):
     """Implementation of the ModelHandler interface for PyTorch.
 
-    Example Usage:
+    Example Usage::
+
       pcoll | RunInference(
       PytorchModelHandlerKeyedTensor(state_dict_path="my_uri"))
 
-    NOTE: This API and its implementation are under development and
+    **NOTE:** This API and its implementation are under development and
     do not provide backward compatibility guarantees.
 
     See https://pytorch.org/tutorials/beginner/saving_loading_models.html
