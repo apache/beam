@@ -821,7 +821,7 @@ func init() {
   // 2 inputs and 0 outputs => DoFn2x0
   // 1 input => Emitter1
   // Input/output types are included in order in the brackets
-	register.DoFn2x0[string, func(int)](&ComputeWordLengthFn{})
+	register.Function2x0(&ComputeWordLengthFn{})
 	register.Emitter1[int]()
 }
 {{< /highlight >}}
@@ -1054,7 +1054,7 @@ var words beam.PCollection = ...
 <span class="language-go" >
 
 > **Note:** Anonymous function DoFns may not work on distributed runners.
-> It's recommended to use named functions and register them with `register.FunctionXxY[In1, In2, ..., InX, Out1, Out2, ..., OutY](myFunc)` in
+> It's recommended to use named functions and register them with `register.FunctionXxY` in
 > an `init()` block.
 
 </span>
@@ -2017,7 +2017,7 @@ Call emitter functions as needed to produce 0 or more elements for its matching
 `PCollection`. The same value can be emitted with multiple emitters.
 As normal, do not mutate values after emitting them from any emitter.
 
-All emitters should be registered using a generic `register.DoFnXxY[...]`
+All emitters should be registered using a generic `register.EmitterX[...]`
 function. This optimizes runtime execution of the emitter.
 {{< /paragraph >}}
 
