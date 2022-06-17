@@ -499,9 +499,11 @@ class TestReadFromBigQuery(unittest.TestCase):
         temp_dataset.projectId, temp_dataset.datasetId, mock.ANY)
 
   @parameterized.expand([
-      param(exception_type=exceptions.Forbidden, error_message='accessDenied'),
       param(
-          exception_type=exceptions.ServiceUnavailable,
+          exception_type=exceptions.Forbidden if exceptions else None,
+          error_message='accessDenied'),
+      param(
+          exception_type=exceptions.ServiceUnavailable if exceptions else None,
           error_message='backendError'),
   ])
   def test_create_temp_dataset_exception(self, exception_type, error_message):
@@ -525,10 +527,15 @@ class TestReadFromBigQuery(unittest.TestCase):
     self.assertIn(error_message, exc.exception.args[0])
 
   @parameterized.expand([
-      param(exception_type=exceptions.BadRequest, error_message='invalidQuery'),
-      param(exception_type=exceptions.NotFound, error_message='notFound'),
       param(
-          exception_type=exceptions.Forbidden, error_message='responseTooLarge')
+          exception_type=exceptions.BadRequest if exceptions else None,
+          error_message='invalidQuery'),
+      param(
+          exception_type=exceptions.NotFound if exceptions else None,
+          error_message='notFound'),
+      param(
+          exception_type=exceptions.Forbidden if exceptions else None,
+          error_message='responseTooLarge')
   ])
   def test_query_job_exception(self, exception_type, error_message):
 
@@ -538,6 +545,7 @@ class TestReadFromBigQuery(unittest.TestCase):
                         'get_query_location') as mock_query_location,\
       mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
                         'Insert') as mock_query_job,\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService, 'Get'), \
       mock.patch('time.sleep'), \
       self.assertRaises(Exception) as exc, \
       beam.Pipeline() as p:
@@ -547,7 +555,6 @@ class TestReadFromBigQuery(unittest.TestCase):
       mock_query_job.side_effect = exception_type(error_message)
 
       _ = p | ReadFromBigQuery(
-          project='apache-beam-testing',
           query='SELECT * FROM `project.dataset.table`',
           gcs_location='gs://temp_location')
 
@@ -555,8 +562,12 @@ class TestReadFromBigQuery(unittest.TestCase):
     self.assertIn(error_message, exc.exception.args[0])
 
   @parameterized.expand([
-      param(exception_type=exceptions.BadRequest, error_message='invalid'),
-      param(exception_type=exceptions.Forbidden, error_message='accessDenied')
+      param(
+          exception_type=exceptions.BadRequest if exceptions else None,
+          error_message='invalid'),
+      param(
+          exception_type=exceptions.Forbidden if exceptions else None,
+          error_message='accessDenied')
   ])
   def test_read_export_exception(self, exception_type, error_message):
 
@@ -932,9 +943,11 @@ class TestWriteToBigQuery(unittest.TestCase):
               test_client=client))
 
   @parameterized.expand([
-      param(exception_type=exceptions.Forbidden, error_message='accessDenied'),
       param(
-          exception_type=exceptions.ServiceUnavailable,
+          exception_type=exceptions.Forbidden if exceptions else None,
+          error_message='accessDenied'),
+      param(
+          exception_type=exceptions.ServiceUnavailable if exceptions else None,
           error_message='backendError')
   ])
   def test_load_job_exception(self, exception_type, error_message):
@@ -943,7 +956,7 @@ class TestWriteToBigQuery(unittest.TestCase):
                      'Insert') as mock_load_job,\
       mock.patch('apache_beam.io.gcp.internal.clients'
                  '.storage.storage_v1_client.StorageV1.ObjectsService'),\
-      mock.patch('time.sleep') as unused_mock,\
+      mock.patch('time.sleep'),\
       self.assertRaises(Exception) as exc,\
       beam.Pipeline() as p:
 
@@ -970,10 +983,10 @@ class TestWriteToBigQuery(unittest.TestCase):
 
   @parameterized.expand([
       param(
-          exception_type=exceptions.ServiceUnavailable,
+          exception_type=exceptions.ServiceUnavailable if exceptions else None,
           error_message='backendError'),
       param(
-          exception_type=exceptions.InternalServerError,
+          exception_type=exceptions.InternalServerError if exceptions else None,
           error_message='internalError'),
   ])
   def test_copy_load_job_exception(self, exception_type, error_message):
