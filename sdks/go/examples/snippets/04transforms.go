@@ -86,7 +86,7 @@ func splitStringPair(e stringPair) (string, string) {
 func init() {
 	// Register element types and DoFns.
 	beam.RegisterType(reflect.TypeOf((*stringPair)(nil)).Elem())
-	beam.RegisterFunction(splitStringPair)
+	register.Function1x2[stringPair, string, string](splitStringPair)
 }
 
 // CreateAndSplit is a helper function that creates
@@ -208,7 +208,7 @@ func formatCoGBKResults(key string, emailIter, phoneIter func(*string) bool) str
 }
 
 func init() {
-	beam.RegisterFunction(formatCoGBKResults)
+	register.Function3x1[string, func(*string) bool, func(*string) bool, string](formatCoGBKResults)
 	// 1 input of type string => Iter1[string]
 	register.Iter1[string]()
 }
@@ -264,7 +264,7 @@ func sumInts(a, v int) int {
 }
 
 func init() {
-	beam.RegisterFunction(sumInts)
+	register.Function2x1[int, int, int](sumInts)
 }
 
 func globallySumInts(s beam.Scope, ints beam.PCollection) beam.PCollection {
@@ -378,7 +378,7 @@ func decileFn(student Student) int {
 }
 
 func init() {
-	beam.RegisterFunction(decileFn)
+	register.Function1x1[Student, int](decileFn)
 }
 
 // [END model_multiple_pcollections_partition_fn]
@@ -425,8 +425,8 @@ func filterWordsBelow(word string, lengthCutOff float64, emitBelowCutoff func(st
 }
 
 func init() {
-	beam.RegisterFunction(filterWordsAbove)
-	beam.RegisterFunction(filterWordsBelow)
+	register.Function3x1[string, func(*float64) bool, func(string), error](filterWordsAbove)
+	register.Function3x0[string, float64, func(string)](filterWordsBelow)
 	// 1 input of type string => Emitter1[string]
 	register.Emitter1[string]()
 	// 1 input of type float64 => Iter1[float64]
@@ -482,8 +482,8 @@ func processWordsMixed(word string, emitMarked func(string)) int {
 }
 
 func init() {
-	beam.RegisterFunction(processWords)
-	beam.RegisterFunction(processWordsMixed)
+	register.Function4x0[string, func(string), func(string), func(string)](processWords)
+	register.Function2x1[string, func(string), int](processWordsMixed)
 	// 1 input of type string => Emitter1[string]
 	register.Emitter1[string]()
 }
@@ -529,7 +529,7 @@ func extractWordsFn(pn beam.PaneInfo, line string, emitWords func(string)) {
 // [END model_paneinfo]
 
 func init() {
-	beam.RegisterFunction(extractWordsFn)
+	register.Function3x0[beam.PaneInfo, string, func(string)](extractWordsFn)
 	// 1 input of type string => Emitter1[string]
 	register.Emitter1[string]()
 }

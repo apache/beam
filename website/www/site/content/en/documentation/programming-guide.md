@@ -1054,7 +1054,7 @@ var words beam.PCollection = ...
 <span class="language-go" >
 
 > **Note:** Anonymous function DoFns may not work on distributed runners.
-> It's recommended to use named functions and register them with `beam.RegisterFunction` in
+> It's recommended to use named functions and register them with `register.FunctionXxY[In1, In2, ..., InX, Out1, Out2, ..., OutY](myFunc)` in
 > an `init()` block.
 
 </span>
@@ -1757,7 +1757,7 @@ a remote worker in your processing cluster.
 as `DoFn`, `CombineFn`, and `WindowFn`, already implement `Serializable`;
 however, your subclass must not add any non-serializable members.</span>
 <span class="language-go">Funcs are serializable as long as
-they are registered with `beam.RegisterFunction` (for simple functions) or
+they are registered with `register.FunctionXxY` (for simple functions) or
 `register.DoFnXxY` (for sturctural DoFns), and are not closures. Structural
 `DoFn`s will have all exported fields serialized. Unexported fields are unable to
 be serialized, and will be silently ignored.</span>
