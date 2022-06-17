@@ -616,13 +616,24 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public @Nullable Table getTable(TableReference tableRef, List<String> selectedFields)
         throws IOException, InterruptedException {
-      return getTable(tableRef, selectedFields, createDefaultBackoff(), Sleeper.DEFAULT);
+      return getTable(tableRef, selectedFields, TableMetadataView.STORAGE_STATS);
+    }
+
+    @Override
+    public @Nullable Table getTable(
+        TableReference tableRef, List<String> selectedFields, TableMetadataView view)
+        throws IOException, InterruptedException {
+      return getTable(tableRef, selectedFields, view, createDefaultBackoff(), Sleeper.DEFAULT);
     }
 
     @VisibleForTesting
     @Nullable
     Table getTable(
-        TableReference ref, List<String> selectedFields, BackOff backoff, Sleeper sleeper)
+        TableReference ref,
+        List<String> selectedFields,
+        TableMetadataView view,
+        BackOff backoff,
+        Sleeper sleeper)
         throws IOException, InterruptedException {
       Tables.Get get =
           client
@@ -631,6 +642,9 @@ class BigQueryServicesImpl implements BigQueryServices {
               .setPrettyPrint(false);
       if (!selectedFields.isEmpty()) {
         get.setSelectedFields(String.join(",", selectedFields));
+      }
+      if (view != null) {
+        get.set("view", view.name());
       }
       try {
         return executeWithRetries(
