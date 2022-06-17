@@ -611,7 +611,7 @@ public class TextIOWriteTest {
 
   @Test
   public void testWriteDisplayData() {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10737
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20467
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     TextIO.Write write =
         TextIO.write()

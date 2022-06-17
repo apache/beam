@@ -33,7 +33,7 @@ import org.joda.time.Instant;
 
 /** An implementation of {@link TimerInternals} where all relevant data exists in memory. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class DirectTimerInternals implements TimerInternals {
   private final Clock processingTimeClock;

@@ -46,7 +46,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 
 /** Container class for different types of network nodes. All nodes only have reference equality. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Nodes {
   /** Base class for network nodes. All nodes only have reference equality. */

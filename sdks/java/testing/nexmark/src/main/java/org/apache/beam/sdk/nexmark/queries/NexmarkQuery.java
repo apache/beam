@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 
 /** Wrapper for 'NEXmark' query transforms that adds monitoring and snooping. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class NexmarkQuery<T extends KnownSize>
     extends PTransform<PCollection<Event>, PCollection<? extends TimestampedValue<T>>> {

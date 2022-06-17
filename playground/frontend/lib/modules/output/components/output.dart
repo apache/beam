@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:playground/modules/output/components/output_area.dart';
 import 'package:playground/modules/output/components/output_header/output_header.dart';
 
-const kTabsCount = 3;
+const kTabsCount = 2;
 
 class Output extends StatefulWidget {
   final bool isEmbedded;

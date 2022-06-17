@@ -37,7 +37,7 @@ import java.nio.channels.SeekableByteChannel;
 
 /** A readable S3 object, as a {@link SeekableByteChannel}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class S3ReadableSeekableByteChannel implements SeekableByteChannel {
 

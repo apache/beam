@@ -96,7 +96,7 @@ import org.slf4j.LoggerFactory;
 
 /** Provides operations on GCS. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GcsUtil {
 
@@ -1041,7 +1041,8 @@ public class GcsUtil {
   }
 
   public void remove(Collection<String> filenames) throws IOException {
-    // TODO(BEAM-8268): It would be better to add per-file retries and backoff
+    // TODO(https://github.com/apache/beam/issues/19859): It would be better to add per-file retries
+    // and backoff
     // instead of failing everything if a single operation fails.
     executeBatches(makeRemoveBatches(filenames));
   }

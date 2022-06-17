@@ -1204,7 +1204,6 @@ func TestAsSplittableUnit(t *testing.T) {
 			fn            *graph.DoFn
 			in            FullValue
 			finishPrimary bool
-			expErr        bool
 			wantResiduals []*FullValue
 		}{
 			{
@@ -1223,7 +1222,6 @@ func TestAsSplittableUnit(t *testing.T) {
 					Windows:   testWindows,
 				},
 				finishPrimary: true,
-				expErr:        false,
 				wantResiduals: []*FullValue{{
 					Elm: &FullValue{
 						Elm: 1,
@@ -1236,25 +1234,6 @@ func TestAsSplittableUnit(t *testing.T) {
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				}},
-			},
-			{
-				name: "unfinished primary",
-				fn:   dfn,
-				in: FullValue{
-					Elm: &FullValue{
-						Elm: 1,
-						Elm2: &FullValue{
-							Elm:  &VetRestriction{ID: "Sdf"},
-							Elm2: false,
-						},
-					},
-					Elm2:      1.0,
-					Timestamp: testTimestamp,
-					Windows:   testWindows,
-				},
-				finishPrimary: false,
-				expErr:        true,
-				wantResiduals: []*FullValue{},
 			},
 		}
 		for _, test := range tests {
@@ -1276,20 +1255,12 @@ func TestAsSplittableUnit(t *testing.T) {
 					t.Fatalf("ProcessSizedElementsAndRestrictions.Up() failed: %v", err)
 				}
 				gotResiduals, err := su.Checkpoint()
-				if test.expErr {
-					if err == nil {
-						t.Errorf("SplittableUnit.Checkpoint() succeeded when it should have failed")
-					}
-					if len(gotResiduals) != 0 {
-						t.Errorf("SplittableUnit.Checkpoint() got residuals %v, want none", gotResiduals)
-					}
-				} else {
-					if err != nil {
-						t.Fatalf("SplittableUnit.Checkpoint() returned error, got %v", err)
-					}
-					if diff := cmp.Diff(gotResiduals, test.wantResiduals); diff != "" {
-						t.Errorf("SplittableUnit.Checkpoint() has incorrect residual (-got, +want)\n%v", diff)
-					}
+
+				if err != nil {
+					t.Fatalf("SplittableUnit.Checkpoint() returned error, got %v", err)
+				}
+				if diff := cmp.Diff(gotResiduals, test.wantResiduals); diff != "" {
+					t.Errorf("SplittableUnit.Checkpoint() has incorrect residual (-got, +want)\n%v", diff)
 				}
 			})
 		}

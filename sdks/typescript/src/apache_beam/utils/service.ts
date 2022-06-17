@@ -155,7 +155,7 @@ export class JavaJarService extends SubprocessService {
   static JAR_CACHE = path.join(BEAM_CACHE, "jars");
 
   constructor(jar: string, args: string[] | undefined = undefined) {
-    if (args == undefined) {
+    if (args === null || args === undefined) {
       // TODO: (Extension) Should filesToStage be set at some higher level?
       args = ["{{PORT}}", "--filesToStage=" + jar];
     }
@@ -268,7 +268,7 @@ export class JavaJarService extends SubprocessService {
   ): string {
     return (
       [artifactId, appendix, version, classifier]
-        .filter((s) => s != undefined)
+        .filter((s) => s !== null && s !== undefined)
         .join("-") + ".jar"
     );
   }
@@ -281,7 +281,7 @@ export class PythonService extends SubprocessService {
     for (const bin of ["python3", "python"]) {
       try {
         const result = childProcess.spawnSync(bin, ["--version"]);
-        if (result.status == 0) {
+        if (result.status === 0) {
           return bin;
         }
       } catch (err) {
@@ -317,7 +317,7 @@ export class PythonService extends SubprocessService {
       [bootstrapScript],
       { encoding: "latin1" }
     );
-    if (result.status == 0) {
+    if (result.status === 0) {
       console.debug(result.stdout);
       const lines = result.stdout.trim().split("\n");
       return lines[lines.length - 1];

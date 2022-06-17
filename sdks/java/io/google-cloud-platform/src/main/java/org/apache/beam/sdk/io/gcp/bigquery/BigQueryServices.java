@@ -97,7 +97,8 @@ public interface BigQueryServices extends Serializable {
     Job pollJob(JobReference jobRef, int maxAttempts) throws InterruptedException;
 
     /** Dry runs the query in the given project. */
-    JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig, String location)
+    JobStatistics dryRunQuery(
+        String projectId, JobConfigurationQuery queryConfig, @Nullable String location)
         throws InterruptedException, IOException;
 
     /**

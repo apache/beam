@@ -90,7 +90,7 @@ export function sessions(gapSeconds: number | Long): WindowFn<IntervalWindow> {
 }
 
 function secsToMillisLong(secs: number | Long): Long {
-  if (typeof secs == "number") {
+  if (typeof secs === "number") {
     return Long.fromValue(secs * 1000);
   } else {
     return secs.mul(1000);

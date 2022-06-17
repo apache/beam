@@ -28,12 +28,13 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaTooNarrowException;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({"nullness"})
-public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
+public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
   private final SerializableFunction<T, TableRow> formatFunction;
   private final CreateDisposition createDisposition;
@@ -69,7 +70,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
   public MessageConverter<T> getMessageConverter(
       DestinationT destination, DatasetService datasetService) throws Exception {
     return new MessageConverter<T>() {
-      TableSchema tableSchema;
+      @Nullable TableSchema tableSchema;
       TableRowToStorageApiProto.SchemaInformation schemaInformation;
       Descriptor descriptor;
       long descriptorHash;

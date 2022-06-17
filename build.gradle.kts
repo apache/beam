@@ -196,15 +196,10 @@ tasks.register("javaPreCommitPortabilityApi") {
 tasks.register("javaPostCommit") {
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:postCommit")
   dependsOn(":sdks:java:extensions:zetasketch:postCommit")
-  dependsOn(":sdks:java:io:debezium:integrationTest")
-  dependsOn(":sdks:java:io:jdbc:integrationTest")
   dependsOn(":sdks:java:io:google-cloud-platform:postCommit")
-  dependsOn(":sdks:java:io:kinesis:integrationTest")
   dependsOn(":sdks:java:io:amazon-web-services:integrationTest")
   dependsOn(":sdks:java:io:amazon-web-services2:integrationTest")
   dependsOn(":sdks:java:extensions:ml:postCommit")
-  dependsOn(":sdks:java:io:kafka:kafkaVersionsCompatibilityTest")
-  dependsOn(":sdks:java:io:neo4j:integrationTest")
 }
 
 tasks.register("javaPostCommitSickbay") {
@@ -302,7 +297,7 @@ tasks.register("pythonDockerBuildPreCommit") {
 }
 
 tasks.register("pythonLintPreCommit") {
-  // TODO(BEAM-9980): Find a better way to specify lint and formatter tasks without hardcoding py version.
+  // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify lint and formatter tasks without hardcoding py version.
   dependsOn(":sdks:python:test-suites:tox:py37:lint")
 }
 
@@ -320,6 +315,7 @@ tasks.register("python37PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py37:spannerioIT")
   dependsOn(":sdks:python:test-suites:direct:py37:spannerioIT")
   dependsOn(":sdks:python:test-suites:portable:py37:xlangSpannerIOIT")
+  dependsOn(":sdks:python:test-suites:direct:py37:inferencePostCommitIT")
 }
 
 tasks.register("python38PostCommit") {
@@ -334,11 +330,7 @@ tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
-}
-
-
-task("python36SickbayPostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py36:postCommitSickbay")
+  dependsOn(":sdks:python:test-suites:direct:py39:inferencePostCommitIT")
 }
 
 task("python37SickbayPostCommit") {
@@ -387,14 +379,14 @@ tasks.register("runBeamDependencyCheck") {
 }
 
 tasks.register("whitespacePreCommit") {
-  // TODO(BEAM-9980): Find a better way to specify the tasks without hardcoding py version.
+  // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
   dependsOn(":sdks:python:test-suites:tox:py38:archiveFilesToLint")
   dependsOn(":sdks:python:test-suites:tox:py38:unpackFilesToLint")
   dependsOn(":sdks:python:test-suites:tox:py38:whitespacelint")
 }
 
 tasks.register("typescriptPreCommit") {
-  // TODO(BEAM-9980): Find a better way to specify the tasks without hardcoding py version.
+  // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
   dependsOn(":sdks:python:test-suites:tox:py38:eslint")
   dependsOn(":sdks:python:test-suites:tox:py38:jest")
 }

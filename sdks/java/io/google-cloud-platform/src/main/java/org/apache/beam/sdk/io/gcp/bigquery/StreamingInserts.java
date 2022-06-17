@@ -24,14 +24,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * PTransform that performs streaming BigQuery write. To increase consistency, it leverages
  * BigQuery's best effort de-dup mechanism.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class StreamingInserts<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
   private BigQueryServices bigQueryServices;
@@ -43,11 +41,11 @@ public class StreamingInserts<DestinationT, ElementT>
   private final boolean ignoreUnknownValues;
   private final boolean ignoreInsertIds;
   private final boolean autoSharding;
-  private final String kmsKey;
+  private final @Nullable String kmsKey;
   private final Coder<ElementT> elementCoder;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
   private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
-  private final SerializableFunction<ElementT, String> deterministicRecordIdFn;
+  private final @Nullable SerializableFunction<ElementT, String> deterministicRecordIdFn;
 
   /** Constructor. */
   public StreamingInserts(
@@ -87,8 +85,8 @@ public class StreamingInserts<DestinationT, ElementT>
       Coder<ElementT> elementCoder,
       SerializableFunction<ElementT, TableRow> toTableRow,
       SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
-      SerializableFunction<ElementT, String> deterministicRecordIdFn,
-      String kmsKey) {
+      @Nullable SerializableFunction<ElementT, String> deterministicRecordIdFn,
+      @Nullable String kmsKey) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
     this.bigQueryServices = bigQueryServices;

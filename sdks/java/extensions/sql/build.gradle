@@ -29,7 +29,7 @@ applyJavaNature(
   ],
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
   classesTriggerCheckerBugs: [
-    // TODO(BEAM-12687): This currently crashes with checkerframework 3.10.0
+    // TODO(https://github.com/apache/beam/issues/21068): This currently crashes with checkerframework 3.10.0
     // when compiling :sdks:java:extensions:sql:compileJava with:
     // message: class file for com.google.datastore.v1.Entity not found
     // ; The Checker Framework crashed.  Please report the crash.
@@ -37,7 +37,7 @@ applyJavaNature(
     // Last visited tree at line 49 column 1:
     // @AutoService(TableProvider.class)
     // Exception: com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.datastore.v1.Entity not found; com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.datastore.v1.Entity not found
-    'DataStoreV1TableProvider': 'TODO(BEAM-12687): Report the crash if still occurring on newest version',
+    'DataStoreV1TableProvider': 'TODO(https://github.com/apache/beam/issues/21068): Report the crash if still occurring on newest version',
   ],
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann', 'rawtypes'],
@@ -66,7 +66,7 @@ hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
 
-  // TODO(BEAM-13179): Determine how to build without this dependency
+  // TODO(https://github.com/apache/beam/issues/21156): Determine how to build without this dependency
   provided "org.immutables:value:2.8.8"
   permitUnusedDeclared "org.immutables:value:2.8.8"
   javacc "net.java.dev.javacc:javacc:4.0"

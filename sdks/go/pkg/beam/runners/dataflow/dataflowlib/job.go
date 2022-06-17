@@ -75,7 +75,8 @@ type JobOptions struct {
 	MaxNumWorkers        int64
 	WorkerHarnessThreads int64
 
-	TempLocation string
+	TempLocation     string
+	TemplateLocation string
 
 	// Worker is the worker binary override.
 	Worker string

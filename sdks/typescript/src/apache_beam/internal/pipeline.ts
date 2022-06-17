@@ -43,7 +43,7 @@ export class PipelineContext {
 
   getCoder<T>(coderId: string): Coder<T> {
     const this_ = this;
-    if (this.coders[coderId] == undefined) {
+    if (this.coders[coderId] === null || this.coders[coderId] === undefined) {
       const coderProto = this.components.coders[coderId];
       const components: Coder<unknown>[] = (
         coderProto.componentCoderIds || []
@@ -70,7 +70,7 @@ export class PipelineContext {
   }
 
   getPCollectionCoderId<T>(pcoll: pvalue.PCollection<T>): string {
-    const pcollId = typeof pcoll == "string" ? pcoll : pcoll.getId();
+    const pcollId = typeof pcoll === "string" ? pcoll : pcoll.getId();
     return this.components!.pcollections[pcollId].coderId;
   }
 
@@ -272,14 +272,14 @@ export class Pipeline {
     const pcollId = this.context.createUniqueName("pc");
     let coderId: string;
     let windowingStrategyId: string;
-    if (typeof coder == "string") {
+    if (typeof coder === "string") {
       coderId = coder;
     } else {
       coderId = this.context.getCoderId(coder);
     }
-    if (windowingStrategy == undefined) {
+    if (windowingStrategy === null || windowingStrategy === undefined) {
       windowingStrategyId = undefined!;
-    } else if (typeof windowingStrategy == "string") {
+    } else if (typeof windowingStrategy === "string") {
       windowingStrategyId = windowingStrategy;
     } else {
       windowingStrategyId = this.context.getWindowingStrategyId(
@@ -318,9 +318,9 @@ function onlyValueOr<T>(
   defaultValue: T,
   comparator: (a: T, b: T) => boolean = (a, b) => false
 ) {
-  if (valueSet.size == 0) {
+  if (valueSet.size === 0) {
     return defaultValue;
-  } else if (valueSet.size == 1) {
+  } else if (valueSet.size === 1) {
     return valueSet.values().next().value;
   } else {
     const candidate = valueSet.values().next().value;

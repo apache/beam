@@ -82,7 +82,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FnHarness {
   private static final String HARNESS_ID = "HARNESS_ID";
@@ -290,7 +290,8 @@ public class FnHarness {
                 processWideCache);
       }
 
-      // TODO(BEAM-9729): Remove once runners no longer send this instruction.
+      // TODO(https://github.com/apache/beam/issues/20270): Remove once runners no longer send this
+      // instruction.
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.REGISTER,
           request ->

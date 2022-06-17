@@ -542,8 +542,8 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class KafkaIO {
 
@@ -1331,7 +1331,8 @@ public class KafkaIO {
     private boolean runnerPrefersLegacyRead(PipelineOptions options) {
       // Only Dataflow runner requires sdf read at this moment. For other non-portable runners, if
       // it doesn't specify use_sdf_read, it will use legacy read regarding to performance concern.
-      // TODO(BEAM-10670): Remove this special check when we address performance issue.
+      // TODO(https://github.com/apache/beam/issues/20530): Remove this special check when we
+      // address performance issue.
       if (ExperimentalOptions.hasExperiment(options, "use_sdf_read")) {
         return false;
       }
@@ -1444,6 +1445,9 @@ public class KafkaIO {
                 .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn());
         if (kafkaRead.isCommitOffsetsInFinalizeEnabled()) {
           readTransform = readTransform.commitOffsets();
+        }
+        if (kafkaRead.getStopReadTime() != null) {
+          readTransform = readTransform.withBounded();
         }
         PCollection<KafkaSourceDescriptor> output;
         if (kafkaRead.isDynamicRead()) {
@@ -1664,8 +1668,9 @@ public class KafkaIO {
   @SuppressFBWarnings("URF_UNREAD_FIELD")
   /**
    * Represents a Kafka record with metadata whey key and values are byte arrays. This class should
-   * only be used to represent a Kafka record for external transforms. TODO(BEAM-7345): use regular
-   * KafkaRecord class when Beam Schema inference supports generics.
+   * only be used to represent a Kafka record for external transforms.
+   * TODO(https://github.com/apache/beam/issues/18919): use regular KafkaRecord class when Beam
+   * Schema inference supports generics.
    */
   static class ByteArrayKafkaRecord {
 
@@ -1673,8 +1678,8 @@ public class KafkaIO {
     int partition;
     long offset;
     long timestamp;
-    byte[] key;
-    byte[] value;
+    byte @Nullable [] key;
+    byte @Nullable [] value;
     List<KafkaHeader> headers;
     int timestampTypeId;
     String timestampTypeName;
@@ -1843,6 +1848,8 @@ public class KafkaIO {
 
     abstract @Nullable TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
+    abstract boolean isBounded();
+
     abstract ReadSourceDescriptors.Builder<K, V> toBuilder();
 
     @AutoValue.Builder
@@ -1880,6 +1887,8 @@ public class KafkaIO {
       abstract ReadSourceDescriptors.Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> policy);
 
+      abstract ReadSourceDescriptors.Builder<K, V> setBounded(boolean bounded);
+
       abstract ReadSourceDescriptors<K, V> build();
     }
 
@@ -1888,6 +1897,7 @@ public class KafkaIO {
           .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
           .setConsumerConfig(KafkaIOUtils.DEFAULT_CONSUMER_PROPERTIES)
           .setCommitOffsetEnabled(false)
+          .setBounded(false)
           .build()
           .withProcessingTime()
           .withMonotonicallyIncreasingWatermarkEstimator();
@@ -2180,6 +2190,11 @@ public class KafkaIO {
           .withManualWatermarkEstimator();
     }
 
+    /** Enable treating the Kafka sources as bounded as opposed to the unbounded default. */
+    ReadSourceDescriptors<K, V> withBounded() {
+      return toBuilder().setBounded(true).build();
+    }
+
     @Override
     public PCollection<KafkaRecord<K, V>> expand(PCollection<KafkaSourceDescriptor> input) {
       checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
@@ -2214,7 +2229,7 @@ public class KafkaIO {
       try {
         PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> outputWithDescriptor =
             input
-                .apply(ParDo.of(new ReadFromKafkaDoFn<K, V>(this)))
+                .apply(ParDo.of(ReadFromKafkaDoFn.<K, V>create(this)))
                 .setCoder(
                     KvCoder.of(
                         input
