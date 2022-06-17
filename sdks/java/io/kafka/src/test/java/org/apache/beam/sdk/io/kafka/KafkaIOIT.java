@@ -23,10 +23,8 @@ import static org.junit.Assert.assertNull;
 
 import com.google.cloud.Timestamp;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -232,7 +230,7 @@ public class KafkaIOIT {
   public void testKafkaIOExternalRoundtripWithMetadataAndNullKeysAndValues() throws IOException {
 
     writePipeline
-        .apply(Create.of(KV.<byte[],byte[]>of(null,null)))
+        .apply(Create.of(KV.<byte[], byte[]>of(null, null)))
         .apply("Write to Kafka", writeToKafka());
 
     PCollection<Row> rows =
@@ -260,7 +258,8 @@ public class KafkaIOIT {
     writeResult.waitUntilFinish();
 
     PipelineResult readResult = readPipeline.run();
-    PipelineResult.State readState = readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
 
     cancelIfTimeouted(readResult, readState);
   }
