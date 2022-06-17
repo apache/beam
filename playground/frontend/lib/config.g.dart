@@ -17,6 +17,8 @@
  */
 
 const String kAnalyticsUA = 'UA-73650088-2';
+const int kMatomoSiteId = 19;
+const String kMatomoEndpointUrl = 'https://analytics.apache.org/matomo.php';
 const String kApiClientURL =
     'https://backend-router-beta-dot-apache-beam-testing.appspot.com';
 const String kApiJavaClientURL =
