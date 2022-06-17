@@ -304,6 +304,10 @@ h2.case-study-h2 {
         display: block;
         margin: 0 auto;
         width: 40%;
+
+        @media (max-width: $mobile) {
+          width: 25%;
+        }
       }
     }
   }
