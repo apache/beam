@@ -51,19 +51,19 @@ public class WatchForKafkaTopicPartitions
   private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
       kafkaConsumerFactoryFn;
   private final Map<String, Object> kafkaConsumerConfig;
-  private final SerializableFunction<TopicPartition, Boolean> checkStopReadingFn;
+  private final @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn;
   private final List<String> topics;
-  private final Instant startReadTime;
-  private final Instant stopReadTime;
+  private final @Nullable Instant startReadTime;
+  private final @Nullable Instant stopReadTime;
 
   public WatchForKafkaTopicPartitions(
       @Nullable Duration checkDuration,
       SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> kafkaConsumerFactoryFn,
       Map<String, Object> kafkaConsumerConfig,
-      SerializableFunction<TopicPartition, Boolean> checkStopReadingFn,
+      @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn,
       List<String> topics,
-      Instant startReadTime,
-      Instant stopReadTime) {
+      @Nullable Instant startReadTime,
+      @Nullable Instant stopReadTime) {
     this.checkDuration = checkDuration == null ? DEFAULT_CHECK_DURATION : checkDuration;
     this.kafkaConsumerFactoryFn = kafkaConsumerFactoryFn;
     this.kafkaConsumerConfig = kafkaConsumerConfig;
