@@ -229,28 +229,18 @@ public class KafkaIOIT {
   // This test roundtrips a single KV<Null,Null> to verify that externalWithMetadata
   // can handle null keys and values correctly.
   @Test
-  public void testKafkaIOExternalRoundtripWithMetadataAndNullKeysAndValues() {
+  public void testKafkaIOExternalRoundtripWithMetadataAndNullKeysAndValues() throws IOException {
 
-    List<byte[]> nullList = new ArrayList<>();
-    nullList.add(null);
     writePipeline
-        .apply(Create.of(nullList))
-        .apply(ParDo.of(new ElementToKVFn()))
-        .apply(
-            KafkaIO.<byte[], byte[]>write()
-                .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
-                .withTopic(options.getKafkaTopic())
-                .withKeySerializer(ByteArraySerializer.class)
-                .withValueSerializer(ByteArraySerializer.class));
-
-    PipelineResult writeResult = writePipeline.run();
-    writeResult.waitUntilFinish();
+        .apply(Create.of(KV.<byte[],byte[]>of(null,null)))
+        .apply("Write to Kafka", writeToKafka());
 
     PCollection<Row> rows =
         readPipeline.apply(
             KafkaIO.<byte[], byte[]>read()
                 .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
                 .withTopic(options.getKafkaTopic())
+                .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
                 .withKeyDeserializerAndCoder(
                     ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
                 .withValueDeserializerAndCoder(
@@ -266,8 +256,13 @@ public class KafkaIOIT {
               return null;
             });
 
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
+
     PipelineResult readResult = readPipeline.run();
-    readResult.waitUntilFinish();
+    PipelineResult.State readState = readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    cancelIfTimeouted(readResult, readState);
   }
 
   @Test
@@ -328,7 +323,7 @@ public class KafkaIOIT {
                   .withKeySerializer(IntegerSerializer.class)
                   .withValueSerializer(StringSerializer.class));
 
-      writePipeline.run().waitUntilFinish();
+      writePipeline.run().waitUntilFinish(Duration.standardSeconds(15));
 
       client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(2)));
 
@@ -342,7 +337,7 @@ public class KafkaIOIT {
                   .withKeySerializer(IntegerSerializer.class)
                   .withValueSerializer(StringSerializer.class));
 
-      writePipeline.run().waitUntilFinish();
+      writePipeline.run().waitUntilFinish(Duration.standardSeconds(15));
 
       readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
 
@@ -404,14 +399,6 @@ public class KafkaIOIT {
         .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
         .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
         .withTopic(options.getKafkaTopic());
-  }
-
-  private static class ElementToKVFn extends DoFn<byte[], KV<byte[], byte[]>> {
-    @ProcessElement
-    public void processElement(
-        @Element byte[] element, OutputReceiver<KV<byte[], byte[]>> receiver) {
-      receiver.output(KV.of(element, element));
-    }
   }
 
   private static class CountingFn extends DoFn<String, Void> {
