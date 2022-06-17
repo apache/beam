@@ -199,8 +199,11 @@ public class Read {
      * Returns a new {@link BoundedReadFromUnboundedSource} that reads a bounded amount of data from
      * the given {@link UnboundedSource}. The bound is specified as an amount of time to read for.
      * Each split of the source will read for this much time.
+     *
+     * @param maxReadTime upper bound of how long to read from the unbounded source; disabled if
+     *     null
      */
-    public BoundedReadFromUnboundedSource<T> withMaxReadTime(Duration maxReadTime) {
+    public BoundedReadFromUnboundedSource<T> withMaxReadTime(@Nullable Duration maxReadTime) {
       return new BoundedReadFromUnboundedSource<>(source, Long.MAX_VALUE, maxReadTime);
     }
 
