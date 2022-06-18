@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"sort"
@@ -74,7 +73,7 @@ func (f *fs) OpenRead(_ context.Context, filename string) (io.ReadCloser, error)
 	defer f.mu.Unlock()
 
 	if v, ok := f.m[normalize(filename)]; ok {
-		return ioutil.NopCloser(bytes.NewReader(v)), nil
+		return &bytesReader{bytes.NewReader(v)}, nil
 	}
 	return nil, os.ErrNotExist
 }
@@ -161,4 +160,17 @@ func (w *commitWriter) Write(p []byte) (n int, err error) {
 
 func (w *commitWriter) Close() error {
 	return w.instance.write(w.key, w.buf.Bytes())
+}
+
+// bytesReader is like a bytes.Reader that implements io.Closer as well.
+type bytesReader struct {
+	impl *bytes.Reader
+}
+
+var _ io.ReadSeekCloser = (*bytesReader)(nil)
+
+func (r *bytesReader) Read(p []byte) (n int, err error) { return r.impl.Read(p) }
+func (r *bytesReader) Close() error                     { return nil }
+func (r *bytesReader) Seek(offset int64, whence int) (int64, error) {
+	return r.impl.Seek(offset, whence)
 }
