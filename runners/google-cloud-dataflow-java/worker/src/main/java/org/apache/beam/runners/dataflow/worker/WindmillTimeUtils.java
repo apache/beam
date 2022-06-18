@@ -42,27 +42,19 @@ public class WindmillTimeUtils {
    * round timestamps down and output watermarks up.
    */
   public static Instant windmillToHarnessTimestamp(long timestampUs) {
-    return windmillToHarnessTimestamp(timestampUs, BoundedWindow.TIMESTAMP_MAX_VALUE);
-  }
-
-  public static Instant windmillToHarnessTimestamp(long timestampUs, Instant maxTimestamp) {
     // Windmill should never send us an unknown timestamp.
     Preconditions.checkArgument(timestampUs != Long.MIN_VALUE);
     Instant result = new Instant(divideAndRoundDown(timestampUs, 1000));
-    if (result.isAfter(maxTimestamp)) {
+    if (result.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
       // End of time.
-      return maxTimestamp;
+      return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
     return result;
   }
 
   /** Convert a harness timestamp to a Windmill timestamp. */
   public static long harnessToWindmillTimestamp(Instant timestamp) {
-    return harnessToWindmillTimestamp(timestamp, BoundedWindow.TIMESTAMP_MAX_VALUE);
-  }
-
-  public static long harnessToWindmillTimestamp(Instant timestamp, Instant maxTimestamp) {
-    if (!timestamp.isBefore(maxTimestamp)) {
+    if (!timestamp.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
       // End of time.
       return Long.MAX_VALUE;
     } else if (timestamp.getMillis() < Long.MIN_VALUE / 1000) {
