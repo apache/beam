@@ -29,20 +29,22 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/healthcare/v1"
 	"google.golang.org/api/option"
 )
 
 const (
-	UserAgent        = "apache-beam-io-google-cloud-platform-healthcare/" + core.SdkVersion
-	baseMetricPrefix = "fhirio/"
+	UserAgent             = "apache-beam-io-google-cloud-platform-healthcare/" + core.SdkVersion
+	baseMetricPrefix      = "fhirio/"
+	pageTokenParameterKey = "_page_token"
 )
 
-func executeRequestAndRecordLatency(ctx context.Context, latencyMs *beam.Distribution, requestSupplier func() (*http.Response, error)) (*http.Response, error) {
+func executeAndRecordLatency[T any](ctx context.Context, latencyMs *beam.Distribution, executionSupplier func() (T, error)) (T, error) {
 	timeBeforeReadRequest := time.Now()
-	response, err := requestSupplier()
+	result, err := executionSupplier()
 	latencyMs.Update(ctx, time.Since(timeBeforeReadRequest).Milliseconds())
-	return response, err
+	return result, err
 }
 
 func extractBodyFrom(response *http.Response) (string, error) {
@@ -86,6 +88,7 @@ func (fnc *fhirioFnCommon) setup(namespace string) {
 type fhirStoreClient interface {
 	readResource(resourcePath string) (*http.Response, error)
 	executeBundle(storePath string, bundle []byte) (*http.Response, error)
+	search(storePath, resourceType string, queries map[string]string, pageToken string) (*http.Response, error)
 }
 
 type fhirStoreClientImpl struct {
@@ -106,4 +109,16 @@ func (c *fhirStoreClientImpl) readResource(resourcePath string) (*http.Response,
 
 func (c *fhirStoreClientImpl) executeBundle(storePath string, bundle []byte) (*http.Response, error) {
 	return c.fhirService.ExecuteBundle(storePath, bytes.NewReader(bundle)).Do()
+}
+
+func (c *fhirStoreClientImpl) search(storePath, resourceType string, queries map[string]string, pageToken string) (*http.Response, error) {
+	queryParams := make([]googleapi.CallOption, 0)
+	for key, value := range queries {
+		queryParams = append(queryParams, googleapi.QueryParameter(key, value))
+	}
+
+	if pageToken != "" {
+		queryParams = append(queryParams, googleapi.QueryParameter(pageTokenParameterKey, pageToken))
+	}
+	return c.fhirService.Search(storePath, &healthcare.SearchResourcesRequest{ResourceType: resourceType}).Do(queryParams...)
 }

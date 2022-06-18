@@ -45,7 +45,7 @@ func (fn *readResourceFn) Setup() {
 }
 
 func (fn *readResourceFn) ProcessElement(ctx context.Context, resourcePath string, emitResource, emitDeadLetter func(string)) {
-	response, err := executeRequestAndRecordLatency(ctx, &fn.latencyMs, func() (*http.Response, error) {
+	response, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() (*http.Response, error) {
 		return fn.client.readResource(resourcePath)
 	})
 	if err != nil {
