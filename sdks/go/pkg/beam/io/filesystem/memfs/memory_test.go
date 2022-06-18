@@ -105,7 +105,7 @@ func TestList(t *testing.T) {
 			t.Fatalf("Write(%q) error = %v", name, err)
 		}
 	}
-	glob := "memfs://foo.*"
+	glob := "memfs://foo*"
 	got, err := fs.List(ctx, glob)
 	if err != nil {
 		t.Errorf("error List(%q) = %v", glob, err)
@@ -114,6 +114,14 @@ func TestList(t *testing.T) {
 	want := []string{"memfs://foo", "memfs://foobar"}
 	if d := cmp.Diff(want, got); d != "" {
 		t.Errorf("List(%q) = %v, want %v", glob, got, want)
+	}
+
+	{
+		glob := "foo*"
+		_, err := fs.List(ctx, glob)
+		if err == nil {
+			t.Errorf("List(%q) was successful, wanted error", glob)
+		}
 	}
 }
 
@@ -133,14 +141,14 @@ func TestRemove(t *testing.T) {
 		t.Errorf("error Remove(%q) = %v", toremove, err)
 	}
 
-	got, err := fs.List(ctx, ".*")
+	got, err := fs.List(ctx, "memfs://*")
 	if err != nil {
-		t.Errorf("error List(\".*\") = %v", err)
+		t.Errorf("error List(\"*\") = %v", err)
 	}
 
 	want := []string{"memfs://bazfoo", "memfs://fizzbuzz"}
 	if d := cmp.Diff(want, got); d != "" {
-		t.Errorf("After Remove fs.List(\".*\") = %v, want %v", got, want)
+		t.Errorf("After Remove fs.List(\"*\") = %v, want %v", got, want)
 	}
 }
 
@@ -156,7 +164,7 @@ func TestCopy(t *testing.T) {
 	if err := filesystem.Copy(ctx, fs, "memfs://fizzbuzz", "memfs://fizzbang"); err != nil {
 		t.Fatalf("Copy() error = %v", err)
 	}
-	glob := "memfs://fizz.*"
+	glob := "memfs://fizz*"
 	got, err := fs.List(ctx, glob)
 	if err != nil {
 		t.Errorf("error List(%q) = %v", glob, err)
@@ -188,7 +196,7 @@ func TestRename(t *testing.T) {
 	if err := filesystem.Rename(ctx, fs, "memfs://fizzbuzz", "memfs://fizzbang"); err != nil {
 		t.Fatalf("Rename() error = %v", err)
 	}
-	glob := "memfs://fizz.*"
+	glob := "memfs://fizz*"
 	got, err := fs.List(ctx, glob)
 	if err != nil {
 		t.Errorf("error List(%q) = %v", glob, err)
