@@ -52,8 +52,57 @@
         </div>
     </div>
 </div>
+<h4>OUR CODE</h4>
+{{ range getJSON "https://pastebin.com/raw/J30dwqzW" (.Get "capability-matrix") }}
+{{ $colcol := .columns}}
+{{ range $categ := .categories}}
+<h4>{{ $categ.description }}</h4>
+<div class="table-container">
+    <div class="table-left">
+        <table>
+            <tr>
+                <th></th>
+            </tr>
+                {{ range $categ.rows}}
+                    <tr>
+                        <th>
+                            {{.name}}
+                        </th>
+                    </tr>
+                {{end}}
+        </table>
+    </div>
+    <div class="table-right">
+        <div id="{{ $categ.description | urlize }}" class="table-headers">
+            <table>
+                <tr>
+                    {{ range $col := $colcol }}
+                        <th>{{ $col.name }}</th>
+                    {{ end }}
+                </tr>
+            </table>
+        </div>
+        <div id="{{ $categ.description | urlize }}" class="table-center">
+            <table>
+                {{ range $row := $categ.rows }}
+                    <tr>
+                        {{ range $val := $row.values }}
+                        <td style='background-color:#{{ if eq $val.l1 "Yes" }}{{ index $categ "color-y" }}{{ else if eq $val.l1 "Partially" }}{{ index $categ "color-p" }}{{ else }}{{ index $categ "color-n" }}{{ end }};border-color:#{{ if eq $val.l1 "Yes" }}{{ index $categ "color-yb" }}{{ else if eq $val.l1 "Partially" }}{{ index $categ "color-pb" }}{{ else }}{{ index $categ "color-nb" }}{{ end }}'>
+                                {{ partial "documentation/capability-matrix-row" (dict "type" $cap_view "val" $val) }}
+                            </td>
+                        {{ end }}
+                    </tr>
+                {{ end }}
+            </table>
+        </div>
+    </div>
+</div>
+{{end}}
+{{end}}
+<h4>END</h4>
+
 {{ range $category := $cap_data.categories }}
-    <h4>{{ $category.description }}</h4>
+<h4>{{ $category.description }}</h4>
     <div class="table-container">
         <div class="table-left">
             <table>
