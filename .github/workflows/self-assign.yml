@@ -15,30 +15,42 @@
 
 name: Assign or close an issue
 on: 
-  issue_comment:
+  #issue_comment:
+  push:
+    branches: ['beam-12812-githubactions-june22']
 
 jobs:
   assign:
     name: Take or close an issue
     runs-on: [self-hosted, ubuntu-20.04]
     steps:
-    - run: |
-        BODY="$(jq '.comment.body' $GITHUB_EVENT_PATH)"
-        ISSUE_NUMBER="$(jq '.issue.number' $GITHUB_EVENT_PATH)"
-        LOGIN="$(jq '.comment.user.login' $GITHUB_EVENT_PATH | tr -d \")"
-        REPO="$(jq '.repository.full_name' $GITHUB_EVENT_PATH | tr -d \")"
-        ISSUE_JSON="$(jq '.issue' $GITHUB_EVENT_PATH)"
-        if [[ $BODY == *"$INPUT_TAKE"* && $BODY != *"\`$INPUT_TAKE\`"* ]]; then
-          echo "Assigning issue $ISSUE_NUMBER to $LOGIN"
-          echo "Using the link: https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/assignees"
-          curl -H "Authorization: token $GITHUB_TOKEN" -d '{"assignees":["'"$LOGIN"'"]}' https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/assignees
-        fi
-        if [[ $BODY == *"$INPUT_CLOSE"* && $BODY != *"\`$INPUT_CLOSE\`"* ]]; then
-          echo "Closing issue $ISSUE_NUMBER"
-          echo "Using the link: https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER"
-          curl -X PATCH -H "Authorization: token $GITHUB_TOKEN" -d '{"state":"closed"}' https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER
-        fi
-      shell: bash
+    - name: Install jq
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq
+        jq --version
+    - name: Install curl
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl
+        curl --version
+#    - run: |
+#        BODY="$(jq '.comment.body' $GITHUB_EVENT_PATH)"
+#        ISSUE_NUMBER="$(jq '.issue.number' $GITHUB_EVENT_PATH)"
+#        LOGIN="$(jq '.comment.user.login' $GITHUB_EVENT_PATH | tr -d \")"
+#        REPO="$(jq '.repository.full_name' $GITHUB_EVENT_PATH | tr -d \")"
+#        ISSUE_JSON="$(jq '.issue' $GITHUB_EVENT_PATH)"
+#        if [[ $BODY == *"$INPUT_TAKE"* && $BODY != *"\`$INPUT_TAKE\`"* ]]; then
+#          echo "Assigning issue $ISSUE_NUMBER to $LOGIN"
+#          echo "Using the link: https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/assignees"
+#          curl -H "Authorization: token $GITHUB_TOKEN" -d '{"assignees":["'"$LOGIN"'"]}' https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/assignees
+#        fi
+#        if [[ $BODY == *"$INPUT_CLOSE"* && $BODY != *"\`$INPUT_CLOSE\`"* ]]; then
+#          echo "Closing issue $ISSUE_NUMBER"
+#          echo "Using the link: https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER"
+#          curl -X PATCH -H "Authorization: token $GITHUB_TOKEN" -d '{"state":"closed"}' https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER
+#        fi
+#      shell: bash
       env:
         INPUT_TAKE: ".take-issue"
         INPUT_CLOSE: ".close-issue"
