@@ -39,7 +39,12 @@ jobs:
       - uses: actions/checkout@v2
         with:
           ref: 'master'
-      - run: npm install
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: Install pr-bot npm dependencies
+        run: npm install
         working-directory: 'scripts/ci/pr-bot'
 
       # Runs a set of commands using the runners shell
