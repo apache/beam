@@ -43,7 +43,7 @@ jobs:
         working-directory: 'scripts/ci/pr-bot'
 
       # Runs a set of commands using the runners shell
-      - run: npm run processNewPrs
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: 'scripts/ci/pr-bot'
+#      - run: npm run processNewPrs
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        working-directory: 'scripts/ci/pr-bot'
