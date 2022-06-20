@@ -23,11 +23,11 @@ on:
   schedule:
     - cron: '10 2 * * *'
   push:
-    branches: ['master', 'release-*']
-    tags: 'v*'
+    branches: ['master', 'release-*', 'beam-12812-githubactions-june22']
+    tags: ['v*']
   pull_request:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
     paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum']
 
 jobs:
