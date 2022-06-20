@@ -62,28 +62,32 @@ func (fn *searchResourcesFn) Setup() {
 	fn.fhirioFnCommon.setup(fn.String())
 }
 
-func (fn *searchResourcesFn) ProcessElement(ctx context.Context, searchQuery SearchQuery, emitKeyedResource func(string, []string), emitDeadLetter func(string)) {
+func (fn *searchResourcesFn) ProcessElement(ctx context.Context, query SearchQuery, emitKeyedResource func(string, []string), emitDeadLetter func(string)) {
 	resourcesFound, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() ([]string, error) {
-		var (
-			allResources, resourcesInPage []string
-			nextPageToken                 string
-			err                           error
-		)
-		for resourcesInPage, nextPageToken, err = fn.searchResourcesPaginated(searchQuery, ""); nextPageToken != ""; resourcesInPage, nextPageToken, err = fn.searchResourcesPaginated(searchQuery, nextPageToken) {
-			allResources = append(allResources, resourcesInPage...)
-		}
-		// Must add resources from last page.
-		allResources = append(allResources, resourcesInPage...)
-		return allResources, err
+		return fn.searchResources(query)
 	})
 	if err != nil {
 		fn.resourcesErrorCount.Inc(ctx, 1)
-		emitDeadLetter(errors.Wrapf(err, "error occurred while performing search for query: [%v]", searchQuery).Error())
+		emitDeadLetter(errors.Wrapf(err, "error occurred while performing search for query: [%v]", query).Error())
 		return
 	}
 
 	fn.resourcesSuccessCount.Inc(ctx, 1)
-	emitKeyedResource(searchQuery.Key, resourcesFound)
+	emitKeyedResource(query.Key, resourcesFound)
+}
+
+func (fn *searchResourcesFn) searchResources(query SearchQuery) ([]string, error) {
+	var (
+		allResources, resourcesInPage []string
+		nextPageToken                 string
+		err                           error
+	)
+	for resourcesInPage, nextPageToken, err = fn.searchResourcesPaginated(query, ""); nextPageToken != ""; resourcesInPage, nextPageToken, err = fn.searchResourcesPaginated(query, nextPageToken) {
+		allResources = append(allResources, resourcesInPage...)
+	}
+	// Must add resources from last page.
+	allResources = append(allResources, resourcesInPage...)
+	return allResources, err
 }
 
 func (fn *searchResourcesFn) searchResourcesPaginated(query SearchQuery, pageToken string) ([]string, string, error) {
