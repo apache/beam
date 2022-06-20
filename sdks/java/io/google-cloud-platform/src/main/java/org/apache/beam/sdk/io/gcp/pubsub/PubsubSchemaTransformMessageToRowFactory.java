@@ -68,6 +68,7 @@ class PubsubSchemaTransformMessageToRowFactory {
     PubsubMessageToRow.Builder builder =
         PubsubMessageToRow.builder()
             .messageSchema(configuration.getDataSchema())
+            .serializerProvider(serializer())
             .useDlq(!Strings.isNullOrEmpty(configuration.getDeadLetterQueue()))
             .useFlatSchema(!shouldUseNestedSchema());
 
