@@ -59,7 +59,7 @@ func TestRead(t *testing.T) {
 			pipelineResult := ptest.RunAndValidate(t, p)
 			err := validateResourceErrorCounter(pipelineResult, len(testResourcePaths))
 			if err != nil {
-				t.Fatal(err.Error())
+				t.Fatalf("validateResourceErrorCounter returned error [%v]", err.Error())
 			}
 		})
 	}
