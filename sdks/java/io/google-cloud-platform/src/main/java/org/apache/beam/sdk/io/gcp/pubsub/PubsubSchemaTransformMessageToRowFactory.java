@@ -31,6 +31,13 @@ import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.compatqual.NonNullType;
 
+/**
+ * Builds a {@link PubsubMessageToRow} from a {@link PubsubSchemaTransformReadConfiguration}.
+ *
+ * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
+ * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
+ * repository.
+ */
 @Internal
 @Experimental(Kind.SCHEMAS)
 class PubsubSchemaTransformMessageToRowFactory {
