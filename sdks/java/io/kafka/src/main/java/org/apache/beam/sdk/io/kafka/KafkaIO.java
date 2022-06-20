@@ -57,6 +57,7 @@ import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementation;
+import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementationCompatibilityException;
 import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementationCompatibilityResult;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -1383,12 +1384,20 @@ public class KafkaIO {
       public PTransformReplacement<PBegin, PCollection<KafkaRecord<K, V>>> getReplacementTransform(
           AppliedPTransform<PBegin, PCollection<KafkaRecord<K, V>>, ReadFromKafkaViaSDF<K, V>>
               transform) {
-        return PTransformReplacement.of(
-            transform.getPipeline().begin(),
-            new ReadFromKafkaViaUnbounded<>(
-                transform.getTransform().kafkaRead,
-                transform.getTransform().keyCoder,
-                transform.getTransform().valueCoder));
+        try {
+          return PTransformReplacement.of(
+              transform.getPipeline().begin(),
+              new ReadFromKafkaViaUnbounded<>(
+                  transform.getTransform().kafkaRead,
+                  transform.getTransform().keyCoder,
+                  transform.getTransform().valueCoder));
+        } catch (KafkaIOReadImplementationCompatibilityException e) {
+          throw new IllegalStateException(
+              "The current runner does not support SDF-based Kafka read properly "
+                  + "and the replacement runner lacks the support for the following properties: "
+                  + e.getConflictingProperties()
+                  + ". For example if you are using Dataflow then consider using Dataflow Runner v2.");
+        }
       }
 
       @Override
