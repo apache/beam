@@ -24,18 +24,21 @@ on:
 jobs:
   process-prs:
     # Don't run on forks
-    if: github.repository == 'apache/beam'
+    if: github.repository == 'dannymartinm/beam'
     runs-on: [self-hosted, ubuntu-20.04]
 
     steps:
       - uses: actions/checkout@v2
-      - name: Install npm
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y nodejs
-          node -v
-          sudo apt-get install -y npm
-      - name: Install pr-bot dependencies
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+#        run: |
+#          sudo apt-get update
+#          sudo apt-get install -y nodejs
+#          node -v
+#          sudo apt-get install -y npm
+      - name: Install pr-bot npm dependencies
         run: npm install
         working-directory: 'scripts/ci/pr-bot'
 
