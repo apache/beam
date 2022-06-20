@@ -16,8 +16,10 @@
 name: Mark and close stale pull requests
 
 on:
-  schedule:
-  - cron: '33 12 * * *'
+  push:
+    branches: ['beam-12812-githubactions-june22']
+#  schedule:
+#  - cron: '33 12 * * *'
 
 jobs:
   stale:
