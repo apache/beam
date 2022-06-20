@@ -48,7 +48,7 @@
 {{ $sectionNav := resources.Get "js/section-nav.js" | minify | fingerprint }}
 <script type="text/javascript" src="{{ $sectionNav.RelPermalink }}" defer></script>
 
-{{ $pageNav := resources.Get "js/page-nav.js" | minify | fingerprint }}
+{{ $pageNav := resources.Get "js/page-nav.js" | resources.ExecuteAsTemplate "js/page-nav.js" . | minify | fingerprint }}
 <script type="text/javascript" src="{{ $pageNav.RelPermalink }}" defer></script>
 
 {{ $expandableList := resources.Get "js/expandable-list.js" | minify | fingerprint }}
