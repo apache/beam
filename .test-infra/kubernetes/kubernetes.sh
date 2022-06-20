@@ -90,4 +90,36 @@ function loadBalancerIP() {
   retry "${command}" 36 10
 }
 
+# Gets Available NodePort to avoid conflicts with already allocated ports
+#
+# Usage: ./kubernetes.sh getAvailablePort <low range port> <high range port>
+function getAvailablePort() {
+  local lowRangePort=$(($1 + 1)) #not inclusive low range
+  local highRangePort=$2
+  local used=false
+  local command="$KUBECTL get svc --all-namespaces -o \
+  go-template='{{range .items}}{{range.spec.ports}}{{if .nodePort}}{{.nodePort}}{{\"\n\"}}{{end}}{{end}}{{end}}'"
+  local usedPorts
+  usedPorts=$(eval "${command}")
+  local availablePort=$lowRangePort
+
+  for i in $(seq $lowRangePort $highRangePort);
+    do
+      while IFS= read -r usedPort; do
+        if [ "$i" = "$usedPort" ]; then
+          used=true
+          break
+        fi
+      done <<< "$usedPorts"
+    if $used; then
+      availablePort=$((availablePort + 1))
+      used=false
+    else
+      echo $availablePort
+      return 0
+    fi
+    echo $availablePort
+  done
+}
+
 "$@"
