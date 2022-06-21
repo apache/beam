@@ -345,8 +345,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
    * Kafka in {@link KafkaCheckpointMark#finalizeCheckpoint()} is enabled, it would be delayed until
    * this poll returns. It should be reasonably low as a result. At the same time it probably can't
    * be very low like 10 millis, I am not sure how it affects when the latency is high. Probably
-   * good to experiment. Often multiple marks would be finalized in a batch, it reduce
-   * finalization overhead to wait a short while and finalize only the last checkpoint mark.
+   * good to experiment. Often multiple marks would be finalized in a batch, it reduce finalization
+   * overhead to wait a short while and finalize only the last checkpoint mark.
    */
   private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
 

@@ -39,9 +39,9 @@ public interface FlinkPipelineOptions
   String EXACTLY_ONCE = "EXACTLY_ONCE";
 
   /**
-   * The url of the Flink JobManager on which to execute pipelines. This can either be the
-   * address of a cluster JobManager, in the form "host:port" or one of the special Strings
-   * "[local]", "[collection]" or "[auto]". "[local]" will start a local Flink Cluster in the JVM,
+   * The url of the Flink JobManager on which to execute pipelines. This can either be the address
+   * of a cluster JobManager, in the form "host:port" or one of the special Strings "[local]",
+   * "[collection]" or "[auto]". "[local]" will start a local Flink Cluster in the JVM,
    * "[collection]" will execute the pipeline on Java Collections while "[auto]" will let the system
    * decide where to execute the pipeline based on the environment.
    */
