@@ -20,8 +20,16 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
+
+func init() {
+	runtime.RegisterFunction(emptyFn)
+	runtime.RegisterFunction(oneArg)
+	runtime.RegisterFunction(oneRet)
+	runtime.RegisterFunction(argAndRet)
+}
 
 func TestEncodeDecodeType(t *testing.T) {
 	var tests = []struct {
@@ -65,6 +73,14 @@ func TestEncodeDecodeType(t *testing.T) {
 func funcEquals(got, want reflectx.Func) bool {
 	return got.Name() == want.Name() && got.Type() == want.Type()
 }
+
+func emptyFn() {}
+
+func oneArg(x int) {}
+
+func oneRet() error { return nil }
+
+func argAndRet(x string) string { return x }
 
 func TestEncodeDecodeFn(t *testing.T) {
 	var tests = []struct {
