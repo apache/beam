@@ -90,15 +90,13 @@ public class BigQueryIOStorageWriteIT {
     int timestampInterval = 1;
     Instant startInstant = new Instant(0L);
     TestStream.Builder<Long> streamBuilder =
-        TestStream.create(VarLongCoder.of())
-            .advanceWatermarkTo(startInstant);
+        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(startInstant);
     long offset = 0L;
     for (long i = 0L; i < rowCount; i++) {
       streamBuilder =
           streamBuilder.addElements(
               TimestampedValue.of(
-                  i,
-                  startInstant.plus(Duration.standardSeconds(offset * timestampInterval))));
+                  i, startInstant.plus(Duration.standardSeconds(offset * timestampInterval))));
       offset++;
     }
     final long windowDuration = 6;
@@ -109,10 +107,12 @@ public class BigQueryIOStorageWriteIT {
         .advanceWatermarkToInfinity();
   }
 
-  private void runBigQueryIOStorageWritePipeline(int rowCount, WriteMode writeMode,
-      Boolean isStreaming) {
-    String tableName = isStreaming ? TABLE_PREFIX + "streaming_" + System.currentTimeMillis()
-        : TABLE_PREFIX + System.currentTimeMillis();
+  private void runBigQueryIOStorageWritePipeline(
+      int rowCount, WriteMode writeMode, Boolean isStreaming) {
+    String tableName =
+        isStreaming
+            ? TABLE_PREFIX + "streaming_" + System.currentTimeMillis()
+            : TABLE_PREFIX + System.currentTimeMillis();
     TableSchema schema =
         new TableSchema()
             .setFields(
