@@ -221,6 +221,14 @@ public class GcpOptionsTest {
     }
 
     @Test
+    public void testCreateGcpTempLocationTolerateRedundantSlashes() {
+      String tempLocation = "gs://dataflow-staging-us-north1-1/temp//test1/";
+      options.setTempLocation(tempLocation);
+      String gcpTempLocation = options.as(GcpOptions.class).getGcpTempLocation();
+      assertEquals("gs://dataflow-staging-us-north1-1/temp/test1/", gcpTempLocation);
+    }
+
+    @Test
     public void testCreateBucket() throws Exception {
       doReturn(fakeProject).when(mockGet).execute();
       when(mockGcsUtil.bucketOwner(any(GcsPath.class))).thenReturn(1L);

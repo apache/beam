@@ -34,6 +34,7 @@ import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.security.GeneralSecurityException;
@@ -330,16 +331,26 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
                     .build());
         options.setTempLocation(tempLocation);
       } else {
-        try {
-          PathValidator validator = options.as(GcsOptions.class).getPathValidator();
-          validator.validateOutputFilePrefixSupported(tempLocation);
-        } catch (Exception e) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Error constructing default value for gcpTempLocation: tempLocation is not"
-                      + " a valid GCS path, %s. ",
-                  tempLocation),
-              e);
+        PathValidator validator = options.as(GcsOptions.class).getPathValidator();
+        for (int retried = 0; retried <= 1; ++retried) {
+          try {
+            validator.validateOutputFilePrefixSupported(tempLocation);
+          } catch (Exception e) {
+            if (retried == 0 && e.getMessage().contains("consecutive slashes")) {
+              // Try to normalize uri and retry once more.
+              tempLocation = URI.create(tempLocation).normalize().toString();
+            } else {
+              throw new IllegalArgumentException(
+                  String.format(
+                      "Error constructing default value for gcpTempLocation: tempLocation is not"
+                          + " a valid GCS path, %s. ",
+                      tempLocation),
+                  e);
+            }
+            retried += 1;
+            continue;
+          }
+          break;
         }
       }
       return tempLocation;
