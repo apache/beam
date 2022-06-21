@@ -45,18 +45,11 @@ class EmbeddedPageProviders extends StatelessWidget {
 
             if (playground.selectedExample == null) {
               final example = _getEmbeddedExample();
-              final newPlayground = PlaygroundState(
-                codeRepository: kCodeRepository,
-                sdk: playground.sdk,
-                selectedExample: null,
-              );
               _loadExampleData(
                 example,
                 exampleState,
                 playground,
-                newPlayground,
               );
-              return newPlayground;
             }
             return playground;
           },
@@ -76,7 +69,7 @@ class EmbeddedPageProviders extends StatelessWidget {
     return isEditableString == 'true';
   }
 
-  ExampleModel? _getEmbeddedExample() {
+  ExampleModel _getEmbeddedExample() {
     final examplePath = Uri.base.queryParameters[kExampleParam];
 
     return ExampleModel(
@@ -91,7 +84,6 @@ class EmbeddedPageProviders extends StatelessWidget {
     ExampleModel? example,
     ExampleState exampleState,
     PlaygroundState playground,
-    PlaygroundState newPlayground,
   ) {
     if (example == null) {
       return;
@@ -100,7 +92,7 @@ class EmbeddedPageProviders extends StatelessWidget {
     if (example.path.isEmpty) {
       String source = Uri.base.queryParameters[kSourceCode] ?? '';
       example.setSource(source);
-      newPlayground.setExample(example);
+      playground.setExample(example);
     } else {
       exampleState
           .getExample(example.path, playground.sdk)
@@ -108,7 +100,7 @@ class EmbeddedPageProviders extends StatelessWidget {
                 example,
                 playground.sdk,
               ))
-          .then((exampleWithInfo) => newPlayground.setExample(exampleWithInfo));
+          .then((exampleWithInfo) => playground.setExample(exampleWithInfo));
     }
   }
 }
