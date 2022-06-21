@@ -201,7 +201,8 @@ class PubsubReadPerfTest(PubsubIOPerfTest):
     pubsub_msg_verifier = PubSubMessageMatcher(
         self.project_id,
         self.read_matcher_sub_name,
-        expected_msg=[str(self.num_of_messages).encode('utf-8')],
+        # expected_msg=[str(self.num_of_messages).encode('utf-8')],
+        expected_msg_len=self.num_of_messages,
         timeout=MATCHER_TIMEOUT,
         pull_timeout=MATCHER_PULL_TIMEOUT,
     )
