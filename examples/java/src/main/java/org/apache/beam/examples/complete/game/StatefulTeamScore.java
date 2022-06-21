@@ -37,8 +37,10 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -113,6 +115,42 @@ public class StatefulTeamScore extends LeaderBoard {
     return tableConfigure;
   }
 
+  public static void applyStatefulTeamScore(Pipeline p, Options options) throws IOException {
+
+    PubsubIO.Read<String> recordsWithTimeStamp =
+        PubsubIO.readStrings().withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE);
+
+    PubsubIO.Read<String> records = null;
+
+    if (options.getSubscription() != null && !options.getSubscription().isEmpty()) {
+      records = recordsWithTimeStamp.fromSubscription(options.getSubscription());
+    } else {
+      records = recordsWithTimeStamp.fromTopic(options.getTopic());
+    }
+
+    p
+        // Read game events from Pub/Sub using custom timestamps, which are extracted from the
+        // pubsub data elements, and parse the data.
+        .apply(records)
+        // Create <team, GameActionInfo> mapping & Outputs a team's score every time it passes a new
+        // multiple of the threshold
+        .apply(new TeamScore(options))
+        // Write the results to BigQuery.
+        .apply(
+            "WriteTeamLeaders",
+            new WriteWindowedToBigQuery<>(
+                options.as(GcpOptions.class).getProject(),
+                options.getDataset(),
+                options.getLeaderBoardTableName() + "_team_leader",
+                configureCompleteWindowedTableWrite()));
+  }
+
+  public static void runStatefulTeamScore(Options options) throws IOException {
+    Pipeline p = Pipeline.create(options);
+    applyStatefulTeamScore(p, options);
+    p.run();
+  }
+
   public static void main(String[] args) throws Exception {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
@@ -122,37 +160,26 @@ public class StatefulTeamScore extends LeaderBoard {
     runStatefulTeamScore(options);
   }
 
-  static void runStatefulTeamScore(Options options) throws IOException {
+  static class TeamScore extends PTransform<PCollection<String>, PCollection<KV<String, Integer>>> {
+    private Options options;
 
-    Pipeline pipeline = Pipeline.create(options);
+    public TeamScore(Options options) {
+      this.options = options;
+    }
 
-    pipeline
-        // Read game events from Pub/Sub using custom timestamps, which are extracted from the
-        // pubsub data elements, and parse the data.
-        .apply(
-            PubsubIO.readStrings()
-                .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
-                .fromSubscription(options.getSubscription()))
-        .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
-        // Create <team, GameActionInfo> mapping. UpdateTeamScore uses team name as key.
-        .apply(
-            "MapTeamAsKey",
-            MapElements.into(
-                    TypeDescriptors.kvs(
-                        TypeDescriptors.strings(), TypeDescriptor.of(GameActionInfo.class)))
-                .via((GameActionInfo gInfo) -> KV.of(gInfo.team, gInfo)))
-        // Outputs a team's score every time it passes a new multiple of the threshold.
-        .apply("UpdateTeamScore", ParDo.of(new UpdateTeamScoreFn(options.getThresholdScore())))
-        // Write the results to BigQuery.
-        .apply(
-            "WriteTeamLeaders",
-            new WriteWindowedToBigQuery<>(
-                options.as(GcpOptions.class).getProject(),
-                options.getDataset(),
-                options.getLeaderBoardTableName() + "_team_leader",
-                configureCompleteWindowedTableWrite()));
-
-    pipeline.run(options);
+    @Override
+    public PCollection<KV<String, Integer>> expand(PCollection<String> rows) {
+      return rows.apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
+          .apply(
+              // Create <team, GameActionInfo> mapping. UpdateTeamScore uses team name as key.
+              "MapTeamAsKey",
+              MapElements.into(
+                      TypeDescriptors.kvs(
+                          TypeDescriptors.strings(), TypeDescriptor.of(GameActionInfo.class)))
+                  .via((GameActionInfo gInfo) -> KV.of(gInfo.team, gInfo)))
+          // Outputs a team's score every time it passes a new multiple of the threshold.
+          .apply("UpdateTeamScore", ParDo.of(new UpdateTeamScoreFn(options.getThresholdScore())));
+    }
   }
 
   /**
