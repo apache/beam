@@ -121,7 +121,7 @@ kafkaVersions.each {kv ->
 }
 
 kafkaVersions.each {kv ->
-  task "kafkaVersion${kv.key}IT"(type: Test) {
+  task "kafkaVersion${kv.key}BatchIT"(type: Test) {
     group = "Verification"
     description = "Runs KafkaIO IT tests with Kafka clients API $kv.value"
     outputs.upToDateWhen { false }
