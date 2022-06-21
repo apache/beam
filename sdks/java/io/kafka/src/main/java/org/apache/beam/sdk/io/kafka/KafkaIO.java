@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
@@ -59,6 +60,7 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementation;
 import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementationCompatibilityException;
 import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementationCompatibilityResult;
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -1327,6 +1329,7 @@ public class KafkaIO {
               ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
         }
       }
+      warnAboutUnsafeConfigurations(input);
 
       // Infer key/value coders if not specified explicitly
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
@@ -1348,6 +1351,40 @@ public class KafkaIO {
         return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
       }
       return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
+    }
+
+    private void warnAboutUnsafeConfigurations(PBegin input) {
+      Long checkpointingInterval =
+          input
+              .getPipeline()
+              .getOptions()
+              .as(FakeFlinkPipelineOptions.class)
+              .getCheckpointingInterval();
+      String autoOffsetReset = (String) getConsumerConfig().get(AUTO_OFFSET_RESET_CONFIG);
+      if (checkpointingInterval != null
+          && checkpointingInterval != -1
+          && Boolean.TRUE.equals(getConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG))
+          && !isCommitOffsetsInFinalizeEnabled()
+          && (autoOffsetReset == null || "latest".equals(autoOffsetReset))) {
+        LOG.warn(
+            "When using the Flink runner with checkpointingInterval enabled,"
+                + " Kafka enable.auto.commit enabled,"
+                + " and Kafka auto.offset.reset set to latest or unset,"
+                + " there is a chance for every checkpoint to time out,"
+                + " which will cause data loss."
+                + " We recommend setting commitOffsetInFinalize to true in ReadFromKafka,"
+                + " enable.auto.commit to false, and auto.offset.reset to none");
+      }
+    }
+
+    // This class is designed to mimic the Flink pipeline options, so we can check for the
+    // checkpointingInterval property, but without needing to depend on the Flink runner
+    // Do not use this
+    public interface FakeFlinkPipelineOptions extends PipelineOptions {
+      @Default.Long(-1)
+      Long getCheckpointingInterval();
+
+      void setCheckpointingInterval(Long interval);
     }
 
     private boolean runnerPrefersLegacyRead(PipelineOptions options) {

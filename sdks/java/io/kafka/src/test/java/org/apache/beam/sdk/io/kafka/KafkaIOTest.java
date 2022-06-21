@@ -72,6 +72,7 @@ import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.io.kafka.KafkaIO.Read.FakeFlinkPipelineOptions;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.PositionErrorConsumerFactory;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.SendErrorProducerFactory;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -171,6 +172,8 @@ public class KafkaIOTest {
 
   @Rule
   public ExpectedLogs unboundedReaderExpectedLogs = ExpectedLogs.none(KafkaUnboundedReader.class);
+
+  @Rule public ExpectedLogs kafkaIOExpectedLogs = ExpectedLogs.none(KafkaIO.class);
 
   private static final Instant LOG_APPEND_START_TIME = new Instant(600 * 1000);
   private static final String TIMESTAMP_START_MILLIS_CONFIG = "test.timestamp.start.millis";
@@ -582,6 +585,27 @@ public class KafkaIOTest {
             .apply(Values.create());
 
     addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
+  public void testRiskyConfigurationWarnsProperly() {
+    int numElements = 1000;
+
+    p.getOptions().as(FakeFlinkPipelineOptions.class).setCheckpointingInterval(1L);
+
+    PCollection<Long> input =
+        p.apply(
+                mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+                    .withConsumerConfigUpdates(
+                        ImmutableMap.of(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true))
+                    .withoutMetadata())
+            .apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+
+    kafkaIOExpectedLogs.verifyWarn(
+        "When using the Flink runner with checkpointingInterval enabled");
     p.run();
   }
 
