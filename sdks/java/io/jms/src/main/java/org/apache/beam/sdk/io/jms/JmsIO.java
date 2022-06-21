@@ -604,15 +604,25 @@ public class JmsIO {
       maybeCloseClient();
     }
 
-    void maybeCloseClient() throws IOException {
+    private void maybeCloseClient() throws IOException {
       try {
-        doClose();
+        if (!active.get()) {
+          doClose();
+        }
       } catch (Exception e) {
         throw new IOException(e);
       }
     }
 
     private void doClose() {
+      acknowledgeLastMessage();
+      closeAutoscaler();
+      closeConsumer();
+      closeSession();
+      closeConnection();
+    }
+
+    private void acknowledgeLastMessage() {
       if (currentJmsMessage != null) {
         try {
           currentJmsMessage.acknowledge();
@@ -620,10 +630,6 @@ public class JmsIO {
           LOG.error("Impossible to acknowledge last message", e);
         }
       }
-      closeAutoscaler();
-      closeConsumer();
-      closeSession();
-      closeConnection();
     }
 
     private void closeConnection() {
@@ -672,7 +678,7 @@ public class JmsIO {
     }
 
     @Override
-    protected void finalize() throws Throwable {
+    protected void finalize() {
       doClose();
     }
   }

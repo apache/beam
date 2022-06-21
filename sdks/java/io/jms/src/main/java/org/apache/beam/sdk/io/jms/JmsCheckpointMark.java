@@ -63,17 +63,18 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
   public void finalizeCheckpoint() throws IOException {
     try {
       LOG.debug("Finalize Checkpoint {} {}", reader, messagesToAck.size());
-      drainMessages();
+      if (reader.active.get() && reader != null) {
+        for (Message message : messagesToAck) {
+          message.acknowledge();
+          Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
+          reader.watermark.updateAndGet(
+              prev -> Math.max(currentMessageTimestamp.getMillis(), prev));
+        }
+      }
     } catch (JMSException e) {
       throw new IOException("Exception while finalizing message ", e);
-    }
-  }
-
-  protected void drainMessages() throws JMSException {
-    for (Message message : messagesToAck) {
-      message.acknowledge();
-      Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
-      reader.watermark.updateAndGet(prev -> Math.max(currentMessageTimestamp.getMillis(), prev));
+    } finally {
+      reader = null;
     }
   }
 
