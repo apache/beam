@@ -69,6 +69,11 @@ def _import_beam_plugins(plugins):
 
 def create_harness(environment, dry_run=False):
   """Creates SDK Fn Harness."""
+  pipeline_options_dict = _load_pipeline_options(
+      environment.get('PIPELINE_OPTIONS'))
+  default_log_level = _get_log_level_from_options_dict(pipeline_options_dict)
+  logging.getLogger().setLevel(default_log_level)
+
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in environment:
     try:
       logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
@@ -78,9 +83,6 @@ def create_harness(environment, dry_run=False):
 
       # Send all logs to the runner.
       fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
-      # TODO(https://github.com/apache/beam/issues/19242): This should be
-      # picked up from pipeline options.
-      logging.getLogger().setLevel(logging.INFO)
       logging.getLogger().addHandler(fn_log_handler)
       _LOGGER.info('Logging handler created.')
     except Exception:
@@ -91,8 +93,6 @@ def create_harness(environment, dry_run=False):
   else:
     fn_log_handler = None
 
-  pipeline_options_dict = _load_pipeline_options(
-      environment.get('PIPELINE_OPTIONS'))
   # These are used for dataflow templates.
   RuntimeValueProvider.set_runtime_options(pipeline_options_dict)
   sdk_pipeline_options = PipelineOptions.from_dictionary(pipeline_options_dict)
@@ -249,6 +249,23 @@ def _get_data_buffer_time_limit_ms(experiments):
               r'data_buffer_time_limit_ms=(?P<data_buffer_time_limit_ms>.*)',
               experiment).group('data_buffer_time_limit_ms'))
   return 0
+
+
+def _get_log_level_from_options_dict(options_dict: dict) -> int:
+  # default log level is logging.INFO
+  log_level = options_dict.get('default_sdk_harness_log_level', 'INFO')
+
+  if log_level.isdigit():
+    log_level = int(log_level)
+  else:
+    # labeled log level
+    log_level = getattr(logging, log_level, None)
+    if not isinstance(log_level, int):
+      # unknown log level.
+      _LOGGER.error("Unknown log level. Use default value INFO.", exc_info=True)
+      log_level = logging.INFO
+
+  return log_level
 
 
 class CorruptMainSessionException(Exception):

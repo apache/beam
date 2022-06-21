@@ -93,6 +93,8 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     Args:
       batch: A sequence of examples or features.
       model: The model used to make inferences.
+      inference_args: Extra arguments for models whose inference call requires
+        extra parameters.
 
     Returns:
       An Iterable of Predictions.
@@ -249,6 +251,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
     Models for supported frameworks can be loaded via a URI. Supported services
     can also be used.
+
+    This transform attempts to batch examples using the beam.BatchElements
+    transform. Batching may be configured using the ModelHandler.
 
     Args:
         model_handler: An implementation of ModelHandler.

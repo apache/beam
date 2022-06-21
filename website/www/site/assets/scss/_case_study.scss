@@ -99,6 +99,7 @@
   }
 
   .case-study-card-title {
+    min-height: 45px;
     margin: 12px 0;
     font-size: 18px;
   }
@@ -228,7 +229,7 @@ h2.case-study-h2 {
       height: 37px;
       width: 46px;
       right: 12px;
-      bottom: 16px;
+      bottom: 12px;
       position: absolute;
       font-size: 96px;
       color: #E5E5E5;
@@ -298,6 +299,12 @@ h2.case-study-h2 {
         width: 100%;
         max-height: 100px;
       }
+
+      .case-study-opinion-img-cropped {
+        display: block;
+        margin: 0 auto;
+        width: 40%;
+      }
     }
   }
 
@@ -308,6 +315,8 @@ h2.case-study-h2 {
 
   .post-scheme {
     margin-bottom: 16px;
+    text-align: center;
+    font-style: italic;
 
     img {
       width: 100%;

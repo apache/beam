@@ -59,7 +59,7 @@ public class StaticGrpcProvisionService extends ProvisionServiceGrpc.ProvisionSe
       ProvisionApi.GetProvisionInfoRequest request,
       StreamObserver<GetProvisionInfoResponse> responseObserver) {
     if (!environments.containsKey(headerAccessor.getSdkWorkerId())) {
-      // TODO(BEAM-9818): Remove once the JRH is gone.
+      // TODO(https://github.com/apache/beam/issues/20253): Remove once the JRH is gone.
       responseObserver.onNext(GetProvisionInfoResponse.newBuilder().setInfo(info).build());
       responseObserver.onCompleted();
       return;

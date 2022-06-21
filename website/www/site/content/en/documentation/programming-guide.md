@@ -5436,7 +5436,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 #### CombiningState
@@ -5468,7 +5468,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 #### BagState
@@ -5514,7 +5514,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 ### 11.2. Deferred state reads {#deferred-state-reads}
@@ -5543,11 +5543,11 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 {{< /highlight >}}
 
 {{< highlight py >}}
-This is not supported yet, see BEAM-11506.
+This is not supported yet, see https://github.com/apache/beam/issues/20739.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
@@ -5637,7 +5637,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 #### 11.3.2. Processing-time timers {#processing-time-timers}
@@ -5689,7 +5689,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 #### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
@@ -5750,7 +5750,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 #### 11.3.4. Timer output timestamps {#timer-output-timestamps}
@@ -5857,11 +5857,11 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 {{< /highlight >}}
 
 {{< highlight py >}}
-Timer output timestamps is not yet supported in Python SDK. See BEAM-11507.
+Timer output timestamps is not yet supported in Python SDK. See https://github.com/apache/beam/issues/20705.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 ### 11.4. Garbage collecting state {#garbage-collecting-state}
@@ -5907,7 +5907,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
@@ -5991,7 +5991,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 ### 11.5. State and timers examples {#state-timers-examples}

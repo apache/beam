@@ -59,8 +59,8 @@ class GcsIOIntegrationTest(unittest.TestCase):
 
   INPUT_FILE = 'gs://dataflow-samples/shakespeare/kinglear.txt'
   # Larger than 1MB to test maxBytesRewrittenPerCall.
-  INPUT_FILE_LARGE = (
-      'gs://dataflow-samples/wikipedia_edits/wiki_data-000000000000.json')
+  # Also needs to be in a different region than the dest to take effect.
+  INPUT_FILE_LARGE = 'gs://apache-beam-samples-us-east1/wikipedia_edits/wiki_data-000000000000.json'  # pylint: disable=line-too-long
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -121,9 +121,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
       raise unittest.SkipTest('--kms_key_name not specified')
     self._test_copy("test_copy_kms", self.kms_key_name)
 
-  @pytest.mark.it_postcommit_sickbay
-  #@pytest.mark.it_postcommit https://github.com/apache/beam/issues/20934
-  # maxBytesRewrittenPerCall '
+  @pytest.mark.it_postcommit
   def test_copy_rewrite_token(self):
     # Tests a multi-part copy (rewrite) operation. This is triggered by a
     # combination of 3 conditions:
@@ -176,9 +174,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
       raise unittest.SkipTest('--kms_key_name not specified')
     self._test_copy_batch("test_copy_batch_kms", self.kms_key_name)
 
-  @pytest.mark.it_postcommit_sickbay
-  #@pytest.mark.it_postcommit https://github.com/apache/beam/issues/20934
-  # maxBytesRewrittenPerCall
+  @pytest.mark.it_postcommit
   def test_copy_batch_rewrite_token(self):
     # Tests a multi-part copy (rewrite) operation. This is triggered by a
     # combination of 3 conditions:

@@ -47,7 +47,9 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.SourceMetrics;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
@@ -71,8 +73,7 @@ import org.slf4j.LoggerFactory;
  * partitions. See {@link KafkaIO} for user visible documentation and example usage.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
@@ -81,13 +82,19 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   @Override
   public boolean start() throws IOException {
     Read<K, V> spec = source.getSpec();
-    consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
-    ConsumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
+    final Consumer<byte[], byte[]> consumer =
+        spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
+    this.consumer = consumer;
+    List<TopicPartition> topicPartitions =
+        Preconditions.checkStateNotNull(spec.getTopicPartitions());
+    ConsumerSpEL.evaluateAssign(consumer, topicPartitions);
 
     keyDeserializerInstance =
-        spec.getKeyDeserializerProvider().getDeserializer(spec.getConsumerConfig(), true);
+        Preconditions.checkStateNotNull(spec.getKeyDeserializerProvider())
+            .getDeserializer(spec.getConsumerConfig(), true);
     valueDeserializerInstance =
-        spec.getValueDeserializerProvider().getDeserializer(spec.getConsumerConfig(), false);
+        Preconditions.checkStateNotNull(spec.getValueDeserializerProvider())
+            .getDeserializer(spec.getConsumerConfig(), false);
 
     // Seek to start offset for each partition. This is the first interaction with the server.
     // Unfortunately it can block forever in case of network issues like incorrect ACLs.
@@ -130,7 +137,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
             name, spec.getOffsetConsumerConfig(), spec.getConsumerConfig());
 
     offsetConsumer = spec.getConsumerFactoryFn().apply(offsetConsumerConfig);
-    ConsumerSpEL.evaluateAssign(offsetConsumer, spec.getTopicPartitions());
+    ConsumerSpEL.evaluateAssign(offsetConsumer, topicPartitions);
 
     // Fetch offsets once before running periodically.
     updateLatestOffsets();
@@ -187,6 +194,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         // Apply user deserializers. User deserializers might throw, which will be propagated up
         // and 'curRecord' remains unchanged. The runner should close this reader.
         // TODO: write records that can't be deserialized to a "dead-letter" additional output.
+        Deserializer<K> keyDeserializerInstance =
+            Preconditions.checkStateNotNull(this.keyDeserializerInstance);
+        Deserializer<V> valueDeserializerInstance =
+            Preconditions.checkStateNotNull(this.valueDeserializerInstance);
         KafkaRecord<K, V> record =
             new KafkaRecord<>(
                 rawRecord.topic(),
@@ -223,13 +234,15 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   @Override
   public Instant getWatermark() {
 
-    if (source.getSpec().getWatermarkFn() != null) {
+    SerializableFunction<KafkaRecord<K, V>, Instant> watermarkFn =
+        source.getSpec().getWatermarkFn();
+    if (watermarkFn != null) {
       // Support old API which requires a KafkaRecord to invoke watermarkFn.
       if (curRecord == null) {
         LOG.debug("{}: getWatermark() : no records have been read yet.", name);
         return initialWatermark;
       }
-      return source.getSpec().getWatermarkFn().apply(curRecord);
+      return watermarkFn.apply(curRecord);
     }
 
     // Return minimum watermark among partitions.
@@ -263,11 +276,17 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   @Override
   public KafkaRecord<K, V> getCurrent() throws NoSuchElementException {
     // should we delay updating consumed offset till this point? Mostly not required.
+    if (curRecord == null) {
+      throw new NoSuchElementException();
+    }
     return curRecord;
   }
 
   @Override
   public Instant getCurrentTimestamp() throws NoSuchElementException {
+    if (curTimestamp == null) {
+      throw new NoSuchElementException();
+    }
     return curTimestamp;
   }
 
@@ -300,14 +319,14 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   private final KafkaUnboundedSource<K, V> source;
   private final String name;
-  private Consumer<byte[], byte[]> consumer;
+  private @Nullable Consumer<byte[], byte[]> consumer = null;
   private final List<PartitionState<K, V>> partitionStates;
-  private KafkaRecord<K, V> curRecord;
-  private Instant curTimestamp;
+  private @Nullable KafkaRecord<K, V> curRecord = null;
+  private @Nullable Instant curTimestamp = null;
   private Iterator<PartitionState<K, V>> curBatch = Collections.emptyIterator();
 
-  private Deserializer<K> keyDeserializerInstance = null;
-  private Deserializer<V> valueDeserializerInstance = null;
+  private @Nullable Deserializer<K> keyDeserializerInstance = null;
+  private @Nullable Deserializer<V> valueDeserializerInstance = null;
 
   private final Counter elementsRead = SourceMetrics.elementsRead();
   private final Counter bytesRead = SourceMetrics.bytesRead();
@@ -342,7 +361,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private AtomicReference<Exception> consumerPollException = new AtomicReference<>();
   private final SynchronousQueue<ConsumerRecords<byte[], byte[]>> availableRecordsQueue =
       new SynchronousQueue<>();
-  private AtomicReference<KafkaCheckpointMark> finalizedCheckpointMark = new AtomicReference<>();
+  private AtomicReference<@Nullable KafkaCheckpointMark> finalizedCheckpointMark =
+      new AtomicReference<>();
   private AtomicBoolean closed = new AtomicBoolean(false);
 
   // Backlog support :
@@ -350,7 +370,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   // then look at position(). Use another consumer to do this so that the primary consumer does
   // not need to be interrupted. The latest offsets are fetched periodically on a thread. This is
   // still a bit of a hack, but so far there haven't been any issues reported by the users.
-  private Consumer<byte[], byte[]> offsetConsumer;
+  private @Nullable Consumer<byte[], byte[]> offsetConsumer = null;
   private final ScheduledExecutorService offsetFetcherThread =
       Executors.newSingleThreadScheduledExecutor();
   private static final int OFFSET_UPDATE_INTERVAL_SECONDS = 1;
@@ -464,7 +484,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     this.source = source;
     this.name = "Reader-" + source.getId();
 
-    List<TopicPartition> partitions = source.getSpec().getTopicPartitions();
+    List<TopicPartition> partitions =
+        Preconditions.checkArgumentNotNull(source.getSpec().getTopicPartitions());
     List<PartitionState<K, V>> states = new ArrayList<>(partitions.size());
 
     if (checkpointMark != null) {
@@ -514,6 +535,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   private void consumerPollLoop() {
     // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue.
+    Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
 
     try {
       ConsumerRecords<byte[], byte[]> records = ConsumerRecords.empty();
@@ -546,6 +568,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   private void commitCheckpointMark(KafkaCheckpointMark checkpointMark) {
     LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
+    Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
 
     consumer.commitSync(
         checkpointMark.getPartitions().stream()
@@ -601,6 +624,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   private void setupInitialOffset(PartitionState pState) {
     Read<K, V> spec = source.getSpec();
+    Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
 
     if (pState.nextOffset != UNINITIALIZED_OFFSET) {
       consumer.seek(pState.topicPartition, pState.nextOffset);
@@ -612,7 +636,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       Instant startReadTime = spec.getStartReadTime();
       if (startReadTime != null) {
         pState.nextOffset =
-            ConsumerSpEL.offsetForTime(consumer, pState.topicPartition, spec.getStartReadTime());
+            ConsumerSpEL.offsetForTime(consumer, pState.topicPartition, startReadTime);
         consumer.seek(pState.topicPartition, pState.nextOffset);
       } else {
         pState.nextOffset = consumer.position(pState.topicPartition);
@@ -623,6 +647,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   // Update latest offset for each partition.
   // Called from setupInitialOffset() at the start and then periodically from offsetFetcher thread.
   private void updateLatestOffsets() {
+    Consumer<byte[], byte[]> offsetConsumer = Preconditions.checkStateNotNull(this.offsetConsumer);
     for (PartitionState p : partitionStates) {
       try {
         Instant fetchTime = Instant.now();
@@ -735,7 +760,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     return timeout == null ? Duration.standardSeconds(60) : timeout;
   }
 
-  private static Duration tryParseDurationFromMillis(Object value) {
+  private static @Nullable Duration tryParseDurationFromMillis(@Nullable Object value) {
     if (value == null) {
       return null;
     }

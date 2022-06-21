@@ -111,6 +111,16 @@ public interface BigQueryServices extends Serializable {
 
   /** An interface to get, create and delete Cloud BigQuery datasets and tables. */
   public interface DatasetService extends AutoCloseable {
+
+    // maps the values at
+    // https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/get#TableMetadataView
+    enum TableMetadataView {
+      TABLE_METADATA_VIEW_UNSPECIFIED,
+      BASIC,
+      STORAGE_STATS,
+      FULL;
+    };
+
     /**
      * Gets the specified {@link Table} resource by table ID.
      *
@@ -121,6 +131,10 @@ public interface BigQueryServices extends Serializable {
 
     @Nullable
     Table getTable(TableReference tableRef, List<String> selectedFields)
+        throws InterruptedException, IOException;
+
+    @Nullable
+    Table getTable(TableReference tableRef, List<String> selectedFields, TableMetadataView view)
         throws InterruptedException, IOException;
 
     /** Creates the specified table if it does not exist. */
