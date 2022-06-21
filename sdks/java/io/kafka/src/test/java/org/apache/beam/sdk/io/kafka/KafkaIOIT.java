@@ -197,11 +197,11 @@ public class KafkaIOIT {
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
-        .apply("Write to Kafka", writeToKafka());
+        .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic() + "-batch"));
 
     PCollection<String> hashcode =
         readPipeline
-            .apply("Read from bounded Kafka", readFromBoundedKafka())
+            .apply("Read from bounded Kafka", readFromBoundedKafka().withTopic(options.getKafkaTopic() + "-batch"))
             .apply(
                 "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
             .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
@@ -231,13 +231,13 @@ public class KafkaIOIT {
 
     writePipeline
         .apply(Create.of(KV.<byte[], byte[]>of(null, null)))
-        .apply("Write to Kafka", writeToKafka());
+        .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic() + "-nullRoundTrip"));
 
     PCollection<Row> rows =
         readPipeline.apply(
             KafkaIO.<byte[], byte[]>read()
                 .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
-                .withTopic(options.getKafkaTopic())
+                .withTopic(options.getKafkaTopic() + "-nullRoundTrip")
                 .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
                 .withKeyDeserializerAndCoder(
                     ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
@@ -383,7 +383,6 @@ public class KafkaIOIT {
   private KafkaIO.Write<byte[], byte[]> writeToKafka() {
     return KafkaIO.<byte[], byte[]>write()
         .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
-        .withTopic(options.getKafkaTopic())
         .withKeySerializer(ByteArraySerializer.class)
         .withValueSerializer(ByteArraySerializer.class);
   }
@@ -395,8 +394,7 @@ public class KafkaIOIT {
   private KafkaIO.Read<byte[], byte[]> readFromKafka() {
     return KafkaIO.readBytes()
         .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
-        .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
-        .withTopic(options.getKafkaTopic());
+        .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"));
   }
 
   private static class CountingFn extends DoFn<String, Void> {
