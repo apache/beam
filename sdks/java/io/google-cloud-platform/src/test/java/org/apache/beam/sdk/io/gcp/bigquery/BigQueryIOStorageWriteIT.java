@@ -45,9 +45,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Integration tests for {@link BigQueryIO#write()} rite()}. The batch mode tests write 30MB data to
- * BQ and verify the written row count; the streaming mode tests write 3k rows of data to BQ and
- * verify the written row count.
+ * Integration tests for {@link BigQueryIO#write()}. The batch mode tests write 30MB data to BQ and
+ * verify the written row count; the streaming mode tests write 3k rows of data to BQ and verify the
+ * written row count.
  */
 @RunWith(JUnit4.class)
 public class BigQueryIOStorageWriteIT {
