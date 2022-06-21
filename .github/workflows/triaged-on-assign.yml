@@ -15,24 +15,18 @@
 
 name: Mark issue as triaged when assigned
 on:
-#  issues:
-#    types: [assigned]
-  push:
-    branches: ['beam-12812-githubactions-june22']
+  issues:
+    types: [assigned]
 
 jobs:
   assign:
     name: Mark issue as triaged when assigned
     runs-on: [self-hosted, ubuntu-20.04]
     steps:
-    - name: Confirm installations curl/jq
-      run: |
-        curl --version
-        jq --version
-#    - run: |
-#        ISSUE_NUMBER="$(jq '.issue.number' $GITHUB_EVENT_PATH)"
-#        REPO="$(jq '.repository.full_name' $GITHUB_EVENT_PATH | tr -d \")"
-#        curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/labels/awaiting%20triage
+    - run: |
+        ISSUE_NUMBER="$(jq '.issue.number' $GITHUB_EVENT_PATH)"
+        REPO="$(jq '.repository.full_name' $GITHUB_EVENT_PATH | tr -d \")"
+        curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/labels/awaiting%20triage
       shell: bash
       env:
         GITHUB_TOKEN: ${{ github.token }}

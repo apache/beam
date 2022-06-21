@@ -22,16 +22,6 @@ jobs:
     name: Take or close an issue
     runs-on: [self-hosted, ubuntu-20.04]
     steps:
-    - name: Install jq
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y jq
-        jq --version
-    - name: Install curl
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y curl
-        curl --version
     - run: |
         BODY="$(jq '.comment.body' $GITHUB_EVENT_PATH)"
         ISSUE_NUMBER="$(jq '.issue.number' $GITHUB_EVENT_PATH)"
