@@ -136,7 +136,7 @@ kafkaVersions.each {kv ->
 
     filter {
       excludeTestsMatching "*InStreaming"
-      if (kv.key != '01103') excludeTestsMatching "*DynamicPartitions" //admin client create partitions does not exist in kafka 0.11.0.3
+      if (kv.key == '01103') excludeTestsMatching "*DynamicPartitions" //admin client create partitions does not exist in kafka 0.11.0.3
     }
   }
 }
