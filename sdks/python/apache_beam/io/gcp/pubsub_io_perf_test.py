@@ -145,8 +145,11 @@ class PubsubWritePerfTest(PubsubIOPerfTest):
 
   def _setup_pubsub(self):
     super()._setup_pubsub()
+
+    print("Write test. topic name:", self.topic_name)
     _ = self.pub_client.create_topic(name=self.topic_name)
 
+    print("Write test. subscription name:", self.read_sub_name)
     _ = self.sub_client.create_subscription(
         name=self.read_sub_name,
         topic=self.topic_name,
@@ -184,8 +187,11 @@ class PubsubReadPerfTest(PubsubIOPerfTest):
 
   def _setup_pubsub(self):
     super()._setup_pubsub()
+
+    print("Read test. matcher topic name:", self.matcher_topic_name)
     _ = self.pub_client.create_topic(name=self.matcher_topic_name)
 
+    print("Read test. matcher subscription name:", self.read_matcher_sub_name)
     _ = self.sub_client.create_subscription(
         name=self.read_matcher_sub_name,
         topic=self.matcher_topic_name,
