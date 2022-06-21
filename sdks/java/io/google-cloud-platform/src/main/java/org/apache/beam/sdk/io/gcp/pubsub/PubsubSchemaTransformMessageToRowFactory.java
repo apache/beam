@@ -39,7 +39,7 @@ import org.checkerframework.checker.nullness.compatqual.NonNullType;
  * repository.
  */
 @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @Internal
 @Experimental(Kind.SCHEMAS)
