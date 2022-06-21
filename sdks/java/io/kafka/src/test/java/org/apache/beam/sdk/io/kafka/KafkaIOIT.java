@@ -363,11 +363,12 @@ public class KafkaIOIT {
 
       PipelineResult readResult = sdfReadPipeline.run();
 
-      State readState = readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()/2));
+      State readState =
+          readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout() / 2));
 
       System.out.println("after read");
 
-      cancelIfTimeouted(readResult,readState);
+      cancelIfTimeouted(readResult, readState);
 
     } finally {
       client.deleteTopics(ImmutableSet.of(topicName));

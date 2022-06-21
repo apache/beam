@@ -43,6 +43,15 @@ def kafkaVersions = [
     '251': "2.5.1",
 ]
 
+def sdfKafkaVersions = [
+        '201',
+        '211',
+        '222',
+        '231',
+        '241',
+        '251'
+]
+
 kafkaVersions.each{k,v -> configurations.create("kafkaVersion$k")}
 
 dependencies {
@@ -112,7 +121,7 @@ kafkaVersions.each {kv ->
 }
 
 kafkaVersions.each {kv ->
-  task "kafkaVersion${kv.key}BatchIT"(type: Test) {
+  task "kafkaVersion${kv.key}IT"(type: Test) {
     group = "Verification"
     description = "Runs KafkaIO IT tests with Kafka clients API $kv.value"
     outputs.upToDateWhen { false }
@@ -136,7 +145,7 @@ kafkaVersions.each {kv ->
 
     filter {
       excludeTestsMatching "*InStreaming"
-      if (kv.key == '01103' || kv.key == '100') excludeTestsMatching "*DynamicPartitions" //admin client create partitions does not exist in kafka 0.11.0.3 and kafka sdf does not appear to work for kafka 1.0.0
+      if (!(kv.key in sdfKafkaVersions)) excludeTestsMatching "*DynamicPartitions" //admin client create partitions does not exist in kafka 0.11.0.3 and kafka sdf does not appear to work for kafka versions <2.0.1
     }
   }
 }
