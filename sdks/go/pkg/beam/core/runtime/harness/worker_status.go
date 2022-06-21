@@ -127,7 +127,7 @@ func (w *workerStatusHandler) reader(ctx context.Context, stub fnpb.BeamFnWorker
 		w.cacheStats(statusInfo)
 		goroutineDump(statusInfo)
 		buildInfo(statusInfo)
-		log.Infof(ctx, statusInfo.String())
+
 		response := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: statusInfo.String()}
 		if err := stub.Send(response); err != nil && err != io.EOF {
 			log.Errorf(ctx, "workerStatus.Writer: Failed to respond: %v", err)
