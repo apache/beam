@@ -89,19 +89,19 @@ func TestEncodeDecodeFn(t *testing.T) {
 	}{
 		{
 			"no arg or return",
-			func() {},
+			emptyFn,
 		},
 		{
 			"one arg, no return",
-			func(x int) {},
+			oneArg,
 		},
 		{
 			"no arg, one return",
-			func() error { return nil },
+			oneRet,
 		},
 		{
 			"one arg, one return",
-			func(x string) string { return x },
+			argAndRet,
 		},
 	}
 	for _, test := range tests {
