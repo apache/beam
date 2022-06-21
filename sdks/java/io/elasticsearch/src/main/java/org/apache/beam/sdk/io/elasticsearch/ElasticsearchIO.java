@@ -1720,7 +1720,7 @@ public class ElasticsearchIO {
 
     /**
      * Sets the input document i.e. desired document that will end up in Elasticsearch for this
-     * WriteSummary object. The inputDoc will be the a document that was part of the input
+     * WriteSummary object. The inputDoc will be a document that was part of the input
      * PCollection to either {@link Write} or {@link DocToBulk}
      *
      * @param inputDoc Serialized json input document destined to end up in Elasticsearch.

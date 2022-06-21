@@ -184,7 +184,7 @@ public class ReflectHelpers {
   }
 
   /**
-   * Returns instances of all implementations of the the specified {@code iface}. Instances are
+   * Returns instances of all implementations of the specified {@code iface}. Instances are
    * sorted by their class' name to ensure deterministic execution.
    *
    * @param iface The interface to load implementations of

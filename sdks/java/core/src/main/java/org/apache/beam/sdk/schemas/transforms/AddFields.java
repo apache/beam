@@ -134,7 +134,7 @@ public class AddFields {
       }
     }
 
-    /** This class encapsulates all data needed to add a a new field to the schema. */
+    /** This class encapsulates all data needed to add a new field to the schema. */
     @AutoValue
     abstract static class AddFieldsInformation implements Serializable {
       // The new output fieldtype after adding the new field.

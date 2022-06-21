@@ -22,7 +22,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.metrics.DistributionResult;
 
 /**
- * Data describing the the distribution. This should retain enough detail that it can be combined
+ * Data describing the distribution. This should retain enough detail that it can be combined
  * with other {@link DistributionData}.
  *
  * <p>This is kept distinct from {@link DistributionResult} since this may be extended to include

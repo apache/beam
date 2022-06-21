@@ -266,7 +266,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
 
   /**
    * Determines whether a single file represented by this source is splittable. Returns true if we
-   * are using the default decompression factory and and it determines from the requested file name
+   * are using the default decompression factory and it determines from the requested file name
    * that the file is not compressed.
    */
   @Override

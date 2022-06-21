@@ -67,7 +67,7 @@ func init() {
 	runtime.RegisterInit(hook)
 }
 
-// hook starts the harness, if in worker mode. Otherwise, is is a no-op.
+// hook starts the harness, if in worker mode. Otherwise, is a no-op.
 func hook() {
 	if !*worker {
 		return

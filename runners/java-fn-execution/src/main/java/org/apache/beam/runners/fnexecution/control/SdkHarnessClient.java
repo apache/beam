@@ -604,7 +604,7 @@ public class SdkHarnessClient implements AutoCloseable {
    *   <li>Remote references
    * </ul>
    *
-   * <p>Note that bundle processors are cached based upon the the {@link
+   * <p>Note that bundle processors are cached based upon the {@link
    * ProcessBundleDescriptor#getId() process bundle descriptor id}. A previously created instance
    * may be returned.
    */
@@ -623,7 +623,7 @@ public class SdkHarnessClient implements AutoCloseable {
   /**
    * Provides {@link BundleProcessor} that is capable of processing bundles not containing timers.
    *
-   * <p>Note that bundle processors are cached based upon the the {@link
+   * <p>Note that bundle processors are cached based upon the {@link
    * ProcessBundleDescriptor#getId() process bundle descriptor id}. A previously created instance
    * may be returned.
    */
@@ -650,7 +650,7 @@ public class SdkHarnessClient implements AutoCloseable {
    *   <li>Remote references
    * </ul>
    *
-   * <p>Note that bundle processors are cached based upon the the {@link
+   * <p>Note that bundle processors are cached based upon the {@link
    * ProcessBundleDescriptor#getId() process bundle descriptor id}. A previously created instance
    * may be returned.
    */

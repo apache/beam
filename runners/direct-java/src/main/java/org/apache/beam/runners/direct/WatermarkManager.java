@@ -832,7 +832,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
 
   /**
    * For each (Object, NavigableSet) pair in the provided map, remove each Timer that is before the
-   * latestTime argument and put in in the result with the same key, then remove all of the keys
+   * latestTime argument and put in the result with the same key, then remove all of the keys
    * which have no more pending timers.
    *
    * <p>The result collection retains ordering of timers (from earliest to latest).

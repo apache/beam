@@ -38,7 +38,7 @@ public class GcsPathValidator implements PathValidator {
     return new GcsPathValidator(options.as(GcsOptions.class));
   }
 
-  /** Validates the the input GCS path is accessible and that the path is well formed. */
+  /** Validates the input GCS path is accessible and that the path is well formed. */
   @Override
   public void validateInputFilePatternSupported(String filepattern) {
     getGcsPath(filepattern);
@@ -46,7 +46,7 @@ public class GcsPathValidator implements PathValidator {
     verifyPathIsAccessible(filepattern, "Could not find file %s");
   }
 
-  /** Validates the the output GCS path is accessible and that the path is well formed. */
+  /** Validates the output GCS path is accessible and that the path is well formed. */
   @Override
   public void validateOutputFilePrefixSupported(String filePrefix) {
     verifyPath(filePrefix);
