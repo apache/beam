@@ -10,10 +10,13 @@ See the License for the specific language governing permissions and
 limitations under the License. See accompanying LICENSE file.
 */}}
 
-<iframe
-    src="https://frontend-beta-dot-apache-beam-testing.appspot.com/embedded?enabled={{ .Get 0 }}&example={{ .Get 1 }}&code={{ .Get 2 }}"
-    width="100%"
-    height="{{ .Get 3 }}"
-    class="code-snippet playground"
-    allow="clipboard-write">
-</iframe>
+<div class="playground-iframe-wrapper-no-scroll">
+    <iframe
+        src="https://play.beam.apache.org/embedded?editable={{ .Get `editable` }}&example={{ .Get `example` }}&code={{ .Get `code` }}"
+        width="100%"
+        height="{{ .Get `height` }}"
+        class="code-snippet playground"
+        allow="clipboard-write">
+    </iframe>
+    <div class="playground-iframe-overlay"></div>
+</div>
