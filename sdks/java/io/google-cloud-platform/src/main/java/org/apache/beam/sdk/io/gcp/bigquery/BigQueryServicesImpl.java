@@ -616,13 +616,24 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public @Nullable Table getTable(TableReference tableRef, List<String> selectedFields)
         throws IOException, InterruptedException {
-      return getTable(tableRef, selectedFields, createDefaultBackoff(), Sleeper.DEFAULT);
+      return getTable(tableRef, selectedFields, TableMetadataView.STORAGE_STATS);
+    }
+
+    @Override
+    public @Nullable Table getTable(
+        TableReference tableRef, List<String> selectedFields, TableMetadataView view)
+        throws IOException, InterruptedException {
+      return getTable(tableRef, selectedFields, view, createDefaultBackoff(), Sleeper.DEFAULT);
     }
 
     @VisibleForTesting
     @Nullable
     Table getTable(
-        TableReference ref, List<String> selectedFields, BackOff backoff, Sleeper sleeper)
+        TableReference ref,
+        List<String> selectedFields,
+        TableMetadataView view,
+        BackOff backoff,
+        Sleeper sleeper)
         throws IOException, InterruptedException {
       Tables.Get get =
           client
@@ -631,6 +642,9 @@ class BigQueryServicesImpl implements BigQueryServices {
               .setPrettyPrint(false);
       if (!selectedFields.isEmpty()) {
         get.setSelectedFields(String.join(",", selectedFields));
+      }
+      if (view != null) {
+        get.set("view", view.name());
       }
       try {
         return executeWithRetries(
@@ -1155,9 +1169,9 @@ class BigQueryServicesImpl implements BigQueryServices {
               if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
                 allErrors.add(error);
                 retryRows.add(rowsToPublish.get(errorIndex));
-                // TODO (BEAM-12139): Select the retry rows(using errorIndex) from the batch of rows
-                // which attempted insertion in this call. Not the entire set of rows in
-                // rowsToPublish.
+                // TODO (https://github.com/apache/beam/issues/20891): Select the retry rows(using
+                // errorIndex) from the batch of rows which attempted insertion in this call.
+                // Not the entire set of rows in rowsToPublish.
                 if (retryIds != null) {
                   retryIds.add(idsToPublish.get(errorIndex));
                 }

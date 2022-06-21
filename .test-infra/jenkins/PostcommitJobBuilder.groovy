@@ -39,7 +39,7 @@ class PostcommitJobBuilder {
    * Set the job details.
    *
    * @param nameBase Job name for the postcommit job, a _PR suffix added if the trigger is set.
-   * @param triggerPhrase Phrase to trigger jobs, empty to not have a trigger.
+   * @param triggerPhrase Phrase to trigger jobs, [Issue#21824] IGNORED.
    * @param githubUiHint Short description in the github UI.
    * @param scope Delegate for the job.
    * @param jobDefinition Closure for the job.
@@ -51,6 +51,16 @@ class PostcommitJobBuilder {
       jobDefinition = {}) {
     PostcommitJobBuilder jb = new PostcommitJobBuilder(scope, jobDefinition)
     jb.defineAutoPostCommitJob(nameBase)
+  }
+
+  static void postCommitJobWithTrigger(nameBase,
+      triggerPhrase,
+      githubUiHint,
+      scope,
+      jobDefinition = {}) {
+    PostcommitJobBuilder jb = new PostcommitJobBuilder(scope, jobDefinition)
+    jb.defineAutoPostCommitJob(nameBase)
+
     if (triggerPhrase) {
       jb.defineGhprbTriggeredJob(nameBase + "_PR", triggerPhrase, githubUiHint, false)
     }

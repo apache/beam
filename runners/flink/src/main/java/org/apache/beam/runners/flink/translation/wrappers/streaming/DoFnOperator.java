@@ -64,7 +64,6 @@ import org.apache.beam.runners.flink.translation.utils.Workarounds;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput.BufferingDoFnRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkBroadcastStateInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
-import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandlers.StateAndTimerBundleCheckpointHandler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -105,7 +104,6 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
-import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -121,6 +119,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.function.BiConsumerWithException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -360,7 +359,7 @@ public class DoFnOperator<InputT, OutputT>
       //      @SuppressWarnings({"unchecked", "rawtypes"})
       Coder windowCoder = windowingStrategy.getWindowFn().windowCoder();
 
-      @SuppressWarnings({"unchecked", "rawtypes"})
+      @SuppressWarnings({"unchecked"})
       StatefulDoFnRunner.StateCleaner<?> stateCleaner =
           new StatefulDoFnRunner.StateInternalsStateCleaner<>(
               doFn, keyedStateInternals, windowCoder);
@@ -448,7 +447,7 @@ public class DoFnOperator<InputT, OutputT>
                 "beam-timer", new CoderTypeSerializer<>(timerCoder, serializedOptions), this);
       }
 
-      timerInternals = new FlinkTimerInternals();
+      timerInternals = new FlinkTimerInternals(timerService);
       timeServiceManagerCompat = getTimeServiceManagerCompat();
     }
 
@@ -912,6 +911,7 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   protected final void invokeFinishBundle() {
+    long previousBundleFinishTime = lastFinishBundleTime;
     if (bundleStarted) {
       LOG.debug("Finishing bundle.");
       pushbackDoFnRunner.finishBundle();
@@ -925,6 +925,14 @@ public class DoFnOperator<InputT, OutputT>
         LOG.debug("Invoking bundle finish callback.");
         bundleFinishedCallback.run();
       }
+    }
+    try {
+      if (previousBundleFinishTime - getProcessingTimeService().getCurrentProcessingTime()
+          > maxBundleTimeMills) {
+        processInputWatermark(false);
+      }
+    } catch (Exception ex) {
+      LOG.warn("Failed to update downstream watermark", ex);
     }
   }
 
@@ -1056,18 +1064,6 @@ public class DoFnOperator<InputT, OutputT>
     checkArgument(namespace instanceof WindowNamespace);
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
     timerInternals.onFiredOrDeletedTimer(timerData);
-    Instant effectiveOutputTimestamp;
-
-    if (timerData.getDomain() == TimeDomain.EVENT_TIME) {
-      effectiveOutputTimestamp = timerData.getOutputTimestamp();
-    } else {
-      // Flink does not set a watermark hold for the timer's output timestamp, and previous to
-      // https://github.com/apache/beam/pull/17262 processing time timers did not correctly emit
-      // elements at their output timestamp.  In this case we need to continue doing the wrong thing
-      // and using the output watermark rather than the firing timestamp.  Once flink correctly sets
-      // a  watermark hold for the output timestamp, this should be changed back.
-      effectiveOutputTimestamp = timerInternals.currentOutputWatermarkTime();
-    }
 
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(),
@@ -1075,7 +1071,7 @@ public class DoFnOperator<InputT, OutputT>
         keyedStateInternals.getKey(),
         window,
         timerData.getTimestamp(),
-        effectiveOutputTimestamp,
+        timerData.getOutputTimestamp(),
         timerData.getDomain());
   }
 
@@ -1366,14 +1362,18 @@ public class DoFnOperator<InputT, OutputT>
      */
     @VisibleForTesting final MapState<String, TimerData> pendingTimersById;
 
-    private FlinkTimerInternals() {
+    private final InternalTimerService<TimerData> timerService;
+
+    private FlinkTimerInternals(InternalTimerService<TimerData> timerService) throws Exception {
       MapStateDescriptor<String, TimerData> pendingTimersByIdStateDescriptor =
           new MapStateDescriptor<>(
               PENDING_TIMERS_STATE_NAME,
               new StringSerializer(),
               new CoderTypeSerializer<>(timerCoder, serializedOptions));
+
       this.pendingTimersById = getKeyedStateStore().getMapState(pendingTimersByIdStateDescriptor);
-      populateOutputTimestampQueue();
+      this.timerService = timerService;
+      populateOutputTimestampQueue(timerService);
     }
 
     /**
@@ -1398,59 +1398,14 @@ public class DoFnOperator<InputT, OutputT>
       }
     }
 
-    /** Keeps a minimum output timestamp across all event timers. */
-    private void onNewEventTimer(TimerData newTimer) {
-      Preconditions.checkState(
-          newTimer.getDomain() == TimeDomain.EVENT_TIME,
-          "Timer with id %s is not an event time timer!",
-          newTimer.getTimerId());
-      if (timerUsesOutputTimestamp(newTimer)) {
-        keyedStateInternals.addWatermarkHoldUsage(newTimer.getOutputTimestamp());
-      }
-    }
+    private void populateOutputTimestampQueue(InternalTimerService<TimerData> timerService)
+        throws Exception {
 
-    /** Holds the watermark when there is an sdf timer. */
-    private void onNewSdfTimer(TimerData newTimer) {
-      Preconditions.checkState(
-          StateAndTimerBundleCheckpointHandler.isSdfTimer(newTimer.getTimerId()));
-      // An SDF timer should hold the watermark for further output.
-      Preconditions.checkState(timerUsesOutputTimestamp(newTimer));
-      keyedStateInternals.addWatermarkHoldUsage(newTimer.getOutputTimestamp());
-    }
-
-    private void populateOutputTimestampQueue() {
-      final KeyedStateBackend<Object> keyedStateBackend = getKeyedStateBackend();
-      final Object currentKey = keyedStateBackend.getCurrentKey();
-      try (Stream<Object> keys =
-          keyedStateBackend.getKeys(PENDING_TIMERS_STATE_NAME, VoidNamespace.INSTANCE)) {
-        keys.forEach(
-            key -> {
-              keyedStateBackend.setCurrentKey(key);
-              try {
-                for (TimerData timerData : pendingTimersById.values()) {
-                  if (timerData.getDomain() == TimeDomain.EVENT_TIME
-                      || StateAndTimerBundleCheckpointHandler.isSdfTimer(timerData.getTimerId())) {
-                    if (timerUsesOutputTimestamp(timerData)) {
-                      keyedStateInternals.addWatermarkHoldUsage(timerData.getOutputTimestamp());
-                    }
-                  }
-                }
-              } catch (Exception e) {
-                throw new RuntimeException(
-                    "Exception while reading set of timers for key: " + key, e);
-              }
-            });
-      } finally {
-        if (currentKey != null) {
-          keyedStateBackend.setCurrentKey(currentKey);
-        }
-      }
-    }
-
-    private boolean timerUsesOutputTimestamp(TimerData timer) {
-      // If a timer's output timestamp is earlier than the timer timestamp,
-      // we have to hold back the output watermark.
-      return timer.getOutputTimestamp().isBefore(timer.getTimestamp());
+      BiConsumerWithException<TimerData, Long, Exception> consumer =
+          (timerData, stamp) ->
+              keyedStateInternals.addWatermarkHoldUsage(timerData.getOutputTimestamp());
+      timerService.forEachEventTimeTimer(consumer);
+      timerService.forEachProcessingTimeTimer(consumer);
     }
 
     private String constructTimerId(String timerFamilyId, String timerId) {
@@ -1506,18 +1461,15 @@ public class DoFnOperator<InputT, OutputT>
       switch (timer.getDomain()) {
         case EVENT_TIME:
           timerService.registerEventTimeTimer(timer, adjustTimestampForFlink(time));
-          onNewEventTimer(timer);
           break;
         case PROCESSING_TIME:
         case SYNCHRONIZED_PROCESSING_TIME:
           timerService.registerProcessingTimeTimer(timer, adjustTimestampForFlink(time));
-          if (StateAndTimerBundleCheckpointHandler.isSdfTimer(timer.getTimerId())) {
-            onNewSdfTimer(timer);
-          }
           break;
         default:
           throw new UnsupportedOperationException("Unsupported time domain: " + timer.getDomain());
       }
+      keyedStateInternals.addWatermarkHoldUsage(timer.getOutputTimestamp());
     }
 
     /**
@@ -1552,12 +1504,7 @@ public class DoFnOperator<InputT, OutputT>
             getContextTimerId(
                 constructTimerId(timer.getTimerFamilyId(), timer.getTimerId()),
                 timer.getNamespace()));
-        if (timer.getDomain() == TimeDomain.EVENT_TIME
-            || StateAndTimerBundleCheckpointHandler.isSdfTimer(timer.getTimerId())) {
-          if (timerUsesOutputTimestamp(timer)) {
-            keyedStateInternals.removeWatermarkHoldUsage(timer.getOutputTimestamp());
-          }
-        }
+        keyedStateInternals.removeWatermarkHoldUsage(timer.getOutputTimestamp());
       } catch (Exception e) {
         throw new RuntimeException("Failed to cleanup pending timers state.", e);
       }

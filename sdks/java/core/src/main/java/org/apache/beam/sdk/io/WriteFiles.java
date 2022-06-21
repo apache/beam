@@ -523,7 +523,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                         public void process(ProcessContext c) {
                           c.output(c.element().withShard(UNKNOWN_SHARDNUM));
                         }
-                      }));
+                      }))
+              .setCoder(fileResultCoder);
       return PCollectionList.of(writtenBundleFiles)
           .and(writtenSpilledFiles)
           .apply(Flatten.pCollections())
@@ -744,7 +745,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       // records buffered or they have been buffered for a certain time, controlled by
       // FILE_TRIGGERING_RECORD_COUNT and BUFFERING_DURATION respectively.
       //
-      // TODO(BEAM-12040): The implementation doesn't currently work with merging windows.
+      // TODO(https://github.com/apache/beam/issues/20928): The implementation doesn't currently
+      // work with merging windows.
       PCollection<KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>> shardedInput =
           input
               .apply(
@@ -807,7 +809,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                         public void process(ProcessContext c) {
                           c.output(c.element().withShard(UNKNOWN_SHARDNUM));
                         }
-                      }));
+                      }))
+              .setCoder(fileResultCoder);
 
       // Group temp file results by destinations again to gather all the results in the same window.
       // This is needed since we don't have shard idx associated with each temp file so have to rely

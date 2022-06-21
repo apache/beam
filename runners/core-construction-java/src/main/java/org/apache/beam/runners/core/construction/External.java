@@ -98,8 +98,12 @@ public class External {
   }
 
   @VisibleForTesting
-  static <InputT extends PInput, OutputT> SingleOutputExpandableTransform<InputT, OutputT> of(
-      String urn, byte[] payload, String endpoint, ExpansionServiceClientFactory clientFactory) {
+  public static <InputT extends PInput, OutputT>
+      SingleOutputExpandableTransform<InputT, OutputT> of(
+          String urn,
+          byte[] payload,
+          String endpoint,
+          ExpansionServiceClientFactory clientFactory) {
     Endpoints.ApiServiceDescriptor apiDesc =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
     return new SingleOutputExpandableTransform<>(
@@ -239,7 +243,8 @@ public class External {
                     PValues.expandInput(PBegin.in(p)),
                     ImmutableMap.of(entry.getKey(), (PCollection<?>) entry.getValue()),
                     Impulse.create(),
-                    // TODO(BEAM-12082): Add proper support for Resource Hints with XLang.
+                    // TODO(https://github.com/apache/beam/issues/18371): Add proper support for
+                    // Resource Hints with XLang.
                     ResourceHints.create(),
                     p);
             // using fake Impulses to provide inputs

@@ -323,7 +323,9 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
         env.dependencies.extend(deps)
       self._provision_info.provision_info.ClearField('retrieval_token')
     except concurrent.futures.TimeoutError:
-      pass  # TODO(BEAM-9577): Require this once all SDKs support it.
+      # TODO(https://github.com/apache/beam/issues/20267): Require this once
+      # all SDKs support it.
+      pass
 
   def cancel(self):
     if not self.is_terminal_state(self.state):

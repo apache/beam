@@ -15,7 +15,7 @@
 
 // Package jsonx contains utilities for working with JSON encoded data.
 //
-// TODO(BEAM-9616): Delete this package once the SDK defaults to schemas.
+// TODO(https://github.com/apache/beam/issues/20271): Delete this package once the SDK defaults to schemas.
 package jsonx
 
 import (
