@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.io.Read;
@@ -42,10 +43,13 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
@@ -126,6 +130,17 @@ public class KafkaIOIT {
 
   @Rule public TestPipeline readPipeline = TestPipeline.create();
 
+  private static ExperimentalOptions pipelineOptions;
+
+  static {
+    pipelineOptions = PipelineOptionsFactory.create().as(ExperimentalOptions.class);
+    ExperimentalOptions.addExperiment(pipelineOptions, "use_sdf_read");
+    ExperimentalOptions.addExperiment(pipelineOptions, "beam_fn_api");
+    pipelineOptions.as(TestPipelineOptions.class).setBlockOnRun(false);
+  }
+
+  @Rule public TestPipeline sdfReadPipeline = TestPipeline.fromOptions(pipelineOptions);
+
   private static KafkaContainer kafkaContainer;
 
   @BeforeClass
@@ -201,7 +216,9 @@ public class KafkaIOIT {
 
     PCollection<String> hashcode =
         readPipeline
-            .apply("Read from bounded Kafka", readFromBoundedKafka().withTopic(options.getKafkaTopic() + "-batch"))
+            .apply(
+                "Read from bounded Kafka",
+                readFromBoundedKafka().withTopic(options.getKafkaTopic() + "-batch"))
             .apply(
                 "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
             .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
@@ -231,7 +248,8 @@ public class KafkaIOIT {
 
     writePipeline
         .apply(Create.of(KV.<byte[], byte[]>of(null, null)))
-        .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic() + "-nullRoundTrip"));
+        .apply(
+            "Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic() + "-nullRoundTrip"));
 
     PCollection<Row> rows =
         readPipeline.apply(
@@ -275,30 +293,12 @@ public class KafkaIOIT {
       records.put(i, String.valueOf(i));
     }
     Map<Integer, String> moreRecords = new HashMap<>();
-    for (int i = 0; i < 100; i++) {
+    for (int i = 100; i < 200; i++) {
       moreRecords.put(i, String.valueOf(i));
     }
     try {
       client.createTopics(ImmutableSet.of(new NewTopic(topicName, 1, (short) 1)));
       client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(1)));
-
-      PCollection<Integer> values =
-          readPipeline
-              .apply(
-                  "Read from Kafka",
-                  KafkaIO.<Integer, String>read()
-                      .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
-                      .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
-                      .withTopic(topicName)
-                      .withKeyDeserializer(IntegerDeserializer.class)
-                      .withValueDeserializer(StringDeserializer.class)
-                      .withMaxNumRecords(200))
-              .apply("Key by Partition", ParDo.of(new KeyByPartition()))
-              .apply(Window.into(FixedWindows.of(Duration.standardMinutes(5))))
-              .apply("Group by Partition", GroupByKey.create())
-              .apply("Get Partitions", Keys.create());
-
-      PipelineResult readResult = readPipeline.run();
 
       writePipeline
           .apply("Generate Write Elements", Create.of(records))
@@ -312,26 +312,78 @@ public class KafkaIOIT {
 
       writePipeline.run().waitUntilFinish(Duration.standardSeconds(15));
 
-      client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(2)));
+      System.out.println("after write 1");
 
-      writePipeline
-          .apply("Second Pass generate Write Elements", Create.of(moreRecords))
-          .apply(
-              "Write more to Kafka",
-              KafkaIO.<Integer, String>write()
-                  .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
-                  .withTopic(topicName)
-                  .withKeySerializer(IntegerSerializer.class)
-                  .withValueSerializer(StringSerializer.class));
+      Thread delayedWriteThread =
+          new Thread(
+              () -> {
+                try {
+                  Thread.sleep(20 * 1000); // wait 20 seconds before changing kafka
+                } catch (InterruptedException e) {
+                  throw new RuntimeException(e);
+                }
 
-      writePipeline.run().waitUntilFinish(Duration.standardSeconds(15));
+                client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(2)));
 
-      readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+                writePipeline
+                    .apply("Second Pass generate Write Elements", Create.of(moreRecords))
+                    .apply(
+                        "Write more to Kafka",
+                        KafkaIO.<Integer, String>write()
+                            .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                            .withTopic(topicName)
+                            .withKeySerializer(IntegerSerializer.class)
+                            .withValueSerializer(StringSerializer.class));
 
-      PAssert.that(values).containsInAnyOrder(1, 2);
+                writePipeline.run().waitUntilFinish(Duration.standardSeconds(15));
+
+                System.out.println("after write 2");
+              });
+
+      delayedWriteThread.start();
+
+      PCollection<Integer> values =
+          sdfReadPipeline
+              .apply(
+                  "Read from Kafka",
+                  KafkaIO.<Integer, String>read()
+                      .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                      .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+                      .withTopic(topicName)
+                      .withDynamicRead(Duration.standardSeconds(5))
+                      .withKeyDeserializer(IntegerDeserializer.class)
+                      .withValueDeserializer(StringDeserializer.class))
+              .apply("Log Record", ParDo.of(new LogRecord()))
+              .apply("Key by Partition", ParDo.of(new KeyByPartition()))
+              .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
+              .apply("Group by Partition", GroupByKey.create())
+              .apply("Get Partitions", Keys.create());
+
+      PAssert.that(values).containsInAnyOrder(0, 1);
+
+      PipelineResult readResult = sdfReadPipeline.run();
+
+      State readState = readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()/2));
+
+      System.out.println("after read");
+
+      cancelIfTimeouted(readResult,readState);
 
     } finally {
       client.deleteTopics(ImmutableSet.of(topicName));
+    }
+  }
+
+  private static class LogRecord
+      extends DoFn<KafkaRecord<Integer, String>, KafkaRecord<Integer, String>> {
+    @ProcessElement
+    public void processElement(
+        @Element KafkaRecord<Integer, String> element,
+        OutputReceiver<KafkaRecord<Integer, String>> receiver) {
+      {
+        System.out.println(element);
+        receiver.output(element);
+      }
     }
   }
 

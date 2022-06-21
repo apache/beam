@@ -136,7 +136,7 @@ kafkaVersions.each {kv ->
 
     filter {
       excludeTestsMatching "*InStreaming"
-      if (kv.key == '01103') excludeTestsMatching "*DynamicPartitions" //admin client create partitions does not exist in kafka 0.11.0.3
+      if (kv.key == '01103' || kv.key == '100') excludeTestsMatching "*DynamicPartitions" //admin client create partitions does not exist in kafka 0.11.0.3 and kafka sdf does not appear to work for kafka 1.0.0
     }
   }
 }
