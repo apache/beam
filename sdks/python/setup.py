@@ -20,8 +20,6 @@
 import os
 import sys
 import warnings
-from distutils.errors import DistutilsError
-from distutils.version import StrictVersion
 from pathlib import Path
 
 # Pylint and isort disagree here.
@@ -30,8 +28,10 @@ import setuptools
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
 from pkg_resources import normalize_path
+from pkg_resources import parse_version
 from pkg_resources import to_filename
 from setuptools import Command
+from setuptools.errors import BaseError
 
 
 class mypy(Command):
@@ -60,7 +60,7 @@ class mypy(Command):
     args = ['mypy', self.get_project_path()]
     result = subprocess.call(args)
     if result != 0:
-      raise DistutilsError("mypy exited with status %d" % result)
+      raise BaseError("mypy exited with status %d" % result)
 
 
 def get_version():
@@ -92,7 +92,7 @@ different technologies and user communities.
 
 REQUIRED_PIP_VERSION = '7.0.0'
 _PIP_VERSION = get_distribution('pip').version
-if StrictVersion(_PIP_VERSION) < StrictVersion(REQUIRED_PIP_VERSION):
+if parse_version(_PIP_VERSION) < parse_version(REQUIRED_PIP_VERSION):
   warnings.warn(
       "You are using version {0} of pip. " \
       "However, version {1} is recommended.".format(
@@ -103,7 +103,7 @@ if StrictVersion(_PIP_VERSION) < StrictVersion(REQUIRED_PIP_VERSION):
 REQUIRED_CYTHON_VERSION = '0.28.1'
 try:
   _CYTHON_VERSION = get_distribution('cython').version
-  if StrictVersion(_CYTHON_VERSION) < StrictVersion(REQUIRED_CYTHON_VERSION):
+  if parse_version(_CYTHON_VERSION) < parse_version(REQUIRED_CYTHON_VERSION):
     warnings.warn(
         "You are using version {0} of cython. " \
         "However, version {1} is recommended.".format(

@@ -77,7 +77,7 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
         python setup.py sdist
 
-   See the [sdist documentation](https://docs.python.org/2/distutils/sourcedist.html) for more details on this command.
+   See the [sdist documentation](https://docs.python.org/3/distutils/sourcedist.html) for more details on this command.
 
 ## Multiple File Dependencies
 

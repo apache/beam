@@ -28,9 +28,9 @@ when running the workflow for remote execution.
 # pytype: skip-file
 
 import subprocess
-from distutils.command.build import build as _build  # type: ignore
 
 import setuptools
+from setuptools.command.build import build as _build  # type: ignore
 
 
 # This class handles the pip install mechanism.

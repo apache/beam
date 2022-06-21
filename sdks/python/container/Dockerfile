@@ -48,6 +48,9 @@ RUN \
     rm -rf /root/.cache/pip && \
     rm -rf /tmp/base_image_requirements.txt
 
+# Upgrade setuptools to >= 59.0. disutils is deprecated and base image has version 57.5.0
+RUN pip install --upgrade setuptools
+
 # Install Google Cloud SDK.
 ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
 ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
