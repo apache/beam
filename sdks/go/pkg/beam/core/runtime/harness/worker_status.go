@@ -104,7 +104,7 @@ func goroutineDump(statusInfo *strings.Builder) {
 func buildInfo(statusInfo *strings.Builder) {
 	statusInfo.WriteString("\n============Build Info============\n")
 	if info, ok := debug.ReadBuildInfo(); ok {
-		statusInfo.WriteString(info.String())
+		statusInfo.WriteString(fmt.Sprintf("%s", info))
 	}
 }
 
@@ -127,7 +127,7 @@ func (w *workerStatusHandler) reader(ctx context.Context, stub fnpb.BeamFnWorker
 		w.cacheStats(statusInfo)
 		goroutineDump(statusInfo)
 		buildInfo(statusInfo)
-
+		log.Infof(ctx, statusInfo.String())
 		response := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: statusInfo.String()}
 		if err := stub.Send(response); err != nil && err != io.EOF {
 			log.Errorf(ctx, "workerStatus.Writer: Failed to respond: %v", err)
