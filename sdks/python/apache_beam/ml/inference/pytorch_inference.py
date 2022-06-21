@@ -172,6 +172,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       device: the device on which you wish to run the model. If
         ``device = GPU`` then a GPU device will be used if it is available.
         Otherwise, it will be CPU.
+      model_params: A dictionary of parameters passed in to the model class.
     """
     self._state_dict_path = state_dict_path
     if device == 'GPU' and torch.cuda.is_available():
