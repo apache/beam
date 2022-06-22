@@ -486,7 +486,7 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 	// For the key, the way we fill it out depends on whether the input element
 	// is a KV or single-element. Single-elements might have been lifted out of
 	// their FullValue if they were decoded, so we need to have a case for that.
-	// Also, we use the the top-level windows and timestamp.
+	// Also, we use the top-level windows and timestamp.
 	// TODO(https://github.com/apache/beam/issues/20196): Optimize this so it's decided in exec/translate.go
 	// instead of checking per-element.
 	if userElm, ok := elm.Elm.(*FullValue).Elm.(*FullValue); ok {

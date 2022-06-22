@@ -115,7 +115,7 @@ There are several reasons why this is not the case.
 only known at that time, such as a config file or database table schema.
 - PCollections don't have the necessary type information, so mypy sees them as
 effectively containing any element type.
-This may change in in the future.
+This may change in the future.
 - Transforms using lambdas (ex: `beam.Map(lambda x: (1, x)`) cannot be
 annotated properly using PEP 484.
 However, Beam does a best-effort attempt to analyze the output type

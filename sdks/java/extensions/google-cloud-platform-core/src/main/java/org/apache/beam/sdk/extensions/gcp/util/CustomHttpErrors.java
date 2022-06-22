@@ -132,7 +132,7 @@ public class CustomHttpErrors {
     }
   }
 
-  /** @return The the first custom error for the failing request and response to match, or null. */
+  /** @return The first custom error for the failing request and response to match, or null. */
   public String getCustomError(HttpRequestWrapper req, HttpResponseWrapper res) {
     for (MatcherAndError m : matchersAndLogs) {
       if (m.getMatcher().matchResponse(req, res)) {

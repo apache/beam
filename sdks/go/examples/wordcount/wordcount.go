@@ -50,7 +50,7 @@
 //
 //   --output=[YOUR_LOCAL_FILE | YOUR_REMOTE_FILE]
 //
-// The input file defaults to a public data set containing the text of of King
+// The input file defaults to a public data set containing the text of King
 // Lear, by William Shakespeare. You can override it and choose your own input
 // with --input.
 package main
