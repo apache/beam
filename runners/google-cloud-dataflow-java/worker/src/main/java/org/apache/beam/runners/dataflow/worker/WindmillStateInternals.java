@@ -1786,7 +1786,7 @@ class WindmillStateInternals<K> implements StateInternals {
 
     private boolean cleared = false;
     /**
-     * If non-{@literal null}, the known current hold value, or absent if we know the there are no
+     * If non-{@literal null}, the known current hold value, or absent if we know there are no
      * output watermark holds. If {@literal null}, the current hold value could depend on holds in
      * Windmill we do not yet know.
      */

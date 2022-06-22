@@ -237,7 +237,7 @@ def _get_data_buffer_time_limit_ms(experiments):
   not be available in future releases.
 
   Returns:
-    an int indicating the time limit in milliseconds of the the outbound
+    an int indicating the time limit in milliseconds of the outbound
       data buffering. Default is 0 (disabled)
   """
 

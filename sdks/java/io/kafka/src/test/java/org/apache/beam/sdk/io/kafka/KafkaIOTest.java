@@ -2036,7 +2036,7 @@ public class KafkaIOTest {
   /**
    * We start MockProducer with auto-completion disabled. That implies a record is not marked sent
    * until #completeNext() is called on it. This class starts a thread to asynchronously 'complete'
-   * the the sends. During completion, we can also make those requests fail. This error injection is
+   * the sends. During completion, we can also make those requests fail. This error injection is
    * used in one of the tests.
    */
   private static class ProducerSendCompletionThread {
