@@ -50,31 +50,31 @@ class ExampleState with ChangeNotifier {
   }
 
   Future<String> getExampleOutput(String id, SDK sdk) async {
-    return await _exampleRepository.getExampleOutput(
+    return _exampleRepository.getExampleOutput(
       GetExampleRequestWrapper(id, sdk),
     );
   }
 
   Future<String> getExampleSource(String id, SDK sdk) async {
-    return await _exampleRepository.getExampleSource(
+    return _exampleRepository.getExampleSource(
       GetExampleRequestWrapper(id, sdk),
     );
   }
 
   Future<ExampleModel> getExample(String path, SDK sdk) async {
-    return await _exampleRepository.getExample(
+    return _exampleRepository.getExample(
       GetExampleRequestWrapper(path, sdk),
     );
   }
 
   Future<String> getExampleLogs(String id, SDK sdk) async {
-    return await _exampleRepository.getExampleLogs(
+    return _exampleRepository.getExampleLogs(
       GetExampleRequestWrapper(id, sdk),
     );
   }
 
   Future<String> getExampleGraph(String id, SDK sdk) async {
-    return await _exampleRepository.getExampleGraph(
+    return _exampleRepository.getExampleGraph(
       GetExampleRequestWrapper(id, sdk),
     );
   }
