@@ -25,19 +25,23 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import org.apache.beam.fn.harness.HandlesSplits;
-import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.fn.harness.control.BundleProgressReporter;
+import org.apache.beam.fn.harness.control.Metrics;
+import org.apache.beam.fn.harness.control.Metrics.BundleCounter;
+import org.apache.beam.fn.harness.control.Metrics.BundleDistribution;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -69,10 +73,9 @@ public class PCollectionConsumerRegistry {
         FnDataReceiver consumer,
         String pTransformId,
         SimpleExecutionState state,
-        Coder valueCoder,
         MetricsContainer metricsContainer) {
       return new AutoValue_PCollectionConsumerRegistry_ConsumerAndMetadata(
-          consumer, pTransformId, state, valueCoder, metricsContainer);
+          consumer, pTransformId, state, metricsContainer);
     }
 
     public abstract FnDataReceiver getConsumer();
@@ -81,23 +84,31 @@ public class PCollectionConsumerRegistry {
 
     public abstract SimpleExecutionState getExecutionState();
 
-    public abstract Coder getValueCoder();
-
     public abstract MetricsContainer getMetricsContainer();
   }
 
-  private ListMultimap<String, ConsumerAndMetadata> pCollectionIdsToConsumers;
-  private Map<String, FnDataReceiver> pCollectionIdsToWrappedConsumer;
-  private MetricsContainerStepMap metricsContainerRegistry;
-  private ExecutionStateTracker stateTracker;
-  private SimpleStateRegistry executionStates = new SimpleStateRegistry();
+  private final MetricsContainerStepMap metricsContainerRegistry;
+  private final ExecutionStateTracker stateTracker;
+  private final ShortIdMap shortIdMap;
+  private final Map<String, Coder> pCollectionIdsToCoders;
+  private final ListMultimap<String, ConsumerAndMetadata> pCollectionIdsToConsumers;
+  private final Map<String, FnDataReceiver> pCollectionIdsToWrappedConsumer;
+  private final SimpleStateRegistry executionStates;
+  private final BundleProgressReporter.Registrar bundleProgressReporterRegistrar;
 
   public PCollectionConsumerRegistry(
-      MetricsContainerStepMap metricsContainerRegistry, ExecutionStateTracker stateTracker) {
+      MetricsContainerStepMap metricsContainerRegistry,
+      ExecutionStateTracker stateTracker,
+      ShortIdMap shortIdMap,
+      BundleProgressReporter.Registrar bundleProgressReporterRegistrar) {
     this.metricsContainerRegistry = metricsContainerRegistry;
     this.stateTracker = stateTracker;
+    this.shortIdMap = shortIdMap;
+    this.pCollectionIdsToCoders = new HashMap<>();
     this.pCollectionIdsToConsumers = ArrayListMultimap.create();
     this.pCollectionIdsToWrappedConsumer = new HashMap<>();
+    this.executionStates = new SimpleStateRegistry();
+    this.bundleProgressReporterRegistrar = bundleProgressReporterRegistrar;
   }
 
   /**
@@ -138,19 +149,11 @@ public class PCollectionConsumerRegistry {
             labelsMetadata);
     executionStates.register(state);
 
+    pCollectionIdsToCoders.put(pCollectionId, valueCoder);
     pCollectionIdsToConsumers.put(
         pCollectionId,
         ConsumerAndMetadata.forConsumer(
-            consumer,
-            pTransformId,
-            state,
-            valueCoder,
-            metricsContainerRegistry.getContainer(pTransformId)));
-  }
-
-  /** Reset the execution states of the registered functions. */
-  public void reset() {
-    executionStates.reset();
+            consumer, pTransformId, state, metricsContainerRegistry.getContainer(pTransformId)));
   }
 
   /** @return the list of pcollection ids. */
@@ -189,14 +192,14 @@ public class PCollectionConsumerRegistry {
         });
   }
 
-  /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
-  public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
-    return executionStates.getExecutionTimeMonitoringInfos();
-  }
-
   /** @return Execution Time Monitoring data based on the tracked start or finish function. */
   public Map<String, ByteString> getExecutionTimeMonitoringData(ShortIdMap shortIds) {
     return executionStates.getExecutionTimeMonitoringData(shortIds);
+  }
+
+  /** Reset the execution states of the registered functions. */
+  public void reset() {
+    executionStates.reset();
   }
 
   /**
@@ -209,8 +212,8 @@ public class PCollectionConsumerRegistry {
   private class MetricTrackingFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
     private final FnDataReceiver<WindowedValue<T>> delegate;
     private final SimpleExecutionState state;
-    private final Counter unboundedElementCountCounter;
-    private final SampleByteSizeDistribution<T> unboundedSampledByteSizeDistribution;
+    private final BundleCounter elementCountCounter;
+    private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
     private final Coder<T> coder;
     private final MetricsContainer metricsContainer;
 
@@ -218,35 +221,51 @@ public class PCollectionConsumerRegistry {
         String pCollectionId, ConsumerAndMetadata consumerAndMetadata) {
       this.delegate = consumerAndMetadata.getConsumer();
       this.state = consumerAndMetadata.getExecutionState();
-      HashMap<String, String> labels = new HashMap<String, String>();
+
+      HashMap<String, String> labels = new HashMap<>();
       labels.put(Labels.PCOLLECTION, pCollectionId);
-
-      // Collect the metric in a metric container which is not bound to the step name.
-      // This is required to count elements from impulse steps, which will produce elements outside
-      // of a pTransform context.
-      MetricsContainer unboundMetricContainer = metricsContainerRegistry.getUnboundContainer();
-
       MonitoringInfoMetricName elementCountMetricName =
           MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.ELEMENT_COUNT, labels);
-      this.unboundedElementCountCounter = unboundMetricContainer.getCounter(elementCountMetricName);
+      String elementCountShortId =
+          shortIdMap.getOrCreateShortId(
+              new SimpleMonitoringInfoBuilder()
+                  .setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT)
+                  .setType(TypeUrns.SUM_INT64_TYPE)
+                  .setLabels(labels)
+                  .build());
+      this.elementCountCounter =
+          Metrics.serialMutatorAndFinalReaderBundleCounter(
+              elementCountShortId, elementCountMetricName);
+      bundleProgressReporterRegistrar.register(elementCountCounter);
 
       MonitoringInfoMetricName sampledByteSizeMetricName =
           MonitoringInfoMetricName.named(Urns.SAMPLED_BYTE_SIZE, labels);
-      this.unboundedSampledByteSizeDistribution =
-          new SampleByteSizeDistribution<>(
-              unboundMetricContainer.getDistribution(sampledByteSizeMetricName));
+      String sampledByteSizeShortId =
+          shortIdMap.getOrCreateShortId(
+              new SimpleMonitoringInfoBuilder()
+                  .setUrn(Urns.SAMPLED_BYTE_SIZE)
+                  .setType(TypeUrns.DISTRIBUTION_INT64_TYPE)
+                  .setLabels(labels)
+                  .build());
+      BundleDistribution sampledByteSizeUnderlyingDistribution =
+          Metrics.serialMutatorAndFinalReaderBundleDistribution(
+              sampledByteSizeShortId, sampledByteSizeMetricName);
+      this.sampledByteSizeDistribution =
+          new SampleByteSizeDistribution<>(sampledByteSizeUnderlyingDistribution);
+      bundleProgressReporterRegistrar.register(sampledByteSizeUnderlyingDistribution);
 
-      this.coder = consumerAndMetadata.getValueCoder();
+      this.coder = pCollectionIdsToCoders.get(pCollectionId);
       this.metricsContainer = consumerAndMetadata.getMetricsContainer();
     }
 
     @Override
     public void accept(WindowedValue<T> input) throws Exception {
       // Increment the counter for each window the element occurs in.
-      this.unboundedElementCountCounter.inc(input.getWindows().size());
+      this.elementCountCounter.inc(input.getWindows().size());
       // TODO(https://github.com/apache/beam/issues/20730): Consider updating size per window when
       // we have window optimization.
-      this.unboundedSampledByteSizeDistribution.tryUpdate(input.getValue(), this.coder);
+      this.sampledByteSizeDistribution.tryUpdate(input.getValue(), this.coder);
+
       // Wrap the consumer with extra logic to set the metric container with the appropriate
       // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
       // created. Also use the ExecutionStateTracker and enter an appropriate state to track the
@@ -256,7 +275,7 @@ public class PCollectionConsumerRegistry {
           this.delegate.accept(input);
         }
       }
-      this.unboundedSampledByteSizeDistribution.finishLazyUpdate();
+      this.sampledByteSizeDistribution.finishLazyUpdate();
     }
   }
 
@@ -270,46 +289,63 @@ public class PCollectionConsumerRegistry {
   private class MultiplexingMetricTrackingFnDataReceiver<T>
       implements FnDataReceiver<WindowedValue<T>> {
     private final List<ConsumerAndMetadata> consumerAndMetadatas;
-    private final Counter unboundedElementCountCounter;
-    private final SampleByteSizeDistribution<T> unboundedSampledByteSizeDistribution;
+    private final BundleCounter elementCountCounter;
+    private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
+    private final Coder<T> coder;
 
     public MultiplexingMetricTrackingFnDataReceiver(
         String pCollectionId, List<ConsumerAndMetadata> consumerAndMetadatas) {
       this.consumerAndMetadatas = consumerAndMetadatas;
-      HashMap<String, String> labels = new HashMap<String, String>();
-      labels.put(Labels.PCOLLECTION, pCollectionId);
 
-      // Collect the metric in a metric container which is not bound to the step name.
-      // This is required to count elements from impulse steps, which will produce elements outside
-      // of a pTransform context.
-      MetricsContainer unboundMetricContainer = metricsContainerRegistry.getUnboundContainer();
+      HashMap<String, String> labels = new HashMap<>();
+      labels.put(Labels.PCOLLECTION, pCollectionId);
       MonitoringInfoMetricName elementCountMetricName =
           MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.ELEMENT_COUNT, labels);
-      this.unboundedElementCountCounter = unboundMetricContainer.getCounter(elementCountMetricName);
+      String elementCountShortId =
+          shortIdMap.getOrCreateShortId(
+              new SimpleMonitoringInfoBuilder()
+                  .setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT)
+                  .setType(TypeUrns.SUM_INT64_TYPE)
+                  .setLabels(labels)
+                  .build());
+      this.elementCountCounter =
+          Metrics.serialMutatorAndFinalReaderBundleCounter(
+              elementCountShortId, elementCountMetricName);
+      bundleProgressReporterRegistrar.register(elementCountCounter);
 
       MonitoringInfoMetricName sampledByteSizeMetricName =
           MonitoringInfoMetricName.named(Urns.SAMPLED_BYTE_SIZE, labels);
-      this.unboundedSampledByteSizeDistribution =
-          new SampleByteSizeDistribution<>(
-              unboundMetricContainer.getDistribution(sampledByteSizeMetricName));
+      String sampledByteSizeShortId =
+          shortIdMap.getOrCreateShortId(
+              new SimpleMonitoringInfoBuilder()
+                  .setUrn(Urns.SAMPLED_BYTE_SIZE)
+                  .setType(TypeUrns.DISTRIBUTION_INT64_TYPE)
+                  .setLabels(labels)
+                  .build());
+      BundleDistribution sampledByteSizeUnderlyingDistribution =
+          Metrics.serialMutatorAndFinalReaderBundleDistribution(
+              sampledByteSizeShortId, sampledByteSizeMetricName);
+      this.sampledByteSizeDistribution =
+          new SampleByteSizeDistribution<>(sampledByteSizeUnderlyingDistribution);
+      bundleProgressReporterRegistrar.register(sampledByteSizeUnderlyingDistribution);
+
+      this.coder = pCollectionIdsToCoders.get(pCollectionId);
     }
 
     @Override
     public void accept(WindowedValue<T> input) throws Exception {
       // Increment the counter for each window the element occurs in.
-      this.unboundedElementCountCounter.inc(input.getWindows().size());
+      this.elementCountCounter.inc(input.getWindows().size());
+      // TODO(https://github.com/apache/beam/issues/20730): Consider updating size per window
+      // when we have window optimization.
+      this.sampledByteSizeDistribution.tryUpdate(input.getValue(), coder);
+
       // Wrap the consumer with extra logic to set the metric container with the appropriate
       // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
       // created. Also use the ExecutionStateTracker and enter an appropriate state to track the
       // Process Bundle Execution time metric.
       for (ConsumerAndMetadata consumerAndMetadata : consumerAndMetadatas) {
 
-        if (consumerAndMetadata.getValueCoder() != null) {
-          // TODO(https://github.com/apache/beam/issues/20730): Consider updating size per window
-          // when we have window optimization.
-          this.unboundedSampledByteSizeDistribution.tryUpdate(
-              input.getValue(), consumerAndMetadata.getValueCoder());
-        }
         try (Closeable closeable =
             MetricsEnvironment.scopedMetricsContainer(consumerAndMetadata.getMetricsContainer())) {
           try (Closeable trackerCloseable =
@@ -317,7 +353,7 @@ public class PCollectionConsumerRegistry {
             consumerAndMetadata.getConsumer().accept(input);
           }
         }
-        this.unboundedSampledByteSizeDistribution.finishLazyUpdate();
+        this.sampledByteSizeDistribution.finishLazyUpdate();
       }
     }
   }

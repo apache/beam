@@ -50,6 +50,14 @@ public abstract class DistributionData implements Serializable {
     return create(value, 1, value, value);
   }
 
+  public DistributionData combine(long value) {
+    return create(sum() + value, count() + 1, Math.min(value, min()), Math.max(value, max()));
+  }
+
+  public DistributionData combine(long sum, long count, long min, long max) {
+    return create(sum() + sum, count() + count, Math.min(min, min()), Math.max(max, max()));
+  }
+
   public DistributionData combine(DistributionData value) {
     return create(
         sum() + value.sum(),
