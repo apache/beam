@@ -28,6 +28,7 @@ import numpy as np
 
 import apache_beam as beam
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.portability.api import schema_pb2
 
 # BigQuery types as listed in
 # https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
@@ -64,7 +65,7 @@ def produce_pcoll_with_schema(the_table_schema):
       typ = bq_field_to_type(
           the_schema['fields'][i]['type'], the_schema['fields'][i]['mode'])
     else:
-      raise KeyError(
+      raise ValueError(
           f"Encountered "
           f"an unsupported type: {the_schema['fields'][i]['type']!r}")
     # TODO svetaksundhar@: Map remaining BQ types
@@ -89,3 +90,29 @@ def bq_field_to_type(field, mode):
     return BIG_QUERY_TO_PYTHON_TYPES[field]
   else:
     raise ValueError(f"Encountered an unsupported mode: {mode!r}")
+
+
+class BeamSchemaConversionDoFn(beam.DoFn):
+  # Converting a dictionary of tuples to a usertype.
+  def __init__(self, pcoll_val_ctor):
+    self._pcoll_val_ctor = pcoll_val_ctor
+
+  def process(self, dict_of_tuples):
+    return self._pcoll_val_ctor(**dict_of_tuples)
+
+  def infer_output_type(self, input_type):
+    return self._pcoll_val_ctor
+
+  @classmethod
+  def _from_serialized_schema(cls, schema_str):
+    return cls(
+        beam.typehints.schemas.named_tuple_from_schema(
+            beam.utils.proto_utils.parse_Bytes(schema_str, schema_pb2.Schema)))
+
+  def __reduce__(self):
+    # when pickling, use bytes representation of the schema.
+    return (
+        self._from_serialized_schema,
+        (
+            beam.typehints.schemas.named_tuple_to_schema(
+                self._pcoll_val_ctor).SerializeToString(), ))

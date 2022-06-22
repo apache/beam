@@ -16,7 +16,7 @@
 
 import logging
 import typing
-import unittest
+import unittest.mock
 
 import numpy as np
 
@@ -61,7 +61,7 @@ class TestBigQueryToSchema(unittest.TestCase):
         bigquery.TableFieldSchema(name='count', type='INTEGER', mode="None")
     ]
     schema = bigquery.TableSchema(fields=fields)
-    with self.assertRaisesRegex(KeyError,
+    with self.assertRaisesRegex(ValueError,
                                 "Encountered an unsupported type: 'DOUBLE'"):
       bigquery_schema_tools.produce_pcoll_with_schema(the_table_schema=schema)
 
