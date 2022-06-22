@@ -5304,7 +5304,7 @@ the execution of the ParDo transform. The comments give useful
 information to pipeline developers such as the constraints that
 apply to the objects or particular cases such as failover or
 instance reuse. They also give instantiation use cases.&lt;/p>
-&lt;!-- The source for the sequence diagram can be found in the the SVG resource. -->
+&lt;!-- The source for the sequence diagram can be found in the SVG resource. -->
 &lt;p>&lt;img src="/images/dofn-sequence-diagram.svg" alt="This is a sequence diagram that shows the lifecycle of the DoFn">&lt;/p>
 &lt;h4 id="groupbykey">4.2.2. GroupByKey&lt;/h4>
 &lt;p>&lt;code>GroupByKey&lt;/code> is a Beam transform for processing collections of key/value pairs.
@@ -7604,7 +7604,7 @@ for example the following two code snippets are valid:&lt;/p>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p class="language-java">Even though the in both cases the &lt;code>@Element&lt;/code> parameter differs from the the &lt;code>PCollection&lt;/code>'s Java type, since the
+&lt;p class="language-java">Even though the in both cases the &lt;code>@Element&lt;/code> parameter differs from the &lt;code>PCollection&lt;/code>'s Java type, since the
 schemas are the same Beam will automatically make the conversion. The built-in &lt;code>Convert&lt;/code> transform can also be used
 to translate between Java types of equivalent schemas, as detailed below.&lt;/p>
 &lt;h3 id="schema-definition">6.3. Schema definition&lt;/h3>
@@ -9090,7 +9090,7 @@ example pipeline in the figure below:&lt;/p>
 &lt;p>&lt;strong>Figure 3:&lt;/strong> Pipeline applying windowing&lt;/p>
 &lt;p>In the above pipeline, we create an unbounded &lt;code>PCollection&lt;/code> by reading a set of
 key/value pairs using &lt;code>KafkaIO&lt;/code>, and then apply a windowing function to that
-collection using the &lt;code>Window&lt;/code> transform. We then apply a &lt;code>ParDo&lt;/code> to the the
+collection using the &lt;code>Window&lt;/code> transform. We then apply a &lt;code>ParDo&lt;/code> to the
 collection, and then later group the result of that &lt;code>ParDo&lt;/code> using &lt;code>GroupByKey&lt;/code>.
 The windowing function has no effect on the &lt;code>ParDo&lt;/code> transform, because the
 windows are not actually used until they&amp;rsquo;re needed for the &lt;code>GroupByKey&lt;/code>.
@@ -9689,7 +9689,7 @@ The &lt;code>beam.AccumulationMode&lt;/code> parameter sets the window&amp;rsquo
 &lt;/div>
 &lt;/div>
 &lt;h4 id="window-accumulation-modes">9.4.1. Window accumulation modes&lt;/h4>
-&lt;p>When you specify a trigger, you must also set the the window&amp;rsquo;s &lt;strong>accumulation
+&lt;p>When you specify a trigger, you must also set the window&amp;rsquo;s &lt;strong>accumulation
 mode&lt;/strong>. When a trigger fires, it emits the current contents of the window as a
 pane. Since a trigger can fire multiple times, the accumulation mode determines
 whether the system &lt;em>accumulates&lt;/em> the window panes as the trigger fires, or

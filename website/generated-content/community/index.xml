@@ -305,7 +305,7 @@ limitations under the License.
 &lt;/div>
 &lt;h2 id="using-these-materials">Using these materials&lt;/h2>
 &lt;p>These materials can be used by anyone. If you do use these materials, please remember to give credit to the authors cited in each presentation. These materials include speaker notes and you can view them by clicking &lt;strong>&lt;code>View&lt;/code>&lt;/strong> and selecting &lt;strong>&lt;code>Show speaker notes&lt;/code>&lt;/strong>. Some presentations have &lt;code>[Long]&lt;/code> or &lt;code>[Short]&lt;/code> in their name, such as the &lt;em>Apache Beam Model&lt;/em>, which means there are two different presentations (a long and short version) depending on your needs and time constraints.&lt;/p>
-&lt;p>If you have any questions about the these materials, please ask on the &lt;a href="mailto:user@beam.apache.org">&lt;code>user@beam.apache.org&lt;/code>&lt;/a> mailing list.&lt;/p>
+&lt;p>If you have any questions about these materials, please ask on the &lt;a href="mailto:user@beam.apache.org">&lt;code>user@beam.apache.org&lt;/code>&lt;/a> mailing list.&lt;/p>
 &lt;p>The Apache Beam community is looking for feedback on these materials to improve them over time. If you deliver a presentation based on these materials, we&amp;rsquo;d love to hear from you on the &lt;a href="mailto:user@beam.apache.org">&lt;code>user@beam.apache.org&lt;/code>&lt;/a> mailing list. Please share your thoughts, questions you were asked, and (if available and appropriate) a link to the recording of your talk so the rest of the Apache Beam community can benefit from it.&lt;/p>
 &lt;h2 id="contributing-new-content">Contributing new content&lt;/h2>
 &lt;p>The Apache Beam community is always looking for new core content and contributions!&lt;/p>

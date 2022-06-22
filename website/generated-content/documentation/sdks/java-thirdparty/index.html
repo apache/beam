@@ -29,7 +29,7 @@ This parser is simply initialized with this schema and the list of fields you wa
   &lt;artifactId&gt;httpdlog-parser&lt;/artifactId&gt;
   &lt;version&gt;5.0&lt;/version&gt;
 &lt;/dependency&gt;
-</code></pre><h3 id=code-example>Code example</h3><p>Assuming a WebEvent class that has a the setters setIP, setQueryImg and setQueryStringValues</p><pre><code>PCollection&lt;WebEvent&gt; filledWebEvents = input
+</code></pre><h3 id=code-example>Code example</h3><p>Assuming a WebEvent class that has a setters setIP, setQueryImg and setQueryStringValues</p><pre><code>PCollection&lt;WebEvent&gt; filledWebEvents = input
   .apply(&quot;Extract Elements from logline&quot;,
     ParDo.of(new DoFn&lt;String, WebEvent&gt;() {
       private Parser&lt;WebEvent&gt; parser;

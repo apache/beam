@@ -68,7 +68,7 @@ still work and take precedence over annotations.</p><h3 id=sidebar>Sidebar</h3><
 There are several reasons why this is not the case.</p><ul><li>Pipelines are constructed at runtime and may depend on information that is
 only known at that time, such as a config file or database table schema.</li><li>PCollections don&rsquo;t have the necessary type information, so mypy sees them as
 effectively containing any element type.
-This may change in in the future.</li><li>Transforms using lambdas (ex: <code>beam.Map(lambda x: (1, x)</code>) cannot be
+This may change in the future.</li><li>Transforms using lambdas (ex: <code>beam.Map(lambda x: (1, x)</code>) cannot be
 annotated properly using PEP 484.
 However, Beam does a best-effort attempt to analyze the output type
 from the bytecode.</li></ul><h2 id=typing-module-support>Typing Module Support</h2><p>Python&rsquo;s <a href=https://docs.python.org/3/library/typing.html>typing</a> module defines
