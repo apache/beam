@@ -88,6 +88,7 @@ public class RowWithGetters extends Row {
     return getters.size();
   }
 
+  /** Return the list of raw data values. */
   @Override
   public List<Object> getValues() {
     List<Object> rawValues = new ArrayList<>(getters.size());
