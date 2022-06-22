@@ -38,7 +38,7 @@ Future<ExecutionTime<T>> withExecutionTime<T>(Future<T> Function() fn) async {
 }
 
 class ResultBuilder {
-  static Function() getFutureWithResult(List<Future Function()> futures) {
+  static Future<T> Function() getFutureWithResult<T>(List<Future<T> Function()> futures) {
     var attempt = 0;
     return () async {
       final futureCreator = futures[attempt];
