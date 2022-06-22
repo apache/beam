@@ -121,5 +121,13 @@ function getAvailablePort() {
     echo $availablePort
   done
 }
+#Waits until a designated job finish to continue the workflow execution
+#Usage: ./kubernetes.sh waitForJob <kubernetes job name>  <timeout i.e: 30m, 20s etc.>
+function waitForJob(){
+  echo "Waiting for job completion..."
+  jobName=$1 
+  kubectl wait --for=condition=complete --timeout=$2 $jobName -n test-namespace
+  echo "Job completed"
+}
 
 "$@"
