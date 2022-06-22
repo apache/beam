@@ -10,6 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#Content Guidelines: recommended to use 215 characters or fewer
 #Cards with quotes will be displayed by the order listed, e.g., first card will display the first quote
 - text: Apache Beam enabled real-time ML streaming feature generation and model execution playing a pivotal role in optimizing Lyft’s Marketplace ML predictions, processing ~4mil events per minute to generate ~100 features.
   icon: icons/quote-icon.svg

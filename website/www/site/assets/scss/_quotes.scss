@@ -90,7 +90,14 @@
       min-height: 260px;
       height: 260px;
       margin: 40px 0 20px 0;
-      overflow: hidden;
+      overflow-y: auto;
+
+      @media (min-width: $tablet) {
+        font-size: 16px;
+      }
+      @media (max-width: $mobile) {
+        font-size: 16px;
+      }
     }
 
     img {
