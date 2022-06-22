@@ -1112,6 +1112,10 @@ PCollection<KV<String, Iterable<String>>> reduced =
  mapped.apply(GroupByKey.<String, String>create());
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" groupbykey >}}
+{{< /highlight >}}
+
 ##### 4.2.2.1 GroupByKey and unbounded PCollections {#groupbykey-and-unbounded-pcollections}
 
 If you are using unbounded `PCollection`s, you must use either [non-global
