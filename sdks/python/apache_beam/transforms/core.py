@@ -738,15 +738,6 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
           "Expected Iterator return type annotation, did you mean "
           f"Iterator[{return_type}]")
 
-  def _strip_output_annotations(self, type_hint):
-    annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
-    # TODO(robertwb): These should be parameterized types that the
-    # type inferencer understands.
-    if (type_hint in annotations or
-        trivial_inference.element_type(type_hint) in annotations):
-      return typehints.Any
-    return type_hint
-
   def _process_argspec_fn(self):
     """Returns the Python callable that will eventually be invoked.
 
