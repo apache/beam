@@ -23,7 +23,7 @@ module github.com/apache/beam/sdks/v2
 go 1.18
 
 require (
-	cloud.google.com/go/bigquery v1.32.0
+	cloud.google.com/go/bigquery v1.33.0
 	cloud.google.com/go/datastore v1.8.0
 	cloud.google.com/go/pubsub v1.22.2
 	cloud.google.com/go/storage v1.22.1
