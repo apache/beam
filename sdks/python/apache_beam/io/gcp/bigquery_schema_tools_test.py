@@ -15,14 +15,18 @@
 # limitations under the License.
 
 import logging
+import mock
 import typing
 import unittest.mock
+from apache_beam.io.gcp.internal.clients.bigquery import Table
 
 import numpy as np
 
+import apache_beam.io.gcp.bigquery
 from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp.bigquery_test import HttpError
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -75,6 +79,26 @@ class TestBigQueryToSchema(unittest.TestCase):
     with self.assertRaisesRegex(ValueError,
                                 "Encountered an unsupported mode: 'NESTED'"):
       bigquery_schema_tools.produce_pcoll_with_schema(the_table_schema=schema)
+
+  @mock.patch.object(BigQueryWrapper, 'get_table')
+  def test_bad_schema_public_api(self, get_table):
+    fields = [
+        bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
+        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
+        bigquery.TableFieldSchema(name='count', type='INTEGER', mode="None")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    table = Table(schema=schema)
+    get_table.return_value = table
+
+    with self.assertRaisesRegex(ValueError,
+                                "Encountered an unsupported type: 'DOUBLE'"):
+      p = apache_beam.Pipeline()
+      pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+          table="dataset.sample_table",
+          project="project",
+          output_type='BEAM_ROWS')
+      pipeline
 
   if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
