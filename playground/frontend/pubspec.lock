@@ -149,7 +149,7 @@ packages:
     source: hosted
     version: "1.0.2"
   collection:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       name: collection
       url: "https://pub.dartlang.org"
@@ -229,7 +229,7 @@ packages:
       name: flutter_lints
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.0.4"
+    version: "2.0.1"
   flutter_localizations:
     dependency: "direct main"
     description: flutter
@@ -267,7 +267,7 @@ packages:
     source: hosted
     version: "2.0.2"
   google_fonts:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       name: google_fonts
       url: "https://pub.dartlang.org"
@@ -295,7 +295,7 @@ packages:
     source: hosted
     version: "3.0.2"
   highlight:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: highlight
       url: "https://pub.dartlang.org"
@@ -370,7 +370,7 @@ packages:
       name: lints
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.0.1"
+    version: "2.0.0"
   logging:
     dependency: transitive
     description:
@@ -762,7 +762,7 @@ packages:
     source: hosted
     version: "3.0.1"
   usage:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       name: usage
       url: "https://pub.dartlang.org"
