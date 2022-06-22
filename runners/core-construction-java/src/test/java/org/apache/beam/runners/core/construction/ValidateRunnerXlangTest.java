@@ -221,6 +221,17 @@ public class ValidateRunnerXlangTest {
               .apply(External.of(TEST_PYTHON_BS4_URN, new byte[] {}, expansionAddr));
       PAssert.that(col).containsInAnyOrder("The Dormouse's story");
     }
+
+    protected void combineMultipleTransformTest(Pipeline pipeline) throws IOException {
+      PCollection<String> col =
+          pipeline
+              .apply(Create.of(1L, 2L, 3L))
+              .apply(
+                  External.of(
+                      External.of("map_to_union_types", new byte[] {}, expansionAddr),
+                      External.of(TEST_PREFIX_URN, toStringPayloadBytes("0"), expansionAddr)));
+      PAssert.that(col).containsInAnyOrder("01", "02", "03.0");
+    }
   }
   /**
    * Motivation behind singleInputOutputTest.
@@ -399,6 +410,15 @@ public class ValidateRunnerXlangTest {
     @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
     public void test() {
       pythonDependenciesTest(testPipeline);
+    }
+  }
+
+  @RunWith(JUnit4.class)
+  public static class CombineMultipleTransformTest extends ValidateRunnerXlangTestBase {
+    @Test
+    @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
+    public void test() throws IOException {
+      combineMultipleTransformTest(testPipeline);
     }
   }
 }

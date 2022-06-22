@@ -19,16 +19,20 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.auto.value.AutoValue;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
@@ -57,6 +61,7 @@ import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -76,7 +81,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class External {
-  private static final String EXPANDED_TRANSFORM_BASE_NAME = "external";
+  protected static final String EXPANDED_TRANSFORM_BASE_NAME = "external";
   private static final String IMPULSE_PREFIX = "IMPULSE";
   private static AtomicInteger namespaceCounter = new AtomicInteger(0);
 
@@ -84,17 +89,28 @@ public class External {
       DefaultExpansionServiceClientFactory.create(
           endPoint -> ManagedChannelBuilder.forTarget(endPoint.getUrl()).usePlaintext().build());
 
-  private static int getFreshNamespaceIndex() {
+  public static int getFreshNamespaceIndex() {
     return namespaceCounter.getAndIncrement();
   }
 
   public static <InputT extends PInput, OutputT>
       SingleOutputExpandableTransform<InputT, OutputT> of(
           String urn, byte[] payload, String endpoint) {
-    Endpoints.ApiServiceDescriptor apiDesc =
-        Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
     return new SingleOutputExpandableTransform<>(
-        urn, payload, apiDesc, DEFAULT, getFreshNamespaceIndex(), ImmutableMap.of());
+        ImmutableList.of(ExpansionInfo.create(urn, payload, endpoint, getFreshNamespaceIndex())),
+        DEFAULT,
+        ImmutableMap.of());
+  }
+
+  public static <InputT extends PInput, OutputT>
+      SingleOutputExpandableTransform<InputT, OutputT> of(
+          ComposableExternalTransform... transforms) {
+    return new SingleOutputExpandableTransform<>(
+        Arrays.stream(transforms)
+            .flatMap(t -> t.getExpansionInfoList().stream())
+            .collect(Collectors.toList()),
+        DEFAULT,
+        ImmutableMap.of());
   }
 
   @VisibleForTesting
@@ -104,23 +120,20 @@ public class External {
           byte[] payload,
           String endpoint,
           ExpansionServiceClientFactory clientFactory) {
-    Endpoints.ApiServiceDescriptor apiDesc =
-        Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
     return new SingleOutputExpandableTransform<>(
-        urn, payload, apiDesc, clientFactory, getFreshNamespaceIndex(), ImmutableMap.of());
+        ImmutableList.of(ExpansionInfo.create(urn, payload, endpoint, getFreshNamespaceIndex())),
+        clientFactory,
+        ImmutableMap.of());
   }
 
   /** Expandable transform for output type of PCollection. */
   public static class SingleOutputExpandableTransform<InputT extends PInput, OutputT>
       extends ExpandableTransform<InputT, PCollection<OutputT>> {
     SingleOutputExpandableTransform(
-        String urn,
-        byte[] payload,
-        Endpoints.ApiServiceDescriptor endpoint,
+        List<ExpansionInfo> expansionInfoList,
         ExpansionServiceClientFactory clientFactory,
-        Integer namespaceIndex,
         Map<String, Coder<?>> outputCoders) {
-      super(urn, payload, endpoint, clientFactory, namespaceIndex, outputCoders);
+      super(expansionInfoList, clientFactory, outputCoders);
     }
 
     @Override
@@ -131,22 +144,12 @@ public class External {
 
     public MultiOutputExpandableTransform<InputT> withMultiOutputs() {
       return new MultiOutputExpandableTransform<>(
-          getUrn(),
-          getPayload(),
-          getEndpoint(),
-          getClientFactory(),
-          getNamespaceIndex(),
-          getOutputCoders());
+          getExpansionInfoList(), getClientFactory(), getOutputCoders());
     }
 
     public SingleOutputExpandableTransform<InputT, OutputT> withOutputCoder(Coder<?> outputCoder) {
       return new SingleOutputExpandableTransform<>(
-          getUrn(),
-          getPayload(),
-          getEndpoint(),
-          getClientFactory(),
-          getNamespaceIndex(),
-          ImmutableMap.of("0", outputCoder));
+          getExpansionInfoList(), getClientFactory(), ImmutableMap.of("0", outputCoder));
     }
   }
 
@@ -154,13 +157,10 @@ public class External {
   public static class MultiOutputExpandableTransform<InputT extends PInput>
       extends ExpandableTransform<InputT, PCollectionTuple> {
     MultiOutputExpandableTransform(
-        String urn,
-        byte[] payload,
-        Endpoints.ApiServiceDescriptor endpoint,
+        List<ExpansionInfo> expansionInfoList,
         ExpansionServiceClientFactory clientFactory,
-        Integer namespaceIndex,
         Map<String, Coder<?>> outputCoders) {
-      super(urn, payload, endpoint, clientFactory, namespaceIndex, outputCoders);
+      super(expansionInfoList, clientFactory, outputCoders);
     }
 
     @Override
@@ -177,66 +177,48 @@ public class External {
     public MultiOutputExpandableTransform<InputT> withOutputCoder(
         Map<String, Coder<?>> outputCoders) {
       return new MultiOutputExpandableTransform<>(
-          getUrn(),
-          getPayload(),
-          getEndpoint(),
-          getClientFactory(),
-          getNamespaceIndex(),
-          outputCoders);
+          getExpansionInfoList(), getClientFactory(), outputCoders);
     }
   }
 
   /** Base Expandable Transform which calls ExpansionService to expand itself. */
   public abstract static class ExpandableTransform<InputT extends PInput, OutputT extends POutput>
-      extends PTransform<InputT, OutputT> {
-    private final String urn;
-    private final byte[] payload;
-    private final Endpoints.ApiServiceDescriptor endpoint;
+      extends PTransform<InputT, OutputT> implements ComposableExternalTransform {
+    private final List<ExpansionInfo> expansionInfoList;
     private final ExpansionServiceClientFactory clientFactory;
-    private final Integer namespaceIndex;
     private final Map<String, Coder<?>> outputCoders;
 
     private transient RunnerApi.@Nullable Components expandedComponents;
-    private transient RunnerApi.@Nullable PTransform expandedTransform;
+    private transient @Nullable List<RunnerApi.PTransform> expandedTransforms;
     private transient @Nullable List<String> expandedRequirements;
     private transient @Nullable Map<PCollection, String> externalPCollectionIdMap;
     private transient @Nullable Map<Coder<?>, String> externalCoderIdMap;
+    private transient Set<String> namespaces;
 
     ExpandableTransform(
-        String urn,
-        byte[] payload,
-        Endpoints.ApiServiceDescriptor endpoint,
+        List<ExpansionInfo> expansionInfoList,
         ExpansionServiceClientFactory clientFactory,
-        Integer namespaceIndex,
         Map<String, Coder<?>> outputCoders) {
-      this.urn = urn;
-      this.payload = payload;
-      this.endpoint = endpoint;
+      checkArgument(expansionInfoList.size() > 0);
+      this.expansionInfoList = expansionInfoList;
       this.clientFactory = clientFactory;
-      this.namespaceIndex = namespaceIndex;
       this.outputCoders = outputCoders;
+      this.namespaces = new HashSet<>();
     }
 
     @Override
     public OutputT expand(InputT input) {
       Pipeline p = input.getPipeline();
       SdkComponents components = SdkComponents.create(p.getOptions());
-      RunnerApi.PTransform.Builder ptransformBuilder =
-          RunnerApi.PTransform.newBuilder()
-              .setUniqueName(EXPANDED_TRANSFORM_BASE_NAME + namespaceIndex)
-              .setSpec(
-                  RunnerApi.FunctionSpec.newBuilder()
-                      .setUrn(urn)
-                      .setPayload(ByteString.copyFrom(payload))
-                      .build());
       ImmutableMap.Builder<PCollection, String> externalPCollectionIdMapBuilder =
           ImmutableMap.builder();
+      ImmutableMap.Builder<String, String> inputMapBuilder = ImmutableMap.builder();
       for (Map.Entry<TupleTag<?>, PValue> entry : input.expand().entrySet()) {
         if (entry.getValue() instanceof PCollection<?>) {
           try {
             String id = components.registerPCollection((PCollection) entry.getValue());
             externalPCollectionIdMapBuilder.put((PCollection) entry.getValue(), id);
-            ptransformBuilder.putInputs(entry.getKey().getId(), id);
+            inputMapBuilder.put(entry.getKey().getId(), id);
             AppliedPTransform<?, ?, ?> fakeImpulse =
                 AppliedPTransform.of(
                     String.format("%s_%s", IMPULSE_PREFIX, entry.getKey().getId()),
@@ -256,9 +238,7 @@ public class External {
         }
       }
 
-      ExpansionApi.ExpansionRequest.Builder requestBuilder =
-          ExpansionApi.ExpansionRequest.newBuilder();
-      requestBuilder.putAllOutputCoderRequests(
+      Map<String, String> outputCoderMap =
           outputCoders.entrySet().stream()
               .collect(
                   Collectors.toMap(
@@ -269,45 +249,35 @@ public class External {
                         } catch (IOException e) {
                           throw new RuntimeException(e);
                         }
-                      })));
-      RunnerApi.Components originalComponents = components.toComponents();
-      ExpansionApi.ExpansionRequest request =
-          requestBuilder
-              .setComponents(originalComponents)
-              .setTransform(ptransformBuilder.build())
-              .setNamespace(getNamespace())
-              .build();
+                      }));
 
       ExpansionApi.ExpansionResponse response =
-          clientFactory.getExpansionServiceClient(endpoint).expand(request);
-
-      if (!Strings.isNullOrEmpty(response.getError())) {
-        throw new RuntimeException(
-            String.format("expansion service error: %s", response.getError()));
-      }
-
-      Map<String, RunnerApi.Environment> newEnvironmentsWithDependencies =
-          response.getComponents().getEnvironmentsMap().entrySet().stream()
-              .filter(
-                  kv ->
-                      !originalComponents.getEnvironmentsMap().containsKey(kv.getKey())
-                          && kv.getValue().getDependenciesCount() != 0)
-              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-      expandedComponents =
-          response
-              .getComponents()
-              .toBuilder()
-              .putAllEnvironments(resolveArtifacts(newEnvironmentsWithDependencies))
+          ExpansionApi.ExpansionResponse.newBuilder()
+              .setComponents(components.toComponents())
+              .setTransform(
+                  RunnerApi.PTransform.newBuilder().putAllOutputs(inputMapBuilder.build()).build())
               .build();
-      expandedTransform = response.getTransform();
+      ImmutableList.Builder<RunnerApi.PTransform> expandedTransformsBuilder =
+          ImmutableList.builder();
+      for (int i = 0; i < expansionInfoList.size(); i++) {
+        response =
+            sendRequest(
+                expansionInfoList.get(i),
+                response.getComponents(),
+                response.getTransform().getOutputsMap(),
+                i == expansionInfoList.size() - 1 ? outputCoderMap : ImmutableMap.of());
+        expandedTransformsBuilder.add(response.getTransform());
+      }
+      expandedComponents = response.getComponents();
+      expandedTransforms = expandedTransformsBuilder.build();
       expandedRequirements = response.getRequirementsList();
 
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(expandedComponents).withPipeline(p);
 
       ImmutableMap.Builder<TupleTag<?>, PCollection> outputMapBuilder = ImmutableMap.builder();
-      expandedTransform
+      response
+          .getTransform()
           .getOutputsMap()
           .forEach(
               (localId, pCollectionId) -> {
@@ -341,13 +311,63 @@ public class External {
       return toOutputCollection(outputMapBuilder.build());
     }
 
+    private ExpansionApi.ExpansionResponse sendRequest(
+        ExpansionInfo expansionInfo,
+        RunnerApi.Components components,
+        Map<String, String> inputMap,
+        Map<String, String> outputCoderMap) {
+      RunnerApi.PTransform.Builder ptransformBuilder =
+          RunnerApi.PTransform.newBuilder()
+              .setUniqueName(EXPANDED_TRANSFORM_BASE_NAME + expansionInfo.namespaceIndex())
+              .setSpec(
+                  RunnerApi.FunctionSpec.newBuilder()
+                      .setUrn(expansionInfo.urn())
+                      .setPayload(ByteString.copyFrom(expansionInfo.payload()))
+                      .build());
+      ptransformBuilder.putAllInputs(inputMap);
+      String namespace = String.format("External_%s", expansionInfo.namespaceIndex());
+      namespaces.add(namespace);
+      ExpansionApi.ExpansionRequest.Builder requestBuilder =
+          ExpansionApi.ExpansionRequest.newBuilder();
+      requestBuilder.putAllOutputCoderRequests(outputCoderMap);
+      ExpansionApi.ExpansionRequest request =
+          requestBuilder
+              .setComponents(components)
+              .setTransform(ptransformBuilder.build())
+              .setNamespace(namespace)
+              .build();
+
+      Endpoints.ApiServiceDescriptor apiDesc =
+          Endpoints.ApiServiceDescriptor.newBuilder().setUrl(expansionInfo.endpoint()).build();
+      ExpansionApi.ExpansionResponse response =
+          clientFactory.getExpansionServiceClient(apiDesc).expand(request);
+
+      if (!Strings.isNullOrEmpty(response.getError())) {
+        throw new RuntimeException(
+            String.format("expansion service error: %s", response.getError()));
+      }
+
+      RunnerApi.Components.Builder componentsBuilder = response.getComponents().toBuilder();
+      componentsBuilder.putAllEnvironments(
+          resolveArtifacts(
+              componentsBuilder.getEnvironmentsMap().entrySet().stream()
+                  .filter(
+                      kv ->
+                          !components.getEnvironmentsMap().containsKey(kv.getKey())
+                              && kv.getValue().getDependenciesCount() != 0)
+                  .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
+              expansionInfo.endpoint()));
+
+      return response.toBuilder().setComponents(componentsBuilder).build();
+    }
+
     private Map<String, RunnerApi.Environment> resolveArtifacts(
-        Map<String, RunnerApi.Environment> environments) {
+        Map<String, RunnerApi.Environment> environments, String endpoint) {
       if (environments.size() == 0) {
         return environments;
       }
       ManagedChannel channel =
-          ManagedChannelBuilder.forTarget(endpoint.getUrl())
+          ManagedChannelBuilder.forTarget(endpoint)
               .usePlaintext()
               .maxInboundMessageSize(Integer.MAX_VALUE)
               .build();
@@ -432,16 +452,16 @@ public class External {
 
     abstract OutputT toOutputCollection(Map<TupleTag<?>, PCollection> output);
 
-    String getNamespace() {
-      return String.format("External_%s", namespaceIndex);
-    }
-
     String getImpulsePrefix() {
       return IMPULSE_PREFIX;
     }
 
-    RunnerApi.PTransform getExpandedTransform() {
-      return expandedTransform;
+    Set<String> getNamespaces() {
+      return namespaces;
+    }
+
+    List<RunnerApi.PTransform> getExpandedTransforms() {
+      return expandedTransforms;
     }
 
     RunnerApi.Components getExpandedComponents() {
@@ -460,28 +480,38 @@ public class External {
       return externalCoderIdMap;
     }
 
-    String getUrn() {
-      return urn;
-    }
-
-    byte[] getPayload() {
-      return payload;
-    }
-
-    Endpoints.ApiServiceDescriptor getEndpoint() {
-      return endpoint;
+    @Override
+    public List<ExpansionInfo> getExpansionInfoList() {
+      return expansionInfoList;
     }
 
     ExpansionServiceClientFactory getClientFactory() {
       return clientFactory;
     }
 
-    Integer getNamespaceIndex() {
-      return namespaceIndex;
-    }
-
     Map<String, Coder<?>> getOutputCoders() {
       return outputCoders;
     }
+  }
+
+  @AutoValue
+  public abstract static class ExpansionInfo {
+    public static ExpansionInfo create(
+        String urn, byte[] payload, String endpoint, Integer namespaceIndex) {
+      return new AutoValue_External_ExpansionInfo(urn, payload, endpoint, namespaceIndex);
+    }
+
+    abstract String urn();
+
+    @SuppressWarnings("mutable")
+    abstract byte[] payload();
+
+    abstract String endpoint();
+
+    abstract Integer namespaceIndex();
+  }
+
+  public interface ComposableExternalTransform {
+    List<ExpansionInfo> getExpansionInfoList();
   }
 }

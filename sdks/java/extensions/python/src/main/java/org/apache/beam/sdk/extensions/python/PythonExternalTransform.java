@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.python;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -53,6 +54,7 @@ import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -433,6 +435,15 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     } catch (Exception exn) {
       throw new RuntimeException(exn);
     }
+  }
+
+  public List<External.ExpansionInfo> getExpansionInfoList() {
+    return ImmutableList.of(
+        External.ExpansionInfo.create(
+            "beam:transforms:python:fully_qualified_named",
+            generatePayload().toByteArray(),
+            expansionService,
+            External.getFreshNamespaceIndex()));
   }
 
   private OutputT apply(

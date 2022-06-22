@@ -23,6 +23,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -66,9 +68,9 @@ public class ExternalTranslation {
 
       External.ExpandableTransform expandableTransform =
           (External.ExpandableTransform) appliedPTransform.getTransform();
-      String nameSpace = expandableTransform.getNamespace();
+      Set<String> namespaces = expandableTransform.getNamespaces();
       String impulsePrefix = expandableTransform.getImpulsePrefix();
-      RunnerApi.PTransform expandedTransform = expandableTransform.getExpandedTransform();
+      List<RunnerApi.PTransform> expandedTransforms = expandableTransform.getExpandedTransforms();
       RunnerApi.Components expandedComponents = expandableTransform.getExpandedComponents();
       List<String> expandedRequirements = expandableTransform.getExpandedRequirements();
 
@@ -95,25 +97,25 @@ public class ExternalTranslation {
       RunnerApi.Components.Builder mergingComponentsBuilder = RunnerApi.Components.newBuilder();
       for (Map.Entry<String, RunnerApi.Coder> entry :
           expandedComponents.getCodersMap().entrySet()) {
-        if (entry.getKey().startsWith(nameSpace)) {
+        if (namespaces.stream().anyMatch(entry.getKey()::startsWith)) {
           mergingComponentsBuilder.putCoders(entry.getKey(), entry.getValue());
         }
       }
       for (Map.Entry<String, RunnerApi.WindowingStrategy> entry :
           expandedComponents.getWindowingStrategiesMap().entrySet()) {
-        if (entry.getKey().startsWith(nameSpace)) {
+        if (namespaces.stream().anyMatch(entry.getKey()::startsWith)) {
           mergingComponentsBuilder.putWindowingStrategies(entry.getKey(), entry.getValue());
         }
       }
       for (Map.Entry<String, RunnerApi.Environment> entry :
           expandedComponents.getEnvironmentsMap().entrySet()) {
-        if (entry.getKey().startsWith(nameSpace)) {
+        if (namespaces.stream().anyMatch(entry.getKey()::startsWith)) {
           mergingComponentsBuilder.putEnvironments(entry.getKey(), entry.getValue());
         }
       }
       for (Map.Entry<String, RunnerApi.PCollection> entry :
           expandedComponents.getPcollectionsMap().entrySet()) {
-        if (entry.getKey().startsWith(nameSpace)) {
+        if (namespaces.stream().anyMatch(entry.getKey()::startsWith)) {
           String coderId = entry.getValue().getCoderId();
           mergingComponentsBuilder.putPcollections(
               entry.getKey(),
@@ -130,7 +132,8 @@ public class ExternalTranslation {
         if (entry.getKey().startsWith(impulsePrefix)) {
           continue;
         }
-        checkState(entry.getKey().startsWith(nameSpace), "unknown transform found");
+        checkState(
+            namespaces.stream().anyMatch(entry.getKey()::startsWith), "unknown transform found");
         RunnerApi.PTransform proto = entry.getValue();
         RunnerApi.PTransform.Builder transformBuilder = RunnerApi.PTransform.newBuilder();
         transformBuilder
@@ -153,12 +156,14 @@ public class ExternalTranslation {
 
       RunnerApi.PTransform.Builder rootTransformBuilder = RunnerApi.PTransform.newBuilder();
       rootTransformBuilder
-          .setUniqueName(expandedTransform.getUniqueName())
-          .setSpec(expandedTransform.getSpec())
-          .addAllSubtransforms(expandedTransform.getSubtransformsList())
-          .setEnvironmentId(expandedTransform.getEnvironmentId())
-          .putAllInputs(expandedTransform.getInputsMap());
-      for (Map.Entry<String, String> outputEntry : expandedTransform.getOutputsMap().entrySet()) {
+          .setUniqueName(External.EXPANDED_TRANSFORM_BASE_NAME + External.getFreshNamespaceIndex())
+          .addAllSubtransforms(
+              expandedTransforms.stream()
+                  .flatMap(t -> t.getSubtransformsList().stream())
+                  .collect(Collectors.toList()))
+          .putAllInputs(expandedTransforms.get(0).getInputsMap());
+      for (Map.Entry<String, String> outputEntry :
+          expandedTransforms.get(expandedTransforms.size() - 1).getOutputsMap().entrySet()) {
         rootTransformBuilder.putOutputs(
             outputEntry.getKey(),
             pColRenameMap.getOrDefault(outputEntry.getValue(), outputEntry.getValue()));
