@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.ObjectUtils;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -41,8 +42,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-public class WatchForKafkaTopicPartitions
-    extends PTransform<PBegin, PCollection<KafkaSourceDescriptor>> {
+class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaSourceDescriptor>> {
 
   private static final Duration DEFAULT_CHECK_DURATION = Duration.standardHours(1);
   private static final String COUNTER_NAMESPACE = "watch_kafka_topic_partition";
@@ -64,7 +64,7 @@ public class WatchForKafkaTopicPartitions
       List<String> topics,
       @Nullable Instant startReadTime,
       @Nullable Instant stopReadTime) {
-    this.checkDuration = checkDuration == null ? DEFAULT_CHECK_DURATION : checkDuration;
+    this.checkDuration = ObjectUtils.firstNonNull(checkDuration, DEFAULT_CHECK_DURATION);
     this.kafkaConsumerFactoryFn = kafkaConsumerFactoryFn;
     this.kafkaConsumerConfig = kafkaConsumerConfig;
     this.checkStopReadingFn = checkStopReadingFn;
@@ -79,12 +79,28 @@ public class WatchForKafkaTopicPartitions
         .apply(Impulse.create())
         .apply(
             "Match new TopicPartitions",
-            Watch.growthOf(new WatchPartitionFn()).withPollInterval(checkDuration))
-        .apply(ParDo.of(new ConvertToDescriptor()));
+            Watch.growthOf(
+                    new WatchPartitionFn(kafkaConsumerFactoryFn, kafkaConsumerConfig, topics))
+                .withPollInterval(checkDuration))
+        .apply(ParDo.of(new ConvertToDescriptor(checkStopReadingFn, startReadTime, stopReadTime)));
   }
 
-  private class ConvertToDescriptor
+  private static class ConvertToDescriptor
       extends DoFn<KV<byte[], TopicPartition>, KafkaSourceDescriptor> {
+
+    private final @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn;
+    private final @Nullable Instant startReadTime;
+    private final @Nullable Instant stopReadTime;
+
+    private ConvertToDescriptor(
+        @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn,
+        @Nullable Instant startReadTime,
+        @Nullable Instant stopReadTime) {
+      this.checkStopReadingFn = checkStopReadingFn;
+      this.startReadTime = startReadTime;
+      this.stopReadTime = stopReadTime;
+    }
+
     @ProcessElement
     public void processElement(
         @Element KV<byte[], TopicPartition> partition,
@@ -101,17 +117,37 @@ public class WatchForKafkaTopicPartitions
     }
   }
 
-  private class WatchPartitionFn extends PollFn<byte[], TopicPartition> {
+  private static class WatchPartitionFn extends PollFn<byte[], TopicPartition> {
+
+    private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
+        kafkaConsumerFactoryFn;
+    private final Map<String, Object> kafkaConsumerConfig;
+    private final List<String> topics;
+
+    private WatchPartitionFn(
+        SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> kafkaConsumerFactoryFn,
+        Map<String, Object> kafkaConsumerConfig,
+        List<String> topics) {
+      this.kafkaConsumerFactoryFn = kafkaConsumerFactoryFn;
+      this.kafkaConsumerConfig = kafkaConsumerConfig;
+      this.topics = topics;
+    }
+
     @Override
     public Watch.Growth.PollResult<TopicPartition> apply(byte[] element, Context c)
         throws Exception {
       Instant now = Instant.now();
-      return Watch.Growth.PollResult.incomplete(now, getAllTopicPartitions()).withWatermark(now);
+      return Watch.Growth.PollResult.incomplete(
+              now, getAllTopicPartitions(kafkaConsumerFactoryFn, kafkaConsumerConfig, topics))
+          .withWatermark(now);
     }
   }
 
   @VisibleForTesting
-  List<TopicPartition> getAllTopicPartitions() {
+  static List<TopicPartition> getAllTopicPartitions(
+      SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> kafkaConsumerFactoryFn,
+      Map<String, Object> kafkaConsumerConfig,
+      List<String> topics) {
     List<TopicPartition> current = new ArrayList<>();
     try (Consumer<byte[], byte[]> kafkaConsumer =
         kafkaConsumerFactoryFn.apply(kafkaConsumerConfig)) {

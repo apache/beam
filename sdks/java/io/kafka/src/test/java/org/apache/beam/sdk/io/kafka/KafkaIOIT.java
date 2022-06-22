@@ -58,8 +58,6 @@ import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -130,16 +128,16 @@ public class KafkaIOIT {
 
   @Rule public TestPipeline readPipeline = TestPipeline.create();
 
-  private static ExperimentalOptions pipelineOptions;
+  private static ExperimentalOptions sdfPipelineOptions;
 
   static {
-    pipelineOptions = PipelineOptionsFactory.create().as(ExperimentalOptions.class);
-    ExperimentalOptions.addExperiment(pipelineOptions, "use_sdf_read");
-    ExperimentalOptions.addExperiment(pipelineOptions, "beam_fn_api");
-    pipelineOptions.as(TestPipelineOptions.class).setBlockOnRun(false);
+    sdfPipelineOptions = PipelineOptionsFactory.create().as(ExperimentalOptions.class);
+    ExperimentalOptions.addExperiment(sdfPipelineOptions, "use_sdf_read");
+    ExperimentalOptions.addExperiment(sdfPipelineOptions, "beam_fn_api");
+    sdfPipelineOptions.as(TestPipelineOptions.class).setBlockOnRun(false);
   }
 
-  @Rule public TestPipeline sdfReadPipeline = TestPipeline.fromOptions(pipelineOptions);
+  @Rule public TestPipeline sdfReadPipeline = TestPipeline.fromOptions(sdfPipelineOptions);
 
   private static KafkaContainer kafkaContainer;
 
