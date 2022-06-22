@@ -16,6 +16,8 @@
 package fhirio
 
 import (
+	"bytes"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -23,41 +25,55 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
-func TestRead(t *testing.T) {
+func TestExecuteBundles(t *testing.T) {
 	testCases := []struct {
 		name           string
 		client         fhirStoreClient
 		containedError string
 	}{
 		{
-			name:           "Read request returns error",
+			name:           "Execute Bundles request returns error",
 			client:         requestReturnErrorFakeClient,
 			containedError: fakeRequestReturnErrorMessage,
 		},
 		{
-			name:           "Read request returns bad status",
+			name:           "Execute Bundles request returns bad status",
 			client:         badStatusFakeClient,
 			containedError: fakeBadStatus,
 		},
 		{
-			name:           "Read request response body fails to be read",
+			name:           "Execute Bundles request response body fails to be read",
 			client:         bodyReaderErrorFakeClient,
 			containedError: fakeBodyReaderErrorMessage,
 		},
+		{
+			name: "Execute Bundles request response body failed to be decoded",
+			client: &fakeFhirStoreClient{
+				fakeExecuteBundles: func(storePath string, bundle []byte) (*http.Response, error) {
+					return &http.Response{
+						Body: &fakeReaderCloser{
+							fakeRead: func(t []byte) (int, error) {
+								return bytes.NewReader([]byte("")).Read(t)
+							},
+						}, Status: "200 Ok"}, nil
+				},
+			},
+			containedError: "EOF",
+		},
 	}
 
-	testResourcePaths := []string{"foo", "bar"}
+	testBundles := [][]byte{[]byte("foo"), []byte("bar")}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			p, s, resourcePaths := ptest.CreateList(testResourcePaths)
-			resources, failedReads := read(s, resourcePaths, testCase.client)
-			passert.Empty(s, resources)
-			passert.Count(s, failedReads, "", len(testResourcePaths))
-			passert.True(s, failedReads, func(errorMsg string) bool {
+			p, s, bundles := ptest.CreateList(testBundles)
+			successfulBodies, failures := executeBundles(s, "bla", bundles, testCase.client)
+			passert.Empty(s, successfulBodies)
+			passert.Count(s, failures, "", len(testBundles))
+			passert.True(s, failures, func(errorMsg string) bool {
 				return strings.Contains(errorMsg, testCase.containedError)
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
-			err := validateResourceErrorCounter(pipelineResult, len(testResourcePaths))
+			err := validateResourceErrorCounter(pipelineResult, len(testBundles))
 			if err != nil {
 				t.Fatalf("validateResourceErrorCounter returned error [%v]", err.Error())
 			}
