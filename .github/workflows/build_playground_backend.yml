@@ -45,6 +45,33 @@ jobs:
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue
         run: rm ~/.m2/settings.xml
+
+      - id: 'auth'
+        name: 'Authenticate to GCP'
+        uses: 'google-github-actions/auth@v0.3.1'
+        with:
+          create_credentials_file: 'true'
+          workload_identity_provider: 'projects/757375655897/locations/global/workloadIdentityPools/playgroundfed/providers/github-google'
+          service_account: 'pg-sandboxsvs@playgroundsandbox2.iam.gserviceaccount.com '
+      - id: 'gcloud'
+        name: 'gcloud'
+        run: |-
+          gcloud auth login --brief --cred-file='${{ steps.auth.outputs.credentials_file_path }}'
+          gcloud config set project playgroundsandbox2
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+      - name: gcloud CLI installation
+        run: |
+          curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-388.0.0-linux-x86_64.tar.gz
+          tar -xf google-cloud-cli-388.0.0-linux-x86_64.tar.gz
+          sudo mv /usr/lib/google-cloud-sdk /usr/lib/google-cloud-sdk-ORIG
+          sudo mv google-cloud-sdk /usr/lib/
+          sudo gcloud components install cloud-datastore-emulator
+          sudo gcloud components install beta
+          sudo chmod 777 -R /usr/lib/google-cloud-sdk
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+
       - name: Run PreCommit
         run: ./gradlew playground:backend:precommit
       - name: install npm
