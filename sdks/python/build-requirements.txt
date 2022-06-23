@@ -17,7 +17,7 @@
 
 # TODO(https://github.com/apache/beam/issues/20051): Consider PEP-517/PEP-518 instead of this file.
 
-setuptools>=60.0.0
+setuptools
 wheel>=0.36.0
 
 grpcio-tools==1.37.0

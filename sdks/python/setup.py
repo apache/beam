@@ -31,7 +31,11 @@ from pkg_resources import normalize_path
 from pkg_resources import parse_version
 from pkg_resources import to_filename
 from setuptools import Command
-from setuptools.errors import BaseError
+
+# distutils from stdlib is deprecated from python 3.10.
+# setuptools has been maintaining a copy of distutils and importing
+# setuptools will replace stdlib/distutils with setuptools/distutils.
+from distutils.errors import DistutilsError # pylint: disable=wrong-import-order
 
 
 class mypy(Command):
@@ -60,7 +64,7 @@ class mypy(Command):
     args = ['mypy', self.get_project_path()]
     result = subprocess.call(args)
     if result != 0:
-      raise BaseError("mypy exited with status %d" % result)
+      raise DistutilsError("mypy exited with status %d" % result)
 
 
 def get_version():

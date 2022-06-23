@@ -48,9 +48,7 @@ RUN \
     rm -rf /root/.cache/pip && \
     rm -rf /tmp/base_image_requirements.txt
 
-# distutils has been integrated into setuptools from release 60.0.0 and has been deprecated from Python 3.10.
-# update setuptools to use setuptools modules instead of distutils for all supported Python version
-RUN pip install --upgrade setuptools
+RUN pip install --upgrade pip setuptools
 
 # Install Google Cloud SDK.
 ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
