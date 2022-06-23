@@ -21,6 +21,8 @@ The DaskRunner is a runner implementation that executes a graph of
 transformations across processes and workers via Dask distributed's
 scheduler.
 """
+import functools
+import itertools
 import typing as t
 import argparse
 import dataclasses
@@ -49,17 +51,27 @@ class DaskOptions(PipelineOptions):
 @dataclasses.dataclass
 class DaskExecutor:
     value_to_consumers: t.Dict[pvalue.PValue, t.Set[AppliedPTransform]]
-    # root_transforms: t.Set[AppliedPTransform]
+    root_transforms: t.Set[AppliedPTransform]
     step_names:  t.Dict[AppliedPTransform, str]
     views: t.List[pvalue.AsSideInput]
+    _root_nodes = None
+    _all_nodes = None
 
-    def __post_init__(self):
-        # TODO(alxr): Translate to Bags
+    @property
+    @functools.cached_property
+    def root_nodes(self):
+        return frozenset(self.root_transforms)
 
-        pass
+    @property
+    @functools.cached_property
+    def all_nodes(self):
+        return itertools.chain(
+            self.root_nodes, *itertools.chain(self.value_to_consumers.values())))
 
-    def start(self, roots: t.Set[AppliedPTransform]) -> None:
-        pass
+    def start(self) -> None:
+        for root in self.root_nodes:
+
+
 
     def await_completion(self) -> None:
         pass
@@ -72,14 +84,38 @@ class DaskRunner(BundleBasedDirectRunner):
     """Executes a pipeline on a Dask distributed client."""
 
     @staticmethod
-    def to_dask_bag_visitor(self):
+    def to_dask_bag_visitor(self) -> PipelineVisitor:
 
         @dataclasses.dataclass
         class DaskBagVisitor(PipelineVisitor):
 
-            def visit_transform(self, transform_node: AppliedPTransform) -> None:
-                inputs = list(transform_node.inputs)
-                pass
+            value_to_consumers = {
+            }  # type: Dict[pvalue.PValue, Set[AppliedPTransform]]
+            root_transforms = set()  # type: Set[AppliedPTransform]
+            step_names = {}  # type: Dict[AppliedPTransform, str]
+
+            def __post_init__(self):
+                self._num_transforms = 0
+                self._views = set()
+
+            def visit_transform(self, applied_ptransform: AppliedPTransform) -> None:
+                inputs = list(applied_ptransform.inputs)
+                if inputs:
+                    for input_value in inputs:
+                        if isinstance(input_value, pvalue.PBegin):
+                            self.root_transforms.add(applied_ptransform)
+                        if input_value not in self.value_to_consumers:
+                            self.value_to_consumers[input_value] = set()
+                        self.value_to_consumers[input_value].add(applied_ptransform)
+                else:
+                    self.root_transforms.add(applied_ptransform)
+                self.step_names[applied_ptransform] = 's%d' % (self._num_transforms)
+                self._num_transforms += 1
+
+                for side_input in applied_ptransform.side_inputs:
+                    self._views.add(side_input)
+
+        return DaskBagVisitor()
 
 
 
