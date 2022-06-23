@@ -76,7 +76,7 @@ public class WatchForKafkaTopicPartitionsTest {
             new TopicPartition("topic1", 1),
             new TopicPartition("topic2", 0),
             new TopicPartition("topic2", 1)),
-        WatchForKafkaTopicPartitions.getAllTopicPartitions((input) -> mockConsumer,null, null));
+        WatchForKafkaTopicPartitions.getAllTopicPartitions((input) -> mockConsumer, null, null));
   }
 
   @Test
@@ -101,7 +101,8 @@ public class WatchForKafkaTopicPartitionsTest {
             new TopicPartition("topic1", 1),
             new TopicPartition("topic2", 0),
             new TopicPartition("topic2", 1)),
-        WatchForKafkaTopicPartitions.getAllTopicPartitions((input) -> mockConsumer, null, givenTopics));
+        WatchForKafkaTopicPartitions.getAllTopicPartitions(
+            (input) -> mockConsumer, null, givenTopics));
   }
 
   @Test

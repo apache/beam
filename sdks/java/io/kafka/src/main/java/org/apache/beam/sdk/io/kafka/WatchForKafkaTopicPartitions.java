@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.ObjectUtils;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -64,7 +65,7 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
       List<String> topics,
       @Nullable Instant startReadTime,
       @Nullable Instant stopReadTime) {
-    this.checkDuration = ObjectUtils.firstNonNull(checkDuration, DEFAULT_CHECK_DURATION);
+    this.checkDuration = firstNonNull(checkDuration, DEFAULT_CHECK_DURATION);
     this.kafkaConsumerFactoryFn = kafkaConsumerFactoryFn;
     this.kafkaConsumerConfig = kafkaConsumerConfig;
     this.checkStopReadingFn = checkStopReadingFn;
