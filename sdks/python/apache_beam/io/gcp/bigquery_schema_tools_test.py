@@ -15,18 +15,18 @@
 # limitations under the License.
 
 import logging
-import mock
 import typing
 import unittest.mock
-from apache_beam.io.gcp.internal.clients.bigquery import Table
 
+import mock
 import numpy as np
 
 import apache_beam.io.gcp.bigquery
 from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp.bigquery_test import HttpError
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.internal.clients.bigquery import Table
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

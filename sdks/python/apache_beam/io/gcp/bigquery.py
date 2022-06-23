@@ -2568,8 +2568,9 @@ class ReadFromBigQuery(PTransform):
       if 'table' in self._kwargs:
         ReadFromBigQuery._get_pcoll_from_schema(
             beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
-                project_id=self._kwargs['project'],
-                table_id=self._kwargs['table']).schema)
+                project_id='apache-beam-testing',
+                dataset_id="beam_bigquery_io_test",
+                table_id="dfsqltable_3c7d6fd5_16e0460dfd0").schema)
 
   def _get_pcoll_from_schema(table_schema):
     pcoll_val = beam.io.gcp.bigquery_schema_tools. \

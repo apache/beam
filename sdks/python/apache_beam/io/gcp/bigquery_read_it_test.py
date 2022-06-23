@@ -36,6 +36,7 @@ import apache_beam as beam
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.runners.interactive import interactive_beam
 from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
@@ -185,7 +186,7 @@ class ReadTests(BigQueryReadIntegrationTests):
         dataset_id="beam_bigquery_io_test",
         table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
     table = the_table.schema
-    utype = beam.io.gcp.bigquery_schema_tools.produce_pcoll_with_schema(table)
+    utype = bigquery_schema_tools.produce_pcoll_with_schema(table)
     with beam.Pipeline(argv=self.args) as p:
       result = (
           p | beam.io.gcp.bigquery.ReadFromBigQuery(
