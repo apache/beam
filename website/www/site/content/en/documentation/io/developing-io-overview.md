@@ -186,7 +186,7 @@ Persistant connectons can be initialized in a DoFn's `setUp` or `startBundle`
 method rather than upon the receipt of every element as well.
 It should also be noted that in a large-scale, distributed system work can
 [fail and/or be retried](/documentation/runtime/model/), so it is preferable to
-make writing idempotent if possible.
+make the external interactions idempotent when possible.
 
 For **file-based sinks**, you can use the `FileBasedSink` abstraction that is
 provided by both the Java and Python SDKs. Beam's `FileSystems` utility classes
