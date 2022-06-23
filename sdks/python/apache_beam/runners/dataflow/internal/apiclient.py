@@ -345,6 +345,10 @@ class Environment(object):
           for k, v in sdk_pipeline_options.items() if v is not None
       }
       options_dict["pipelineUrl"] = proto_pipeline_staged_url
+      # Don't pass impersonate_service_account through to the harness.
+      # Though impersonation should start a job, the workers should
+      # not try to modify their credentials.
+      options_dict.pop('impersonate_service_account', None)
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='options', value=to_json_value(options_dict)))
@@ -557,7 +561,7 @@ class DataflowApplicationClient(object):
     if self.google_cloud_options.no_auth:
       credentials = None
     else:
-      credentials = get_service_credentials()
+      credentials = get_service_credentials(options)
 
     http_client = get_new_http()
     self._client = dataflow.DataflowV1b3(
@@ -941,7 +945,7 @@ class DataflowApplicationClient(object):
 
     Args:
       job_id: A string representing the job_id for the workflow as returned
-        by the a create_job() request.
+        by the create_job() request.
 
     Returns:
       A Job proto. See below for interesting fields.
@@ -977,7 +981,7 @@ class DataflowApplicationClient(object):
 
     Args:
       job_id: A string representing the job_id for the workflow as returned
-        by the a create_job() request.
+        by the create_job() request.
       start_time: If specified, only messages generated after the start time
         will be returned, otherwise all messages since job started will be
         returned. The value is a string representing UTC time
@@ -1306,8 +1310,9 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 # This is required for the legacy python dataflow runner, as portability
 # does not communicate to the service via python code, but instead via a
 # a runner harness (in C++ or Java).
-# TODO(BEAM-7050) : Remove this antipattern, legacy dataflow python
-# pipelines will break whenever a new cy_combiner type is used.
+# TODO(https://github.com/apache/beam/issues/19433) : Remove this antipattern,
+# legacy dataflow python pipelines will break whenever a new cy_combiner type
+# is used.
 structured_counter_translations = {
     cy_combiners.CountCombineFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.SUM,

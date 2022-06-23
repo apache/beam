@@ -35,7 +35,7 @@ programming guide, take a look at the
 {{< language-switcher java py go >}}
 
 {{< paragraph class="language-py" >}}
-The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last Python SDK release to support Python 2 and 3.5.
+The Python SDK supports Python 3.7, 3.8, and 3.9.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
@@ -1040,7 +1040,7 @@ Here is a sequence diagram that shows the lifecycle of the DoFn during
  apply to the objects or particular cases such as failover or
  instance reuse. They also give instantiation use cases.
 
-<!-- The source for the sequence diagram can be found in the the SVG resource. -->
+<!-- The source for the sequence diagram can be found in the SVG resource. -->
 ![This is a sequence diagram that shows the lifecycle of the DoFn](/images/dofn-sequence-diagram.svg)
 
 #### 4.2.2. GroupByKey {#groupbykey}
@@ -1110,6 +1110,10 @@ individual values) to a uni-map (unique keys to collections of values).
 // Save the result as the PCollection reduced.
 PCollection<KV<String, Iterable<String>>> reduced =
  mapped.apply(GroupByKey.<String, String>create());
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" groupbykey >}}
 {{< /highlight >}}
 
 ##### 4.2.2.1 GroupByKey and unbounded PCollections {#groupbykey-and-unbounded-pcollections}
@@ -1833,7 +1837,7 @@ words = ...
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" model_pardo_side_input_dofn >}}
 
 // The Go SDK doesn't support custom ViewFns.
-// See https://issues.apache.org/jira/browse/BEAM-3305 for details
+// See https://github.com/apache/beam/issues/18602 for details
 // on how to contribute them!
 {{< /highlight >}}
 
@@ -2134,7 +2138,7 @@ you can determine whether this is an early or a late firing, and how many times 
 **PaneInfo:**
 When triggers are used, Beam provides a `DoFn.PaneInfoParam` object that contains information about the current firing. Using `DoFn.PaneInfoParam`
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.
-This feature implementation in Python SDK is not fully completed; see more at [BEAM-3759](https://issues.apache.org/jira/browse/BEAM-3759).
+This feature implementation in Python SDK is not fully completed; see more at [Issue 17821](https://github.com/apache/beam/issues/18721).
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
@@ -2193,7 +2197,7 @@ Timers and States are explained in more detail in the
 
 {{< paragraph class="language-go" >}}
 **Timer and State:**
-This feature isn't implemented in the Go SDK; see more at [BEAM-10660](https://issues.apache.org/jira/browse/BEAM-10660). Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.
+This feature isn't implemented in the Go SDK; see more at [Issue 20510](https://github.com/apache/beam/issues/20510). Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.
 {{< /paragraph >}}
 
 {{< highlight py >}}
@@ -2256,7 +2260,7 @@ class StatefulDoFn(beam.DoFn):
 
 {{< highlight go >}}
 // State and Timers are yet implemented in the Go SDK.
-// See https://issues.apache.org/jira/browse/BEAM-10660 for info
+// See https://github.com/apache/beam/issues/20510 for info
 // on contributing State and Timers.
 {{< /highlight >}}
 
@@ -2543,7 +2547,7 @@ records.apply("WriteToText",
 
 {{< highlight go >}}
 // The Go SDK textio doesn't support sharding on writes yet.
-// See https://issues.apache.org/jira/browse/BEAM-12664 for ways
+// See https://github.com/apache/beam/issues/21031 for ways
 // to contribute a solution.
 {{< /highlight >}}
 
@@ -2820,7 +2824,7 @@ transactionPojos.apply(ParDo.of(new DoFn<...>() {
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
-Even though the in both cases the `@Element` parameter differs from the the `PCollection`'s Java type, since the
+Even though the in both cases the `@Element` parameter differs from the `PCollection`'s Java type, since the
 schemas are the same Beam will automatically make the conversion. The built-in `Convert` transform can also be used
 to translate between Java types of equivalent schemas, as detailed below.
 {{< /paragraph >}}
@@ -4386,7 +4390,7 @@ example pipeline in the figure below:
 
 In the above pipeline, we create an unbounded `PCollection` by reading a set of
 key/value pairs using `KafkaIO`, and then apply a windowing function to that
-collection using the `Window` transform. We then apply a `ParDo` to the the
+collection using the `Window` transform. We then apply a `ParDo` to the
 collection, and then later group the result of that `ParDo` using `GroupByKey`.
 The windowing function has no effect on the `ParDo` transform, because the
 windows are not actually used until they're needed for the `GroupByKey`.
@@ -4938,7 +4942,7 @@ element in that window has been processed.
 
 #### 9.4.1. Window accumulation modes {#window-accumulation-modes}
 
-When you specify a trigger, you must also set the the window's **accumulation
+When you specify a trigger, you must also set the window's **accumulation
 mode**. When a trigger fires, it emits the current contents of the window as a
 pane. Since a trigger can fire multiple times, the accumulation mode determines
 whether the system *accumulates* the window panes as the trigger fires, or
@@ -5378,7 +5382,7 @@ to other nodes in the graph. A `DoFn` can declare multiple state variables.
 
 <span class="language-go">
 
-> **Note:** The Beam SDK for Go does not yet support a State and Timer API. See [BEAM-10660](https://issues.apache.org/jira/browse/BEAM-10660) to contribute.
+> **Note:** The Beam SDK for Go does not yet support a State and Timer API. See [Issue 20510](https://github.com/apache/beam/issues/20510) to contribute.
 
 </span>
 
@@ -5436,7 +5440,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 #### CombiningState
@@ -5468,7 +5472,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 #### BagState
@@ -5514,7 +5518,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 ### 11.2. Deferred state reads {#deferred-state-reads}
@@ -5543,11 +5547,11 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 {{< /highlight >}}
 
 {{< highlight py >}}
-This is not supported yet, see BEAM-11506.
+This is not supported yet, see https://github.com/apache/beam/issues/20739.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
@@ -5637,7 +5641,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 #### 11.3.2. Processing-time timers {#processing-time-timers}
@@ -5689,7 +5693,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 #### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
@@ -5750,7 +5754,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 #### 11.3.4. Timer output timestamps {#timer-output-timestamps}
@@ -5857,11 +5861,11 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 {{< /highlight >}}
 
 {{< highlight py >}}
-Timer output timestamps is not yet supported in Python SDK. See BEAM-11507.
+Timer output timestamps is not yet supported in Python SDK. See https://github.com/apache/beam/issues/20705.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 ### 11.4. Garbage collecting state {#garbage-collecting-state}
@@ -5907,7 +5911,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
@@ -5991,7 +5995,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10660.
+This is not supported yet, see https://github.com/apache/beam/issues/20510.
 {{< /highlight >}}
 
 ### 11.5. State and timers examples {#state-timers-examples}
@@ -6257,17 +6261,19 @@ There are some built-in `RestrictionTracker` implementations defined in Java:
 The SDF also has a built-in `RestrictionTracker` implementation in Python:
 1. [OffsetRangeTracker](https://beam.apache.org/releases/pydoc/current/apache_beam.io.restriction_trackers.html#apache_beam.io.restriction_trackers.OffsetRestrictionTracker)
 
+Go also has a built-in `RestrictionTracker` type:
+1. [OffsetRangeTracker](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange)
+
 The watermark state is a user-defined object which is used to create a `WatermarkEstimator` from a
 `WatermarkEstimatorProvider`. The simplest watermark state could be a `timestamp`.
 
 The watermark estimator provider lets SDF authors define how to initialize the watermark state and
-create a watermark estimator. In [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.ProcessElement.html)
+create a watermark estimator. In [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.ProcessElement.html) and [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#ParDo)
 this is the `DoFn`. [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.WatermarkEstimatorProvider)
 has a dedicated `WatermarkEstimatorProvider` type.
 
 The watermark estimator tracks the watermark when an element-restriction pair is in progress.
-For APIs details, read the [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimator.html)
-and [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.io.iobase.html#apache_beam.io.iobase.WatermarkEstimator)
+For APIs details, read the [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimator.html), [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.io.iobase.html#apache_beam.io.iobase.WatermarkEstimator), and [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf#WatermarkEstimator)
 reference documentation.
 
 There are some built-in `WatermarkEstimator` implementations in Java:
@@ -6280,6 +6286,10 @@ Along with the default `WatermarkEstimatorProvider`, there are the same set of b
 1. [ManualWatermarkEstimator](https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.ManualWatermarkEstimator)
 2. [MonotonicWatermarkEstimator](https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.MonotonicWatermarkEstimator)
 3. [WalltimeWatermarkEstimator](https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.WalltimeWatermarkEstimator)
+
+The following `WatermarkEstimator` types are implemented in Go:
+1. [TimestampObservingEstimator](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf#TimestampObservingWatermarkEstimator)
+2. [WalltimeWatermarkEstimator](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf#WallTimeWatermarkEstimator)
 
 To define an SDF, you must choose whether the SDF is bounded (default) or
 unbounded and define a way to initialize an initial restriction for an element. The distinction is
@@ -6416,7 +6426,7 @@ resource utilization.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-11104.
+{{< code_sample "sdks/go/examples/snippets/12splittabledofns.go" self_checkpoint>}}
 {{< /highlight >}}
 
 ### 12.4. Runner-initiated split {#runner-initiated-split}
@@ -6518,6 +6528,11 @@ unbounded restrictions finish processing at the next SDF-initiated checkpoint or
 You are able to override this default behavior by defining the appropriate method on the restriction
 provider.
 
+{{< paragraph class="language-go" >}}
+Note: Once the pipeline drain starts and truncate restriction transform is triggered, the `sdf.ProcessContinuation`
+will not be rescheduled.
+{{< /paragraph >}}
+
 {{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_Truncate >}}
 {{< /highlight >}}
@@ -6527,7 +6542,7 @@ provider.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-11106.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" sdf_truncate >}}
 {{< /highlight >}}
 
 ### 12.7. Bundle finalization {#bundle-finalization}
@@ -6881,7 +6896,7 @@ Currently Python external transforms are limited to dependencies available in th
 #### 13.1.3. Creating cross-language Go transforms
 
 Go currently does not support creating cross-language transforms, only using cross-language
-transforms from other languages; see more at [BEAM-9923](https://issues.apache.org/jira/browse/BEAM-9923).
+transforms from other languages; see more at [Issue 21767](https://github.com/apache/beam/issues/21767).
 
 #### 13.1.4. Defining a URN
 

@@ -88,7 +88,7 @@ import org.mockito.Mockito;
  */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class WatermarkManagerTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -785,7 +785,7 @@ public class WatermarkManagerTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4191")
+  @Ignore("https://github.com/apache/beam/issues/18826")
   public void updateWatermarkWithDifferentWindowedValueInstances() {
     manager.updateWatermarks(
         null,

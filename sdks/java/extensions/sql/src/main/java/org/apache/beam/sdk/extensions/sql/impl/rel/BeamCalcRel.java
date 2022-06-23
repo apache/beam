@@ -110,11 +110,13 @@ import org.slf4j.LoggerFactory;
 
 /** BeamRelNode to replace {@code Project} and {@code Filter} node. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "keyfor",
   "nullness",
-  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class BeamCalcRel extends AbstractBeamCalcRel {
 
   private static final long NANOS_PER_MILLISECOND = 1000000L;
@@ -351,7 +353,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       return null;
     }
     switch (fieldType.getTypeName()) {
-        // BEAM-12176: Numbers aren't always the type we expect.
+        // https://github.com/apache/beam/issues/20864: Numbers aren't always the type we expect.
       case BYTE:
         return ((Number) value).byteValue();
       case INT16:
@@ -410,13 +412,15 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           if (value instanceof Date) {
             value = SqlFunctions.toInt((Date) value);
           }
-          // BEAM-12175: value should always be Integer here, but it isn't.
+          // https://github.com/apache/beam/issues/20865: value should always be Integer here, but
+          // it isn't.
           return LocalDate.ofEpochDay(((Number) value).longValue());
         } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
           if (value instanceof Time) {
             value = SqlFunctions.toInt((Time) value);
           }
-          // BEAM-12175: value should always be Integer here, but it isn't.
+          // https://github.com/apache/beam/issues/20865: value should always be Integer here, but
+          // it isn't.
           return LocalTime.ofNanoOfDay(((Number) value).longValue() * NANOS_PER_MILLISECOND);
         } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
           if (value instanceof Timestamp) {

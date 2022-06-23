@@ -77,7 +77,8 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link UserParDoFnFactory}. */
 @RunWith(JUnit4.class)
-// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// released (2.11.0)
 @SuppressWarnings("unused")
 public class UserParDoFnFactoryTest {
   static class TestDoFn extends DoFn<Integer, String> {
@@ -306,7 +307,7 @@ public class UserParDoFnFactoryTest {
   private CloudObject getCloudObject(DoFn<?, ?> fn, WindowingStrategy<?, ?> windowingStrategy) {
     CloudObject object = CloudObject.forClassName("DoFn");
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     })
     DoFnInfo<?, ?> info =

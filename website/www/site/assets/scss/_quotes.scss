@@ -77,7 +77,7 @@
     width: 100%;
     overflow: hidden;
     height: 600px;
-    margin: 76px 0 20px 0;
+    margin: 30px 0 20px 0;
     padding: 55px 20px 24px 20px;
     border-radius: 16px;
     background-color: $color-white;
@@ -113,16 +113,11 @@
 
 @media (max-width: $tablet) {
   .quotes {
-    .quotes-title {
-      margin-bottom: 64px;
-    }
-
     h2 {
       margin-bottom: 0 !important;
     }
   }
 }
-
 
 .bullet-class-custom {
   display: inline-block;
@@ -171,5 +166,21 @@
       display: block;
       margin: 0;
     }
+  }
+}
+
+.swiper-container {
+  display: flex;
+  align-items: center;
+}
+
+.swiper-button-next-custom,
+.swiper-button-prev-custom {
+  @media (max-width: $mobile) {
+    display: none;
+  }
+  img {
+    display: block;
+    width: 100%;
   }
 }

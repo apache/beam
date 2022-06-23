@@ -119,7 +119,7 @@ import org.slf4j.LoggerFactory;
 @Experimental(Kind.SOURCE_SINK)
 @AutoValue
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public abstract class WriteFiles<UserT, DestinationT, OutputT>
@@ -166,6 +166,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setWindowedWrites(false)
         .setMaxNumWritersPerBundle(DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
         .setSideInputs(sink.getDynamicDestinations().getSideInputs())
+        .setSkipIfEmpty(false)
         .build();
   }
 
@@ -182,6 +183,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract boolean getWindowedWrites();
 
   abstract int getMaxNumWritersPerBundle();
+
+  abstract boolean getSkipIfEmpty();
 
   abstract List<PCollectionView<?>> getSideInputs();
 
@@ -204,6 +207,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setMaxNumWritersPerBundle(
         int maxNumWritersPerBundle);
+
+    abstract Builder<UserT, DestinationT, OutputT> setSkipIfEmpty(boolean skipIfEmpty);
 
     abstract Builder<UserT, DestinationT, OutputT> setSideInputs(
         List<PCollectionView<?>> sideInputs);
@@ -252,6 +257,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public WriteFiles<UserT, DestinationT, OutputT> withMaxNumWritersPerBundle(
       int maxNumWritersPerBundle) {
     return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
+  }
+
+  /** Set this sink to skip writing any files if the PCollection is empty. */
+  public WriteFiles<UserT, DestinationT, OutputT> withSkipIfEmpty(boolean skipIfEmpty) {
+    return toBuilder().setSkipIfEmpty(skipIfEmpty).build();
   }
 
   public WriteFiles<UserT, DestinationT, OutputT> withSideInputs(
@@ -317,6 +327,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     return toBuilder().setMaxNumWritersPerBundle(-1).build();
   }
 
+  public WriteFiles<UserT, DestinationT, OutputT> withSkipIfEmpty() {
+    return toBuilder().setSkipIfEmpty(true).build();
+  }
+
   @Override
   public void validate(PipelineOptions options) {
     getSink().validate(options);
@@ -331,7 +345,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           WriteFiles.class.getSimpleName());
       // Sharding used to be required due to https://issues.apache.org/jira/browse/BEAM-1438 and
       // similar behavior in other runners. Some runners may support runner determined sharding now.
-      // Check merging window here due to https://issues.apache.org/jira/browse/BEAM-12040.
+      // Check merging window here due to https://github.com/apache/beam/issues/20928.
       if (input.getWindowingStrategy().needsMerge()) {
         checkArgument(
             getComputeNumShards() != null || getNumShardsProvider() != null,
@@ -509,7 +523,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                         public void process(ProcessContext c) {
                           c.output(c.element().withShard(UNKNOWN_SHARDNUM));
                         }
-                      }));
+                      }))
+              .setCoder(fileResultCoder);
       return PCollectionList.of(writtenBundleFiles)
           .and(writtenSpilledFiles)
           .apply(Flatten.pCollections())
@@ -730,7 +745,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       // records buffered or they have been buffered for a certain time, controlled by
       // FILE_TRIGGERING_RECORD_COUNT and BUFFERING_DURATION respectively.
       //
-      // TODO(BEAM-12040): The implementation doesn't currently work with merging windows.
+      // TODO(https://github.com/apache/beam/issues/20928): The implementation doesn't currently
+      // work with merging windows.
       PCollection<KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>> shardedInput =
           input
               .apply(
@@ -793,7 +809,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                         public void process(ProcessContext c) {
                           c.output(c.element().withShard(UNKNOWN_SHARDNUM));
                         }
-                      }));
+                      }))
+              .setCoder(fileResultCoder);
 
       // Group temp file results by destinations again to gather all the results in the same window.
       // This is needed since we don't have shard idx associated with each temp file so have to rely
@@ -1034,6 +1051,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         }
         List<FileResult<DestinationT>> fileResults = Lists.newArrayList(c.element());
         LOG.info("Finalizing {} file results", fileResults.size());
+        if (fileResults.isEmpty() && getSkipIfEmpty()) {
+          return;
+        }
         DestinationT defaultDest = getDynamicDestinations().getDefaultDestination();
         List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames =
             fileResults.isEmpty()

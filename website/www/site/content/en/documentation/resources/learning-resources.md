@@ -156,7 +156,7 @@ complexity. Beam Katas are available for both Java and Python SDKs.
 
 We are open for feedback and suggestions, you can find different ways to reach out to the community in the [Contact Us](https://beam.apache.org/community/contact-us/) page.
 
-If you have a bug report or want to suggest a new feature, you can let us know by [submitting a new issue](https://issues.apache.org/jira/secure/CreateIssue!default.jspa).
+If you have a bug report or want to suggest a new feature, you can let us know by [submitting a new issue](https://github.com/apache/beam/issues/new/choose).
 
 ## How to Contribute {#how-to-contribute}
 

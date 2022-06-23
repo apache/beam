@@ -194,10 +194,14 @@ import org.slf4j.LoggerFactory;
  * Dataflow Security and Permissions</a> for more details.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
+
+  /** Experiment to "unsafely attempt to process unbounded data in batch mode". */
+  public static final String UNSAFELY_ATTEMPT_TO_PROCESS_UNBOUNDED_DATA_IN_BATCH_MODE =
+      "unsafely_attempt_to_process_unbounded_data_in_batch_mode";
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunner.class);
   /** Provided configuration options. */
@@ -1034,10 +1038,51 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return Environments.getArtifacts(pathsToStageBuilder.build());
   }
 
+  @VisibleForTesting
+  static boolean isMultiLanguagePipeline(Pipeline pipeline) {
+    class IsMultiLanguageVisitor extends PipelineVisitor.Defaults {
+      private boolean isMultiLanguage = false;
+
+      private void performMultiLanguageTest(Node node) {
+        if (node.getTransform() instanceof External.ExpandableTransform) {
+          isMultiLanguage = true;
+        }
+      }
+
+      @Override
+      public CompositeBehavior enterCompositeTransform(Node node) {
+        performMultiLanguageTest(node);
+        return super.enterCompositeTransform(node);
+      }
+
+      @Override
+      public void visitPrimitiveTransform(Node node) {
+        performMultiLanguageTest(node);
+        super.visitPrimitiveTransform(node);
+      }
+    }
+
+    IsMultiLanguageVisitor visitor = new IsMultiLanguageVisitor();
+    pipeline.traverseTopologically(visitor);
+
+    return visitor.isMultiLanguage;
+  }
+
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
+    if (DataflowRunner.isMultiLanguagePipeline(pipeline)) {
+      List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
+      if (!experiments.contains("use_runner_v2")) {
+        LOG.info(
+            "Automatically enabling Dataflow Runner v2 since the pipeline used cross-language"
+                + " transforms");
+        options.setExperiments(
+            ImmutableList.<String>builder().addAll(experiments).add("use_runner_v2").build());
+      }
+    }
     if (useUnifiedWorker(options)) {
-      List<String> experiments = options.getExperiments(); // non-null if useUnifiedWorker is true
+      List<String> experiments =
+          new ArrayList<>(options.getExperiments()); // non-null if useUnifiedWorker is true
       if (!experiments.contains("use_runner_v2")) {
         experiments.add("use_runner_v2");
       }
@@ -1054,7 +1099,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
-    if (containsUnboundedPCollection(pipeline)) {
+    if (shouldActAsStreaming(pipeline)) {
       options.setStreaming(true);
     }
 
@@ -1479,29 +1524,58 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // setup overrides.
   @VisibleForTesting
   protected void replaceV1Transforms(Pipeline pipeline) {
-    boolean streaming = options.isStreaming() || containsUnboundedPCollection(pipeline);
+    boolean streaming = shouldActAsStreaming(pipeline);
     // Ensure all outputs of all reads are consumed before potentially replacing any
     // Read PTransforms
     UnconsumedReads.ensureAllReadsConsumed(pipeline);
     pipeline.replaceAll(getOverrides(streaming));
   }
 
-  private boolean containsUnboundedPCollection(Pipeline p) {
+  private boolean shouldActAsStreaming(Pipeline p) {
     class BoundednessVisitor extends PipelineVisitor.Defaults {
 
-      IsBounded boundedness = IsBounded.BOUNDED;
+      final List<PCollection> unboundedPCollections = new ArrayList<>();
 
       @Override
       public void visitValue(PValue value, Node producer) {
         if (value instanceof PCollection) {
-          boundedness = boundedness.and(((PCollection) value).isBounded());
+          PCollection pc = (PCollection) value;
+          if (pc.isBounded() == IsBounded.UNBOUNDED) {
+            unboundedPCollections.add(pc);
+          }
         }
       }
     }
 
     BoundednessVisitor visitor = new BoundednessVisitor();
     p.traverseTopologically(visitor);
-    return visitor.boundedness == IsBounded.UNBOUNDED;
+    if (visitor.unboundedPCollections.isEmpty()) {
+      if (options.isStreaming()) {
+        LOG.warn(
+            "No unbounded PCollection(s) found in a streaming pipeline! "
+                + "You might consider using 'streaming=false'!");
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      if (options.isStreaming()) {
+        return true;
+      } else if (hasExperiment(options, UNSAFELY_ATTEMPT_TO_PROCESS_UNBOUNDED_DATA_IN_BATCH_MODE)) {
+        LOG.info(
+            "Turning a batch pipeline into streaming due to unbounded PCollection(s) has been avoided! "
+                + "Unbounded PCollection(s): {}",
+            visitor.unboundedPCollections);
+        return false;
+      } else {
+        LOG.warn(
+            "Unbounded PCollection(s) found in a batch pipeline! "
+                + "You might consider using 'streaming=true'! "
+                + "Unbounded PCollection(s): {}",
+            visitor.unboundedPCollections);
+        return true;
+      }
+    }
   };
 
   /** Returns the DataflowPipelineTranslator associated with this object. */
@@ -2211,7 +2285,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           WriteFilesResult<DestinationT>,
           WriteFiles<UserT, DestinationT, OutputT>> {
 
-    // We pick 10 as a a default, as it works well with the default number of workers started
+    // We pick 10 as a default, as it works well with the default number of workers started
     // by Dataflow.
     static final int DEFAULT_NUM_SHARDS = 10;
     DataflowPipelineWorkerPoolOptions options;
@@ -2374,7 +2448,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   static void verifyStateSupportForWindowingStrategy(WindowingStrategy strategy) {
-    // https://issues.apache.org/jira/browse/BEAM-2507
+    // https://github.com/apache/beam/issues/18478
     if (strategy.needsMerge()) {
       throw new UnsupportedOperationException(
           String.format(

@@ -63,7 +63,8 @@ public class MetricsContainerStepMap implements Serializable {
   /** Returns the container for the given step name. */
   public MetricsContainerImpl getContainer(String stepName) {
     if (stepName == null) {
-      // TODO(BEAM-6538): Disallow this in the future, some tests rely on an empty step name today.
+      // TODO(https://github.com/apache/beam/issues/19275): Disallow this in the future, some tests
+      // rely on an empty step name today.
       return getUnboundContainer();
     }
     return metricsContainers.computeIfAbsent(

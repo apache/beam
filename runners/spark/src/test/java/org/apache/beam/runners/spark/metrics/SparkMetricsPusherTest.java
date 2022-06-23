@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.is;
 import org.apache.beam.runners.core.metrics.TestMetricsSink;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
+import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.Counter;
@@ -68,6 +69,8 @@ public class SparkMetricsPusherTest {
   @Category(StreamingTest.class)
   @Test
   public void testInStreamingMode() throws Exception {
+    pipeline.getOptions().as(TestSparkPipelineOptions.class).setForceStreaming(true);
+
     Instant instant = new Instant(0);
     CreateStream<Integer> source =
         CreateStream.of(VarIntCoder.of(), batchDuration())

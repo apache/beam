@@ -83,7 +83,7 @@ import org.joda.time.Duration;
 @Audience(Audience.Type.CLIENT)
 @Basic(state = StateComplexity.ZERO, repartitions = 0)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FlatMap<InputT, OutputT> extends Operator<OutputT>
     implements TypeAware.Output<OutputT> {

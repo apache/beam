@@ -180,7 +180,7 @@ import org.joda.time.Duration;
  * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TextIO {
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
@@ -269,6 +269,7 @@ public class TextIO {
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
         .setNoSpilling(false)
+        .setSkipIfEmpty(false)
         .build();
   }
 
@@ -349,15 +350,27 @@ public class TextIO {
     }
 
     /**
-     * See {@link MatchConfiguration#continuously}.
+     * See {@link MatchConfiguration#continuously(Duration, TerminationCondition, boolean)}.
      *
      * <p>This works only in runners supporting splittable {@link
      * org.apache.beam.sdk.transforms.DoFn}.
      */
     public Read watchForNewFiles(
-        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
       return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
+          getMatchConfiguration()
+              .continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
+    /**
+     * Same as {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)} with {@code
+     * matchUpdatedFiles=false}.
+     */
+    public Read watchForNewFiles(
+        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+      return watchForNewFiles(pollInterval, terminationCondition, false);
     }
 
     /**
@@ -495,11 +508,20 @@ public class TextIO {
       return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
+    /** Same as {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)}. */
+    public ReadAll watchForNewFiles(
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
+      return withMatchConfiguration(
+          getMatchConfiguration()
+              .continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
     /** Same as {@link Read#watchForNewFiles(Duration, TerminationCondition)}. */
     public ReadAll watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
+      return watchForNewFiles(pollInterval, terminationCondition, false);
     }
 
     ReadAll withDelimiter(byte[] delimiter) {
@@ -648,6 +670,9 @@ public class TextIO {
     /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
     abstract boolean getNoSpilling();
 
+    /** Whether to skip writing any output files if the PCollection is empty. */
+    abstract boolean getSkipIfEmpty();
+
     /**
      * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
      * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
@@ -694,6 +719,8 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
 
       abstract Builder<UserT, DestinationT> setNoSpilling(boolean noSpilling);
+
+      abstract Builder<UserT, DestinationT> setSkipIfEmpty(boolean noSpilling);
 
       abstract Builder<UserT, DestinationT> setWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory);
@@ -941,6 +968,11 @@ public class TextIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
+    /** Don't write any output files if the PCollection is empty. */
+    public TypedWrite<UserT, DestinationT> skipIfEmpty() {
+      return toBuilder().setSkipIfEmpty(true).build();
+    }
+
     private DynamicDestinations<UserT, DestinationT, String> resolveDynamicDestinations() {
       DynamicDestinations<UserT, DestinationT, String> dynamicDestinations =
           getDynamicDestinations();
@@ -1025,6 +1057,9 @@ public class TextIO {
       }
       if (getNoSpilling()) {
         write = write.withNoSpilling();
+      }
+      if (getSkipIfEmpty()) {
+        write = write.withSkipIfEmpty();
       }
       return input.apply("WriteFiles", write);
     }

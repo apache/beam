@@ -35,7 +35,7 @@ that store the same data type.
 See more information in the [Beam Programming Guide](/documentation/programming-guide/#flatten).
 
 ## Examples
-See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates.
+See [Issue 19498](https://github.com/apache/beam/issues/19498) for updates.
 
 ## Related transforms
 * [FlatMap](/documentation/transforms/python/elementwise/flatmap) applies a simple 1-to-many mapping

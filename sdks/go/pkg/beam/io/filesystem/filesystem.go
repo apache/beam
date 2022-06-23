@@ -34,6 +34,14 @@ import (
 
 var registry = make(map[string]func(context.Context) Interface)
 
+// wellKnownSchemeImportPaths is used for deliverng useful error messages when a
+// scheme is not found.
+var wellKnownSchemeImportPaths = map[string]string{
+	"memfs":   "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/memfs",
+	"default": "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local",
+	"gs":      "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs",
+}
+
 // Register registers a file system backend under the given scheme.  For
 // example, "hdfs" would be registered a HFDS file system and HDFS paths used
 // transparently.
@@ -49,9 +57,17 @@ func New(ctx context.Context, path string) (Interface, error) {
 	scheme := getScheme(path)
 	mkfs, ok := registry[scheme]
 	if !ok {
-		return nil, errors.Errorf("file system scheme %v not registered for %v", scheme, path)
+		return nil, errorForMissingScheme(scheme, path)
 	}
 	return mkfs(ctx), nil
+}
+
+func errorForMissingScheme(scheme, path string) error {
+	messageSuffix := ""
+	if suggestedImportPath, ok := wellKnownSchemeImportPaths[scheme]; ok {
+		messageSuffix = fmt.Sprintf(": Consider adding the following import to your program to register an implementation for %q:\n  import _ %q", scheme, suggestedImportPath)
+	}
+	return errors.Errorf("file system scheme %q not registered for %q%s", scheme, path, messageSuffix)
 }
 
 // Interface is a filesystem abstraction that allows beam io sources and sinks
@@ -105,6 +121,6 @@ func ValidateScheme(path string) {
 	}
 	scheme := getScheme(path)
 	if _, ok := registry[scheme]; !ok {
-		panic(fmt.Sprintf("filesystem scheme %v not registered", scheme))
+		panic(errorForMissingScheme(scheme, path))
 	}
 }

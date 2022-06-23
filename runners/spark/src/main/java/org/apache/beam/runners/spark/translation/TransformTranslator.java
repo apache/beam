@@ -85,8 +85,8 @@ import scala.Tuple2;
 
 /** Supports translation between a Beam transform, and Spark's operations on RDDs. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class TransformTranslator {
 

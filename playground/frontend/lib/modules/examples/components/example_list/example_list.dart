@@ -43,8 +43,8 @@ class ExampleList extends StatelessWidget {
         child: Container(
           color: Theme.of(context).backgroundColor,
           child: Scrollbar(
-            isAlwaysShown: true,
-            showTrackOnHover: true,
+            thumbVisibility: true,
+            trackVisibility: true,
             controller: controller,
             child: ListView.builder(
               itemCount: state.categories.length,

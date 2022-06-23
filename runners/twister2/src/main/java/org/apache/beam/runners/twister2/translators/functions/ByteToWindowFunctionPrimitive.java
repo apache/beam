@@ -33,7 +33,7 @@ import org.apache.beam.sdk.values.KV;
 
 /** ByteToWindow function. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ByteToWindowFunctionPrimitive<K, V>
     implements MapFunc<WindowedValue<KV<K, V>>, Tuple<byte[], byte[]>> {

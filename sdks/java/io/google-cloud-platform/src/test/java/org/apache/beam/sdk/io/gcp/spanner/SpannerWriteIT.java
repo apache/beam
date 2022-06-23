@@ -181,7 +181,8 @@ public class SpannerWriteIT {
                 .withDatabaseId(databaseName));
 
     PCollectionView<Dialect> dialectView =
-        p.apply(Create.of(Dialect.POSTGRESQL)).apply(View.asSingleton());
+        p.apply("PG Dialect", Create.of(Dialect.POSTGRESQL))
+            .apply("PG Dialect View", View.asSingleton());
     p.apply("PG init", GenerateSequence.from(0).to(numRecords))
         .apply("Generate PG mu", ParDo.of(new GenerateMutations(options.getTable())))
         .apply(
@@ -224,7 +225,8 @@ public class SpannerWriteIT {
                 .withDatabaseId(databaseName));
 
     PCollectionView<Dialect> dialectView =
-        p.apply(Create.of(Dialect.POSTGRESQL)).apply(View.asSingleton());
+        p.apply("PG Dialect", Create.of(Dialect.POSTGRESQL))
+            .apply("PG Dialect View", View.asSingleton());
 
     SpannerWriteResult pgStepOne =
         p.apply("pg first step", GenerateSequence.from(0).to(numRecords))
@@ -269,7 +271,8 @@ public class SpannerWriteIT {
                 .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES));
 
     PCollectionView<Dialect> dialectView =
-        p.apply(Create.of(Dialect.POSTGRESQL)).apply(View.asSingleton());
+        p.apply("PG Dialect", Create.of(Dialect.POSTGRESQL))
+            .apply("PG Dialect View", View.asSingleton());
     p.apply("pg init", GenerateSequence.from(0).to(2 * numRecords))
         .apply("Generate pg mu", ParDo.of(new GenerateMutations(options.getTable(), new DivBy2())))
         .apply(
@@ -312,7 +315,8 @@ public class SpannerWriteIT {
     int numRecords = 100;
 
     PCollectionView<Dialect> dialectView =
-        p.apply(Create.of(Dialect.POSTGRESQL)).apply(View.asSingleton());
+        p.apply("PG Dialect", Create.of(Dialect.POSTGRESQL))
+            .apply("PG Dialect View", View.asSingleton());
     p.apply(GenerateSequence.from(0).to(2 * numRecords))
         .apply(ParDo.of(new GenerateMutations(options.getTable(), new DivBy2())))
         .apply(

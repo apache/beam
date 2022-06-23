@@ -286,7 +286,8 @@ private void createGCSFileBasedIOITTestJob(testJob) {
   job(testJob.name) {
     description(testJob.description)
     common.setTopLevelMainJobProperties(delegate)
-    common.enablePhraseTriggeringFromPullRequest(delegate, testJob.githubTitle, testJob.githubTriggerPhrase)
+    // [Issue#21824] Disable trigger
+    // common.enablePhraseTriggeringFromPullRequest(delegate, testJob.githubTitle, testJob.githubTriggerPhrase)
     common.setAutoJob(delegate, 'H H/6 * * *')
     InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
@@ -326,7 +327,7 @@ jobs.findAll {
     'beam_PerformanceTests_TextIOIT_HDFS',
     'beam_PerformanceTests_Compressed_TextIOIT_HDFS',
     'beam_PerformanceTests_ManyFiles_TextIOIT_HDFS',
-    // TODO(BEAM-3945) TFRecord performance test is failing only when running on hdfs.
+    // TODO(https://github.com/apache/beam/issues/18796) TFRecord performance test is failing only when running on hdfs.
     // We need to fix this before enabling this job on jenkins.
     //'beam_PerformanceTests_TFRecordIOIT_HDFS',
     'beam_PerformanceTests_AvroIOIT_HDFS',
@@ -339,7 +340,8 @@ private void createHDFSFileBasedIOITTestJob(testJob) {
   job(testJob.name) {
     description(testJob.description)
     common.setTopLevelMainJobProperties(delegate)
-    common.enablePhraseTriggeringFromPullRequest(delegate, testJob.githubTitle, testJob.githubTriggerPhrase)
+    // [Issue#21824] Disable trigger
+    // common.enablePhraseTriggeringFromPullRequest(delegate, testJob.githubTitle, testJob.githubTriggerPhrase)
     common.setAutoJob(delegate, 'H H/6 * * *')
     InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [

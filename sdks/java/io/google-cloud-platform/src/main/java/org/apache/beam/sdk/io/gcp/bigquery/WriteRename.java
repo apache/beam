@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.PendingJobManager;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -44,6 +43,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayLis
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,9 +51,6 @@ import org.slf4j.LoggerFactory;
  * Copies temporary tables to destination table. The input element is an {@link Iterable} that
  * provides the list of all temporary tables created for a given {@link TableDestination}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class WriteRename
     extends DoFn<Iterable<KV<TableDestination, WriteTables.Result>>, TableDestination> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteRename.class);
@@ -67,8 +64,8 @@ class WriteRename
   private final WriteDisposition firstPaneWriteDisposition;
   private final CreateDisposition firstPaneCreateDisposition;
   private final int maxRetryJobs;
-  private final String kmsKey;
-  private final ValueProvider<String> loadJobProjectId;
+  private final @Nullable String kmsKey;
+  private final @Nullable ValueProvider<String> loadJobProjectId;
   private transient @Nullable DatasetService datasetService;
 
   private static class PendingJobData {
@@ -97,8 +94,8 @@ class WriteRename
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       int maxRetryJobs,
-      String kmsKey,
-      ValueProvider<String> loadJobProjectId) {
+      @Nullable String kmsKey,
+      @Nullable ValueProvider<String> loadJobProjectId) {
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
     this.firstPaneWriteDisposition = writeDisposition;
@@ -192,8 +189,9 @@ class WriteRename
     // trigger to handle the case where an earlier pane triggered the single-partition path. If this
     // happened, then the
     // table will already exist so we want to append to the table.
+    WriteTables.@Nullable Result firstTempTable = Iterables.getFirst(tempTableNames, null);
     boolean isFirstPane =
-        Iterables.getFirst(tempTableNames, null).isFirstPane() && c.pane().isFirst();
+        firstTempTable != null && firstTempTable.isFirstPane() && c.pane().isFirst();
     WriteDisposition writeDisposition =
         isFirstPane ? firstPaneWriteDisposition : WriteDisposition.WRITE_APPEND;
     CreateDisposition createDisposition =
@@ -232,8 +230,8 @@ class WriteRename
       List<TableReference> tempTables,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
-      String kmsKey,
-      ValueProvider<String> loadJobProjectId) {
+      @Nullable String kmsKey,
+      @Nullable ValueProvider<String> loadJobProjectId) {
     JobConfigurationTableCopy copyConfig =
         new JobConfigurationTableCopy()
             .setSourceTables(tempTables)

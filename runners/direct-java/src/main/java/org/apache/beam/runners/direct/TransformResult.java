@@ -38,7 +38,7 @@ import org.joda.time.Instant;
  * there is not necesssarily a defined output type.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 interface TransformResult<InputT> {
   /**

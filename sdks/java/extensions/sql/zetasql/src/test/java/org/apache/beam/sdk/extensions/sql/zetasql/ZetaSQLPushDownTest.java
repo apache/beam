@@ -54,7 +54,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ZetaSQLPushDownTest {
   private static final Long PIPELINE_EXECUTION_WAITTIME_MINUTES = 2L;
