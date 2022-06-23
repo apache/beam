@@ -18,12 +18,9 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Mutation;
@@ -73,49 +70,43 @@ public class SpannerIOWriteExceptionHandlingTest {
     return Arrays.asList(
         new Object[][] {
           // DEADLINE_EXCEEDED is the only exception type that generates retries in-SDK
-          // The default backoff generates 9 retries, and then errors out the pipeline.
-          {ErrorCode.DEADLINE_EXCEEDED, "deadline passed!", 9, 10},
+          // The default backoff generates _ABOUT_ 9 retries, and then errors out the pipeline.
+          {ErrorCode.DEADLINE_EXCEEDED, "deadline passed!"},
 
           // All other error codes do not generate in-SDK retries, and the errors are thrown out.
-          {ErrorCode.ABORTED, "transaction aborted!", 0, 1},
-          {ErrorCode.PERMISSION_DENIED, "permission denied, buddy!", 0, 1},
-          {ErrorCode.INTERNAL, "internal error. idk!", 0, 1},
-          {ErrorCode.RESOURCE_EXHAUSTED, "resource exhausted very tired!", 0, 1},
-          {ErrorCode.UNAUTHENTICATED, "authenticate!", 0, 1},
-          {ErrorCode.NOT_FOUND, "not found the thing", 0, 1},
-          {ErrorCode.FAILED_PRECONDITION, "conditions prestart are failed", 0, 1},
+          {ErrorCode.ABORTED, "transaction aborted!"},
+          {ErrorCode.PERMISSION_DENIED, "permission denied, buddy!"},
+          {ErrorCode.INTERNAL, "internal error. idk!"},
+          {ErrorCode.RESOURCE_EXHAUSTED, "resource exhausted very tired!"},
+          {ErrorCode.UNAUTHENTICATED, "authenticate!"},
+          {ErrorCode.NOT_FOUND, "not found the thing"},
+          {ErrorCode.FAILED_PRECONDITION, "conditions prestart are failed"},
         });
   }
 
   private final ErrorCode exceptionErrorcode;
   private final String errorString;
-  private final Integer callsToSleeper;
-  private final Integer callsToWrite;
 
-  public SpannerIOWriteExceptionHandlingTest(
-      ErrorCode exceptionErrorcode,
-      String errorString,
-      Integer callsToSleeper,
-      Integer callsToWrite) {
+  public SpannerIOWriteExceptionHandlingTest(ErrorCode exceptionErrorcode, String errorString) {
     this.exceptionErrorcode = exceptionErrorcode;
     this.errorString = errorString;
-    this.callsToSleeper = callsToSleeper;
-    this.callsToWrite = callsToWrite;
   }
 
   @Before
   @SuppressWarnings("unchecked")
   public void setUp() throws Exception {
-    MockitoAnnotations.initMocks(this);
+    MockitoAnnotations.openMocks(this);
     serviceFactory = new FakeServiceFactory();
 
-    ReadOnlyTransaction tx = mock(ReadOnlyTransaction.class);
-    when(serviceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(tx);
+    ReadOnlyTransaction tx = Mockito.mock(ReadOnlyTransaction.class);
+    Mockito.when(serviceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(tx);
 
     // Capture batches sent to writeAtLeastOnceWithOptions.
-    when(serviceFactory
-            .mockDatabaseClient()
-            .writeAtLeastOnceWithOptions(mutationBatchesCaptor.capture(), optionsCaptor.capture()))
+    Mockito.when(
+            serviceFactory
+                .mockDatabaseClient()
+                .writeAtLeastOnceWithOptions(
+                    mutationBatchesCaptor.capture(), optionsCaptor.capture()))
         .thenReturn(null);
 
     // Simplest schema: a table with int64 key
@@ -140,10 +131,11 @@ public class SpannerIOWriteExceptionHandlingTest {
     // mock sleeper so that it does not actually sleep.
     SpannerIO.WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
-    when(serviceFactory
-            .mockDatabaseClient()
-            .writeAtLeastOnceWithOptions(
-                any(), any(Options.ReadQueryUpdateTransactionOption.class)))
+    Mockito.when(
+            serviceFactory
+                .mockDatabaseClient()
+                .writeAtLeastOnceWithOptions(
+                    any(), any(Options.ReadQueryUpdateTransactionOption.class)))
         .thenThrow(SpannerExceptionFactory.newSpannerException(exceptionErrorcode, errorString));
 
     thrown.expect(Pipeline.PipelineExecutionException.class);
@@ -171,9 +163,21 @@ public class SpannerIOWriteExceptionHandlingTest {
     try {
       pipeline.run().waitUntilFinish();
     } finally {
-      verify(SpannerIO.WriteToSpannerFn.sleeper, times(callsToSleeper)).sleep(anyLong());
-      verify(serviceFactory.mockDatabaseClient(), times(callsToWrite))
-          .writeAtLeastOnceWithOptions(any(), any(Options.ReadQueryUpdateTransactionOption.class));
+      if (exceptionErrorcode == ErrorCode.DEADLINE_EXCEEDED) {
+        // Due to randomOffset retry is done by most likely but not always 9 times.
+        int sleepCalled =
+            Mockito.mockingDetails(SpannerIO.WriteToSpannerFn.sleeper).getInvocations().size();
+        assertTrue(sleepCalled >= 8);
+        assertTrue(sleepCalled <= 10);
+        Mockito.verify(serviceFactory.mockDatabaseClient(), Mockito.times(sleepCalled + 1))
+            .writeAtLeastOnceWithOptions(
+                any(), any(Options.ReadQueryUpdateTransactionOption.class));
+      } else {
+        Mockito.verify(SpannerIO.WriteToSpannerFn.sleeper, Mockito.times(0)).sleep(anyLong());
+        Mockito.verify(serviceFactory.mockDatabaseClient(), Mockito.times(1))
+            .writeAtLeastOnceWithOptions(
+                any(), any(Options.ReadQueryUpdateTransactionOption.class));
+      }
     }
   }
 
@@ -187,10 +191,11 @@ public class SpannerIOWriteExceptionHandlingTest {
     // mock sleeper so that it does not actually sleep.
     SpannerIO.WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
-    when(serviceFactory
-            .mockDatabaseClient()
-            .writeAtLeastOnceWithOptions(
-                any(), any(Options.ReadQueryUpdateTransactionOption.class)))
+    Mockito.when(
+            serviceFactory
+                .mockDatabaseClient()
+                .writeAtLeastOnceWithOptions(
+                    any(), any(Options.ReadQueryUpdateTransactionOption.class)))
         .thenThrow(SpannerExceptionFactory.newSpannerException(exceptionErrorcode, errorString));
 
     thrown.expect(Pipeline.PipelineExecutionException.class);
@@ -219,9 +224,21 @@ public class SpannerIOWriteExceptionHandlingTest {
     try {
       pipeline.run().waitUntilFinish();
     } finally {
-      verify(SpannerIO.WriteToSpannerFn.sleeper, times(callsToSleeper)).sleep(anyLong());
-      verify(serviceFactory.mockDatabaseClient(), times(callsToWrite))
-          .writeAtLeastOnceWithOptions(any(), any(Options.ReadQueryUpdateTransactionOption.class));
+      if (exceptionErrorcode == ErrorCode.DEADLINE_EXCEEDED) {
+        // Due to randomOffset retry is done by most likely but not always 9 times.
+        int sleepCalled =
+            Mockito.mockingDetails(SpannerIO.WriteToSpannerFn.sleeper).getInvocations().size();
+        assertTrue(sleepCalled >= 8);
+        assertTrue(sleepCalled <= 10);
+        Mockito.verify(serviceFactory.mockDatabaseClient(), Mockito.times(sleepCalled + 1))
+            .writeAtLeastOnceWithOptions(
+                any(), any(Options.ReadQueryUpdateTransactionOption.class));
+      } else {
+        Mockito.verify(SpannerIO.WriteToSpannerFn.sleeper, Mockito.times(0)).sleep(anyLong());
+        Mockito.verify(serviceFactory.mockDatabaseClient(), Mockito.times(1))
+            .writeAtLeastOnceWithOptions(
+                any(), any(Options.ReadQueryUpdateTransactionOption.class));
+      }
     }
   }
 }
