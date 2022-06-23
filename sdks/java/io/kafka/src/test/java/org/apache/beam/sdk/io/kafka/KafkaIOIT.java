@@ -351,7 +351,6 @@ public class KafkaIOIT {
                       .withDynamicRead(Duration.standardSeconds(5))
                       .withKeyDeserializer(IntegerDeserializer.class)
                       .withValueDeserializer(StringDeserializer.class))
-              .apply("Log Record", ParDo.of(new LogRecord()))
               .apply("Key by Partition", ParDo.of(new KeyByPartition()))
               .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
               .apply("Group by Partition", GroupByKey.create())
@@ -370,19 +369,6 @@ public class KafkaIOIT {
 
     } finally {
       client.deleteTopics(ImmutableSet.of(topicName));
-    }
-  }
-
-  private static class LogRecord
-      extends DoFn<KafkaRecord<Integer, String>, KafkaRecord<Integer, String>> {
-    @ProcessElement
-    public void processElement(
-        @Element KafkaRecord<Integer, String> element,
-        OutputReceiver<KafkaRecord<Integer, String>> receiver) {
-      {
-        System.out.println(element);
-        receiver.output(element);
-      }
     }
   }
 
