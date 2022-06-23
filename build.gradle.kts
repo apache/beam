@@ -26,7 +26,7 @@ plugins {
   // Apply one top level rat plugin to perform any required license enforcement analysis
   id("org.nosphere.apache.rat") version "0.7.0"
   // Enable gradle-based release management
-  id("net.researchgate.release") version "2.8.1"
+  id("net.researchgate.release") version "3.0.0"
   id("org.apache.beam.module")
   id("org.sonarqube") version "3.0"
 }
