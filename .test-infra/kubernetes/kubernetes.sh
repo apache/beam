@@ -126,7 +126,7 @@ function getAvailablePort() {
 function waitForJob(){
   echo "Waiting for job completion..."
   jobName=$1 
-  kubectl wait --for=condition=complete --timeout=$2 $jobName 
+  eval "$KUBECTL wait --for=condition=complete --timeout=$2 $jobName" 
   echo "Job completed"
 }
 
