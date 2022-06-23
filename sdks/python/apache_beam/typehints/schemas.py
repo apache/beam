@@ -69,6 +69,7 @@ from typing import Union
 import numpy as np
 from google.protobuf import text_format
 
+from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
 from apache_beam.typehints.native_type_compatibility import _get_args
@@ -78,6 +79,7 @@ from apache_beam.typehints.native_type_compatibility import _safe_issubclass
 from apache_beam.typehints.native_type_compatibility import extract_optional_type
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from apache_beam.utils import proto_utils
+from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.utils.timestamp import Timestamp
 
 PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
@@ -540,7 +542,7 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
                                           MicrosInstantRepresentation]):
   @classmethod
   def urn(cls):
-    return "beam:logical_type:micros_instant:v1"
+    return common_urns.micros_instant.urn
 
   @classmethod
   def representation_type(cls):
@@ -559,3 +561,27 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
   def to_language_type(self, value):
     # type: (MicrosInstantRepresentation) -> Timestamp
     return Timestamp(seconds=int(value.seconds), micros=int(value.micros))
+
+
+@LogicalType.register_logical_type
+class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource, str]):
+  @classmethod
+  def urn(cls):
+    return common_urns.python_callable.urn
+
+  @classmethod
+  def representation_type(cls):
+    # type: () -> type
+    return str
+
+  @classmethod
+  def language_type(cls):
+    return PythonCallableWithSource
+
+  def to_representation_type(self, value):
+    # type: (PythonCallableWithSource) -> str
+    return value.get_source()
+
+  def to_language_type(self, value):
+    # type: (str) -> PythonCallableWithSource
+    return PythonCallableWithSource(value)

@@ -135,6 +135,9 @@ class PubsubMessage(object):
   def _to_proto_str(self, for_publish=False):
     """Get serialized form of ``PubsubMessage``.
 
+    The serialized message is validated against pubsub message limits specified
+    at https://cloud.google.com/pubsub/quotas#resource_limits
+
     Args:
       proto_msg: str containing a serialized protobuf.
       for_publish: bool, if True strip out message fields which cannot be
@@ -147,15 +150,39 @@ class PubsubMessage(object):
       containing the payload of this object.
     """
     msg = pubsub.types.PubsubMessage()
+    if len(self.data) > (10 << 20):
+      raise ValueError('A pubsub message data field must not exceed 10MB')
     msg.data = self.data
-    for key, value in self.attributes.items():
-      msg.attributes[key] = value
-    if self.message_id and not for_publish:
-      msg.message_id = self.message_id
-    if self.publish_time and not for_publish:
-      msg.publish_time = self.publish_time
+
+    if self.attributes:
+      if len(self.attributes) > 100:
+        raise ValueError(
+            'A pubsub message must not have more than 100 attributes.')
+      for key, value in self.attributes.items():
+        if len(key) > 256:
+          raise ValueError(
+              'A pubsub message attribute key must not exceed 256 bytes.')
+        if len(value) > 1024:
+          raise ValueError(
+              'A pubsub message attribute value must not exceed 1024 bytes')
+        msg.attributes[key] = value
+
+    if not for_publish:
+      if self.message_id:
+        msg.message_id = self.message_id
+        if self.publish_time:
+          msg.publish_time = self.publish_time
+
+    if len(self.ordering_key) > 1024:
+      raise ValueError(
+          'A pubsub message ordering key must not exceed 1024 bytes.')
     msg.ordering_key = self.ordering_key
-    return pubsub.types.PubsubMessage.serialize(msg)
+
+    serialized = pubsub.types.PubsubMessage.serialize(msg)
+    if len(serialized) > (10 << 20):
+      raise ValueError(
+          'Serialized pubsub message exceeds the publish request limit of 10MB')
+    return serialized
 
   @staticmethod
   def _from_message(msg):
@@ -243,7 +270,7 @@ class ReadFromPubSub(PTransform):
 
   def to_runner_api_parameter(self, context):
     # Required as this is identified by type in PTransformOverrides.
-    # TODO(BEAM-3812): Use an actual URN here.
+    # TODO(https://github.com/apache/beam/issues/18713): Use an actual URN here.
     return self.to_runner_api_pickled(context)
 
 
@@ -340,9 +367,8 @@ class WriteToPubSub(PTransform):
   @staticmethod
   def bytes_to_proto_str(element):
     # type: (bytes) -> bytes
-    msg = pubsub.types.PubsubMessage()
-    msg.data = element
-    return pubsub.types.PubsubMessage.serialize(msg)
+    msg = PubsubMessage(element, {})
+    return msg._to_proto_str(for_publish=True)
 
   def expand(self, pcoll):
     if self.with_attributes:
@@ -354,7 +380,7 @@ class WriteToPubSub(PTransform):
 
   def to_runner_api_parameter(self, context):
     # Required as this is identified by type in PTransformOverrides.
-    # TODO(BEAM-3812): Use an actual URN here.
+    # TODO(https://github.com/apache/beam/issues/18713): Use an actual URN here.
     return self.to_runner_api_pickled(context)
 
   def display_data(self):

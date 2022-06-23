@@ -34,7 +34,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexProgram;
 /** BeamRelNode to replace {@code Project} and {@code Filter} node. */
 @Internal
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class AbstractBeamCalcRel extends Calc implements BeamRelNode {
 

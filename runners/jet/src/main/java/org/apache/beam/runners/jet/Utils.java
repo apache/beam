@@ -58,10 +58,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Various common methods used by the Jet based runner. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness",
   "keyfor"
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class Utils {
 
   public static String getTupleTagId(PValue value) {

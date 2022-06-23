@@ -664,6 +664,7 @@ class ExternalTransform(ptransform.PTransform):
               for tag,
               pcoll in proto.outputs.items()
           },
+          display_data=proto.display_data,
           environment_id=proto.environment_id)
       context.transforms.put_proto(id, new_proto)
 

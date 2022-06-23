@@ -38,6 +38,7 @@ import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
@@ -130,7 +131,6 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
     }
   }
 
-  @SuppressWarnings({"nullness"})
   @ProcessElement
   public void process(PipelineOptions pipelineOptions, @Element KV<String, Operation> element)
       throws Exception {
@@ -155,7 +155,8 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
           },
           // onError
           contexts -> {
-            Throwable error = Iterables.getFirst(contexts, null).getError();
+            Throwable error =
+                Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null)).getError();
             LOG.warn(
                 "Flush of stream " + streamId + " to offset " + offset + " failed with " + error);
             flushOperationsFailed.inc();
@@ -208,9 +209,12 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
                 "Finalize of stream "
                     + streamId
                     + " failed with "
-                    + Iterables.getFirst(contexts, null).getError());
+                    + Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null))
+                        .getError());
             finalizeOperationsFailed.inc();
-            Throwable error = Iterables.getFirst(contexts, null).getError();
+            @Nullable
+            Context<FinalizeWriteStreamResponse> firstContext = Iterables.getFirst(contexts, null);
+            @Nullable Throwable error = firstContext == null ? null : firstContext.getError();
             if (error instanceof ApiException) {
               Code statusCode = ((ApiException) error).getStatusCode().getCode();
               if (statusCode.equals(Code.NOT_FOUND)) {

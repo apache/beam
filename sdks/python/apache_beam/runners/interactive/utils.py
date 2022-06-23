@@ -304,8 +304,8 @@ def deferred_df_to_pcollection(df):
 
   # The proxy is used to output a DataFrame with the correct columns.
   #
-  # TODO(BEAM-11064): Once type hints are implemented for pandas, use those
-  # instead of the proxy.
+  # TODO(https://github.com/apache/beam/issues/20577): Once type hints are
+  # implemented for pandas, use those instead of the proxy.
   cache = ExpressionCache()
   cache.replace_with_cached(df._expr)
 
@@ -452,7 +452,7 @@ def assert_bucket_exists(bucket_name):
   try:
     from apitools.base.py.exceptions import HttpError
     storage_client = storage.StorageV1(
-        credentials=auth.get_service_credentials(),
+        credentials=auth.get_service_credentials(None),
         get_credentials=False,
         http=get_new_http(),
         response_encoding='utf8')

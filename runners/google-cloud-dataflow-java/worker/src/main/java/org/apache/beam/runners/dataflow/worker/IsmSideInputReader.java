@@ -100,10 +100,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * list views, and {@link #getMapForWindow} for map and multimap views.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "keyfor",
   "nullness"
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class IsmSideInputReader implements SideInputReader {
   private static final String SINGLETON_KIND = "singleton";
   private static final String COLLECTION_KIND = "collection";
@@ -396,7 +396,7 @@ public class IsmSideInputReader implements SideInputReader {
   private <T, W extends BoundedWindow> T getSingletonForWindow(
       TupleTag<?> viewTag, HasDefaultValue<T> viewFn, W window) throws IOException {
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     })
     List<IsmReader<WindowedValue<T>>> readers = (List) tagToIsmReaderMap.get(viewTag);
@@ -422,7 +422,7 @@ public class IsmSideInputReader implements SideInputReader {
   private <T, W extends BoundedWindow> T getMapSingletonForViewAndWindow(
       TupleTag<?> viewTag, W window) throws IOException {
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     })
     List<IsmReader<WindowedValue<T>>> readers = (List) tagToIsmReaderMap.get(viewTag);
@@ -507,10 +507,9 @@ public class IsmSideInputReader implements SideInputReader {
    * </ul>
    *
    * The {@code [META, Window, 0]} record stores the number of unique keys per window, while {@code
-   * [META, Window, i]} for {@code i} in {@code [1, size of map]} stores a the users key. This
-   * allows for one to access the size of the map by looking at {@code [META, Window, 0]} and
-   * iterate over all the keys by accessing {@code [META, Window, i]} for {@code i} in {@code [1,
-   * size of map]}.
+   * [META, Window, i]} for {@code i} in {@code [1, size of map]} stores the users key. This allows
+   * for one to access the size of the map by looking at {@code [META, Window, 0]} and iterate over
+   * all the keys by accessing {@code [META, Window, i]} for {@code i} in {@code [1, size of map]}.
    */
   private <K, V, W extends BoundedWindow> Map<K, V> getMapForWindow(TupleTag<?> tag, W window)
       throws IOException {
@@ -560,10 +559,9 @@ public class IsmSideInputReader implements SideInputReader {
    * </ul>
    *
    * The {@code [META, Window, 0]} record stores the number of unique keys per window, while {@code
-   * [META, Window, i]} for {@code i} in {@code [1, size of map]} stores a the users key. This
-   * allows for one to access the size of the map by looking at {@code [META, Window, 0]} and
-   * iterate over all the keys by accessing {@code [META, Window, i]} for {@code i} in {@code [1,
-   * size of map]}.
+   * [META, Window, i]} for {@code i} in {@code [1, size of map]} stores the users key. This allows
+   * for one to access the size of the map by looking at {@code [META, Window, 0]} and iterate over
+   * all the keys by accessing {@code [META, Window, i]} for {@code i} in {@code [1, size of map]}.
    */
   private <K, V, W extends BoundedWindow> Map<K, Iterable<V>> getMultimapForWindow(
       TupleTag<?> tag, W window) throws IOException {

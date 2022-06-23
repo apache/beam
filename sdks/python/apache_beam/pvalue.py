@@ -166,14 +166,16 @@ class PCollection(PValue, Generic[T]):
     return _InvalidUnpickledPCollection, ()
 
   @staticmethod
-  def from_(pcoll):
-    # type: (PValue) -> PCollection
+  def from_(pcoll, is_bounded=None):
+    # type: (PValue, Optional[bool]) -> PCollection
 
     """Create a PCollection, using another PCollection as a starting point.
 
     Transfers relevant attributes.
     """
-    return PCollection(pcoll.pipeline, is_bounded=pcoll.is_bounded)
+    if is_bounded is None:
+      is_bounded = pcoll.is_bounded
+    return PCollection(pcoll.pipeline, is_bounded=is_bounded)
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.PCollection

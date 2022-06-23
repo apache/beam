@@ -32,7 +32,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 
 /** Utilities for working with Coders. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class CoderUtils {
   private CoderUtils() {} // Non-instantiable
@@ -168,7 +168,7 @@ public final class CoderUtils {
    * {@code T.class}.
    */
   @SuppressWarnings({
-    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
     "unchecked"
   })
   public static TypeDescriptor getCodedType(TypeDescriptor coderDescriptor) {

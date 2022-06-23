@@ -76,7 +76,7 @@ import org.slf4j.LoggerFactory;
 
 /** {@link DataflowExecutionContext} for use in streaming mode. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class StreamingModeExecutionContext extends DataflowExecutionContext<StepContext> {
 

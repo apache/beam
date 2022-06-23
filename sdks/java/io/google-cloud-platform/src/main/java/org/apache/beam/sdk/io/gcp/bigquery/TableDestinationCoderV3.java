@@ -24,6 +24,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link Coder} for {@link TableDestination} that includes time partitioning and clustering
@@ -31,13 +32,12 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
  * options on {@link BigQueryIO.Write}, otherwise {@link TableDestinationCoderV2} will be used and
  * clustering information will be discarded.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TableDestinationCoderV3 extends AtomicCoder<TableDestination> {
   private static final TableDestinationCoderV3 INSTANCE = new TableDestinationCoderV3();
-  private static final Coder<String> timePartitioningCoder = NullableCoder.of(StringUtf8Coder.of());
-  private static final Coder<String> clusteringCoder = NullableCoder.of(StringUtf8Coder.of());
+  private static final Coder<@Nullable String> timePartitioningCoder =
+      NullableCoder.of(StringUtf8Coder.of());
+  private static final Coder<@Nullable String> clusteringCoder =
+      NullableCoder.of(StringUtf8Coder.of());
 
   public static TableDestinationCoderV3 of() {
     return INSTANCE;

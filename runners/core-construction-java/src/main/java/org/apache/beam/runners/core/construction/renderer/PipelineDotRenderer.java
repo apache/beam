@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.PValue;
 
 /** A DOT renderer for BEAM {@link Pipeline} DAG. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
   public static String toDotString(Pipeline pipeline) {

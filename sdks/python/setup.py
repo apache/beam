@@ -205,10 +205,6 @@ if __name__ == '__main__':
         # Avro 1.9.2 for python3 was broken.
         # The issue was fixed in version 1.9.2.1
         'crcmod>=1.7,<2.0',
-        # dataclasses backport for python_version<3.7. No version bound because
-        # this is Python standard since Python 3.7 and each Python version is
-        # compatible with a specific dataclasses version.
-        'dataclasses;python_version<"3.7"',
         'orjson<4.0',
         # Dill doesn't have forwards-compatibility guarantees within minor
         # version. Pickles created with a new version of dill may not unpickle
@@ -216,9 +212,9 @@ if __name__ == '__main__':
         # dill on client and server, therefore list of allowed versions is very
         # narrow. See: https://github.com/uqfoundation/dill/issues/341.
         'dill>=0.3.1.1,<0.3.2',
-        'cloudpickle>=2.0.0,<3',
+        'cloudpickle>=2.1.0,<3',
         'fastavro>=0.23.6,<2',
-        'grpcio>=1.29.0,<2',
+        'grpcio>=1.33.1,<2',
         'hdfs>=2.1.0,<3.0.0',
         'httplib2>=0.8,<0.21.0',
         'numpy>=1.14.3,<1.23.0',
@@ -248,14 +244,14 @@ if __name__ == '__main__':
             'joblib>=1.0.1',
             'mock>=1.0.1,<3.0.0',
             'pandas<2.0.0',
-            'parameterized>=0.7.1,<0.8.0',
+            'parameterized>=0.7.1,<0.9.0',
             'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
             'pyyaml>=3.12,<7.0.0',
             'requests_mock>=1.7,<2.0',
             'tenacity>=5.0.2,<6.0',
-            'pytest>=4.4.0,<5.0',
-            'pytest-xdist>=1.29.0,<2',
-            'pytest-timeout>=1.3.3,<2',
+            'pytest>=7.1.2,<8.0',
+            'pytest-xdist>=2.5.0,<3',
+            'pytest-timeout>=2.1.0,<3',
             'scikit-learn>=0.20.0',
             'sqlalchemy>=1.3,<2.0',
             'psycopg2-binary>=2.8.5,<3.0.0',

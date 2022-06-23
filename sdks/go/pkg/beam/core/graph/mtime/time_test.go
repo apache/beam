@@ -238,7 +238,7 @@ func TestToTime(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got, want := test.input.ToTime(), test.expOut; got != want {
+			if got, want := test.input.ToTime(), test.expOut; !got.Equal(want) {
 				t.Errorf("ToTime(%v), got %v, want %v", test.input, got, want)
 			}
 		})

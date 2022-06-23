@@ -52,7 +52,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({Instant.class})
-@SuppressWarnings({"nullness"})
 public class WatchKafkaTopicPartitionDoFnTest {
 
   @Mock Consumer<byte[], byte[]> mockConsumer;

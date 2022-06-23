@@ -371,13 +371,22 @@ Template for BigQuery jobs created by BigQueryIO. This template is:
 - `job_type` represents the BigQuery job type (e.g. extract / copy / load /
     query).
 - `job_id` is the Beam job name.
-- `step_id` is a UUID representing the the Dataflow step that created the
+- `step_id` is a UUID representing the Dataflow step that created the
     BQ job.
 - `random` is a random string.
 
 NOTE: This job name template does not have backwards compatibility guarantees.
 """
 BQ_JOB_NAME_TEMPLATE = "beam_bq_job_{job_type}_{job_id}_{step_id}{random}"
+"""
+The maximum number of times that a bundle of rows that errors out should be
+sent for insertion into BigQuery.
+
+The default is 10,000 with exponential backoffs, so a bundle of rows may be
+tried for a very long time. You may reduce this property to reduce the number
+of retries.
+"""
+MAX_INSERT_RETRIES = 10000
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
@@ -664,8 +673,9 @@ class _BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
-# TODO(BEAM-14331): remove the serialization restriction in transform
-# implementation once InteractiveRunner can work without runner api roundtrips.
+# TODO(https://github.com/apache/beam/issues/21622): remove the serialization
+# restriction in transform implementation once InteractiveRunner can work
+# without runner api roundtrips.
 @dataclass
 class _BigQueryExportResult:
   coder: beam.coders.Coder
@@ -825,7 +835,10 @@ class _CustomBigQuerySource(BoundedSource):
         self._setup_temporary_dataset(bq)
         self.table_reference = self._execute_query(bq)
 
-      if not self.table_reference.projectId:
+      if isinstance(self.table_reference, vp.ValueProvider):
+        self.table_reference = bigquery_tools.parse_table_reference(
+            self.table_reference.get(), project=self._get_project())
+      elif not self.table_reference.projectId:
         self.table_reference.projectId = self._get_project()
 
       schema, metadata_list = self._export_files(bq)
@@ -1223,7 +1236,8 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
   def estimate_size(self):
     # The size of stream source cannot be estimate due to server-side liquid
     # sharding.
-    # TODO(BEAM-12990): Implement progress reporting.
+    # TODO(https://github.com/apache/beam/issues/21126): Implement progress
+    # reporting.
     return None
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
@@ -1238,7 +1252,8 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
         stop_position=None)
 
   def get_range_tracker(self, start_position, stop_position):
-    # TODO(BEAM-12989): Implement dynamic work rebalancing.
+    # TODO(https://github.com/apache/beam/issues/21127): Implement dynamic work
+    # rebalancing.
     assert start_position is None
     # Defaulting to the start of the stream.
     start_position = 0
@@ -1492,6 +1507,7 @@ class BigQueryWriteFn(DoFn):
   DEFAULT_MAX_BATCH_SIZE = 500
 
   FAILED_ROWS = 'FailedRows'
+  FAILED_ROWS_WITH_ERRORS = 'FailedRowsWithErrors'
   STREAMING_API_LOGGING_FREQUENCY_SEC = 300
 
   def __init__(
@@ -1507,7 +1523,8 @@ class BigQueryWriteFn(DoFn):
       additional_bq_parameters=None,
       ignore_insert_ids=False,
       with_batched_input=False,
-      ignore_unknown_columns=False):
+      ignore_unknown_columns=False,
+      max_retries=MAX_INSERT_RETRIES):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1555,6 +1572,9 @@ class BigQueryWriteFn(DoFn):
         the schema. The unknown values are ignored. Default is False,
         which treats unknown values as errors. See reference:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
+      max_retries: The number of times that we will retry inserting a group of
+        rows into BigQuery. By default, we retry 10000 times with exponential
+        backoffs (effectively retry forever).
 
     """
     self.schema = schema
@@ -1592,6 +1612,7 @@ class BigQueryWriteFn(DoFn):
     self.streaming_api_logging_frequency_sec = (
         BigQueryWriteFn.STREAMING_API_LOGGING_FREQUENCY_SEC)
     self.ignore_unknown_columns = ignore_unknown_columns
+    self._max_retries = max_retries
 
   def display_data(self):
     return {
@@ -1643,7 +1664,9 @@ class BigQueryWriteFn(DoFn):
 
     self._backoff_calculator = iter(
         retry.FuzzedExponentialIntervals(
-            initial_delay_secs=0.2, num_retries=10000, max_delay_secs=1500))
+            initial_delay_secs=0.2,
+            num_retries=self._max_retries,
+            max_delay_secs=1500))
 
   def _create_table_if_needed(self, table_reference, schema=None):
     str_table_reference = '%s:%s.%s' % (
@@ -1754,41 +1777,57 @@ class BigQueryWriteFn(DoFn):
           ignore_unknown_values=self.ignore_unknown_columns)
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
-      failed_rows = [rows[entry['index']] for entry in errors]
+      failed_rows = [(rows[entry['index']], entry["errors"])
+                     for entry in errors]
+      retry_backoff = next(self._backoff_calculator, None)
+
+      # If retry_backoff is None, then we will not retry and must log.
       should_retry = any(
           RetryStrategy.should_retry(
               self._retry_strategy, entry['errors'][0]['reason'])
-          for entry in errors)
+          for entry in errors) and retry_backoff is not None
+
       if not passed:
         self.failed_rows_metric.update(len(failed_rows))
         message = (
             'There were errors inserting to BigQuery. Will{} retry. '
             'Errors were {}'.format(("" if should_retry else " not"), errors))
-        if should_retry:
-          _LOGGER.warning(message)
-        else:
-          _LOGGER.error(message)
 
-      rows = failed_rows
+        # The log level is:
+        # - WARNING when we are continuing to retry, and have a deadline.
+        # - ERROR when we will no longer retry, or MAY retry forever.
+        log_level = (
+            logging.WARN if should_retry or
+            self._retry_strategy != RetryStrategy.RETRY_ALWAYS else
+            logging.ERROR)
+
+        _LOGGER.log(log_level, message)
 
       if not should_retry:
         break
       else:
-        retry_backoff = next(self._backoff_calculator)
         _LOGGER.info(
             'Sleeping %s seconds before retrying insertion.', retry_backoff)
         time.sleep(retry_backoff)
+        rows = [fr[0] for fr in failed_rows]
         self._throttled_secs.inc(retry_backoff)
 
     self._total_buffered_rows -= len(self._rows_buffer[destination])
     del self._rows_buffer[destination]
 
-    return [
+    return itertools.chain([
         pvalue.TaggedOutput(
-            BigQueryWriteFn.FAILED_ROWS,
-            GlobalWindows.windowed_value((destination, row)))
-        for row in failed_rows
-    ]
+            BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
+            GlobalWindows.windowed_value((destination, row, err))) for row,
+        err in failed_rows
+    ],
+                           [
+                               pvalue.TaggedOutput(
+                                   BigQueryWriteFn.FAILED_ROWS,
+                                   GlobalWindows.windowed_value(
+                                       (destination, row))) for row,
+                               unused_err in failed_rows
+                           ])
 
 
 # The number of shards per destination when writing via streaming inserts.
@@ -1815,7 +1854,8 @@ class _StreamToBigQuery(PTransform):
       ignore_insert_ids,
       ignore_unknown_columns,
       with_auto_sharding,
-      test_client=None):
+      test_client=None,
+      max_retries=None):
     self.table_reference = table_reference
     self.table_side_inputs = table_side_inputs
     self.schema_side_inputs = schema_side_inputs
@@ -1831,6 +1871,7 @@ class _StreamToBigQuery(PTransform):
     self.ignore_insert_ids = ignore_insert_ids
     self.ignore_unknown_columns = ignore_unknown_columns
     self.with_auto_sharding = with_auto_sharding
+    self.max_retries = max_retries or MAX_INSERT_RETRIES
 
   class InsertIdPrefixFn(DoFn):
     def start_bundle(self):
@@ -1856,7 +1897,8 @@ class _StreamToBigQuery(PTransform):
         additional_bq_parameters=self.additional_bq_parameters,
         ignore_insert_ids=self.ignore_insert_ids,
         ignore_unknown_columns=self.ignore_unknown_columns,
-        with_batched_input=self.with_auto_sharding)
+        with_batched_input=self.with_auto_sharding,
+        max_retries=self.max_retries)
 
     def _add_random_shard(element):
       key = element[0]
@@ -1905,7 +1947,9 @@ class _StreamToBigQuery(PTransform):
         | 'FromHashableTableRef' >> beam.Map(_restore_table_ref)
         | 'StreamInsertRows' >> ParDo(
             bigquery_write_fn, *self.schema_side_inputs).with_outputs(
-                BigQueryWriteFn.FAILED_ROWS, main='main'))
+                BigQueryWriteFn.FAILED_ROWS,
+                BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
+                main='main'))
 
 
 # Flag to be passed to WriteToBigQuery to force schema autodetection
@@ -1947,7 +1991,8 @@ class WriteToBigQuery(PTransform):
       validate=True,
       temp_file_format=None,
       ignore_insert_ids=False,
-      # TODO(BEAM-11857): Switch the default when the feature is mature.
+      # TODO(https://github.com/apache/beam/issues/20712): Switch the default
+      # when the feature is mature.
       with_auto_sharding=False,
       ignore_unknown_columns=False,
       load_job_project_id=None):
@@ -2194,7 +2239,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           with_auto_sharding=self.with_auto_sharding,
           test_client=self.test_client)
 
-      return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
+      return {
+          BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS],
+          BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS: outputs[
+              BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS],
+      }
     else:
       if self._temp_file_format == bigquery_tools.FileFormat.AVRO:
         if self.schema == SCHEMA_AUTODETECT:
@@ -2473,7 +2522,8 @@ class ReadFromBigQuery(PTransform):
           'or DIRECT_READ.')
 
   def _expand_export(self, pcoll):
-    # TODO(BEAM-11115): Make ReadFromBQ rely on ReadAllFromBQ implementation.
+    # TODO(https://github.com/apache/beam/issues/20683): Make ReadFromBQ rely
+    # on ReadAllFromBQ implementation.
     temp_location = pcoll.pipeline.options.view_as(
         GoogleCloudOptions).temp_location
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name

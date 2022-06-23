@@ -99,7 +99,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ResumeFromCheckpointStreamingTest implements Serializable {
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
@@ -352,7 +352,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
 
   /**
    * A custom PAssert that avoids using {@link org.apache.beam.sdk.transforms.Flatten} until
-   * BEAM-1444 is resolved.
+   * https://github.com/apache/beam/issues/18144 is resolved.
    */
   private static class PAssertWithoutFlatten<T>
       extends PTransform<PCollection<Iterable<T>>, PDone> {

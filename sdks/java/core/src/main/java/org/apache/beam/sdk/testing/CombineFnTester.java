@@ -32,11 +32,11 @@ import org.hamcrest.Matcher;
  * correct results across various permutations and shardings of the input.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class CombineFnTester {
   /**
-   * Tests that the the {@link CombineFn}, when applied to the provided input, produces the provided
+   * Tests that the {@link CombineFn}, when applied to the provided input, produces the provided
    * output. Tests a variety of permutations of the input.
    */
   public static <InputT, AccumT, OutputT> void testCombineFn(

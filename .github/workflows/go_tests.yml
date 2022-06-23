@@ -28,7 +28,7 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['sdks/go/pkg/**']
+    paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum']
 
 jobs:
   build:

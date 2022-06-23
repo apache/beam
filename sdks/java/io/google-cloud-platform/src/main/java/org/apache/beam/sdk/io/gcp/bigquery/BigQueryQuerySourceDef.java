@@ -34,6 +34,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +50,7 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
   private final String tempDatasetId;
   private final String kmsKey;
 
-  private transient AtomicReference<JobStatistics> dryRunJobStats;
+  private transient AtomicReference<@Nullable JobStatistics> dryRunJobStats;
 
   static BigQueryQuerySourceDef create(
       BigQueryServices bqServices,
