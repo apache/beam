@@ -45,11 +45,11 @@ const defaultReadFromKafkaOptions = {
   timestampPolicy: "ProcessingTime",
 };
 
-export function readFromKafka(
+export function readFromKafka<T>(
   consumerConfig: { [key: string]: string }, // TODO: Or a map?
   topics: string[],
   options: ReadFromKafkaOptions = {}
-): beam.AsyncPTransform<beam.Root, beam.PCollection<any>> {
+): beam.AsyncPTransform<beam.Root, beam.PCollection<T>> {
   return readFromKafkaMaybeWithMetadata(
     "readFromKafkaWithMetadata",
     "beam:transform:org.apache.beam:kafka_read_without_metadata:v1",
@@ -59,12 +59,12 @@ export function readFromKafka(
   );
 }
 
-export function readFromKafkaWithMetadata(
+export function readFromKafkaWithMetadata<T>(
   consumerConfig: { [key: string]: string }, // TODO: Or a map?
   topics: string[],
   options: ReadFromKafkaOptions = {}
-): beam.AsyncPTransform<beam.Root, beam.PCollection<any>> {
-  return readFromKafkaMaybeWithMetadata(
+): beam.AsyncPTransform<beam.Root, beam.PCollection<T>> {
+  return readFromKafkaMaybeWithMetadata<T>(
     "readFromKafkaWithMetadata",
     "beam:transform:org.apache.beam:kafka_read_with_metadata:v1",
     consumerConfig,
@@ -73,16 +73,16 @@ export function readFromKafkaWithMetadata(
   );
 }
 
-function readFromKafkaMaybeWithMetadata(
+function readFromKafkaMaybeWithMetadata<T>(
   name: string,
   urn: string,
   consumerConfig: { [key: string]: string }, // TODO: Or a map?
   topics: string[],
   options: ReadFromKafkaOptions = {}
-): beam.AsyncPTransform<beam.Root, beam.PCollection<any>> {
+): beam.AsyncPTransform<beam.Root, beam.PCollection<T>> {
   return beam.withName(
     name,
-    external.rawExternalTransform<beam.Root, beam.PCollection<any>>(
+    external.rawExternalTransform<beam.Root, beam.PCollection<T>>(
       urn,
       {
         topics,
