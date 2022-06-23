@@ -53,6 +53,8 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
   private PulsarAdmin admin;
   private String clientUrl;
   private String adminUrl;
+  private String authPluginClassName;
+  private String authParameters;
 
   private final SerializableFunction<Message<byte[]>, Instant> extractOutputTimestampFn;
 
@@ -60,11 +62,14 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
     this.extractOutputTimestampFn = transform.getExtractOutputTimestampFn();
     this.clientUrl = transform.getClientUrl();
     this.adminUrl = transform.getAdminUrl();
+    this.authPluginClassName = transform.getAuthPluginClassName();
+    this.authParameters = transform.getAuthParameters();
     this.pulsarClientSerializableFunction = transform.getPulsarClient();
   }
 
   // Open connection to Pulsar clients
   @Setup
+  // TODO add auth related
   public void initPulsarClients() throws Exception {
     if (this.clientUrl == null) {
       this.clientUrl = PulsarIOUtils.SERVICE_URL;
@@ -76,7 +81,10 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
     if (this.client == null) {
       this.client = pulsarClientSerializableFunction.apply(this.clientUrl);
       if (this.client == null) {
-        this.client = PulsarClient.builder().serviceUrl(clientUrl).build();
+        this.client = PulsarClient.builder()
+                .serviceUrl(clientUrl)
+                .authentication(authPluginClassName, authParameters)
+                .build();
       }
     }
 
@@ -84,6 +92,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
       this.admin =
           PulsarAdmin.builder()
               .serviceHttpUrl(adminUrl)
+              .authentication(authPluginClassName, authParameters)
               .tlsTrustCertsFilePath(null)
               .allowTlsInsecureConnection(false)
               .build();

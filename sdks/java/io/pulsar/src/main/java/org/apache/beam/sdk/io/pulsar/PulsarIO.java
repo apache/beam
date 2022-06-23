@@ -51,6 +51,10 @@ public class PulsarIO {
 
     abstract @Nullable String getAdminUrl();
 
+    abstract @Nullable String getAuthPluginClassName();
+
+    abstract @Nullable String getAuthParameters();
+
     abstract @Nullable String getTopic();
 
     abstract @Nullable Long getStartTimestamp();
@@ -70,6 +74,10 @@ public class PulsarIO {
       abstract Builder setClientUrl(String url);
 
       abstract Builder setAdminUrl(String url);
+
+      abstract Builder setAuthPluginClassName(String authPluginClassName);
+
+      abstract Builder setAuthParameters(String authParameters);
 
       abstract Builder setTopic(String topic);
 
@@ -93,6 +101,14 @@ public class PulsarIO {
 
     public Read withClientUrl(String url) {
       return builder().setClientUrl(url).build();
+    }
+
+    public Read withAuthPluginClassName(String pluginClassName) {
+      return builder().setAuthPluginClassName(pluginClassName).build();
+    }
+
+    public Read withAuthParameters(String parameters) {
+      return builder().setAuthParameters(parameters).build();
     }
 
     public Read withTopic(String topic) {
@@ -138,7 +154,9 @@ public class PulsarIO {
                       getEndTimestamp(),
                       getEndMessageId(),
                       getClientUrl(),
-                      getAdminUrl())))
+                      getAdminUrl(),
+                      getAuthPluginClassName(),
+                      getAuthParameters())))
           .apply(ParDo.of(new ReadFromPulsarDoFn(this)))
           .setCoder(PulsarMessageCoder.of());
     }
@@ -156,6 +174,10 @@ public class PulsarIO {
 
     abstract String getClientUrl();
 
+    abstract @Nullable String getAuthPluginClassName();
+
+    abstract @Nullable String getAuthParameters();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -163,6 +185,10 @@ public class PulsarIO {
       abstract Builder setTopic(String topic);
 
       abstract Builder setClientUrl(String clientUrl);
+
+      abstract Read.Builder setAuthPluginClassName(String authPluginClassName);
+
+      abstract Read.Builder setAuthParameters(String authParameters);
 
       abstract Write build();
     }
@@ -173,6 +199,14 @@ public class PulsarIO {
 
     public Write withClientUrl(String clientUrl) {
       return builder().setClientUrl(clientUrl).build();
+    }
+
+    public Read withAuthPluginClassName(String pluginClassName) {
+      return builder().setAuthPluginClassName(pluginClassName).build();
+    }
+
+    public Read withAuthParameters(String parameters) {
+      return builder().setAuthParameters(parameters).build();
     }
 
     @Override

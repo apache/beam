@@ -31,15 +31,22 @@ public class WriteToPulsarDoFn extends DoFn<byte[], Void> {
   private PulsarClient client;
   private String clientUrl;
   private String topic;
+  private String authPluginClassName;
+  private String authParameters;
 
   WriteToPulsarDoFn(PulsarIO.Write transform) {
     this.clientUrl = transform.getClientUrl();
     this.topic = transform.getTopic();
+    this.authPluginClassName = transform.getAuthPluginClassName();
+    this.authParameters = transform.getAuthParameters();
   }
 
   @Setup
   public void setup() throws PulsarClientException {
-    client = PulsarClient.builder().serviceUrl(clientUrl).build();
+    client = PulsarClient.builder()
+            .serviceUrl(clientUrl)
+            .authentication(authPluginClassName, authParameters)
+            .build();
     producer = client.newProducer().topic(topic).compressionType(CompressionType.LZ4).create();
   }
 
