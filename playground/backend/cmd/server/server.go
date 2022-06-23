@@ -21,6 +21,11 @@ import (
 	"beam.apache.org/playground/backend/internal/cache/local"
 	"beam.apache.org/playground/backend/internal/cache/redis"
 	"beam.apache.org/playground/backend/internal/cloud_bucket"
+	"beam.apache.org/playground/backend/internal/db"
+	"beam.apache.org/playground/backend/internal/db/datastore"
+	localdb "beam.apache.org/playground/backend/internal/db/local"
+	"beam.apache.org/playground/backend/internal/db/schema"
+	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/utils"
@@ -43,13 +48,24 @@ func runServer() error {
 
 	grpcServer := grpc.NewServer()
 
+	databaseClient, err := setupDB(ctx, envService.ApplicationEnvs)
+	if err != nil {
+		return err
+	}
+
+	if err = setupDBStructure(ctx, databaseClient, &envService.ApplicationEnvs); err != nil {
+		return err
+	}
+
 	cacheService, err := setupCache(ctx, envService.ApplicationEnvs)
 	if err != nil {
 		return err
 	}
+
 	pb.RegisterPlaygroundServiceServer(grpcServer, &playgroundController{
 		env:          envService,
 		cacheService: cacheService,
+		db:           databaseClient,
 	})
 
 	// Examples catalog should be retrieved and saved to cache only if the server doesn't suppose to run code, i.e. SDK is unspecified
@@ -140,6 +156,28 @@ func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache, bucketN
 			return err
 		}
 	}
+	return nil
+}
+
+// setupDB constructs required database by application environment
+func setupDB(ctx context.Context, appEnv environment.ApplicationEnvs) (db.Database, error) {
+	if appEnv.DbType() == environment.DatastoreDB {
+		return datastore.New(ctx, appEnv.GoogleProjectId())
+	}
+	return localdb.New()
+}
+
+// setupDBStructure initializes the data structure
+func setupDBStructure(ctx context.Context, db db.Database, appEnv *environment.ApplicationEnvs) error {
+	versions := []schema.Version{
+		new(migration.InitialStructure),
+	}
+	dbSchema := schema.New(ctx, db, appEnv, versions)
+	actualSchemaVersion, err := dbSchema.InitiateData()
+	if err != nil {
+		return err
+	}
+	appEnv.SetSchemaVersion(actualSchemaVersion)
 	return nil
 }
 

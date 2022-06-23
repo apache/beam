@@ -42,7 +42,7 @@ func (serverEnvs *NetworkEnvs) Protocol() string {
 	return serverEnvs.protocol
 }
 
-//CacheEnvs contains all environment variables that needed to use cache
+// CacheEnvs contains all environment variables that needed to use cache
 type CacheEnvs struct {
 	// cacheType is type of cache (local/redis)
 	cacheType string
@@ -52,6 +52,20 @@ type CacheEnvs struct {
 
 	// keyExpirationTime is expiration time for cache keys
 	keyExpirationTime time.Duration
+}
+
+// Database represents data type that needed to use specific database
+type Database string
+
+// DatastoreDB represents value indicates database as datastore
+// LocalDB represents value indicates database for local usage or testing
+const (
+	DatastoreDB Database = "datastore"
+	LocalDB     Database = "local"
+)
+
+func (db Database) String() string {
+	return string(db)
 }
 
 // CacheType returns cache type
@@ -78,7 +92,7 @@ func NewCacheEnvs(cacheType, cacheAddress string, cacheExpirationTime time.Durat
 	}
 }
 
-//ApplicationEnvs contains all environment variables that needed to run backend processes
+// ApplicationEnvs contains all environment variables that needed to run backend processes
 type ApplicationEnvs struct {
 	// workingDir is a root working directory of application.
 	// This directory is different from the `pwd` of the application. It is a working directory passed as
@@ -102,10 +116,40 @@ type ApplicationEnvs struct {
 
 	// bucketName is a name of the GCS's bucket with examples
 	bucketName string
+
+	// dbType is a database type
+	dbType Database
+
+	// playgroundSalt is a salt to generate hash
+	playgroundSalt string
+
+	// maxSnippetSize is entity size limit
+	maxSnippetSize int
+
+	// idLength is a datastore ID length
+	idLength int
+
+	// datastoreEmulatorHost is the address of datastore emulator
+	datastoreEmulatorHost string
+
+	// schemaVersion is the database schema version
+	schemaVersion string
+
+	// origin is a backend source
+	origin string
+
+	// sdkConfigPath is a sdk configuration file
+	sdkConfigPath string
 }
 
 // NewApplicationEnvs constructor for ApplicationEnvs
-func NewApplicationEnvs(workingDir, launchSite, projectId, pipelinesFolder string, cacheEnvs *CacheEnvs, pipelineExecuteTimeout time.Duration, bucketName string) *ApplicationEnvs {
+func NewApplicationEnvs(
+	workingDir, launchSite, projectId, pipelinesFolder, bucketName, playgroundSalt, datastoreEmulatorHost, origin, sdkConfigPath string,
+	cacheEnvs *CacheEnvs,
+	pipelineExecuteTimeout time.Duration,
+	dbType Database,
+	maxSnippetSize, firestoreIdLength int,
+) *ApplicationEnvs {
 	return &ApplicationEnvs{
 		workingDir:             workingDir,
 		cacheEnvs:              cacheEnvs,
@@ -114,6 +158,13 @@ func NewApplicationEnvs(workingDir, launchSite, projectId, pipelinesFolder strin
 		projectId:              projectId,
 		pipelinesFolder:        pipelinesFolder,
 		bucketName:             bucketName,
+		dbType:                 dbType,
+		playgroundSalt:         playgroundSalt,
+		maxSnippetSize:         maxSnippetSize,
+		idLength:               firestoreIdLength,
+		datastoreEmulatorHost:  datastoreEmulatorHost,
+		origin:                 origin,
+		sdkConfigPath:          sdkConfigPath,
 	}
 }
 
@@ -150,4 +201,49 @@ func (ae *ApplicationEnvs) PipelinesFolder() string {
 // BucketName returns name of the GCS's bucket with examples
 func (ae *ApplicationEnvs) BucketName() string {
 	return ae.bucketName
+}
+
+// DbType returns database type
+func (ae *ApplicationEnvs) DbType() Database {
+	return ae.dbType
+}
+
+// PlaygroundSalt returns playground salt for hash generation
+func (ae *ApplicationEnvs) PlaygroundSalt() string {
+	return ae.playgroundSalt
+}
+
+// MaxSnippetSize returns entity size limit
+func (ae *ApplicationEnvs) MaxSnippetSize() int {
+	return ae.maxSnippetSize
+}
+
+// IdLength returns the datastore ID length
+func (ae *ApplicationEnvs) IdLength() int {
+	return ae.idLength
+}
+
+// DatastoreEmulatorHost returns the address of datastore emulator
+func (ae *ApplicationEnvs) DatastoreEmulatorHost() string {
+	return ae.datastoreEmulatorHost
+}
+
+// SchemaVersion returns the database schema version
+func (ae *ApplicationEnvs) SchemaVersion() string {
+	return ae.schemaVersion
+}
+
+// Origin returns backend source
+func (ae *ApplicationEnvs) Origin() string {
+	return ae.origin
+}
+
+// SdkConfigPath returns sdk configuration file
+func (ae *ApplicationEnvs) SdkConfigPath() string {
+	return ae.sdkConfigPath
+}
+
+// SetSchemaVersion sets the database schema version
+func (ae *ApplicationEnvs) SetSchemaVersion(schemaVersion string) {
+	ae.schemaVersion = schemaVersion
 }

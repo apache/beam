@@ -18,7 +18,12 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
+	"beam.apache.org/playground/backend/internal/db"
+	datastoreDb "beam.apache.org/playground/backend/internal/db/datastore"
+	"beam.apache.org/playground/backend/internal/db/entity"
+	localdb "beam.apache.org/playground/backend/internal/db/local"
 	"beam.apache.org/playground/backend/internal/environment"
+	"beam.apache.org/playground/backend/internal/utils"
 	"context"
 	"fmt"
 	"github.com/google/uuid"
@@ -46,6 +51,7 @@ const (
 
 var lis *bufconn.Listener
 var cacheService cache.Cache
+var snippetDb db.Database
 var opt goleak.Option
 
 func TestMain(m *testing.M) {
@@ -80,6 +86,12 @@ func setup() *grpc.Server {
 	// setup cache
 	cacheService = local.New(context.Background())
 
+	// setup entity storage
+	snippetDb, err = localdb.New()
+	if err != nil {
+		panic(err)
+	}
+
 	path, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -106,6 +118,7 @@ func setup() *grpc.Server {
 	pb.RegisterPlaygroundServiceServer(s, &playgroundController{
 		env:          environment.NewEnvironment(*networkEnv, *sdkEnv, *appEnv),
 		cacheService: cacheService,
+		db:           snippetDb,
 	})
 	go func() {
 		if err := s.Serve(lis); err != nil {
@@ -173,12 +186,8 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			conn, err := grpc.DialContext(tt.args.ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
-			if err != nil {
-				t.Fatalf("Failed to dial bufnet: %v", err)
-			}
-			defer conn.Close()
-			client := pb.NewPlaygroundServiceClient(conn)
+			client, closeFunc := getPlaygroundServiceClient(tt.args.ctx, t)
+			defer closeFunc()
 			response, err := client.RunCode(tt.args.ctx, tt.args.request)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PlaygroundController_RunCode() error = %v, wantErr %v", err, tt.wantErr)
@@ -207,12 +216,8 @@ func TestPlaygroundController_CheckStatus(t *testing.T) {
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	wantStatus := pb.Status_STATUS_FINISHED
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	defer conn.Close()
-	client := pb.NewPlaygroundServiceClient(conn)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
 
 	type args struct {
 		ctx     context.Context
@@ -286,12 +291,8 @@ func TestPlaygroundController_GetCompileOutput(t *testing.T) {
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	compileOutput := "MOCK_COMPILE_OUTPUT"
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	defer conn.Close()
-	client := pb.NewPlaygroundServiceClient(conn)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
 
 	type args struct {
 		ctx  context.Context
@@ -365,12 +366,8 @@ func TestPlaygroundController_GetRunOutput(t *testing.T) {
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	runOutput := "MOCK_RUN_OUTPUT"
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	defer conn.Close()
-	client := pb.NewPlaygroundServiceClient(conn)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
 
 	type args struct {
 		ctx  context.Context
@@ -474,12 +471,8 @@ func TestPlaygroundController_GetLogs(t *testing.T) {
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	logs := "MOCK_LOGS"
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	defer conn.Close()
-	client := pb.NewPlaygroundServiceClient(conn)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
 
 	type args struct {
 		ctx  context.Context
@@ -583,12 +576,8 @@ func TestPlaygroundController_GetRunError(t *testing.T) {
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	runError := "MOCK_RUN_ERROR"
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	defer conn.Close()
-	client := pb.NewPlaygroundServiceClient(conn)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
 
 	type args struct {
 		ctx  context.Context
@@ -675,12 +664,8 @@ func TestPlaygroundController_Cancel(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
 	ctx := context.Background()
 	pipelineId := uuid.New()
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	defer conn.Close()
-	client := pb.NewPlaygroundServiceClient(conn)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
 
 	type args struct {
 		ctx  context.Context
@@ -736,4 +721,178 @@ func TestPlaygroundController_Cancel(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPlaygroundController_SaveSnippet(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	ctx := context.Background()
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
+
+	type args struct {
+		ctx  context.Context
+		info *pb.SaveSnippetRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantId  string
+		wantErr bool
+	}{
+		// Test case with calling SaveSnippet method with incorrect sdk.
+		// As a result, want to receive an error.
+		{
+			name: "SaveSnippet with incorrect sdk",
+			args: args{
+				ctx: ctx,
+				info: &pb.SaveSnippetRequest{
+					Files: []*pb.SnippetFile{{Name: "MOCK_NAME", Content: "MOCK_CONTENT"}},
+					Sdk:   pb.Sdk_SDK_UNSPECIFIED,
+				},
+			},
+			wantErr: true,
+		},
+		// Test case with calling SaveSnippet method with empty entity.
+		// As a result, want to receive an error.
+		{
+			name: "SaveSnippet with empty entity",
+			args: args{
+				ctx: ctx,
+				info: &pb.SaveSnippetRequest{
+					Files: []*pb.SnippetFile{{Name: "MOCK_NAME", Content: ""}},
+					Sdk:   pb.Sdk_SDK_JAVA,
+				},
+			},
+			wantErr: true,
+		},
+		// Test case with calling SaveSnippet method with a simple entity.
+		// As a result, want to receive a generated ID.
+		{
+			name: "SaveSnippet with a simple entity",
+			args: args{
+				ctx: ctx,
+				info: &pb.SaveSnippetRequest{
+					Files: []*pb.SnippetFile{{Name: "MOCK_NAME", Content: "MOCK_CONTENT"}},
+					Sdk:   pb.Sdk_SDK_GO,
+				},
+			},
+			wantErr: false,
+			wantId:  "G8wItE9lRcs",
+		},
+		// Test case with calling SaveSnippet method with too large entity.
+		// As a result, want to receive an error.
+		{
+			name: "SaveSnippet with too large entity",
+			args: args{
+				ctx: ctx,
+				info: &pb.SaveSnippetRequest{
+					Files: []*pb.SnippetFile{{Name: "MOCK_NAME", Content: utils.RandomString(1000001)}},
+					Sdk:   pb.Sdk_SDK_JAVA,
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := client.SaveSnippet(ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PlaygroundController_SaveSnippet() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil {
+				if len(got.Id) != 11 || got.Id != tt.wantId {
+					t.Errorf("PlaygroundController_SaveSnippet() generated ID length is not 11")
+				}
+			}
+		})
+	}
+}
+
+func TestPlaygroundController_GetSnippet(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	ctx := context.Background()
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
+	nowDate := time.Now()
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetSnippetRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		prepare func()
+		wantErr bool
+	}{
+		// Test case with calling GetSnippet method with ID that is not in the database.
+		// As a result, want to receive an error.
+		{
+			name: "GetSnippet when the entity not found",
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetSnippetRequest{Id: "MOCK_ID"},
+			},
+			prepare: func() {},
+			wantErr: true,
+		},
+		// Test case with calling GetSnippet method with a correct ID.
+		// As a result, want to receive a snippet entity.
+		{
+			name: "GetSnippet with correct ID",
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetSnippetRequest{Id: "MOCK_ID"},
+			},
+			prepare: func() {
+				_ = snippetDb.PutSnippet(ctx, "MOCK_ID",
+					&entity.Snippet{
+						Snippet: &entity.SnippetEntity{
+							OwnerId:  "",
+							Sdk:      utils.GetNameKey(datastoreDb.SdkKind, pb.Sdk_SDK_JAVA.String(), datastoreDb.Namespace, nil),
+							PipeOpts: "MOCK_OPTIONS",
+							Created:  nowDate,
+							Origin:   entity.PG_USER,
+						},
+						Files: []*entity.FileEntity{{
+							Content: "MOCK_CONTENT",
+							IsMain:  false,
+						}},
+					},
+				)
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			got, err := client.GetSnippet(ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PlaygroundController_GetSnippet() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil {
+				if got.Files[0].Content != "MOCK_CONTENT" || got.Sdk != 1 || got.PipelineOptions != "MOCK_OPTIONS" {
+					t.Errorf("PlaygroundController_GetSnippet() unexpected response")
+				}
+			}
+		})
+	}
+}
+
+func getPlaygroundServiceClient(ctx context.Context, t *testing.T) (pb.PlaygroundServiceClient, func()) {
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
+	if err != nil {
+		t.Fatalf("Failed to dial bufnet: %v", err)
+	}
+	closeFunc := func() {
+		err := conn.Close()
+		if err != nil {
+			t.Fatalf("Failed to close grpc connection: %v", err)
+		}
+	}
+	client := pb.NewPlaygroundServiceClient(conn)
+	return client, closeFunc
 }
