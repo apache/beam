@@ -17,14 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.healthcare.v1.CloudHealthcare;
 import com.google.api.services.healthcare.v1.CloudHealthcare.Projects.Locations.Datasets.FhirStores.Fhir.PatientEverything;
 import com.google.api.services.healthcare.v1.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
@@ -60,6 +58,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.Serializable;
+import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -104,7 +103,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       String.format(
           "apache-beam-io-google-cloud-platform-healthcare/%s",
           ReleaseInfo.getReleaseInfo().getSdkVersion());
-  private static final JsonFactory PARSER = new GsonFactory();
+  private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
   private static final Logger LOG = LoggerFactory.getLogger(HttpHealthcareApiClient.class);
   private transient CloudHealthcare client;
   private transient HttpClient httpClient;
@@ -576,7 +575,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     if (client == null) {
       initClient();
     }
-    HttpBody httpBody = PARSER.fromString(bundle, HttpBody.class);
+    HttpBody httpBody = JSON_FACTORY.fromString(bundle, HttpBody.class);
 
     return client
         .projects()
@@ -735,8 +734,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
                 CloudHealthcareScopes.CLOUD_PLATFORM, StorageScopes.CLOUD_PLATFORM_READ_ONLY));
 
     client =
-        new CloudHealthcare.Builder(
-                new NetHttpTransport(), new JacksonFactory(), requestInitializer)
+        new CloudHealthcare.Builder(new NetHttpTransport(), JSON_FACTORY, requestInitializer)
             .setApplicationName("apache-beam-hl7v2-io")
             .build();
     httpClient =
@@ -917,7 +915,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     private final Map<String, Object> parameters;
 
     private final HealthcareApiClient client;
-    private final ObjectMapper mapper;
     private String pageToken;
     private boolean isFirstRequest;
 
@@ -936,7 +933,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       this.parameters = parameters;
       this.pageToken = null;
       this.isFirstRequest = true;
-      this.mapper = new ObjectMapper();
     }
 
     /**
@@ -976,11 +972,12 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       }
       try {
         HttpBody response = executeFhirRequest();
-        JsonObject jsonResponse =
-            JsonParser.parseString(mapper.writeValueAsString(response)).getAsJsonObject();
+        StringWriter jsonWriter = new StringWriter();
+        JSON_FACTORY.createJsonGenerator(jsonWriter).serialize(response);
+        JsonObject jsonResponse = JsonParser.parseString(jsonWriter.toString()).getAsJsonObject();
         JsonArray resources = jsonResponse.getAsJsonArray("entry");
         return resources != null && resources.size() != 0;
-      } catch (IOException e) {
+      } catch (IOException | IllegalArgumentException e) {
         throw new NoSuchElementException(
             String.format(
                 "Failed to list first page of FHIR resources from %s: %s",
@@ -993,13 +990,14 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       try {
         HttpBody response = executeFhirRequest();
         this.isFirstRequest = false;
-        JsonObject jsonResponse =
-            JsonParser.parseString(mapper.writeValueAsString(response)).getAsJsonObject();
+        StringWriter jsonWriter = new StringWriter();
+        JSON_FACTORY.createJsonGenerator(jsonWriter).serialize(response);
+        JsonObject jsonResponse = JsonParser.parseString(jsonWriter.toString()).getAsJsonObject();
         JsonArray links = jsonResponse.getAsJsonArray("link");
         this.pageToken = parsePageToken(links);
         JsonArray resources = jsonResponse.getAsJsonArray("entry");
         return resources;
-      } catch (IOException e) {
+      } catch (IOException | IllegalArgumentException e) {
         this.pageToken = null;
         throw new NoSuchElementException(
             String.format("Error listing FHIR resources from %s: %s", fhirStore, e.getMessage()));

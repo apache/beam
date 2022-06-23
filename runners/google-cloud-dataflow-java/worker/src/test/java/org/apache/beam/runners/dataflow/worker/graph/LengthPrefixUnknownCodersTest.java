@@ -31,7 +31,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 
 import com.google.api.client.json.GenericJson;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
@@ -98,7 +98,7 @@ public class LengthPrefixUnknownCodersTest {
   public void setup() {
     MockitoAnnotations.initMocks(this);
     instruction = new ParallelInstruction();
-    instruction.setFactory(new JacksonFactory());
+    instruction.setFactory(GsonFactory.getDefaultInstance());
     instructionOutputNode = createInstructionOutputNode("parDo.out", windowedValueCoder);
   }
 
@@ -152,7 +152,7 @@ public class LengthPrefixUnknownCodersTest {
   public void testLengthPrefixInstructionOutputCoder() throws Exception {
     InstructionOutput output = new InstructionOutput();
     output.setCodec(CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null));
-    output.setFactory(new JacksonFactory());
+    output.setFactory(GsonFactory.getDefaultInstance());
 
     InstructionOutput prefixedOutput = forInstructionOutput(output, false);
     assertEqualsAsJson(
@@ -327,11 +327,11 @@ public class LengthPrefixUnknownCodersTest {
 
   private static SideInputInfo createSideInputInfosWithCoders(Coder<?>... coders) {
     SideInputInfo sideInputInfo = new SideInputInfo().setSources(new ArrayList<>());
-    sideInputInfo.setFactory(new JacksonFactory());
+    sideInputInfo.setFactory(GsonFactory.getDefaultInstance());
     for (Coder<?> coder : coders) {
       Source source =
           new Source().setCodec(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
-      source.setFactory(new JacksonFactory());
+      source.setFactory(GsonFactory.getDefaultInstance());
       sideInputInfo.getSources().add(source);
     }
     return sideInputInfo;
@@ -356,7 +356,7 @@ public class LengthPrefixUnknownCodersTest {
                             .setCodec(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null))
                             .setSpec(CloudObject.forClassName(readClassName))));
 
-    parallelInstruction.setFactory(new JacksonFactory());
+    parallelInstruction.setFactory(GsonFactory.getDefaultInstance());
     return ParallelInstructionNode.create(parallelInstruction, Nodes.ExecutionLocation.UNKNOWN);
   }
 
@@ -365,7 +365,7 @@ public class LengthPrefixUnknownCodersTest {
         new InstructionOutput()
             .setName(name)
             .setCodec(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
-    instructionOutput.setFactory(new JacksonFactory());
+    instructionOutput.setFactory(GsonFactory.getDefaultInstance());
     return InstructionOutputNode.create(instructionOutput, "fakeId");
   }
 }

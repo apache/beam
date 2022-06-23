@@ -49,7 +49,7 @@ import com.google.api.client.http.LowLevelHttpResponse;
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.Json;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.testing.http.HttpTesting;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
@@ -465,7 +465,7 @@ public class GcsUtilTest {
 
   @Test
   public void testGetSizeBytesWhenFileNotFoundBatch() throws Exception {
-    JsonFactory jsonFactory = new JacksonFactory();
+    JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
 
     String contentBoundary = "batch_foobarbaz";
     String contentBoundaryLine = "--" + contentBoundary;
@@ -505,7 +505,7 @@ public class GcsUtilTest {
 
   @Test
   public void testGetSizeBytesWhenFileNotFoundBatchRetry() throws Exception {
-    JsonFactory jsonFactory = new JacksonFactory();
+    JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
 
     String contentBoundary = "batch_foobarbaz";
     String contentBoundaryLine = "--" + contentBoundary;
@@ -566,7 +566,7 @@ public class GcsUtilTest {
 
   @Test
   public void testRemoveWhenFileNotFound() throws Exception {
-    JsonFactory jsonFactory = new JacksonFactory();
+    JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
 
     String contentBoundary = "batch_foobarbaz";
     String contentBoundaryLine = "--" + contentBoundary;
@@ -875,7 +875,7 @@ public class GcsUtilTest {
   /** Builds a fake GoogleJsonResponseException for testing API error handling. */
   private static GoogleJsonResponseException googleJsonResponseException(
       final int status, final String reason, final String message) throws IOException {
-    final JsonFactory jsonFactory = new JacksonFactory();
+    final JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
     HttpTransport transport =
         new MockHttpTransport() {
           @Override

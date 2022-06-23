@@ -34,7 +34,7 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.LowLevelHttpRequest;
 import com.google.api.client.http.LowLevelHttpResponse;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.storage.Storage;
 import java.io.IOException;
 import org.apache.beam.sdk.metrics.Histogram;
@@ -61,7 +61,7 @@ public class LatencyRecordingHttpRequestInitializerTest {
   @Mock private LowLevelHttpResponse mockLowLevelResponse;
   @Mock private Histogram mockHistogram;
 
-  private final JsonFactory jsonFactory = JacksonFactory.getDefaultInstance();
+  private final JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
   private Storage storage;
 
   @Before
