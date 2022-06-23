@@ -174,9 +174,7 @@ class PlaygroundState with ChangeNotifier {
       );
       _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;
-        String log = event.log ?? '';
-        String output = event.output ?? '';
-        setOutputResult(log + output);
+        filterOutput(selectedOutputFilterType ?? OutputType.all);
 
         if (event.isFinished && onFinish != null) {
           onFinish();
@@ -221,7 +219,7 @@ class PlaygroundState with ChangeNotifier {
       log: kCachedResultsLog + logs,
       graph: _selectedExample!.graph,
     );
-    setOutputResult(_result!.log! + _result!.output!);
+    filterOutput(selectedOutputFilterType ?? OutputType.all);
     _executionTime?.close();
     notifyListeners();
   }
