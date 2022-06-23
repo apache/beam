@@ -29,7 +29,7 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
- * This is a valid {@link InputFormat} for writing employee data, available in the form of {@code
+ * This is a valid {@link InputFormat} for reading employee data, available in the form of {@code
  * List<KV>}. Used to test the {@link CdapIO#read()}.
  */
 public class EmployeeInputFormat extends InputFormat<String, String> {
