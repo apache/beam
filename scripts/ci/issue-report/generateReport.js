@@ -51,57 +51,69 @@ function sendReport(title, header, issues) {
 async function generateReport() {
     const octokit = new Octokit({});
 
-    let p0Issues = await octokit.paginate(octokit.rest.issues.listForRepo, {
-    owner: 'apache',
-    repo: 'beam',
-    labels: 'P0'
-    });
-    p0Issues = p0Issues.filter(i => {
-        for (const l of i.labels) {
-            if (l.name == "flaky") {
-                return false;
+    if (process.env['SEND_PO_REPORT']) {
+        let p0Issues = await octokit.paginate(octokit.rest.issues.listForRepo, {
+        owner: 'apache',
+        repo: 'beam',
+        labels: 'P0'
+        });
+        p0Issues = p0Issues.filter(i => {
+            for (const l of i.labels) {
+                if (l.name == "flaky") {
+                    return false;
+                }
             }
-        }
-        return true;
-    });
-    let p0Header = `This is your daily summary of Beam's current P0 issues, not including flaky tests.
-
-    See https://beam.apache.org/contribute/issue-priorities/#p0-outage for the meaning and expectations around P0 issues.
-
-`;
-    sendReport(`P0 issues report (${p0Issues.length})`, p0Header, p0Issues);
-
-    let p1Issues = await octokit.paginate(octokit.rest.issues.listForRepo, {
-    owner: 'apache',
-    repo: 'beam',
-    labels: 'P1'
-    });
-    p1Issues = p1Issues.filter(i => {
-        for (const l of i.labels) {
-            if (l.name == "flaky") {
-                return false;
-            }
-        }
-        return true;
-    });
-    let p1Header = `This is your daily summary of Beam's current P1 issues, not including flaky tests.
-
-    See https://beam.apache.org/contribute/issue-priorities/#p1-critical for the meaning and expectations around P1 issues.
+            return true;
+        });
+        let p0Header = `This is your daily summary of Beam's current P0 issues, not including flaky tests.
+    
+See https://beam.apache.org/contribute/issue-priorities/#p0-outage for the meaning and expectations around P0 issues.
 
 `;
-    sendReport(`P1 issues report (${p1Issues.length})`, p1Header, p1Issues);
+        sendReport(`P0 issues report (${p0Issues.length})`, p0Header, p0Issues);
+    } else {
+        console.log('Skipping P0 report')
+    }
 
-    let flakyIssues = await octokit.paginate(octokit.rest.issues.listForRepo, {
-    owner: 'apache',
-    repo: 'beam',
-    labels: 'flaky'
-    });
-    let flakyHeader = `This is your daily summary of Beam's current flaky tests.
+    if (process.env['SEND_P1_REPORT']) {
+        let p1Issues = await octokit.paginate(octokit.rest.issues.listForRepo, {
+            owner: 'apache',
+            repo: 'beam',
+            labels: 'P1'
+            });
+            p1Issues = p1Issues.filter(i => {
+                for (const l of i.labels) {
+                    if (l.name == "flaky") {
+                        return false;
+                    }
+                }
+                return true;
+            });
+            let p1Header = `This is your daily summary of Beam's current P1 issues, not including flaky tests.
+        
+            See https://beam.apache.org/contribute/issue-priorities/#p1-critical for the meaning and expectations around P1 issues.
+        
+        `;
+            sendReport(`P1 issues report (${p1Issues.length})`, p1Header, p1Issues);        
+    } else {
+        console.log('Skipping P1 report')
+    }
 
-    These are P1 issues because they have a major negative impact on the community and make it hard to determine the quality of the software.
+    if (process.env['SEND_FLAKY_REPORT']) {
+        let flakyIssues = await octokit.paginate(octokit.rest.issues.listForRepo, {
+            owner: 'apache',
+            repo: 'beam',
+            labels: 'flaky'
+            });
+            let flakyHeader = `This is your daily summary of Beam's current flaky tests.
+        
+These are P1 issues because they have a major negative impact on the community and make it hard to determine the quality of the software.
 
 `;
-    sendReport(`Flaky test issue report (${flakyIssues.length})`, flakyHeader, flakyIssues); 
+            sendReport(`Flaky test issue report (${flakyIssues.length})`, flakyHeader, flakyIssues); 
+    } else {
+        console.log('Skipping flaky test report')
+    }
 }
 
 function validateEnvSet(envVar) {
