@@ -22,15 +22,24 @@ import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 @DoFn.UnboundedPerElement
 @SuppressWarnings({"rawtypes", "nullness"})
 public class WriteToPulsarDoFn extends DoFn<byte[], Void> {
 
+  private static final Logger LOG = LoggerFactory.getLogger(WriteToPulsarDoFn.class);
+
   private Producer<byte[]> producer;
   private PulsarClient client;
   private String clientUrl;
   private String topic;
+
+  private transient Exception sendException = null;
+  private transient long numSendFailures = 0;
 
   WriteToPulsarDoFn(PulsarIO.Write transform) {
     this.clientUrl = transform.getClientUrl();
@@ -45,12 +54,48 @@ public class WriteToPulsarDoFn extends DoFn<byte[], Void> {
 
   @ProcessElement
   public void processElement(@Element byte[] messageToSend) throws Exception {
-    producer.send(messageToSend);
+    producer.sendAsync(messageToSend)
+            .whenComplete((mid, exception) -> {
+              if (exception == null) {
+                return;
+              }
+
+              synchronized (WriteToPulsarDoFn.this) {
+                if (sendException == null) {
+                  sendException = (Exception) exception;
+                }
+                numSendFailures++;
+              }
+              // don't log exception stacktrace here, exception will be propagated up.
+              LOG.warn("send failed : '{}'", exception.getMessage());
+            });
+  }
+
+  @FinishBundle
+  public void finishBundle() throws IOException {
+    producer.flush();
+    checkForFailures();
   }
 
   @Teardown
   public void teardown() throws PulsarClientException {
     producer.close();
     client.close();
+  }
+
+  private synchronized void checkForFailures() throws IOException {
+    if (numSendFailures == 0) {
+      return;
+    }
+
+    String msg = String.format(
+            "Pulsar Write DoFn: failed to send %d records (since last report)", numSendFailures);
+
+    Exception e = sendException;
+    sendException = null;
+    numSendFailures = 0;
+
+    LOG.warn(msg);
+    throw new IOException(msg, e);
   }
 }
