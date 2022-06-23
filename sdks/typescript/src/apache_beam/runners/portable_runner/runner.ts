@@ -79,6 +79,17 @@ class PortableRunnerPipelineResult implements PipelineResult {
     return state;
   }
 
+  async cancel() {
+    if (this.terminalState) {
+      return;
+    }
+    const { state } = await this.runner.cancelJob(this.jobId);
+    this.terminalState = { state };
+    for (const callback of this.completionCallbacks) {
+      await callback({ state });
+    }
+  }
+
   /**
    * Waits until the pipeline finishes and returns the final status.
    * @param duration timeout in milliseconds.
@@ -137,6 +148,11 @@ export class PortableRunner extends Runner {
     return await call.response;
   }
 
+  async cancelJob(jobId: string) {
+    const call = (await this.getClient()).cancel({ jobId });
+    return await call.response;
+  }
+
   async runPipeline(
     pipeline: Pipeline,
     options?: PipelineOptions
@@ -148,10 +164,15 @@ export class PortableRunner extends Runner {
     pipeline: runnerApiProto.Pipeline,
     options?: PipelineOptions
   ) {
-    if (!options) {
-      options = this.defaultOptions;
-    } else {
-      options = { ...this.defaultOptions, ...options };
+    options = { ...this.defaultOptions, ...(options || {}) };
+
+    for (const [_, pcoll] of Object.entries(
+      pipeline.components!.pcollections
+    )) {
+      if (pcoll.isBounded == runnerApiProto.IsBounded_Enum.UNBOUNDED) {
+        (options as any).streaming = true;
+        break;
+      }
     }
 
     const completionCallbacks: completionCallback[] = [];
@@ -207,6 +228,9 @@ export class PortableRunner extends Runner {
       );
     }
     const client = await this.getClient();
+    // Ensure the pipeline (and other metadata) serializes, as the failure
+    // in grpc is hard to recover from.
+    PrepareJobRequest.toBinary(message);
     const prepareResponse = await client.prepare(message).response;
 
     // Allow the runner to fetch any artifacts it can't interpret.
