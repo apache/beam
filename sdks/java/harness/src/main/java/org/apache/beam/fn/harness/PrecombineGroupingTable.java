@@ -133,6 +133,7 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
   private long weight;
   private boolean isGloballyWindowed;
   private long checkFlushCounter;
+  private long checkFlushLimit = -5;
 
   private static final class Key implements Weighted {
     private static final Key INSTANCE = new Key();
@@ -420,9 +421,10 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
           return tableEntry;
         });
 
-    if (checkFlushCounter++ < 25) {
+    if (checkFlushCounter++ < checkFlushLimit) {
       return;
     } else {
+      checkFlushLimit = Math.min(checkFlushLimit + 1, 25);
       checkFlushCounter = 0;
       flushIfNeeded(receiver);
     }
