@@ -88,7 +88,12 @@ function readFromPubSubWithAttributesRaw(
   );
 }
 
-export function readFromPubSubWithAttributes(options: ReadOptions) {
+export function readFromPubSubWithAttributes(
+  options: ReadOptions
+): AsyncPTransform<
+  beam.Root,
+  beam.PCollection<PubSub.protos.google.pubsub.v1.PubsubMessage>
+> {
   return async function readFromPubSubWithAttributes(root: beam.Root) {
     return (
       await root.asyncApply(readFromPubSubWithAttributesRaw(options))
