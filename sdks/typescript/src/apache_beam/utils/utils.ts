@@ -16,11 +16,16 @@
  * limitations under the License.
  */
 
-const fs = require("fs");
-const path = require("path");
+export function camelToSnake(camelString) {
+  return camelString.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
 
-// TODO: (Typescript) Is there a more standard way to do this?
-// The require below doesn't work when installed outside the source tree
-// (e.g. in the docker container).
-//export const { version } = require("../../../package.json");
-export const version = "0.38.0";
+export function camelToSnakeOptions(options: { [key: string]: any }): {
+  [key: string]: any;
+} {
+  return Object.fromEntries(
+    Object.entries(options)
+      .filter(([k, v]) => v != undefined)
+      .map(([k, v]) => [camelToSnake(k), v])
+  );
+}
