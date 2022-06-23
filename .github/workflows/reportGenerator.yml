@@ -27,6 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+    - run: if test $(date +%A) == "Wednesday"; then echo "IS_WEDNESDAY=true" >> $GITHUB_ENV; fi
     - run: |
         npm install
         node generateReport.js
@@ -36,3 +37,6 @@ jobs:
         ISSUE_REPORT_SENDER_EMAIL_ADDRESS: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}
         ISSUE_REPORT_SENDER_EMAIL_PASSWORD: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
         ISSUE_REPORT_RECIPIENT_EMAIL_ADDRESS: "dev@beam.apache.org"
+        SEND_PO_REPORT: "true" # Send P0 report every day
+        SEND_P1_REPORT: ${{ env.IS_WEDNESDAY }}
+        SEND_FLAKY_REPORT: ${{ env.IS_WEDNESDAY }}
