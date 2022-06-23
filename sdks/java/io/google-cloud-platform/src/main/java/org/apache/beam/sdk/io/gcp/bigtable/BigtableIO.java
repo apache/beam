@@ -32,6 +32,7 @@ import com.google.cloud.bigtable.grpc.BigtableInstanceName;
 import com.google.cloud.bigtable.grpc.async.ResourceLimiterStats;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -816,7 +817,7 @@ public class BigtableIO {
         PCollection<KV<ByteString, Iterable<Mutation>>> input) {
       bigtableConfig.validate();
 
-      return input.apply(ParDo.of(new BigtableWriterFn(bigtableConfig)));
+      return input.apply(ParDo.of(BigtableWriterFn.create(bigtableConfig)));
     }
 
     @Override
@@ -838,17 +839,25 @@ public class BigtableIO {
     }
   }
 
-  private static class BigtableWriterFn
+  @VisibleForTesting
+  static class BigtableWriterFn
       extends DoFn<KV<ByteString, Iterable<Mutation>>, BigtableWriteResult> {
 
     protected final Counter cumulativeThrottlingMilliseconds =
         Metrics.counter(BigtableWriterFn.class, "throttling-msecs");
     private static Object metricLock = new Object();
     private static long lastAggregatedThrottleTime = 0;
+    private ResourceStatsSupplier stats;
 
-    BigtableWriterFn(BigtableConfig bigtableConfig) {
+    BigtableWriterFn(BigtableConfig bigtableConfig, ResourceStatsSupplier stats) {
       this.config = bigtableConfig;
       this.failures = new ConcurrentLinkedQueue<>();
+      this.stats = stats;
+    }
+
+    public static BigtableWriterFn create(BigtableConfig bigtableConfig) {
+      return new BigtableWriterFn(bigtableConfig,
+          new ResourceStatsSupplierImpl(bigtableConfig.getProjectId().get(), bigtableConfig.getInstanceId().get()));
     }
 
     @StartBundle
@@ -876,13 +885,10 @@ public class BigtableIO {
               });
       if (config.getDataflowThrottleReporting()) {
         long delta = 0;
-        ResourceLimiterStats stats =
-            ResourceLimiterStats.getInstance(
-                new BigtableInstanceName(
-                    config.getProjectId().get(), config.getInstanceId().get()));
+        System.out.println("HERE HERE HERE! "+stats.getStats().getCumulativeThrottlingTimeNanos());
         synchronized (metricLock) {
           long newAggregratedThrottleTime =
-              TimeUnit.NANOSECONDS.toMillis(stats.getCumulativeThrottlingTimeNanos());
+              TimeUnit.NANOSECONDS.toMillis(stats.getStats().getCumulativeThrottlingTimeNanos());
           delta = newAggregratedThrottleTime - lastAggregatedThrottleTime;
           lastAggregatedThrottleTime = newAggregratedThrottleTime;
         }
@@ -1475,6 +1481,28 @@ public class BigtableIO {
       } catch (IOException e) {
         LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
       }
+    }
+  }
+
+  interface ResourceStatsSupplier extends Serializable {
+    ResourceLimiterStats getStats();
+  }
+
+  static class ResourceStatsSupplierImpl implements ResourceStatsSupplier, Serializable {
+
+    private final String project;
+    private final String instance;
+
+    ResourceStatsSupplierImpl(String project, String instance) {
+
+      this.project = project;
+      this.instance = instance;
+    }
+
+    @Override
+    public ResourceLimiterStats getStats() {
+      return ResourceLimiterStats.getInstance(
+          new BigtableInstanceName(project, instance));
     }
   }
 }

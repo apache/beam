@@ -36,6 +36,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThan;
+import static org.mockito.Matchers.any;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -55,6 +56,7 @@ import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
 import com.google.cloud.bigtable.config.RetryOptions;
+import com.google.cloud.bigtable.grpc.async.ResourceLimiterStats;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
@@ -74,6 +76,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -84,7 +87,10 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
+import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableWriterFn;
+import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.ResourceStatsSupplier;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.options.Description;
@@ -124,6 +130,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+
+import static org.mockito.Mockito.when;
 
 /** Unit tests for {@link BigtableIO}. */
 @RunWith(JUnit4.class)
@@ -131,6 +140,7 @@ public class BigtableIOTest {
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public ExpectedLogs logged = ExpectedLogs.none(BigtableIO.class);
+
 
   /** Read Options for testing. */
   public interface ReadOptions extends GcpOptions {
@@ -1576,6 +1586,53 @@ public class BigtableIOTest {
     assertTrue(write.isDataflowThrottleReportingEnabled());
   }
 
+  @Test
+  public void testWritePipelineWithDataflowThrottleReporting() {
+    // Reorient the test to make sense
+    final String table = "table";
+    final int maxInflightRpcs = 1;
+
+    BigtableOptions.Builder optionsBuilder = BIGTABLE_OPTIONS.toBuilder();
+
+    BulkOptions.Builder bulkOptionsBuilder = BulkOptions.builder();
+    bulkOptionsBuilder.setMaxInflightRpcs(maxInflightRpcs);
+
+    optionsBuilder
+        .setBulkOptions(bulkOptionsBuilder.build());
+    service.createTable(table);
+
+    BigtableIO.Write write = defaultWrite.withBigtableOptions(optionsBuilder.build())
+        .withTableId(table)
+        .withDataflowThrottleReporting();
+
+    // I need to make another config to use here so there is no NPE from the project not being set(config);
+    BigtableConfig mockConfig = BigtableConfig.builder().setProjectId(StaticValueProvider.of("project")).setInstanceId(
+            StaticValueProvider.of("instance")).setValidate(false).build();
+    //mockResourceLimiterStats = ResourceLimiterStats.getInstance(new BigtableInstanceName("project", "instance"));
+
+    final ResourceLimiterStats mockStats = new FakeResourceLimiterStats();
+    ResourceStatsSupplier mockStatsSupplier = new ResourceStatsSupplier() {
+      @Override
+      public ResourceLimiterStats getStats() {
+        return mockStats;
+      }
+    };
+
+
+    BigtableIO.BigtableWriterFn fn = new BigtableWriterFn(mockConfig, mockStatsSupplier);
+
+    //PCollection<BigtableWriteResult> results =
+    p.apply(GenerateSequence.from(0).to(10))
+        .apply("convert", ParDo.of(new WriteGeneratorDoFn()))
+        .apply("write", ParDo.of(fn));
+
+    System.out.println(write.isDataflowThrottleReportingEnabled());
+
+    PipelineResult result = p.run();
+    System.out.println(result.metrics().allMetrics().toString());
+    //Assert.assertTrue(result.metrics().allMetrics().);
+  }
+
   ////////////////////////////////////////////////////////////////////////////////////////////
   private static final String COLUMN_FAMILY_NAME = "family";
   private static final ByteString COLUMN_NAME = ByteString.copyFromUtf8("column");
@@ -1613,6 +1670,20 @@ public class BigtableIOTest {
   private static List<Row> makeTableData(String tableId, int numRows) {
     return makeTableData(service, tableId, numRows);
   }
+
+  private static class FakeResourceLimiterStats extends ResourceLimiterStats implements Serializable {
+
+    protected static final long serialVersionUID = 1L;
+
+    FakeResourceLimiterStats() {
+    }
+
+    @Override
+    public long getCumulativeThrottlingTimeNanos() {
+      return 1000;
+    }
+  }
+
 
   /** A {@link BigtableService} implementation that stores tables and their contents in memory. */
   private static class FakeBigtableService implements BigtableService {
