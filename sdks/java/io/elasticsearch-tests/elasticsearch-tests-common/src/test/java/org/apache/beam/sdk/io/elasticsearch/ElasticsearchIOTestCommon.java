@@ -99,6 +99,7 @@ import org.hamcrest.TypeSafeMatcher;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -665,8 +666,8 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   /**
    * Tests that documents are dynamically routed to different types and not the type that is given
-   * in the configuration. Documents should be routed to the a type of type_0 or type_1 using a
-   * modulo approach of the explicit id.
+   * in the configuration. Documents should be routed to a type of type_0 or type_1 using a modulo
+   * approach of the explicit id.
    *
    * <p>This test does not work with ES 6 because ES 6 does not allow one mapping has more than 1
    * type
@@ -1228,5 +1229,17 @@ class ElasticsearchIOTestCommon implements Serializable {
     // Check if documents are deleted as expected
     assertEquals(numDocs / 2, currentNumDocs);
     assertEquals(0, countByScientistName(connectionConfiguration, restClient, "Darwin", null));
+  }
+
+  void testValidSSLAndUsernameConfiguration(String filePath) throws Exception {
+    ConnectionConfiguration configWithSsl =
+        connectionConfiguration
+            .withUsername("username")
+            .withPassword("password")
+            .withKeystorePassword("qwerty")
+            .withKeystorePath(filePath);
+
+    RestClient restClient = configWithSsl.createClient();
+    Assert.assertNotNull("rest client should not be null", restClient);
   }
 }

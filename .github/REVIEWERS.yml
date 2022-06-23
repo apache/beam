@@ -26,4 +26,14 @@ labels:
       - youngoli
       - riteshghorse
     exclusionList: []
+  - name: Python
+    reviewers:
+      - AnandInguva
+      - yeandy
+      - TheNeuralBit
+      - ryanthompson591
+      - tvalentyn
+      - pabloem
+      - y1chi
+    exclusionList: []
 fallbackReviewers: []

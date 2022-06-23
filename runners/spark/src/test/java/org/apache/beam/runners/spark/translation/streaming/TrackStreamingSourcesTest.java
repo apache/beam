@@ -52,7 +52,7 @@ import org.junit.Test;
  * org.apache.beam.runners.spark.translation.streaming.UnboundedDataset}.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class TrackStreamingSourcesTest {
 

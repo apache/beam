@@ -26,7 +26,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class JsonArrayCoder extends CustomCoder<JsonArray> {
   private static final JsonArrayCoder CODER = new JsonArrayCoder();

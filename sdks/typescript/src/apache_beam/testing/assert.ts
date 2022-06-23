@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import * as beam from "../../apache_beam";
-import { globalWindows } from "../../apache_beam/transforms/windowings";
+import * as beam from "../index";
+import { globalWindows } from "../transforms/windowings";
 import * as internal from "../transforms/internal";
 
 import * as assert from "assert";
@@ -35,8 +35,12 @@ export function assertDeepEqual<T>(
     pcoll.apply(
       assertContentsSatisfies((actual: T[]) => {
         const actualArray: T[] = [...actual];
-        expected.sort();
-        actualArray.sort();
+        expected.sort((a, b) =>
+          JSON.stringify(a) < JSON.stringify(b) ? -1 : 1
+        );
+        actualArray.sort((a, b) =>
+          JSON.stringify(a) < JSON.stringify(b) ? -1 : 1
+        );
         callAssertDeepEqual(actualArray, expected);
       })
     );

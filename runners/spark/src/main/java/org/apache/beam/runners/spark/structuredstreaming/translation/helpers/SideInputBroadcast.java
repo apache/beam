@@ -25,7 +25,7 @@ import org.apache.spark.broadcast.Broadcast;
 
 /** Broadcast helper for side inputs. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SideInputBroadcast implements Serializable {
 

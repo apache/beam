@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
  * HasDisplayData#populateDisplayData(DisplayData.Builder)} during pipeline construction.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class DisplayDataValidator {
   // Do not instantiate

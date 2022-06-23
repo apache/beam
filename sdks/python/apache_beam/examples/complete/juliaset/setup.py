@@ -69,9 +69,9 @@ class build(_build):  # pylint: disable=invalid-name
 #
 #     ['pip', 'install', 'my_package'],
 #
-# TODO(BEAM-3237): Output from the custom commands are missing from the logs.
-# The output of custom commands (including failures) will be logged in the
-# worker-startup log.
+# TODO(https://github.com/apache/beam/issues/18568): Output from the custom
+# commands are missing from the logs. The output of custom commands (including
+# failures) will be logged in the worker-startup log.
 CUSTOM_COMMANDS = [['echo', 'Custom command worked!']]
 
 

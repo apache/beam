@@ -57,7 +57,6 @@ List<String> packagesToRelocate = [
         "org.apiguardian.api",
         "org.codehaus",
         "org.objectweb",
-        "org.pentaho",
         "org.yaml",
 ]
 

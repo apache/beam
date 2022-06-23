@@ -32,7 +32,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * objects, creating a schema that matches that inferred by the AVRO libraries.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class AvroRecordSchema extends GetterBasedSchemaProvider {
   @Override

@@ -57,7 +57,8 @@ class PlaygroundPageProviders extends StatelessWidget {
               return PlaygroundState(codeRepository: kCodeRepository);
             }
 
-            if (playground.selectedExample == null) {
+            if (playground.selectedExample == null &&
+                !Uri.base.toString().contains(kIsEmbedded)) {
               final newPlayground = PlaygroundState(
                 codeRepository: kCodeRepository,
                 sdk: playground.sdk,

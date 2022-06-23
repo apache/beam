@@ -33,5 +33,9 @@ public interface FieldValueGetter<ObjectT, ValueT> extends Serializable {
   @Nullable
   ValueT get(ObjectT object);
 
+  default @Nullable Object getRaw(ObjectT object) {
+    return get(object);
+  }
+
   String name();
 }
