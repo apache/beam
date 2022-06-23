@@ -52,6 +52,7 @@ public class MappingUtils {
       return Plugin.create(
           pluginClass, ServiceNowInputFormat.class, SourceInputFormatProvider.class);
     }
-    throw new UnsupportedOperationException("Given plugin class is not supported!");
+    throw new UnsupportedOperationException(
+        String.format("Given plugin class '%s' is not supported!", pluginClass.getName()));
   }
 }
