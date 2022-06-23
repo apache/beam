@@ -45,7 +45,7 @@ export class MultiplexingDataChannel {
     );
     this.dataChannel = this.dataClient.data(metadata);
     this.dataChannel.on("data", async (elements) => {
-      console.log("data", elements);
+      console.debug("data", elements);
       for (const data of elements.data) {
         const consumer = this.getConsumer(data.instructionId, data.transformId);
         try {

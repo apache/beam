@@ -34,7 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An identifier which represents a S3Object resource. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class S3ResourceId implements ResourceId {
 

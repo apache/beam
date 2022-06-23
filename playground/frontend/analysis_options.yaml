@@ -28,7 +28,12 @@ include: package:flutter_lints/flutter.yaml
 
 # exclude generated files
 analyzer:
-  exclude: [lib/api/**, test/**.mocks.dart, lib/**.g.dart, lib/l10n/**.arb, build/**]
+  exclude:
+    - build/**
+    - lib/**.g.dart
+    - lib/api/**
+    - lib/l10n/**.arb
+    - test/**.mocks.dart
 
 linter:
   # The lint rules applied to this project can be customized in the
@@ -43,10 +48,65 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
+    # Turn on those off by default:
+    always_put_control_body_on_new_line: true
+    avoid_bool_literals_in_conditional_expressions: true
+    avoid_catching_errors: true
+    avoid_double_and_int_checks: true
+    avoid_dynamic_calls: true
+    avoid_field_initializers_in_const_classes: true
+    avoid_implementing_value_types: true
+    avoid_js_rounded_ints: true
+    avoid_multiple_declarations_per_line: true
+    avoid_private_typedef_functions: true
+    avoid_returning_null_for_future: true
+    avoid_returning_this: true
+    avoid_setters_without_getters: true
+    avoid_slow_async_io: true
+    avoid_type_to_string: true
+    avoid_unused_constructor_parameters: true
+    cancel_subscriptions: true
+    close_sinks: true
+    comment_references: true
+    conditional_uri_does_not_exist: true
+    deprecated_consistency: true
+    do_not_use_environment: true
     eol_at_end_of_file: true
+    invariant_booleans: true
+    leading_newlines_in_multiline_strings: true
+    literal_only_boolean_expressions: true
+    no_runtimeType_toString: true
+    noop_primitive_operations: true
+    one_member_abstracts: true
+    only_throw_errors: true
+    package_api_docs: true
+    parameter_assignments: true
+    prefer_asserts_in_initializer_lists: true
+    prefer_single_quotes: true
+    secure_pubspec_urls: true
+    sized_box_shrink_expand: true
+    sort_pub_dependencies: true
+    sort_unnamed_constructors_first: true
+    test_types_in_equals: true
+    tighten_type_of_initializing_formals: true
+    unnecessary_await_in_return: true
+    unnecessary_null_aware_operator_on_extension_on_nullable: true
+    unnecessary_null_checks: true
+    unnecessary_parenthesis: true
+    unnecessary_statements: true
+    unnecessary_to_list_in_spreads: true
+    unsafe_html: true
+    use_enums: true
+    use_if_null_to_convert_nulls_to_bools: true
+    use_is_even_rather_than_modulo: true
+    use_raw_strings: true
+    use_setters_to_change_properties: true
+    use_to_and_as_if_applicable: true
+
+    #Turn off those on by default:
     avoid_web_libraries_in_flutter: false
-    avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    avoid_print: false
+    prefer_interpolation_to_compose_strings: false
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

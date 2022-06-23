@@ -50,7 +50,7 @@ import org.joda.time.Instant;
  * {@link #put} and {@link #flush}. {@link #shrink} may be called from any thread.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @NotThreadSafe
 public class PrecombineGroupingTable<K, InputT, AccumT>
@@ -508,7 +508,7 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
      * The degree of confidence required in our expected value predictions before we allow
      * under-sampling.
      *
-     * <p>The value of 3.0 is a confidence interval of about 99.7% for a a high-degree-of-freedom
+     * <p>The value of 3.0 is a confidence interval of about 99.7% for a high-degree-of-freedom
      * t-distribution.
      */
     static final double CONFIDENCE_INTERVAL_SIGMA = 3;

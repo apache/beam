@@ -38,7 +38,7 @@ import org.junit.Assert;
 
 /** A direct implementation of {@link Query4}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Query4Model extends NexmarkQueryModel<CategoryPrice> implements Serializable {
   /** Simulator for query 4. */

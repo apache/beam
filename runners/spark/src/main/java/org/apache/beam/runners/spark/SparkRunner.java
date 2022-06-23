@@ -90,7 +90,7 @@ import org.slf4j.LoggerFactory;
  * SparkPipelineResult result = (SparkPipelineResult) p.run(); }
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
@@ -156,7 +156,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     detectTranslationMode(pipeline);
 
     // Default to using the primitive versions of Read.Bounded and Read.Unbounded.
-    // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
+    // TODO(https://github.com/apache/beam/issues/20530): Use SDF read as default when we address
+    // performance issue.
     if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }

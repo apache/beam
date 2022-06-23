@@ -38,7 +38,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<PlaygroundState>(builder: (context, state, child) {
       if (state.result?.errorMessage?.isNotEmpty ?? false) {
-        WidgetsBinding.instance?.addPostFrameCallback((_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
           _handleError(context, state);
         });
       }

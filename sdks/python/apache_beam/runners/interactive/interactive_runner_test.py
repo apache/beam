@@ -33,6 +33,7 @@ from apache_beam.dataframe.convert import to_dataframe
 from apache_beam.options.pipeline_options import FlinkRunnerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
@@ -490,7 +491,7 @@ class InteractiveRunnerTest(unittest.TestCase):
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
 @isolated_env
-class TuneForFlinkTest(unittest.TestCase):
+class ConfigForFlinkTest(unittest.TestCase):
   def test_create_a_new_cluster_for_a_new_pipeline(self):
     clusters = self.current_env.clusters
     runner = interactive_runner.InteractiveRunner(
@@ -582,6 +583,51 @@ class TuneForFlinkTest(unittest.TestCase):
     # The pipeline options is tuned for execution on the cluster.
     flink_options = options.view_as(FlinkRunnerOptions)
     self.assertEqual(flink_options.flink_master, tuned_meta.master_url)
+    self.assertEqual(
+        flink_options.flink_version, clusters.DATAPROC_FLINK_VERSION)
+
+  def test_worker_options_to_cluster_metadata(self):
+    clusters = self.current_env.clusters
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    options = PipelineOptions(project='test-project', region='test-region')
+    worker_options = options.view_as(WorkerOptions)
+    worker_options.num_workers = 2
+    worker_options.subnetwork = 'test-network'
+    worker_options.machine_type = 'test-machine-type'
+    p = beam.Pipeline(runner=runner, options=options)
+    runner.configure_for_flink(p, options)
+
+    configured_meta = clusters.cluster_metadata(p)
+    self.assertEqual(configured_meta.num_workers, worker_options.num_workers)
+    self.assertEqual(configured_meta.subnetwork, worker_options.subnetwork)
+    self.assertEqual(configured_meta.machine_type, worker_options.machine_type)
+
+  def test_configure_flink_options(self):
+    clusters = self.current_env.clusters
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    options = PipelineOptions(project='test-project', region='test-region')
+    p = beam.Pipeline(runner=runner, options=options)
+    runner.configure_for_flink(p, options)
+
+    flink_options = options.view_as(FlinkRunnerOptions)
+    self.assertEqual(
+        flink_options.flink_version, clusters.DATAPROC_FLINK_VERSION)
+    self.assertTrue(flink_options.flink_master.startswith('test-url-'))
+
+  def test_configure_flink_options_with_flink_version_overridden(self):
+    clusters = self.current_env.clusters
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    options = PipelineOptions(project='test-project', region='test-region')
+    flink_options = options.view_as(FlinkRunnerOptions)
+    flink_options.flink_version = 'test-version'
+    p = beam.Pipeline(runner=runner, options=options)
+    runner.configure_for_flink(p, options)
+
+    # The version is overridden to the flink version used by the EMR solution,
+    # currently only 1: Cloud Dataproc.
     self.assertEqual(
         flink_options.flink_version, clusters.DATAPROC_FLINK_VERSION)
 

@@ -183,13 +183,15 @@ class Timestamp(object):
     """
 
     if timestamp_proto.nanos % 1000 != 0:
-      # TODO(BEAM-8738): Better define timestamps.
+      # TODO(https://github.com/apache/beam/issues/19922): Better define
+      # timestamps.
       raise ValueError(
           "Cannot convert from nanoseconds to microseconds " +
           "because this loses precision. Please make sure that " +
           "this is the correct behavior you want and manually " +
           "truncate the precision to the nearest microseconds. " +
-          "See [BEAM-8738] for more information.")
+          "See [https://github.com/apache/beam/issues/19922] for " +
+          "more information.")
 
     return Timestamp(
         seconds=timestamp_proto.seconds, micros=timestamp_proto.nanos // 1000)
@@ -331,13 +333,15 @@ class Duration(object):
     """
 
     if duration_proto.nanos % 1000 != 0:
-      # TODO(BEAM-8738): Better define durations.
+      # TODO(https://github.com/apache/beam/issues/19922): Better define
+      # durations.
       raise ValueError(
           "Cannot convert from nanoseconds to microseconds " +
           "because this loses precision. Please make sure that " +
           "this is the correct behavior you want and manually " +
           "truncate the precision to the nearest microseconds. " +
-          "See [BEAM-8738] for more information.")
+          "See [https://github.com/apache/beam/issues/19922] for " +
+          "more information.")
 
     return Duration(
         seconds=duration_proto.seconds, micros=duration_proto.nanos // 1000)

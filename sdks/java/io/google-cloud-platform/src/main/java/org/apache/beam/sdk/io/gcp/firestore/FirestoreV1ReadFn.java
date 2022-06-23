@@ -454,7 +454,7 @@ final class FirestoreV1ReadFn {
     // errorchecker doesn't like the second ? on PagedResponse, seemingly because of different
     // recursion depth limits; 3 on the found vs 4 on the required.
     // The second ? is the type of collection the paged response uses to hold all responses if
-    // trying to expand all pages to a single collection. We are emitting a single page at at time
+    // trying to expand all pages to a single collection. We are emitting a single page at a time
     // while tracking read progress so we can resume if an error has occurred and we still have
     // attempt budget available.
     "type.argument.type.incompatible"

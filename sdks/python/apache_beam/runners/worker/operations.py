@@ -329,8 +329,8 @@ class GeneralPurposeConsumerSet(ConsumerSet):
       if len(self._batched_elements) >= self.MAX_BATCH_SIZE:
         self.flush()
 
-    # TODO(BEAM-14408): Properly estimate sizes in the batch-consumer only case,
-    # this undercounts large iterables
+    # TODO(https://github.com/apache/beam/issues/21655): Properly estimate
+    # sizes in the batch-consumer only case, this undercounts large iterables
     self.update_counters_finish()
 
   def receive_batch(self, windowed_batch):
@@ -888,8 +888,8 @@ class DoOperation(Operation):
       self.dofn_runner.start()
 
   def get_batching_preference(self):
-    if self.fn.process_batch_defined:
-      if self.fn.process_defined:
+    if self.fn._process_batch_defined:
+      if self.fn._process_defined:
         return common.BatchingPreference.DO_NOT_CARE
       else:
         return common.BatchingPreference.BATCH_REQUIRED

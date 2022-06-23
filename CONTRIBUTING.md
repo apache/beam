@@ -23,7 +23,7 @@
 [Beam contribution guide](https://beam.apache.org/contribute/).
 It lists steps that are required before creating a PR. In particular, consider
 
-- Have you searched for existing, related JIRAs and pull requests?
-- Have you shared your intent by creating an issue in JIRA and self-assigned?
+- Have you searched for existing, related Issues and pull requests?
+- Have you shared your intent by creating an issue and commenting that you plan to take it on?
 - If the change is large, have you discussed it on the dev@ mailing list?
 - Is the change being proposed clearly explained and motivated?

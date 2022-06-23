@@ -35,7 +35,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
@@ -54,25 +53,27 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNotification;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({"nullness", "FutureReturnValueIgnored"})
 /**
  * Write records to the Storage API using a standard batch approach. PENDING streams are used, which
  * do not become visible until they are finalized and committed. Each input bundle to the DoFn
  * creates a stream per output table, appends all records in the bundle to the stream, and schedules
  * a finalize/commit operation at the end.
  */
+@SuppressWarnings({"FutureReturnValueIgnored"})
 public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, StorageApiWritePayload>>, PCollection<Void>> {
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiWriteUnshardedRecords.class);
@@ -93,7 +94,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           .removalListener(
               (RemovalNotification<String, StreamAppendClient> removal) -> {
                 LOG.info("Expiring append client for " + removal.getKey());
-                @Nullable final StreamAppendClient streamAppendClient = removal.getValue();
+                final @Nullable StreamAppendClient streamAppendClient = removal.getValue();
                 // Close the writer in a different thread so as not to block the main one.
                 runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::close);
               })
@@ -151,7 +152,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         .apply("Finalize writes", ParDo.of(new StorageApiFinalizeWritesDoFn(bqServices)));
   }
 
-  static class WriteRecordsDoFn<DestinationT, ElementT>
+  static class WriteRecordsDoFn<DestinationT extends @NonNull Object, ElementT>
       extends DoFn<KV<DestinationT, StorageApiWritePayload>, KV<String, String>> {
     private final Counter forcedFlushes = Metrics.counter(WriteRecordsDoFn.class, "forcedFlushes");
 
@@ -162,7 +163,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private @Nullable StreamAppendClient streamAppendClient = null;
       private long currentOffset = 0;
       private List<ByteString> pendingMessages;
-      private transient @Nullable DatasetService datasetService;
+      private transient @Nullable DatasetService maybeDatasetService;
       private final Counter recordsAppended =
           Metrics.counter(WriteRecordsDoFn.class, "recordsAppended");
       private final Counter appendFailures =
@@ -173,7 +174,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           Metrics.distribution(WriteRecordsDoFn.class, "streamWriterWaitSeconds");
       private final boolean useDefaultStream;
       private DescriptorWrapper descriptorWrapper;
-      private Instant nextCacheTickle;
+      private Instant nextCacheTickle = Instant.MAX;
       private final int clientNumber;
 
       public DestinationState(
@@ -185,7 +186,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.tableUrn = tableUrn;
         this.messageConverter = messageConverter;
         this.pendingMessages = Lists.newArrayList();
-        this.datasetService = datasetService;
+        this.maybeDatasetService = datasetService;
         this.useDefaultStream = useDefaultStream;
         this.descriptorWrapper = messageConverter.getSchemaDescriptor();
         this.clientNumber = new Random().nextInt(streamAppendClientCount);
@@ -214,7 +215,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         try {
           if (!useDefaultStream) {
             this.streamName =
-                Preconditions.checkNotNull(datasetService)
+                Preconditions.checkStateNotNull(maybeDatasetService)
                     .createWriteStream(tableUrn, Type.PENDING)
                     .getName();
           } else {
@@ -227,27 +228,30 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
 
       StreamAppendClient generateClient() throws Exception {
-        return datasetService.getStreamAppendClient(streamName, descriptorWrapper.descriptor);
+        Preconditions.checkStateNotNull(maybeDatasetService);
+        return maybeDatasetService.getStreamAppendClient(streamName, descriptorWrapper.descriptor);
       }
 
       StreamAppendClient getStreamAppendClient(boolean lookupCache) {
         try {
-          if (streamAppendClient == null) {
+          if (this.streamAppendClient == null) {
             createStreamIfNeeded();
+            final StreamAppendClient newStreamAppendClient;
             synchronized (APPEND_CLIENTS) {
               if (lookupCache) {
-                this.streamAppendClient =
+                newStreamAppendClient =
                     APPEND_CLIENTS.get(
                         getStreamAppendClientCacheEntryKey(), () -> generateClient());
               } else {
-                this.streamAppendClient = generateClient();
+                newStreamAppendClient = generateClient();
                 // override the clients in the cache
-                APPEND_CLIENTS.put(getStreamAppendClientCacheEntryKey(), streamAppendClient);
+                APPEND_CLIENTS.put(getStreamAppendClientCacheEntryKey(), newStreamAppendClient);
               }
-              this.streamAppendClient.pin();
+              newStreamAppendClient.pin();
             }
             this.currentOffset = 0;
             nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
+            this.streamAppendClient = newStreamAppendClient;
           }
           return streamAppendClient;
         } catch (Exception e) {
@@ -317,7 +321,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         pendingMessages.add(ByteString.copyFrom(payload.getPayload()));
       }
 
-      @SuppressWarnings({"nullness"})
       void flush(RetryManager<AppendRowsResponse, Context<AppendRowsResponse>> retryManager)
           throws Exception {
         if (pendingMessages.isEmpty()) {
@@ -369,12 +372,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       String retrieveErrorDetails(Iterable<Context<AppendRowsResponse>> contexts) {
         return StreamSupport.stream(contexts.spliterator(), false)
-            .map(ctx -> ctx.getError())
+            .map(ctx -> Preconditions.checkStateNotNull(ctx.getError()))
             .map(
                 err ->
                     String.format(
                         "message: %s, stacktrace: %s",
-                        err.toString(),
+                        err,
                         Lists.newArrayList(err.getStackTrace()).stream()
                             .map(se -> se.toString())
                             .collect(Collectors.joining("\n"))))
@@ -382,9 +385,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
     }
 
-    private Map<DestinationT, DestinationState> destinations = Maps.newHashMap();
+    private @Nullable Map<DestinationT, DestinationState> destinations = Maps.newHashMap();
     private final TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
-    private transient @Nullable DatasetService datasetService;
+    private transient @Nullable DatasetService maybeDatasetService;
     private int numPendingRecords = 0;
     private int numPendingRecordBytes = 0;
     private final int flushThresholdBytes;
@@ -429,6 +432,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       RetryManager<AppendRowsResponse, RetryManager.Operation.Context<AppendRowsResponse>>
           retryManager =
               new RetryManager<>(Duration.standardSeconds(1), Duration.standardSeconds(10), 1000);
+      Preconditions.checkStateNotNull(destinations);
       for (DestinationState destinationState : destinations.values()) {
         destinationState.flush(retryManager);
       }
@@ -437,10 +441,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       numPendingRecordBytes = 0;
     }
 
-    private void initializeDatasetService(PipelineOptions pipelineOptions) {
-      if (datasetService == null) {
-        datasetService = bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
+    private DatasetService initializeDatasetService(PipelineOptions pipelineOptions) {
+      if (maybeDatasetService == null) {
+        maybeDatasetService =
+            bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
       }
+      return maybeDatasetService;
     }
 
     @StartBundle
@@ -479,11 +485,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         PipelineOptions pipelineOptions,
         @Element KV<DestinationT, StorageApiWritePayload> element)
         throws Exception {
-      initializeDatasetService(pipelineOptions);
+      DatasetService initializedDatasetService = initializeDatasetService(pipelineOptions);
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
+      Preconditions.checkStateNotNull(destinations);
       DestinationState state =
           destinations.computeIfAbsent(
-              element.getKey(), k -> createDestinationState(c, k, datasetService));
+              element.getKey(), k -> createDestinationState(c, k, initializedDatasetService));
       flushIfNecessary();
       state.addMessage(element.getValue());
       ++numPendingRecords;
@@ -493,6 +500,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     @FinishBundle
     public void finishBundle(FinishBundleContext context) throws Exception {
       flushAll();
+      final Map<DestinationT, DestinationState> destinations =
+          Preconditions.checkStateNotNull(this.destinations);
       for (DestinationState state : destinations.values()) {
         if (!useDefaultStream) {
           context.output(
@@ -503,16 +512,16 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         state.teardown();
       }
       destinations.clear();
-      destinations = null;
+      this.destinations = null;
     }
 
     @Teardown
     public void teardown() {
       destinations = null;
       try {
-        if (datasetService != null) {
-          datasetService.close();
-          datasetService = null;
+        if (maybeDatasetService != null) {
+          maybeDatasetService.close();
+          maybeDatasetService = null;
         }
       } catch (Exception e) {
         throw new RuntimeException(e);

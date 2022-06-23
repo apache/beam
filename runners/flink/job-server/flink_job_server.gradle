@@ -193,17 +193,17 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean checkpoi
         excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
     },
     testFilter: {
-      // TODO(BEAM-10016)
+      // TODO(https://github.com/apache/beam/issues/20269)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
-      // TODO(BEAM-12039)
+      // TODO(https://github.com/apache/beam/issues/20843)
       excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testDiscardingMode'
-      // TODO(BEAM-12038)
+      // TODO(https://github.com/apache/beam/issues/20844)
       excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
       // TODO(BEAM-12710)
       excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
       // TODO(BEAM-13498)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew'
-      // TODO(BEAM-13952)
+      // TODO(https://github.com/apache/beam/issues/21472)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState'
     },
   )

@@ -40,7 +40,7 @@ import org.joda.time.Instant;
 
 /** Stub for communicating with a Windmill server. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class WindmillServerStub implements StatusDataProvider {
 

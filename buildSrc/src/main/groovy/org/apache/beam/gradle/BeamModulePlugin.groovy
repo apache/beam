@@ -356,7 +356,22 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   def isRelease(Project project) {
-    return project.hasProperty('isRelease')
+    return parseBooleanProperty(project, 'isRelease');
+  }
+
+  /**
+   * Parses -Pprop as true for use as a flag, and otherwise uses Groovy's toBoolean
+   */
+  def parseBooleanProperty(Project project, String property) {
+    if (!project.hasProperty(property)) {
+      return false;
+    }
+
+    if (project.getProperty(property) == "") {
+      return true;
+    }
+
+    return project.getProperty(property).toBoolean();
   }
 
   def defaultArchivesBaseName(Project p) {
@@ -372,7 +387,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.40.0'
+    project.version = '2.41.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -649,6 +664,7 @@ class BeamModulePlugin implements Plugin<Project> {
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         mockito_core                                : "org.mockito:mockito-core:3.7.7",
+        mockito_inline                              : "org.mockito:mockito-inline:4.5.1",
         mongo_java_driver                           : "org.mongodb:mongo-java-driver:3.12.10",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_all                                   : "io.netty:netty-all:$netty_version",
@@ -929,7 +945,7 @@ class BeamModulePlugin implements Plugin<Project> {
           'org.checkerframework.checker.nullness.NullnessChecker'
         ]
 
-        if (project.findProperty('enableCheckerFramework') || project.jenkins.isCIBuild) {
+        if (parseBooleanProperty(project, 'enableCheckerFramework') || project.jenkins.isCIBuild) {
           skipCheckerFramework = false
         } else {
           skipCheckerFramework = true
@@ -1153,7 +1169,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.disableWarningsInGeneratedCode = true
         options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
 
-        // TODO(BEAM-11936): Enable errorprone checks
+        // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
         options.errorprone.errorproneArgs.add("-Xep:AutoValueImmutableFields:OFF")
         options.errorprone.errorproneArgs.add("-Xep:AutoValueSubclassLeaked:OFF")
         options.errorprone.errorproneArgs.add("-Xep:BadImport:OFF")
@@ -1300,7 +1316,7 @@ class BeamModulePlugin implements Plugin<Project> {
           exclude "META-INF/*.RSA"
         } << configuration.shadowClosure)
 
-        // Ensure that shaded jar and test-jar are part of the their own configuration artifact sets
+        // Ensure that shaded jar and test-jar are part of their own configuration artifact sets
         project.artifacts.shadow project.shadowJar
         project.artifacts.shadowTest project.shadowTestJar
 
@@ -1548,8 +1564,8 @@ class BeamModulePlugin implements Plugin<Project> {
                   url = "https://gitbox.apache.org/repos/asf?p=beam.git;a=summary"
                 }
                 issueManagement {
-                  system = "jira"
-                  url = "https://issues.apache.org/jira/browse/BEAM"
+                  system = "github"
+                  url = "https://github.com/apache/beam/issues"
                 }
                 mailingLists {
                   mailingList {

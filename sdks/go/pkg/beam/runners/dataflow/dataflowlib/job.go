@@ -66,12 +66,17 @@ type JobOptions struct {
 	FlexRSGoal          string
 	EnableHotKeyLogging bool
 
+	// Streaming update settings
+	Update               bool
+	TransformNameMapping map[string]string
+
 	// Autoscaling settings
 	Algorithm            string
 	MaxNumWorkers        int64
 	WorkerHarnessThreads int64
 
-	TempLocation string
+	TempLocation     string
+	TemplateLocation string
 
 	// Worker is the worker binary override.
 	Worker string
@@ -208,8 +213,9 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			TempStoragePrefix: opts.TempLocation,
 			Experiments:       experiments,
 		},
-		Labels: opts.Labels,
-		Steps:  steps,
+		Labels:               opts.Labels,
+		TransformNameMapping: opts.TransformNameMapping,
+		Steps:                steps,
 	}
 
 	workerPool := job.Environment.WorkerPools[0]
@@ -238,7 +244,14 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 }
 
 // Submit submits a prepared job to Cloud Dataflow.
-func Submit(ctx context.Context, client *df.Service, project, region string, job *df.Job) (*df.Job, error) {
+func Submit(ctx context.Context, client *df.Service, project, region string, job *df.Job, updateJob bool) (*df.Job, error) {
+	if updateJob {
+		runningJob, err := GetRunningJobByName(client, project, region, job.Name)
+		if err != nil {
+			return nil, err
+		}
+		job.ReplaceJobId = runningJob.Id
+	}
 	upd, err := client.Projects.Locations.Jobs.Create(project, region, job).Do()
 	if err == nil {
 		log.Infof(ctx, "Submitted job: %v", upd.Id)

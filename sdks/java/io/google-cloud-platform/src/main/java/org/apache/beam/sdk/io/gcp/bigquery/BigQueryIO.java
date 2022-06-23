@@ -40,6 +40,10 @@ import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.ReadStream;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -466,7 +470,7 @@ import org.slf4j.LoggerFactory;
  * here</a>.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20506)
 })
 public class BigQueryIO {
 
@@ -477,7 +481,7 @@ public class BigQueryIO {
    * <ul>
    *   <li>{@code TYPE} represents the BigQuery job type (e.g. extract / copy / load / query)
    *   <li>{@code JOB_ID} is the Beam job name.
-   *   <li>{@code STEP} is a UUID representing the the Dataflow step that created the BQ job.
+   *   <li>{@code STEP} is a UUID representing the Dataflow step that created the BQ job.
    *   <li>{@code RANDOM} is a random string.
    * </ul>
    *
@@ -1262,7 +1266,7 @@ public class BigQueryIO {
       // table for the query to read the data and subsequently delete the table and dataset. Once
       // the storage API can handle anonymous tables, the storage source should be modified to use
       // anonymous tables and all of the code related to job ID generation and table and dataset
-      // cleanup can be removed. [BEAM-6931]
+      // cleanup can be removed. [https://github.com/apache/beam/issues/19375]
       //
 
       PCollectionView<String> jobIdTokenView;
@@ -2921,12 +2925,12 @@ public class BigQueryIO {
               "useAvroLogicalTypes can only be set with Avro output.");
         }
 
+        // Batch load jobs currently support JSON data insertion only with CSV files
         if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
-          // Batch load jobs currently support JSON data insertion only with CSV files
-          checkArgument(
-              !getJsonSchema().get().contains("JSON"),
-              "Found JSON type in TableSchema. JSON data insertion is currently "
-                  + "not supported with batch loads.");
+          JsonElement schema = JsonParser.parseString(getJsonSchema().get());
+          if (!schema.getAsJsonObject().keySet().isEmpty()) {
+            validateNoJsonTypeInSchema(schema);
+          }
         }
 
         BatchLoads<DestinationT, T> batchLoads =
@@ -3006,6 +3010,30 @@ public class BigQueryIO {
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);
+      }
+    }
+
+    private void validateNoJsonTypeInSchema(JsonElement schema) {
+      JsonElement fields = schema.getAsJsonObject().get("fields");
+      if (!fields.isJsonArray() || fields.getAsJsonArray().isEmpty()) {
+        return;
+      }
+
+      JsonArray fieldArray = fields.getAsJsonArray();
+
+      for (int i = 0; i < fieldArray.size(); i++) {
+        JsonObject field = fieldArray.get(i).getAsJsonObject();
+        checkArgument(
+            !field.get("type").getAsString().equals("JSON"),
+            "Found JSON type in TableSchema. JSON data insertion is currently "
+                + "not supported with 'FILE_LOADS' write method. This is supported with the "
+                + "other write methods, however. For more information, visit: "
+                + "https://cloud.google.com/bigquery/docs/reference/standard-sql/"
+                + "json-data#ingest_json_data");
+
+        if (field.get("type").getAsString().equals("STRUCT")) {
+          validateNoJsonTypeInSchema(field);
+        }
       }
     }
 

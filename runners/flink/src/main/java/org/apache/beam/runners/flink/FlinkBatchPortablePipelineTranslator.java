@@ -112,10 +112,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * full not-yet-executed pipeline DAG corresponding to the input pipeline.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "keyfor",
   "nullness"
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class FlinkBatchPortablePipelineTranslator
     implements FlinkPortablePipelineTranslator<
         FlinkBatchPortablePipelineTranslator.BatchTranslationContext> {

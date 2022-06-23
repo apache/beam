@@ -286,13 +286,13 @@ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
     --args="--inputFile=sample.txt --output=counts"
 {{< /runner >}}
 {{< runner flink>}}
-TODO: document Flink on Gradle: https://issues.apache.org/jira/browse/BEAM-14057
+TODO: document Flink on Gradle: https://github.com/apache/beam/issues/21498
 {{< /runner >}}
 {{< runner flinkCluster>}}
-TODO: document FlinkCluster on Gradle: https://issues.apache.org/jira/browse/BEAM-14060
+TODO: document FlinkCluster on Gradle: https://github.com/apache/beam/issues/21499
 {{< /runner >}}
 {{< runner spark >}}
-TODO: document Spark on Gradle: https://issues.apache.org/jira/browse/BEAM-14063
+TODO: document Spark on Gradle: https://github.com/apache/beam/issues/21502
 {{< /runner >}}
 {{< runner dataflow >}}
 gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
@@ -300,13 +300,13 @@ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
     --output=gs://<your-gcs-bucket>/counts" -Pdataflow-runner
 {{< /runner >}}
 {{< runner samza>}}
-TODO: document Samza on Gradle: https://issues.apache.org/jira/browse/BEAM-14061
+TODO: document Samza on Gradle: https://github.com/apache/beam/issues/21500
 {{< /runner >}}
 {{< runner nemo>}}
-TODO: document Nemo on Gradle: https://issues.apache.org/jira/browse/BEAM-14058
+TODO: document Nemo on Gradle: https://github.com/apache/beam/issues/21503
 {{< /runner >}}
 {{< runner jet>}}
-TODO: document Jet on Gradle: https://issues.apache.org/jira/browse/BEAM-14062
+TODO: document Jet on Gradle: https://github.com/apache/beam/issues/21501
 {{< /runner >}}
 
 ## Inspect the results
