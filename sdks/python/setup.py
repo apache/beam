@@ -260,7 +260,7 @@ if __name__ == '__main__':
           ],
           'gcp': [
             'cachetools>=3.1.0,<5',
-            'google-apitools>=0.5.31,<0.5.32',
+            'google-apitools>=0.5.31,<0.5.33',
             # NOTE: Maintainers, please do not require google-auth>=2.x.x
             # Until this issue is closed
             # https://github.com/googleapis/google-cloud-python/issues/10566
