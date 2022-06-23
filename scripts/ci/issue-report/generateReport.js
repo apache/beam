@@ -25,7 +25,7 @@ function sendReport(title, header, issues) {
     }
     let report = header + "\n\n"
     for (const issue of issues) {
-        report += `${issue.url}: ${issue.title}\n`;
+        report += `${issue.html_url}: ${issue.title}\n`;
     }
       
       nodemailer.createTransport({
