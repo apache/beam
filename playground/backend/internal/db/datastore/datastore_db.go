@@ -140,6 +140,7 @@ func (d *Datastore) GetFiles(ctx context.Context, parentId string) ([]*entity.Fi
 		}
 		if err != nil {
 			logger.Errorf("Datastore: GetFiles(): error during file getting, err: %s\n", err.Error())
+			return nil, err
 		}
 		files = append(files, &file)
 	}

@@ -76,10 +76,9 @@ func TestLocalDB_PutSnippet(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PutSnippet() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			delete(localDb.items, "MOCK_ID")
 		})
 	}
-
-	delete(localDb.items, "MOCK_ID")
 }
 
 func TestLocalDB_GetSnippet(t *testing.T) {
@@ -138,17 +137,15 @@ func TestLocalDB_GetSnippet(t *testing.T) {
 
 			if err == nil {
 				if snip.Sdk.Name != "SDK_GO" ||
-					//snip.Files[0].Content != "MOCK_CONTENT" ||
 					snip.PipeOpts != "MOCK_OPTIONS" ||
 					snip.Origin != entity.PG_USER ||
 					snip.OwnerId != "" {
 					t.Error("GetSnippet() unexpected result")
 				}
+				delete(localDb.items, "MOCK_ID")
 			}
 		})
 	}
-
-	delete(localDb.items, "MOCK_ID")
 }
 
 func TestLocalDB_PutSDKs(t *testing.T) {
@@ -186,11 +183,10 @@ func TestLocalDB_PutSDKs(t *testing.T) {
 			if err != nil {
 				t.Error("PutSDKs() method failed")
 			}
+			for _, sdk := range sdks {
+				delete(localDb.items, sdk.Name)
+			}
 		})
-	}
-
-	for _, sdk := range sdks {
-		delete(localDb.items, sdk.Name)
 	}
 }
 
@@ -231,10 +227,9 @@ func TestLocalDB_PutSchemaVersion(t *testing.T) {
 			if err != nil {
 				t.Error("PutSchemaVersion() method failed")
 			}
+			delete(localDb.items, "MOCK_ID")
 		})
 	}
-
-	delete(localDb.items, "MOCK_ID")
 }
 
 func TestLocalDB_GetCodes(t *testing.T) {
@@ -292,12 +287,11 @@ func TestLocalDB_GetCodes(t *testing.T) {
 					codes[0].Content != "MOCK_CONTENT" ||
 					codes[0].IsMain != false {
 					t.Error("GetFiles() unexpected result")
+					delete(localDb.items, "MOCK_ID")
 				}
 			}
 		})
 	}
-
-	delete(localDb.items, "MOCK_ID")
 }
 
 func TestDatastore_GetSDK(t *testing.T) {
@@ -334,12 +328,11 @@ func TestDatastore_GetSDK(t *testing.T) {
 				if sdkEntity.DefaultExample != "MOCK_EXAMPLE" {
 					t.Error("GetSDK() unexpected result")
 				}
+				for _, sdk := range sdks {
+					delete(localDb.items, sdk.Name)
+				}
 			}
 		})
-	}
-
-	for _, sdk := range sdks {
-		delete(localDb.items, sdk.Name)
 	}
 }
 

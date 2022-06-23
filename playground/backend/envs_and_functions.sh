@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-DATASTORE_FULL_ADDRESS="${DATASTORE_EMULATOR_HOST:-"0.0.0.0:8888"}"
+DATASTORE_FULL_ADDRESS="${DATASTORE_EMULATOR_HOST:-"127.0.0.1:8888"}"
 DATASTORE_PORT="${DATASTORE_FULL_ADDRESS##*:}"
 TEST_PROJECT_ID="test"
 

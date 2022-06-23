@@ -28,7 +28,7 @@ import (
 
 const (
 	datastoreEmulatorHostKey   = "DATASTORE_EMULATOR_HOST"
-	datastoreEmulatorHostValue = "0.0.0.0:8888"
+	datastoreEmulatorHostValue = "127.0.0.1:8888"
 	datastoreEmulatorProjectId = "test"
 )
 
@@ -88,6 +88,7 @@ func TestDatastore_PutSnippet(t *testing.T) {
 					OwnerId:  "",
 				},
 				Files: []*entity.FileEntity{{
+					Name:    "MOCK_NAME",
 					Content: "MOCK_CONTENT",
 					IsMain:  false,
 				}},
@@ -105,7 +106,10 @@ func TestDatastore_PutSnippet(t *testing.T) {
 		})
 	}
 
-	cleanData(t, SnippetKind, "MOCK_ID")
+	parentKey := datastore.NameKey(SnippetKind, "MOCK_ID", nil)
+	parentKey.Namespace = Namespace
+	cleanData(t, FileKind, "OpdzDJYiSbj", parentKey)
+	cleanData(t, SnippetKind, "MOCK_ID", nil)
 }
 
 func TestDatastore_GetSnippet(t *testing.T) {
@@ -142,6 +146,7 @@ func TestDatastore_GetSnippet(t *testing.T) {
 						OwnerId:  "",
 					},
 					Files: []*entity.FileEntity{{
+						Name:    "MOCK_NAME",
 						Content: "MOCK_CONTENT",
 						IsMain:  false,
 					}},
@@ -171,7 +176,10 @@ func TestDatastore_GetSnippet(t *testing.T) {
 		})
 	}
 
-	cleanData(t, SnippetKind, "MOCK_ID")
+	parentKey := datastore.NameKey(SnippetKind, "MOCK_ID", nil)
+	parentKey.Namespace = Namespace
+	cleanData(t, FileKind, "OpdzDJYiSbj", parentKey)
+	cleanData(t, SnippetKind, "MOCK_ID", nil)
 }
 
 func TestDatastore_PutSDKs(t *testing.T) {
@@ -213,7 +221,7 @@ func TestDatastore_PutSDKs(t *testing.T) {
 	}
 
 	for _, sdk := range sdks {
-		cleanData(t, SdkKind, sdk.Name)
+		cleanData(t, SdkKind, sdk.Name, nil)
 	}
 }
 
@@ -257,7 +265,7 @@ func TestDatastore_PutSchemaVersion(t *testing.T) {
 		})
 	}
 
-	cleanData(t, SchemaKind, "MOCK_ID")
+	cleanData(t, SchemaKind, "MOCK_ID", nil)
 }
 
 func TestDatastore_GetFiles(t *testing.T) {
@@ -292,6 +300,7 @@ func TestDatastore_GetFiles(t *testing.T) {
 						OwnerId:  "",
 					},
 					Files: []*entity.FileEntity{{
+						Name:    "MOCK_NAME",
 						Content: "MOCK_CONTENT",
 						IsMain:  false,
 					}},
@@ -308,18 +317,20 @@ func TestDatastore_GetFiles(t *testing.T) {
 			files, err := datastoreDb.GetFiles(tt.args.ctx, tt.args.parentId)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetFiles() error = %v, wantErr %v", err, tt.wantErr)
-				return
 			}
-			if len(files) != 1 ||
-				files[0].Content != "MOCK_CONTENT" ||
-				files[0].IsMain != false {
-				t.Error("GetFiles() unexpected result")
+			if files != nil {
+				if len(files) != 1 ||
+					files[0].Content != "MOCK_CONTENT" ||
+					files[0].IsMain != false {
+					t.Error("GetFiles() unexpected result")
+				}
+				parentKey := datastore.NameKey(SnippetKind, "MOCK_ID", nil)
+				parentKey.Namespace = Namespace
+				cleanData(t, FileKind, "OpdzDJYiSbj", parentKey)
+				cleanData(t, SnippetKind, "MOCK_ID", nil)
 			}
 		})
 	}
-
-	cleanData(t, FileKind, "ig43m5rUQo_l")
-	cleanData(t, SnippetKind, "MOCK_ID")
 }
 
 func TestDatastore_GetSDK(t *testing.T) {
@@ -339,8 +350,14 @@ func TestDatastore_GetSDK(t *testing.T) {
 			prepare: func() {
 				_ = datastoreDb.PutSDKs(ctx, sdks)
 			},
-			args:    args{ctx: ctx, id: "SDK_GO"},
+			args:    args{ctx: ctx, id: pb.Sdk_SDK_GO.String()},
 			wantErr: false,
+		},
+		{
+			name:    "GetSDK() when sdk is missing",
+			prepare: func() {},
+			args:    args{ctx: ctx, id: pb.Sdk_SDK_GO.String()},
+			wantErr: true,
 		},
 	}
 
@@ -350,18 +367,16 @@ func TestDatastore_GetSDK(t *testing.T) {
 			sdkEntity, err := datastoreDb.GetSDK(tt.args.ctx, tt.args.id)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetSDK() error = %v, wantErr %v", err, tt.wantErr)
-				return
 			}
 			if err == nil {
 				if sdkEntity.DefaultExample != "MOCK_EXAMPLE" {
 					t.Error("GetSDK() unexpected result")
 				}
+				for _, sdk := range sdks {
+					cleanData(t, SdkKind, sdk.Name, nil)
+				}
 			}
 		})
-	}
-
-	for _, sdk := range sdks {
-		cleanData(t, SdkKind, sdk.Name)
 	}
 }
 
@@ -392,11 +407,14 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func cleanData(t *testing.T, kind, id string) {
+func cleanData(t *testing.T, kind, id string, parentId *datastore.Key) {
 	key := datastore.NameKey(kind, id, nil)
+	if parentId != nil {
+		key.Parent = parentId
+	}
 	key.Namespace = Namespace
 	if err := datastoreDb.client.Delete(ctx, key); err != nil {
-		t.Error("Error during data cleaning after the test")
+		t.Errorf("Error during data cleaning after the test, err: %s", err.Error())
 	}
 }
 

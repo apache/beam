@@ -752,10 +752,10 @@ func TestPlaygroundController_SaveSnippet(t *testing.T) {
 			},
 			wantErr: true,
 		},
-		// Test case with calling SaveSnippet method with empty entity.
+		// Test case with calling SaveSnippet method with empty content.
 		// As a result, want to receive an error.
 		{
-			name: "SaveSnippet with empty entity",
+			name: "SaveSnippet with empty content",
 			args: args{
 				ctx: ctx,
 				info: &pb.SaveSnippetRequest{
