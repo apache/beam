@@ -35,12 +35,17 @@ func init() {
 	register.Emitter2[string, []string]()
 }
 
+// SearchQuery concisely represents a FHIR search query, and should be used as
+// input type for the Search transform.
 type SearchQuery struct {
-	Key string
+	// An identifier for the query, if there is source information to propagate
+	// through the pipeline.
+	Identifier string
 	// Search will be performed only on resources of type ResourceType. If not set
 	// (i.e. ""), the search is performed across all resources.
 	ResourceType string
-	Parameters   map[string]string
+	// Query parameters for a FHIR search request as per https://www.hl7.org/fhir/search.html.
+	Parameters map[string]string
 }
 
 type responseLinkFields struct {
@@ -62,7 +67,7 @@ func (fn *searchResourcesFn) Setup() {
 	fn.fnCommonVariables.setup(fn.String())
 }
 
-func (fn *searchResourcesFn) ProcessElement(ctx context.Context, query SearchQuery, emitKeyedResource func(string, []string), emitDeadLetter func(string)) {
+func (fn *searchResourcesFn) ProcessElement(ctx context.Context, query SearchQuery, emitFoundResources func(string, []string), emitDeadLetter func(string)) {
 	resourcesFound, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() ([]string, error) {
 		return fn.searchResources(query)
 	})
@@ -73,7 +78,7 @@ func (fn *searchResourcesFn) ProcessElement(ctx context.Context, query SearchQue
 	}
 
 	fn.resourcesSuccessCount.Inc(ctx, 1)
-	emitKeyedResource(query.Key, resourcesFound)
+	emitFoundResources(query.Identifier, resourcesFound)
 }
 
 func (fn *searchResourcesFn) searchResources(query SearchQuery) ([]string, error) {
@@ -141,6 +146,14 @@ func extractNextPageTokenFrom(searchResponseLinks []responseLinkFields) string {
 	return ""
 }
 
+// Search transform searches for resources in a Google Cloud Healthcare FHIR
+// store based on input queries. It consumes a PCollection<fhirio.SearchQuery>
+// and outputs two PCollections, the first a tuple (identifier, searchResults)
+// where `identifier` is the SearchQuery identifier field and `searchResults` is
+// a slice of all found resources as a JSON-encoded string. The second
+// PCollection is a dead-letter for the input queries that caused errors when
+// performing the search.
+// See: https://cloud.google.com/healthcare-api/docs/how-tos/fhir-search
 func Search(s beam.Scope, fhirStorePath string, searchQueries beam.PCollection) (beam.PCollection, beam.PCollection) {
 	s = s.Scope("fhirio.Search")
 	return search(s, fhirStorePath, searchQueries, nil)
