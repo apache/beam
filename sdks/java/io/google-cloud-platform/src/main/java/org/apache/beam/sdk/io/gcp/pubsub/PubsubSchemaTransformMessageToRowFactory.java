@@ -29,7 +29,7 @@ import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.nullness.compatqual.NonNullType;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * Builds a {@link PubsubMessageToRow} from a {@link PubsubSchemaTransformReadConfiguration}.
@@ -62,7 +62,7 @@ class PubsubSchemaTransformMessageToRowFactory {
    * PubsubSchemaTransformReadConfiguration}.
    */
   static PubsubSchemaTransformMessageToRowFactory from(
-      @NonNullType PubsubSchemaTransformReadConfiguration configuration) {
+      @NonNull PubsubSchemaTransformReadConfiguration configuration) {
     return new PubsubSchemaTransformMessageToRowFactory(configuration);
   }
 
