@@ -75,8 +75,8 @@ public class SpannerIOWriteExceptionHandlingTest {
     return Arrays.asList(
         new Object[][] {
           // DEADLINE_EXCEEDED is the only exception type that generates retries in-SDK
-          // The default backoff generates at least 8 retries, but can sometimes generate as many as 10 retries due to
-          // randomness in the backoff calculation. As this randomness is not easily controlled in
+          // The default backoff generates at least 8 retries, but can sometimes generate as many as
+          // 10 retries due to randomness in the backoff calculation. As this randomness is not easily controlled in
           // testing we use an "atLeast" rather than "exactly" test.
           {ErrorCode.DEADLINE_EXCEEDED, "deadline passed!", atLeast(8), atLeast(9)},
 
