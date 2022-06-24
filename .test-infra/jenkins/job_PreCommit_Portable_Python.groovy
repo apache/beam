@@ -48,7 +48,7 @@ builder.build {
     }
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:python:test-suites:portable:py39:preCommitPy39')
+      tasks(':sdks:python:test-suites:portable:py310:preCommitPy310')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

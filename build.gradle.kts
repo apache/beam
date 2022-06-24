@@ -284,6 +284,7 @@ tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py37:preCommitPy37")
   dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
+  dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT")
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT_V2")
 }
@@ -296,6 +297,7 @@ tasks.register("pythonDockerBuildPreCommit") {
   dependsOn(":sdks:python:container:py37:docker")
   dependsOn(":sdks:python:container:py38:docker")
   dependsOn(":sdks:python:container:py39:docker")
+  dependsOn(":sdks:python:container:py310:docker")
 }
 
 tasks.register("pythonLintPreCommit") {
@@ -334,6 +336,15 @@ tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
   dependsOn(":sdks:python:test-suites:direct:py39:inferencePostCommitIT")
 }
+//
+tasks.register("python310PostCommit") {
+  // (TODO): https://github.com/apache/beam/issues/21971
+  // enable DF suite once the runner supports Python 3.10
+  // dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
+}
 
 task("python37SickbayPostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitSickbay")
@@ -344,18 +355,20 @@ task("python38SickbayPostCommit") {
 }
 
 task("python39SickbayPostCommit") {
+  // (TODO): https://github.com/apache/beam/issues/21971
   dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitSickbay")
 }
 
 tasks.register("portablePythonPreCommit") {
   dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
-  dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
+  dependsOn(":sdks:python:test-suites:portable:py310:preCommitPy310")
 }
 
 tasks.register("pythonSparkPostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py310:sparkValidatesRunner")
 }
 
 tasks.register("websitePreCommit") {
