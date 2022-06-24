@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -43,6 +44,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+/**
+ * A {@link PTransform} for continuously querying Kafka for new partitions, and emitting those
+ * topics as {@link KafkaSourceDescriptor} This transform is implemented using the {@link Watch}
+ * transform, and modifications to this transform should keep that in mind.
+ *
+ * <p>Please see
+ * https://docs.google.com/document/d/1Io49s5LBs29HJyppKG3AlR-gHz5m5PC6CqO0CCoSqLs/edit?usp=sharing
+ * for design details
+ */
+@Experimental
 class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaSourceDescriptor>> {
 
   private static final Duration DEFAULT_CHECK_DURATION = Duration.standardHours(1);
