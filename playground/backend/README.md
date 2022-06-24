@@ -97,7 +97,7 @@ default value and there is no need to set them up to launch locally:
 - `PLAYGROUND_SALT` - is the salt to generate hash is needed for document ID (default value = `Beam playground salt\n`)
 - `MAX_SNIPPET_SIZE` - is the snippet size limit (default values = `65536`)
 - `ID_LENGTH` - is the length of the identifier that is used to store the data in the document (default value = `11`)
-- `ORIGIN` - is the backend origin, e.g. PG_EXAMPLES, PG_USER, TOUR_OF_BEAM (default value = `PG_EXAMPLES`)
+- `ORIGIN` - is the backend origin, e.g. PG_EXAMPLES, PG_USER, TOUR_OF_BEAM (default value = `PG_USER`)
 - `SDK_CONFIG` - is the sdk properties file path (default value = `sdks.yaml`)
 
 ### Running the server app via Docker
