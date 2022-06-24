@@ -46,7 +46,7 @@ function sendReport(title, report) {
 function formatIssues(header, issues) {
     let report = header + "\n\n"
     for (const issue of issues) {
-        report += `${issue.html_url}: ${issue.title}\n`;
+        report += `${issue.html_url} ${issue.title}\n`;
     }
     report += "\n\n"
     
