@@ -38,6 +38,7 @@ job(jobName) {
   Kubernetes k8s = Kubernetes.create(delegate, kubeconfig, namespace)
 
   String kafkaDir = common.makePathAbsolute("src/.test-infra/kubernetes/kafka-cluster")
+  String kafkaTopicJob="job.batch/kafka-config-eff079ec"
 
   // Select available ports for services and avoid collisions
   steps {
@@ -51,6 +52,7 @@ job(jobName) {
   }
   k8s.apply(kafkaDir)
   (0..2).each { k8s.loadBalancerIP("outside-$it", "KAFKA_BROKER_$it") }
+  k8s.waitForJob(kafkaTopicJob,"40m")
 
   Map pipelineOptions = [
     tempRoot                     : 'gs://temp-storage-for-perf-tests',

@@ -149,4 +149,11 @@ class Kubernetes {
       }
     }
   }
+
+  void waitForJob(String jobName, String timeout){
+    job.steps{
+      String command="${KUBERNETES_SCRIPT} waitForJob ${jobName} ${timeout}"
+      shell("eval ${command}")
+    }
+  }
 }
