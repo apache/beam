@@ -58,12 +58,12 @@ function getDateAge(updated_at) {
 }
 
 async function generateReport() {
-    const octokit = new Octokit({});
+    const octokit = new Octokit({auth: process.env["GITHUB_TOKEN"]});
 
     let shouldSend = false;
     let report = `This is your daily summary of Beam's current high priority issues that may need attention.
 
-    See https://beam.apache.org/contribute/issue-priorities/#p0-outage for the meaning and expectations around P0 issues.
+    See https://beam.apache.org/contribute/issue-priorities for the meaning and expectations around issue priorities.
 
 `;
 
