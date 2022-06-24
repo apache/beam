@@ -33,8 +33,8 @@ jobs:
       TERRAFORM_VERSION: 1.0.9
       STAND_SUFFIX: ''
     steps:
-      - name: Clean GitHub workspace
-        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
+#      - name: Clean GitHub workspace
+#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Check out the repo
         uses: actions/checkout@v2
       - name: Set up Java
