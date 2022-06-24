@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
 import io.cdap.cdap.api.plugin.PluginConfig;
@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
 
 /** Class wrapper for a CDAP plugin. */
 @AutoValue
-@SuppressWarnings({"rawtypes", "unchecked", "nullness"})
+@SuppressWarnings({"rawtypes", "unchecked"})
 public abstract class Plugin {
 
   private static final Logger LOG = LoggerFactory.getLogger(Plugin.class);
@@ -84,7 +84,7 @@ public abstract class Plugin {
    */
   public void prepareRun() {
     PluginConfig pluginConfig = getPluginConfig();
-    checkArgument(pluginConfig != null, "PluginConfig should be not null!");
+    checkStateNotNull(pluginConfig, "PluginConfig should be not null!");
     if (cdapPluginObj == null) {
       try {
         Constructor<?> constructor =
