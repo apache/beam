@@ -322,6 +322,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.options.value_provider import check_accessible
+from apache_beam.pvalue import PCollection
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
@@ -1509,11 +1510,11 @@ class WriteResult:
     self.method = method
     self.destination = destination
     self.schema = schema
-    self.destination_load_jobid_pairs = destination_load_jobid_pairs
-    self.destination_file_pairs = destination_file_pairs
-    self.destination_copy_jobid_pairs = destination_copy_jobid_pairs
-    self.failed_rows = failed_rows
-    self.failed_rows_with_errors = failed_rows_with_errors
+    self._destination_load_jobid_pairs: PCollection = destination_load_jobid_pairs
+    self._destination_file_pairs: PCollection = destination_file_pairs
+    self._destination_copy_jobid_pairs: PCollection = destination_copy_jobid_pairs
+    self._failed_rows: PCollection = failed_rows
+    self._failed_rows_with_errors: PCollection = failed_rows_with_errors
 
     self.config = {
         'method': method,
@@ -1548,27 +1549,33 @@ class WriteResult:
   def get_destination_load_jobid_pairs(self):
     self.validate('FILE_LOADS', 'DESTINATION_JOBID_PAIRS')
 
-    return self.destination_load_jobid_pairs
+    return self._destination_load_jobid_pairs
 
   def get_destination_file_pairs(self):
     self.validate('FILE_LOADS', 'DESTINATION_FILE_PAIRS')
 
-    return self.destination_file_pairs
+    return self._destination_file_pairs
 
   def get_destination_copy_jobid_pairs(self):
     self.validate('FILE_LOADS', 'DESTINATION_COPY_JOBID_PAIRS')
 
-    return self.destination_copy_jobid_pairs
+    return self._destination_copy_jobid_pairs
 
   def get_failed_rows(self):
     self.validate('STREAMING_INSERTS', 'FAILED_ROWS')
 
-    return self.failed_rows
+    return self._failed_rows
 
   def get_failed_rows_with_errors(self):
     self.validate('STREAMING_INSERTS', 'FAILED_ROWS_WITH_ERRORS')
 
-    return self.failed_rows_with_errors
+    return self._failed_rows_with_errors
+
+  destination_load_jobid_pairs = property(get_destination_load_jobid_pairs)
+  destination_file_pairs = property(get_destination_file_pairs)
+  destination_copy_jobid_pairs = property(get_destination_copy_jobid_pairs)
+  failed_rows = property(get_failed_rows)
+  failed_rows_with_errors = property(get_failed_rows_with_errors)
 
   def __getitem__(self, key):
     if key not in self.attributes:
