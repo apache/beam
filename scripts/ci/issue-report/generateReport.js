@@ -58,7 +58,7 @@ function getDateAge(updated_at) {
 }
 
 async function generateReport() {
-    const octokit = new Octokit({auth: process.env["GITHUB_TOKEN"]});
+    const octokit = new Octokit();
 
     let shouldSend = false;
     let report = `This is your daily summary of Beam's current high priority issues that may need attention.
@@ -77,10 +77,10 @@ async function generateReport() {
         repo: 'beam',
         labels: 'P1'
     });
-    const unassignedP0Issues = p0Issues.filter(i => i.assignee != null && i.assignee.length > 0);
-    const oldP0Issues = p0Issues.filter(i => getDateAge(i.updated_at) > 36*ONE_HOUR)
-    const unassignedP1Issues = p1Issues.filter(i => i.assignee != null && i.assignee.length > 0);
-    const oldP1Issues = p1Issues.filter(i => getDateAge(i.updated_at) > 7*24*ONE_HOUR)
+    const unassignedP0Issues = p0Issues.filter(i => i.assignee == null || i.assignee.length == 0);
+    const oldP0Issues = p0Issues.filter(i => i.assignee != null && i.assignee.length > 0 && getDateAge(i.updated_at) > 36*ONE_HOUR)
+    const unassignedP1Issues = p1Issues.filter(i => i.assignee == null || i.assignee.length == 0);;
+    const oldP1Issues = p1Issues.filter(i => i.assignee != null && i.assignee.length > 0 && getDateAge(i.updated_at) > 7*24*ONE_HOUR)
     if (unassignedP0Issues.length > 0) {
         shouldSend = true;
         report += formatIssues("Unassigned P0 Issues:", unassignedP0Issues);
