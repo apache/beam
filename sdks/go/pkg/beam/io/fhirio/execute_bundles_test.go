@@ -18,6 +18,7 @@ package fhirio
 import (
 	"bytes"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -39,7 +40,7 @@ func TestExecuteBundles(t *testing.T) {
 		{
 			name:           "Execute Bundles request returns bad status",
 			client:         badStatusFakeClient,
-			containedError: fakeBadStatus,
+			containedError: strconv.Itoa(http.StatusForbidden),
 		},
 		{
 			name:           "Execute Bundles request response body fails to be read",
@@ -55,7 +56,7 @@ func TestExecuteBundles(t *testing.T) {
 							fakeRead: func(t []byte) (int, error) {
 								return bytes.NewReader([]byte("")).Read(t)
 							},
-						}, Status: "200 Ok"}, nil
+						}, StatusCode: http.StatusOK}, nil
 				},
 			},
 			containedError: "EOF",

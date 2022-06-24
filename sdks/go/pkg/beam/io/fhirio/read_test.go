@@ -16,6 +16,8 @@
 package fhirio
 
 import (
+	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -37,7 +39,7 @@ func TestRead(t *testing.T) {
 		{
 			name:           "Read request returns bad status",
 			client:         badStatusFakeClient,
-			containedError: fakeBadStatus,
+			containedError: strconv.Itoa(http.StatusForbidden),
 		},
 		{
 			name:           "Read request response body fails to be read",

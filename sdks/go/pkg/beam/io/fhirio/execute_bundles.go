@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -114,7 +115,7 @@ func (fn *executeBundleFn) processResponseBody(ctx context.Context, body string,
 				continue
 			}
 
-			if isBadStatusCode(entryFields.Response.Status) {
+			if batchResponseStatusIsBad(entryFields.Response.Status) {
 				fn.resourcesErrorCount.Inc(ctx, 1)
 				emitFailure(errors.Errorf("execute bundles entry contains bad status: [%v]", entryFields.Response.Status).Error())
 			} else {
@@ -125,6 +126,15 @@ func (fn *executeBundleFn) processResponseBody(ctx context.Context, body string,
 	}
 
 	fn.successesCount.Inc(ctx, 1)
+}
+
+func batchResponseStatusIsBad(status string) bool {
+	// 2XXs are successes, otherwise failure.
+	isMatch, err := regexp.MatchString("^2\\d{2}", status)
+	if err != nil {
+		return true
+	}
+	return !isMatch
 }
 
 // ExecuteBundles performs all the requests in the specified bundles on a given

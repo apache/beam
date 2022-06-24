@@ -16,6 +16,7 @@
 package fhirio
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net/http"
@@ -34,9 +35,15 @@ var (
 		},
 	}
 
-	fakeBadStatus         = "403 Forbidden"
-	badStatusFakeResponse = &http.Response{Status: fakeBadStatus}
-	badStatusFakeClient   = &fakeFhirStoreClient{
+	badStatusFakeResponse = &http.Response{
+		Body: &fakeReaderCloser{
+			fakeRead: func(t []byte) (int, error) {
+				return bytes.NewReader([]byte("")).Read(t)
+			},
+		},
+		StatusCode: http.StatusForbidden,
+	}
+	badStatusFakeClient = &fakeFhirStoreClient{
 		fakeReadResources: func(resource string) (*http.Response, error) {
 			return badStatusFakeResponse, nil
 		},
@@ -51,7 +58,7 @@ var (
 			fakeRead: func([]byte) (int, error) {
 				return 0, errors.New(fakeBodyReaderErrorMessage)
 			},
-		}, Status: "200 Ok"}
+		}, StatusCode: http.StatusOK}
 	bodyReaderErrorFakeClient = &fakeFhirStoreClient{
 		fakeReadResources: func(resource string) (*http.Response, error) {
 			return bodyReaderErrorFakeResponse, nil

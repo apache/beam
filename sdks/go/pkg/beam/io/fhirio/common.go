@@ -23,7 +23,6 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"regexp"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -48,8 +47,9 @@ func executeAndRecordLatency[T any](ctx context.Context, latencyMs *beam.Distrib
 }
 
 func extractBodyFrom(response *http.Response) (string, error) {
-	if isBadStatusCode(response.Status) {
-		return "", errors.Errorf("response contains bad status: [%v]", response.Status)
+	err := googleapi.CheckResponse(response)
+	if err != nil {
+		return "", errors.Wrapf(err, "response contains bad status: [%v]", response.Status)
 	}
 
 	bodyBytes, err := io.ReadAll(response.Body)
@@ -58,15 +58,6 @@ func extractBodyFrom(response *http.Response) (string, error) {
 	}
 
 	return string(bodyBytes), nil
-}
-
-func isBadStatusCode(status string) bool {
-	// 2XXs are successes, otherwise failure.
-	isMatch, err := regexp.MatchString("^2\\d{2}", status)
-	if err != nil {
-		return true
-	}
-	return !isMatch
 }
 
 type fhirStoreClient interface {
