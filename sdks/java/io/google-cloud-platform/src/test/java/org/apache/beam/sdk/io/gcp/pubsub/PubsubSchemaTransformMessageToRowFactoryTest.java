@@ -19,12 +19,19 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.ATTRIBUTES_FIELD;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.PAYLOAD_FIELD;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.io.payloads.*;
+import org.apache.beam.sdk.schemas.io.payloads.AvroPayloadSerializerProvider;
+import org.apache.beam.sdk.schemas.io.payloads.JsonPayloadSerializerProvider;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializerProvider;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.tuple.Pair;
@@ -145,7 +152,9 @@ public class PubsubSchemaTransformMessageToRowFactoryTest {
   @Test
   public void testBuildMessageToRow() {
     for (TestCase testCase : cases) {
-      if (testCase.expectPubsubToRow == null) continue;
+      if (testCase.expectPubsubToRow == null) {
+        continue;
+      }
 
       PubsubSchemaTransformMessageToRowFactory factory = testCase.factory();
 
@@ -163,7 +172,9 @@ public class PubsubSchemaTransformMessageToRowFactoryTest {
     for (TestCase testCase : cases) {
       PubsubSchemaTransformMessageToRowFactory factory = testCase.factory();
 
-      if (testCase.expectPayloadSerializerProvider == null) continue;
+      if (testCase.expectPayloadSerializerProvider == null) {
+        continue;
+      }
 
       Row serializerInput = Objects.requireNonNull(testCase.serializerInput);
 

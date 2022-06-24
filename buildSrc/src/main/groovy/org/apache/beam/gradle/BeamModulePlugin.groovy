@@ -459,6 +459,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.10.2"
     def cdap_version = "6.5.1"
     def checkerframework_version = "3.10.0"
+    def checkercompatframework_version = "2.5.5"
     def classgraph_version = "4.8.104"
     def errorprone_version = "2.10.0"
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
@@ -550,6 +551,7 @@ class BeamModulePlugin implements Plugin<Project> {
         cdap_etl_api_spark                          : "io.cdap.cdap:cdap-etl-api-spark:$cdap_version",
         cdap_plugin_service_now                     : "io.cdap.plugin:servicenow-plugins:1.1.0",
         checker_qual                                : "org.checkerframework:checker-qual:$checkerframework_version",
+        checker_compat_qual                         : "org.checkerframework:checker-compat-qual:$checkercompatframework_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.15",
         commons_compress                            : "org.apache.commons:commons-compress:1.21",
@@ -1064,6 +1066,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // of the codebase. It is runtime so users can also take advantage of them. The annotations themselves
         // are MIT licensed (checkerframework is GPL and cannot be distributed)
         implementation "org.checkerframework:checker-qual:$checkerframework_version"
+        implementation "org.checkerframework:checker-compat-qual:$checkercompatframework_version"
       }
 
       // Defines Targets for sonarqube analysis reporting.
