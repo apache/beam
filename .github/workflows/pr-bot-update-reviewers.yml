@@ -26,7 +26,6 @@ jobs:
     # Don't run on forks
     if: github.repository == 'apache/beam'
     runs-on: [self-hosted, ubuntu-20.04]
-
     steps:
       - uses: actions/checkout@v2
       - name: Setup Node
@@ -36,7 +35,6 @@ jobs:
       - name: Install pr-bot npm dependencies
         run: npm install
         working-directory: 'scripts/ci/pr-bot'
-
       # Runs a set of commands using the runners shell
       - run: npm run updateReviewers
         env:

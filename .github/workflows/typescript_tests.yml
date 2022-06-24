@@ -30,8 +30,6 @@ on:
     branches: ['master', 'release-*', 'javascript']
     tags: ['v*']
     paths: ['sdks/typescript/**']
-
-
 jobs:
   typescript_unit_tests:
     name: 'TypeScript Unit Tests'

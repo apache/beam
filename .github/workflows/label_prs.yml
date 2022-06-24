@@ -18,15 +18,12 @@
 
 name: LabelPrs
 on: [pull_request_target]
-
 jobs:
   label:
-
     runs-on: [self-hosted, ubuntu-20.04]
     permissions:
       contents: read
       pull-requests: write
-
     steps:
     - uses: actions/labeler@v3
       with:

@@ -45,8 +45,8 @@ jobs:
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
-      - name: Clean GitHub workspace
-        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
+#      - name: Clean GitHub workspace
+#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - uses: actions/checkout@v2
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
@@ -70,8 +70,8 @@ jobs:
       - check_gcp_variables
     runs-on: [self-hosted, ubuntu-20.04]
     steps:
-      - name: Clean GitHub workspace
-        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
+#      - name: Clean GitHub workspace
+#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Install python
@@ -106,9 +106,9 @@ jobs:
           {"py_ver": "3.9", "tox_env": "py39"},
         ]
     steps:
-      - name: Clean GitHub workspace
-        if: contains(matrix.os, 'ubuntu-20.04')
-        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
+#      - name: Clean GitHub workspace
+#        if: contains(matrix.os, 'ubuntu-20.04')
+#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Install python
@@ -145,9 +145,9 @@ jobs:
         os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
         python: [3.7, 3.8, 3.9]
     steps:
-      - name: Clean GitHub workspace
-        if: contains(matrix.os, 'ubuntu-20.04')
-        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
+#      - name: Clean GitHub workspace
+#        if: contains(matrix.os, 'ubuntu-20.04')
+#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Install python
@@ -176,9 +176,9 @@ jobs:
         os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
         python: [3.7, 3.8, 3.9]
     steps:
-      - name: Clean GitHub workspace
-        if: contains(matrix.os, 'ubuntu-20.04')
-        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
+#      - name: Clean GitHub workspace
+#        if: contains(matrix.os, 'ubuntu-20.04')
+#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Install python

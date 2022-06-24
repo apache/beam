@@ -34,8 +34,8 @@ jobs:
     name: "Self-hosted (Ubuntu-20.04) run local environment shell script"
     runs-on: [self-hosted, ubuntu-20.04]
     steps:
-      - name: Clean GitHub workspace
-        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
+#      - name: Clean GitHub workspace
+#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
