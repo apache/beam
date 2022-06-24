@@ -810,7 +810,7 @@ public class DatastoreV1 {
     /** A DoFn that translates a Cloud Datastore gql query string to {@code Query}. */
     static class GqlQueryTranslateFn extends DoFn<String, Query> {
       private final V1Options v1Options;
-      @Nullable private final Instant readTime;
+      private final @Nullable Instant readTime;
       private transient Datastore datastore;
       private final V1DatastoreFactory datastoreFactory;
 
@@ -858,7 +858,7 @@ public class DatastoreV1 {
       // number of splits to make for a given query
       private final int numSplits;
       // time from which to run the queries
-      @Nullable private final Instant readTime;
+      private final @Nullable Instant readTime;
 
       private final V1DatastoreFactory datastoreFactory;
       // Datastore client
@@ -952,7 +952,7 @@ public class DatastoreV1 {
     @VisibleForTesting
     static class ReadFn extends DoFn<Query, Entity> {
       private final V1Options options;
-      @Nullable private final Instant readTime;
+      private final @Nullable Instant readTime;
       private final V1DatastoreFactory datastoreFactory;
       // Datastore client
       private transient Datastore datastore;
