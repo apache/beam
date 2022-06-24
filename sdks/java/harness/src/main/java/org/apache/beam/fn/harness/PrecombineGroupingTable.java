@@ -18,6 +18,7 @@
 package org.apache.beam.fn.harness;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Objects;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -62,14 +64,16 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
       PipelineOptions options,
       Cache<Object, Object> cache,
       CombineFn<InputT, AccumT, ?> combineFn,
-      Coder<K> keyCoder) {
+      Coder<K> keyCoder,
+      boolean isGloballyWindowed) {
     return new PrecombineGroupingTable<>(
         options,
         cache,
         keyCoder,
         GlobalCombineFnRunners.create(combineFn),
         Caches::weigh,
-        Caches::weigh);
+        Caches::weigh,
+        isGloballyWindowed);
   }
 
   /**
@@ -82,14 +86,16 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
       Cache<Object, Object> cache,
       CombineFn<InputT, AccumT, ?> combineFn,
       Coder<K> keyCoder,
-      double sizeEstimatorSampleRate) {
+      double sizeEstimatorSampleRate,
+      boolean isGloballyWindowed) {
     return new PrecombineGroupingTable<>(
         options,
         cache,
         keyCoder,
         GlobalCombineFnRunners.create(combineFn),
         new SamplingSizeEstimator<>(Caches::weigh, sizeEstimatorSampleRate, 1.0),
-        new SamplingSizeEstimator<>(Caches::weigh, sizeEstimatorSampleRate, 1.0));
+        new SamplingSizeEstimator<>(Caches::weigh, sizeEstimatorSampleRate, 1.0),
+        isGloballyWindowed);
   }
 
   @Nullable
@@ -125,6 +131,9 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
   private final LinkedHashMap<GroupingTableKey, GroupingTableEntry> lruMap;
   private final AtomicLong maxWeight;
   private long weight;
+  private boolean isGloballyWindowed;
+  private long checkFlushCounter;
+  private long checkFlushLimit = -5;
 
   private static final class Key implements Weighted {
     private static final Key INSTANCE = new Key();
@@ -144,53 +153,62 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
       Coder<K> keyCoder,
       GlobalCombineFnRunner<InputT, AccumT, ?> combineFn,
       SizeEstimator<K> keySizer,
-      SizeEstimator<AccumT> accumulatorSizer) {
+      SizeEstimator<AccumT> accumulatorSizer,
+      boolean isGloballyWindowed) {
     this.options = options;
     this.cache = (Cache<Key, PrecombineGroupingTable<K, InputT, AccumT>>) cache;
     this.keyCoder = keyCoder;
     this.combineFn = combineFn;
     this.keySizer = keySizer;
     this.accumulatorSizer = accumulatorSizer;
+    this.isGloballyWindowed = isGloballyWindowed;
     this.lruMap = new LinkedHashMap<>(16, 0.75f, true);
     this.maxWeight = new AtomicLong();
     this.weight = 0L;
     this.cache.put(Key.INSTANCE, this);
   }
 
-  private static class GroupingTableKey implements Weighted {
+  private abstract static interface GroupingTableKey extends Weighted {
+    public abstract Object getStructuralKey();
+
+    public abstract Collection<? extends BoundedWindow> getWindows();
+
+    @Override
+    public abstract boolean equals(Object o);
+
+    @Override
+    public abstract int hashCode();
+  }
+
+  private static class WindowedGroupingTableKey implements GroupingTableKey {
     private final Object structuralKey;
     private final Collection<? extends BoundedWindow> windows;
-    private final PaneInfo paneInfo;
     private final long weight;
 
-    <K> GroupingTableKey(
+    <K> WindowedGroupingTableKey(
         K key,
         Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
         Coder<K> keyCoder,
         SizeEstimator<K> keySizer) {
       this.structuralKey = keyCoder.structuralValue(key);
       this.windows = windows;
-      this.paneInfo = paneInfo;
       // We account for the weight of the key using the keySizer if the coder's structural value
       // is the same as its value.
       if (structuralKey == key) {
-        weight = keySizer.estimateSize(key) + Caches.weigh(windows) + Caches.weigh(paneInfo);
+        weight = keySizer.estimateSize(key) + Caches.weigh(windows);
       } else {
         weight = Caches.weigh(this);
       }
     }
 
+    @Override
     public Object getStructuralKey() {
       return structuralKey;
     }
 
+    @Override
     public Collection<? extends BoundedWindow> getWindows() {
       return windows;
-    }
-
-    public PaneInfo getPaneInfo() {
-      return paneInfo;
     }
 
     @Override
@@ -203,18 +221,16 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
       if (this == o) {
         return true;
       }
-      if (!(o instanceof GroupingTableKey)) {
+      if (!(o instanceof WindowedGroupingTableKey)) {
         return false;
       }
-      GroupingTableKey that = (GroupingTableKey) o;
-      return Objects.equals(structuralKey, that.structuralKey)
-          && windows.equals(that.windows)
-          && paneInfo.equals(that.paneInfo);
+      WindowedGroupingTableKey that = (WindowedGroupingTableKey) o;
+      return Objects.equals(structuralKey, that.structuralKey) && windows.equals(that.windows);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(structuralKey, windows, paneInfo);
+      return Objects.hash(structuralKey, windows);
     }
 
     @Override
@@ -224,11 +240,59 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
           + structuralKey
           + ", windows="
           + windows
-          + ", paneInfo="
-          + paneInfo
           + ", weight="
           + weight
           + '}';
+    }
+  }
+
+  private static class GloballyWindowedTableGroupingKey implements GroupingTableKey {
+    private static final Collection<? extends BoundedWindow> GLOBAL_WINDOWS =
+        Collections.singletonList(GlobalWindow.INSTANCE);
+
+    private final Object structuralKey;
+    private final long weight;
+
+    private <K> GloballyWindowedTableGroupingKey(
+        K key, Coder<K> keyCoder, SizeEstimator<K> keySizer) {
+      structuralKey = keyCoder.structuralValue(key);
+      if (structuralKey == key) {
+        weight = keySizer.estimateSize(key);
+      } else {
+        weight = Caches.weigh(this);
+      }
+    }
+
+    @Override
+    public Object getStructuralKey() {
+      return structuralKey;
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> getWindows() {
+      return GLOBAL_WINDOWS;
+    }
+
+    @Override
+    public long getWeight() {
+      return weight;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof GloballyWindowedTableGroupingKey)) {
+        return false;
+      }
+      GloballyWindowedTableGroupingKey that = (GloballyWindowedTableGroupingKey) o;
+      return Objects.equals(structuralKey, that.structuralKey);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(structuralKey);
     }
   }
 
@@ -333,8 +397,10 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
     // Ignore timestamp for grouping purposes.
     // The Pre-combine output will inherit the timestamp of one of its inputs.
     GroupingTableKey groupingKey =
-        new GroupingTableKey(
-            value.getValue().getKey(), value.getWindows(), value.getPane(), keyCoder, keySizer);
+        isGloballyWindowed
+            ? new GloballyWindowedTableGroupingKey(value.getValue().getKey(), keyCoder, keySizer)
+            : new WindowedGroupingTableKey(
+                value.getValue().getKey(), value.getWindows(), keyCoder, keySizer);
 
     lruMap.compute(
         groupingKey,
@@ -355,6 +421,17 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
           return tableEntry;
         });
 
+    if (checkFlushCounter++ < checkFlushLimit) {
+      return;
+    } else {
+      checkFlushLimit = Math.min(checkFlushLimit + 1, 25);
+      checkFlushCounter = 0;
+      flushIfNeeded(receiver);
+    }
+  }
+
+  private void flushIfNeeded(FnDataReceiver<WindowedValue<KV<K, AccumT>>> receiver)
+      throws Exception {
     // Increase the maximum only if we require it
     maxWeight.accumulateAndGet(weight, (current, update) -> current < update ? update : current);
 
@@ -400,11 +477,14 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
       throws Exception {
     entry.compact();
     receiver.accept(
-        WindowedValue.of(
-            KV.of(entry.getKey(), entry.getAccumulator()),
-            entry.getOutputTimestamp(),
-            entry.getGroupingKey().getWindows(),
-            entry.getGroupingKey().getPaneInfo()));
+        isGloballyWindowed
+            ? WindowedValue.valueInGlobalWindow(KV.of(entry.getKey(), entry.getAccumulator()))
+            : WindowedValue.of(
+                KV.of(entry.getKey(), entry.getAccumulator()),
+                entry.getOutputTimestamp(),
+                entry.getGroupingKey().getWindows(),
+                // The PaneInfow will always be overwritten by the GBK.
+                PaneInfo.NO_FIRING));
   }
 
   /** Flushes all entries in this table to output. */
