@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
 
 /** A DataflowPipelineJob represents a job submitted to Dataflow using {@link DataflowRunner}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DataflowPipelineJob implements PipelineResult {
 
@@ -309,7 +309,7 @@ public class DataflowPipelineJob implements PipelineResult {
     BackOff backoff = getMessagesBackoff(duration);
 
     // This function tracks the cumulative time from the *first request* to enforce the wall-clock
-    // limit. Any backoff instance could, at best, track the the time since the first attempt at a
+    // limit. Any backoff instance could, at best, track the time since the first attempt at a
     // given request. Thus, we need to track the cumulative time ourselves.
     long startNanos = nanoClock.nanoTime();
 

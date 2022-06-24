@@ -945,7 +945,7 @@ class DataflowApplicationClient(object):
 
     Args:
       job_id: A string representing the job_id for the workflow as returned
-        by the a create_job() request.
+        by the create_job() request.
 
     Returns:
       A Job proto. See below for interesting fields.
@@ -981,7 +981,7 @@ class DataflowApplicationClient(object):
 
     Args:
       job_id: A string representing the job_id for the workflow as returned
-        by the a create_job() request.
+        by the create_job() request.
       start_time: If specified, only messages generated after the start time
         will be returned, otherwise all messages since job started will be
         returned. The value is a string representing UTC time
@@ -1310,8 +1310,9 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 # This is required for the legacy python dataflow runner, as portability
 # does not communicate to the service via python code, but instead via a
 # a runner harness (in C++ or Java).
-# TODO(BEAM-7050) : Remove this antipattern, legacy dataflow python
-# pipelines will break whenever a new cy_combiner type is used.
+# TODO(https://github.com/apache/beam/issues/19433) : Remove this antipattern,
+# legacy dataflow python pipelines will break whenever a new cy_combiner type
+# is used.
 structured_counter_translations = {
     cy_combiners.CountCombineFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.SUM,

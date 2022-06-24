@@ -101,70 +101,70 @@ def portableValidatesRunnerTask(String name, boolean docker) {
             excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
             excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
             excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
-            // TODO(BEAM-12821)
+            // TODO(https://github.com/apache/beam/issues/21023)
             excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
             excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
             excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
         },
         testFilter: {
-            // TODO(BEAM-12677)
+            // TODO(https://github.com/apache/beam/issues/21042)
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2"
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput"
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmptyThenParDo"
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty"
             // TODO(BEAM-10025)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
-            // TODO(BEAM-11479)
+            // TODO(https://github.com/apache/beam/issues/20703)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
-            // TODO(BEAM-12035)
+            // TODO(https://github.com/apache/beam/issues/20847)
             excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
-            // TODO(BEAM-12036)
+            // TODO(https://github.com/apache/beam/issues/20846)
             excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
-            // TODO(BEAM-12886)
+            // TODO(https://github.com/apache/beam/issues/21142)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testWindowFnPostMerging'
-            // TODO(BEAM-12887)
+            // TODO(https://github.com/apache/beam/issues/21143)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testParDoShiftTimestampInvalid'
-            // TODO(BEAM-12888)
+            // TODO(https://github.com/apache/beam/issues/21144)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testParDoShiftTimestampInvalidZeroAllowed'
-            // TODO(BEAM-12889)
+            // TODO(https://github.com/apache/beam/issues/21145)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.DeduplicateTest.testEventTime'
-            // TODO(BEAM-12890)
+            // TODO(https://github.com/apache/beam/issues/21146)
             excludeTestsMatching 'org.apache.beam.sdk.io.TFRecordIOTest.testReadInvalidRecord'
-            // TODO(BEAM-12891)
+            // TODO(https://github.com/apache/beam/issues/21147)
             excludeTestsMatching 'org.apache.beam.sdk.io.TFRecordIOTest.testReadInvalidDataMask'
-            // TODO(BEAM-12892)
+            // TODO(https://github.com/apache/beam/issues/21148)
             excludeTestsMatching 'org.apache.beam.sdk.io.TFRecordIOTest.testReadInvalidLengthMask'
-            // TODO(BEAM-12893)
+            // TODO(https://github.com/apache/beam/issues/21149)
             excludeTestsMatching 'org.apache.beam.sdk.io.TextIOReadTest$CompressedReadTest.testCompressedReadWithoutExtension'
-            // TODO(BEAM-12894)
+            // TODO(https://github.com/apache/beam/issues/21150)
             excludeTestsMatching 'org.apache.beam.sdk.io.WriteFilesTest.testWithRunnerDeterminedShardingUnbounded'
-            // TODO(BEAM-128945)
+            // TODO(https://github.com/apache/beam/issues/211505)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testParDoWritingToUndeclaredTag'
-            // TODO(BEAM-12896)
+            // TODO(https://github.com/apache/beam/issues/21152)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testParDoReadingFromUnknownSideInput'
-            // TODO(BEAM-12897)
+            // TODO(https://github.com/apache/beam/issues/21153)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testMapSideInputWithNullValuesCatchesDuplicates'
 
-            // TODO(BEAM-12743)
+            // TODO(https://github.com/apache/beam/issues/21041)
             excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingNPException'
             excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingIOException'
             excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingNPException'
             excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingIOException'
-            // TODO(BEAM-12744)
+            // TODO(https://github.com/apache/beam/issues/21040)
             excludeTestsMatching 'org.apache.beam.sdk.PipelineTest.testEmptyPipeline'
-            // TODO(BEAM-12745)
+            // TODO(https://github.com/apache/beam/issues/21038)
             excludeTestsMatching 'org.apache.beam.sdk.io.AvroIOTest*'
-            // TODO(BEAM-12746)
+            // TODO(https://github.com/apache/beam/issues/21039)
             excludeTestsMatching 'org.apache.beam.sdk.io.FileIOTest*'
-            // TODO(BEAM-12747)
+            // TODO(https://github.com/apache/beam/issues/21037)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsBackwardsInTimeShouldThrow'
             excludeTestsMatching 'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsWithNullTimestampShouldThrow'
-            // TODO(BEAM-12748)
+            // TODO(https://github.com/apache/beam/issues/21035)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput'
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testNonSingletonSideInput'
-            // TODO(BEAM-12749)
+            // TODO(https://github.com/apache/beam/issues/21036)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.MapElementsTest.testMapSimpleFunction'
-            // TODO(BEAM-12750)
+            // TODO(https://github.com/apache/beam/issues/21033)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInGlobalWindowBatchSizeByteSizeFn'
             excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode'
             excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow'
@@ -172,9 +172,9 @@ def portableValidatesRunnerTask(String name, boolean docker) {
             excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInGlobalWindowBatchSizeByteSize'
             // TODO(BEAM-10025)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
-            // TODO(BEAM-11479)
+            // TODO(https://github.com/apache/beam/issues/20703)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
-            // TODO(BEAM-11479)
+            // TODO(https://github.com/apache/beam/issues/20703)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testRelativeTimerWithOutputTimestamp'
             // TODO(BEAM-13498)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew'

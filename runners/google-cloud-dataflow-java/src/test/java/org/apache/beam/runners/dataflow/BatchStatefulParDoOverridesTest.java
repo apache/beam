@@ -58,7 +58,8 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BatchStatefulParDoOverrides}. */
 @RunWith(JUnit4.class)
-// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// released (2.11.0)
 @SuppressWarnings("unused")
 public class BatchStatefulParDoOverridesTest implements Serializable {
 

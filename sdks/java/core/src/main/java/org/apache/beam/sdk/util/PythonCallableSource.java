@@ -25,7 +25,7 @@ import java.io.Serializable;
  *
  * <p>The snippet of Python code can be a valid Python expression (such as {@code lambda x: x * x}
  * or {str.upper}), a fully qualified name (such as {@code math.sin}), or a complete, multi-line
- * function definition (such as {@code def foo(x): ...}).
+ * function or class definition (such as {@code def foo(x): ...} or {@code class Foo: ...}).
  *
  * <p>Any lines preceding the function definition are first evaluated to provide context in which to
  * define the function which can be useful to declare imports or any other needed values, e.g.
@@ -50,7 +50,8 @@ public class PythonCallableSource implements Serializable {
   }
 
   public static PythonCallableSource of(String pythonCallableCode) {
-    // TODO(BEAM-14457): check syntactic correctness of Python code if possible
+    // TODO(https://github.com/apache/beam/issues/21568): check syntactic correctness of Python code
+    // if possible
     return new PythonCallableSource(pythonCallableCode);
   }
 

@@ -16,12 +16,16 @@
     specific language governing permissions and limitations
     under the License.
 -->
-# Running script locally
-You can either run it via docker-compose that is located in .test-infra/metrics/
-or run manually via docker. Below is insturctions for running script with
-docker.
 
-1. Build container `docker build -t syncjenkins .`
-2. Edit script to initialize db host via subprocess.
-3. `docker run -it --rm --name sync -v "$PWD":/usr/src/myapp -w /usr/src/myapp -e "DB_PORT=5432" -e "DB_DBNAME=beam_metrics" -e "DB_DBUSERNAME=admin" -e "DB_DBPWD=<password>" syncjira python syncjira.py`
+> **PLEASE update this file if you add new github action or change name/trigger phrase of a github action.**
 
+## Beam Github Actions
+
+### Issue Self-assign
+
+Phrases for self-assign and close the issue:
+| Phrase | Effect |
+|--------|--------|
+| `.take-issue` | Self-assign the issue |
+| `.close-issue` | Close the issue as completed |
+| `.close-issue not_planned` | Close the issue as not-planned |

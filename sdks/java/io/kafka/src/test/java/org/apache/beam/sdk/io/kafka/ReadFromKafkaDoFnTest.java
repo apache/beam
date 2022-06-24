@@ -72,7 +72,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ReadFromKafkaDoFnTest {
 
@@ -299,6 +299,7 @@ public class ReadFromKafkaDoFnTest {
   @Before
   public void setUp() throws Exception {
     dofnInstance.setup();
+    exceptionDofnInstance.setup();
     consumer.reset();
   }
 
@@ -443,6 +444,7 @@ public class ReadFromKafkaDoFnTest {
                       }
                     })
                 .build());
+    instance.setup();
     consumer.setNumOfRecordsPerPoll(10);
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     ProcessContinuation result =

@@ -38,7 +38,7 @@ import org.joda.time.Duration;
 /** Configuration for a Cloud Spanner client. */
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class SpannerConfig implements Serializable {
   // A default host name for batch traffic.

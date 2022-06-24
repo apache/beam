@@ -387,7 +387,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.40.0'
+    project.version = '2.41.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -1169,7 +1169,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.disableWarningsInGeneratedCode = true
         options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
 
-        // TODO(BEAM-11936): Enable errorprone checks
+        // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
         options.errorprone.errorproneArgs.add("-Xep:AutoValueImmutableFields:OFF")
         options.errorprone.errorproneArgs.add("-Xep:AutoValueSubclassLeaked:OFF")
         options.errorprone.errorproneArgs.add("-Xep:BadImport:OFF")
@@ -1316,7 +1316,7 @@ class BeamModulePlugin implements Plugin<Project> {
           exclude "META-INF/*.RSA"
         } << configuration.shadowClosure)
 
-        // Ensure that shaded jar and test-jar are part of the their own configuration artifact sets
+        // Ensure that shaded jar and test-jar are part of their own configuration artifact sets
         project.artifacts.shadow project.shadowJar
         project.artifacts.shadowTest project.shadowTestJar
 

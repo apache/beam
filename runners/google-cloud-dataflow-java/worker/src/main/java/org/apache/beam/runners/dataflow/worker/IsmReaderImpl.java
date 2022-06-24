@@ -83,7 +83,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // Possible real inconsistency - https://issues.apache.org/jira/browse/BEAM-6560
 @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class IsmReaderImpl<V> extends IsmReader<V> {
   /**

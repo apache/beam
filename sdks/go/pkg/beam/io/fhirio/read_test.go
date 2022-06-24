@@ -16,8 +16,6 @@
 package fhirio
 
 import (
-	"errors"
-	"net/http"
 	"strings"
 	"testing"
 
@@ -32,35 +30,19 @@ func TestRead(t *testing.T) {
 		containedError string
 	}{
 		{
-			name: "Read Request Failed",
-			client: &fakeFhirStoreClient{
-				fakeReadResources: func(resource string) (*http.Response, error) {
-					return nil, errors.New("")
-				},
-			},
-			containedError: "failed fetching resource",
+			name:           "Read request returns error",
+			client:         requestReturnErrorFakeClient,
+			containedError: fakeRequestReturnErrorMessage,
 		},
 		{
-			name: "Read Request Returns Bad Status",
-			client: &fakeFhirStoreClient{
-				fakeReadResources: func(resource string) (*http.Response, error) {
-					return &http.Response{StatusCode: 403}, nil
-				},
-			},
-			containedError: "returned bad status",
+			name:           "Read request returns bad status",
+			client:         badStatusFakeClient,
+			containedError: fakeBadStatus,
 		},
 		{
-			name: "Response body fails to be parsed",
-			client: &fakeFhirStoreClient{
-				fakeReadResources: func(resource string) (*http.Response, error) {
-					return &http.Response{Body: &fakeReaderCloser{
-						fakeRead: func([]byte) (int, error) {
-							return 0, errors.New("")
-						},
-					}, StatusCode: 200}, nil
-				},
-			},
-			containedError: "error reading response body",
+			name:           "Read request response body fails to be read",
+			client:         bodyReaderErrorFakeClient,
+			containedError: fakeBodyReaderErrorMessage,
 		},
 	}
 
@@ -75,15 +57,9 @@ func TestRead(t *testing.T) {
 				return strings.Contains(errorMsg, testCase.containedError)
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
-			counterResults := pipelineResult.Metrics().AllMetrics().Counters()
-			if len(counterResults) != 1 {
-				t.Fatal("Only one counter should have been used")
-			}
-			if counterResults[0].Name() != "fhirio/read_resource_error_count" {
-				t.Fatal("Only error counter should have been used")
-			}
-			if counterResults[0].Result() != int64(len(testResourcePaths)) {
-				t.Fatal("Counter should have been incremented by the number of test resource paths")
+			err := validateResourceErrorCounter(pipelineResult, len(testResourcePaths))
+			if err != nil {
+				t.Fatalf("validateResourceErrorCounter returned error [%v]", err.Error())
 			}
 		})
 	}

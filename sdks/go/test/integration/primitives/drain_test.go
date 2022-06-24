@@ -13,27 +13,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fhirio
+package primitives
 
-import "net/http"
+import (
+	"testing"
 
-type fakeFhirStoreClient struct {
-	fakeReadResources func(string) (*http.Response, error)
-}
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
+)
 
-func (c *fakeFhirStoreClient) readResource(resourcePath string) (*http.Response, error) {
-	return c.fakeReadResources(resourcePath)
-}
-
-// Useful to fake the Body of a http.Response.
-type fakeReaderCloser struct {
-	fakeRead func([]byte) (int, error)
-}
-
-func (*fakeReaderCloser) Close() error {
-	return nil
-}
-
-func (m *fakeReaderCloser) Read(b []byte) (int, error) {
-	return m.fakeRead(b)
+func TestDrain(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	Drain(s)
+	_, err := ptest.RunWithMetrics(p)
+	if err != nil {
+		t.Errorf("Drain test failed: %v", err)
+	}
 }

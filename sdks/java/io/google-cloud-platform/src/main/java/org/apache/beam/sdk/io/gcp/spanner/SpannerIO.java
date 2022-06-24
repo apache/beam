@@ -368,7 +368,7 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SpannerIO {
 
@@ -1880,8 +1880,8 @@ public class SpannerIO {
       }
     }
 
-    // TODO(BEAM-1287): Remove this when FinishBundle has added support for an {@link
-    // OutputReceiver}
+    // TODO(https://github.com/apache/beam/issues/18203): Remove this when FinishBundle has added
+    // support for an {@link OutputReceiver}
     private static class OutputReceiverForFinishBundle
         implements OutputReceiver<Iterable<MutationGroup>> {
 

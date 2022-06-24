@@ -27,6 +27,9 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.setD
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.elasticsearch.client.RestClient;
 import org.junit.AfterClass;
@@ -266,5 +269,13 @@ public class ElasticsearchIOTest implements Serializable {
   public void testPDone() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testPipelineDone();
+  }
+
+  @Test
+  public void testValidSSLAndUsernameConfiguration() throws Exception {
+    URL fileUrl = getClass().getClassLoader().getResource("clientkeystore");
+    Path filePath = Paths.get(fileUrl.toURI());
+    elasticsearchIOTestCommon.testValidSSLAndUsernameConfiguration(
+        filePath.toAbsolutePath().toString());
   }
 }

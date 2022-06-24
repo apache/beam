@@ -99,8 +99,8 @@ import scala.reflect.ClassTag$;
 
 /** Supports translation between a Beam transform, and Spark's operations on DStreams. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class StreamingTransformTranslator {
 
@@ -271,7 +271,8 @@ public final class StreamingTransformTranslator {
             // create a single RDD stream.
             Queue<JavaRDD<WindowedValue<T>>> q = new LinkedBlockingQueue<>();
             q.offer(((BoundedDataset) dataset).getRDD());
-            // TODO (BEAM-10789): this is not recoverable from checkpoint!
+            // TODO (https://github.com/apache/beam/issues/20426): this is not recoverable from
+            // checkpoint!
             JavaDStream<WindowedValue<T>> dStream = context.getStreamingContext().queueStream(q);
             dStreams.add(dStream);
           }
