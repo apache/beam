@@ -34,10 +34,11 @@ echo "export RUNNER_TOKEN3=$RUNNER_TOKEN" | sudo tee /etc/bash.bashrc > /dev/nul
     --unattended \
     --replace \
     --labels ubuntu-20.04,ubuntu-latest \
-    --runnergroup ${ORG_RUNNER_GROUP}
+    --runnergroup ${ORG_RUNNER_GROUP} \
+    --ephemeral
 
 remove() {
-    ./config.sh remove --unattended --token "${RUNNER_TOKEN}"
+    ./config.sh remove --token "${RUNNER_TOKEN}"
 }
 trap 'remove; exit 130' INT
 trap 'remove; exit 143' TERM

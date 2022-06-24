@@ -35,8 +35,8 @@ jobs:
       STAND_SUFFIX: ''
       GOOGLE_DOMAIN: '-dot-apache-beam-testing.appspot.com'
     steps:
-      - name: Clean GitHub Workspace
-        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
+#      - name: Clean GitHub Workspace
+#        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Check out the repo
         uses: actions/checkout@v2
       - name: Set up Java
@@ -44,8 +44,8 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '8'
-      - name: Clean Flutter Directory
-        run: if [ -d "/opt/flutter" ]; then sudo rm -rf /opt/flutter ; fi
+#      - name: Clean Flutter Directory
+#        run: if [ -d "/opt/flutter" ]; then sudo rm -rf /opt/flutter ; fi
       - name: Install Flutter
         run: |
             wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION.tar.xz &&\
