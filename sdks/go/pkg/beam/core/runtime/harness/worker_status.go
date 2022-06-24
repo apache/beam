@@ -104,7 +104,7 @@ func goroutineDump(statusInfo *strings.Builder) {
 func buildInfo(statusInfo *strings.Builder) {
 	statusInfo.WriteString("\n============Build Info============\n")
 	if info, ok := debug.ReadBuildInfo(); ok {
-		statusInfo.WriteString(fmt.Sprintf("%s", info))
+		statusInfo.WriteString(info.String())
 	}
 }
 
