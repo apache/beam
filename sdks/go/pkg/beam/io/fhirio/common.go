@@ -69,22 +69,6 @@ func isBadStatusCode(status string) bool {
 	return !isMatch
 }
 
-type fhirioFnCommon struct {
-	client                fhirStoreClient
-	resourcesErrorCount   beam.Counter
-	resourcesSuccessCount beam.Counter
-	latencyMs             beam.Distribution
-}
-
-func (fnc *fhirioFnCommon) setup(namespace string) {
-	if fnc.client == nil {
-		fnc.client = newFhirStoreClient()
-	}
-	fnc.resourcesErrorCount = beam.NewCounter(namespace, baseMetricPrefix+"resource_error_count")
-	fnc.resourcesSuccessCount = beam.NewCounter(namespace, baseMetricPrefix+"resource_success_count")
-	fnc.latencyMs = beam.NewDistribution(namespace, baseMetricPrefix+"latency_ms")
-}
-
 type fhirStoreClient interface {
 	readResource(resourcePath string) (*http.Response, error)
 	executeBundle(storePath string, bundle []byte) (*http.Response, error)
@@ -93,14 +77,6 @@ type fhirStoreClient interface {
 
 type fhirStoreClientImpl struct {
 	fhirService *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService
-}
-
-func newFhirStoreClient() *fhirStoreClientImpl {
-	healthcareService, err := healthcare.NewService(context.Background(), option.WithUserAgent(UserAgent))
-	if err != nil {
-		panic("Failed to initialize Google Cloud Healthcare Service. Reason: " + err.Error())
-	}
-	return &fhirStoreClientImpl{fhirService: healthcare.NewProjectsLocationsDatasetsFhirStoresFhirService(healthcareService)}
 }
 
 func (c *fhirStoreClientImpl) readResource(resourcePath string) (*http.Response, error) {
@@ -121,4 +97,28 @@ func (c *fhirStoreClientImpl) search(storePath, resourceType string, queries map
 		queryParams = append(queryParams, googleapi.QueryParameter(pageTokenParameterKey, pageToken))
 	}
 	return c.fhirService.Search(storePath, &healthcare.SearchResourcesRequest{ResourceType: resourceType}).Do(queryParams...)
+}
+
+func newFhirStoreClient() *fhirStoreClientImpl {
+	healthcareService, err := healthcare.NewService(context.Background(), option.WithUserAgent(UserAgent))
+	if err != nil {
+		panic("Failed to initialize Google Cloud Healthcare Service. Reason: " + err.Error())
+	}
+	return &fhirStoreClientImpl{fhirService: healthcare.NewProjectsLocationsDatasetsFhirStoresFhirService(healthcareService)}
+}
+
+type fnCommonVariables struct {
+	client                fhirStoreClient
+	resourcesErrorCount   beam.Counter
+	resourcesSuccessCount beam.Counter
+	latencyMs             beam.Distribution
+}
+
+func (fnc *fnCommonVariables) setup(namespace string) {
+	if fnc.client == nil {
+		fnc.client = newFhirStoreClient()
+	}
+	fnc.resourcesErrorCount = beam.NewCounter(namespace, baseMetricPrefix+"resource_error_count")
+	fnc.resourcesSuccessCount = beam.NewCounter(namespace, baseMetricPrefix+"resource_success_count")
+	fnc.latencyMs = beam.NewDistribution(namespace, baseMetricPrefix+"latency_ms")
 }

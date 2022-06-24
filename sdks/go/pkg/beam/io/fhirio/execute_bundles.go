@@ -41,7 +41,7 @@ func init() {
 }
 
 type executeBundleFn struct {
-	fhirioFnCommon
+	fnCommonVariables
 	successesCount beam.Counter
 	// Path to FHIR store where bundle requests will be executed on.
 	FhirStorePath string
@@ -52,7 +52,7 @@ func (fn executeBundleFn) String() string {
 }
 
 func (fn *executeBundleFn) Setup() {
-	fn.fhirioFnCommon.setup(fn.String())
+	fn.fnCommonVariables.setup(fn.String())
 	fn.successesCount = beam.NewCounter(fn.String(), baseMetricPrefix+"success_count")
 }
 
@@ -142,5 +142,5 @@ func ExecuteBundles(s beam.Scope, fhirStorePath string, bundles beam.PCollection
 
 // This is useful as an entry point for testing because we can provide a fake FHIR store client.
 func executeBundles(s beam.Scope, fhirStorePath string, bundles beam.PCollection, client fhirStoreClient) (beam.PCollection, beam.PCollection) {
-	return beam.ParDo2(s, &executeBundleFn{fhirioFnCommon: fhirioFnCommon{client: client}, FhirStorePath: fhirStorePath}, bundles)
+	return beam.ParDo2(s, &executeBundleFn{fnCommonVariables: fnCommonVariables{client: client}, FhirStorePath: fhirStorePath}, bundles)
 }

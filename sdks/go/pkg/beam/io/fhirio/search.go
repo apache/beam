@@ -49,7 +49,7 @@ type responseLinkFields struct {
 }
 
 type searchResourcesFn struct {
-	fhirioFnCommon
+	fnCommonVariables
 	// Path to FHIR store where search will be performed.
 	FhirStorePath string
 }
@@ -59,7 +59,7 @@ func (fn searchResourcesFn) String() string {
 }
 
 func (fn *searchResourcesFn) Setup() {
-	fn.fhirioFnCommon.setup(fn.String())
+	fn.fnCommonVariables.setup(fn.String())
 }
 
 func (fn *searchResourcesFn) ProcessElement(ctx context.Context, query SearchQuery, emitKeyedResource func(string, []string), emitDeadLetter func(string)) {
@@ -148,5 +148,5 @@ func Search(s beam.Scope, fhirStorePath string, searchQueries beam.PCollection) 
 
 // This is useful as an entry point for testing because we can provide a fake FHIR store client.
 func search(s beam.Scope, fhirStorePath string, searchQueries beam.PCollection, client fhirStoreClient) (beam.PCollection, beam.PCollection) {
-	return beam.ParDo2(s, &searchResourcesFn{fhirioFnCommon: fhirioFnCommon{client: client}, FhirStorePath: fhirStorePath}, searchQueries)
+	return beam.ParDo2(s, &searchResourcesFn{fnCommonVariables: fnCommonVariables{client: client}, FhirStorePath: fhirStorePath}, searchQueries)
 }
