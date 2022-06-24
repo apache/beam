@@ -215,9 +215,7 @@ public abstract class PTransformRunnerFactoryTestContext
 
   @Override
   public <T> void addPCollectionConsumer(
-      String pCollectionId,
-      FnDataReceiver<WindowedValue<T>> consumer,
-      org.apache.beam.sdk.coders.Coder<T> valueCoder) {
+      String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer) {
     getPCollectionConsumers()
         .computeIfAbsent(pCollectionId, (unused) -> new ArrayList<>())
         .add(consumer);

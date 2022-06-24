@@ -365,11 +365,8 @@ public class ProcessBundleHandler {
 
                     @Override
                     public <T> void addPCollectionConsumer(
-                        String pCollectionId,
-                        FnDataReceiver<WindowedValue<T>> consumer,
-                        org.apache.beam.sdk.coders.Coder<T> valueCoder) {
-                      pCollectionConsumerRegistry.register(
-                          pCollectionId, pTransformId, consumer, valueCoder);
+                        String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer) {
+                      pCollectionConsumerRegistry.register(pCollectionId, pTransformId, consumer);
                     }
 
                     @Override
@@ -778,7 +775,11 @@ public class ProcessBundleHandler {
         new ExecutionStateTracker(ExecutionStateSampler.instance());
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, stateTracker, shortIds, bundleProgressReporterAndRegistrar);
+            metricsContainerRegistry,
+            stateTracker,
+            shortIds,
+            bundleProgressReporterAndRegistrar,
+            bundleDescriptor);
     HashSet<String> processedPTransformIds = new HashSet<>();
 
     PTransformFunctionRegistry startFunctionRegistry =
