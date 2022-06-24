@@ -63,7 +63,7 @@ export async function* resolveArtifacts(
         fs.existsSync(payload.sha256 && path.join(localDir, payload.sha256))
       ) {
         return {
-          typeUrn: "beam:artifact:type:filex:v1",
+          typeUrn: "beam:artifact:type:file:v1",
           typePayload: runnerApi.ArtifactFilePayload.toBinary({
             path: path.join(localDir, payload.sha256),
             sha256: payload.sha256,
@@ -90,7 +90,7 @@ export async function* resolveArtifacts(
     const finalPath = path.join(localDir, hash);
     fs.renameSync(tmpName, finalPath);
     return {
-      typeUrn: "beam:artifact:type:filex:v1",
+      typeUrn: "beam:artifact:type:file:v1",
       typePayload: runnerApi.ArtifactFilePayload.toBinary({
         path: finalPath,
         sha256: hash,
@@ -136,7 +136,7 @@ export async function offerArtifacts(
 
       case "getArtifact":
         switch (msg.request.getArtifact.artifact!.typeUrn) {
-          case "beam:artifact:type:filex:v1":
+          case "beam:artifact:type:file:v1":
             const payload = runnerApi.ArtifactFilePayload.fromBinary(
               msg.request.getArtifact.artifact!.typePayload
             );
