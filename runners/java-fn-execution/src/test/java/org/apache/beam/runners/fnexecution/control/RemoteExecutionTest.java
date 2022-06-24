@@ -30,7 +30,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1194,7 +1193,7 @@ public class RemoteExecutionTest implements Serializable {
     for (MonitoringInfo monitoringInfo : newMonitoringInfos) {
       miKeyToMiWithPayload.put(monitoringInfo.toBuilder().clearPayload().build(), monitoringInfo);
     }
-    return ImmutableList.copyOf(miKeyToMiWithPayload.values());
+    return new ArrayList<>(miKeyToMiWithPayload.values());
   }
 
   @Test
