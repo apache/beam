@@ -371,7 +371,7 @@ Template for BigQuery jobs created by BigQueryIO. This template is:
 - `job_type` represents the BigQuery job type (e.g. extract / copy / load /
     query).
 - `job_id` is the Beam job name.
-- `step_id` is a UUID representing the the Dataflow step that created the
+- `step_id` is a UUID representing the Dataflow step that created the
     BQ job.
 - `random` is a random string.
 

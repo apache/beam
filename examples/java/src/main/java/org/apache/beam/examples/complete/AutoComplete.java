@@ -369,8 +369,8 @@ public class AutoComplete {
   }
 
   /**
-   * Takes as input a the top candidates per prefix, and emits an entity suitable for writing to
-   * Cloud Datastore.
+   * Takes as input the top candidates per prefix, and emits an entity suitable for writing to Cloud
+   * Datastore.
    *
    * <p>Note: We use ancestor keys for strong consistency. See the Cloud Datastore documentation on
    * <a href="https://cloud.google.com/datastore/docs/concepts/structuring_for_strong_consistency">

@@ -691,7 +691,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
    * PrimitiveBoundedRead} and {@link PrimitiveUnboundedRead} if either the experiment {@code
    * use_deprecated_read} or {@code beam_fn_api_use_deprecated_read} are specified.
    *
-   * <p>TODO(BEAM-10670): Remove the primitive Read and make the splittable DoFn the only option.
+   * <p>TODO(https://github.com/apache/beam/issues/20530): Remove the primitive Read and make the
+   * splittable DoFn the only option.
    */
   public static void convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(Pipeline pipeline) {
     if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_sdf_read")
@@ -706,7 +707,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
    * Converts {@link Read} based Splittable DoFn expansions to primitive reads implemented by {@link
    * PrimitiveBoundedRead} and {@link PrimitiveUnboundedRead}.
    *
-   * <p>TODO(BEAM-10670): Remove the primitive Read and make the splittable DoFn the only option.
+   * <p>TODO(https://github.com/apache/beam/issues/20530): Remove the primitive Read and make the
+   * splittable DoFn the only option.
    */
   public static void convertReadBasedSplittableDoFnsToPrimitiveReads(Pipeline pipeline) {
     pipeline.replaceAll(

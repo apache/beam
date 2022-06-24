@@ -109,7 +109,7 @@ func expandFn(ctx context.Context, glob string, emit func(string)) error {
 }
 
 // sizeFn pairs a filename with the size of that file in bytes.
-// TODO(Issue 20607): Once CreateInitialRestriction supports Context params and
+// TODO(https://github.com/apache/beam/issues/20607): Once CreateInitialRestriction supports Context params and
 // error return values, this can be done in readSdfFn.CreateInitialRestriction.
 func sizeFn(ctx context.Context, filename string) (string, int64, error) {
 	fs, err := filesystem.New(ctx, filename)

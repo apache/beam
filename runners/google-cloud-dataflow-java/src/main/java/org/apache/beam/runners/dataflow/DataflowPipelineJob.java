@@ -309,7 +309,7 @@ public class DataflowPipelineJob implements PipelineResult {
     BackOff backoff = getMessagesBackoff(duration);
 
     // This function tracks the cumulative time from the *first request* to enforce the wall-clock
-    // limit. Any backoff instance could, at best, track the the time since the first attempt at a
+    // limit. Any backoff instance could, at best, track the time since the first attempt at a
     // given request. Thus, we need to track the cumulative time ourselves.
     long startNanos = nanoClock.nanoTime();
 

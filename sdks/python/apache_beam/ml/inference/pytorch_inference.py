@@ -22,6 +22,7 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Iterable
+from typing import Optional
 from typing import Sequence
 
 import torch
@@ -44,7 +45,7 @@ def _convert_to_device(examples: torch.Tensor, device) -> torch.Tensor:
   """
   Converts samples to a style matching given device.
 
-  Note: A user may pass in device='GPU' but if GPU is not detected in the
+  **NOTE:** A user may pass in device='GPU' but if GPU is not detected in the
   environment it must be converted back to CPU.
   """
   if examples.device != device:
@@ -55,21 +56,25 @@ def _convert_to_device(examples: torch.Tensor, device) -> torch.Tensor:
 class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
                                              PredictionResult,
                                              torch.nn.Module]):
-  """ Implementation of the ModelHandler interface for PyTorch."""
   def __init__(
       self,
       state_dict_path: str,
       model_class: Callable[..., torch.nn.Module],
       model_params: Dict[str, Any],
       device: str = 'CPU'):
-    """
-    Initializes a PytorchModelHandlerTensor
-    :param state_dict_path: path to the saved dictionary of the model state.
-    :param model_class: class of the Pytorch model that defines the model
-    structure.
-    :param device: the device on which you wish to run the model. If
-    ``device = GPU`` then a GPU device will be used if it is available.
-    Otherwise, it will be CPU.
+    """Implementation of the ModelHandler interface for PyTorch.
+
+    Example Usage::
+
+      pcoll | RunInference(PytorchModelHandlerTensor(state_dict_path="my_uri"))
+
+    Args:
+      state_dict_path: path to the saved dictionary of the model state.
+      model_class: class of the Pytorch model that defines the model
+        structure.
+      device: the device on which you wish to run the model. If
+        ``device = GPU`` then a GPU device will be used if it is available.
+        Otherwise, it will be CPU.
 
     See https://pytorch.org/tutorials/beginner/saving_loading_models.html
     for details
@@ -91,28 +96,49 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         **self._model_params)
 
   def run_inference(
-      self, batch: Sequence[torch.Tensor], model: torch.nn.Module,
-      **kwargs) -> Iterable[PredictionResult]:
+      self,
+      batch: Sequence[torch.Tensor],
+      model: torch.nn.Module,
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
     Tensor Predictions.
 
     This method stacks the list of Tensors in a vectorized format to optimize
     the inference call.
+
+    Args:
+      batch: A sequence of Tensors. These Tensors should be batchable, as this
+        method will call `torch.stack()` and pass in batched Tensors with
+        dimensions (batch_size, n_features, etc.) into the model's forward()
+        function.
+      model: A PyTorch model.
+      inference_args: Non-batchable arguments required as inputs to the model's
+        forward() function. Unlike Tensors in `batch`, these parameters will
+        not be dynamically batched
+
+    Returns:
+      An Iterable of type PredictionResult.
     """
-    prediction_params = kwargs.get('prediction_params', {})
+    inference_args = {} if not inference_args else inference_args
+
     batched_tensors = torch.stack(batch)
     batched_tensors = _convert_to_device(batched_tensors, self._device)
-    predictions = model(batched_tensors, **prediction_params)
+    predictions = model(batched_tensors, **inference_args)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
-    """Returns the number of bytes of data for a batch of Tensors."""
+    """
+    Returns:
+      The number of bytes of data for a batch of Tensors.
+    """
     return sum((el.element_size() for tensor in batch for el in tensor))
 
   def get_metrics_namespace(self) -> str:
     """
-    Returns a namespace for metrics collected by the RunInference transform.
+    Returns:
+       A namespace for metrics collected by the RunInference transform.
     """
     return 'RunInferencePytorch'
 
@@ -120,28 +146,33 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
 class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
                                                   PredictionResult,
                                                   torch.nn.Module]):
-  """ Implementation of the ModelHandler interface for PyTorch.
-
-      NOTE: This API and its implementation are under development and
-      do not provide backward compatibility guarantees.
-  """
   def __init__(
       self,
       state_dict_path: str,
       model_class: Callable[..., torch.nn.Module],
       model_params: Dict[str, Any],
       device: str = 'CPU'):
-    """
-    Initializes a PytorchModelHandlerKeyedTensor
-    :param state_dict_path: path to the saved dictionary of the model state.
-    :param model_class: class of the Pytorch model that defines the model
-    structure.
-    :param device: the device on which you wish to run the model. If
-    ``device = GPU`` then a GPU device will be used if it is available.
-    Otherwise, it will be CPU.
+    """Implementation of the ModelHandler interface for PyTorch.
+
+    Example Usage::
+
+      pcoll | RunInference(
+      PytorchModelHandlerKeyedTensor(state_dict_path="my_uri"))
+
+    **NOTE:** This API and its implementation are under development and
+    do not provide backward compatibility guarantees.
 
     See https://pytorch.org/tutorials/beginner/saving_loading_models.html
     for details
+
+    Args:
+      state_dict_path: path to the saved dictionary of the model state.
+      model_class: class of the Pytorch model that defines the model
+        structure.
+      device: the device on which you wish to run the model. If
+        ``device = GPU`` then a GPU device will be used if it is available.
+        Otherwise, it will be CPU.
+      model_params: A dictionary of parameters passed in to the model class.
     """
     self._state_dict_path = state_dict_path
     if device == 'GPU' and torch.cuda.is_available():
@@ -163,15 +194,29 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       self,
       batch: Sequence[Dict[str, torch.Tensor]],
       model: torch.nn.Module,
-      **kwargs) -> Iterable[PredictionResult]:
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Keyed Tensors and returns an Iterable of
     Tensor Predictions.
 
     For the same key across all examples, this will stack all Tensors values
     in a vectorized format to optimize the inference call.
+
+    Args:
+      batch: A sequence of keyed Tensors. These Tensors should be batchable,
+        as this method will call `torch.stack()` and pass in batched Tensors
+        with dimensions (batch_size, n_features, etc.) into the model's
+        forward() function.
+      model: A PyTorch model.
+      inference_args: Non-batchable arguments required as inputs to the model's
+        forward() function. Unlike Tensors in `batch`, these parameters will
+        not be dynamically batched
+
+    Returns:
+      An Iterable of type PredictionResult.
     """
-    prediction_params = kwargs.get('prediction_params', {})
+    inference_args = {} if not inference_args else inference_args
 
     # If elements in `batch` are provided as a dictionaries from key to Tensors,
     # then iterate through the batch list, and group Tensors to the same key
@@ -184,17 +229,21 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       batched_tensors = torch.stack(key_to_tensor_list[key])
       batched_tensors = _convert_to_device(batched_tensors, self._device)
       key_to_batched_tensors[key] = batched_tensors
-    predictions = model(**key_to_batched_tensors, **prediction_params)
+    predictions = model(**key_to_batched_tensors, **inference_args)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
-    """Returns the number of bytes of data for a batch of Dict of Tensors."""
+    """
+    Returns:
+       The number of bytes of data for a batch of Dict of Tensors.
+    """
     # If elements in `batch` are provided as a dictionaries from key to Tensors
     return sum(
         (el.element_size() for tensor in batch for el in tensor.values()))
 
   def get_metrics_namespace(self) -> str:
     """
-    Returns a namespace for metrics collected by the RunInference transform.
+    Returns:
+       A namespace for metrics collected by the RunInference transform.
     """
     return 'RunInferencePytorch'

@@ -68,7 +68,8 @@ public class SchemaTranslation {
   private static final String URN_BEAM_LOGICAL_DECIMAL = "beam:logical_type:decimal:v1";
   private static final String URN_BEAM_LOGICAL_JAVASDK = "beam:logical_type:javasdk:v1";
 
-  // TODO(BEAM-7855): Populate this with a LogicalTypeRegistrar, which includes a way to construct
+  // TODO(https://github.com/apache/beam/issues/19715): Populate this with a LogicalTypeRegistrar,
+  // which includes a way to construct
   // the LogicalType given an argument.
   private static final ImmutableMap<String, Class<? extends LogicalType<?, ?>>>
       STANDARD_LOGICAL_TYPES =
@@ -171,9 +172,9 @@ public class SchemaTranslation {
               SchemaApi.LogicalType.newBuilder()
                   .setRepresentation(
                       fieldTypeToProto(logicalType.getBaseType(), serializeLogicalType))
-                  // TODO(BEAM-7855): "javasdk" types should only be a last resort. Types defined in
-                  // Beam should have their own URN, and there should be a mechanism for users to
-                  // register their own types by URN.
+                  // TODO(https://github.com/apache/beam/issues/19715): "javasdk" types should only
+                  // be a last resort. Types defined in Beam should have their own URN, and there
+                  // should be a mechanism for users to register their own types by URN.
                   .setUrn(URN_BEAM_LOGICAL_JAVASDK);
           if (logicalType.getArgumentType() != null) {
             logicalTypeBuilder =
@@ -193,7 +194,7 @@ public class SchemaTranslation {
         builder.setLogicalType(logicalTypeBuilder.build());
         break;
         // Special-case for DATETIME and DECIMAL which are logical types in portable representation,
-        // but not yet in Java. (BEAM-7554)
+        // but not yet in Java. (https://github.com/apache/beam/issues/19817)
       case DATETIME:
         builder.setLogicalType(
             SchemaApi.LogicalType.newBuilder()
@@ -356,7 +357,7 @@ public class SchemaTranslation {
           }
         }
         // Special-case for DATETIME and DECIMAL which are logical types in portable representation,
-        // but not yet in Java. (BEAM-7554)
+        // but not yet in Java. (https://github.com/apache/beam/issues/19817)
         if (urn.equals(URN_BEAM_LOGICAL_DATETIME)) {
           return FieldType.DATETIME;
         } else if (urn.equals(URN_BEAM_LOGICAL_DECIMAL)) {

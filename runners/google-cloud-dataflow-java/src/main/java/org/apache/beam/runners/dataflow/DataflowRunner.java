@@ -2285,7 +2285,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           WriteFilesResult<DestinationT>,
           WriteFiles<UserT, DestinationT, OutputT>> {
 
-    // We pick 10 as a a default, as it works well with the default number of workers started
+    // We pick 10 as a default, as it works well with the default number of workers started
     // by Dataflow.
     static final int DEFAULT_NUM_SHARDS = 10;
     DataflowPipelineWorkerPoolOptions options;

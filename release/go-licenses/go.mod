@@ -13,27 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fhirio
+module github.com/apache/beam/release/go-licenses
 
-import "net/http"
-
-type fakeFhirStoreClient struct {
-	fakeReadResources func(string) (*http.Response, error)
-}
-
-func (c *fakeFhirStoreClient) readResource(resourcePath string) (*http.Response, error) {
-	return c.fakeReadResources(resourcePath)
-}
-
-// Useful to fake the Body of a http.Response.
-type fakeReaderCloser struct {
-	fakeRead func([]byte) (int, error)
-}
-
-func (*fakeReaderCloser) Close() error {
-	return nil
-}
-
-func (m *fakeReaderCloser) Read(b []byte) (int, error) {
-	return m.fakeRead(b)
-}
+go 1.18

@@ -40,7 +40,7 @@ const double kLgContainerHeight = 490.0;
 const double kLgContainerWidth = 400.0;
 
 class ExampleSelector extends StatefulWidget {
-  final Function changeSelectorVisibility;
+  final void Function() changeSelectorVisibility;
   final bool isSelectorOpened;
 
   const ExampleSelector({
@@ -153,7 +153,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
                       child: SlideTransition(
                         position: offsetAnimation,
                         child: Material(
-                          elevation: kElevation.toDouble(),
+                          elevation: kElevation,
                           child: Container(
                             height: kLgContainerHeight,
                             width: kLgContainerWidth,

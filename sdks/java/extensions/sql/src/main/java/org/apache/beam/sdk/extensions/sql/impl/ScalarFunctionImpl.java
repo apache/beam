@@ -164,7 +164,8 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
 
       final List<Expression> translated = new ArrayList<>();
       for (int i = 0; i < expressions.size(); i++) {
-        // TODO: [BEAM-8255] Add support for user defined function with var-arg
+        // TODO: [https://github.com/apache/beam/issues/19825] Add support for user defined function
+        // with var-arg
         // Ex: types: [String[].class], expression: [param1, param2, ...]
         translated.add(translate(types.get(i), expressions.get(i)));
       }

@@ -59,7 +59,7 @@ class EditorTextArea extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _EditorTextAreaState createState() => _EditorTextAreaState();
+  State<EditorTextArea> createState() => _EditorTextAreaState();
 }
 
 class _EditorTextAreaState extends State<EditorTextArea> {

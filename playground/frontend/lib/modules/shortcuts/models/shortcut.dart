@@ -22,7 +22,7 @@ class Shortcut {
   final String name;
   final LogicalKeySet shortcuts;
   final Intent actionIntent;
-  final Function createAction;
+  final CallbackAction Function(BuildContext) createAction;
 
   Shortcut({
     required this.name,
