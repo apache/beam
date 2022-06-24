@@ -35,10 +35,11 @@ jobs:
           curl -H "Authorization: token $GITHUB_TOKEN" -d '{"assignees":["'"$LOGIN"'"]}' https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/assignees
           curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/labels/awaiting%20triage
         fi
-        if [[ $BODY == *"$INPUT_CLOSE"* && $BODY != *"\`$INPUT_CLOSE\`"* ]]; then
-          $ISSUE_CLOSE_CONFIG='"state":"closed"'
+        ISSUE_ASSIGNEE="$(jq '.issue.assignee.login' $GITHUB_EVENT_PATH | tr -d \")"
+        if [[ $ISSUE_ASSIGNEE == $LOGIN && $BODY == *"$INPUT_CLOSE"* && $BODY != *"\`$INPUT_CLOSE\`"* ]]; then
+          ISSUE_CLOSE_CONFIG='"state":"closed"'
           if [[ $BODY == *"not_planned"* ]]; then
-            $ISSUE_CLOSE_CONFIG='"state":"closed","state_reason":"not_planned"'
+            ISSUE_CLOSE_CONFIG='"state":"closed","state_reason":"not_planned"'
           fi
           echo "Closing issue $ISSUE_NUMBER as {$ISSUE_CLOSE_CONFIG}"
           echo "Using the link: https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER"

@@ -27,5 +27,5 @@ Phrases for self-assign and close the issue:
 | Phrase | Effect |
 |--------|--------|
 | `.take-issue` | Self-assign the issue |
-| `.close-issue` or<br />`.close-issue(completed)` | Close the issue as completed |
-| `.close-issue(not_planned)` | Close the issue as not-planned |
+| `.close-issue` | Close the issue as completed |
+| `.close-issue not_planned` | Close the issue as not-planned |
