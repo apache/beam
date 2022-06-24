@@ -33,10 +33,10 @@ from functools import wraps
 import pytest
 
 import apache_beam as beam
+from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
-from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.runners.interactive import interactive_beam
 from apache_beam.runners.interactive.interactive_runner import InteractiveRunner

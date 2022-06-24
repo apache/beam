@@ -292,6 +292,7 @@ from typing import Union
 import fastavro
 
 import apache_beam as beam
+
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal.gcp.json_value import from_json_value
@@ -2566,11 +2567,12 @@ class ReadFromBigQuery(PTransform):
       raise TypeError(f"Encountered an unsupported type: {self.output_type!r}")
     elif self.output_type == 'BEAM_ROWS':
       if 'table' in self._kwargs:
+        print(self._kwargs)
         ReadFromBigQuery._get_pcoll_from_schema(
             beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
-                project_id='apache-beam-testing',
-                dataset_id="beam_bigquery_io_test",
-                table_id="dfsqltable_3c7d6fd5_16e0460dfd0").schema)
+                project_id=self._kwargs['project'],
+                dataset_id=self._kwargs['table'],
+                table_id=self._kwargs['table']).schema)
 
   def _get_pcoll_from_schema(table_schema):
     pcoll_val = beam.io.gcp.bigquery_schema_tools. \
