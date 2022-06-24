@@ -35,23 +35,11 @@ jobs:
           curl -H "Authorization: token $GITHUB_TOKEN" -d '{"assignees":["'"$LOGIN"'"]}' https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/assignees
           curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/labels/awaiting%20triage
         fi
-        INPUT_CLOSE_BRACKET="$INPUT_CLOSE"'\(([^()]*)\)'
-        INPUT_CLOSE_BRACKET_BACKTICK="\`$INPUT_CLOSE_BRACKET\`"
-        ISSUE_CLOSE_CONFIG=""
-        if [[ ! $BODY =~ $INPUT_CLOSE_BRACKET_BACKTICK ]]; then
-          if [[ $BODY =~ $INPUT_CLOSE_BRACKET ]]; then
-            if [[ ${BASH_REMATCH[1]} == "completed" ]] || [[ ${BASH_REMATCH[1]} == "not_planned" ]]; then
-              # close issue with specified reason. Supported reasons are "completed" or "not_planned".
-              ISSUE_CLOSE_CONFIG='"state":"closed","state_reason":"'${BASH_REMATCH[1]}\"
-            else
-              echo "Unknown issue close reason: ${BASH_REMATCH[1]}"
-            fi
-          elif [[ $BODY == *"$INPUT_CLOSE"* && $BODY != *"\`$INPUT_CLOSE\`"* ]]; then
-            # Close issue without specify a reason. Will be closed as complete by default.
-            ISSUE_CLOSE_CONFIG='"state":"closed"'
+        if [[ $BODY == *"$INPUT_CLOSE"* && $BODY != *"\`$INPUT_CLOSE\`"* ]]; then
+          $ISSUE_CLOSE_CONFIG='"state":"closed"'
+          if [[ $BODY == *"not_planned"* ]]; then
+            $ISSUE_CLOSE_CONFIG='"state":"closed","state_reason":"not_planned"'
           fi
-        fi
-        if [[ -n $ISSUE_CLOSE_CONFIG ]]; then
           echo "Closing issue $ISSUE_NUMBER as {$ISSUE_CLOSE_CONFIG}"
           echo "Using the link: https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER"
           curl -X PATCH -H "Authorization: token $GITHUB_TOKEN" -d "{$ISSUE_CLOSE_CONFIG}" https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER
