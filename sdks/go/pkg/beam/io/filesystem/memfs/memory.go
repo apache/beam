@@ -23,7 +23,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -55,14 +55,12 @@ func (f *fs) List(_ context.Context, glob string) ([]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
+	// As with other functions, the memfs:// prefix is optional.
 	globNoScheme := strings.TrimPrefix(glob, "memfs://")
-	if globNoScheme == glob {
-		return nil, fmt.Errorf("invalid pattern %q does not have prefix memfs://", glob)
-	}
 
 	var ret []string
 	for k := range f.m {
-		matched, err := path.Match(globNoScheme, strings.TrimPrefix(k, "memfs://"))
+		matched, err := filepath.Match(globNoScheme, strings.TrimPrefix(k, "memfs://"))
 		if err != nil {
 			return nil, fmt.Errorf("invalid glob pattern: %w", err)
 		}
