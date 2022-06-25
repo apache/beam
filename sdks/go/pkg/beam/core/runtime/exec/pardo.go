@@ -183,7 +183,7 @@ func (n *ParDo) processSingleWindow(mainIn *MainInput) (sdf.ProcessContinuation,
 	if val != nil {
 		// Check for incomplete processing of a restriction without a checkpoint
 		if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() && val.Continuation == nil {
-			return nil, rtErrHelper(mainIn.RTracker.GetError())
+			return nil, rtErrHelper(mainIn.RTracker)
 		}
 		// We do not forward a ProcessContinuation on its own
 		if val.Elm == nil {
@@ -193,17 +193,27 @@ func (n *ParDo) processSingleWindow(mainIn *MainInput) (sdf.ProcessContinuation,
 	}
 
 	if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() {
-		return nil, rtErrHelper(mainIn.RTracker.GetError())
+		return nil, rtErrHelper(mainIn.RTracker)
 	}
 
 	return nil, nil
 }
 
-func rtErrHelper(err error) error {
-	if err != nil {
+func rtErrHelper(rt sdf.RTracker) error {
+	if err := rt.GetError(); err != nil {
+		// TODO: Consider adding more context.
 		return err
 	}
-	return errors.New("DoFn terminated without fully processing restriction")
+	errSuffix := ""
+	if !rt.IsDone() {
+		done, remaining := rt.GetProgress()
+		denom := done + remaining
+		if denom != 0 {
+			errSuffix += fmt.Sprintf("; %.04f%% complete (done=%f, remaining=%f)", 100*done/denom, done, remaining)
+		}
+	}
+
+	return errors.New("DoFn terminated without fully processing restriction" + errSuffix)
 }
 
 // mustExplodeWindows returns true iif we need to call the function
