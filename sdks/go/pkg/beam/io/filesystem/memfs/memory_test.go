@@ -20,6 +20,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/google/go-cmp/cmp"
 )
@@ -205,5 +206,27 @@ func TestRename(t *testing.T) {
 	}
 	if got, want := string(read), oldpath; got != want {
 		t.Errorf("Rename() error got %q, want %q", got, want)
+	}
+}
+
+// TestWriteAffectsActiveReads tests that that direct writes to the memory filesystem works.
+func TestWriteAffectsActiveReads(t *testing.T) {
+	ctx := context.Background()
+	fs := New(ctx)
+
+	writer1, err := fs.OpenWrite(ctx, "memfs://abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reader1, err := fs.OpenRead(ctx, "memfs://abc")
+	if err != nil {
+		t.Fatalf("OpenRead should succeed after OpenWrite for the same path, got err = %v", err)
+	}
+
+	writer1.Write([]byte("1234"))
+
+	if got, err := ioutilx.ReadN(reader1, 4); string(got) != "1234" {
+		t.Fatalf("read %q after writing 1234 to file, wanted 1234; err = %v", string(got), err)
 	}
 }

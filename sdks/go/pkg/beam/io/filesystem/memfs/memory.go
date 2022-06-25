@@ -19,7 +19,6 @@ package memfs
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"regexp"
