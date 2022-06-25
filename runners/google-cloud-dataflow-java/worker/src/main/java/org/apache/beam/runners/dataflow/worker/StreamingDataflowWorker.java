@@ -2303,7 +2303,7 @@ public class StreamingDataflowWorker {
     }
 
     /**
-     * Marks the work for a the given shardedKey as complete. Schedules queued work for the key if
+     * Marks the work for the given shardedKey as complete. Schedules queued work for the key if
      * any.
      */
     public void completeWork(ShardedKey shardedKey, long workToken) {

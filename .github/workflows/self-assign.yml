@@ -20,6 +20,7 @@ on:
 jobs:
   assign:
     name: Take or close an issue
+    if: ${{ !github.event.issue.pull_request }}
     runs-on: ubuntu-latest
     steps:
     - run: |
@@ -35,9 +36,13 @@ jobs:
           curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/labels/awaiting%20triage
         fi
         if [[ $BODY == *"$INPUT_CLOSE"* && $BODY != *"\`$INPUT_CLOSE\`"* ]]; then
-          echo "Closing issue $ISSUE_NUMBER"
+          ISSUE_CLOSE_CONFIG='"state":"closed"'
+          if [[ $BODY == *"not_planned"* ]]; then
+            ISSUE_CLOSE_CONFIG='"state":"closed","state_reason":"not_planned"'
+          fi
+          echo "Closing issue $ISSUE_NUMBER as {$ISSUE_CLOSE_CONFIG}"
           echo "Using the link: https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER"
-          curl -X PATCH -H "Authorization: token $GITHUB_TOKEN" -d '{"state":"closed"}' https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER
+          curl -X PATCH -H "Authorization: token $GITHUB_TOKEN" -d "{$ISSUE_CLOSE_CONFIG}" https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER
         fi
       shell: bash
       env:
