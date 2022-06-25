@@ -198,6 +198,8 @@ func (fn *readFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, file
 	}
 	defer fd.Close()
 
+	seeker, isSeekable := fd.(io.Seeker)
+
 	rd := bufio.NewReader(fd)
 
 	i := rt.GetRestriction().(offsetrange.Restriction).Start
@@ -209,13 +211,20 @@ func (fn *readFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, file
 		// until the next newline, leaving the reader at the start of a new
 		// line past restriction.Start.
 		i--
-		n, err := rd.Discard(int(i)) // Scan to just before restriction.
-		if err == io.EOF {
-			return errors.Errorf("TextIO restriction lies outside the file being read. "+
-				"Restriction begins at %v bytes, but file is only %v bytes.", i+1, n)
-		}
-		if err != nil {
-			return err
+		if isSeekable {
+			if _, err := seeker.Seek(i, io.SeekStart); err != nil {
+				return errors.Errorf("TextIO failed to seek to offset %d within file %q; restriction probably lies outside the file being read: %w", i, filename, err)
+			}
+			rd = bufio.NewReader(fd)
+		} else {
+			n, err := rd.Discard(int(i)) // Scan to just before restriction.
+			if err == io.EOF {
+				return errors.Errorf("TextIO restriction lies outside the file being read. "+
+					"Restriction begins at %v bytes, but file is only %v bytes.", i+1, n)
+			}
+			if err != nil {
+				return err
+			}
 		}
 		line, err := rd.ReadString('\n') // Read until the first line within the restriction.
 		if err == io.EOF {
