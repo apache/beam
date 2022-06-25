@@ -17,6 +17,8 @@ package memfs
 
 import (
 	"context"
+	"errors"
+	"io"
 	"os"
 	"testing"
 
@@ -229,4 +231,132 @@ func TestWriteAffectsActiveReads(t *testing.T) {
 	if got, err := ioutilx.ReadN(reader1, 4); string(got) != "1234" {
 		t.Fatalf("read %q after writing 1234 to file, wanted 1234; err = %v", string(got), err)
 	}
+	if _, err := reader1.Read(make([]byte, 10)); err != io.EOF {
+		t.Fatalf("got err = %v, wanted io.EOF", err)
+	}
+
+	writer1.Write([]byte("5678"))
+
+	if got, err := ioutilx.ReadN(reader1, 4); string(got) != "5678" {
+		t.Fatalf("read %q after writing 1234 to file, wanted 1234; err = %v", string(got), err)
+	}
+	if _, err := reader1.Read(make([]byte, 10)); err != io.EOF {
+		t.Fatalf("got err = %v, wanted io.EOF", err)
+	}
+}
+
+func TestReadModified(t *testing.T) {
+	ctx := context.Background()
+	fs := New(ctx)
+
+	Write("abc", []byte("hello world"))
+
+	reader, err := fs.OpenRead(ctx, "memfs://abc")
+	if err != nil {
+		t.Fatalf("OpenRead should succeed after OpenWrite for the same path, got err = %v", err)
+	}
+
+	want := "hello"
+	if got, err := ioutilx.ReadN(reader, 5); string(got) != "hello" {
+		t.Fatalf("read got %q, want %q; err = %v", string(got), want, err)
+	}
+
+	Write("abc", []byte("hello walrus, ocean creature"))
+
+	if got, err := ioutilx.ReadN(reader, 7); string(got) != " walrus" {
+		t.Fatalf("read got %q, want %q; err = %v", string(got), want, err)
+	}
+
+	Write("abc", []byte("hello"))
+
+	if _, err := ioutilx.ReadN(reader, 1); err != io.EOF {
+		t.Fatalf("wanted EOF after reading from past EOF position, got err = %v", err)
+	}
+}
+
+func TestSeek(t *testing.T) {
+	ctx := context.Background()
+	fs := New(ctx)
+
+	for _, tt := range []struct {
+		name     string
+		contents map[string]string
+		filename string
+		offset   int64
+		whence   int
+		wantPos  int64
+		wantErr  error
+		want     string
+	}{
+		{
+			name:     "simple",
+			contents: map[string]string{"abc": "12345"},
+			filename: "abc",
+			offset:   -3,
+			whence:   io.SeekEnd,
+			wantPos:  2,
+			want:     "345",
+		},
+		{
+			name:     "negative",
+			contents: map[string]string{"abc": "12345"},
+			filename: "abc",
+			offset:   -3,
+			whence:   io.SeekCurrent,
+			wantErr:  errBadSeek,
+		},
+		{
+			name:     "beyond EOF",
+			contents: map[string]string{"abc": "12345"},
+			filename: "abc",
+			offset:   50,
+			whence:   io.SeekStart,
+			wantErr:  errBadSeek,
+		},
+		{
+			name:     "EOF exactly",
+			contents: map[string]string{"abc": "12"},
+			filename: "abc",
+			offset:   2,
+			whence:   io.SeekStart,
+			wantPos:  2,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			reset()
+			for k, v := range tt.contents {
+				Write(k, []byte(v))
+			}
+
+			reader, err := fs.OpenRead(ctx, tt.filename)
+			if err != nil {
+				t.Fatalf("OpenRead should succeed after OpenWrite for the same path, got err = %v", err)
+			}
+			seeker, ok := reader.(io.Seeker)
+			if !ok {
+				t.Fatalf("expected memfs OpenRead to return a seeker")
+			}
+			gotPos, err := seeker.Seek(tt.offset, tt.whence)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("got seek error = %v, wantErr = %v", err, tt.wantErr)
+			}
+			if gotPos != tt.wantPos {
+				t.Fatalf("got seek result %d, want %d", gotPos, tt.wantPos)
+			}
+			want := []byte(tt.want)
+			if len(want) > 0 {
+				got, err := ioutilx.ReadN(reader, len(want))
+				if err != nil {
+					t.Fatalf("error reading after seek: %v", err)
+				}
+				if string(got) != tt.want {
+					t.Fatalf("read after seek got %q, want %q", string(got), want)
+				}
+			}
+		})
+	}
+}
+
+func reset() {
+	instance.m = map[string][]byte{}
 }

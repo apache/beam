@@ -19,6 +19,8 @@ package memfs
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"regexp"
@@ -76,11 +78,16 @@ func (f *fs) OpenRead(_ context.Context, filename string) (io.ReadCloser, error)
 	if _, ok := f.m[normalizedKey]; !ok {
 		return nil, os.ErrNotExist
 	}
-	return &bytesReader{fs: f, normalizedKey: normalizedKey}, nil
+	return &bytesReader{instance: f, normalizedKey: normalizedKey}, nil
 }
 
 func (f *fs) OpenWrite(_ context.Context, filename string) (io.WriteCloser, error) {
-	return &commitWriter{key: filename, instance: f}, nil
+	key := normalize(filename)
+	writer := &commitWriter{key: key, instance: f}
+	_, err := writer.Write([]byte{})
+	return writer, err
+	// Create the file if it does not exist.
+
 }
 
 func (f *fs) Size(_ context.Context, filename string) (int64, error) {
@@ -156,17 +163,22 @@ type commitWriter struct {
 }
 
 func (w *commitWriter) Write(p []byte) (n int, err error) {
-	return w.buf.Write(p)
+	n, err = w.buf.Write(p)
+	if err != nil {
+		return n, err
+	}
+
+	w.instance.write(w.key, w.buf.Bytes())
+	return n, nil
 }
 
 func (w *commitWriter) Close() error {
-	return w.instance.write(w.key, w.buf.Bytes())
+	return nil
 }
 
-// bytesReader is like a bytes.Reader that implements io.Closer as well.
+// bytesReader implements io.Reader, io.Seeker, io.Cloer for memfs "files."
 type bytesReader struct {
-	mu            sync.Mutex
-	fs            *fs
+	instance      *fs
 	normalizedKey string
 	pos           int64
 }
@@ -174,13 +186,10 @@ type bytesReader struct {
 var _ io.ReadSeekCloser = (*bytesReader)(nil)
 
 func (r *bytesReader) Read(p []byte) (int, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.instance.mu.Lock()
+	defer r.instance.mu.Unlock()
 
-	r.fs.mu.Lock()
-	defer r.fs.mu.Unlock()
-
-	currentValue, exists := r.fs.m[r.normalizedKey]
+	currentValue, exists := r.instance.m[r.normalizedKey]
 	if !exists {
 		return 0, os.ErrNotExist
 	}
@@ -199,13 +208,10 @@ func (r *bytesReader) Read(p []byte) (int, error) {
 
 func (r *bytesReader) Close() error { return nil }
 func (r *bytesReader) Seek(offset int64, whence int) (int64, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.instance.mu.Lock()
+	defer r.instance.mu.Unlock()
 
-	r.fs.mu.Lock()
-	defer r.fs.mu.Unlock()
-
-	currentValue, exists := r.fs.m[r.normalizedKey]
+	currentValue, exists := r.instance.m[r.normalizedKey]
 	if !exists {
 		return 0, os.ErrNotExist
 	}
@@ -221,11 +227,13 @@ func (r *bytesReader) Seek(offset int64, whence int) (int64, error) {
 		wantPos = int64(currentLen) + offset
 	}
 	if wantPos < 0 {
-		return 0, fmt.Errorf("invalid seek position %d is before start of file", wantPos)
+		return 0, fmt.Errorf("%w: invalid seek position %d is before start of file", errBadSeek, wantPos)
 	}
 	if int(wantPos) > currentLen {
-		return 0, fmt.Errorf("invalid seek position %d is after end of file", wantPos)
+		return 0, fmt.Errorf("%w: invalid seek position %d is after end of file", errBadSeek, wantPos)
 	}
 	r.pos = wantPos
 	return r.pos, nil
 }
+
+var errBadSeek = errors.New("bad seek")
