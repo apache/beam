@@ -73,11 +73,10 @@ func (f *fs) OpenRead(_ context.Context, filename string) (io.ReadCloser, error)
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	normalizedKey := normalize(filename)
-	if _, ok := f.m[normalizedKey]; !ok {
-		return nil, os.ErrNotExist
+	if v, ok := f.m[normalize(filename)]; ok {
+		return &bytesReader{bytes.NewReader(v)}, nil
 	}
-	return &bytesReader{fs: f, normalizedKey: normalizedKey}, nil
+	return nil, os.ErrNotExist
 }
 
 func (f *fs) OpenWrite(_ context.Context, filename string) (io.WriteCloser, error) {
@@ -166,67 +165,13 @@ func (w *commitWriter) Close() error {
 
 // bytesReader is like a bytes.Reader that implements io.Closer as well.
 type bytesReader struct {
-	mu            sync.Mutex
-	fs            *fs
-	normalizedKey string
-	pos           int64
+	impl *bytes.Reader
 }
 
 var _ io.ReadSeekCloser = (*bytesReader)(nil)
 
-func (r *bytesReader) Read(p []byte) (int, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.fs.mu.Lock()
-	defer r.fs.mu.Unlock()
-
-	currentValue, exists := r.fs.m[r.normalizedKey]
-	if !exists {
-		return 0, os.ErrNotExist
-	}
-	if int(r.pos) >= len(currentValue) {
-		return 0, io.EOF
-	}
-	wantEnd := int(r.pos) + len(p)
-	if wantEnd > len(currentValue) {
-		wantEnd = len(currentValue)
-	}
-	n := wantEnd - int(r.pos)
-	copy(p, currentValue[r.pos:])
-	r.pos = int64(wantEnd)
-	return n, nil
-}
-
-func (r *bytesReader) Close() error { return nil }
+func (r *bytesReader) Read(p []byte) (n int, err error) { return r.impl.Read(p) }
+func (r *bytesReader) Close() error                     { return nil }
 func (r *bytesReader) Seek(offset int64, whence int) (int64, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.fs.mu.Lock()
-	defer r.fs.mu.Unlock()
-
-	currentValue, exists := r.fs.m[r.normalizedKey]
-	if !exists {
-		return 0, os.ErrNotExist
-	}
-	currentLen := len(currentValue)
-
-	wantPos := r.pos
-	switch whence {
-	case io.SeekCurrent:
-		wantPos = r.pos + offset
-	case io.SeekStart:
-		wantPos = offset
-	case io.SeekEnd:
-		wantPos = int64(currentLen) + offset
-	}
-	if wantPos < 0 {
-		return 0, fmt.Errorf("invalid seek position %d is before start of file", wantPos)
-	}
-	if int(wantPos) > currentLen {
-		return 0, fmt.Errorf("invalid seek position %d is after end of file", wantPos)
-	}
-	r.pos = wantPos
-	return r.pos, nil
+	return r.impl.Seek(offset, whence)
 }
