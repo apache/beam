@@ -1521,19 +1521,19 @@ class WriteResult:
         'destination': destination,
         'schema': schema,
     }
-
+    
     from apache_beam.io.gcp.bigquery_file_loads import BigQueryBatchFileLoads
     self.attributes = {
-        BigQueryWriteFn.FAILED_ROWS: self.get_failed_rows,
-        BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS: self.
-        get_failed_rows_with_errors,
-        BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS: self.
-        get_destination_load_jobid_pairs,
-        BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS: self.
-        get_destination_file_pairs,
-        BigQueryBatchFileLoads.DESTINATION_COPY_JOBID_PAIRS: self.
-        get_destination_copy_jobid_pairs,
-        'write_configuration': self.get_write_configuration
+        BigQueryWriteFn.FAILED_ROWS: WriteResult.failed_rows,
+        BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS: WriteResult.
+        failed_rows_with_errors,
+        BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS: WriteResult.
+        destination_load_jobid_pairs,
+        BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS: WriteResult.
+        destination_file_pairs,
+        BigQueryBatchFileLoads.DESTINATION_COPY_JOBID_PAIRS: WriteResult.
+        destination_copy_jobid_pairs,
+        'write_configuration': WriteResult.get_write_configuration
     }
 
   def get_write_configuration(self):
@@ -1541,49 +1541,48 @@ class WriteResult:
 
   def validate(self, method, attribute):
     if self.method != method:
-      raise ValueError(
+      raise AttributeError(
           f'Cannot get {attribute} because it is not produced '
           f'by {self.method} write method. Note: only {method} '
           'produces this attribute.')
 
-  def get_destination_load_jobid_pairs(self):
+  @property
+  def destination_load_jobid_pairs(self):
     self.validate('FILE_LOADS', 'DESTINATION_JOBID_PAIRS')
 
     return self._destination_load_jobid_pairs
 
-  def get_destination_file_pairs(self):
+  @property
+  def destination_file_pairs(self):
     self.validate('FILE_LOADS', 'DESTINATION_FILE_PAIRS')
 
     return self._destination_file_pairs
 
-  def get_destination_copy_jobid_pairs(self):
+  @property
+  def destination_copy_jobid_pairs(self):
     self.validate('FILE_LOADS', 'DESTINATION_COPY_JOBID_PAIRS')
 
     return self._destination_copy_jobid_pairs
 
-  def get_failed_rows(self):
+  @property
+  def failed_rows(self):
     self.validate('STREAMING_INSERTS', 'FAILED_ROWS')
 
     return self._failed_rows
 
-  def get_failed_rows_with_errors(self):
+  @property
+  def failed_rows_with_errors(self):
     self.validate('STREAMING_INSERTS', 'FAILED_ROWS_WITH_ERRORS')
 
     return self._failed_rows_with_errors
 
-  destination_load_jobid_pairs = property(get_destination_load_jobid_pairs)
-  destination_file_pairs = property(get_destination_file_pairs)
-  destination_copy_jobid_pairs = property(get_destination_copy_jobid_pairs)
-  failed_rows = property(get_failed_rows)
-  failed_rows_with_errors = property(get_failed_rows_with_errors)
-
   def __getitem__(self, key):
     if key not in self.attributes:
-      raise ValueError(
+      raise AttributeError(
           f'Error trying to access nonexistent attribute `{key}` in write '
           'result. Please see __documentation__ for available attributes.')
 
-    return self.attributes[key].__call__()
+    return self.attributes[key].__get__(self, WriteResult)
 
 
 _KNOWN_TABLES = set()
