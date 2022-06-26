@@ -360,6 +360,7 @@ __all__ = [
     'BigQuerySink',
     'BigQueryQueryPriority',
     'WriteToBigQuery',
+    'WriteResult',
     'ReadFromBigQuery',
     'ReadFromBigQueryRequest',
     'ReadAllFromBigQuery',
@@ -1496,6 +1497,7 @@ bigquery_v2_messages.TableSchema` object.
 
 
 class WriteResult:
+  """The result of a WriteToBigQuery transform."""
   def __init__(
       self,
       method=None,
@@ -1504,8 +1506,7 @@ class WriteResult:
       destination_copy_jobid_pairs=None,
       failed_rows=None,
       failed_rows_with_errors=None):
-
-    self.method = method
+    self.method: str = method
     self._destination_load_jobid_pairs: PCollection = destination_load_jobid_pairs
     self._destination_file_pairs: PCollection = destination_file_pairs
     self._destination_copy_jobid_pairs: PCollection = destination_copy_jobid_pairs
@@ -1534,30 +1535,58 @@ class WriteResult:
 
   @property
   def destination_load_jobid_pairs(self):
+    """A ``FILE_LOADS`` method attribute
+
+    Returns: A PCollection of the table destinations that were successfully
+      loaded to using the batch load API, along with the load job IDs.
+
+    Raises: AttributeError: if accessed with a write method besides ``FILE_LOADS``."""
     self.validate('FILE_LOADS', 'DESTINATION_JOBID_PAIRS')
 
     return self._destination_load_jobid_pairs
 
   @property
   def destination_file_pairs(self):
+    """A ``FILE_LOADS`` method attribute
+
+    Returns: A PCollection of the table destinations along with the
+      temp files used as sources to load from.
+
+    Raises: AttributeError: if accessed with a write method besides ``FILE_LOADS``."""
     self.validate('FILE_LOADS', 'DESTINATION_FILE_PAIRS')
 
     return self._destination_file_pairs
 
   @property
   def destination_copy_jobid_pairs(self):
+    """A ``FILE_LOADS`` method attribute
+
+    Returns: A PCollection of the table destinations that were successfully
+      copied to, along with the copy job ID.
+
+    Raises: AttributeError: if accessed with a write method besides ``FILE_LOADS``."""
     self.validate('FILE_LOADS', 'DESTINATION_COPY_JOBID_PAIRS')
 
     return self._destination_copy_jobid_pairs
 
   @property
   def failed_rows(self):
+    """A ``STREAMING_INSERTS`` method attribute
+
+    Returns: A PCollection of rows that failed when inserting to BigQuery.
+
+    Raises: AttributeError: if accessed with a write method besides ``STREAMING_INSERTS``."""
     self.validate('STREAMING_INSERTS', 'FAILED_ROWS')
 
     return self._failed_rows
 
   @property
   def failed_rows_with_errors(self):
+    """A ``STREAMING_INSERTS`` method attribute
+
+    Returns: A PCollection of rows that failed when inserting to BigQuery, along with their errors.
+
+    Raises: AttributeError: if accessed with a write method besides ``STREAMING_INSERTS``."""
     self.validate('STREAMING_INSERTS', 'FAILED_ROWS_WITH_ERRORS')
 
     return self._failed_rows_with_errors
