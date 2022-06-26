@@ -1499,8 +1499,6 @@ class WriteResult:
   def __init__(
       self,
       method=None,
-      destination=None,
-      schema=None,
       destination_load_jobid_pairs=None,
       destination_file_pairs=None,
       destination_copy_jobid_pairs=None,
@@ -1508,20 +1506,12 @@ class WriteResult:
       failed_rows_with_errors=None):
 
     self.method = method
-    self.destination = destination
-    self.schema = schema
     self._destination_load_jobid_pairs: PCollection = destination_load_jobid_pairs
     self._destination_file_pairs: PCollection = destination_file_pairs
     self._destination_copy_jobid_pairs: PCollection = destination_copy_jobid_pairs
     self._failed_rows: PCollection = failed_rows
     self._failed_rows_with_errors: PCollection = failed_rows_with_errors
 
-    self.config = {
-        'method': method,
-        'destination': destination,
-        'schema': schema,
-    }
-    
     from apache_beam.io.gcp.bigquery_file_loads import BigQueryBatchFileLoads
     self.attributes = {
         BigQueryWriteFn.FAILED_ROWS: WriteResult.failed_rows,
@@ -1533,11 +1523,7 @@ class WriteResult:
         destination_file_pairs,
         BigQueryBatchFileLoads.DESTINATION_COPY_JOBID_PAIRS: WriteResult.
         destination_copy_jobid_pairs,
-        'write_configuration': WriteResult.get_write_configuration
     }
-
-  def get_write_configuration(self):
-    return self.config
 
   def validate(self, method, attribute):
     if self.method != method:
@@ -2328,8 +2314,6 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
 
       return WriteResult(
           method=WriteToBigQuery.Method.STREAMING_INSERTS,
-          destination=self.table_reference,
-          schema=self.schema,
           failed_rows=outputs[BigQueryWriteFn.FAILED_ROWS],
           failed_rows_with_errors=outputs[
               BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS])
@@ -2390,8 +2374,6 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
 
       return WriteResult(
           method=WriteToBigQuery.Method.FILE_LOADS,
-          destination=self.table_reference,
-          schema=self.schema,
           destination_load_jobid_pairs=output[
               BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS],
           destination_file_pairs=output[
