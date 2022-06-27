@@ -20,6 +20,9 @@
 # pytype: skip-file
 
 import logging
+import random
+import re
+import string
 import unittest
 
 from hamcrest import all_of
@@ -120,6 +123,52 @@ class SdkWorkerMainTest(unittest.TestCase):
     for case, expected in zip(test_cases, expected_results):
       self.assertEqual(
           sdk_worker_main._get_log_level_from_options_dict(case), expected)
+
+  def test__set_log_level_overrides(self):
+    test_cases = [
+
+        ([], {}), # not provided, as a smoke test
+        (
+            # single overrides
+            ['{"a.b":"DEBUG","c.d":"INFO"}'],
+            {"a.b": logging.DEBUG, "a.b.f": logging.DEBUG, "c.d": logging.INFO}
+        ),
+        (
+            # multiple overrides
+            ['{"a.b":"DEBUG"}', '{"c.d":"ERROR","c.d.e":15}'],
+            {"a.b": logging.DEBUG, "a.b.f": logging.DEBUG, "c.d": logging.ERROR,
+             "c.d.e": 15, "c.d.f": logging.ERROR}
+        )
+    ]
+    for case, expected in test_cases:
+      # Set log level overrides for this fake package name.
+      # This avoids pollutes real logging.
+      pkgname = ''.join(random.choices(string.ascii_lowercase, k=8))
+      case_prefixed = [
+          re.sub(r'(?<=\{|,)"', '"' + pkgname + '.', record) for record in case
+      ]
+      options_dict = {'sdk_harness_log_level_overrides': case_prefixed}
+      sdk_worker_main._set_log_level_overrides(options_dict)
+      for name, level in expected.items():
+        name = pkgname + '.' + name
+        self.assertEqual(logging.getLogger(name).getEffectiveLevel(), level)
+
+  def test__set_log_level_overrides_error(self):
+    test_cases = [
+        ({
+            'sdk_harness_log_level_overrides': ['{"missed.quote":WARNING}']
+        },
+         "Unable to parse sdk_harness_log_level_overrides"),
+        ({
+            'sdk_harness_log_level_overrides': ['{"invalid.level":"INVALID"}']
+        },
+         "Error occurs when setting log level"),
+    ]
+    for case, expected in test_cases:
+      with self.assertLogs('apache_beam.runners.worker.sdk_worker_main',
+                           level='ERROR') as cm:
+        sdk_worker_main._set_log_level_overrides(case)
+        self.assertIn(expected, cm.output[0])
 
 
 if __name__ == '__main__':
