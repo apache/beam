@@ -215,7 +215,6 @@ func CheckFilters(t *testing.T) {
 			t.Skipf("Test %v is currently sickbayed on all runners", n)
 		}
 	}
-	// TODO(lostluck): Improve default job names.
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
 	*jobopts.JobName = fmt.Sprintf("go-%v-%v", strings.ToLower(n), r1.Intn(1000))
