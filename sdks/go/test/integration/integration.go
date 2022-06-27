@@ -214,7 +214,7 @@ func CheckFilters(t *testing.T) {
 		}
 	}
 	// TODO(lostluck): Improve default job names.
-	*jobopts.JobName = fmt.Sprintf("go-%v", strings.ToLower(n))
+	*jobopts.JobName = fmt.Sprintf("go-%v-%v", strings.ToLower(n), rand.Intn(1000))
 
 	// Test for runner-specific skipping second.
 	var filters []string
