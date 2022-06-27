@@ -55,7 +55,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 state: 'closed',
-                state_reason: 'not_planned'
+                state_reason: state_reason
               });
             } else if (bodyString == '.set-labels' || bodyString == '.add-labels' || bodyString == '.remove-labels') {
               console.log('Updating labels');
