@@ -45,17 +45,21 @@ jobs:
               });
             } else if (bodyString == '.close-issue') {
               console.log('Closing issue');
-              let state_reason = 'fixed'
               if (i + 1 < body.length && body[i+1].toLowerCase() == 'not_planned') {
-                state_reason = 'not_planned';
+                github.rest.issues.update({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'closed',
+                  state_reason: 'not_planned'
+                });
               }
               
               github.rest.issues.update({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                state: 'closed',
-                state_reason: state_reason
+                state: 'closed'
               });
             } else if (bodyString == '.set-labels' || bodyString == '.add-labels' || bodyString == '.remove-labels') {
               console.log('Updating labels');
