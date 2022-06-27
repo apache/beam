@@ -72,13 +72,7 @@ class RowTypeConstraint(typehints.TypeConstraint):
 
   @staticmethod
   def from_fields(fields: Sequence[Tuple[str, type]]) -> 'RowTypeConstraint':
-    # Import here to avoid circular import
-    from apache_beam.typehints.schemas import named_fields_to_schema
-    from apache_beam.typehints.schemas import named_tuple_from_schema
-
-    schema = named_fields_to_schema(fields)
-    user_type = named_tuple_from_schema(schema)
-    return RowTypeConstraint(fields=fields, user_type=user_type)
+    return RowTypeConstraint(fields=fields, user_type=None)
 
   @property
   def user_type(self):

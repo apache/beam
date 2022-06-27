@@ -334,6 +334,8 @@ class SchemaTranslation(object):
         for field in schema.fields:
           try:
             field_py_type = self.typing_from_runner_api(field.type)
+            if isinstance(field_py_type, row_type.RowTypeConstraint):
+              field_py_type = field_py_type.user_type
           except ValueError as e:
             raise ValueError(
                 "Failed to decode schema due to an issue with Field proto:\n\n"
