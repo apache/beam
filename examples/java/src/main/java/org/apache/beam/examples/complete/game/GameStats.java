@@ -233,79 +233,158 @@ public class GameStats extends LeaderBoard {
     return tableConfigure;
   }
 
+  public static void runGameStats(Options options) throws IOException {
+    Pipeline p = Pipeline.create(options);
+    applyGameStats(p, options);
+    p.run();
+  }
+
   public static void main(String[] args) throws Exception {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-    // Enforce that this pipeline is always run in streaming mode.
 
+    // Enforce that this pipeline is always run in streaming mode.
     options.setStreaming(true);
     runGameStats(options);
   }
 
-  static void runGameStats(Options options) throws IOException {
+  static class GameStatsTeamScore
+      extends PTransform<PCollection<String>, PCollection<KV<String, Integer>>> {
 
-    Pipeline pipeline = Pipeline.create(options);
+    private Integer fixedWindowDuration;
 
-    // Read Events from Pub/Sub using custom timestamps
-    PCollection<GameActionInfo> rawEvents =
-        pipeline
-            .apply(
-                PubsubIO.readStrings()
-                    .fromSubscription(options.getSubscription())
-                    .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE))
-            .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
+    public GameStatsTeamScore(Integer fixedWindowDuration) {
+      this.fixedWindowDuration = fixedWindowDuration;
+    }
 
-    // Extract username/score pairs from the event stream
-    PCollection<KV<String, Integer>> userEvents =
-        rawEvents.apply(
-            "ExtractUserScore",
-            MapElements.into(
-                    TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
-                .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore())));
+    @Override
+    public PCollection<KV<String, Integer>> expand(PCollection<String> rows) {
 
-    // Calculate the total score per user over fixed windows, and
-    // cumulative updates for late data.
-    PCollectionView<Map<String, Integer>> spammersView =
-        userEvents
-            .apply(
-                "FixedWindowsUser",
-                Window.into(
-                    FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
+      PCollection<GameActionInfo> rawEvents =
+          rows.apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
-            // Filter out everyone but those with (SCORE_WEIGHT * avg) clickrate.
-            // These might be robots/spammers.
-            .apply("CalculateSpammyUsers", new CalculateSpammyUsers())
-            // Derive a view from the collection of spammer users. It will be used as a side input
-            // in calculating the team score sums, below.
-            .apply("CreateSpammersView", View.asMap());
+      // Extract username/score pairs from the event stream
+      PCollection<KV<String, Integer>> userEvents =
+          rawEvents.apply(
+              "ExtractUserScore",
+              MapElements.into(
+                      TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
+                  .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore())));
 
-    // [START DocInclude_FilterAndCalc]
-    // Calculate the total score per team over fixed windows,
-    // and emit cumulative updates for late data. Uses the side input derived above-- the set of
-    // suspected robots-- to filter out scores from those users from the sum.
-    // Write the results to BigQuery.
-    rawEvents
-        .apply(
-            "WindowIntoFixedWindows",
-            Window.into(
-                FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
-        // Filter out the detected spammer users, using the side input derived above.
-        .apply(
-            "FilterOutSpammers",
-            ParDo.of(
-                    new DoFn<GameActionInfo, GameActionInfo>() {
-                      @ProcessElement
-                      public void processElement(ProcessContext c) {
-                        // If the user is not in the spammers Map, output the data element.
-                        if (c.sideInput(spammersView).get(c.element().getUser().trim()) == null) {
-                          c.output(c.element());
+      // Calculate the total score per user over fixed windows, and
+      // cumulative updates for late data.
+      PCollectionView<Map<String, Integer>> spammersView =
+          userEvents
+              .apply(
+                  "FixedWindowsUser",
+                  Window.into(FixedWindows.of(Duration.standardMinutes(fixedWindowDuration))))
+
+              // Filter out everyone but those with (SCORE_WEIGHT * avg) clickrate.
+              // These might be robots/spammers.
+              .apply("CalculateSpammyUsers", new CalculateSpammyUsers())
+              // Derive a view from the collection of spammer users. It will be used as a side input
+              // in calculating the team score sums, below.
+              .apply("CreateSpammersView", View.asMap());
+
+      // [START DocInclude_FilterAndCalc]
+      // Calculate the total score per team over fixed windows,
+      // and emit cumulative updates for late data. Uses the side input derived above-- the set of
+      // suspected robots-- to filter out scores from those users from the sum.
+      // Write the results to BigQuery.
+      return rawEvents
+          .apply(
+              "WindowIntoFixedWindows",
+              Window.into(FixedWindows.of(Duration.standardMinutes(fixedWindowDuration))))
+          // Filter out the detected spammer users, using the side input derived above.
+          .apply(
+              "FilterOutSpammers",
+              ParDo.of(
+                      new DoFn<GameActionInfo, GameActionInfo>() {
+                        @ProcessElement
+                        public void processElement(ProcessContext c) {
+                          // If the user is not in the spammers Map, output the data element.
+                          if (c.sideInput(spammersView).get(c.element().getUser().trim()) == null) {
+                            c.output(c.element());
+                          }
                         }
-                      }
-                    })
-                .withSideInputs(spammersView))
-        // Extract and sum teamname/score pairs from the event data.
-        .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
-        // [END DocInclude_FilterAndCalc]
+                      })
+                  .withSideInputs(spammersView))
+          // Extract and sum teamname/score pairs from the event data.
+          .apply("ExtractTeamScore", new ExtractAndSumScore("team"));
+      // [END DocInclude_FilterAndCalc]
+    }
+  }
+
+  static class SessionLength extends PTransform<PCollection<String>, PCollection<Double>> {
+
+    private Integer sessionGap;
+    private Integer userActivityWindowDuration;
+
+    public SessionLength(Integer sessionGap, Integer userActivityWindowDuration) {
+      this.sessionGap = sessionGap;
+      this.userActivityWindowDuration = userActivityWindowDuration;
+    }
+
+    @Override
+    public PCollection<Double> expand(PCollection<String> rows) {
+
+      PCollection<GameActionInfo> rawEvents =
+          rows.apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
+
+      // Extract username/score pairs from the event stream
+      PCollection<KV<String, Integer>> userEvents =
+          rawEvents.apply(
+              "ExtractUserScore",
+              MapElements.into(
+                      TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
+                  .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore())));
+
+      // [START DocInclude_SessionCalc]
+      // Detect user sessions-- that is, a burst of activity separated by a gap from further
+      // activity. Find and record the mean session lengths.
+      // This information could help the game designers track the changing user engagement
+      // as their set of games changes.
+      return userEvents
+          .apply(
+              "WindowIntoSessions",
+              Window.<KV<String, Integer>>into(
+                      Sessions.withGapDuration(Duration.standardMinutes(sessionGap)))
+                  .withTimestampCombiner(TimestampCombiner.END_OF_WINDOW))
+          // For this use, we care only about the existence of the session, not any particular
+          // information aggregated over it, so the following is an efficient way to do that.
+          .apply(Combine.perKey(x -> 0))
+          // Get the duration per session.
+          .apply("UserSessionActivity", ParDo.of(new UserSessionInfoFn()))
+          // [END DocInclude_SessionCalc]
+          // [START DocInclude_Rewindow]
+          // Re-window to process groups of session sums according to when the sessions complete.
+          .apply(
+              "WindowToExtractSessionMean",
+              Window.into(FixedWindows.of(Duration.standardMinutes(userActivityWindowDuration))))
+          // Find the mean session duration in each window.
+          .apply(Mean.<Integer>globally().withoutDefaults());
+    }
+  }
+
+  static void applyGameStats(Pipeline p, Options options) throws IOException {
+
+    Integer fixedWindowDuration = options.getFixedWindowDuration();
+    Integer userActivityWindowDuration = options.getUserActivityWindowDuration();
+    Integer sessionGap = options.getSessionGap();
+
+    PubsubIO.Read<String> recordsWithTimeStamp =
+        PubsubIO.readStrings().withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE);
+
+    PubsubIO.Read<String> records = null;
+
+    if (options.getSubscription() != null && !options.getSubscription().isEmpty()) {
+      records = recordsWithTimeStamp.fromSubscription(options.getSubscription());
+    } else {
+      records = recordsWithTimeStamp.fromTopic(options.getTopic());
+    }
+
+    p.apply("TeamScoreSum", records)
+        .apply(new GameStatsTeamScore(fixedWindowDuration))
         // Write the result to BigQuery
         .apply(
             "WriteTeamSums",
@@ -315,31 +394,8 @@ public class GameStats extends LeaderBoard {
                 options.getGameStatsTablePrefix() + "_team",
                 configureWindowedWrite()));
 
-    // [START DocInclude_SessionCalc]
-    // Detect user sessions-- that is, a burst of activity separated by a gap from further
-    // activity. Find and record the mean session lengths.
-    // This information could help the game designers track the changing user engagement
-    // as their set of games changes.
-    userEvents
-        .apply(
-            "WindowIntoSessions",
-            Window.<KV<String, Integer>>into(
-                    Sessions.withGapDuration(Duration.standardMinutes(options.getSessionGap())))
-                .withTimestampCombiner(TimestampCombiner.END_OF_WINDOW))
-        // For this use, we care only about the existence of the session, not any particular
-        // information aggregated over it, so the following is an efficient way to do that.
-        .apply(Combine.perKey(x -> 0))
-        // Get the duration per session.
-        .apply("UserSessionActivity", ParDo.of(new UserSessionInfoFn()))
-        // [END DocInclude_SessionCalc]
-        // [START DocInclude_Rewindow]
-        // Re-window to process groups of session sums according to when the sessions complete.
-        .apply(
-            "WindowToExtractSessionMean",
-            Window.into(
-                FixedWindows.of(Duration.standardMinutes(options.getUserActivityWindowDuration()))))
-        // Find the mean session duration in each window.
-        .apply(Mean.<Integer>globally().withoutDefaults())
+    p.apply("AvgSessionLength", records)
+        .apply(new SessionLength(sessionGap, userActivityWindowDuration))
         // Write this info to a BigQuery table.
         .apply(
             "WriteAvgSessionLength",
@@ -349,7 +405,5 @@ public class GameStats extends LeaderBoard {
                 options.getGameStatsTablePrefix() + "_sessions",
                 configureSessionWindowWrite()));
     // [END DocInclude_Rewindow]
-
-    pipeline.run(options);
   }
 }

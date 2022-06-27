@@ -118,6 +118,7 @@ public class GameStatsIT {
     options.as(GcpOptions.class).setProject(projectId);
     options.setDataset(OUTPUT_DATASET);
     options.setSubscription(subscriptionPath.getPath());
+    options.setTopic(eventsTopicPath.getPath());
     options.setStreaming(true);
     options.setBlockOnRun(false);
     options.setTeamWindowDuration(1);
