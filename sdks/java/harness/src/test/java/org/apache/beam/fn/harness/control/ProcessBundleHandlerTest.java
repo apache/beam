@@ -1794,9 +1794,9 @@ public class ProcessBundleHandlerTest {
     startLatch.await();
     bundleProcessor.set(bundleProcessorCache.find("999L"));
 
-    final int MIN_NUM_RESULTS = 5;
+    final int minNumResults = 5;
     CountDownLatch progressLatch = new CountDownLatch(1);
-    CountDownLatch someProgressIsDone = new CountDownLatch(MIN_NUM_RESULTS);
+    CountDownLatch someProgressIsDone = new CountDownLatch(minNumResults);
     List<Future<InstructionResponse>> progressReportingTasks = new ArrayList<>();
     for (int i = 0; i < 20; ++i) {
       final int threadId = i;
@@ -1850,9 +1850,9 @@ public class ProcessBundleHandlerTest {
 
     // We validate the lifecycle of intermediate -> final -> reset was invoked
 
-    // We should see that there is at least MIN_NUM_RESULTS intermediate results representing the
+    // We should see that there is at least minNumResults intermediate results representing the
     // set [0, 'counter.get()') with the final result having 'counter.get()'
-    assertTrue(progressReportingResults.size() >= MIN_NUM_RESULTS);
+    assertTrue(progressReportingResults.size() >= minNumResults);
     List<ByteString> expectedIntermediateResults = new ArrayList<>();
     for (int i = 0; i < counter.get(); ++i) {
       expectedIntermediateResults.add(ByteString.copyFromUtf8(Long.toString(i)));
