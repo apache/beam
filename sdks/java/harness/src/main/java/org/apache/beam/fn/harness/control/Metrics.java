@@ -47,35 +47,28 @@ public class Metrics {
   /**
    * Returns a counter that will report an accurate final value.
    *
-   * <p>All invocations to {@link Counter} methods, {@link
-   * BundleProgressReporter#updateFinalMonitoringData}, and {@link BundleProgressReporter#reset()}
-   * must be done by the same thread.
+   * <p>All invocations to {@link Counter} methods must be done by the main bundle processing
+   * thread.
    *
-   * <p>All invocations to {@link BundleProgressReporter} methods must be done serially.
-   *
-   * <p>Invocations to {@link Counter} methods can be done concurrently to {@link
-   * BundleProgressReporter#updateIntermediateMonitoringData}.
+   * <p>All invocations to {@link BundleProgressReporter} methods must be done while holding the
+   * {@link BundleProcessor#getProgressRequestLock}.
    */
-  public static BundleCounter serialMutatorAndFinalReaderBundleCounter(
-      String shortId, MetricName name) {
-    return new SerialMutatorAndFinalReaderBundleCounter(shortId, name);
+  public static BundleCounter bundleProcessingThreadCounter(String shortId, MetricName name) {
+    return new BundleProcessingThreadCounter(shortId, name);
   }
 
   /**
    * Returns a {@link Distribution} that will report an accurate final value.
    *
-   * <p>All invocations to {@link Distribution} methods, {@link
-   * BundleProgressReporter#updateFinalMonitoringData}, and {@link BundleProgressReporter#reset()}
-   * must be done by the same thread.
+   * <p>All invocations to {@link Distribution} methods must be done by the main bundle processing
+   * thread.
    *
-   * <p>All invocations to {@link BundleProgressReporter} methods must be done serially.
-   *
-   * <p>Invocations to {@link Distribution} methods can be done concurrently to {@link
-   * BundleProgressReporter#updateIntermediateMonitoringData}.
+   * <p>All invocations to {@link BundleProgressReporter} methods must be done while holding the
+   * {@link BundleProcessor#getProgressRequestLock}.
    */
-  public static BundleDistribution serialMutatorAndFinalReaderBundleDistribution(
+  public static BundleDistribution bundleProcessingThreadDistribution(
       String shortId, MetricName name) {
-    return new SerialMutatorAndFinalReaderBundleDistribution(shortId, name);
+    return new BundleProcessingThreadDistribution(shortId, name);
   }
 
   /**
@@ -85,7 +78,7 @@ public class Metrics {
    * value.
    */
   @NotThreadSafe
-  private static class SerialMutatorAndFinalReaderBundleCounter implements BundleCounter {
+  private static class BundleProcessingThreadCounter implements BundleCounter {
     private final MetricName name;
     private final String shortId;
     /** Guarded by {@link BundleProcessor#getProgressRequestLock}. */
@@ -96,7 +89,7 @@ public class Metrics {
     private final AtomicLong lazyCount;
     private long count;
 
-    public SerialMutatorAndFinalReaderBundleCounter(String shortId, MetricName name) {
+    public BundleProcessingThreadCounter(String shortId, MetricName name) {
       this.shortId = shortId;
       this.name = name;
       this.lazyCount = new AtomicLong();
@@ -169,7 +162,7 @@ public class Metrics {
    * value.
    */
   @NotThreadSafe
-  private static class SerialMutatorAndFinalReaderBundleDistribution implements BundleDistribution {
+  private static class BundleProcessingThreadDistribution implements BundleDistribution {
     private final MetricName name;
     private final String shortId;
     @Nullable private DistributionData lastReportedValue;
@@ -177,7 +170,7 @@ public class Metrics {
     // Consider using a strategy that doesn't create a new object on each update
     private DistributionData data;
 
-    public SerialMutatorAndFinalReaderBundleDistribution(String shortId, MetricName name) {
+    public BundleProcessingThreadDistribution(String shortId, MetricName name) {
       this.shortId = shortId;
       this.name = name;
       this.data = DistributionData.EMPTY;

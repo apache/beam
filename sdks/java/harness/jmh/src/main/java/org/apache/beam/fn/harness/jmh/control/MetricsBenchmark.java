@@ -40,9 +40,8 @@ public class MetricsBenchmark {
   private static final String TEST_ID = "testId";
 
   @State(Scope.Benchmark)
-  public static class SerialMutatorAndFinalReaderBundleCounterState {
-    public BundleCounter bundleCounter =
-        Metrics.serialMutatorAndFinalReaderBundleCounter(TEST_ID, TEST_NAME);
+  public static class BundleProcessingThreadCounterState {
+    public BundleCounter bundleCounter = Metrics.bundleProcessingThreadCounter(TEST_ID, TEST_NAME);
 
     @TearDown(Level.Trial)
     public void check() {
@@ -81,15 +80,15 @@ public class MetricsBenchmark {
 
   @Benchmark
   @Threads(1)
-  public void testSerialMutatorAndFinalReaderBundleCounterMutation(
-      SerialMutatorAndFinalReaderBundleCounterState counterState) throws Exception {
+  public void testBundleProcessingThreadCounterMutation(
+      BundleProcessingThreadCounterState counterState) throws Exception {
     counterState.bundleCounter.inc();
   }
 
   @Benchmark
   @Threads(1)
-  public void testSerialMutatorAndFinalReaderBundleCounterReset(
-      SerialMutatorAndFinalReaderBundleCounterState counterState) throws Exception {
+  public void testBundleProcessingThreadCounterReset(
+      BundleProcessingThreadCounterState counterState) throws Exception {
     counterState.bundleCounter.inc();
     counterState.bundleCounter.reset();
     counterState.bundleCounter.inc();

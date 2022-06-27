@@ -17,8 +17,8 @@
  */
 package org.apache.beam.fn.harness.jmh.control;
 
+import org.apache.beam.fn.harness.jmh.control.MetricsBenchmark.BundleProcessingThreadCounterState;
 import org.apache.beam.fn.harness.jmh.control.MetricsBenchmark.CounterCellState;
-import org.apache.beam.fn.harness.jmh.control.MetricsBenchmark.SerialMutatorAndFinalReaderBundleCounterState;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -26,18 +26,16 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class MetricsBenchmarkTest {
   @Test
-  public void testSerialMutatorAndFinalReaderBundleCounterMutation() throws Exception {
-    SerialMutatorAndFinalReaderBundleCounterState state =
-        new SerialMutatorAndFinalReaderBundleCounterState();
-    new MetricsBenchmark().testSerialMutatorAndFinalReaderBundleCounterMutation(state);
+  public void testBundleProcessingThreadCounterMutation() throws Exception {
+    BundleProcessingThreadCounterState state = new BundleProcessingThreadCounterState();
+    new MetricsBenchmark().testBundleProcessingThreadCounterMutation(state);
     state.check();
   }
 
   @Test
-  public void testSerialMutatorAndFinalReaderBundleCounterReset() throws Exception {
-    SerialMutatorAndFinalReaderBundleCounterState state =
-        new SerialMutatorAndFinalReaderBundleCounterState();
-    new MetricsBenchmark().testSerialMutatorAndFinalReaderBundleCounterReset(state);
+  public void testBundleProcessingThreadCounterReset() throws Exception {
+    BundleProcessingThreadCounterState state = new BundleProcessingThreadCounterState();
+    new MetricsBenchmark().testBundleProcessingThreadCounterReset(state);
     state.check();
   }
 

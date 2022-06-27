@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 
 /**
@@ -41,14 +42,15 @@ public interface BundleProgressReporter {
   /**
    * Update the monitoring data for a bundle that is currently being processed.
    *
-   * <p>Will be executed exclusively by any thread.
+   * <p>Must be invoked while holding the {@link BundleProcessor#getProgressRequestLock}.
    */
   void updateIntermediateMonitoringData(Map<String, ByteString> monitoringData);
 
   /**
    * Update the monitoring data for a bundle that has finished processing.
    *
-   * <p>Guaranteed to be executed exclusively from the main bundle processing thread.
+   * <p>Must be invoked from the main bundle processing thread and while holding the {@link
+   * BundleProcessor#getProgressRequestLock}.
    */
   void updateFinalMonitoringData(Map<String, ByteString> monitoringData);
 
@@ -56,7 +58,8 @@ public interface BundleProgressReporter {
    * Reset the monitoring data after a bundle has finished processing to be re-used for a future
    * bundle.
    *
-   * <p>Guaranteed to be executed exclusively from the main bundle processing thread.
+   * <p>Must be invoked from the main bundle processing thread and while holding the {@link
+   * BundleProcessor#getProgressRequestLock}.
    */
   void reset();
 

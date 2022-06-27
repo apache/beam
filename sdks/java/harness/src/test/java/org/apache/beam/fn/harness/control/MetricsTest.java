@@ -61,8 +61,7 @@ public class MetricsTest {
   @Test
   public void testAccurateBundleCounterReportsValueFirstTimeWithoutMutations() throws Exception {
     Map<String, ByteString> report = new HashMap<>();
-    BundleCounter bundleCounter =
-        Metrics.serialMutatorAndFinalReaderBundleCounter(TEST_ID, TEST_NAME);
+    BundleCounter bundleCounter = Metrics.bundleProcessingThreadCounter(TEST_ID, TEST_NAME);
     bundleCounter.updateIntermediateMonitoringData(report);
     assertEquals(
         report, Collections.singletonMap(TEST_ID, MonitoringInfoEncodings.encodeInt64Counter(0)));
@@ -83,7 +82,7 @@ public class MetricsTest {
       throws Exception {
     Map<String, ByteString> report = new HashMap<>();
     BundleDistribution bundleDistribution =
-        Metrics.serialMutatorAndFinalReaderBundleDistribution(TEST_ID, TEST_NAME);
+        Metrics.bundleProcessingThreadDistribution(TEST_ID, TEST_NAME);
     bundleDistribution.updateIntermediateMonitoringData(report);
     assertEquals(
         report,
@@ -105,8 +104,7 @@ public class MetricsTest {
   @Test
   public void testAccurateBundleCounterWithMutations() throws Exception {
     Map<String, ByteString> report = new HashMap<>();
-    BundleCounter bundleCounter =
-        Metrics.serialMutatorAndFinalReaderBundleCounter(TEST_ID, TEST_NAME);
+    BundleCounter bundleCounter = Metrics.bundleProcessingThreadCounter(TEST_ID, TEST_NAME);
 
     bundleCounter.inc(7);
     bundleCounter.updateIntermediateMonitoringData(report);
@@ -165,7 +163,7 @@ public class MetricsTest {
   public void testAccurateBundleDistributionWithMutations() throws Exception {
     Map<String, ByteString> report = new HashMap<>();
     BundleDistribution bundleDistribution =
-        Metrics.serialMutatorAndFinalReaderBundleDistribution(TEST_ID, TEST_NAME);
+        Metrics.bundleProcessingThreadDistribution(TEST_ID, TEST_NAME);
 
     bundleDistribution.update(7);
     bundleDistribution.updateIntermediateMonitoringData(report);
@@ -213,8 +211,7 @@ public class MetricsTest {
 
   @Test
   public void testAccurateBundleCounterUsingMultipleThreads() throws Exception {
-    BundleCounter bundleCounter =
-        Metrics.serialMutatorAndFinalReaderBundleCounter(TEST_ID, TEST_NAME);
+    BundleCounter bundleCounter = Metrics.bundleProcessingThreadCounter(TEST_ID, TEST_NAME);
     List<ByteString> values =
         testAccurateBundleMetricUsingMultipleThreads(bundleCounter, () -> bundleCounter.inc());
     assertTrue(values.size() >= 10);
@@ -233,7 +230,7 @@ public class MetricsTest {
   @Test
   public void testAccurateBundleDistributionUsingMultipleThreads() throws Exception {
     BundleDistribution bundleDistribution =
-        Metrics.serialMutatorAndFinalReaderBundleDistribution(TEST_ID, TEST_NAME);
+        Metrics.bundleProcessingThreadDistribution(TEST_ID, TEST_NAME);
     List<ByteString> values =
         testAccurateBundleMetricUsingMultipleThreads(
             bundleDistribution, () -> bundleDistribution.update(1));

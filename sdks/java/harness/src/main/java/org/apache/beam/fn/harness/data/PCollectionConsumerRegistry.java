@@ -257,8 +257,7 @@ public class PCollectionConsumerRegistry {
                   .setLabels(labels)
                   .build());
       this.elementCountCounter =
-          Metrics.serialMutatorAndFinalReaderBundleCounter(
-              elementCountShortId, elementCountMetricName);
+          Metrics.bundleProcessingThreadCounter(elementCountShortId, elementCountMetricName);
       bundleProgressReporterRegistrar.register(elementCountCounter);
 
       MonitoringInfoMetricName sampledByteSizeMetricName =
@@ -271,7 +270,7 @@ public class PCollectionConsumerRegistry {
                   .setLabels(labels)
                   .build());
       BundleDistribution sampledByteSizeUnderlyingDistribution =
-          Metrics.serialMutatorAndFinalReaderBundleDistribution(
+          Metrics.bundleProcessingThreadDistribution(
               sampledByteSizeShortId, sampledByteSizeMetricName);
       this.sampledByteSizeDistribution =
           new SampleByteSizeDistribution<>(sampledByteSizeUnderlyingDistribution);
@@ -332,8 +331,7 @@ public class PCollectionConsumerRegistry {
                   .setLabels(labels)
                   .build());
       this.elementCountCounter =
-          Metrics.serialMutatorAndFinalReaderBundleCounter(
-              elementCountShortId, elementCountMetricName);
+          Metrics.bundleProcessingThreadCounter(elementCountShortId, elementCountMetricName);
       bundleProgressReporterRegistrar.register(elementCountCounter);
 
       MonitoringInfoMetricName sampledByteSizeMetricName =
@@ -346,7 +344,7 @@ public class PCollectionConsumerRegistry {
                   .setLabels(labels)
                   .build());
       BundleDistribution sampledByteSizeUnderlyingDistribution =
-          Metrics.serialMutatorAndFinalReaderBundleDistribution(
+          Metrics.bundleProcessingThreadDistribution(
               sampledByteSizeShortId, sampledByteSizeMetricName);
       this.sampledByteSizeDistribution =
           new SampleByteSizeDistribution<>(sampledByteSizeUnderlyingDistribution);
