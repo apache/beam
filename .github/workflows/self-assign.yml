@@ -38,6 +38,9 @@ jobs:
                 assignees: [context.payload.comment.user.login]
               });
             } else if (bodyString == '.close-issue') {
+              if (i + 1 < body.length && body[i+1].toLowerCase() == 'not_planned') {
+                state_reason = 'not_planned';
+              }
               console.log('Closing issue');
               github.rest.issues.update({
                 issue_number: context.issue.number,
