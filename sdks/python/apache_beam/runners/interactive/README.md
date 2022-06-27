@@ -27,7 +27,7 @@ exploration much faster and easier. It provides nice features including
 
 1.  Graphical representation
 
-    Pipeline DAG can be visualized through:
+    Visualize the Pipeline DAG:
 
     ```python
     import apache_beam.runners.interactive.interactive_beam as ib
@@ -38,7 +38,7 @@ exploration much faster and easier. It provides nice features including
     ib.show_graph(pipeline)
     ```
 
-    PCollection data can be visualized through:
+    Visualize elements in a PCollection:
 
     ```python
     pcoll = p | beam.Create([1, 2, 3])
