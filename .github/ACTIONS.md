@@ -29,3 +29,6 @@ Phrases for self-assign and close the issue:
 | `.take-issue` | Self-assign the issue |
 | `.close-issue` | Close the issue as completed |
 | `.close-issue not_planned` | Close the issue as not-planned |
+| `.add-labels` | Add comma separated labels to the issue (e.g. `add-labels l1, 'l2 with spaces'`) |
+| `.remove-labels` | Remove comma separated labels to the issue (e.g. `remove-labels l1, 'l2 with spaces'`) |
+| `.set-labels` | Sets comma separated labels to the issue and removes any other labels (e.g. `set-labels l1, 'l2 with spaces'`) |

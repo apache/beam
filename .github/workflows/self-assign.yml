@@ -37,14 +37,32 @@ jobs:
                 repo: context.repo.repo,
                 assignees: [context.payload.comment.user.login]
               });
-            } else if (bodyString == '.close-issue') {
-              console.log('Closing issue');
-              github.rest.issues.update({
+              github.rest.issues.removeLabel({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                state: 'closed'
+                name: 'awaiting triage'
               });
+            } else if (bodyString == '.close-issue') {
+              console.log('Closing issue');
+              let state = 'closed';
+              if (i+1 < body.length && body[i+1] == 'not_planned') {
+                // Octokit doesn't support close reason, so this must be a custom request
+                await github.request(`PATCH /repos/{owner}/{repo}/issues/{issue_number}`, {
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'closed',
+                  state_reason: 'not_planned'
+                });
+              } else {
+                github.rest.issues.update({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'closed'
+                });
+              }
             } else if (bodyString == '.set-labels' || bodyString == '.add-labels' || bodyString == '.remove-labels') {
               console.log('Updating labels');
               if (i + 1 >= body.length) {
