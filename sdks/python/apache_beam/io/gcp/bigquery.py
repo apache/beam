@@ -292,7 +292,6 @@ from typing import Union
 import fastavro
 
 import apache_beam as beam
-
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal.gcp.json_value import from_json_value
