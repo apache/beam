@@ -68,7 +68,8 @@ public class BatchModeExecutionContext
 
   private final MetricsContainerRegistry<MetricsContainerImpl> containerRegistry;
 
-  // TODO(BEAM-7863): Move throttle time Metric to a dedicated namespace.
+  // TODO(https://github.com/apache/beam/issues/19632): Move throttle time Metric to a dedicated
+  // namespace.
   protected static final String DATASTORE_THROTTLE_TIME_NAMESPACE =
       "org.apache.beam.sdk.io.gcp.datastore.DatastoreV1$DatastoreWriterFn";
   protected static final String HTTP_CLIENT_API_THROTTLE_TIME_NAMESPACE =
@@ -533,7 +534,8 @@ public class BatchModeExecutionContext
   public Long extractThrottleTime() {
     long totalThrottleMsecs = 0L;
     for (MetricsContainerImpl container : containerRegistry.getContainers()) {
-      // TODO(BEAM-7863): Update throttling counters to use generic throttling-msecs metric.
+      // TODO(https://github.com/apache/beam/issues/19632): Update throttling counters to use
+      // generic throttling-msecs metric.
       CounterCell dataStoreThrottlingTime =
           container.tryGetCounter(
               MetricName.named(DATASTORE_THROTTLE_TIME_NAMESPACE, THROTTLE_TIME_COUNTER_NAME));

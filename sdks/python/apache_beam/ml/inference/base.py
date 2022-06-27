@@ -67,6 +67,11 @@ PredictionResult = NamedTuple(
         ('example', _INPUT_TYPE),
         ('inference', _OUTPUT_TYPE),
     ])
+PredictionResult.__doc__ = """A NamedTuple containing both input and output
+  from the inference."""
+PredictionResult.example.__doc__ = """The input example."""
+PredictionResult.inference.__doc__ = """Results for the inference on the model
+  for the given example."""
 
 
 def _to_milliseconds(time_ns: int) -> int:
@@ -93,6 +98,8 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     Args:
       batch: A sequence of examples or features.
       model: The model used to make inferences.
+      inference_args: Extra arguments for models whose inference call requires
+        extra parameters.
 
     Returns:
       An Iterable of Predictions.
@@ -249,6 +256,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
     Models for supported frameworks can be loaded via a URI. Supported services
     can also be used.
+
+    This transform attempts to batch examples using the beam.BatchElements
+    transform. Batching may be configured using the ModelHandler.
 
     Args:
         model_handler: An implementation of ModelHandler.

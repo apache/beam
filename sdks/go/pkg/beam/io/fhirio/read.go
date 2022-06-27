@@ -20,8 +20,7 @@ package fhirio
 
 import (
 	"context"
-	"io"
-	"time"
+	"net/http"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -34,10 +33,7 @@ func init() {
 }
 
 type readResourceFn struct {
-	client                fhirStoreClient
-	readResourceErrors    beam.Counter
-	readResourceSuccess   beam.Counter
-	readResourceLatencyMs beam.Distribution
+	fhirioFnCommon
 }
 
 func (fn readResourceFn) String() string {
@@ -45,40 +41,28 @@ func (fn readResourceFn) String() string {
 }
 
 func (fn *readResourceFn) Setup() {
-	if fn.client == nil {
-		fn.client = newFhirStoreClient()
-	}
-	fn.readResourceErrors = beam.NewCounter(fn.String(), baseMetricPrefix+"read_resource_error_count")
-	fn.readResourceSuccess = beam.NewCounter(fn.String(), baseMetricPrefix+"read_resource_success_count")
-	fn.readResourceLatencyMs = beam.NewDistribution(fn.String(), baseMetricPrefix+"read_resource_latency_ms")
+	fn.fhirioFnCommon.setup(fn.String())
 }
 
 func (fn *readResourceFn) ProcessElement(ctx context.Context, resourcePath string, emitResource, emitDeadLetter func(string)) {
-	timeBeforeReadRequest := time.Now()
-	response, err := fn.client.readResource(resourcePath)
-	fn.readResourceLatencyMs.Update(ctx, time.Since(timeBeforeReadRequest).Milliseconds())
-
+	response, err := executeRequestAndRecordLatency(ctx, &fn.latencyMs, func() (*http.Response, error) {
+		return fn.client.readResource(resourcePath)
+	})
 	if err != nil {
-		fn.readResourceErrors.Inc(ctx, 1)
-		emitDeadLetter(errors.Wrapf(err, "failed fetching resource [%s]", resourcePath).Error())
+		fn.resourcesErrorCount.Inc(ctx, 1)
+		emitDeadLetter(errors.Wrapf(err, "read resource request returned error on input: [%v]", resourcePath).Error())
 		return
 	}
 
-	if response.StatusCode != 200 {
-		fn.readResourceErrors.Inc(ctx, 1)
-		emitDeadLetter(errors.Errorf("fetched resource [%s] returned bad status [%d]", resourcePath, response.StatusCode).Error())
-		return
-	}
-
-	bytes, err := io.ReadAll(response.Body)
+	body, err := extractBodyFrom(response)
 	if err != nil {
-		fn.readResourceErrors.Inc(ctx, 1)
-		emitDeadLetter(errors.Wrapf(err, "error reading response body of resource [%s]", resourcePath).Error())
+		fn.resourcesErrorCount.Inc(ctx, 1)
+		emitDeadLetter(errors.Wrapf(err, "could not extract body from read resource [%v] response", resourcePath).Error())
 		return
 	}
 
-	fn.readResourceSuccess.Inc(ctx, 1)
-	emitResource(string(bytes))
+	fn.resourcesSuccessCount.Inc(ctx, 1)
+	emitResource(body)
 }
 
 // Read fetches resources from Google Cloud Healthcare FHIR stores based on the
@@ -93,6 +77,7 @@ func Read(s beam.Scope, resourcePaths beam.PCollection) (beam.PCollection, beam.
 	return read(s, resourcePaths, nil)
 }
 
+// This is useful as an entry point for testing because we can provide a fake FHIR store client.
 func read(s beam.Scope, resourcePaths beam.PCollection, client fhirStoreClient) (beam.PCollection, beam.PCollection) {
-	return beam.ParDo2(s, &readResourceFn{client: client}, resourcePaths)
+	return beam.ParDo2(s, &readResourceFn{fhirioFnCommon: fhirioFnCommon{client: client}}, resourcePaths)
 }

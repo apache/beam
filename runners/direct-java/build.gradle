@@ -249,7 +249,7 @@ task examplesIntegrationTest(type: Test) {
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
   useJUnit {
     filter{
-      // TODO (BEAM-14019) Fix integration Tests to run with DirectRunner: Timeout error
+      // TODO (https://github.com/apache/beam/issues/21344) Fix integration Tests to run with DirectRunner: Timeout error
       excludeTestsMatching 'org.apache.beam.examples.complete.TfIdfIT'
       excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
     }

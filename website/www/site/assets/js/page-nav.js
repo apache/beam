@@ -117,12 +117,17 @@ $(document).ready(function() {
         });
       },
 
+      "isContainerPresent": function () {
+        return $("." + idMainContainer).length > 0
+      },
+
       "init": function() {
-        this.bindEvents();
-        this.setPageNav();
-        this.prependArrows();
-        this.setNavEvents();
-        this.refreshScrollSpy();
+        if (this.isContainerPresent()) {
+          this.bindEvents();
+          this.setPageNav();
+          this.prependArrows();
+          this.setNavEvents();
+        }
       }
     }
   }

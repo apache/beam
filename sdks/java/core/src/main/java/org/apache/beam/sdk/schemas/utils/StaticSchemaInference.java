@@ -126,7 +126,7 @@ public class StaticSchemaInference {
     return fieldFromType(type, fieldValueTypeSupplier, new HashMap<Class, Schema>());
   }
 
-  // TODO(BEAM-14458): support type inference for logical types
+  // TODO(https://github.com/apache/beam/issues/21567): support type inference for logical types
   private static Schema.FieldType fieldFromType(
       TypeDescriptor type,
       FieldValueTypeSupplier fieldValueTypeSupplier,

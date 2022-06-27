@@ -225,7 +225,7 @@ class ValidatesRunnerConfig {
 }
 
 def sickbayTests = [
-        // TODO(BEAM-13573)
+        // TODO(https://github.com/apache/beam/issues/21306)
         'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
 ]
 
@@ -358,9 +358,9 @@ tasks.register("examplesIntegrationTest", Test) {
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
   useJUnit {
     filter{
-      // TODO (BEAM-14019) Fix integration Tests to run with FlinkRunner: Assertion error
+      // TODO (https://github.com/apache/beam/issues/21344) Fix integration Tests to run with FlinkRunner: Assertion error
       excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
-      // TODO (BEAM-14019) Fix integration Tests to run with FlinkRunner: Error deleting table, Not found: Dataset
+      // TODO (https://github.com/apache/beam/issues/21344) Fix integration Tests to run with FlinkRunner: Error deleting table, Not found: Dataset
       excludeTestsMatching 'org.apache.beam.examples.cookbook.BigQueryTornadoesIT.testE2eBigQueryTornadoesWithStorageApiUsingQuery'
     }
   }

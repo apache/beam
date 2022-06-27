@@ -964,6 +964,14 @@ class WorkerOptions(PipelineOptions):
             'identify the container image to override and the second value '
             'gives the replacement container image.'))
     parser.add_argument(
+        '--default_sdk_harness_log_level',
+        default=None,
+        help=(
+            'Controls the default log level of all loggers without a log level '
+            'override. Values can be either a labeled level or a number '
+            '(See https://docs.python.org/3/library/logging.html#levels). '
+            'Default log level is INFO.'))
+    parser.add_argument(
         '--use_public_ips',
         default=None,
         action='store_true',

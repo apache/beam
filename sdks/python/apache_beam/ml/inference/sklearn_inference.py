@@ -84,7 +84,8 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     """ Implementation of the ModelHandler interface for scikit-learn
     using numpy arrays as input.
 
-    Example Usage:
+    Example Usage::
+
       pcoll | RunInference(SklearnModelHandlerNumpy(model_uri="my_uri"))
 
     Args:
@@ -141,13 +142,12 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     """Implementation of the ModelHandler interface for scikit-learn that
     supports pandas dataframes.
 
-    Example Usage:
+    Example Usage::
+
       pcoll | RunInference(SklearnModelHandlerPandas(model_uri="my_uri"))
 
-    NOTE::
-      This API and its implementation are under development and
-      do not provide backward compatibility guarantees.
-
+    **NOTE:** This API and its implementation are under development and
+    do not provide backward compatibility guarantees.
 
     Args:
       model_uri: The URI to where the model is saved.

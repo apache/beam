@@ -67,6 +67,16 @@ func applyWordLenAnon(s beam.Scope, words beam.PCollection) beam.PCollection {
 	return wordLengths
 }
 
+func applyGbk(s beam.Scope, input []stringPair) beam.PCollection {
+	// [START groupbykey]
+	// CreateAndSplit creates and returns a PCollection with <K,V>
+	// from an input slice of stringPair (struct with K, V string fields).
+	pairs := CreateAndSplit(s, input)
+	keyed := beam.GroupByKey(s, pairs)
+	// [END groupbykey]
+	return keyed
+}
+
 // [START cogroupbykey_input_helpers]
 
 type stringPair struct {

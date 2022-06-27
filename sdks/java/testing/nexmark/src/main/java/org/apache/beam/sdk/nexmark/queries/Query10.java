@@ -124,7 +124,8 @@ public class Query10 extends NexmarkQueryTransform<Done> {
   private WritableByteChannel openWritableGcsFile(GcsOptions options, String filename)
       throws IOException {
     // TODO
-    // [BEAM-10879] Fix after PR: right now this is a specific Google added use case
+    // [https://github.com/apache/beam/issues/20670] Fix after PR: right now this is a specific
+    // Google added use case
     // Discuss it on ML: shall we keep GCS or use HDFS or use a generic beam filesystem way.
     throw new UnsupportedOperationException("Disabled after removal of GcsIOChannelFactory");
   }

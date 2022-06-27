@@ -103,6 +103,24 @@ class SdkWorkerMainTest(unittest.TestCase):
   def test_import_beam_plugins(self):
     sdk_worker_main._import_beam_plugins(BeamPlugin.get_all_plugin_paths())
 
+  def test__get_log_level_from_options_dict(self):
+    test_cases = [
+        {},
+        {
+            'default_sdk_harness_log_level': 'DEBUG'
+        },
+        {
+            'default_sdk_harness_log_level': '30'
+        },
+        {
+            'default_sdk_harness_log_level': 'INVALID_ENTRY'
+        },
+    ]
+    expected_results = [logging.INFO, logging.DEBUG, 30, logging.INFO]
+    for case, expected in zip(test_cases, expected_results):
+      self.assertEqual(
+          sdk_worker_main._get_log_level_from_options_dict(case), expected)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
