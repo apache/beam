@@ -75,7 +75,7 @@ const (
 	originKey                     = "ORIGIN"
 	defaultOrigin                 = "PG_USER"
 	SDKConfigPathKey              = "SDK_CONFIG"
-	defaultSDKConfigPath          = "sdks.yaml"
+	defaultSDKConfigPath          = "../sdks.yaml"
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs

@@ -48,18 +48,29 @@ func runServer() error {
 
 	grpcServer := grpc.NewServer()
 
-	databaseClient, err := setupDB(ctx, envService.ApplicationEnvs)
-	if err != nil {
-		return err
-	}
-
-	if err = setupDBStructure(ctx, databaseClient, &envService.ApplicationEnvs); err != nil {
-		return err
-	}
-
 	cacheService, err := setupCache(ctx, envService.ApplicationEnvs)
 	if err != nil {
 		return err
+	}
+
+	var databaseClient db.Database
+
+	// Examples catalog should be retrieved and saved to cache only if the server doesn't suppose to run code, i.e. SDK is unspecified
+	// Database setup only if the server doesn't suppose to run code, i.e. SDK is unspecified
+	if envService.BeamSdkEnvs.ApacheBeamSdk == pb.Sdk_SDK_UNSPECIFIED {
+		err = setupExamplesCatalog(ctx, cacheService, envService.ApplicationEnvs.BucketName())
+		if err != nil {
+			return err
+		}
+
+		databaseClient, err = setupDB(ctx, &envService.ApplicationEnvs)
+		if err != nil {
+			return err
+		}
+
+		if err = setupDBStructure(ctx, databaseClient, &envService.ApplicationEnvs); err != nil {
+			return err
+		}
 	}
 
 	pb.RegisterPlaygroundServiceServer(grpcServer, &playgroundController{
@@ -67,14 +78,6 @@ func runServer() error {
 		cacheService: cacheService,
 		db:           databaseClient,
 	})
-
-	// Examples catalog should be retrieved and saved to cache only if the server doesn't suppose to run code, i.e. SDK is unspecified
-	if envService.BeamSdkEnvs.ApacheBeamSdk == pb.Sdk_SDK_UNSPECIFIED {
-		err = setupExamplesCatalog(ctx, cacheService, envService.ApplicationEnvs.BucketName())
-		if err != nil {
-			return err
-		}
-	}
 
 	errChan := make(chan error)
 
@@ -160,7 +163,7 @@ func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache, bucketN
 }
 
 // setupDB constructs required database by application environment
-func setupDB(ctx context.Context, appEnv environment.ApplicationEnvs) (db.Database, error) {
+func setupDB(ctx context.Context, appEnv *environment.ApplicationEnvs) (db.Database, error) {
 	if appEnv.DbType() == environment.DatastoreDB {
 		return datastore.New(ctx, appEnv.GoogleProjectId())
 	}

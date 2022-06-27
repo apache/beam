@@ -42,7 +42,8 @@ const (
 type playgroundController struct {
 	env          *environment.Environment
 	cacheService cache.Cache
-	db           db.Database
+	// Database setup only if the server doesn't suppose to run code, i.e. SDK is unspecified
+	db db.Database
 
 	pb.UnimplementedPlaygroundServiceServer
 }

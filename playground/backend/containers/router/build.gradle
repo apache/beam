@@ -47,6 +47,10 @@ task copyDockerfileDependencies(type: Copy) {
       from '../../../playground'
       into 'build/playground'
    }
+   copy {
+      from '../../../sdks.yaml'
+      into 'build/'
+   }
 }
 
 docker {

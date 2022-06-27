@@ -29,6 +29,7 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1 &&\
 
 # Prepare Application
 COPY src /go/src/playground/backend
+COPY sdks.yaml /go/src/playground/backend/sdks.yaml
 
 ARG BEAM_VERSION=2.33.0
 ENV PREPARED_MOD_DIR=/opt/playground/prepared_folder/
@@ -69,6 +70,7 @@ ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_UNSPECIFIED"
 ENV BUCKET_NAME="playground-precompiled-objects"
+ENV SDK_CONFIG="sdks.yaml"
 
 # Copy build result
 COPY --from=build /go/bin/server_go_backend /opt/playground/backend/
