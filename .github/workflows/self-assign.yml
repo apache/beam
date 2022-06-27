@@ -46,23 +46,18 @@ jobs:
             } else if (bodyString == '.close-issue') {
               console.log('Closing issue');
               let state = 'closed';
-              if (i+1 < body.length && body[i+1] == 'not_planned') {
-                // Octokit doesn't support close reason, so this must be a custom request
-                await github.request(`PATCH /repos/{owner}/{repo}/issues/{issue_number}`, {
-                  issue_number: context.issue.number,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  state: 'closed',
-                  state_reason: 'not_planned'
-                });
-              } else {
-                github.rest.issues.update({
-                  issue_number: context.issue.number,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  state: 'closed'
-                });
+              let state_reason = 'fixed'
+              if (i + 1 < body.length && body[i+1].toLowerCase() == 'not_planned') {
+                state_reason = 'not_planned';
               }
+              
+              github.rest.issues.update({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'closed',
+                state_reason: 'not_planned'
+              });
             } else if (bodyString == '.set-labels' || bodyString == '.add-labels' || bodyString == '.remove-labels') {
               console.log('Updating labels');
               if (i + 1 >= body.length) {
