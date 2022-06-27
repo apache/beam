@@ -15,7 +15,7 @@
 
 package entity
 
-type IDInfo struct {
+type IDMeta struct {
 	Salt     string
 	IdLength int
 }

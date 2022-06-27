@@ -58,7 +58,7 @@ func setup() {
 }
 
 func teardown() {
-	if err := datastoreDb.client.Close(); err != nil {
+	if err := datastoreDb.Client.Close(); err != nil {
 		panic(err)
 	}
 }
@@ -77,7 +77,7 @@ func TestDatastore_PutSnippet(t *testing.T) {
 		{
 			name: "PutSnippet() in the usual case",
 			args: args{ctx: ctx, id: "MOCK_ID", snip: &entity.Snippet{
-				IDInfo: &entity.IDInfo{
+				IDMeta: &entity.IDMeta{
 					Salt:     "MOCK_SALT",
 					IdLength: 11,
 				},
@@ -133,7 +133,7 @@ func TestDatastore_GetSnippet(t *testing.T) {
 			name: "GetSnippet() in the usual case",
 			prepare: func() {
 				_ = datastoreDb.PutSnippet(ctx, "MOCK_ID", &entity.Snippet{
-					IDInfo: &entity.IDInfo{
+					IDMeta: &entity.IDMeta{
 						Salt:     "MOCK_SALT",
 						IdLength: 11,
 					},
@@ -288,7 +288,7 @@ func TestDatastore_GetFiles(t *testing.T) {
 			name: "GetFiles() in the usual case",
 			prepare: func() {
 				_ = datastoreDb.PutSnippet(ctx, "MOCK_ID", &entity.Snippet{
-					IDInfo: &entity.IDInfo{
+					IDMeta: &entity.IDMeta{
 						Salt:     "MOCK_SALT",
 						IdLength: 11,
 					},
@@ -411,7 +411,7 @@ func cleanData(t *testing.T, kind, id string, parentId *datastore.Key) {
 		key.Parent = parentId
 	}
 	key.Namespace = Namespace
-	if err := datastoreDb.client.Delete(ctx, key); err != nil {
+	if err := datastoreDb.Client.Delete(ctx, key); err != nil {
 		t.Errorf("Error during data cleaning after the test, err: %s", err.Error())
 	}
 }

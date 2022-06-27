@@ -22,23 +22,19 @@ import (
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
-const (
-	versionV1     = "0.0.1"
-	descriptionV1 = "Data initialization: file snippet, schema versions, SDK"
-)
-
 type InitialStructure struct {
 }
 
 func (is *InitialStructure) InitiateData(args *schema.DBArgs) error {
+	description := "Data initialization: file snippet, schema versions, SDK"
 	//init snippets
 	dummyStr := "dummy"
-	idInfo := entity.IDInfo{
+	idInfo := entity.IDMeta{
 		IdLength: args.AppEnv.IdLength(),
 		Salt:     args.AppEnv.PlaygroundSalt(),
 	}
 	snip := &entity.Snippet{
-		IDInfo: &idInfo,
+		IDMeta: &idInfo,
 		Snippet: &entity.SnippetEntity{
 			OwnerId:  dummyStr,
 			PipeOpts: dummyStr,
@@ -59,8 +55,8 @@ func (is *InitialStructure) InitiateData(args *schema.DBArgs) error {
 	}
 
 	//init schema versions
-	schemaEntity := &entity.SchemaEntity{Descr: descriptionV1}
-	if err = args.Db.PutSchemaVersion(args.Ctx, versionV1, schemaEntity); err != nil {
+	schemaEntity := &entity.SchemaEntity{Descr: description}
+	if err = args.Db.PutSchemaVersion(args.Ctx, is.GetVersion(), schemaEntity); err != nil {
 		return err
 	}
 
@@ -116,5 +112,5 @@ func getDefaultExample(config *SdkConfig, sdk string) string {
 }
 
 func (is *InitialStructure) GetVersion() string {
-	return versionV1
+	return "0.0.1"
 }

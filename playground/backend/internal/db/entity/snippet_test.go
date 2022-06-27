@@ -39,7 +39,7 @@ func TestSnippet_ID(t *testing.T) {
 					Content: "MOCK_CONTENT",
 					IsMain:  false,
 				}},
-				IDInfo: &IDInfo{
+				IDMeta: &IDMeta{
 					IdLength: 11,
 					Salt:     "MOCK_SALT",
 				},

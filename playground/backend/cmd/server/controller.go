@@ -364,15 +364,20 @@ func (controller *playgroundController) SaveSnippet(ctx context.Context, info *p
 		return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Sdk is not implemented yet: %s", info.Sdk.String())
 	}
 
+	if info.Files == nil || len(info.Files) == 0 {
+		logger.Error("SaveSnippet(): files are empty")
+		return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet must have files")
+	}
+
 	nowDate := time.Now()
 	snippet := entity.Snippet{
-		IDInfo: &entity.IDInfo{
+		IDMeta: &entity.IDMeta{
 			Salt:     controller.env.ApplicationEnvs.PlaygroundSalt(),
 			IdLength: controller.env.ApplicationEnvs.IdLength(),
 		},
+		//OwnerId property will be used in Tour of Beam project
 		Snippet: &entity.SnippetEntity{
 			SchVer:        utils.GetNameKey(datastoreDb.SchemaKind, controller.env.ApplicationEnvs.SchemaVersion(), datastoreDb.Namespace, nil),
-			OwnerId:       "", // will be used in Tour of Beam project
 			Sdk:           utils.GetNameKey(datastoreDb.SdkKind, info.Sdk.String(), datastoreDb.Namespace, nil),
 			PipeOpts:      info.PipelineOptions,
 			Created:       nowDate,
@@ -380,11 +385,6 @@ func (controller *playgroundController) SaveSnippet(ctx context.Context, info *p
 			Origin:        entity.Origin(entity.OriginValue[controller.env.ApplicationEnvs.Origin()]),
 			NumberOfFiles: len(info.Files),
 		},
-	}
-
-	if info.Files == nil || len(info.Files) == 0 {
-		logger.Error("SaveSnippet(): files are empty")
-		return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet must have files")
 	}
 
 	for _, file := range info.Files {

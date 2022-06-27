@@ -254,7 +254,7 @@ func TestLocalDB_GetCodes(t *testing.T) {
 			name: "GetFiles() in the usual case",
 			prepare: func() {
 				_ = localDb.PutSnippet(ctx, "MOCK_ID", &entity.Snippet{
-					IDInfo: &entity.IDInfo{
+					IDMeta: &entity.IDMeta{
 						Salt:     "MOCK_SALT",
 						IdLength: 11,
 					},

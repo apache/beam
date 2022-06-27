@@ -35,7 +35,7 @@ const (
 )
 
 type Datastore struct {
-	client *datastore.Client
+	Client *datastore.Client
 }
 
 func New(ctx context.Context, projectId string) (*Datastore, error) {
@@ -45,7 +45,7 @@ func New(ctx context.Context, projectId string) (*Datastore, error) {
 		return nil, err
 	}
 
-	return &Datastore{client: client}, nil
+	return &Datastore{Client: client}, nil
 }
 
 // PutSnippet puts the snippet entity to datastore
@@ -55,7 +55,7 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 		return nil
 	}
 	snipKey := utils.GetNameKey(SnippetKind, snipId, Namespace, nil)
-	if _, err := d.client.Put(ctx, snipKey, snip.Snippet); err != nil {
+	if _, err := d.Client.Put(ctx, snipKey, snip.Snippet); err != nil {
 		logger.Errorf("Datastore: PutSnippet(): error during the snippet entity saving, err: %s\n", err.Error())
 		return err
 	}
@@ -66,7 +66,7 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 		fileKeys = append(fileKeys, utils.GetNameKey(FileKind, fileId, Namespace, nil))
 	}
 
-	if _, err := d.client.PutMulti(ctx, fileKeys, snip.Files); err != nil {
+	if _, err := d.Client.PutMulti(ctx, fileKeys, snip.Files); err != nil {
 		logger.Errorf("Datastore: PutSnippet(): error during the file entity saving, err: %s\n", err.Error())
 		return err
 	}
@@ -78,13 +78,13 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 func (d *Datastore) GetSnippet(ctx context.Context, id string) (*entity.SnippetEntity, error) {
 	key := utils.GetNameKey(SnippetKind, id, Namespace, nil)
 	snip := new(entity.SnippetEntity)
-	if err := d.client.Get(ctx, key, snip); err != nil {
+	if err := d.Client.Get(ctx, key, snip); err != nil {
 		logger.Errorf("Datastore: GetSnippet(): error during snippet getting, err: %s\n", err.Error())
 		return nil, err
 	}
 	snip.LVisited = time.Now()
 	snip.VisitCount += 1
-	if _, err := d.client.Put(ctx, key, snip); err != nil {
+	if _, err := d.Client.Put(ctx, key, snip); err != nil {
 		logger.Errorf("Datastore: GetSnippet(): error during snippet setting, err: %s\n", err.Error())
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (d *Datastore) PutSchemaVersion(ctx context.Context, id string, schema *ent
 		return nil
 	}
 	key := utils.GetNameKey(SchemaKind, id, Namespace, nil)
-	if _, err := d.client.Put(ctx, key, schema); err != nil {
+	if _, err := d.Client.Put(ctx, key, schema); err != nil {
 		logger.Errorf("Datastore: PutSchemaVersion(): error during entity saving, err: %s\n", err.Error())
 		return err
 	}
@@ -115,7 +115,7 @@ func (d *Datastore) PutSDKs(ctx context.Context, sdks []*entity.SDKEntity) error
 	for _, sdk := range sdks {
 		keys = append(keys, utils.GetNameKey(SdkKind, sdk.Name, Namespace, nil))
 	}
-	if _, err := d.client.PutMulti(ctx, keys, sdks); err != nil {
+	if _, err := d.Client.PutMulti(ctx, keys, sdks); err != nil {
 		logger.Errorf("Datastore: PutSDK(): error during entity saving, err: %s\n", err.Error())
 		return err
 	}
@@ -134,7 +134,7 @@ func (d *Datastore) GetFiles(ctx context.Context, snipId string, numberOfFiles i
 		fileKeys = append(fileKeys, utils.GetNameKey(FileKind, fileId, Namespace, nil))
 	}
 	var files = make([]*entity.FileEntity, numberOfFiles)
-	if err := d.client.GetMulti(ctx, fileKeys, files); err != nil {
+	if err := d.Client.GetMulti(ctx, fileKeys, files); err != nil {
 		logger.Errorf("Datastore: GetFiles(): error during file getting, err: %s\n", err.Error())
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func (d *Datastore) GetFiles(ctx context.Context, snipId string, numberOfFiles i
 func (d *Datastore) GetSDK(ctx context.Context, id string) (*entity.SDKEntity, error) {
 	sdkId := utils.GetNameKey(SdkKind, id, Namespace, nil)
 	sdk := new(entity.SDKEntity)
-	if err := d.client.Get(ctx, sdkId, sdk); err != nil {
+	if err := d.Client.Get(ctx, sdkId, sdk); err != nil {
 		logger.Errorf("Datastore: GetSDK(): error during sdk getting, err: %s\n", err.Error())
 		return nil, err
 	}

@@ -792,6 +792,32 @@ func TestPlaygroundController_SaveSnippet(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		// Test case with calling SaveSnippet method with files are nil.
+		// As a result, want to receive an error.
+		{
+			name: "SaveSnippet with files are nil",
+			args: args{
+				ctx: ctx,
+				info: &pb.SaveSnippetRequest{
+					Files: nil,
+					Sdk:   pb.Sdk_SDK_JAVA,
+				},
+			},
+			wantErr: true,
+		},
+		// Test case with calling SaveSnippet method with files are empty array.
+		// As a result, want to receive an error.
+		{
+			name: "SaveSnippet with files are empty array",
+			args: args{
+				ctx: ctx,
+				info: &pb.SaveSnippetRequest{
+					Files: []*pb.SnippetFile{},
+					Sdk:   pb.Sdk_SDK_JAVA,
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

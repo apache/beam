@@ -65,7 +65,7 @@ type SnippetEntity struct {
 }
 
 type Snippet struct {
-	*IDInfo
+	*IDMeta
 	Snippet *SnippetEntity
 	Files   []*FileEntity
 }
