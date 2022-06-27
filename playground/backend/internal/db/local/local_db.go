@@ -71,13 +71,13 @@ func (l *LocalDB) PutSDKs(_ context.Context, sdks []*entity.SDKEntity) error {
 	return nil
 }
 
-//GetFiles returns the file entities by parent identifier
-func (l *LocalDB) GetFiles(_ context.Context, parentId string) ([]*entity.FileEntity, error) {
+//GetFiles returns the file entities by a snippet identifier
+func (l *LocalDB) GetFiles(_ context.Context, snipId string, _ int) ([]*entity.FileEntity, error) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
-	value, found := l.items[parentId]
+	value, found := l.items[snipId]
 	if !found {
-		return nil, fmt.Errorf("value with id: %s not found", parentId)
+		return nil, fmt.Errorf("value with id: %s not found", snipId)
 	}
 	snippet, _ := value.(*entity.Snippet)
 	return snippet.Files, nil

@@ -21,7 +21,7 @@ import (
 	"beam.apache.org/playground/backend/internal/utils"
 	"cloud.google.com/go/datastore"
 	"context"
-	"google.golang.org/api/iterator"
+	"fmt"
 	"time"
 )
 
@@ -49,28 +49,24 @@ func New(ctx context.Context, projectId string) (*Datastore, error) {
 }
 
 // PutSnippet puts the snippet entity to datastore
-func (d *Datastore) PutSnippet(ctx context.Context, id string, snip *entity.Snippet) error {
+func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.Snippet) error {
 	if snip == nil {
 		logger.Errorf("Datastore: PutSnippet(): snippet is nil")
 		return nil
 	}
-	key := utils.GetNameKey(SnippetKind, id, Namespace, nil)
-	if _, err := d.client.Put(ctx, key, snip.Snippet); err != nil {
+	snipKey := utils.GetNameKey(SnippetKind, snipId, Namespace, nil)
+	if _, err := d.client.Put(ctx, snipKey, snip.Snippet); err != nil {
 		logger.Errorf("Datastore: PutSnippet(): error during the snippet entity saving, err: %s\n", err.Error())
 		return err
 	}
 
-	var keys []*datastore.Key
-	for _, file := range snip.Files {
-		fileId, err := file.ID(snip)
-		if err != nil {
-			logger.Errorf("Datastore: PutSnippet(): error during the file K generation, err: %s\n", err.Error())
-			return err
-		}
-		keys = append(keys, utils.GetNameKey(FileKind, fileId, Namespace, key))
+	var fileKeys []*datastore.Key
+	for index := range snip.Files {
+		fileId := fmt.Sprintf("%s_%d", snipId, index)
+		fileKeys = append(fileKeys, utils.GetNameKey(FileKind, fileId, Namespace, nil))
 	}
 
-	if _, err := d.client.PutMulti(ctx, keys, snip.Files); err != nil {
+	if _, err := d.client.PutMulti(ctx, fileKeys, snip.Files); err != nil {
 		logger.Errorf("Datastore: PutSnippet(): error during the file entity saving, err: %s\n", err.Error())
 		return err
 	}
@@ -126,23 +122,21 @@ func (d *Datastore) PutSDKs(ctx context.Context, sdks []*entity.SDKEntity) error
 	return nil
 }
 
-//GetFiles returns the file entities by parent identifier
-func (d *Datastore) GetFiles(ctx context.Context, parentId string) ([]*entity.FileEntity, error) {
-	snipId := utils.GetNameKey(SnippetKind, parentId, Namespace, nil)
-	query := datastore.NewQuery(FileKind).Ancestor(snipId).Namespace(Namespace)
-	it := d.client.Run(ctx, query)
-	var files []*entity.FileEntity
-	for {
-		var file entity.FileEntity
-		_, err := it.Next(&file)
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			logger.Errorf("Datastore: GetFiles(): error during file getting, err: %s\n", err.Error())
-			return nil, err
-		}
-		files = append(files, &file)
+//GetFiles returns the file entities by a snippet identifier
+func (d *Datastore) GetFiles(ctx context.Context, snipId string, numberOfFiles int) ([]*entity.FileEntity, error) {
+	if numberOfFiles == 0 {
+		logger.Errorf("The number of files must be more than zero")
+		return []*entity.FileEntity{}, nil
+	}
+	var fileKeys []*datastore.Key
+	for i := 0; i < numberOfFiles; i++ {
+		fileId := fmt.Sprintf("%s_%d", snipId, i)
+		fileKeys = append(fileKeys, utils.GetNameKey(FileKind, fileId, Namespace, nil))
+	}
+	var files = make([]*entity.FileEntity, numberOfFiles)
+	if err := d.client.GetMulti(ctx, fileKeys, files); err != nil {
+		logger.Errorf("Datastore: GetFiles(): error during file getting, err: %s\n", err.Error())
+		return nil, err
 	}
 	return files, nil
 }

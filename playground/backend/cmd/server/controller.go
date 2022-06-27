@@ -371,14 +371,20 @@ func (controller *playgroundController) SaveSnippet(ctx context.Context, info *p
 			IdLength: controller.env.ApplicationEnvs.IdLength(),
 		},
 		Snippet: &entity.SnippetEntity{
-			SchVer:   utils.GetNameKey(datastoreDb.SchemaKind, controller.env.ApplicationEnvs.SchemaVersion(), datastoreDb.Namespace, nil),
-			OwnerId:  "", // will be used in Tour of Beam project
-			Sdk:      utils.GetNameKey(datastoreDb.SdkKind, info.Sdk.String(), datastoreDb.Namespace, nil),
-			PipeOpts: info.PipelineOptions,
-			Created:  nowDate,
-			LVisited: nowDate,
-			Origin:   entity.Origin(entity.OriginValue[controller.env.ApplicationEnvs.Origin()]),
+			SchVer:        utils.GetNameKey(datastoreDb.SchemaKind, controller.env.ApplicationEnvs.SchemaVersion(), datastoreDb.Namespace, nil),
+			OwnerId:       "", // will be used in Tour of Beam project
+			Sdk:           utils.GetNameKey(datastoreDb.SdkKind, info.Sdk.String(), datastoreDb.Namespace, nil),
+			PipeOpts:      info.PipelineOptions,
+			Created:       nowDate,
+			LVisited:      nowDate,
+			Origin:        entity.Origin(entity.OriginValue[controller.env.ApplicationEnvs.Origin()]),
+			NumberOfFiles: len(info.Files),
 		},
+	}
+
+	if info.Files == nil || len(info.Files) == 0 {
+		logger.Error("SaveSnippet(): files are empty")
+		return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet must have files")
 	}
 
 	for _, file := range info.Files {
@@ -435,7 +441,7 @@ func (controller *playgroundController) GetSnippet(ctx context.Context, info *pb
 		Sdk:             pb.Sdk(pb.Sdk_value[snippet.Sdk.Name]),
 		PipelineOptions: snippet.PipeOpts,
 	}
-	files, err := controller.db.GetFiles(ctx, info.GetId())
+	files, err := controller.db.GetFiles(ctx, info.GetId(), snippet.NumberOfFiles)
 	if err != nil {
 		logger.Errorf("GetSnippet(): GetFiles(): error during getting files: %s", err.Error())
 		return nil, errors.InternalError(errorTitleGetSnippet, "Failed to retrieve files")

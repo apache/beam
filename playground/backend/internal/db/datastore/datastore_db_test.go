@@ -82,10 +82,11 @@ func TestDatastore_PutSnippet(t *testing.T) {
 					IdLength: 11,
 				},
 				Snippet: &entity.SnippetEntity{
-					Sdk:      utils.GetNameKey(SdkKind, "SDK_GO", Namespace, nil),
-					PipeOpts: "MOCK_OPTIONS",
-					Origin:   entity.PG_USER,
-					OwnerId:  "",
+					Sdk:           utils.GetNameKey(SdkKind, "SDK_GO", Namespace, nil),
+					PipeOpts:      "MOCK_OPTIONS",
+					Origin:        entity.PG_USER,
+					OwnerId:       "",
+					NumberOfFiles: 1,
 				},
 				Files: []*entity.FileEntity{{
 					Name:    "MOCK_NAME",
@@ -106,9 +107,7 @@ func TestDatastore_PutSnippet(t *testing.T) {
 		})
 	}
 
-	parentKey := datastore.NameKey(SnippetKind, "MOCK_ID", nil)
-	parentKey.Namespace = Namespace
-	cleanData(t, FileKind, "OpdzDJYiSbj", parentKey)
+	cleanData(t, FileKind, "MOCK_ID_0", nil)
 	cleanData(t, SnippetKind, "MOCK_ID", nil)
 }
 
@@ -139,11 +138,12 @@ func TestDatastore_GetSnippet(t *testing.T) {
 						IdLength: 11,
 					},
 					Snippet: &entity.SnippetEntity{
-						Sdk:      utils.GetNameKey(SdkKind, "SDK_GO", Namespace, nil),
-						PipeOpts: "MOCK_OPTIONS",
-						Created:  nowDate,
-						Origin:   entity.PG_USER,
-						OwnerId:  "",
+						Sdk:           utils.GetNameKey(SdkKind, "SDK_GO", Namespace, nil),
+						PipeOpts:      "MOCK_OPTIONS",
+						Created:       nowDate,
+						Origin:        entity.PG_USER,
+						OwnerId:       "",
+						NumberOfFiles: 1,
 					},
 					Files: []*entity.FileEntity{{
 						Name:    "MOCK_NAME",
@@ -176,9 +176,7 @@ func TestDatastore_GetSnippet(t *testing.T) {
 		})
 	}
 
-	parentKey := datastore.NameKey(SnippetKind, "MOCK_ID", nil)
-	parentKey.Namespace = Namespace
-	cleanData(t, FileKind, "OpdzDJYiSbj", parentKey)
+	cleanData(t, FileKind, "MOCK_ID_0", nil)
 	cleanData(t, SnippetKind, "MOCK_ID", nil)
 }
 
@@ -270,8 +268,9 @@ func TestDatastore_PutSchemaVersion(t *testing.T) {
 
 func TestDatastore_GetFiles(t *testing.T) {
 	type args struct {
-		ctx      context.Context
-		parentId string
+		ctx           context.Context
+		snipId        string
+		numberOfFiles int
 	}
 	tests := []struct {
 		name    string
@@ -280,10 +279,10 @@ func TestDatastore_GetFiles(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "GetFiles() with parentId that is no in the database",
+			name:    "GetFiles() with snippet id that is no in the database",
 			prepare: func() {},
-			args:    args{ctx: ctx, parentId: "MOCK_ID"},
-			wantErr: false,
+			args:    args{ctx: ctx, snipId: "MOCK_ID", numberOfFiles: 1},
+			wantErr: true,
 		},
 		{
 			name: "GetFiles() in the usual case",
@@ -294,10 +293,11 @@ func TestDatastore_GetFiles(t *testing.T) {
 						IdLength: 11,
 					},
 					Snippet: &entity.SnippetEntity{
-						Sdk:      utils.GetNameKey(SdkKind, "SDK_GO", Namespace, nil),
-						PipeOpts: "MOCK_OPTIONS",
-						Origin:   entity.PG_USER,
-						OwnerId:  "",
+						Sdk:           utils.GetNameKey(SdkKind, "SDK_GO", Namespace, nil),
+						PipeOpts:      "MOCK_OPTIONS",
+						Origin:        entity.PG_USER,
+						OwnerId:       "",
+						NumberOfFiles: 1,
 					},
 					Files: []*entity.FileEntity{{
 						Name:    "MOCK_NAME",
@@ -306,7 +306,7 @@ func TestDatastore_GetFiles(t *testing.T) {
 					}},
 				})
 			},
-			args:    args{ctx: ctx, parentId: "MOCK_ID"},
+			args:    args{ctx: ctx, snipId: "MOCK_ID", numberOfFiles: 1},
 			wantErr: false,
 		},
 	}
@@ -314,7 +314,7 @@ func TestDatastore_GetFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			files, err := datastoreDb.GetFiles(tt.args.ctx, tt.args.parentId)
+			files, err := datastoreDb.GetFiles(tt.args.ctx, tt.args.snipId, tt.args.numberOfFiles)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetFiles() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -324,9 +324,7 @@ func TestDatastore_GetFiles(t *testing.T) {
 					files[0].IsMain != false {
 					t.Error("GetFiles() unexpected result")
 				}
-				parentKey := datastore.NameKey(SnippetKind, "MOCK_ID", nil)
-				parentKey.Namespace = Namespace
-				cleanData(t, FileKind, "OpdzDJYiSbj", parentKey)
+				cleanData(t, FileKind, "MOCK_ID_0", nil)
 				cleanData(t, SnippetKind, "MOCK_ID", nil)
 			}
 		})

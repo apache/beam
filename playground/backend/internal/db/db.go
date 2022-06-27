@@ -30,7 +30,7 @@ type Snippet interface {
 
 	GetSnippet(ctx context.Context, id string) (*entity.SnippetEntity, error)
 
-	GetFiles(ctx context.Context, parentId string) ([]*entity.FileEntity, error)
+	GetFiles(ctx context.Context, snipId string, numberOfFiles int) ([]*entity.FileEntity, error)
 }
 
 type Catalogue interface {

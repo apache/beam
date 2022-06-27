@@ -53,14 +53,15 @@ type FileEntity struct {
 }
 
 type SnippetEntity struct {
-	OwnerId    string         `datastore:"ownerId"`
-	Sdk        *datastore.Key `datastore:"sdk"`
-	PipeOpts   string         `datastore:"pipeOpts"`
-	Created    time.Time      `datastore:"created"`
-	LVisited   time.Time      `datastore:"lVisited"`
-	Origin     Origin         `datastore:"origin"`
-	VisitCount int            `datastore:"visitCount"`
-	SchVer     *datastore.Key `datastore:"schVer"`
+	OwnerId       string         `datastore:"ownerId"`
+	Sdk           *datastore.Key `datastore:"sdk"`
+	PipeOpts      string         `datastore:"pipeOpts"`
+	Created       time.Time      `datastore:"created"`
+	LVisited      time.Time      `datastore:"lVisited"`
+	Origin        Origin         `datastore:"origin"`
+	VisitCount    int            `datastore:"visitCount"`
+	SchVer        *datastore.Key `datastore:"schVer"`
+	NumberOfFiles int            `datastore:"numberOfFiles"`
 }
 
 type Snippet struct {
@@ -84,16 +85,6 @@ func (s *Snippet) ID() (string, error) {
 		}
 	}
 	id, err := utils.ID(s.Salt, contentBuilder.String(), s.IdLength)
-	if err != nil {
-		return "", err
-	}
-	return id, nil
-}
-
-// ID generates id according to content of a file and its name
-func (c *FileEntity) ID(snip *Snippet) (string, error) {
-	content := fmt.Sprintf("%s%s", strings.TrimSpace(c.Content), strings.TrimSpace(c.Name))
-	id, err := utils.ID(snip.Salt, content, snip.IdLength)
 	if err != nil {
 		return "", err
 	}

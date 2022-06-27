@@ -234,8 +234,9 @@ func TestLocalDB_PutSchemaVersion(t *testing.T) {
 
 func TestLocalDB_GetCodes(t *testing.T) {
 	type args struct {
-		ctx      context.Context
-		parentId string
+		ctx           context.Context
+		snipId        string
+		numberOfFiles int
 	}
 	tests := []struct {
 		name    string
@@ -244,9 +245,9 @@ func TestLocalDB_GetCodes(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "GetFiles() with parentId that is no in the database",
+			name:    "GetFiles() with snippet id that is no in the database",
 			prepare: func() {},
-			args:    args{ctx: ctx, parentId: "MOCK_ID"},
+			args:    args{ctx: ctx, snipId: "MOCK_ID", numberOfFiles: 1},
 			wantErr: true,
 		},
 		{
@@ -269,7 +270,7 @@ func TestLocalDB_GetCodes(t *testing.T) {
 					}},
 				})
 			},
-			args:    args{ctx: ctx, parentId: "MOCK_ID"},
+			args:    args{ctx: ctx, snipId: "MOCK_ID"},
 			wantErr: false,
 		},
 	}
@@ -277,7 +278,7 @@ func TestLocalDB_GetCodes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			codes, err := localDb.GetFiles(tt.args.ctx, tt.args.parentId)
+			codes, err := localDb.GetFiles(tt.args.ctx, tt.args.snipId, tt.args.numberOfFiles)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetFiles() error = %v, wantErr %v", err, tt.wantErr)
 				return
