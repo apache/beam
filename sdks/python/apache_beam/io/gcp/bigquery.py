@@ -235,6 +235,54 @@ also take a callable that receives a table reference.
 [2] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert
 [3] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
 
+Output of the WriteToBigQuery transform
+---------------------------------------
+
+Writing to BigQuery returns a WriteResult object that includes metadata
+relating to the write you configured. This data can be used in later steps
+in your pipeline:::
+
+  schema = {'fields': [
+      {'name': 'column', 'type': 'STRING', 'mode': 'NULLABLE'}]}
+
+  error_schema = {'fields': [
+      {'name': 'destination', 'type': 'STRING', 'mode': 'NULLABLE'},
+      {'name': 'row', 'type': 'STRING', 'mode': 'NULLABLE'},
+      {'name': 'error_message', 'type': 'STRING', 'mode': 'NULLABLE'}]}
+
+  with Pipeline() as p:
+    result = (p
+      | 'Create Columns' >> beam.Create([
+              {'column': 'value'},
+              {'bad_column': 'bad_value'}
+            ])
+      | 'Write Data' >> WriteToBigQuery(
+              method=WriteToBigQuery.Method.STREAMING_INSERTS,
+              table=my_table,
+              schema=schema,
+              insert_retry_strategy=RetryStrategy.RETRY_NEVER
+            ))
+
+    _ = (result.failed_rows_with_errors
+      | 'Get Errors' >> beam.Map(lambda e: {
+              "destination": e[0],
+              "row": json.dumps(e[1]),
+              "error_message": e[2][0]['message']
+            })
+      | 'Write Errors' >> WriteToBigQuery(
+              method=WriteToBigQuery.Method.STREAMING_INSERTS,
+              table=error_log_table,
+              schema=error_schema,
+            ))
+
+Attributes can be accessed using dot notation or bracket notation:
+
+result.failed_rows                  <--> result['FailedRows']
+result.failed_rows_with_errors      <--> result['FailedRowsWithErrors']
+result.destination_load_jobid_pairs <--> result['destination_load_jobid_pairs']
+result.destination_file_pairs       <--> result['destination_file_pairs']
+result.destination_copy_jobid_pairs <--> result['destination_copy_jobid_pairs']
+
 
 *** Short introduction to BigQuery concepts ***
 Tables have rows (TableRow) and each row has cells (TableCell).
@@ -1498,31 +1546,6 @@ bigquery_v2_messages.TableSchema` object.
 
 class WriteResult:
   """The result of a WriteToBigQuery transform.
-
-  Attributes can be accessed using dot notation or bracket notation:
-    with Pipeline() as p:
-      result = (p
-      | 'Create Columns' >> beam.Create([
-                {'column': 'value'},
-                {'bad_column': 'bad_value'}
-              ])
-      | 'Write Data' >> WriteToBigQuery(
-                method=WriteToBigQuery.Method.STREAMING_INSERTS,
-                table=my_table,
-                schema=my_schema,
-                insert_retry_strategy=RetryStrategy.RETRY_NEVER))
-
-      _ = (result.failed_rows_with_errors
-      | 'Get Errors' >> beam.Map(lambda e: {
-                "destination": e[0],
-                "row": e[1],
-                "error_message": e[2][0]['message']
-              })
-      | 'Write Errors' >> WriteToBigQuery(
-                method=WriteToBigQuery.Method.STREAMING_INSERTS,
-                table=error_log_table,
-                schema=error_schema,
-              )
   """
   def __init__(
       self,
