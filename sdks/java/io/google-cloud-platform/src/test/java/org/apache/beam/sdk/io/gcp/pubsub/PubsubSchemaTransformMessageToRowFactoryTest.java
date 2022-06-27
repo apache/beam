@@ -20,21 +20,21 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.ATTRIBUTES_FIELD;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.PAYLOAD_FIELD;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Map.Entry;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.io.payloads.AvroPayloadSerializerProvider;
 import org.apache.beam.sdk.schemas.io.payloads.JsonPayloadSerializerProvider;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializerProvider;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -176,7 +176,7 @@ public class PubsubSchemaTransformMessageToRowFactoryTest {
         continue;
       }
 
-      Row serializerInput = Objects.requireNonNull(testCase.serializerInput);
+      Row serializerInput = testCase.serializerInput;
 
       byte[] expectedBytes =
           testCase
@@ -246,13 +246,11 @@ public class PubsubSchemaTransformMessageToRowFactoryTest {
   public void fieldPresent() {
     for (TestCase testCase : cases) {
       PubsubSchemaTransformMessageToRowFactory factory = testCase.factory();
-      for (Map.Entry<Pair<String, Schema.FieldType>, Boolean> entry :
-          testCase.shouldFieldPresent.entrySet()) {
-        Pair<String, Schema.FieldType> pair = entry.getKey();
-        boolean expected = entry.getValue();
-        boolean actual = factory.fieldPresent(pair.getKey(), pair.getValue());
+      for (Entry<String, FieldType> entry : testCase.shouldFieldPresent.entrySet()) {
 
-        assertEquals(expected, actual);
+        boolean actual = factory.fieldPresent(entry.getKey(), entry.getValue());
+
+        assertTrue(actual);
       }
     }
   }
@@ -272,7 +270,7 @@ public class PubsubSchemaTransformMessageToRowFactoryTest {
     private boolean shouldNeedSerializer = true;
     private boolean shouldSchemaHaveValidPayloadField = false;
     private boolean shouldSchemaHaveValidAttributesField = false;
-    private final Map<Pair<String, Schema.FieldType>, Boolean> shouldFieldPresent = new HashMap<>();
+    private final Map<String, FieldType> shouldFieldPresent = new HashMap<>();
 
     private Row serializerInput;
 
@@ -304,10 +302,9 @@ public class PubsubSchemaTransformMessageToRowFactoryTest {
     }
 
     PubsubMessageToRow.SerializerProvider expectSerializerProvider() {
-      ImmutableMap.Builder<String, Object> params = ImmutableMap.builder();
+      Map<String, Object> params = new HashMap<>();
       PayloadSerializer payloadSerializer =
-          expectPayloadSerializerProvider.getSerializer(
-              configuration.getDataSchema(), params.build());
+          expectPayloadSerializerProvider.getSerializer(configuration.getDataSchema(), params);
 
       return (input -> payloadSerializer);
     }
@@ -333,7 +330,7 @@ public class PubsubSchemaTransformMessageToRowFactoryTest {
     }
 
     TestCase fieldShouldBePresent(String name, Schema.FieldType expectedType) {
-      this.shouldFieldPresent.put(Pair.of(name, expectedType), true);
+      this.shouldFieldPresent.put(name, expectedType);
       return this;
     }
   }
