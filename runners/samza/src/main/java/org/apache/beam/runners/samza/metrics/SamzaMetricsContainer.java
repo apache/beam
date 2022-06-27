@@ -19,11 +19,11 @@ package org.apache.beam.runners.samza.metrics;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import org.apache.beam.runners.core.metrics.DefaultMetricResults;
+import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
@@ -186,6 +186,7 @@ public class SamzaMetricsContainer {
       MetricsContainerStepMap metricsContainers, List<String> steps) {
     List<MetricResult<Long>> counters = new ArrayList<>();
     List<MetricResult<GaugeResult>> gauges = new ArrayList<>();
+    List<MetricResult<DistributionResult>> distributions = new ArrayList<>();
 
     for (String step : steps) {
       MetricsContainerImpl container = metricsContainers.getContainer(step);
@@ -196,6 +197,14 @@ public class SamzaMetricsContainer {
         counters.add(MetricResult.attempted(counterUpdate.getKey(), counterUpdate.getUpdate()));
       }
 
+      // Merging distributions
+      for (MetricUpdates.MetricUpdate<DistributionData> distributionUpdate :
+          cumulative.distributionUpdates()) {
+        distributions.add(
+            MetricResult.attempted(
+                distributionUpdate.getKey(), distributionUpdate.getUpdate().extractResult()));
+      }
+
       // Merging gauges
       for (MetricUpdates.MetricUpdate<GaugeData> gaugeUpdate : cumulative.gaugeUpdates()) {
         gauges.add(
@@ -203,6 +212,6 @@ public class SamzaMetricsContainer {
       }
     }
 
-    return new DefaultMetricResults(counters, Collections.emptyList(), gauges);
+    return new DefaultMetricResults(counters, distributions, gauges);
   }
 }
