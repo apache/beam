@@ -23,9 +23,9 @@ module github.com/apache/beam/sdks/v2
 go 1.18
 
 require (
-	cloud.google.com/go/bigquery v1.32.0
+	cloud.google.com/go/bigquery v1.34.1
 	cloud.google.com/go/datastore v1.8.0
-	cloud.google.com/go/pubsub v1.22.2
+	cloud.google.com/go/pubsub v1.23.0
 	cloud.google.com/go/storage v1.22.1
 	github.com/docker/go-connections v0.4.0
 	github.com/go-sql-driver/mysql v1.6.0
@@ -36,7 +36,7 @@ require (
 	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/proullon/ramsql v0.0.0-20211120092837-c8d0a408b939
-	github.com/spf13/cobra v1.4.0
+	github.com/spf13/cobra v1.5.0
 	github.com/testcontainers/testcontainers-go v0.13.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
@@ -45,7 +45,7 @@ require (
 	golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c
 	golang.org/x/text v0.3.7
 	google.golang.org/api v0.85.0
-	google.golang.org/genproto v0.0.0-20220617124728-180714bec0ad
+	google.golang.org/genproto v0.0.0-20220622131801-db39fadba55f
 	google.golang.org/grpc v1.47.0
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/retry.v1 v1.0.3
