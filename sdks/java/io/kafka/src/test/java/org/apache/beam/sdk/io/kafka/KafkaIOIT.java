@@ -310,8 +310,6 @@ public class KafkaIOIT {
 
       writePipeline.run().waitUntilFinish(Duration.standardSeconds(15));
 
-      System.out.println("after write 1");
-
       Thread delayedWriteThread =
           new Thread(
               () -> {
@@ -334,8 +332,6 @@ public class KafkaIOIT {
                             .withValueSerializer(StringSerializer.class));
 
                 writePipeline.run().waitUntilFinish(Duration.standardSeconds(15));
-
-                System.out.println("after write 2");
               });
 
       delayedWriteThread.start();
@@ -362,8 +358,6 @@ public class KafkaIOIT {
 
       State readState =
           readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout() / 2));
-
-      System.out.println("after read");
 
       cancelIfTimeouted(readResult, readState);
 
