@@ -43,8 +43,8 @@ import org.openjdk.jmh.annotations.Warmup;
 public class CombinerTableBenchmark {
   @State(Scope.Benchmark)
   public static class CombinerTable {
-    final int num_keys = 1000;
-    final int num_per_key = 1000;
+    final int numKeys = 1000;
+    final int numPerKey = 1000;
     final Combine.BinaryCombineIntegerFn sumInts = Sum.ofIntegers();
     final PipelineOptions options = PipelineOptionsFactory.create();
     PrecombineGroupingTable<String, Integer, int[]> groupingTable;
@@ -64,7 +64,7 @@ public class CombinerTableBenchmark {
               .001,
               Boolean.valueOf(globallyWindowed));
       elements = new ArrayList<>();
-      for (int i = 0; i < num_keys; i++) {
+      for (int i = 0; i < numKeys; i++) {
         elements.add(WindowedValue.valueInGlobalWindow(KV.of(Integer.toString(i), i)));
       }
     }
@@ -75,7 +75,7 @@ public class CombinerTableBenchmark {
   @Warmup(time = 1, timeUnit = SECONDS)
   @Measurement(time = 1, timeUnit = SECONDS)
   public void uniformDistribution(CombinerTable table) throws Exception {
-    for (int i = 0; i < table.num_per_key; i++) {
+    for (int i = 0; i < table.numPerKey; i++) {
       for (WindowedValue<KV<String, Integer>> element : table.elements) {
         table.groupingTable.put(element, null);
       }
