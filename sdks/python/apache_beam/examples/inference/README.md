@@ -117,7 +117,7 @@ The pipeline reads images, performs basic preprocessing, passes the images to th
 ### Dataset and model for image segmentation
 Create a directory named `IMAGES_DIR`. Create or download images and put them in this directory. The directory is not required if image names in the input file `IMAGE_FILE_NAMES` have absolute paths.
 A popular dataset is from [Coco](https://cocodataset.org/#home). Follow their instructions to download the images.
-- **Required**: Create a file named `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` that you want to use to run image segmentation. Paths can be different types of URIs such as your local file system, an AWS S3 bucket, or a GCP Cloud Storage bucket. For example:
+- **Required**: A path to a file named `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` that you want to use to run image segmentation. Paths can be different types of URIs such as your local file system, an AWS S3 bucket, or a GCP Cloud Storage bucket. For example:
 ```
 /absolute/path/to/image1.jpg
 /absolute/path/to/image2.jpg
@@ -129,8 +129,8 @@ from torchvision.models.detection import maskrcnn_resnet50_fpn
 model = maskrcnn_resnet50_fpn(pretrained=True)
 torch.save(model.state_dict(), 'maskrcnn_resnet50_fpn.pth')
 ```
-- **Required**: Create a file named `MODEL_STATE_DICT` that contains the saved parameters of the `maskrcnn_resnet50_fpn` model. 
-- **Required**: Create a file named `OUTPUT`. This file is used by the pipeline to write the predictions.
+- **Required**: A path to a file named `MODEL_STATE_DICT` that contains the saved parameters of the `maskrcnn_resnet50_fpn` model. 
+- **Required**: A path to a file named `OUTPUT`. This file is used by the pipeline to write the predictions.
 ### Running `pytorch_image_segmentation.py`
 
 To run the image segmentation pipeline locally, use the following command:
