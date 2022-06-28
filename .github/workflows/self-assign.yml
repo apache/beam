@@ -53,14 +53,14 @@ jobs:
                   state: 'closed',
                   state_reason: 'not_planned'
                 });
+              } else {
+                github.rest.issues.update({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'closed'
+                });
               }
-              
-              github.rest.issues.update({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                state: 'closed'
-              });
             } else if (bodyString == '.set-labels' || bodyString == '.add-labels' || bodyString == '.remove-labels') {
               console.log('Updating labels');
               if (i + 1 >= body.length) {
