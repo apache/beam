@@ -229,96 +229,32 @@ func TestFhirIO_ExecuteBundles(t *testing.T) {
 	ptest.RunAndValidate(t, p)
 }
 
-func TestFhirIO_Search_SelectAll(t *testing.T) {
+func TestFhirIO_Search(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
 
 	fhirStorePath, _, teardownFhirStore := setupFhirStoreWithData(t)
 	defer teardownFhirStore()
 
-	p, s, searchQuery := ptest.CreateList([]fhirio.SearchQuery{{}})
-	searchResult, deadLetter := fhirio.Search(s, fhirStorePath, searchQuery)
+	searchQueries := []fhirio.SearchQuery{
+		{},
+		{ResourceType: "Patient"},
+		{ResourceType: "Patient", Parameters: map[string]string{"gender": "female", "family:contains": "Smith"}},
+		{ResourceType: "Encounter"},
+	}
+	expectedNumResourcesFound := []int{4, 2, 1, 0}
+
+	p, s, searchQueriesCol := ptest.CreateList(searchQueries)
+	searchResult, deadLetter := fhirio.Search(s, fhirStorePath, searchQueriesCol)
 	passert.Empty(s, deadLetter)
-	passert.Count(s, searchResult, "", 1)
+	passert.Count(s, searchResult, "", len(searchQueries))
 	searchResultWithoutKey := beam.DropKey(s, searchResult)
+
+	outputIdx := 0
 	passert.True(s, searchResultWithoutKey, func(searchResult []string) bool {
-		return len(searchResult) == 4
-	})
-
-	ptest.RunAndValidate(t, p)
-}
-
-func TestFhirIO_Search_SelectAllPaginated(t *testing.T) {
-	integration.CheckFilters(t)
-	checkFlags(t)
-
-	fhirStorePath, _, teardownFhirStore := setupFhirStoreWithData(t)
-	defer teardownFhirStore()
-
-	p, s, searchQuery := ptest.CreateList([]fhirio.SearchQuery{{Parameters: map[string]string{"_count": "1"}}})
-	searchResult, deadLetter := fhirio.Search(s, fhirStorePath, searchQuery)
-	passert.Empty(s, deadLetter)
-	passert.Count(s, searchResult, "", 1)
-	searchResultWithoutKey := beam.DropKey(s, searchResult)
-	passert.True(s, searchResultWithoutKey, func(searchResult []string) bool {
-		return len(searchResult) == 4
-	})
-
-	ptest.RunAndValidate(t, p)
-}
-
-func TestFhirIO_Search_SelectAllPatients(t *testing.T) {
-	integration.CheckFilters(t)
-	checkFlags(t)
-
-	fhirStorePath, _, teardownFhirStore := setupFhirStoreWithData(t)
-	defer teardownFhirStore()
-
-	p, s, searchQuery := ptest.CreateList([]fhirio.SearchQuery{{ResourceType: "Patient"}})
-	searchResult, deadLetter := fhirio.Search(s, fhirStorePath, searchQuery)
-	passert.Empty(s, deadLetter)
-	passert.Count(s, searchResult, "", 1)
-	searchResultWithoutKey := beam.DropKey(s, searchResult)
-	passert.True(s, searchResultWithoutKey, func(searchResult []string) bool {
-		return len(searchResult) == 2
-	})
-
-	ptest.RunAndValidate(t, p)
-}
-
-func TestFhirIO_Search_SelectSpecificPatient(t *testing.T) {
-	integration.CheckFilters(t)
-	checkFlags(t)
-
-	fhirStorePath, _, teardownFhirStore := setupFhirStoreWithData(t)
-	defer teardownFhirStore()
-
-	p, s, searchQuery := ptest.CreateList([]fhirio.SearchQuery{{ResourceType: "Patient", Parameters: map[string]string{"gender": "female", "family:contains": "Smith"}}})
-	searchResult, deadLetter := fhirio.Search(s, fhirStorePath, searchQuery)
-	passert.Empty(s, deadLetter)
-	passert.Count(s, searchResult, "", 1)
-	searchResultWithoutKey := beam.DropKey(s, searchResult)
-	passert.True(s, searchResultWithoutKey, func(searchResult []string) bool {
-		return len(searchResult) == 1
-	})
-
-	ptest.RunAndValidate(t, p)
-}
-
-func TestFhirIO_Search_ResourceNotPresent(t *testing.T) {
-	integration.CheckFilters(t)
-	checkFlags(t)
-
-	fhirStorePath, _, teardownFhirStore := setupFhirStoreWithData(t)
-	defer teardownFhirStore()
-
-	p, s, searchQuery := ptest.CreateList([]fhirio.SearchQuery{{ResourceType: "Encounter"}})
-	searchResult, deadLetter := fhirio.Search(s, fhirStorePath, searchQuery)
-	passert.Empty(s, deadLetter)
-	passert.Count(s, searchResult, "", 1)
-	searchResultWithoutKey := beam.DropKey(s, searchResult)
-	passert.True(s, searchResultWithoutKey, func(searchResult []string) bool {
-		return len(searchResult) == 0
+		result := len(searchResult) == expectedNumResourcesFound[outputIdx]
+		outputIdx += 1
+		return result
 	})
 
 	ptest.RunAndValidate(t, p)
