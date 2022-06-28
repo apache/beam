@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -183,9 +184,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context::addResetFunction,
               context::addTearDownFunction,
               context::getPCollectionConsumer,
-              (pCollectionId, consumer, valueCoder) ->
-                  context.addPCollectionConsumer(
-                      pCollectionId, (FnDataReceiver) consumer, (Coder) valueCoder),
+              context::addPCollectionConsumer,
               context::addOutgoingTimersEndpoint,
               context::addProgressRequestCallback,
               context.getSplitListener(),
@@ -328,10 +327,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   /** Only valid during {@link #processTimer}, null otherwise. */
   private TimeDomain currentTimeDomain;
 
-  private interface TriFunction<FirstT, SecondT, ThirdT> {
-    void accept(FirstT x, SecondT y, ThirdT z);
-  }
-
   FnApiDoFnRunner(
       PipelineOptions pipelineOptions,
       BeamFnStateClient beamFnStateClient,
@@ -349,7 +344,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Consumer<ThrowingRunnable> addResetFunction,
       Consumer<ThrowingRunnable> addTearDownFunction,
       Function<String, FnDataReceiver<WindowedValue<?>>> getPCollectionConsumer,
-      TriFunction<String, FnDataReceiver<WindowedValue<?>>, Coder<?>> addPCollectionConsumer,
+      BiConsumer<String, FnDataReceiver> addPCollectionConsumer,
       BiFunction<String, Coder<Timer<Object>>, FnDataReceiver<Timer<Object>>>
           getOutgoingTimersConsumer,
       Consumer<ProgressRequestCallback> addProgressRequestCallback,
@@ -663,8 +658,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       default:
         throw new IllegalStateException("Unknown urn: " + pTransform.getSpec().getUrn());
     }
-    addPCollectionConsumer.accept(
-        pTransform.getInputsOrThrow(mainInput), (FnDataReceiver) mainInputConsumer, inputCoder);
+    addPCollectionConsumer.accept(pTransform.getInputsOrThrow(mainInput), mainInputConsumer);
 
     this.finishBundleArgumentProvider = new FinishBundleArgumentProvider();
     switch (pTransform.getSpec().getUrn()) {

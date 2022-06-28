@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
+import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -116,6 +117,7 @@ public abstract class PTransformRunnerFactoryTestContext
         .finishBundleFunctions(new ArrayList<>())
         .resetFunctions(new ArrayList<>())
         .tearDownFunctions(new ArrayList<>())
+        .bundleProgressReporters(new ArrayList<>())
         .progressRequestCallbacks(new ArrayList<>())
         .incomingDataEndpoints(new HashMap<>())
         .incomingTimerEndpoints(new ArrayList<>())
@@ -191,6 +193,8 @@ public abstract class PTransformRunnerFactoryTestContext
 
     Builder progressRequestCallbacks(List<ProgressRequestCallback> value);
 
+    Builder bundleProgressReporters(List<BundleProgressReporter> value);
+
     Builder splitListener(BundleSplitListener value);
 
     Builder bundleFinalizer(BundleFinalizer value);
@@ -211,9 +215,7 @@ public abstract class PTransformRunnerFactoryTestContext
 
   @Override
   public <T> void addPCollectionConsumer(
-      String pCollectionId,
-      FnDataReceiver<WindowedValue<T>> consumer,
-      org.apache.beam.sdk.coders.Coder<T> valueCoder) {
+      String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer) {
     getPCollectionConsumers()
         .computeIfAbsent(pCollectionId, (unused) -> new ArrayList<>())
         .add(consumer);
@@ -343,6 +345,17 @@ public abstract class PTransformRunnerFactoryTestContext
   @Override
   public void addTearDownFunction(ThrowingRunnable tearDownFunction) {
     getTearDownFunctions().add(tearDownFunction);
+  }
+
+  /**
+   * Returns a list of methods registered to return additional monitoring data during bundle
+   * processing.
+   */
+  public abstract List<BundleProgressReporter> getBundleProgressReporters();
+
+  @Override
+  public void addBundleProgressReporter(BundleProgressReporter bundleProgressReporter) {
+    getBundleProgressReporters().add(bundleProgressReporter);
   }
 
   /**

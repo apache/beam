@@ -141,7 +141,7 @@ public class BeamFnDataReadRunnerTest {
               .coders(COMPONENTS.getCodersMap())
               .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
               .build();
-      context.addPCollectionConsumer(localOutputId, outputValues::add, StringUtf8Coder.of());
+      context.<String>addPCollectionConsumer(localOutputId, outputValues::add);
 
       new BeamFnDataReadRunner.Factory<String>().createRunnerForPTransform(context);
 
@@ -179,7 +179,7 @@ public class BeamFnDataReadRunnerTest {
               .coders(COMPONENTS.getCodersMap())
               .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
               .build();
-      context.addPCollectionConsumer(localOutputId, outputValues::add, StringUtf8Coder.of());
+      context.<String>addPCollectionConsumer(localOutputId, outputValues::add);
 
       BeamFnDataReadRunner<String> readRunner =
           new BeamFnDataReadRunner.Factory<String>().createRunnerForPTransform(context);
@@ -659,7 +659,7 @@ public class BeamFnDataReadRunnerTest {
             .coders(COMPONENTS.getCodersMap())
             .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
             .build();
-    context.addPCollectionConsumer(localOutputId, consumer, StringUtf8Coder.of());
+    context.addPCollectionConsumer(localOutputId, consumer);
 
     return new BeamFnDataReadRunner.Factory<String>().createRunnerForPTransform(context);
   }

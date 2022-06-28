@@ -34,7 +34,6 @@ import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
@@ -92,8 +91,7 @@ public class BeamFnDataWriteRunner<InputT> {
                   });
       context.addPCollectionConsumer(
           getOnlyElement(context.getPTransform().getInputsMap().values()),
-          context.addOutgoingDataEndpoint(port.getApiServiceDescriptor(), coder),
-          ((WindowedValueCoder<InputT>) coder).getValueCoder());
+          context.addOutgoingDataEndpoint(port.getApiServiceDescriptor(), coder));
 
       return new BeamFnDataWriteRunner();
     }

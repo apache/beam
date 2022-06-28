@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -67,8 +68,12 @@ public class SimpleMonitoringInfoBuilderTest {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64);
     builder.setLabel(MonitoringInfoConstants.Labels.NAME, "myName");
-    builder.setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "myNamespace");
-    builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "myStep");
+    builder.setLabels(
+        ImmutableMap.of(
+            MonitoringInfoConstants.Labels.NAMESPACE,
+            "myNamespace",
+            MonitoringInfoConstants.Labels.PTRANSFORM,
+            "myStep"));
     assertNull(builder.build());
 
     builder.setInt64DistributionValue(DistributionData.create(10, 2, 1, 9));

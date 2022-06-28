@@ -191,8 +191,8 @@ public class CombineRunners {
       context.addStartBundleFunction(runner::startBundle);
       context.addPCollectionConsumer(
           Iterables.getOnlyElement(context.getPTransform().getInputsMap().values()),
-          (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<KeyT, InputT>>>) runner::processElement,
-          inputCoder);
+          (FnDataReceiver)
+              (FnDataReceiver<WindowedValue<KV<KeyT, InputT>>>) runner::processElement);
       context.addFinishBundleFunction(runner::finishBundle);
 
       return runner;
