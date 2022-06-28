@@ -36,7 +36,7 @@ github:
 
   # Give some users issue triage permissions
   collaborators:
-    - damccorm
+    - pcoet
 
   enabled_merge_buttons:
     squash: true
