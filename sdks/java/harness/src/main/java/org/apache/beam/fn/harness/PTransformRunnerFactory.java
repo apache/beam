@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -87,7 +88,7 @@ public interface PTransformRunnerFactory<T> {
 
     /** Register as a consumer for a given PCollection id. */
     <T> void addPCollectionConsumer(
-        String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer, Coder<T> valueCoder);
+        String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer);
 
     /** Returns a {@link FnDataReceiver} to send output to for the specified PCollection id. */
     <T> FnDataReceiver<T> getPCollectionConsumer(String pCollectionId);
@@ -141,6 +142,18 @@ public interface PTransformRunnerFactory<T> {
      * startFunctionRegistry}, and {@code finishFunctionRegistry}.
      */
     void addProgressRequestCallback(ProgressRequestCallback progressRequestCallback);
+
+    /**
+     * Register a callback whenever progress is being requested.
+     *
+     * <p>{@link BundleProgressReporter#updateIntermediateMonitoringData} will be called by a single
+     * arbitrary thread at a time and will be invoked concurrently to the main bundle processing
+     * thread. {@link BundleProgressReporter#updateFinalMonitoringData} will be invoked exclusively
+     * by the main bundle processing thread and {@link
+     * BundleProgressReporter#updateIntermediateMonitoringData} will not be invoked until a new
+     * bundle starts processing. See {@link BundleProgressReporter} for additional details.
+     */
+    void addBundleProgressReporter(BundleProgressReporter bundleProgressReporter);
 
     /**
      * A listener to be invoked when the PTransform splits itself. This method will be called
