@@ -36,6 +36,8 @@ import (
 const (
 	UserAgent             = "apache-beam-io-google-cloud-platform-healthcare/" + core.SdkVersion
 	baseMetricPrefix      = "fhirio/"
+	errorCounterName      = baseMetricPrefix + "resource_error_count"
+	successCounterName    = baseMetricPrefix + "resource_success_count"
 	pageTokenParameterKey = "_page_token"
 )
 
@@ -109,7 +111,7 @@ func (fnc *fnCommonVariables) setup(namespace string) {
 	if fnc.client == nil {
 		fnc.client = newFhirStoreClient()
 	}
-	fnc.resourcesErrorCount = beam.NewCounter(namespace, baseMetricPrefix+"resource_error_count")
-	fnc.resourcesSuccessCount = beam.NewCounter(namespace, baseMetricPrefix+"resource_success_count")
+	fnc.resourcesErrorCount = beam.NewCounter(namespace, errorCounterName)
+	fnc.resourcesSuccessCount = beam.NewCounter(namespace, successCounterName)
 	fnc.latencyMs = beam.NewDistribution(namespace, baseMetricPrefix+"latency_ms")
 }

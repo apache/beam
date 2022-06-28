@@ -16,16 +16,19 @@
 package fhirio
 
 import (
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"bytes"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
-func TestSearch(t *testing.T) {
+func TestSearch_Errors(t *testing.T) {
 	testCases := []struct {
 		name           string
 		client         fhirStoreClient
@@ -56,17 +59,48 @@ func TestSearch(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			p, s, testSearchQueryPCollection := ptest.CreateList([]SearchQuery{{}})
-			resources, failedReads := search(s, "any", testSearchQueryPCollection, testCase.client)
+			resources, failedSearches := search(s, "any", testSearchQueryPCollection, testCase.client)
 			passert.Empty(s, resources)
-			passert.Count(s, failedReads, "", 1)
-			passert.True(s, failedReads, func(errorMsg string) bool {
+			passert.Count(s, failedSearches, "", 1)
+			passert.True(s, failedSearches, func(errorMsg string) bool {
 				return strings.Contains(errorMsg, testCase.containedError)
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
-			err := validateResourceErrorCounter(pipelineResult, 1)
+			err := validateCounter(pipelineResult, errorCounterName, 1)
 			if err != nil {
-				t.Fatalf("validateResourceErrorCounter returned error [%v]", err.Error())
+				t.Fatalf("validateCounter returned error [%v]", err.Error())
 			}
 		})
+	}
+}
+
+func TestSearch_Pagination(t *testing.T) {
+	paginationFakeClient := &fakeFhirStoreClient{
+		fakeSearch: func(s, s2 string, m map[string]string, pageToken string) (*http.Response, error) {
+			if pageToken == "theNextPageToken" {
+				return &http.Response{
+					Body:       io.NopCloser(bytes.NewBufferString(`{"entry": [{"resource":{}}], "link": []}`)),
+					StatusCode: http.StatusOK,
+				}, nil
+			} else {
+				return &http.Response{
+					Body:       io.NopCloser(bytes.NewBufferString(`{"entry": [{"resource":{}}], "link": [{"relation":"next", "url":"https://healthcare.googleapis.com?_page_token=theNextPageToken"}]}`)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+		},
+	}
+	p, s, testSearchQuery := ptest.CreateList([]SearchQuery{{}})
+	resourcesFound, failedSearches := search(s, "any", testSearchQuery, paginationFakeClient)
+	passert.Empty(s, failedSearches)
+	passert.Count(s, resourcesFound, "", 1)
+	resourcesFoundWithoutIdentifier := beam.DropKey(s, resourcesFound)
+	passert.True(s, resourcesFoundWithoutIdentifier, func(resourcesFound []string) bool {
+		return len(resourcesFound) == 2
+	})
+	pipelineResult := ptest.RunAndValidate(t, p)
+	err := validateCounter(pipelineResult, successCounterName, 1)
+	if err != nil {
+		t.Fatalf("validateCounter returned error [%v]", err.Error())
 	}
 }
