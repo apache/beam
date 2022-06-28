@@ -61,6 +61,9 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 		return err
 	}
 	if _, err = tx.Put(snipKey, snip.Snippet); err != nil {
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			err = rollBackErr
+		}
 		logger.Errorf("Datastore: PutSnippet(): error during the snippet entity saving, err: %s\n", err.Error())
 		return err
 	}
@@ -72,6 +75,9 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 	}
 
 	if _, err = tx.PutMulti(fileKeys, snip.Files); err != nil {
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			err = rollBackErr
+		}
 		logger.Errorf("Datastore: PutSnippet(): error during the file entity saving, err: %s\n", err.Error())
 		return err
 	}
@@ -94,12 +100,18 @@ func (d *Datastore) GetSnippet(ctx context.Context, id string) (*entity.SnippetE
 		return nil, err
 	}
 	if err = tx.Get(key, snip); err != nil {
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			err = rollBackErr
+		}
 		logger.Errorf("Datastore: GetSnippet(): error during snippet getting, err: %s\n", err.Error())
 		return nil, err
 	}
 	snip.LVisited = time.Now()
 	snip.VisitCount += 1
 	if _, err = tx.Put(key, snip); err != nil {
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			err = rollBackErr
+		}
 		logger.Errorf("Datastore: GetSnippet(): error during snippet setting, err: %s\n", err.Error())
 		return nil, err
 	}
@@ -147,14 +159,26 @@ func (d *Datastore) GetFiles(ctx context.Context, snipId string, numberOfFiles i
 		logger.Errorf("The number of files must be more than zero")
 		return []*entity.FileEntity{}, nil
 	}
+	tx, err := d.Client.NewTransaction(ctx, datastore.ReadOnly)
+	if err != nil {
+		logger.Errorf("Datastore: GetFiles(): error during the transaction creating, err: %s\n", err.Error())
+		return nil, err
+	}
 	var fileKeys []*datastore.Key
 	for i := 0; i < numberOfFiles; i++ {
 		fileId := fmt.Sprintf("%s_%d", snipId, i)
 		fileKeys = append(fileKeys, utils.GetNameKey(FileKind, fileId, Namespace, nil))
 	}
 	var files = make([]*entity.FileEntity, numberOfFiles)
-	if err := d.Client.GetMulti(ctx, fileKeys, files); err != nil {
+	if err = tx.GetMulti(fileKeys, files); err != nil {
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			err = rollBackErr
+		}
 		logger.Errorf("Datastore: GetFiles(): error during file getting, err: %s\n", err.Error())
+		return nil, err
+	}
+	if _, err = tx.Commit(); err != nil {
+		logger.Errorf("Datastore: GetFiles(): error during the transaction committing, err: %s\n", err.Error())
 		return nil, err
 	}
 	return files, nil
