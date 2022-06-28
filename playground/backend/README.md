@@ -91,6 +91,14 @@ default value and there is no need to set them up to launch locally:
   incoming requests to other instances while the instance will not ready.
 - `LAUNCH_SITE` - is the value to configure log (default value = local). If developers want to use log service on the
   App Engine then need to change this value to `app_engine`.
+- `DB_TYPE` - is the type of the code snippet database is used for the backend server. If it is set as a `datastore`,
+  then backend server will use Cloud Datastore to keep all code snippets (default value = `local`)
+- `DATASTORE_EMULATOR_HOST` - it is the datastore emulator address (default value = `127.0.0.1:8888`)
+- `PLAYGROUND_SALT` - is the salt to generate hash is needed for document ID (default value = `Beam playground salt\n`)
+- `MAX_SNIPPET_SIZE` - is the snippet size limit (default values = `1000000`)
+- `ID_LENGTH` - is the length of the identifier that is used to store the data in the document (default value = `11`)
+- `ORIGIN` - is the backend origin, e.g. PG_EXAMPLES, PG_USER, TOUR_OF_BEAM (default value = `PG_USER`)
+- `SDK_CONFIG` - is the sdk properties file path (default value = `../sdks.yaml`)
 
 ### Running the server app via Docker
 

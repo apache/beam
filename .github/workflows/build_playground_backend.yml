@@ -16,13 +16,11 @@
 name: Build And Deploy Playground Backend Application
 
 on:
-  push:
-    tags: 'v*'
-    branches: ['master', 'release-*']
-  pull_request:
-    paths: ['playground/backend/**']
-    branches: ['playground-staging']
   workflow_dispatch:
+
+permissions:
+  id-token: write
+
 jobs:
   build_playground_backend_docker_image:
     name: Build Playground Backend App
@@ -32,12 +30,10 @@ jobs:
       BEAM_VERSION: 2.33.0
       TERRAFORM_VERSION: 1.0.9
       STAND_SUFFIX: ''
-      DB_TYPE: datastore
-      DATASTORE_EMULATOR_HOST: 127.0.0.1:8888
-      PLAYGROUND_SALT: 'Beam playground salt\n'
-      MAX_SNIPPET_SIZE: 1000000
-      ID_LENGTH: 11
-      SDK_CONFIG: 'sdks.yaml'
+      BUCKET_NAME: pg-bucket-test
+      PROJECT_ENV: beta
+      PROJECT_ID: beaming-crowbar-354322
+      SERVICE_ACCOUNT: pg-svsaccount@beaming-crowbar-354322.iam.gserviceaccount.com
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
@@ -61,8 +57,6 @@ jobs:
           sudo gcloud components install cloud-datastore-emulator
           sudo gcloud components install beta
           sudo chmod 777 -R /usr/lib/google-cloud-sdk
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
 
       - name: Run PreCommit
         run: ./gradlew playground:backend:precommit
@@ -78,21 +72,46 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
         with:
             terraform_version: ${{ env.TERRAFORM_VERSION }}
-        if: startsWith(github.ref, 'refs/tags/')
       - name: Set Docker Tag
         run: echo "DOCKERTAG=${GITHUB_SHA}" >> $GITHUB_ENV
       - name: Set Docker Tag If Github Tag was trigger
         run: echo "DOCKERTAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-        if: startsWith(github.ref, 'refs/tags/')
-      - name: Setup GCP account
+      - id: 'auth'
+        name: 'Authenticate to GCP'
+        uses: 'google-github-actions/auth@v0.3.1'
+        with:
+          create_credentials_file: 'true'
+          workload_identity_provider: 'projects/1007768986752/locations/global/workloadIdentityPools/google-git/providers/google-git'
+          service_account: "${{ env.SERVICE_ACCOUNT }}"
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+
+      - id: 'gcloud'
+        name: 'gcloud'
+        run: |-
+          gcloud auth login --brief --cred-file='${{ steps.auth.outputs.credentials_file_path }}'
+          gcloud config set project ${{ env.PROJECT_ID }}
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+
+      - name: Authinticate in Artifact registry
         run: |
-             echo "${{ secrets.GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
-        if: startsWith(github.ref, 'refs/tags/')
+          DOCKER_BUILDKIT=0
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Changing bucket name
+        run: |
+          echo "bucket  = "\"${{ env.BUCKET_NAME }}"\"" > playground/terraform/environment/${{ env.PROJECT_ENV }}/state.tfbackend
+          echo "bucket_examples_name = "\"${{ env.BUCKET_NAME }}-1"\"" >> playground/terraform/environment/${{ env.PROJECT_ENV }}/terraform.tfvars
+          echo "state_bucket = "\"${{ env.BUCKET_NAME }}"\"" >> playground/terraform/environment/${{ env.PROJECT_ENV }}/terraform.tfvars
+          echo "project_id = "\"${{ env.PROJECT_ID }}"\"" >> playground/terraform/environment/${{ env.PROJECT_ENV }}/terraform.tfvars
+
       - name: Login to Docker Registry
-        run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.PLAYGROUND_REGISTRY_NAME }}
-        if: startsWith(github.ref, 'refs/tags/')
+        run: gcloud artifacts docker images list us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/playground-repository
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+
       - name: Deploy Backend Applications
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
-        run: ./gradlew playground:terraform:deployBackend -Pdocker-tag=${{env.DOCKERTAG}} -Pproject_id=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }} -Pproject_environment='beta' -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}/playground-repository'
-        if: startsWith(github.ref, 'refs/tags/')
+        run: ./gradlew playground:terraform:deployBackend -Pproject_environment="${{ env.PROJECT_ENV }}" -Pdocker-tag="${{ env.PROJECT_ENV }}" -Pdocker-repository-root='us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/playground-repository'
