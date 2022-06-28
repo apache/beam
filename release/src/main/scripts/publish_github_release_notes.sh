@@ -24,7 +24,7 @@ SCRIPT_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . "${SCRIPT_PATH}/script.config"
 
 # Extract release notes from the blog post
-POST_PATH=$(echo "${SCRIPT_PATH}/../../../../website/www/site/content/en/blog/beam-${RELEASE_VER}.md")
+POST_PATH=$(echo "${SCRIPT_PATH}/../../../../website/www/site/content/en/blog/beam-${RELEASE_VERSION}.md")
 RELEASE_NOTES=$(
     cat ${POST_PATH} |                               # Read post's content
     sed -n '/<!--/,$p' |                             # Remove post's metadata
@@ -39,8 +39,8 @@ ESCAPED_NOTES=$(printf '%s' "${RELEASE_NOTES}" | python3 -c 'import json,sys; pr
 # Build JSON for the API request
 REQUEST_JSON="$(cat <<-EOF
 {
-  "tag_name": "v${RELEASE_VER}",
-  "name": "Beam ${RELEASE_VER} release",
+  "tag_name": "v${RELEASE_VERSION}",
+  "name": "Beam ${RELEASE_VERSION} release",
   "body": ${ESCAPED_NOTES}
 }
 EOF
@@ -59,7 +59,7 @@ case $input in
     -H "Content-Type:application/json" \
     -d "${REQUEST_JSON}"
 
-    echo -e "\n\nView the release on Github: https://github.com/apache/beam/releases/tag/v${RELEASE_VER}"
+    echo -e "\n\nView the release on Github: https://github.com/apache/beam/releases/tag/v${RELEASE_VERSION}"
     ;;
 
   *)

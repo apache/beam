@@ -28,6 +28,16 @@ BEAM_REPO=beam
 
 cd ~
 
+echo "-----------------Checking svn installation-----------------"
+if [[ -z `which svn` ]]; then
+  echo "You don't have subversion (svn) installed."
+  echo "Please install it in a different terminal and press any key to continue."
+  if [[ -z `which svn` ]]; then
+    echo "SVN was not installed. Exiting script. Please install and run again."
+    exit
+  fi
+fi
+
 echo "=================Checking GPG Key===================="
 echo "You need a GPG key which reflects your Apache account."
 echo "Do you want to generate a new GPG key associated with your Apache account? [y|N]"

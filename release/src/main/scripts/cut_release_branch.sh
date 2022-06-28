@@ -112,7 +112,7 @@ git add sdks/python/apache_beam/version.py
 git add sdks/go/pkg/beam/core/core.go
 git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
 if git push origin ${MASTER_BRANCH}; then
-  break
+  echo "Continuing with script..."
 else
   clean_up
   exit
