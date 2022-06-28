@@ -106,6 +106,12 @@ jobs:
           echo "state_bucket = "\"${{ env.BUCKET_NAME }}"\"" >> playground/terraform/environment/${{ env.PROJECT_ENV }}/terraform.tfvars
           echo "project_id = "\"${{ env.PROJECT_ID }}"\"" >> playground/terraform/environment/${{ env.PROJECT_ENV }}/terraform.tfvars
 
+      - name: Check changes
+        run: |
+          cat playground/terraform/environment/${{ env.PROJECT_ENV }}/state.tfbackend
+          echo "#_________________________------------------------________________________"
+          cat playground/terraform/environment/${{ env.PROJECT_ENV }}/terraform.tfvars
+
       - name: Login to Docker Registry
         run: gcloud artifacts docker images list us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/playground-repository
         env:
