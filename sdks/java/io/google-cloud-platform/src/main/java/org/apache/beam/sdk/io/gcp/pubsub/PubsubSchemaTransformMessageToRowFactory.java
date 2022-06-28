@@ -21,15 +21,14 @@ import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.ATTRIBUTES_FI
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.PAYLOAD_FIELD;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * Builds a {@link PubsubMessageToRow} from a {@link PubsubSchemaTransformReadConfiguration}.
@@ -62,7 +61,7 @@ class PubsubSchemaTransformMessageToRowFactory {
    * PubsubSchemaTransformReadConfiguration}.
    */
   static PubsubSchemaTransformMessageToRowFactory from(
-      @NonNull PubsubSchemaTransformReadConfiguration configuration) {
+      PubsubSchemaTransformReadConfiguration configuration) {
     return new PubsubSchemaTransformMessageToRowFactory(configuration);
   }
 
@@ -71,7 +70,9 @@ class PubsubSchemaTransformMessageToRowFactory {
     PubsubMessageToRow.Builder builder =
         PubsubMessageToRow.builder()
             .messageSchema(configuration.getDataSchema())
-            .useDlq(!Strings.isNullOrEmpty(configuration.getDeadLetterQueue()))
+            .useDlq(
+                configuration.getDeadLetterQueue() != null
+                    && !configuration.getDeadLetterQueue().isEmpty())
             .useFlatSchema(!shouldUseNestedSchema());
 
     if (needsSerializer()) {
@@ -92,25 +93,26 @@ class PubsubSchemaTransformMessageToRowFactory {
     Schema schema = configuration.getDataSchema();
     String format = DEFAULT_FORMAT;
 
-    if (!Strings.isNullOrEmpty(configuration.getFormat())) {
+    if (configuration.getFormat() != null && !configuration.getFormat().isEmpty()) {
       format = configuration.getFormat();
     }
 
-    ImmutableMap.Builder<String, Object> params = ImmutableMap.builder();
+    Map<String, Object> params = new HashMap<>();
 
-    if (!Strings.isNullOrEmpty(configuration.getThriftClass())) {
+    if (configuration.getThriftClass() != null && !configuration.getThriftClass().isEmpty()) {
       params.put(THRIFT_CLASS_KEY, configuration.getThriftClass());
     }
 
-    if (!Strings.isNullOrEmpty(configuration.getThriftProtocolFactoryClass())) {
+    if (configuration.getThriftProtocolFactoryClass() != null
+        && !configuration.getThriftProtocolFactoryClass().isEmpty()) {
       params.put(THRIFT_PROTOCOL_FACTORY_CLASS_KEY, configuration.getThriftProtocolFactoryClass());
     }
 
-    if (!Strings.isNullOrEmpty(configuration.getProtoClass())) {
+    if (configuration.getProtoClass() != null && !configuration.getProtoClass().isEmpty()) {
       params.put(PROTO_CLASS_KEY, configuration.getProtoClass());
     }
 
-    return PayloadSerializers.getSerializer(format, schema, params.build());
+    return PayloadSerializers.getSerializer(format, schema, params);
   }
 
   PubsubMessageToRow.SerializerProvider serializer() {
