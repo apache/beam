@@ -124,12 +124,20 @@ class PubsubWritePerfTest(PubsubIOPerfTest):
           data=element[1],
           attributes={'id': str(uuid.uuid1()).encode('utf-8')},
       )
-
-    _ = (
+    input = (
         self.pipeline
         | 'Create input' >> Read(
             SyntheticSource(self.parse_synthetic_source_options()))
-        | 'Format to pubsub message in bytes' >> beam.Map(to_pubsub_message)
+        | 'Format to pubsub message in bytes' >> beam.Map(to_pubsub_message))
+
+    _ = input | beam.Map(print)
+
+    _ = (
+        # self.pipeline
+        # | 'Create input' >> Read(
+        #     SyntheticSource(self.parse_synthetic_source_options()))
+        # | 'Format to pubsub message in bytes' >> beam.Map(to_pubsub_message)
+        input
         | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace))
         | 'Write to Pubsub' >> beam.io.WriteToPubSub(
             self.topic_name,
