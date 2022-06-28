@@ -217,18 +217,6 @@ class SchemaTranslation(object):
                     name=name, type=self.typing_to_runner_api(field_type))
                 for (name, field_type) in type_._fields
             ],
-            #sdk_options=[
-            #    schema_pb2.Option(
-            #        name=PYTHON_USER_TYPE_OPTION_URN,
-            #        type=self.typing_to_runner_api(bytes),
-            #        # TODO: Use beam pickle library?
-            #        value=schema_pb2.FieldValue(
-            #            atomic_value=schema_pb2.AtomicTypeValue(
-            #                bytes=pickler.dumps(type_._user_type),
-            #            ),
-            #        ),
-            #    ),
-            #],
             id=schema_id)
         self.schema_registry.add(type_.user_type, schema)
       return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=schema))
@@ -314,14 +302,6 @@ class SchemaTranslation(object):
       schema = fieldtype_proto.row_type.schema
       # First look for user type in the registray
       user_type = self.schema_registry.get_typing_by_id(schema.id)
-
-      #if user_type is None:
-      #  # If not in the registry check SDK options
-      #  for sdk_option in schema.sdk_options:
-      #    if sdk_option.name == PYTHON_USER_TYPE_OPTION_URN:
-      #      # TODO: Assert type is bytes, assert atomic_value, bytes are set?
-      #      user_type = pickler.loads(sdk_option.value.atomic_value.bytes)
-      #  self.schema_registry.add(user_type, schema)
 
       if user_type is None:
         # If not in SDK options (the coder likely came from another SDK),
