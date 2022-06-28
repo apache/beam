@@ -30,23 +30,29 @@ _BEAM_SCHEMA_ID = "_beam_schema_id"
 
 
 class RowTypeConstraint(typehints.TypeConstraint):
-  def __init__(self, fields=None, user_type=None):
-    """
+  def __init__(self, fields: List[Tuple[str, type]], user_type=None):
+    """For internal use only, no backwards comatibility guaratees.  See
+    https://beam.apache.org/documentation/programming-guide/#schemas-for-pl-types
+    for guidance on creating PCollections with inferred schemas.
+
     Note RowTypeConstraint does not currently store functions for converting
     to/from the user type. Currently we only support a few types that satisfy
     some assumptions:
+
     - **to:** We assume that the user type can be constructed with field values
       in order.
     - **from:** We assume that field values can be accessed from instances of
       the type by attribute (i.e. with ``getattr(obj, field_name)``).
 
-    Constructor should not be called directly. Instead prefer from_user_type or
-    from_fields.
+    The RowTypeConstraint constructor should not be called directly (even
+    internally to Beam). Prefer static methods ``from_user_type`` or
+    ``from_fields``.
 
     Parameters:
       fields: a list of (name, type) tuples, representing the schema inferred
-        from user_type
-      user_type:
+        from user_type.
+      user_type: constructor for a user type (e.g. NamedTuple class) that is
+        used to represent this schema in user code.
     """
     # Recursively wrap row types in a RowTypeConstraint
     self._fields = tuple((name, RowTypeConstraint.from_user_type(typ) or typ)
