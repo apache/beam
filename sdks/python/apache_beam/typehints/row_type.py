@@ -17,9 +17,10 @@
 
 # pytype: skip-file
 
+from typing import List
+from typing import Optional
 from typing import Sequence
 from typing import Tuple
-from typing import Optional
 
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
