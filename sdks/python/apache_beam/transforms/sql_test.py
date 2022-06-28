@@ -32,7 +32,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.sql import SqlTransform
-from apache_beam.typehints import row_type
 
 SimpleRow = typing.NamedTuple(
     "SimpleRow", [("id", int), ("str", str), ("flt", float)])
@@ -143,13 +142,11 @@ class SqlTransformTest(unittest.TestCase):
 
   def test_row(self):
     with TestPipeline() as p:
-      pc = (
+      out = (
           p
           | beam.Create([1, 2, 10])
-          | beam.Map(lambda x: beam.Row(a=x, b=str(x))))
-      assert isinstance(pc.element_type, row_type.RowTypeConstraint)
-      out = (
-          pc | SqlTransform("SELECT a*a as s, LENGTH(b) AS c FROM PCOLLECTION"))
+          | beam.Map(lambda x: beam.Row(a=x, b=str(x)))
+          | SqlTransform("SELECT a*a as s, LENGTH(b) AS c FROM PCOLLECTION"))
       assert_that(out, equal_to([(1, 1), (4, 1), (100, 2)]))
 
   def test_zetasql_generate_data(self):
