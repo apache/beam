@@ -241,9 +241,38 @@ WritToBigQuery returns an object with several PCollections that consist of
 metadata about the write operations. These are useful to inspect the write
 operation and follow with the results::
 
-  
+  schema = {'fields': [
+      {'name': 'column', 'type': 'STRING', 'mode': 'NULLABLE'}]}
 
+  error_schema = {'fields': [
+      {'name': 'destination', 'type': 'STRING', 'mode': 'NULLABLE'},
+      {'name': 'row', 'type': 'STRING', 'mode': 'NULLABLE'},
+      {'name': 'error_message', 'type': 'STRING', 'mode': 'NULLABLE'}]}
 
+  with Pipeline() as p:
+    result = (p
+      | 'Create Columns' >> beam.Create([
+              {'column': 'value'},
+              {'bad_column': 'bad_value'}
+            ])
+      | 'Write Data' >> WriteToBigQuery(
+              method=WriteToBigQuery.Method.STREAMING_INSERTS,
+              table=my_table,
+              schema=schema,
+              insert_retry_strategy=RetryStrategy.RETRY_NEVER
+            ))
+
+    _ = (result.failed_rows_with_errors
+      | 'Get Errors' >> beam.Map(lambda e: {
+              "destination": e[0],
+              "row": json.dumps(e[1]),
+              "error_message": e[2][0]['message']
+            })
+      | 'Write Errors' >> WriteToBigQuery(
+              method=WriteToBigQuery.Method.STREAMING_INSERTS,
+              table=error_log_table,
+              schema=error_schema,
+            ))
 
 Often, the simplest use case is to chain an operation after writing data to
 BigQuery.To do this, one can chain the operation after one of the output
@@ -255,7 +284,7 @@ method) could look like::
       # This works for FILE_LOADS, where we run load and possibly copy jobs.
       return (result.load_jobid_pairs, result.copy_jobid_pairs) | beam.Flatten()
     except AttributeError:
-      # This works for STREAMING_INSERTS, where we return the rows BigQuery rejected
+      # Works for STREAMING_INSERTS, where we return the rows BigQuery rejected
       return result.failed_rows
 
   result = (pcoll | WriteToBigQuery(...))
@@ -325,6 +354,7 @@ from dataclasses import dataclass
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import fastavro
@@ -1534,112 +1564,6 @@ bigquery_v2_messages.TableSchema` object.
         buffer_size=buffer_size)
 
 
-class WriteResult:
-  """The result of a WriteToBigQuery transform.
-  """
-  def __init__(
-      self,
-      method=None,
-      destination_load_jobid_pairs=None,
-      destination_file_pairs=None,
-      destination_copy_jobid_pairs=None,
-      failed_rows=None,
-      failed_rows_with_errors=None):
-
-    self.method: str = method
-    self._destination_load_jobid_pairs: PCollection = destination_load_jobid_pairs
-    self._destination_file_pairs: PCollection = destination_file_pairs
-    self._destination_copy_jobid_pairs: PCollection = destination_copy_jobid_pairs
-    self._failed_rows: PCollection = failed_rows
-    self._failed_rows_with_errors: PCollection = failed_rows_with_errors
-
-    from apache_beam.io.gcp.bigquery_file_loads import BigQueryBatchFileLoads
-    self.attributes = {
-        BigQueryWriteFn.FAILED_ROWS: WriteResult.failed_rows,
-        BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS: WriteResult.
-        failed_rows_with_errors,
-        BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS: WriteResult.
-        destination_load_jobid_pairs,
-        BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS: WriteResult.
-        destination_file_pairs,
-        BigQueryBatchFileLoads.DESTINATION_COPY_JOBID_PAIRS: WriteResult.
-        destination_copy_jobid_pairs,
-    }
-
-  def validate(self, method, attribute):
-    if self.method != method:
-      raise AttributeError(
-          f'Cannot get {attribute} because it is not produced '
-          f'by {self.method} write method. Note: only {method} '
-          'produces this attribute.')
-
-  @property
-  def destination_load_jobid_pairs(self):
-    """A ``FILE_LOADS`` method attribute
-
-    Returns: A PCollection of the table destinations that were successfully
-      loaded to using the batch load API, along with the load job IDs.
-
-    Raises: AttributeError: if accessed with a write method besides ``FILE_LOADS``."""
-    self.validate('FILE_LOADS', 'DESTINATION_JOBID_PAIRS')
-
-    return self._destination_load_jobid_pairs
-
-  @property
-  def destination_file_pairs(self):
-    """A ``FILE_LOADS`` method attribute
-
-    Returns: A PCollection of the table destinations along with the
-      temp files used as sources to load from.
-
-    Raises: AttributeError: if accessed with a write method besides ``FILE_LOADS``."""
-    self.validate('FILE_LOADS', 'DESTINATION_FILE_PAIRS')
-
-    return self._destination_file_pairs
-
-  @property
-  def destination_copy_jobid_pairs(self):
-    """A ``FILE_LOADS`` method attribute
-
-    Returns: A PCollection of the table destinations that were successfully
-      copied to, along with the copy job ID.
-
-    Raises: AttributeError: if accessed with a write method besides ``FILE_LOADS``."""
-    self.validate('FILE_LOADS', 'DESTINATION_COPY_JOBID_PAIRS')
-
-    return self._destination_copy_jobid_pairs
-
-  @property
-  def failed_rows(self):
-    """A ``STREAMING_INSERTS`` method attribute
-
-    Returns: A PCollection of rows that failed when inserting to BigQuery.
-
-    Raises: AttributeError: if accessed with a write method besides ``STREAMING_INSERTS``."""
-    self.validate('STREAMING_INSERTS', 'FAILED_ROWS')
-
-    return self._failed_rows
-
-  @property
-  def failed_rows_with_errors(self):
-    """A ``STREAMING_INSERTS`` method attribute
-
-    Returns: A PCollection of rows that failed when inserting to BigQuery, along with their errors.
-
-    Raises: AttributeError: if accessed with a write method besides ``STREAMING_INSERTS``."""
-    self.validate('STREAMING_INSERTS', 'FAILED_ROWS_WITH_ERRORS')
-
-    return self._failed_rows_with_errors
-
-  def __getitem__(self, key):
-    if key not in self.attributes:
-      raise AttributeError(
-          f'Error trying to access nonexistent attribute `{key}` in write '
-          'result. Please see __documentation__ for available attributes.')
-
-    return self.attributes[key].__get__(self, WriteResult)
-
-
 _KNOWN_TABLES = set()
 
 
@@ -2529,6 +2453,126 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     config['schema_side_inputs'] = deserialize(config['schema_side_inputs'])
 
     return WriteToBigQuery(**config)
+
+
+class WriteResult:
+  """The result of a WriteToBigQuery transform.
+  """
+  def __init__(
+      self,
+      method: WriteToBigQuery.Method = None,
+      destination_load_jobid_pairs: PCollection[Tuple[
+          str, bigquery.JobReference]] = None,
+      destination_file_pairs: PCollection[Tuple[str, Tuple[str, int]]] = None,
+      destination_copy_jobid_pairs: PCollection[Tuple[
+          str, bigquery.JobReference]] = None,
+      failed_rows: PCollection[Tuple[str, dict]] = None,
+      failed_rows_with_errors: PCollection[Tuple[str, dict, list]] = None):
+
+    self._method = method
+    self._destination_load_jobid_pairs = destination_load_jobid_pairs
+    self._destination_file_pairs = destination_file_pairs
+    self._destination_copy_jobid_pairs = destination_copy_jobid_pairs
+    self._failed_rows = failed_rows
+    self._failed_rows_with_errors = failed_rows_with_errors
+
+    from apache_beam.io.gcp.bigquery_file_loads import BigQueryBatchFileLoads
+    self.attributes = {
+        BigQueryWriteFn.FAILED_ROWS: WriteResult.failed_rows,
+        BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS: WriteResult.
+        failed_rows_with_errors,
+        BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS: WriteResult.
+        destination_load_jobid_pairs,
+        BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS: WriteResult.
+        destination_file_pairs,
+        BigQueryBatchFileLoads.DESTINATION_COPY_JOBID_PAIRS: WriteResult.
+        destination_copy_jobid_pairs,
+    }
+
+  def validate(self, method, attribute):
+    if self._method != method:
+      raise AttributeError(
+          f'Cannot get {attribute} because it is not produced '
+          f'by the {self._method} write method. Note: only '
+          f'{method} produces this attribute.')
+
+  @property
+  def destination_load_jobid_pairs(
+      self) -> PCollection[Tuple[str, bigquery.JobReference]]:
+    """A ``FILE_LOADS`` method attribute
+
+    Returns: A PCollection of the table destinations that were successfully
+      loaded to using the batch load API, along with the load job IDs.
+
+    Raises: AttributeError: if accessed with a write method
+    besides ``FILE_LOADS``."""
+    self.validate(WriteToBigQuery.Method.FILE_LOADS, 'DESTINATION_JOBID_PAIRS')
+
+    return self._destination_load_jobid_pairs
+
+  @property
+  def destination_file_pairs(self) -> PCollection[Tuple[str, Tuple[str, int]]]:
+    """A ``FILE_LOADS`` method attribute
+
+    Returns: A PCollection of the table destinations along with the
+      temp files used as sources to load from.
+
+    Raises: AttributeError: if accessed with a write method
+    besides ``FILE_LOADS``."""
+    self.validate(WriteToBigQuery.Method.FILE_LOADS, 'DESTINATION_FILE_PAIRS')
+
+    return self._destination_file_pairs
+
+  @property
+  def destination_copy_jobid_pairs(
+      self) -> PCollection[Tuple[str, bigquery.JobReference]]:
+    """A ``FILE_LOADS`` method attribute
+
+    Returns: A PCollection of the table destinations that were successfully
+      copied to, along with the copy job ID.
+
+    Raises: AttributeError: if accessed with a write method
+    besides ``FILE_LOADS``."""
+    self.validate(
+        WriteToBigQuery.Method.FILE_LOADS, 'DESTINATION_COPY_JOBID_PAIRS')
+
+    return self._destination_copy_jobid_pairs
+
+  @property
+  def failed_rows(self) -> PCollection[Tuple[str, dict]]:
+    """A ``STREAMING_INSERTS`` method attribute
+
+    Returns: A PCollection of rows that failed when inserting to BigQuery.
+
+    Raises: AttributeError: if accessed with a write method
+    besides ``STREAMING_INSERTS``."""
+    self.validate(WriteToBigQuery.Method.STREAMING_INSERTS, 'FAILED_ROWS')
+
+    return self._failed_rows
+
+  @property
+  def failed_rows_with_errors(self) -> PCollection[Tuple[str, dict, list]]:
+    """A ``STREAMING_INSERTS`` method attribute
+
+    Returns:
+      A PCollection of rows that failed when inserting to BigQuery,
+      along with their errors.
+
+    Raises:
+      AttributeError: if accessed with a write method
+      besides ``STREAMING_INSERTS``."""
+    self.validate(
+        WriteToBigQuery.Method.STREAMING_INSERTS, 'FAILED_ROWS_WITH_ERRORS')
+
+    return self._failed_rows_with_errors
+
+  def __getitem__(self, key):
+    if key not in self.attributes:
+      raise AttributeError(
+          f'Error trying to access nonexistent attribute `{key}` in write '
+          'result. Please see __documentation__ for available attributes.')
+
+    return self.attributes[key].__get__(self, WriteResult)
 
 
 class ReadFromBigQuery(PTransform):
