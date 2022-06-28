@@ -127,6 +127,7 @@ $(document).ready(function() {
           this.setPageNav();
           this.prependArrows();
           this.setNavEvents();
+          this.refreshScrollSpy();
         }
       }
     }
