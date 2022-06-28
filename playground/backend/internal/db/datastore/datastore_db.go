@@ -55,7 +55,12 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 		return nil
 	}
 	snipKey := utils.GetNameKey(SnippetKind, snipId, Namespace, nil)
-	if _, err := d.Client.Put(ctx, snipKey, snip.Snippet); err != nil {
+	tx, err := d.Client.NewTransaction(ctx)
+	if err != nil {
+		logger.Errorf("Datastore: PutSnippet(): error during the transaction creating, err: %s\n", err.Error())
+		return err
+	}
+	if _, err = tx.Put(snipKey, snip.Snippet); err != nil {
 		logger.Errorf("Datastore: PutSnippet(): error during the snippet entity saving, err: %s\n", err.Error())
 		return err
 	}
@@ -66,8 +71,13 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 		fileKeys = append(fileKeys, utils.GetNameKey(FileKind, fileId, Namespace, nil))
 	}
 
-	if _, err := d.Client.PutMulti(ctx, fileKeys, snip.Files); err != nil {
+	if _, err = tx.PutMulti(fileKeys, snip.Files); err != nil {
 		logger.Errorf("Datastore: PutSnippet(): error during the file entity saving, err: %s\n", err.Error())
+		return err
+	}
+
+	if _, err = tx.Commit(); err != nil {
+		logger.Errorf("Datastore: PutSnippet(): error during the transaction committing, err: %s\n", err.Error())
 		return err
 	}
 
@@ -78,14 +88,23 @@ func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.
 func (d *Datastore) GetSnippet(ctx context.Context, id string) (*entity.SnippetEntity, error) {
 	key := utils.GetNameKey(SnippetKind, id, Namespace, nil)
 	snip := new(entity.SnippetEntity)
-	if err := d.Client.Get(ctx, key, snip); err != nil {
+	tx, err := d.Client.NewTransaction(ctx)
+	if err != nil {
+		logger.Errorf("Datastore: GetSnippet(): error during the transaction creating, err: %s\n", err.Error())
+		return nil, err
+	}
+	if err = tx.Get(key, snip); err != nil {
 		logger.Errorf("Datastore: GetSnippet(): error during snippet getting, err: %s\n", err.Error())
 		return nil, err
 	}
 	snip.LVisited = time.Now()
 	snip.VisitCount += 1
-	if _, err := d.Client.Put(ctx, key, snip); err != nil {
+	if _, err = tx.Put(key, snip); err != nil {
 		logger.Errorf("Datastore: GetSnippet(): error during snippet setting, err: %s\n", err.Error())
+		return nil, err
+	}
+	if _, err = tx.Commit(); err != nil {
+		logger.Errorf("Datastore: GetSnippet(): error during the transaction committing, err: %s\n", err.Error())
 		return nil, err
 	}
 	return snip, nil

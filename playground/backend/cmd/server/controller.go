@@ -20,8 +20,7 @@ import (
 	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/code_processing"
 	"beam.apache.org/playground/backend/internal/db"
-	datastoreDb "beam.apache.org/playground/backend/internal/db/datastore"
-	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/db/mapper"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/logger"
@@ -29,7 +28,6 @@ import (
 	"beam.apache.org/playground/backend/internal/utils"
 	"context"
 	"github.com/google/uuid"
-	"time"
 )
 
 const (
@@ -363,55 +361,25 @@ func (controller *playgroundController) SaveSnippet(ctx context.Context, info *p
 		logger.Errorf("SaveSnippet(): unimplemented sdk: %s\n", info.Sdk)
 		return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Sdk is not implemented yet: %s", info.Sdk.String())
 	}
-
 	if info.Files == nil || len(info.Files) == 0 {
 		logger.Error("SaveSnippet(): files are empty")
 		return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet must have files")
 	}
 
-	nowDate := time.Now()
-	snippet := entity.Snippet{
-		IDMeta: &entity.IDMeta{
-			Salt:     controller.env.ApplicationEnvs.PlaygroundSalt(),
-			IdLength: controller.env.ApplicationEnvs.IdLength(),
-		},
-		//OwnerId property will be used in Tour of Beam project
-		Snippet: &entity.SnippetEntity{
-			SchVer:        utils.GetNameKey(datastoreDb.SchemaKind, controller.env.ApplicationEnvs.SchemaVersion(), datastoreDb.Namespace, nil),
-			Sdk:           utils.GetNameKey(datastoreDb.SdkKind, info.Sdk.String(), datastoreDb.Namespace, nil),
-			PipeOpts:      info.PipelineOptions,
-			Created:       nowDate,
-			LVisited:      nowDate,
-			Origin:        entity.Origin(entity.OriginValue[controller.env.ApplicationEnvs.Origin()]),
-			NumberOfFiles: len(info.Files),
-		},
-	}
+	entityMapper := mapper.New(&controller.env.ApplicationEnvs)
+	snippet := entityMapper.ToSnippet(info)
 
 	for _, file := range info.Files {
 		if file.Content == "" {
 			logger.Error("SaveSnippet(): entity is empty")
 			return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet must have some content")
 		}
-
 		maxSnippetSize := controller.env.ApplicationEnvs.MaxSnippetSize()
 		if len(file.Content) > maxSnippetSize {
 			logger.Errorf("SaveSnippet(): entity is too large. Max entity size: %d symbols", maxSnippetSize)
 			return nil, errors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet size is more than %d symbols", maxSnippetSize)
 		}
-
-		var isMain bool
-		if len(info.Files) == 1 {
-			isMain = true
-		} else {
-			isMain = utils.IsFileMain(file.Content, info.Sdk)
-		}
-
-		snippet.Files = append(snippet.Files, &entity.FileEntity{
-			Name:     utils.GetFileName(file.Name, info.Sdk),
-			Content:  file.Content,
-			CntxLine: 1,
-			IsMain:   isMain,
-		})
+		snippet.Files = append(snippet.Files, entityMapper.ToFileEntity(info, file))
 	}
 
 	id, err := snippet.ID()
@@ -419,8 +387,7 @@ func (controller *playgroundController) SaveSnippet(ctx context.Context, info *p
 		logger.Errorf("SaveSnippet(): ID(): error during ID generation: %s", err.Error())
 		return nil, errors.InternalError(errorTitleSaveSnippet, "Failed to generate ID")
 	}
-
-	if err = controller.db.PutSnippet(ctx, id, &snippet); err != nil {
+	if err = controller.db.PutSnippet(ctx, id, snippet); err != nil {
 		logger.Errorf("SaveSnippet(): PutSnippet(): error during entity saving: %s", err.Error())
 		return nil, errors.InternalError(errorTitleSaveSnippet, "Failed to save a snippet entity")
 	}
