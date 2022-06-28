@@ -29,8 +29,8 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
 
-from parameterized import parameterized
 import numpy as np
+from parameterized import parameterized
 
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
@@ -130,12 +130,14 @@ class SchemaTest(unittest.TestCase):
     self.assertTrue(match_is_named_tuple(expected))
     self.assertTrue(match_is_named_tuple(actual))
 
-    # TODO: This will break for nested complex types
+    # TODO(https://github.com/apache/beam/issues/22082): This will break for
+    # nested complex types.
     self.assertEqual(actual.__annotations__, expected.__annotations__)
 
-    # TODO: Serialize user_type and re-hydrate with sdk_options
+    # TODO(https://github.com/apache/beam/issues/22082): Serialize user_type and
+    # re-hydrate with sdk_options to make these checks pass.
     #self.assertEqual(dir(actual), dir(expected))
-
+    #
     #for attr in dir(expected):
     #  self.assertEqual(getattr(actual, attr), getattr(expected, attr))
 
