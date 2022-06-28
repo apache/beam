@@ -33,6 +33,9 @@ var (
 		fakeExecuteBundles: func(storePath string, bundle []byte) (*http.Response, error) {
 			return nil, errors.New(fakeRequestReturnErrorMessage)
 		},
+		fakeSearch: func(s string, s2 string, m map[string]string) (*http.Response, error) {
+			return nil, errors.New(fakeRequestReturnErrorMessage)
+		},
 	}
 
 	badStatusFakeResponse = &http.Response{
@@ -50,6 +53,9 @@ var (
 		fakeExecuteBundles: func(storePath string, bundle []byte) (*http.Response, error) {
 			return badStatusFakeResponse, nil
 		},
+		fakeSearch: func(s string, s2 string, m map[string]string) (*http.Response, error) {
+			return badStatusFakeResponse, nil
+		},
 	}
 
 	fakeBodyReaderErrorMessage  = "ReadAll fail"
@@ -65,6 +71,24 @@ var (
 		},
 		fakeExecuteBundles: func(storePath string, bundle []byte) (*http.Response, error) {
 			return bodyReaderErrorFakeResponse, nil
+		},
+		fakeSearch: func(s string, s2 string, m map[string]string) (*http.Response, error) {
+			return bodyReaderErrorFakeResponse, nil
+		},
+	}
+
+	emptyBodyReaderFakeResponse = &http.Response{
+		Body: &fakeReaderCloser{
+			fakeRead: func(t []byte) (int, error) {
+				return bytes.NewReader([]byte("")).Read(t)
+			},
+		}, StatusCode: http.StatusOK}
+	emptyResponseBodyFakeClient = &fakeFhirStoreClient{
+		fakeExecuteBundles: func(storePath string, bundle []byte) (*http.Response, error) {
+			return emptyBodyReaderFakeResponse, nil
+		},
+		fakeSearch: func(s string, s2 string, m map[string]string) (*http.Response, error) {
+			return emptyBodyReaderFakeResponse, nil
 		},
 	}
 )
