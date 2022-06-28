@@ -16,14 +16,19 @@
  * limitations under the License.
  */
 
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/widgets.dart';
 
 class PipelineOptionController {
-  final TextEditingController name = TextEditingController();
-  final TextEditingController value = TextEditingController();
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController valueController = TextEditingController();
 
   PipelineOptionController({String name = '', String value = ''}) {
-    this.name.text = name;
-    this.value.text = value;
+    nameController.text = name;
+    valueController.text = value;
+  }
+
+  void dispose() {
+    nameController.dispose();
+    valueController.dispose();
   }
 }
