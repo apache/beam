@@ -242,20 +242,16 @@ func TestFhirIO_Search(t *testing.T) {
 		{ResourceType: "Patient", Parameters: map[string]string{"gender": "female", "family:contains": "Smith"}},
 		{ResourceType: "Encounter"},
 	}
-	expectedNumResourcesFound := []int{4, 2, 1, 0}
 
 	p, s, searchQueriesCol := ptest.CreateList(searchQueries)
 	searchResult, deadLetter := fhirio.Search(s, fhirStorePath, searchQueriesCol)
 	passert.Empty(s, deadLetter)
 	passert.Count(s, searchResult, "", len(searchQueries))
-	searchResultWithoutKey := beam.DropKey(s, searchResult)
 
-	outputIdx := 0
-	passert.True(s, searchResultWithoutKey, func(searchResult []string) bool {
-		result := len(searchResult) == expectedNumResourcesFound[outputIdx]
-		outputIdx += 1
-		return result
-	})
+	resourcesFoundCount := beam.ParDo(s, func(identifier string, resourcesFound []string) int {
+		return len(resourcesFound)
+	}, searchResult)
+	passert.Equals(s, resourcesFoundCount, 4, 2, 1, 0)
 
 	ptest.RunAndValidate(t, p)
 }
