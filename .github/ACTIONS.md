@@ -21,9 +21,9 @@
 
 ## Beam Github Actions
 
-### Issue Self-assign
+### Issue Management
 
-Phrases for self-assign and close the issue:
+Phrases self-assign, close, or manage labels on an issue:
 | Phrase | Effect |
 |--------|--------|
 | `.take-issue` | Self-assign the issue |
