@@ -1,0 +1,16 @@
+router_cpu = 2
+router_memory = 4
+router_max_instance = 1
+java_cpu = 2
+java_memory = 4
+java_max_instance = 1
+python_cpu = 2
+python_memory = 4
+python_max_instance = 1
+go_cpu = 1
+go_memory = 4
+go_max_instance = 1
+scio_cpu = 2
+scio_memory = 4
+scio_max_instance = 1
+network_name = "playground"
