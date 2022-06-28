@@ -82,19 +82,20 @@ func (fn *searchResourcesFn) ProcessElement(ctx context.Context, query SearchQue
 }
 
 func (fn *searchResourcesFn) searchResources(query SearchQuery) ([]string, error) {
-	var (
-		allResources, resourcesInPage []string
-		nextPageToken                 string
-		err                           error
-	)
-	for resourcesInPage, nextPageToken, err = fn.searchResourcesPaginated(query, ""); nextPageToken != ""; resourcesInPage, nextPageToken, err = fn.searchResourcesPaginated(query, nextPageToken) {
+	allResources := make([]string, 0)
+	resourcesInPage, nextPageToken, err := fn.searchResourcesPaginated(query, "")
+	for nextPageToken != "" {
 		allResources = append(allResources, resourcesInPage...)
+		resourcesInPage, nextPageToken, err = fn.searchResourcesPaginated(query, nextPageToken)
 	}
 	// Must add resources from last page.
 	allResources = append(allResources, resourcesInPage...)
 	return allResources, err
 }
 
+// Performs a search request retrieving results only from the page identified by
+// `pageToken`. If `pageToken` is the empty string it will retrieve the results
+// from the first page.
 func (fn *searchResourcesFn) searchResourcesPaginated(query SearchQuery, pageToken string) ([]string, string, error) {
 	response, err := fn.client.search(fn.FhirStorePath, query.ResourceType, query.Parameters, pageToken)
 	if err != nil {
@@ -115,7 +116,8 @@ func (fn *searchResourcesFn) searchResourcesPaginated(query SearchQuery, pageTok
 		return nil, "", err
 	}
 
-	return mapEntryToString(bodyFields.Entries), extractNextPageTokenFrom(bodyFields.Links), nil
+	resourcesFoundInPage := mapEntryToString(bodyFields.Entries)
+	return resourcesFoundInPage, extractNextPageTokenFrom(bodyFields.Links), nil
 }
 
 func mapEntryToString(entries []interface{}) []string {
