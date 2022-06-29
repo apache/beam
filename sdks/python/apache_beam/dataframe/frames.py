@@ -4950,7 +4950,7 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       cat.split(sep=kwargs.get('sep', '|')) for cat in dtype.categories
     ]
 
-    # Adding the nan category because the there could be the case that
+    # Adding the nan category because there could be the case that
     # the data includes NaNs, which is not valid to be casted as a Category,
     # but nevertheless would be broadcasted as a column in get_dummies()
     columns = sorted(set().union(*split_cats))

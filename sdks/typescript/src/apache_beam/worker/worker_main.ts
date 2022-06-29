@@ -29,6 +29,8 @@ import { BeamFnLoggingClient } from "../proto/beam_fn_api.grpc-client";
 // Needed for registration.
 import * as row_coder from "../coders/row_coder";
 import * as combiners from "../transforms/combiners";
+import * as pubsub from "../io/pubsub";
+import * as assert from "../testing/assert";
 
 function createLoggingChannel(workerId: string, endpoint: string) {
   const logQueue = new Queue<LogEntry>();

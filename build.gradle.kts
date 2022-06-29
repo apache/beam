@@ -202,8 +202,12 @@ tasks.register("javaPostCommit") {
 
 tasks.register("javaPostCommitSickbay") {
   dependsOn(":runners:samza:validatesRunnerSickbay")
-  dependsOn(":runners:flink:validatesRunnerSickbay")
-  dependsOn(":runners:spark:validatesRunnerSickbay")
+  dependsOn(":runners:flink:1.12:validatesRunnerSickbay")
+  dependsOn(":runners:flink:1.13:validatesRunnerSickbay")
+  dependsOn(":runners:flink:1.14:validatesRunnerSickbay")
+  dependsOn(":runners:flink:1.15:validatesRunnerSickbay")
+  dependsOn(":runners:spark:2:job-server:validatesRunnerSickbay")
+  dependsOn(":runners:spark:3:job-server:validatesRunnerSickbay")
   dependsOn(":runners:direct-java:validatesRunnerSickbay")
   dependsOn(":runners:portability:java:validatesRunnerSickbay")
 }
@@ -295,7 +299,7 @@ tasks.register("pythonDockerBuildPreCommit") {
 }
 
 tasks.register("pythonLintPreCommit") {
-  // TODO(BEAM-9980): Find a better way to specify lint and formatter tasks without hardcoding py version.
+  // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify lint and formatter tasks without hardcoding py version.
   dependsOn(":sdks:python:test-suites:tox:py37:lint")
 }
 
@@ -377,14 +381,14 @@ tasks.register("runBeamDependencyCheck") {
 }
 
 tasks.register("whitespacePreCommit") {
-  // TODO(BEAM-9980): Find a better way to specify the tasks without hardcoding py version.
+  // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
   dependsOn(":sdks:python:test-suites:tox:py38:archiveFilesToLint")
   dependsOn(":sdks:python:test-suites:tox:py38:unpackFilesToLint")
   dependsOn(":sdks:python:test-suites:tox:py38:whitespacelint")
 }
 
 tasks.register("typescriptPreCommit") {
-  // TODO(BEAM-9980): Find a better way to specify the tasks without hardcoding py version.
+  // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
   dependsOn(":sdks:python:test-suites:tox:py38:eslint")
   dependsOn(":sdks:python:test-suites:tox:py38:jest")
 }

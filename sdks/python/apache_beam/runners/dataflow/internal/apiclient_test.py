@@ -249,7 +249,7 @@ class UtilTest(unittest.TestCase):
     docker_payload = proto_utils.parse_Bytes(
         env.payload, beam_runner_api_pb2.DockerPayload)
 
-    # Container image should be overridden by a the given override.
+    # Container image should be overridden by the given override.
     self.assertEqual(
         docker_payload.container_image, 'new_dummy_container_image')
 

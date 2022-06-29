@@ -50,7 +50,8 @@ public class SamzaTransformOverrides {
                 PTransformMatchers.splittableProcessKeyedBounded(),
                 new SplittableParDoNaiveBounded.OverrideFactory()))
 
-        // TODO: [BEAM-5362] Support @RequiresStableInput on Samza runner
+        // TODO: [https://github.com/apache/beam/issues/19132] Support @RequiresStableInput on Samza
+        // runner
         .add(
             PTransformOverride.of(
                 PTransformMatchers.requiresStableInputParDoMulti(),

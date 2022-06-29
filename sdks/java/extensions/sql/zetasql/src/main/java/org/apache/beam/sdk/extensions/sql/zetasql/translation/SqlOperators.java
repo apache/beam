@@ -190,7 +190,7 @@ public class SqlOperators {
       if (resolvedExpr instanceof ResolvedNodes.ResolvedLiteral) {
         delimiter = ((ResolvedNodes.ResolvedLiteral) resolvedExpr).getValue();
       } else {
-        // TODO(BEAM-13673) Add support for params
+        // TODO(https://github.com/apache/beam/issues/21283) Add support for params
         throw new ZetaSqlException(
             new StatusRuntimeException(
                 Status.INVALID_ARGUMENT.withDescription(
