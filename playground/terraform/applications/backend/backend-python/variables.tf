@@ -64,7 +64,7 @@ variable "environment" {
 variable "volume_size" {
   description = "Size of the in memory file system to be used by the application, in GB"
   type        = number
-  default     = 1
+  default     = 3
 }
 
 variable "max_instance" {
