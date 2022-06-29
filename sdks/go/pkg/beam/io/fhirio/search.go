@@ -82,14 +82,12 @@ func (fn *searchResourcesFn) ProcessElement(ctx context.Context, query SearchQue
 }
 
 func (fn *searchResourcesFn) searchResources(query SearchQuery) ([]string, error) {
-	allResources := make([]string, 0)
 	resourcesInPage, nextPageToken, err := fn.searchResourcesPaginated(query, "")
+	allResources := resourcesInPage
 	for nextPageToken != "" {
-		allResources = append(allResources, resourcesInPage...)
 		resourcesInPage, nextPageToken, err = fn.searchResourcesPaginated(query, nextPageToken)
+		allResources = append(allResources, resourcesInPage...)
 	}
-	// Must add resources from last page.
-	allResources = append(allResources, resourcesInPage...)
 	return allResources, err
 }
 
