@@ -29,7 +29,9 @@ import unittest
 import uuid
 from decimal import Decimal
 from functools import wraps
+
 import pytest
+
 import apache_beam as beam
 import apache_beam.io.gcp.bigquery
 from apache_beam.io.gcp import bigquery_schema_tools
