@@ -54,8 +54,8 @@ jobs:
         with:
             version: '388.0.0'
             install_components: 'beta,cloud-datastore-emulator'
-        run: |
-          gcloud components list
+      - name: Check google cloud components
+        run: gcloud components list
 
       - name: Run PreCommit
         run: ./gradlew playground:backend:precommit
