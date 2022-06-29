@@ -97,7 +97,6 @@
 * Go SDK textio Reads have been moved to Splittable DoFns exclusively. ([BEAM-14489](https://issues.apache.org/jira/browse/BEAM-14489))
 * Pipeline drain support added for Go SDK has now been tested. ([BEAM-11106](https://issues.apache.org/jira/browse/BEAM-11106))
 * Go SDK users can now see heap usage, sideinput cache stats, and active process bundle stats in Worker Status. ([BEAM-13829](https://issues.apache.org/jira/browse/BEAM-13829))
-* The serialization (pickling)  library for Python is dill==0.3.1.1 ([BEAM-11167](https://issues.apache.org/jira/browse/BEAM-11167))
 
 ## Breaking Changes
 
@@ -106,7 +105,6 @@
 * Default coder updated to compress sources used with `BoundedSourceAsSDFWrapperFn` and `UnboundedSourceAsSDFWrapper`.
 
 ## Bugfixes
-* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Fixed Java expansion service to allow specific files to stage ([BEAM-14160](https://issues.apache.org/jira/browse/BEAM-14160)).
 * Fixed Elasticsearch connection when using both ssl and username/password (Java) ([BEAM-14000](https://issues.apache.org/jira/browse/BEAM-14000))
 
