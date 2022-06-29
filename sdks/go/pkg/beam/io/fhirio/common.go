@@ -89,7 +89,12 @@ func (c *fhirStoreClientImpl) search(storePath, resourceType string, queries map
 	if pageToken != "" {
 		queryParams = append(queryParams, googleapi.QueryParameter(pageTokenParameterKey, pageToken))
 	}
-	return c.fhirService.Search(storePath, &healthcare.SearchResourcesRequest{ResourceType: resourceType}).Do(queryParams...)
+
+	searchRequest := &healthcare.SearchResourcesRequest{}
+	if resourceType == "" {
+		return c.fhirService.Search(storePath, searchRequest).Do(queryParams...)
+	}
+	return c.fhirService.SearchType(storePath, resourceType, searchRequest).Do(queryParams...)
 }
 
 func newFhirStoreClient() *fhirStoreClientImpl {
