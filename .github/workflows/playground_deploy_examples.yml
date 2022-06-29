@@ -27,6 +27,9 @@ env:
   BEAM_VERSION: 2.33.0
   K8S_NAMESPACE: playground-backend
   HELM_APP_NAME: playground-backend
+permissions:
+  contents: read
+
 jobs:
   check_examples:
     name: Check examples

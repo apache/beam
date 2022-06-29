@@ -30,6 +30,9 @@ on:
     tags: 'v*'
     paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum']
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest

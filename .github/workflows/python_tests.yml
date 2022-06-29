@@ -36,6 +36,9 @@ on:
         default: false
 
 
+permissions:
+  contents: read
+
 jobs:
 
   check_gcp_variables:

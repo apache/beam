@@ -28,6 +28,9 @@ on:
     tags: 'v*'
     paths: ['dev-support/**', 'buildSrc/**', '**/build.gradle', 'sdks/python/setup.py', 'sdks/python/tox.ini']
 
+permissions:
+  contents: read
+
 jobs:
   run_local_env_install_ubuntu:
     timeout-minutes: 25

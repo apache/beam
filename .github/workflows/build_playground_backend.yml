@@ -23,6 +23,9 @@ on:
     paths: ['playground/backend/**']
     branches: ['playground-staging']
   workflow_dispatch:
+permissions:
+  contents: read
+
 jobs:
   build_playground_backend_docker_image:
     name: Build Playground Backend App

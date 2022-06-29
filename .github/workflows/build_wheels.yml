@@ -162,6 +162,8 @@ jobs:
 
 
   prepare_gcs:
+    permissions:
+      contents: none
     name: Prepare GCS
     needs:
       - build_source
@@ -178,6 +180,8 @@ jobs:
         run: gsutil rm -r ${{ env.GCP_PATH }} || true
 
   upload_source_to_gcs:
+    permissions:
+      contents: none
     name: Upload python source distribution to GCS bucket
     needs:
       - prepare_gcs
@@ -199,6 +203,8 @@ jobs:
         run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
 
   build_wheels:
+    permissions:
+      contents: none
     name: Build python wheels on ${{matrix.arch}} for ${{ matrix.os_python.os }}
     needs: build_source
     env:
@@ -282,6 +288,8 @@ jobs:
         path: apache-beam-source-rc/wheelhouse/
 
   upload_wheels_to_gcs:
+    permissions:
+      contents: none
     name: Upload wheels to GCS bucket
     needs:
       - build_wheels
@@ -326,6 +334,8 @@ jobs:
       run: gsutil cp -a public-read ${GITHUB_EVENT_PATH} ${{ env.GCP_PATH }}
 
   list_files_on_gcs:
+    permissions:
+      contents: none
     name: List files on Google Cloud Storage Bucket
     needs:
      - upload_wheels_to_gcs

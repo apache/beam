@@ -24,6 +24,9 @@ on:
     branches: ['playground-staging']
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build_playground_frontend_docker_image:
     name: Build Playground Frontend App

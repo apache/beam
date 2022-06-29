@@ -32,6 +32,9 @@ on:
     paths: ['sdks/typescript/**']
 
 
+permissions:
+  contents: read
+
 jobs:
 
   typescript_unit_tests:
