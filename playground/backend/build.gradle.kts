@@ -47,8 +47,10 @@ val startDatastoreEmulator by tasks.registering {
             .inheritIO()
             .command("sh", "start_datastore_emulator.sh")
             .start()
-            .waitFor()
-        if (process == 0) {
+        val log = process.inputStream.bufferedReader().use { it.readText() }
+        println(log)
+        val processCode = process.waitFor()
+        if (processCode == 0) {
             println("Datastore emulator started")
         } else {
             println("Failed to start datastore emulator")
