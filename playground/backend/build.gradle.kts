@@ -47,10 +47,8 @@ val startDatastoreEmulator by tasks.registering {
             .inheritIO()
             .command("sh", "start_datastore_emulator.sh")
             .start()
-        val log = process.inputStream.bufferedReader().use { it.readText() }
-        println(log)
-        val processCode = process.waitFor()
-        if (processCode == 0) {
+            .waitFor()
+        if (process == 0) {
             println("Datastore emulator started")
         } else {
             println("Failed to start datastore emulator")
@@ -78,7 +76,16 @@ val test by tasks.registering {
     }
 }
 
-test { dependsOn(startDatastoreEmulator) }
+val startDatastoreEmulator1 by tasks.registering {
+    doLast {
+        exec {
+            executable("sh")
+            args("start_datastore_emulator.sh")
+        }
+    }
+}
+
+test { dependsOn(startDatastoreEmulator1) }
 test { finalizedBy(stopDatastoreEmulator) }
 
 task("benchmarkPrecompiledObjects") {
