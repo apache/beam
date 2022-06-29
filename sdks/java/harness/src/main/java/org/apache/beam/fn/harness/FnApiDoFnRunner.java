@@ -38,7 +38,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
+import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
@@ -49,7 +49,6 @@ import org.apache.beam.fn.harness.state.SideInputSpec;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
-import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -63,6 +62,8 @@ import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
@@ -169,6 +170,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> runner =
           new FnApiDoFnRunner<>(
               context.getPipelineOptions(),
+              context.getShortIdMap(),
               context.getBeamFnStateClient(),
               context.getPTransformId(),
               context.getPTransform(),
@@ -186,7 +188,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context::getPCollectionConsumer,
               context::addPCollectionConsumer,
               context::addOutgoingTimersEndpoint,
-              context::addProgressRequestCallback,
+              context::addBundleProgressReporter,
               context.getSplitListener(),
               context.getBundleFinalizer());
 
@@ -243,6 +245,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final OnWindowExpirationContext<?> onWindowExpirationContext;
   private final FinishBundleArgumentProvider finishBundleArgumentProvider;
   private final Duration allowedLateness;
+  private final String workCompletedShortId;
+  private final String workRemainingShortId;
 
   /**
    * Used to guarantee a consistent view of this {@link FnApiDoFnRunner} while setting up for {@link
@@ -329,6 +333,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   FnApiDoFnRunner(
       PipelineOptions pipelineOptions,
+      ShortIdMap shortIds,
       BeamFnStateClient beamFnStateClient,
       String pTransformId,
       PTransform pTransform,
@@ -347,7 +352,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       BiConsumer<String, FnDataReceiver> addPCollectionConsumer,
       BiFunction<String, Coder<Timer<Object>>, FnDataReceiver<Timer<Object>>>
           getOutgoingTimersConsumer,
-      Consumer<ProgressRequestCallback> addProgressRequestCallback,
+      Consumer<BundleProgressReporter> addBundleProgressReporter,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer) {
     this.pipelineOptions = pipelineOptions;
@@ -677,28 +682,50 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
     addTearDownFunction.accept(this::tearDown);
 
+    workCompletedShortId =
+        shortIds.getOrCreateShortId(
+            new SimpleMonitoringInfoBuilder()
+                .setUrn(MonitoringInfoConstants.Urns.WORK_COMPLETED)
+                .setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE)
+                .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId)
+                .build());
+    workRemainingShortId =
+        shortIds.getOrCreateShortId(
+            new SimpleMonitoringInfoBuilder()
+                .setUrn(MonitoringInfoConstants.Urns.WORK_REMAINING)
+                .setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE)
+                .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId)
+                .build());
     switch (pTransform.getSpec().getUrn()) {
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        addProgressRequestCallback.accept(
-            new ProgressRequestCallback() {
+        addBundleProgressReporter.accept(
+            new BundleProgressReporter() {
+
               @Override
-              public List<MonitoringInfo> getMonitoringInfos() throws Exception {
+              public void updateIntermediateMonitoringData(Map<String, ByteString> monitoringData) {
                 Progress progress = getProgress();
                 if (progress == null) {
-                  return Collections.emptyList();
+                  return;
                 }
-                MonitoringInfo.Builder completedBuilder = MonitoringInfo.newBuilder();
-                completedBuilder.setUrn(MonitoringInfoConstants.Urns.WORK_COMPLETED);
-                completedBuilder.setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE);
-                completedBuilder.putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
-                completedBuilder.setPayload(encodeProgress(progress.getWorkCompleted()));
-                MonitoringInfo.Builder remainingBuilder = MonitoringInfo.newBuilder();
-                remainingBuilder.setUrn(MonitoringInfoConstants.Urns.WORK_REMAINING);
-                remainingBuilder.setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE);
-                remainingBuilder.putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
-                remainingBuilder.setPayload(encodeProgress(progress.getWorkRemaining()));
-                return ImmutableList.of(completedBuilder.build(), remainingBuilder.build());
+
+                ByteString encodedWorkCompleted, encodedWorkRemaining;
+                try {
+                  encodedWorkCompleted = encodeProgress(progress.getWorkCompleted());
+                  encodedWorkRemaining = encodeProgress(progress.getWorkRemaining());
+                } catch (IOException e) {
+                  throw new RuntimeException("Failed to encode progress", e);
+                }
+                monitoringData.put(workCompletedShortId, encodedWorkCompleted);
+                monitoringData.put(workRemainingShortId, encodedWorkRemaining);
               }
+
+              @Override
+              public void updateFinalMonitoringData(Map<String, ByteString> monitoringData) {
+                // No elements will be inflight when the progress completes.
+              }
+
+              @Override
+              public void reset() {}
 
               private ByteString encodeProgress(double value) throws IOException {
                 ByteString.Output output = ByteString.newOutput();
