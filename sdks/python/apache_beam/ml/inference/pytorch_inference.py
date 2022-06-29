@@ -72,7 +72,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       state_dict_path: path to the saved dictionary of the model state.
       model_class: class of the Pytorch model that defines the model
         structure.
-      model_params: A dictionary of parameters required to initialize the model
+      model_params: A dictionary of arguments required to instantiate the model
         class.
       device: the device on which you wish to run the model. If
         ``device = GPU`` then a GPU device will be used if it is available.
