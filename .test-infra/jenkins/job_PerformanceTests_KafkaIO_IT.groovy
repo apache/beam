@@ -24,9 +24,8 @@ String jobName = "beam_PerformanceTests_Kafka_IO"
 String HIGH_RANGE_PORT = "32767"
 
 job(jobName) {
-  common.setTopLevelMainJobProperties(delegate)
-  // TODO(https://github.com/apache/beam/issues/20333): Re-enable once fixed.
-  // common.setAutoJob(delegate, 'H H/6 * * *')
+  common.setTopLevelMainJobProperties(delegate, 'master', 120)
+  common.setAutoJob(delegate, 'H H/6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java KafkaIO Performance Test',
