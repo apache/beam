@@ -41,3 +41,4 @@ python-snappy  # Optimzes execution of some Beam codepaths.
 scipy
 scikit-learn
 tensorflow
+tensorflow_datasets
