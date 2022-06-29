@@ -17,11 +17,11 @@
 
 """"A pipeline that uses RunInference to perform Language Modeling with Bert.
 
-This pipeline takes sentences from a custom text file, removes the last word
-of the sentence, and then uses the BertForMaskedLM from Hugging Face to predict
-the best word to follow or continue that sentence given all the words already in
-the sentence. The pipeline then writes the prediction to an output file in
-which users can then compare against the original sentence.
+This pipeline takes sentences from a custom text file, converts the last word
+of the sentence into a [MASK] token, and then uses the BertForMaskedLM from
+Hugging Face to predict the best word for the masked token given all the words
+already in the sentence. The pipeline then writes the prediction to an output
+file in which users can then compare against the original sentence.
 """
 
 import argparse
