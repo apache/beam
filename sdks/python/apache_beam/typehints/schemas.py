@@ -83,7 +83,6 @@ from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.utils.timestamp import Timestamp
 
 PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
-PYTHON_USER_TYPE_OPTION_URN = "beam:python:user_type:v1"
 
 
 # Registry of typings for a schema by UUID
@@ -108,7 +107,6 @@ class SchemaTypeRegistry(object):
 
   def add(self, typing, schema):
     self.by_id[schema.id] = (typing, schema)
-    self.by_typing[typing] = (schema.id, schema)
 
   def get_typing_by_id(self, unique_id):
     result = self.by_id.get(unique_id, None)
@@ -116,14 +114,6 @@ class SchemaTypeRegistry(object):
 
   def get_schema_by_id(self, unique_id):
     result = self.by_id.get(unique_id, None)
-    return result[1] if result is not None else None
-
-  def get_id_by_typing(self, typing):
-    result = self.by_typing.get(typing, None)
-    return result[0] if result is not None else None
-
-  def get_schema_by_typing(self, typing):
-    result = self.by_typing.get(typing, None)
     return result[1] if result is not None else None
 
 

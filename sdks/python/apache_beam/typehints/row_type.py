@@ -17,6 +17,8 @@
 
 # pytype: skip-file
 
+from __future__ import annotations
+
 from typing import List
 from typing import Optional
 from typing import Sequence
@@ -61,14 +63,17 @@ class RowTypeConstraint(typehints.TypeConstraint):
                          typ in fields)
 
     self._user_type = user_type
-    if self._user_type is not None and hasattr(self._user_type,
-                                               _BEAM_SCHEMA_ID):
-      self._schema_id = getattr(self._user_type, _BEAM_SCHEMA_ID)
+
+    # Note schema ID can be None if the schema is not registered yet.
+    # Currently registration happens when converting to schema protos, in
+    # apache_beam.typehints.schemas
+    if self._user_type is not None:
+      self._schema_id = getattr(self._user_type, _BEAM_SCHEMA_ID, None)
     else:
       self._schema_id = None
 
   @staticmethod
-  def from_user_type(user_type: type) -> Optional['RowTypeConstraint']:
+  def from_user_type(user_type: type) -> Optional[RowTypeConstraint]:
     if match_is_named_tuple(user_type):
       fields = [(name, user_type.__annotations__[name])
                 for name in user_type._fields]
@@ -78,7 +83,7 @@ class RowTypeConstraint(typehints.TypeConstraint):
     return None
 
   @staticmethod
-  def from_fields(fields: Sequence[Tuple[str, type]]) -> 'RowTypeConstraint':
+  def from_fields(fields: Sequence[Tuple[str, type]]) -> RowTypeConstraint:
     return RowTypeConstraint(fields=fields, user_type=None)
 
   @property

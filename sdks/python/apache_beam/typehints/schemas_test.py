@@ -77,8 +77,15 @@ class AllPrimitives(NamedTuple):
   field_bool: bool
   field_bytes: bytes
   field_str: str
-  field_optional_bool: Optional[bool]
+  field_optional_int8: Optional[np.int8]
+  field_optional_int16: Optional[np.int16]
   field_optional_int32: Optional[np.int32]
+  field_optional_int64: Optional[np.int64]
+  field_optional_float32: Optional[np.float32]
+  field_optional_float64: Optional[np.float64]
+  field_optional_bool: Optional[bool]
+  field_optional_bytes: Optional[bytes]
+  field_optional_str: Optional[str]
 
 
 class ComplexSchema(NamedTuple):
@@ -98,16 +105,16 @@ class SchemaTest(unittest.TestCase):
   are cached by ID, so performing just one of them wouldn't necessarily exercise
   all code paths.
   """
-  @parameterized.expand([(typ,) for typ in
+  @parameterized.expand([(user_type,) for user_type in
       all_primitives + \
       basic_array_types + \
       basic_map_types]
                         )
-  def test_typing_survives_proto_roundtrip(self, typ):
+  def test_typing_survives_proto_roundtrip(self, user_type):
     self.assertEqual(
-        typ,
+        user_type,
         typing_from_runner_api(
-            typing_to_runner_api(typ, schema_registry=SchemaTypeRegistry()),
+            typing_to_runner_api(user_type, schema_registry=SchemaTypeRegistry()),
             schema_registry=SchemaTypeRegistry()))
 
   @parameterized.expand([(AllPrimitives, ), (ComplexSchema, )])
