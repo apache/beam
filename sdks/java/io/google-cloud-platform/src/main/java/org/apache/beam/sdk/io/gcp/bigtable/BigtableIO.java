@@ -1377,7 +1377,8 @@ public class BigtableIO {
     public BigtableWriteException(KV<ByteString, Iterable<Mutation>> record, Throwable cause) {
       super(
           String.format(
-              "Error mutating row %s with mutations %s",
+              "Error mutating row %s with mutations %s. Check BigTable cluster for resource usage
+              and increase the number of nodes on the BigTable cluster, if necessary.",
               record.getKey().toStringUtf8(), record.getValue()),
           cause);
     }
