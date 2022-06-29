@@ -47,9 +47,7 @@ import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.Caches.ClearableCache;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Context;
-import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
-import org.apache.beam.fn.harness.control.BundleProgressReporter.InMemory;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
@@ -67,7 +65,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -234,7 +231,6 @@ public class ProcessBundleHandler {
       Consumer<ThrowingRunnable> addTearDownFunction,
       BiConsumer<Endpoints.ApiServiceDescriptor, DataEndpoint<?>> addDataEndpoint,
       Consumer<TimerEndpoint<?>> addTimerEndpoint,
-      Consumer<ProgressRequestCallback> addProgressRequestCallback,
       Consumer<BundleProgressReporter> addBundleProgressReporter,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer,
@@ -267,7 +263,6 @@ public class ProcessBundleHandler {
             addTearDownFunction,
             addDataEndpoint,
             addTimerEndpoint,
-            addProgressRequestCallback,
             addBundleProgressReporter,
             splitListener,
             bundleFinalizer,
@@ -301,6 +296,11 @@ public class ProcessBundleHandler {
                     @Override
                     public PipelineOptions getPipelineOptions() {
                       return options;
+                    }
+
+                    @Override
+                    public ShortIdMap getShortIdMap() {
+                      return shortIds;
                     }
 
                     @Override
@@ -454,12 +454,6 @@ public class ProcessBundleHandler {
                     @Override
                     public void addTearDownFunction(ThrowingRunnable tearDownFunction) {
                       addTearDownFunction.accept(tearDownFunction);
-                    }
-
-                    @Override
-                    public void addProgressRequestCallback(
-                        ProgressRequestCallback progressRequestCallback) {
-                      addProgressRequestCallback.accept(progressRequestCallback);
                     }
 
                     @Override
@@ -687,17 +681,6 @@ public class ProcessBundleHandler {
     monitoringData.putAll(
         bundleProcessor.getMetricsContainerRegistry().getMonitoringData(shortIds));
     // Add any additional monitoring infos that the "runners" report explicitly.
-    for (ProgressRequestCallback progressRequestCallback :
-        bundleProcessor.getProgressRequestCallbacks()) {
-      // TODO(BEAM-6597): Plumb reporting monitoring infos using the short id system upstream.
-      for (MetricsApi.MonitoringInfo monitoringInfo :
-          progressRequestCallback.getMonitoringInfos()) {
-        ByteString payload = monitoringInfo.getPayload();
-        String shortId =
-            shortIds.getOrCreateShortId(monitoringInfo.toBuilder().clearPayload().build());
-        monitoringData.put(shortId, payload);
-      }
-    }
     bundleProcessor
         .getBundleProgressReporterAndRegistrar()
         .updateIntermediateMonitoringData(monitoringData);
@@ -721,17 +704,6 @@ public class ProcessBundleHandler {
     monitoringData.putAll(
         bundleProcessor.getMetricsContainerRegistry().getMonitoringData(shortIds));
     // Add any additional monitoring infos that the "runners" report explicitly.
-    for (ProgressRequestCallback progressRequestCallback :
-        bundleProcessor.getProgressRequestCallbacks()) {
-      // TODO(BEAM-6597): Plumb reporting monitoring infos using the short id system upstream.
-      for (MetricsApi.MonitoringInfo monitoringInfo :
-          progressRequestCallback.getMonitoringInfos()) {
-        ByteString payload = monitoringInfo.getPayload();
-        String shortId =
-            shortIds.getOrCreateShortId(monitoringInfo.toBuilder().clearPayload().build());
-        monitoringData.put(shortId, payload);
-      }
-    }
     bundleProcessor
         .getBundleProgressReporterAndRegistrar()
         .updateFinalMonitoringData(monitoringData);
@@ -769,7 +741,8 @@ public class ProcessBundleHandler {
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor = fnApiRegistry.apply(bundleId);
 
     SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
-    InMemory bundleProgressReporterAndRegistrar = new InMemory();
+    BundleProgressReporter.InMemory bundleProgressReporterAndRegistrar =
+        new BundleProgressReporter.InMemory();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     ExecutionStateTracker stateTracker =
         new ExecutionStateTracker(ExecutionStateSampler.instance());
@@ -790,7 +763,6 @@ public class ProcessBundleHandler {
             metricsContainerRegistry, stateTracker, ExecutionStateTracker.FINISH_STATE_NAME);
     List<ThrowingRunnable> resetFunctions = new ArrayList<>();
     List<ThrowingRunnable> tearDownFunctions = new ArrayList<>();
-    List<ProgressRequestCallback> progressRequestCallbacks = new ArrayList<>();
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
     for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -833,7 +805,6 @@ public class ProcessBundleHandler {
             finishFunctionRegistry,
             resetFunctions,
             tearDownFunctions,
-            progressRequestCallbacks,
             splitListener,
             pCollectionConsumerRegistry,
             metricsContainerRegistry,
@@ -891,7 +862,6 @@ public class ProcessBundleHandler {
             }
             bundleProcessor.getTimerEndpoints().add(timerEndpoint);
           },
-          progressRequestCallbacks::add,
           bundleProgressReporterAndRegistrar::register,
           splitListener,
           bundleFinalizer,
@@ -1021,13 +991,12 @@ public class ProcessBundleHandler {
   public abstract static class BundleProcessor {
     public static BundleProcessor create(
         Cache<Object, Object> processWideCache,
-        InMemory bundleProgressReporterAndRegistrar,
+        BundleProgressReporter.InMemory bundleProgressReporterAndRegistrar,
         ProcessBundleDescriptor processBundleDescriptor,
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         List<ThrowingRunnable> resetFunctions,
         List<ThrowingRunnable> tearDownFunctions,
-        List<ProgressRequestCallback> progressRequestCallbacks,
         BundleSplitListener.InMemory splitListener,
         PCollectionConsumerRegistry pCollectionConsumerRegistry,
         MetricsContainerStepMap metricsContainerRegistry,
@@ -1043,7 +1012,6 @@ public class ProcessBundleHandler {
           finishFunctionRegistry,
           resetFunctions,
           tearDownFunctions,
-          progressRequestCallbacks,
           splitListener,
           pCollectionConsumerRegistry,
           metricsContainerRegistry,
@@ -1077,8 +1045,6 @@ public class ProcessBundleHandler {
     abstract List<ThrowingRunnable> getResetFunctions();
 
     abstract List<ThrowingRunnable> getTearDownFunctions();
-
-    abstract List<ProgressRequestCallback> getProgressRequestCallbacks();
 
     abstract BundleSplitListener.InMemory getSplitListener();
 

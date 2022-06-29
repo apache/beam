@@ -70,7 +70,6 @@ import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
-import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessorCache;
@@ -268,11 +267,6 @@ public class ProcessBundleHandlerTest {
     @Override
     List<ThrowingRunnable> getTearDownFunctions() {
       return wrappedBundleProcessor.getTearDownFunctions();
-    }
-
-    @Override
-    List<ProgressRequestCallback> getProgressRequestCallbacks() {
-      return wrappedBundleProcessor.getProgressRequestCallbacks();
     }
 
     @Override
@@ -729,7 +723,6 @@ public class ProcessBundleHandlerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             Collections.singletonList(resetFunction),
-            new ArrayList<>(),
             new ArrayList<>(),
             splitListener,
             pCollectionConsumerRegistry,

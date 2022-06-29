@@ -57,6 +57,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.FnApiDoFnRunner.SplitResultsWithStopIndex;
 import org.apache.beam.fn.harness.FnApiDoFnRunner.WindowedSplitResult;
 import org.apache.beam.fn.harness.HandlesSplits.SplitResult;
+import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
@@ -81,6 +82,7 @@ import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -1651,18 +1653,14 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
       {
         // Check that before processing an element we don't report progress
-        assertThat(
-            Iterables.getOnlyElement(context.getProgressRequestCallbacks()).getMonitoringInfos(),
-            empty());
+        assertNoReportedProgress(context.getBundleProgressReporters());
         mainInput.accept(
             valueInGlobalWindow(
                 KV.of(
                     KV.of("5", KV.of(new OffsetRange(5, 10), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     5.0)));
         // Check that after processing an element we don't report progress
-        assertThat(
-            Iterables.getOnlyElement(context.getProgressRequestCallbacks()).getMonitoringInfos(),
-            empty());
+        assertNoReportedProgress(context.getBundleProgressReporters());
 
         // Since the side input upperBound is 8 we will process 5, 6, and 7 then checkpoint.
         // We expect that the watermark advances to MIN + 7 and that the primary represents [5, 8)
@@ -1712,18 +1710,14 @@ public class FnApiDoFnRunnerTest implements Serializable {
         splitListener.clear();
 
         // Check that before processing an element we don't report progress
-        assertThat(
-            Iterables.getOnlyElement(context.getProgressRequestCallbacks()).getMonitoringInfos(),
-            empty());
+        assertNoReportedProgress(context.getBundleProgressReporters());
         mainInput.accept(
             valueInGlobalWindow(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     2.0)));
         // Check that after processing an element we don't report progress
-        assertThat(
-            Iterables.getOnlyElement(context.getProgressRequestCallbacks()).getMonitoringInfos(),
-            empty());
+        assertNoReportedProgress(context.getBundleProgressReporters());
 
         assertThat(
             mainOutputValues,
@@ -1755,32 +1749,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     assertEquals(0.6, ((HandlesSplits) mainInput).getProgress(), 0.01);
 
                     // Check that during progressing of an element we report progress
-                    List<MonitoringInfo> mis =
-                        Iterables.getOnlyElement(context.getProgressRequestCallbacks())
-                            .getMonitoringInfos();
-                    MonitoringInfo.Builder expectedCompleted = MonitoringInfo.newBuilder();
-                    expectedCompleted.setUrn(MonitoringInfoConstants.Urns.WORK_COMPLETED);
-                    expectedCompleted.setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE);
-                    expectedCompleted.putLabels(
-                        MonitoringInfoConstants.Labels.PTRANSFORM, TEST_TRANSFORM_ID);
-                    expectedCompleted.setPayload(
-                        ByteString.copyFrom(
-                            CoderUtils.encodeToByteArray(
-                                IterableCoder.of(DoubleCoder.of()),
-                                Collections.singletonList(3.0))));
-                    MonitoringInfo.Builder expectedRemaining = MonitoringInfo.newBuilder();
-                    expectedRemaining.setUrn(MonitoringInfoConstants.Urns.WORK_REMAINING);
-                    expectedRemaining.setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE);
-                    expectedRemaining.putLabels(
-                        MonitoringInfoConstants.Labels.PTRANSFORM, TEST_TRANSFORM_ID);
-                    expectedRemaining.setPayload(
-                        ByteString.copyFrom(
-                            CoderUtils.encodeToByteArray(
-                                IterableCoder.of(DoubleCoder.of()),
-                                Collections.singletonList(2.0))));
-                    assertThat(
-                        mis,
-                        containsInAnyOrder(expectedCompleted.build(), expectedRemaining.build()));
+                    assertReportedProgressEquals(
+                        context.getShortIdMap(), context.getBundleProgressReporters(), 3.0, 2.0);
 
                     return ((HandlesSplits) mainInput).trySplit(0);
                   } finally {
@@ -1789,9 +1759,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 });
 
         // Check that before processing an element we don't report progress
-        assertThat(
-            Iterables.getOnlyElement(context.getProgressRequestCallbacks()).getMonitoringInfos(),
-            empty());
+        assertNoReportedProgress(context.getBundleProgressReporters());
         mainInput.accept(
             valueInGlobalWindow(
                 KV.of(
@@ -1800,9 +1768,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         HandlesSplits.SplitResult trySplitResult = trySplitFuture.get();
 
         // Check that after processing an element we don't report progress
-        assertThat(
-            Iterables.getOnlyElement(context.getProgressRequestCallbacks()).getMonitoringInfos(),
-            empty());
+        assertNoReportedProgress(context.getBundleProgressReporters());
 
         // Since the SPLIT_ELEMENT is 3 we will process 0, 1, 2, 3 then be split.
         // We expect that the watermark advances to MIN + 2 since the manual watermark estimator
@@ -1876,6 +1842,57 @@ public class FnApiDoFnRunnerTest implements Serializable {
       assertEquals(
           new FakeBeamFnStateClient(StringUtf8Coder.of(), stateData).getData(),
           fakeClient.getData());
+    }
+
+    private static final MonitoringInfo WORK_COMPLETED_MI =
+        MonitoringInfo.newBuilder()
+            .setUrn(MonitoringInfoConstants.Urns.WORK_COMPLETED)
+            .setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE)
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, TEST_TRANSFORM_ID)
+            .build();
+
+    private static final MonitoringInfo WORK_REMAINING_MI =
+        MonitoringInfo.newBuilder()
+            .setUrn(MonitoringInfoConstants.Urns.WORK_REMAINING)
+            .setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE)
+            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, TEST_TRANSFORM_ID)
+            .build();
+
+    private static void assertNoReportedProgress(List<BundleProgressReporter> reporters) {
+      Map<String, ByteString> monitoringData = new HashMap<>();
+      for (BundleProgressReporter reporter : reporters) {
+        reporter.updateIntermediateMonitoringData(monitoringData);
+      }
+      assertThat(monitoringData.entrySet(), empty());
+    }
+
+    private static void assertReportedProgressEquals(
+        ShortIdMap shortIdMap,
+        List<BundleProgressReporter> reporters,
+        double expectedWorkCompleted,
+        double expectedWorkRemaining)
+        throws Exception {
+      Map<String, ByteString> monitoringData = new HashMap<>();
+      for (BundleProgressReporter reporter : reporters) {
+        reporter.updateIntermediateMonitoringData(monitoringData);
+      }
+      String workCompletedShortId = shortIdMap.getOrCreateShortId(WORK_COMPLETED_MI);
+      String workRemainingShortId = shortIdMap.getOrCreateShortId(WORK_REMAINING_MI);
+      assertTrue(monitoringData.containsKey(workCompletedShortId));
+      assertTrue(monitoringData.containsKey(workRemainingShortId));
+      assertEquals(
+          ByteString.copyFrom(
+              CoderUtils.encodeToByteArray(
+                  IterableCoder.of(DoubleCoder.of()),
+                  Collections.singletonList(expectedWorkCompleted))),
+          monitoringData.get(workCompletedShortId));
+
+      assertEquals(
+          ByteString.copyFrom(
+              CoderUtils.encodeToByteArray(
+                  IterableCoder.of(DoubleCoder.of()),
+                  Collections.singletonList(expectedWorkRemaining))),
+          monitoringData.get(workRemainingShortId));
     }
 
     @Test
@@ -1979,9 +1996,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       BoundedWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
       {
         // Check that before processing an element we don't report progress
-        assertThat(
-            Iterables.getOnlyElement(context.getProgressRequestCallbacks()).getMonitoringInfos(),
-            empty());
+        assertNoReportedProgress(context.getBundleProgressReporters());
         WindowedValue<?> firstValue =
             valueInWindows(
                 KV.of(
@@ -1995,9 +2010,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 window2);
         mainInput.accept(firstValue);
         // Check that after processing an element we don't report progress
-        assertThat(
-            Iterables.getOnlyElement(context.getProgressRequestCallbacks()).getMonitoringInfos(),
-            empty());
+        assertNoReportedProgress(context.getBundleProgressReporters());
 
         // Since the side input upperBound is 8 we will process 5, 6, and 7 then checkpoint.
         // We expect that the watermark advances to MIN + 7 and that the primary represents [5, 8)
@@ -2097,9 +2110,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         splitListener.clear();
 
         // Check that before processing an element we don't report progress
-        assertThat(
-            Iterables.getOnlyElement(context.getProgressRequestCallbacks()).getMonitoringInfos(),
-            empty());
+        assertNoReportedProgress(context.getBundleProgressReporters());
         WindowedValue<?> secondValue =
             valueInWindows(
                 KV.of(
@@ -2113,9 +2124,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 window2);
         mainInput.accept(secondValue);
         // Check that after processing an element we don't report progress
-        assertThat(
-            Iterables.getOnlyElement(context.getProgressRequestCallbacks()).getMonitoringInfos(),
-            empty());
+        assertNoReportedProgress(context.getBundleProgressReporters());
 
         assertThat(
             mainOutputValues,
@@ -2172,32 +2181,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     assertEquals(0.3, ((HandlesSplits) mainInput).getProgress(), 0.01);
 
                     // Check that during progressing of an element we report progress
-                    List<MonitoringInfo> mis =
-                        Iterables.getOnlyElement(context.getProgressRequestCallbacks())
-                            .getMonitoringInfos();
-                    MonitoringInfo.Builder expectedCompleted = MonitoringInfo.newBuilder();
-                    expectedCompleted.setUrn(MonitoringInfoConstants.Urns.WORK_COMPLETED);
-                    expectedCompleted.setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE);
-                    expectedCompleted.putLabels(
-                        MonitoringInfoConstants.Labels.PTRANSFORM, TEST_TRANSFORM_ID);
-                    expectedCompleted.setPayload(
-                        ByteString.copyFrom(
-                            CoderUtils.encodeToByteArray(
-                                IterableCoder.of(DoubleCoder.of()),
-                                Collections.singletonList(3.0))));
-                    MonitoringInfo.Builder expectedRemaining = MonitoringInfo.newBuilder();
-                    expectedRemaining.setUrn(MonitoringInfoConstants.Urns.WORK_REMAINING);
-                    expectedRemaining.setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE);
-                    expectedRemaining.putLabels(
-                        MonitoringInfoConstants.Labels.PTRANSFORM, TEST_TRANSFORM_ID);
-                    expectedRemaining.setPayload(
-                        ByteString.copyFrom(
-                            CoderUtils.encodeToByteArray(
-                                IterableCoder.of(DoubleCoder.of()),
-                                Collections.singletonList(7.0))));
-                    assertThat(
-                        mis,
-                        containsInAnyOrder(expectedCompleted.build(), expectedRemaining.build()));
+                    assertReportedProgressEquals(
+                        context.getShortIdMap(), context.getBundleProgressReporters(), 3.0, 7.0);
 
                     return ((HandlesSplits) mainInput).trySplit(0);
                   } finally {
@@ -2206,9 +2191,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 });
 
         // Check that before processing an element we don't report progress
-        assertThat(
-            Iterables.getOnlyElement(context.getProgressRequestCallbacks()).getMonitoringInfos(),
-            empty());
+        assertNoReportedProgress(context.getBundleProgressReporters());
         WindowedValue<?> splitValue =
             valueInWindows(
                 KV.of(
@@ -2224,9 +2207,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
         HandlesSplits.SplitResult trySplitResult = trySplitFuture.get();
 
         // Check that after processing an element we don't report progress
-        assertThat(
-            Iterables.getOnlyElement(context.getProgressRequestCallbacks()).getMonitoringInfos(),
-            empty());
+
+        assertNoReportedProgress(context.getBundleProgressReporters());
 
         // Since the SPLIT_ELEMENT is 3 we will process 0, 1, 2, 3 then be split on the first
         // window.
