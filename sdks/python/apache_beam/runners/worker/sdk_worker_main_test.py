@@ -142,7 +142,7 @@ class SdkWorkerMainTest(unittest.TestCase):
     ]
     for case, expected in test_cases:
       # Set log level overrides for this fake package name.
-      # This avoids pollutes real logging.
+      # This avoids polluting real logging.
       pkgname = ''.join(random.choices(string.ascii_lowercase, k=8))
       case_prefixed = [
           re.sub(r'(?<=\{|,)"', '"' + pkgname + '.', record) for record in case

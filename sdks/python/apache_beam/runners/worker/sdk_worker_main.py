@@ -300,7 +300,7 @@ def _set_log_level_overrides(options_dict: dict) -> None:
       # Never crash the worker when exception occurs during log level setting
       # but logging the error.
       _LOGGER.error(
-          "Error occurs when setting log level for %s: %s", module_name, e)
+          "Error occurred when setting log level for %s: %s", module_name, e)
 
 
 class CorruptMainSessionException(Exception):
