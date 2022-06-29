@@ -19,7 +19,7 @@ limitations under the License.
 
 Apache Beam I/O connectors provide read and write transforms for the most popular data storage systems so that Beam users can benefit from native optimised connectivity.  With the available I/Os, Apache Beam pipelines can read and write data from and to an external storage type in a unified and distributed way.
 
-I/O connectors denoted _via X-language_ have been made available using the Apache Beam [multi-language pipelines framework](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines).
+I/O connectors denoted _via X-language_ have been made available using the Apache Beam [multi-language pipelines framework](/documentation/programming-guide/#multi-language-pipelines).
 
 ## Built-in I/O Connectors
 
