@@ -114,7 +114,8 @@ class SchemaTest(unittest.TestCase):
     self.assertEqual(
         user_type,
         typing_from_runner_api(
-            typing_to_runner_api(user_type, schema_registry=SchemaTypeRegistry()),
+            typing_to_runner_api(
+                user_type, schema_registry=SchemaTypeRegistry()),
             schema_registry=SchemaTypeRegistry()))
 
   @parameterized.expand([(AllPrimitives, ), (ComplexSchema, )])
