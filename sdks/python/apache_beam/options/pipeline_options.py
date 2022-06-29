@@ -977,11 +977,11 @@ class WorkerOptions(PipelineOptions):
         default=None,
         help=(
             'Controls the log levels for specifically named loggers. The '
-            'expected format is a json string: {\"module\":\"log_level\",...}. '
-            'For example, by specifying the value "{\"a.b.c\":\"DEBUG\"}, '
+            'expected format is a json string: \'{"module":"log_level",...}\'. '
+            'For example, by specifying the value \'{"a.b.c":"DEBUG"}\', '
             'the logger underneath the module "a.b.c" will be configured to '
             'output logs at the DEBUG level. Similarly, by specifying the '
-            'value {"a.b.c":"WARNING"} all loggers underneath the "a.b.c" '
+            'value \'{"a.b.c":"WARNING"}\' all loggers underneath the "a.b.c" '
             'module will be configured to output logs at the WARNING level. '
             'Also, note that when multiple overrides are specified, the exact '
             'name followed by the closest parent takes precedence.'))

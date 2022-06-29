@@ -289,8 +289,9 @@ def _set_log_level_overrides(options_dict: dict) -> None:
       parsed_overrides.update(line)
   except Exception:
     _LOGGER.error(
-        "Unable to parse sdk_harness_log_level_overrides. "
-        "Log level overrides won't take effect.")
+        "Unable to parse sdk_harness_log_level_overrides %s. "
+        "Log level overrides won't take effect.",
+        option_raw)
     return
 
   for module_name, log_level in parsed_overrides.items():
