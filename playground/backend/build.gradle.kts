@@ -76,16 +76,7 @@ val test by tasks.registering {
     }
 }
 
-val startDatastoreEmulator1 by tasks.registering {
-    doLast {
-        exec {
-            executable("sh")
-            args("start_datastore_emulator.sh")
-        }
-    }
-}
-
-test { dependsOn(startDatastoreEmulator1) }
+test { dependsOn(startDatastoreEmulator) }
 test { finalizedBy(stopDatastoreEmulator) }
 
 task("benchmarkPrecompiledObjects") {
