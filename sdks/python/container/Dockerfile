@@ -29,6 +29,8 @@ RUN apt-get update && \
        libyaml-dev \
        # This is used to speed up the re-installation of the sdk.
        ccache \
+       # Required by tensorflow_datasets for decoding audio/video
+       ffmpeg \
        && \
     rm -rf /var/lib/apt/lists/*
 
