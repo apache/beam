@@ -18,6 +18,8 @@
 current_dir="$(dirname "$0")"
 source "$current_dir/envs_and_functions.sh"
 
+echo "${DATASTORE_FULL_ADDRESS}"
+echo "${DATASTORE_PORT}"
 PID=$(lsof -t -i :"${DATASTORE_PORT}" -s tcp:LISTEN)
 
 if [ -z "$PID" ]; then
