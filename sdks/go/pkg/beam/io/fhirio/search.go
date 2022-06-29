@@ -26,6 +26,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
@@ -69,7 +70,7 @@ func (fn *searchResourcesFn) Setup() {
 
 func (fn *searchResourcesFn) ProcessElement(ctx context.Context, query SearchQuery, emitFoundResources func(string, []string), emitDeadLetter func(string)) {
 	resourcesFound, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() ([]string, error) {
-		return fn.searchResources(query)
+		return fn.searchResources(ctx, query)
 	})
 	if err != nil {
 		fn.resourcesErrorCount.Inc(ctx, 1)
@@ -81,11 +82,11 @@ func (fn *searchResourcesFn) ProcessElement(ctx context.Context, query SearchQue
 	emitFoundResources(query.Identifier, resourcesFound)
 }
 
-func (fn *searchResourcesFn) searchResources(query SearchQuery) ([]string, error) {
-	resourcesInPage, nextPageToken, err := fn.searchResourcesPaginated(query, "")
+func (fn *searchResourcesFn) searchResources(ctx context.Context, query SearchQuery) ([]string, error) {
+	resourcesInPage, nextPageToken, err := fn.searchResourcesPaginated(ctx, query, "")
 	allResources := resourcesInPage
 	for nextPageToken != "" {
-		resourcesInPage, nextPageToken, err = fn.searchResourcesPaginated(query, nextPageToken)
+		resourcesInPage, nextPageToken, err = fn.searchResourcesPaginated(ctx, query, nextPageToken)
 		allResources = append(allResources, resourcesInPage...)
 	}
 	return allResources, err
@@ -94,7 +95,7 @@ func (fn *searchResourcesFn) searchResources(query SearchQuery) ([]string, error
 // Performs a search request retrieving results only from the page identified by
 // `pageToken`. If `pageToken` is the empty string it will retrieve the results
 // from the first page.
-func (fn *searchResourcesFn) searchResourcesPaginated(query SearchQuery, pageToken string) ([]string, string, error) {
+func (fn *searchResourcesFn) searchResourcesPaginated(ctx context.Context, query SearchQuery, pageToken string) ([]string, string, error) {
 	response, err := fn.client.search(fn.FhirStorePath, query.ResourceType, query.Parameters, pageToken)
 	if err != nil {
 		return nil, "", err
@@ -114,15 +115,16 @@ func (fn *searchResourcesFn) searchResourcesPaginated(query SearchQuery, pageTok
 		return nil, "", err
 	}
 
-	resourcesFoundInPage := mapEntryToString(bodyFields.Entries)
-	return resourcesFoundInPage, extractNextPageTokenFrom(bodyFields.Links), nil
+	resourcesFoundInPage := mapEntryToString(ctx, bodyFields.Entries)
+	return resourcesFoundInPage, extractNextPageTokenFrom(ctx, bodyFields.Links), nil
 }
 
-func mapEntryToString(entries []interface{}) []string {
+func mapEntryToString(ctx context.Context, entries []interface{}) []string {
 	stringifiedEntries := make([]string, 0)
 	for _, entry := range entries {
 		entryBytes, err := json.Marshal(entry)
 		if err != nil {
+			log.Warnf(ctx, "Ignoring malformed entry resource. Error: %v", err)
 			continue
 		}
 		stringifiedEntries = append(stringifiedEntries, string(entryBytes))
@@ -130,7 +132,7 @@ func mapEntryToString(entries []interface{}) []string {
 	return stringifiedEntries
 }
 
-func extractNextPageTokenFrom(searchResponseLinks []responseLinkFields) string {
+func extractNextPageTokenFrom(ctx context.Context, searchResponseLinks []responseLinkFields) string {
 	for _, link := range searchResponseLinks {
 		// The link with relation field valued "next" contains the page token
 		if link.Relation != "next" {
@@ -139,6 +141,7 @@ func extractNextPageTokenFrom(searchResponseLinks []responseLinkFields) string {
 
 		parsedUrl, err := url.Parse(link.Url)
 		if err != nil {
+			log.Warnf(ctx, "Search next page token failed to be parsed from URL [%v]. Reason: %v", link.Url, err)
 			break
 		}
 		return parsedUrl.Query().Get(pageTokenParameterKey)
