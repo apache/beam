@@ -104,13 +104,13 @@ func setupFhirStore(t *testing.T, shouldPopulateStore bool) (string, []string, f
 
 func createStore(dataset string) (*healthcare.FhirStore, error) {
 	randInt, _ := rand.Int(rand.Reader, big.NewInt(32))
-	testFhirStoreId := "FHIR_store_write_it_" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "_" + randInt.String()
+	testFhirStoreID := "FHIR_store_write_it_" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "_" + randInt.String()
 	fhirStore := &healthcare.FhirStore{
 		DisableReferentialIntegrity: true,
 		EnableUpdateCreate:          true,
 		Version:                     "R4",
 	}
-	return storeManagementService.Create(dataset, fhirStore).FhirStoreId(testFhirStoreId).Do()
+	return storeManagementService.Create(dataset, fhirStore).FhirStoreId(testFhirStoreID).Do()
 }
 
 func deleteStore(storePath string) (*healthcare.Empty, error) {
@@ -165,16 +165,16 @@ func readPrettyBundles() [][]byte {
 	return bundles
 }
 
-func extractResourcePathFrom(resourceLocationUrl string) (string, error) {
+func extractResourcePathFrom(resourceLocationURL string) (string, error) {
 	// The resource location url is in the following format:
 	// https://healthcare.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/fhirStores/STORE_ID/fhir/RESOURCE_NAME/RESOURCE_ID/_history/HISTORY_ID
 	// But the API calls use this format: projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/fhirStores/STORE_ID/fhir/RESOURCE_NAME/RESOURCE_ID
-	startIdx := strings.Index(resourceLocationUrl, "projects/")
-	endIdx := strings.Index(resourceLocationUrl, "/_history")
+	startIdx := strings.Index(resourceLocationURL, "projects/")
+	endIdx := strings.Index(resourceLocationURL, "/_history")
 	if startIdx == -1 || endIdx == -1 {
 		return "", errors.New("resource location url is invalid")
 	}
-	return resourceLocationUrl[startIdx:endIdx], nil
+	return resourceLocationURL[startIdx:endIdx], nil
 }
 
 func TestFhirIO_Read(t *testing.T) {
