@@ -142,7 +142,8 @@ class SdkWorkerMainTest(unittest.TestCase):
     ]
     for case, expected in test_cases:
       # Set log level overrides for this fake package name.
-      # This avoids polluting real logging.
+      # This avoids polluting real logging, e.g., in case there is a real module
+      # whose name coincides with the test case.
       pkgname = ''.join(random.choices(string.ascii_lowercase, k=8))
       case_prefixed = [
           re.sub(r'(?<=\{|,)"', '"' + pkgname + '.', record) for record in case
@@ -162,7 +163,7 @@ class SdkWorkerMainTest(unittest.TestCase):
         ({
             'sdk_harness_log_level_overrides': ['{"invalid.level":"INVALID"}']
         },
-         "Error occurs when setting log level"),
+         "Error occurred when setting log level"),
     ]
     for case, expected in test_cases:
       with self.assertLogs('apache_beam.runners.worker.sdk_worker_main',
