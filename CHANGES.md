@@ -28,6 +28,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Projection Pushdown optimizer is now on by default for streaming, matching the behavior of batch pipelines since 2.38.0. If you encounter a bug with the optimizer, please file an issue and disable the optimizer using pipeline option `--experiments=disable_projection_pushdown`.
 
 ## New Features / Improvements
 
@@ -36,6 +37,7 @@
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Projection Pushdown optimizer may break Dataflow upgrade compatibility for optimized pipelines when it removes unused fields. If you need to upgrade and encounter a compatibility issue, disable the optimizer using pipeline option `--experiments=disable_projection_pushdown`.
 
 ## Deprecations
 
