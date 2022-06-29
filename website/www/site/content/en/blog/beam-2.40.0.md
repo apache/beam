@@ -57,6 +57,14 @@ For more information on changes in 2.40.0 check out the [detailed release notes]
 * Fixed Java expansion service to allow specific files to stage ([BEAM-14160](https://issues.apache.org/jira/browse/BEAM-14160)).
 * Fixed Elasticsearch connection when using both ssl and username/password (Java) ([BEAM-14000](https://issues.apache.org/jira/browse/BEAM-14000))
 
+## Known Issues
+
+* Python's ``beam.FlatMap`` will raise ``AttributeError:
+  'builtin_function_or_method' object has no attribute '__func__'`` when
+  constructed with some
+  [built-ins](https://docs.python.org/3/library/functions.html), like ``sum``
+  and ``len`` ([#22091](https://github.com/apache/beam/issues/22091)).
+
 ## List of Contributors
 
 According to git shortlog, the following people contributed to the 2.40.0 release. Thank you to all contributors!
