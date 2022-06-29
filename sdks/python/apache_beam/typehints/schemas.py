@@ -300,7 +300,7 @@ class SchemaTranslation(object):
           self.typing_from_runner_api(fieldtype_proto.map_type.value_type)]
     elif type_info == "row_type":
       schema = fieldtype_proto.row_type.schema
-      # First look for user type in the registray
+      # First look for user type in the registry
       user_type = self.schema_registry.get_typing_by_id(schema.id)
 
       if user_type is None:
