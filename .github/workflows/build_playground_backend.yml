@@ -34,6 +34,7 @@ jobs:
       PROJECT_ENV: beta
       PROJECT_ID: beaming-crowbar-354322
       SERVICE_ACCOUNT: pg-svsaccount@beaming-crowbar-354322.iam.gserviceaccount.com
+      DATASTORE_EMULATOR_HOST: 127.0.0.1:8888
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
