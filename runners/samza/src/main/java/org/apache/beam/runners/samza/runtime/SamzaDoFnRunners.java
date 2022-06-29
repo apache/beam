@@ -63,6 +63,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.samza.context.Context;
+import org.apache.samza.util.SystemClock;
 import org.joda.time.Instant;
 
 /** A factory for Samza runner translator to create underlying DoFnRunner used in {@link DoFnOp}. */
@@ -194,6 +195,7 @@ public class SamzaDoFnRunners {
       SamzaPipelineOptions pipelineOptions,
       DoFnRunners.OutputManager outputManager,
       StageBundleFactory stageBundleFactory,
+      SamzaExecutionContext samzaExecutionContext,
       TupleTag<FnOutT> mainOutputTag,
       Map<String, TupleTag<?>> idToTupleTagMap,
       Context context,
@@ -226,7 +228,8 @@ public class SamzaDoFnRunners {
             stageBundleFactory,
             idToTupleTagMap,
             bundledEventsBag,
-            stateRequestHandler);
+            stateRequestHandler,
+            samzaExecutionContext);
     return pipelineOptions.getEnableMetrics()
         ? DoFnRunnerWithMetrics.wrap(
             underlyingRunner, executionContext.getMetricsContainer(), transformFullName)
@@ -243,7 +246,10 @@ public class SamzaDoFnRunners {
     private final BagState<WindowedValue<InT>> bundledEventsBag;
     private RemoteBundle remoteBundle;
     private FnDataReceiver<WindowedValue<?>> inputReceiver;
-    private StateRequestHandler stateRequestHandler;
+    private final StateRequestHandler stateRequestHandler;
+    private final SamzaExecutionContext samzaExecutionContext;
+    private long startBundleTime;
+    private String metricName;
 
     private SdkHarnessDoFnRunner(
         SamzaTimerInternalsFactory<?> timerInternalsFactory,
@@ -252,7 +258,8 @@ public class SamzaDoFnRunners {
         StageBundleFactory stageBundleFactory,
         Map<String, TupleTag<?>> idToTupleTagMap,
         BagState<WindowedValue<InT>> bundledEventsBag,
-        StateRequestHandler stateRequestHandler) {
+        StateRequestHandler stateRequestHandler,
+        SamzaExecutionContext samzaExecutionContext) {
       this.timerInternalsFactory = timerInternalsFactory;
       this.windowingStrategy = windowingStrategy;
       this.outputManager = outputManager;
@@ -260,6 +267,7 @@ public class SamzaDoFnRunners {
       this.idToTupleTagMap = idToTupleTagMap;
       this.bundledEventsBag = bundledEventsBag;
       this.stateRequestHandler = stateRequestHandler;
+      this.samzaExecutionContext = samzaExecutionContext;
     }
 
     @SuppressWarnings("unchecked")
@@ -276,6 +284,7 @@ public class SamzaDoFnRunners {
     @Override
     public void startBundle() {
       try {
+        startBundleTime = SystemClock.instance().currentTimeMillis();
         OutputReceiverFactory receiverFactory =
             new OutputReceiverFactory() {
               @Override
@@ -297,6 +306,7 @@ public class SamzaDoFnRunners {
                 timerReceiverFactory,
                 stateRequestHandler,
                 BundleProgressHandler.ignored());
+        metricName = toExecutableStageMetricName(remoteBundle);
 
         inputReceiver = Iterables.getOnlyElement(remoteBundle.getInputReceivers().values());
         bundledEventsBag
@@ -366,6 +376,16 @@ public class SamzaDoFnRunners {
     @Override
     public void finishBundle() {
       try {
+        final long count = Iterables.size(bundledEventsBag.read());
+        if (count > 0) {
+          final long finishBundleTime = SystemClock.instance().currentTimeMillis();
+          final long averageProcessTime = (finishBundleTime - startBundleTime) / count;
+
+          samzaExecutionContext
+              .getMetricsContainer()
+              .updateExecutableStageBundleMetric(metricName, averageProcessTime);
+        }
+
         // RemoteBundle close blocks until all results are received
         remoteBundle.close();
         emitResults();
@@ -376,6 +396,10 @@ public class SamzaDoFnRunners {
         remoteBundle = null;
         inputReceiver = null;
       }
+    }
+
+    private static String toExecutableStageMetricName(RemoteBundle remoteBundle) {
+      return "ExecutableStage-" + remoteBundle.getId() + "-process-ns";
     }
 
     @Override

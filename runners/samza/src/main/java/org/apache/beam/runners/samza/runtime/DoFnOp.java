@@ -234,6 +234,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               samzaPipelineOptions,
               outputManagerFactory.create(emitter, outputFutureCollector),
               stageBundleFactory,
+              samzaExecutionContext,
               mainOutputTag,
               idToTupleTagMap,
               context,

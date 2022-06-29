@@ -98,6 +98,15 @@ public class SamzaMetricsContainer {
     results.getDistributions().forEach(updateDistribution);
   }
 
+  public void updateExecutableStageBundleMetric(String metricName, long time) {
+    @SuppressWarnings("unchecked")
+    Gauge<Long> gauge = (Gauge<Long>) getSamzaMetricFor(metricName);
+    if (gauge == null) {
+      gauge = metricsRegistry.newGauge(BEAM_METRICS_GROUP, metricName, 0L);
+    }
+    gauge.set(time);
+  }
+
   private class CounterUpdater implements Consumer<MetricResult<Long>> {
     @Override
     public void accept(MetricResult<Long> metricResult) {
