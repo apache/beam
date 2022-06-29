@@ -86,7 +86,7 @@ def bq_field_to_type(field, mode):
     return Optional[BIG_QUERY_TO_PYTHON_TYPES[field]]
   elif mode == 'REPEATED':
     return Sequence[BIG_QUERY_TO_PYTHON_TYPES[field]]
-  elif mode == 'None' or mode == '':
+  elif mode is None or mode == '':
     return BIG_QUERY_TO_PYTHON_TYPES[field]
   else:
     raise ValueError(f"Encountered an unsupported mode: {mode!r}")
@@ -98,7 +98,7 @@ class BeamSchemaConversionDoFn(beam.DoFn):
     self._pcoll_val_ctor = pcoll_val_ctor
 
   def process(self, dict_of_tuples):
-    return self._pcoll_val_ctor(**dict_of_tuples)
+    yield self._pcoll_val_ctor(**dict_of_tuples)
 
   def infer_output_type(self, input_type):
     return self._pcoll_val_ctor

@@ -29,10 +29,9 @@ import unittest
 import uuid
 from decimal import Decimal
 from functools import wraps
-
 import pytest
-
 import apache_beam as beam
+import apache_beam.io.gcp.bigquery
 from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
@@ -181,7 +180,7 @@ class ReadTests(BigQueryReadIntegrationTests):
 
   @pytest.mark.it_postcommit
   def test_table_schema_retrieve(self):
-    the_table = beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
+    the_table = bigquery_tools.BigQueryWrapper().get_table(
         project_id="apache-beam-testing",
         dataset_id="beam_bigquery_io_test",
         table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
@@ -189,8 +188,8 @@ class ReadTests(BigQueryReadIntegrationTests):
     utype = bigquery_schema_tools.produce_pcoll_with_schema(table)
     with beam.Pipeline(argv=self.args) as p:
       result = (
-          p | beam.io.gcp.bigquery.ReadFromBigQuery(
-              gcs_location="gs://bqio_schema",
+          p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+              gcs_location="gs://bqio_schema/tmp",
               table="beam_bigquery_io_test.dfsqltable_3c7d6fd5_16e0460dfd0",
               project="apache-beam-testing",
               output_type='BEAM_ROWS'))

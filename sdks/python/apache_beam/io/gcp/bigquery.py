@@ -2473,11 +2473,26 @@ class ReadFromBigQuery(PTransform):
 
   def expand(self, pcoll):
     if self.method is ReadFromBigQuery.Method.EXPORT:
-      ReadFromBigQuery._check_output_type(self)
-      return self._expand_export(pcoll)
+      output_pcollection = self._expand_export(pcoll)
+      print(output_pcollection)
+      if self.output_type == 'BEAM_ROWS':
+        return output_pcollection | ReadFromBigQuery._convert_to_usertype(
+          beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
+              project_id="apache-beam-testing", #self._kwargs['project']
+              dataset_id="beam_bigquery_io_test",
+              table_id="dfsqltable_3c7d6fd5_16e0460dfd0").schema)
+      else:
+        return output_pcollection
     elif self.method is ReadFromBigQuery.Method.DIRECT_READ:
-      ReadFromBigQuery._check_output_type(self)
-      return self._expand_direct_read(pcoll)
+      output_pcollection = self._expand_direct_read(pcoll)
+      if self.output_type == 'BEAM_ROWS':
+        return output_pcollection | ReadFromBigQuery._convert_to_usertype(
+            beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
+                project_id="apache-beam-testing",
+                dataset_id="beam_bigquery_io_test",
+                table_id="dfsqltable_3c7d6fd5_16e0460dfd0").schema)
+      else:
+        return output_pcollection
     else:
       raise ValueError(
           'The method to read from BigQuery must be either EXPORT'
@@ -2567,17 +2582,18 @@ class ReadFromBigQuery(PTransform):
     elif self.output_type == 'BEAM_ROWS':
       if 'table' in self._kwargs:
         print(self._kwargs)
-        ReadFromBigQuery._get_pcoll_from_schema(
+        ReadFromBigQuery._convert_to_usertype(
             beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
                 project_id=self._kwargs['project'],
-                dataset_id=self._kwargs['table'],
-                table_id=self._kwargs['table']).schema)
+                dataset_id="beam_bigquery_io_test",
+                table_id="dfsqltable_3c7d6fd5_16e0460dfd0").schema)
 
-  def _get_pcoll_from_schema(table_schema):
-    pcoll_val = beam.io.gcp.bigquery_schema_tools. \
+  def _convert_to_usertype(table_schema):
+    usertype = beam.io.gcp.bigquery_schema_tools. \
           produce_pcoll_with_schema(table_schema)
+    #_LOGGER.info("{}", usertype)
     return beam.ParDo(
-        beam.io.gcp.bigquery_schema_tools.BeamSchemaConversionDoFn(pcoll_val))
+        beam.io.gcp.bigquery_schema_tools.BeamSchemaConversionDoFn(usertype))
 
 
 class ReadFromBigQueryRequest:
