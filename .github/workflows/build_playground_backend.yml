@@ -47,15 +47,10 @@ jobs:
         # This step is a workaround to avoid a decryption issue
         run: rm ~/.m2/settings.xml
 
-      - name: gcloud CLI installation
-        run: |
-          curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-388.0.0-linux-x86_64.tar.gz
-          tar -xf google-cloud-cli-388.0.0-linux-x86_64.tar.gz
-          sudo mv /usr/lib/google-cloud-sdk /usr/lib/google-cloud-sdk-ORIG
-          sudo mv google-cloud-sdk /usr/lib/
-          sudo gcloud components install cloud-datastore-emulator
-          sudo gcloud components install beta
-          sudo chmod 777 -R /usr/lib/google-cloud-sdk
+      - name: Set up Cloud SDK and its components
+        uses: google-github-actions/setup-gcloud@v0
+        with:
+            install_components: 'beta,cloud-datastore-emulator'
 
       - name: Run PreCommit
         run: ./gradlew playground:backend:precommit
