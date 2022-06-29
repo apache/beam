@@ -94,7 +94,6 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -190,7 +189,7 @@ import org.slf4j.LoggerFactory;
  *
  * For a given kafka bootstrap_server, KafkaIO is also able to detect and read from available {@link
  * TopicPartition} dynamically and stop reading from un. KafkaIO uses {@link
- * WatchKafkaTopicPartitionDoFn} to emit any new added {@link TopicPartition} and uses {@link
+ * WatchForKafkaTopicPartitions} to emit any new added {@link TopicPartition} and uses {@link
  * ReadFromKafkaDoFn} to read from each {@link KafkaSourceDescriptor}. Dynamic read is able to solve
  * 2 scenarios:
  *
@@ -215,22 +214,22 @@ import org.slf4j.LoggerFactory;
  *
  * When race condition happens, it will result in the stopped/removed TopicPartition failing to be
  * emitted to ReadFromKafkaDoFn again. Or ReadFromKafkaDoFn will output replicated records. The
- * major cause for such race condition is that both {@link WatchKafkaTopicPartitionDoFn} and {@link
+ * major cause for such race condition is that both {@link WatchForKafkaTopicPartitions} and {@link
  * ReadFromKafkaDoFn} react to the signal from removed/stopped {@link TopicPartition} but we cannot
  * guarantee that both DoFns perform related actions at the same time.
  *
  * <p>Here is one example for failing to emit new added {@link TopicPartition}:
  *
  * <ul>
- *   <li>A {@link WatchKafkaTopicPartitionDoFn} is configured with updating the current tracking set
+ *   <li>A {@link WatchForKafkaTopicPartitions} is configured with updating the current tracking set
  *       every 1 hour.
- *   <li>One TopicPartition A is tracked by the {@link WatchKafkaTopicPartitionDoFn} at 10:00AM and
+ *   <li>One TopicPartition A is tracked by the {@link WatchForKafkaTopicPartitions} at 10:00AM and
  *       {@link ReadFromKafkaDoFn} starts to read from TopicPartition A immediately.
- *   <li>At 10:30AM, the {@link WatchKafkaTopicPartitionDoFn} notices that the {@link
+ *   <li>At 10:30AM, the {@link WatchForKafkaTopicPartitions} notices that the {@link
  *       TopicPartition} has been stopped/removed, so it stops reading from it and returns {@code
  *       ProcessContinuation.stop()}.
  *   <li>At 10:45 the pipeline author wants to read from TopicPartition A again.
- *   <li>At 11:00AM when {@link WatchKafkaTopicPartitionDoFn} is invoked by firing timer, it doesn’t
+ *   <li>At 11:00AM when {@link WatchForKafkaTopicPartitions} is invoked by firing timer, it doesn’t
  *       know that TopicPartition A has been stopped/removed. All it knows is that TopicPartition A
  *       is still an active TopicPartition and it will not emit TopicPartition A again.
  * </ul>
@@ -241,9 +240,9 @@ import org.slf4j.LoggerFactory;
  *   <li>At 10:00AM, {@link ReadFromKafkaDoFn} is processing TopicPartition A
  *   <li>At 10:05AM, {@link ReadFromKafkaDoFn} starts to process other TopicPartitions(sdf-initiated
  *       checkpoint or runner-issued checkpoint happens)
- *   <li>At 10:10AM, {@link WatchKafkaTopicPartitionDoFn} knows that TopicPartition A is
+ *   <li>At 10:10AM, {@link WatchForKafkaTopicPartitions} knows that TopicPartition A is
  *       stopped/removed
- *   <li>At 10:15AM, {@link WatchKafkaTopicPartitionDoFn} knows that TopicPartition A is added again
+ *   <li>At 10:15AM, {@link WatchForKafkaTopicPartitions} knows that TopicPartition A is added again
  *       and emits TopicPartition A again
  *   <li>At 10:20AM, {@link ReadFromKafkaDoFn} starts to process resumed TopicPartition A but at the
  *       same time {@link ReadFromKafkaDoFn} is also processing the new emitted TopicPartitionA.
@@ -1208,7 +1207,7 @@ public class KafkaIO {
     }
 
     /**
-     * Configure the KafkaIO to use {@link WatchKafkaTopicPartitionDoFn} to detect and emit any new
+     * Configure the KafkaIO to use {@link WatchForKafkaTopicPartitions} to detect and emit any new
      * available {@link TopicPartition} for {@link ReadFromKafkaDoFn} to consume during pipeline
      * execution time. The KafkaIO will regularly check the availability based on the given
      * duration. If the duration is not specified as {@code null}, the default duration is 1 hour.
@@ -1267,7 +1266,7 @@ public class KafkaIO {
       return new TypedWithoutMetadata<>(this);
     }
 
-    PTransform<PBegin, PCollection<Row>> externalWithMetadata() {
+    public PTransform<PBegin, PCollection<Row>> externalWithMetadata() {
       return new RowsWithMetadata<>(this);
     }
 
@@ -1529,25 +1528,15 @@ public class KafkaIO {
             }
           }
           output =
-              input
-                  .getPipeline()
-                  .apply(Impulse.create())
-                  .apply(
-                      MapElements.into(
-                              TypeDescriptors.kvs(
-                                  new TypeDescriptor<byte[]>() {}, new TypeDescriptor<byte[]>() {}))
-                          .via(element -> KV.of(element, element)))
-                  .apply(
-                      ParDo.of(
-                          new WatchKafkaTopicPartitionDoFn(
-                              kafkaRead.getWatchTopicPartitionDuration(),
-                              kafkaRead.getConsumerFactoryFn(),
-                              kafkaRead.getCheckStopReadingFn(),
-                              kafkaRead.getConsumerConfig(),
-                              kafkaRead.getStartReadTime(),
-                              kafkaRead.getStopReadTime(),
-                              topics.stream().collect(Collectors.toList()))));
-
+              input.apply(
+                  new WatchForKafkaTopicPartitions(
+                      kafkaRead.getWatchTopicPartitionDuration(),
+                      kafkaRead.getConsumerFactoryFn(),
+                      kafkaRead.getConsumerConfig(),
+                      kafkaRead.getCheckStopReadingFn(),
+                      topics,
+                      kafkaRead.getStartReadTime(),
+                      kafkaRead.getStopReadTime()));
         } else {
           output =
               input
