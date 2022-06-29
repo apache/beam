@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -64,7 +65,7 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
       kafkaConsumerFactoryFn;
   private final Map<String, Object> kafkaConsumerConfig;
   private final @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn;
-  private final List<String> topics;
+  private final Set<String> topics;
   private final @Nullable Instant startReadTime;
   private final @Nullable Instant stopReadTime;
 
@@ -73,7 +74,7 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
       SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> kafkaConsumerFactoryFn,
       Map<String, Object> kafkaConsumerConfig,
       @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn,
-      List<String> topics,
+      Set<String> topics,
       @Nullable Instant startReadTime,
       @Nullable Instant stopReadTime) {
     this.checkDuration = firstNonNull(checkDuration, DEFAULT_CHECK_DURATION);
@@ -134,12 +135,12 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
     private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         kafkaConsumerFactoryFn;
     private final Map<String, Object> kafkaConsumerConfig;
-    private final List<String> topics;
+    private final Set<String> topics;
 
     private WatchPartitionFn(
         SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> kafkaConsumerFactoryFn,
         Map<String, Object> kafkaConsumerConfig,
-        List<String> topics) {
+        Set<String> topics) {
       this.kafkaConsumerFactoryFn = kafkaConsumerFactoryFn;
       this.kafkaConsumerConfig = kafkaConsumerConfig;
       this.topics = topics;
@@ -159,7 +160,7 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
   static List<TopicPartition> getAllTopicPartitions(
       SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> kafkaConsumerFactoryFn,
       Map<String, Object> kafkaConsumerConfig,
-      List<String> topics) {
+      Set<String> topics) {
     List<TopicPartition> current = new ArrayList<>();
     try (Consumer<byte[], byte[]> kafkaConsumer =
         kafkaConsumerFactoryFn.apply(kafkaConsumerConfig)) {

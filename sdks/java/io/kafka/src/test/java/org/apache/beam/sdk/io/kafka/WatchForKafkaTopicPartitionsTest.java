@@ -22,7 +22,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.List;
+import java.util.Set;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.PartitionGrowthMockConsumer;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SerializableMatcher;
@@ -32,6 +32,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
@@ -81,7 +82,7 @@ public class WatchForKafkaTopicPartitionsTest {
 
   @Test
   public void testGetAllTopicPartitionsWithGivenTopics() throws Exception {
-    List<String> givenTopics = ImmutableList.of("topic1", "topic2");
+    Set<String> givenTopics = ImmutableSet.of("topic1", "topic2");
 
     Consumer<byte[], byte[]> mockConsumer = Mockito.mock(Consumer.class);
     when(mockConsumer.partitionsFor("topic1"))
@@ -107,7 +108,7 @@ public class WatchForKafkaTopicPartitionsTest {
 
   @Test
   public void testPartitionSingle() {
-    List<String> givenTopics = ImmutableList.of("topic1");
+    Set<String> givenTopics = ImmutableSet.of("topic1");
 
     WatchForKafkaTopicPartitions watchForKafkaTopicPartitions =
         new WatchForKafkaTopicPartitions(
@@ -130,7 +131,7 @@ public class WatchForKafkaTopicPartitionsTest {
 
   @Test
   public void testPartitionGrowth() {
-    List<String> givenTopics = ImmutableList.of("topic1");
+    Set<String> givenTopics = ImmutableSet.of("topic1");
 
     WatchForKafkaTopicPartitions watchForKafkaTopicPartitions =
         new WatchForKafkaTopicPartitions(

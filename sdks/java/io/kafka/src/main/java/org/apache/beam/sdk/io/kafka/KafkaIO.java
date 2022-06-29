@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1471,7 +1472,7 @@ public class KafkaIO {
         }
         PCollection<KafkaSourceDescriptor> output;
         if (kafkaRead.isDynamicRead()) {
-          List<String> topics = new ArrayList<>();
+          Set<String> topics = new HashSet<>();
           if (kafkaRead.getTopics() != null && kafkaRead.getTopics().size() > 0) {
             topics.addAll(kafkaRead.getTopics());
           }
