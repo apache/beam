@@ -84,8 +84,7 @@ func splitStringPair(e stringPair) (string, string) {
 }
 
 func init() {
-	// Register element types and DoFns.
-	beam.RegisterType(reflect.TypeOf((*stringPair)(nil)).Elem())
+	// Register DoFn.
 	register.Function1x2(splitStringPair)
 }
 
