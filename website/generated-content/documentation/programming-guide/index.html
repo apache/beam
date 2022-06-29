@@ -266,9 +266,7 @@ type. However, to support distributed processing, Beam needs to be able to
 encode each individual element as a byte string (so elements can be passed
 around to distributed workers). The Beam SDKs provide a data encoding mechanism
 that includes built-in encoding for commonly-used types as well as support for
-specifying custom encodings as needed.</p><p class=language-go>Custom struct types should be registered with beam using <code>beam.RegisterType</code>.
-Among other things, this allows the Go SDK to infer an encoding from their
-exported fields. Unexported fields in struct types are ignored.</p><h4 id=element-schema>3.2.2. Element schema</h4><p>In many cases, the element type in a <code>PCollection</code> has a structure that can introspected.
+specifying custom encodings as needed.</p><h4 id=element-schema>3.2.2. Element schema</h4><p>In many cases, the element type in a <code>PCollection</code> has a structure that can introspected.
 Examples are JSON, Protocol Buffer, Avro, and database records. Schemas provide a way to
 express types as a set of named fields, allowing for more-expressive aggregations.</p><h4 id=immutability>3.2.3. Immutability</h4><p>A <code>PCollection</code> is immutable. Once created, you cannot add, remove, or change
 individual elements. A Beam Transform might process each element of a
@@ -387,7 +385,24 @@ data into a format suitable for output, like database table rows or printable
 strings.</p><p>When you apply a <code>ParDo</code> transform, you&rsquo;ll need to provide user code in the form
 of a <code>DoFn</code> object. <code>DoFn</code> is a Beam SDK class that defines a distributed
 processing function.</p><span class="language-java language-py"><blockquote><p>When you create a subclass of <code>DoFn</code>, note that your subclass should adhere to
-the <a href=#requirements-for-writing-user-code-for-beam-transforms>Requirements for writing user code for Beam transforms</a>.</p></blockquote></span><h5 id=applying-pardo>4.2.1.1. Applying ParDo</h5><p class="language-java language-py">Like all Beam transforms, you apply <code>ParDo</code> by calling the <code>apply</code> method on the
+the <a href=#requirements-for-writing-user-code-for-beam-transforms>Requirements for writing user code for Beam transforms</a>.</p></blockquote></span><p class=language-go>All DoFns should be registered using a generic <code>register.DoFnXxY[...]</code>
+function. This allows the Go SDK to infer an encoding from any inputs/outputs,
+registers the DoFn for execution on remote runners, and optimizes the runtime
+execution of the DoFns via reflection.</p><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// ComputeWordLengthFn is a DoFn that computes the word length of string elements.
+</span><span class=c1></span><span class=kd>type</span> <span class=nx>ComputeWordLengthFn</span> <span class=kd>struct</span><span class=p>{}</span>
+
+<span class=c1>// ProcessElement computes the length of word and emits the result.
+</span><span class=c1>// When creating structs as a DoFn, the ProcessElement method performs the
+</span><span class=c1>// work of this step in the pipeline.
+</span><span class=c1></span><span class=kd>func</span> <span class=p>(</span><span class=nx>fn</span> <span class=o>*</span><span class=nx>ComputeWordLengthFn</span><span class=p>)</span> <span class=nf>ProcessElement</span><span class=p>(</span><span class=nx>ctx</span> <span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>,</span> <span class=nx>word</span> <span class=kt>string</span><span class=p>)</span> <span class=kt>int</span> <span class=p>{</span>
+   <span class=o>...</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
+  <span class=c1>// 2 inputs and 1 output =&gt; DoFn2x1
+</span><span class=c1></span>  <span class=c1>// Input/output types are included in order in the brackets
+</span><span class=c1></span>	<span class=nx>register</span><span class=p>.</span><span class=nx>DoFn2x1</span><span class=p>[</span><span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>,</span> <span class=kt>string</span><span class=p>,</span> <span class=kt>int</span><span class=p>](</span><span class=o>&amp;</span><span class=nx>ComputeWordLengthFn</span><span class=p>{})</span>
+<span class=p>}</span></code></pre></div></div></div><h5 id=applying-pardo>4.2.1.1. Applying ParDo</h5><p class="language-java language-py">Like all Beam transforms, you apply <code>ParDo</code> by calling the <code>apply</code> method on the
 input <code>PCollection</code> and passing <code>ParDo</code> as an argument, as shown in the
 following example code:</p><p class=language-go><code>beam.ParDo</code> applies the passed in <code>DoFn</code> argument to the input <code>PCollection</code>,
 as shown in the following example code:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// The input PCollection of Strings.
@@ -423,6 +438,11 @@ as shown in the following example code:</p><div class="language-java snippet"><d
 <span class=c1>// DoFns must be registered with beam.
 </span><span class=c1></span><span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
 	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterType</span><span class=p>(</span><span class=nx>reflect</span><span class=p>.</span><span class=nf>TypeOf</span><span class=p>((</span><span class=o>*</span><span class=nx>ComputeWordLengthFn</span><span class=p>)(</span><span class=kc>nil</span><span class=p>)))</span>
+	<span class=c1>// 2 inputs and 0 outputs =&gt; DoFn2x0
+</span><span class=c1></span>	<span class=c1>// 1 input =&gt; Emitter1
+</span><span class=c1></span>	<span class=c1>// Input/output types are included in order in the brackets
+</span><span class=c1></span>	<span class=nx>register</span><span class=p>.</span><span class=nx>DoFn2x0</span><span class=p>[</span><span class=kt>string</span><span class=p>,</span> <span class=kd>func</span><span class=p>(</span><span class=kt>int</span><span class=p>)](</span><span class=o>&amp;</span><span class=nx>ComputeWordLengthFn</span><span class=p>{})</span>
+	<span class=nx>register</span><span class=p>.</span><span class=nx>Emitter1</span><span class=p>[</span><span class=kt>int</span><span class=p>]()</span>
 <span class=p>}</span>
 
 
@@ -460,7 +480,11 @@ look like this:</p><div class="language-java snippet"><div class="notebook-skip 
 <span class=p>}</span>
 
 <span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
-	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterType</span><span class=p>(</span><span class=nx>reflect</span><span class=p>.</span><span class=nf>TypeOf</span><span class=p>((</span><span class=o>*</span><span class=nx>ComputeWordLengthFn</span><span class=p>)(</span><span class=kc>nil</span><span class=p>)))</span>
+  <span class=c1>// 2 inputs and 0 outputs =&gt; DoFn2x0
+</span><span class=c1></span>  <span class=c1>// 1 input =&gt; Emitter1
+</span><span class=c1></span>  <span class=c1>// Input/output types are included in order in the brackets
+</span><span class=c1></span>	<span class=nx>register</span><span class=p>.</span><span class=nf>Function2x0</span><span class=p>(</span><span class=o>&amp;</span><span class=nx>ComputeWordLengthFn</span><span class=p>{})</span>
+	<span class=nx>register</span><span class=p>.</span><span class=nx>Emitter1</span><span class=p>[</span><span class=kt>int</span><span class=p>]()</span>
 <span class=p>}</span></code></pre></div></div></div><p class=language-java>Inside your <code>DoFn</code> subclass, you&rsquo;ll write a method annotated with
 <code>@ProcessElement</code> where you provide the actual processing logic. You don&rsquo;t need
 to manually extract the elements from the input collection; the Beam SDKs handle
@@ -501,10 +525,19 @@ or the framework will raise an error.</p><div class="language-java snippet"><div
 <span class=c1>// DoFns must be registered with beam.
 </span><span class=c1></span><span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
 	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterType</span><span class=p>(</span><span class=nx>reflect</span><span class=p>.</span><span class=nf>TypeOf</span><span class=p>((</span><span class=o>*</span><span class=nx>ComputeWordLengthFn</span><span class=p>)(</span><span class=kc>nil</span><span class=p>)))</span>
+	<span class=c1>// 2 inputs and 0 outputs =&gt; DoFn2x0
+</span><span class=c1></span>	<span class=c1>// 1 input =&gt; Emitter1
+</span><span class=c1></span>	<span class=c1>// Input/output types are included in order in the brackets
+</span><span class=c1></span>	<span class=nx>register</span><span class=p>.</span><span class=nx>DoFn2x0</span><span class=p>[</span><span class=kt>string</span><span class=p>,</span> <span class=kd>func</span><span class=p>(</span><span class=kt>int</span><span class=p>)](</span><span class=o>&amp;</span><span class=nx>ComputeWordLengthFn</span><span class=p>{})</span>
+	<span class=nx>register</span><span class=p>.</span><span class=nx>Emitter1</span><span class=p>[</span><span class=kt>int</span><span class=p>]()</span>
 <span class=p>}</span></code></pre></div></div></div><p class=language-go>Simple DoFns can also be written as functions.</p><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=kd>func</span> <span class=nf>ComputeWordLengthFn</span><span class=p>(</span><span class=nx>word</span> <span class=kt>string</span><span class=p>,</span> <span class=nx>emit</span> <span class=kd>func</span><span class=p>(</span><span class=kt>int</span><span class=p>))</span> <span class=p>{</span> <span class=o>...</span> <span class=p>}</span>
 
 <span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
-	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterFunction</span><span class=p>(</span><span class=nx>ComputeWordLengthFn</span><span class=p>)</span>
+  <span class=c1>// 2 inputs and 0 outputs =&gt; DoFn2x0
+</span><span class=c1></span>  <span class=c1>// 1 input =&gt; Emitter1
+</span><span class=c1></span>  <span class=c1>// Input/output types are included in order in the brackets
+</span><span class=c1></span>  <span class=nx>register</span><span class=p>.</span><span class=nx>DoFn2x0</span><span class=p>[</span><span class=kt>string</span><span class=p>,</span> <span class=kd>func</span><span class=p>(</span><span class=kt>int</span><span class=p>)](</span><span class=o>&amp;</span><span class=nx>ComputeWordLengthFn</span><span class=p>{})</span>
+  <span class=nx>register</span><span class=p>.</span><span class=nx>Emitter1</span><span class=p>[</span><span class=kt>int</span><span class=p>]()</span>
 <span class=p>}</span></code></pre></div></div></div><p><span class=language-go></p><blockquote><p><strong>Note:</strong> Whether using a structural <code>DoFn</code> type or a functional <code>DoFn</code>, they should be registered with
 beam in an <code>init</code> block. Otherwise they may not execute on distributed runners.</p></blockquote></span><span class=language-java><blockquote><p><strong>Note:</strong> If the elements in your input <code>PCollection</code> are key/value pairs, you
 can access the key or value by using <code>element.getKey()</code> or
@@ -587,7 +620,7 @@ Java 8 lambda function for additional brevity.</span></p><p>Here&rsquo;s the pre
 	<span class=k>return</span> <span class=nb>len</span><span class=p>(</span><span class=nx>word</span><span class=p>)</span>
 <span class=p>},</span> <span class=nx>words</span><span class=p>)</span></code></pre></div></div></div><p><span class=language-java></p><blockquote><p><strong>Note:</strong> You can use Java 8 lambda functions with several other Beam
 transforms, including <code>Filter</code>, <code>FlatMapElements</code>, and <code>Partition</code>.</p></blockquote></span><p><span class=language-go></p><blockquote><p><strong>Note:</strong> Anonymous function DoFns may not work on distributed runners.
-It&rsquo;s recommended to use named functions and register them with <code>beam.RegisterFunction</code> in
+It&rsquo;s recommended to use named functions and register them with <code>register.FunctionXxY</code> in
 an <code>init()</code> block.</p></blockquote></span><h5 id=dofn>4.2.1.4. DoFn lifecycle</h5><p>Here is a sequence diagram that shows the lifecycle of the DoFn during
 the execution of the ParDo transform. The comments give useful
 information to pipeline developers such as the constraints that
@@ -726,9 +759,8 @@ data contains names and phone numbers.</p><div class="language-java snippet"><di
 <span class=p>}</span>
 
 <span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
-	<span class=c1>// Register element types and DoFns.
-</span><span class=c1></span>	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterType</span><span class=p>(</span><span class=nx>reflect</span><span class=p>.</span><span class=nf>TypeOf</span><span class=p>((</span><span class=o>*</span><span class=nx>stringPair</span><span class=p>)(</span><span class=kc>nil</span><span class=p>)).</span><span class=nf>Elem</span><span class=p>())</span>
-	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterFunction</span><span class=p>(</span><span class=nx>splitStringPair</span><span class=p>)</span>
+	<span class=c1>// Register DoFn.
+</span><span class=c1></span>	<span class=nx>register</span><span class=p>.</span><span class=nf>Function1x2</span><span class=p>(</span><span class=nx>splitStringPair</span><span class=p>)</span>
 <span class=p>}</span>
 
 <span class=c1>// CreateAndSplit is a helper function that creates
@@ -871,7 +903,9 @@ parameters maps to the ordering of the <code>CoGroupByKey</code> inputs.</p><div
 <span class=p>}</span>
 
 <span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
-	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterFunction</span><span class=p>(</span><span class=nx>formatCoGBKResults</span><span class=p>)</span>
+	<span class=nx>register</span><span class=p>.</span><span class=nf>Function3x1</span><span class=p>(</span><span class=nx>formatCoGBKResults</span><span class=p>)</span>
+	<span class=c1>// 1 input of type string =&gt; Iter1[string]
+</span><span class=c1></span>	<span class=nx>register</span><span class=p>.</span><span class=nx>Iter1</span><span class=p>[</span><span class=kt>string</span><span class=p>]()</span>
 <span class=p>}</span>
 
 
@@ -953,12 +987,22 @@ reduces the storage of intermediate accumulators.</li></ul><h5 id=simple-combine
   <span class=k>return</span> <span class=nb>min</span><span class=p>(</span><span class=nb>sum</span><span class=p>(</span><span class=n>values</span><span class=p>),</span> <span class=n>bound</span><span class=p>)</span>
 
 <span class=n>small_sum</span> <span class=o>=</span> <span class=n>pc</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>CombineGlobally</span><span class=p>(</span><span class=n>bounded_sum</span><span class=p>)</span>  <span class=c1># [500]</span>
-<span class=n>large_sum</span> <span class=o>=</span> <span class=n>pc</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>CombineGlobally</span><span class=p>(</span><span class=n>bounded_sum</span><span class=p>,</span> <span class=n>bound</span><span class=o>=</span><span class=mi>5000</span><span class=p>)</span>  <span class=c1># [1111]</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=kd>func</span> <span class=nf>sumInts</span><span class=p>(</span><span class=nx>a</span><span class=p>,</span> <span class=nx>v</span> <span class=kt>int</span><span class=p>)</span> <span class=kt>int</span> <span class=p>{</span>
+<span class=n>large_sum</span> <span class=o>=</span> <span class=n>pc</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>CombineGlobally</span><span class=p>(</span><span class=n>bounded_sum</span><span class=p>,</span> <span class=n>bound</span><span class=o>=</span><span class=mi>5000</span><span class=p>)</span>  <span class=c1># [1111]</span></code></pre></div></div></div><p class=language-go><p>All Combiners should be registered using a generic <code>register.CombinerX[...]</code>
+function. This allows the Go SDK to infer an encoding from any inputs/outputs,
+registers the Combiner for execution on remote runners, and optimizes the runtime
+execution of the Combiner via reflection.</p><p>Combiner1 should be used when your accumulator, input, and output are all of the
+same type. It can be called with <code>register.Combiner1[T](&CustomCombiner{})</code> where <code>T</code>
+is the type of the input/accumulator/output.</p><p>Combiner2 should be used when your accumulator, input, and output are 2 distinct
+types. It can be called with <code>register.Combiner2[T1, T2](&CustomCombiner{})</code> where
+<code>T1</code> is the type of the accumulator and <code>T2</code> is the other type.</p><p>Combiner3 should be used when your accumulator, input, and output are 3 distinct
+types. It can be called with <code>register.Combiner3[T1, T2, T3](&CustomCombiner{})</code>
+where <code>T1</code> is the type of the accumulator, <code>T2</code> is the type of the input, and <code>T3</code> is
+the type of the output.</p></p><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=kd>func</span> <span class=nf>sumInts</span><span class=p>(</span><span class=nx>a</span><span class=p>,</span> <span class=nx>v</span> <span class=kt>int</span><span class=p>)</span> <span class=kt>int</span> <span class=p>{</span>
 	<span class=k>return</span> <span class=nx>a</span> <span class=o>+</span> <span class=nx>v</span>
 <span class=p>}</span>
 
 <span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
-	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterFunction</span><span class=p>(</span><span class=nx>sumInts</span><span class=p>)</span>
+	<span class=nx>register</span><span class=p>.</span><span class=nf>Function2x1</span><span class=p>(</span><span class=nx>sumInts</span><span class=p>)</span>
 <span class=p>}</span>
 
 <span class=kd>func</span> <span class=nf>globallySumInts</span><span class=p>(</span><span class=nx>s</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>Scope</span><span class=p>,</span> <span class=nx>ints</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>PCollection</span><span class=p>)</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>PCollection</span> <span class=p>{</span>
@@ -978,7 +1022,7 @@ reduces the storage of intermediate accumulators.</li></ul><h5 id=simple-combine
 <span class=p>}</span>
 
 <span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
-	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterType</span><span class=p>(</span><span class=nx>reflect</span><span class=p>.</span><span class=nf>TypeOf</span><span class=p>((</span><span class=o>*</span><span class=nx>boundedSum</span><span class=p>)(</span><span class=kc>nil</span><span class=p>)))</span>
+	<span class=nx>register</span><span class=p>.</span><span class=nx>Combiner1</span><span class=p>[</span><span class=kt>int</span><span class=p>](</span><span class=o>&amp;</span><span class=nx>boundedSum</span><span class=p>{})</span>
 <span class=p>}</span>
 
 <span class=kd>func</span> <span class=nf>globallyBoundedSumInts</span><span class=p>(</span><span class=nx>s</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>Scope</span><span class=p>,</span> <span class=nx>bound</span> <span class=kt>int</span><span class=p>,</span> <span class=nx>ints</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>PCollection</span><span class=p>)</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>PCollection</span> <span class=p>{</span>
@@ -1075,7 +1119,7 @@ mean average:</p><div class="language-java snippet"><div class="notebook-skip co
 <span class=p>}</span>
 
 <span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
-	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterType</span><span class=p>(</span><span class=nx>reflect</span><span class=p>.</span><span class=nf>TypeOf</span><span class=p>((</span><span class=o>*</span><span class=nx>averageFn</span><span class=p>)(</span><span class=kc>nil</span><span class=p>)))</span>
+	<span class=nx>register</span><span class=p>.</span><span class=nx>Combiner3</span><span class=p>[</span><span class=nx>averageAccum</span><span class=p>,</span> <span class=kt>int</span><span class=p>,</span> <span class=kt>float64</span><span class=p>](</span><span class=o>&amp;</span><span class=nx>averageFn</span><span class=p>{})</span>
 <span class=p>}</span></code></pre></div></div></div><span class=language-go><blockquote><p><strong>Note</strong>: Only <code>MergeAccumulators</code> is a required method. The others will have a default interpretation
 based on the accumulator type.</p></blockquote></span><h5 id=combining-pcollection>4.2.4.3. Combining a PCollection into a single value</h5><p>Use the global combine to transform all of the elements in a given <code>PCollection</code>
 into a single value, represented in your pipeline as a new <code>PCollection</code>
@@ -1236,7 +1280,7 @@ for instance).</p><p>The following example divides a <code>PCollection</code> in
 <span class=p>}</span>
 
 <span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
-	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterFunction</span><span class=p>(</span><span class=nx>decileFn</span><span class=p>)</span>
+	<span class=nx>register</span><span class=p>.</span><span class=nf>Function1x1</span><span class=p>(</span><span class=nx>decileFn</span><span class=p>)</span>
 <span class=p>}</span>
 
 
@@ -1267,9 +1311,10 @@ a remote worker in your processing cluster.
 as <code>DoFn</code>, <code>CombineFn</code>, and <code>WindowFn</code>, already implement <code>Serializable</code>;
 however, your subclass must not add any non-serializable members.</span>
 <span class=language-go>Funcs are serializable as long as
-they are registered with <code>beam.RegisterFunction</code>, and are not
-closures. Structural <code>DoFn</code>s will have all exported fields serialized.
-Unexported fields are unable to be serialized, and will be silently ignored.</span></p><p>Some other serializability factors you should keep in mind are:</p><ul><li><span class="language-java language-py">Transient</span><span class=langauage-go>Unexported</span>
+they are registered with <code>register.FunctionXxY</code> (for simple functions) or
+<code>register.DoFnXxY</code> (for sturctural DoFns), and are not closures. Structural
+<code>DoFn</code>s will have all exported fields serialized. Unexported fields are unable to
+be serialized, and will be silently ignored.</span></p><p>Some other serializability factors you should keep in mind are:</p><ul><li><span class="language-java language-py">Transient</span><span class=langauage-go>Unexported</span>
 fields in your function object are <em>not</em> transmitted to worker
 instances, because they are not automatically serialized.</li><li>Avoid loading a field with a large amount of data before serialization.</li><li>Individual instances of your function object cannot share data.</li><li>Mutating a function object after it gets applied will have no effect.</li></ul><span class=language-java><blockquote><p><strong>Note:</strong> Take care when declaring your function object inline by using an anonymous
 inner class instance. In a non-static context, your inner class instance will
@@ -1295,7 +1340,8 @@ data that can be read from within the <code>ParDo</code> transform&rsquo;s <code
 each element.</p><p>Side inputs are useful if your <code>ParDo</code> needs to inject additional data when
 processing each element in the input <code>PCollection</code>, but the additional data
 needs to be determined at runtime (and not hard-coded). Such values might be
-determined by the input data, or depend on a different branch of your pipeline.</p><h4 id=side-inputs-pardo>4.4.1. Passing side inputs to ParDo</h4><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java>  <span class=c1>// Pass side inputs to your ParDo transform by invoking .withSideInputs.
+determined by the input data, or depend on a different branch of your pipeline.</p><p class=language-go>All side input iterables should be registered using a generic <code>register.IterX[...]</code>
+function. This optimizes runtime execution of the iterable.</p><h4 id=side-inputs-pardo>4.4.1. Passing side inputs to ParDo</h4><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java>  <span class=c1>// Pass side inputs to your ParDo transform by invoking .withSideInputs.
 </span><span class=c1></span>  <span class=c1>// Inside your DoFn, access the side input by using the method DoFn.ProcessContext.sideInput.
 </span><span class=c1></span>
   <span class=c1>// The input PCollection to ParDo.
@@ -1411,8 +1457,12 @@ determined by the input data, or depend on a different branch of your pipeline.<
 <span class=p>}</span>
 
 <span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
-	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterFunction</span><span class=p>(</span><span class=nx>filterWordsAbove</span><span class=p>)</span>
-	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterFunction</span><span class=p>(</span><span class=nx>filterWordsBelow</span><span class=p>)</span>
+	<span class=nx>register</span><span class=p>.</span><span class=nf>Function3x1</span><span class=p>(</span><span class=nx>filterWordsAbove</span><span class=p>)</span>
+	<span class=nx>register</span><span class=p>.</span><span class=nf>Function3x0</span><span class=p>(</span><span class=nx>filterWordsBelow</span><span class=p>)</span>
+	<span class=c1>// 1 input of type string =&gt; Emitter1[string]
+</span><span class=c1></span>	<span class=nx>register</span><span class=p>.</span><span class=nx>Emitter1</span><span class=p>[</span><span class=kt>string</span><span class=p>]()</span>
+	<span class=c1>// 1 input of type float64 =&gt; Iter1[float64]
+</span><span class=c1></span>	<span class=nx>register</span><span class=p>.</span><span class=nx>Iter1</span><span class=p>[</span><span class=kt>float64</span><span class=p>]()</span>
 <span class=p>}</span>
 
 
@@ -1523,9 +1573,10 @@ multiple output PCollections.</p><div class="language-java snippet"><div class="
 <span class=c1>// processWordsMixed uses both a standard return and an emitter function.
 </span><span class=c1>// The standard return produces the first PCollection from beam.ParDo2,
 </span><span class=c1>// and the emitter produces the second PCollection.
-</span><span class=c1></span><span class=nx>length</span><span class=p>,</span> <span class=nx>mixedMarked</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo2</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nx>processWordsMixed</span><span class=p>,</span> <span class=nx>words</span><span class=p>)</span></code></pre></div></div></div><h4 id=multiple-outputs-dofn>4.5.2. Emitting to multiple outputs in your DoFn</h4><p class=language-go>Call emitter functions as needed to produce 0 or more elements for its matching
+</span><span class=c1></span><span class=nx>length</span><span class=p>,</span> <span class=nx>mixedMarked</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo2</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nx>processWordsMixed</span><span class=p>,</span> <span class=nx>words</span><span class=p>)</span></code></pre></div></div></div><h4 id=multiple-outputs-dofn>4.5.2. Emitting to multiple outputs in your DoFn</h4><p class=language-go><p>Call emitter functions as needed to produce 0 or more elements for its matching
 <code>PCollection</code>. The same value can be emitted with multiple emitters.
-As normal, do not mutate values after emitting them from any emitter.</p><p class=language-go>DoFns can also return a single element via the standard return.
+As normal, do not mutate values after emitting them from any emitter.</p><p>All emitters should be registered using a generic <code>register.EmitterX[...]</code>
+function. This optimizes runtime execution of the emitter.</p></p><p class=language-go>DoFns can also return a single element via the standard return.
 The standard return is always the first PCollection returned from beam.ParDo.
 Other emitters output to their own PCollections in their defined parameter order.</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// Inside your ParDo&#39;s DoFn, you can emit an element to a specific output PCollection by providing a
 </span><span class=c1>// MultiOutputReceiver to your process method, and passing in the appropriate TupleTag to obtain an OutputReceiver.
@@ -1603,8 +1654,10 @@ Other emitters output to their own PCollections in their defined parameter order
 <span class=p>}</span>
 
 <span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
-	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterFunction</span><span class=p>(</span><span class=nx>processWords</span><span class=p>)</span>
-	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterFunction</span><span class=p>(</span><span class=nx>processWordsMixed</span><span class=p>)</span>
+	<span class=nx>register</span><span class=p>.</span><span class=nf>Function4x0</span><span class=p>(</span><span class=nx>processWords</span><span class=p>)</span>
+	<span class=nx>register</span><span class=p>.</span><span class=nf>Function2x1</span><span class=p>(</span><span class=nx>processWordsMixed</span><span class=p>)</span>
+	<span class=c1>// 1 input of type string =&gt; Emitter1[string]
+</span><span class=c1></span>	<span class=nx>register</span><span class=p>.</span><span class=nx>Emitter1</span><span class=p>[</span><span class=kt>string</span><span class=p>]()</span>
 <span class=p>}</span></code></pre></div></div></div><h4 id=other-dofn-parameters>4.5.3. Accessing additional parameters in your DoFn</h4><p class=language-java>In addition to the element and the <code>OutputReceiver</code>, Beam will populate other parameters to your DoFn&rsquo;s <code>@ProcessElement</code> method.
 Any combination of these parameters can be added to your process method in any order.</p><p class=language-py>In addition to the element, Beam will populate other parameters to your DoFn&rsquo;s <code>process</code> method.
 Any combination of these parameters can be added to your process method in any order.</p><p class=language-go>In addition to the element, Beam will populate other parameters to your DoFn&rsquo;s <code>ProcessElement</code> method.
@@ -4435,7 +4488,7 @@ functions as shortcuts for single, unnamed inputs/outputs or define a map for na
 <span class=nx>outT</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>UnnamedOutput</span><span class=p>(</span><span class=nx>typex</span><span class=p>.</span><span class=nf>New</span><span class=p>(</span><span class=nx>reflectx</span><span class=p>.</span><span class=nx>String</span><span class=p>))</span>
 <span class=nx>res</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>CrossLanguage</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nx>urn</span><span class=p>,</span> <span class=nx>payload</span><span class=p>,</span> <span class=nx>expansionAddr</span><span class=p>,</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>UnnamedInput</span><span class=p>(</span><span class=nx>inputPCol</span><span class=p>),</span> <span class=nx>outT</span><span class=p>)</span>
 </code></pre></div></li><li><p>After the job has been submitted to the Beam runner, shutdown the expansion service by
-terminating the expansion service process.</p></li></ol><h3 id=x-lang-transform-runner-support>13.3. Runner Support</h3><p>Currently, portable runners such as Flink, Spark, and the direct runner can be used with multi-language pipelines.</p><p>Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.</p><h3 id=x-lang-transform-tips-troubleshooting>13.4 Tips and Troubleshooting</h3><p>For additional tips and troubleshooting information, see <a href=https://cwiki.apache.org/confluence/display/BEAM/Multi-language+Pipelines+Tips>here</a>.</p><div class=feedback><p class=update>Last updated on 2022/06/22</p><h3>Have you found everything you were looking for?</h3><p class=description>Was it all useful and clear? Is there anything that you would like to change? Let us know!</p><button class=load-button><a href="mailto:dev@beam.apache.org?subject=Beam Website Feedback">SEND FEEDBACK</a></button></div></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class=footer-wrapper><div class=wrapper-grid><div class=footer__cols__col><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div><div class=footer__bottom>&copy;
+terminating the expansion service process.</p></li></ol><h3 id=x-lang-transform-runner-support>13.3. Runner Support</h3><p>Currently, portable runners such as Flink, Spark, and the direct runner can be used with multi-language pipelines.</p><p>Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.</p><h3 id=x-lang-transform-tips-troubleshooting>13.4 Tips and Troubleshooting</h3><p>For additional tips and troubleshooting information, see <a href=https://cwiki.apache.org/confluence/display/BEAM/Multi-language+Pipelines+Tips>here</a>.</p><div class=feedback><p class=update>Last updated on 2022/06/29</p><h3>Have you found everything you were looking for?</h3><p class=description>Was it all useful and clear? Is there anything that you would like to change? Let us know!</p><button class=load-button><a href="mailto:dev@beam.apache.org?subject=Beam Website Feedback">SEND FEEDBACK</a></button></div></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class=footer-wrapper><div class=wrapper-grid><div class=footer__cols__col><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div><div class=footer__bottom>&copy;
 <a href=http://www.apache.org>The Apache Software Foundation</a>
 | <a href=/privacy_policy>Privacy Policy</a>
 | <a href=/feed.xml>RSS Feed</a><br><br>Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.</div></div><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col--group><div class=footer__cols__col__logo><a href=https://github.com/apache/beam><img src=/images/logos/social-icons/github-logo-150.png class=footer__logo alt="Github logo"></a></div><div class=footer__cols__col__logo><a href=https://www.linkedin.com/company/apache-beam/><img src=/images/logos/social-icons/linkedin-logo-150.png class=footer__logo alt="Linkedin logo"></a></div></div><div class=footer__cols__col--group><div class=footer__cols__col__logo><a href=https://twitter.com/apachebeam><img src=/images/logos/social-icons/twitter-logo-150.png class=footer__logo alt="Twitter logo"></a></div><div class=footer__cols__col__logo><a href=https://www.youtube.com/channel/UChNnb_YO_7B0HlW6FhAXZZQ><img src=/images/logos/social-icons/youtube-logo-150.png class=footer__logo alt="Youtube logo"></a></div></div></div></div></div></footer></body></html>

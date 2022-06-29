@@ -4674,9 +4674,6 @@ encode each individual element as a byte string (so elements can be passed
 around to distributed workers). The Beam SDKs provide a data encoding mechanism
 that includes built-in encoding for commonly-used types as well as support for
 specifying custom encodings as needed.&lt;/p>
-&lt;p class="language-go">Custom struct types should be registered with beam using &lt;code>beam.RegisterType&lt;/code>.
-Among other things, this allows the Go SDK to infer an encoding from their
-exported fields. Unexported fields in struct types are ignored.&lt;/p>
 &lt;h4 id="element-schema">3.2.2. Element schema&lt;/h4>
 &lt;p>In many cases, the element type in a &lt;code>PCollection&lt;/code> has a structure that can introspected.
 Examples are JSON, Protocol Buffer, Avro, and database records. Schemas provide a way to
@@ -4938,6 +4935,30 @@ processing function.&lt;/p>
 the &lt;a href="#requirements-for-writing-user-code-for-beam-transforms">Requirements for writing user code for Beam transforms&lt;/a>.&lt;/p>
 &lt;/blockquote>
 &lt;/span>
+&lt;p class="language-go">All DoFns should be registered using a generic &lt;code>register.DoFnXxY[...]&lt;/code>
+function. This allows the Go SDK to infer an encoding from any inputs/outputs,
+registers the DoFn for execution on remote runners, and optimizes the runtime
+execution of the DoFns via reflection.&lt;/p>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// ComputeWordLengthFn is a DoFn that computes the word length of string elements.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">type&lt;/span> &lt;span class="nx">ComputeWordLengthFn&lt;/span> &lt;span class="kd">struct&lt;/span>&lt;span class="p">{}&lt;/span>
+&lt;span class="c1">// ProcessElement computes the length of word and emits the result.
+&lt;/span>&lt;span class="c1">// When creating structs as a DoFn, the ProcessElement method performs the
+&lt;/span>&lt;span class="c1">// work of this step in the pipeline.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">ComputeWordLengthFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ProcessElement&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span> &lt;span class="nx">context&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Context&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">int&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="o">...&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// 2 inputs and 1 output =&amp;gt; DoFn2x1
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// Input/output types are included in order in the brackets
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">DoFn2x1&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nx">context&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Context&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">int&lt;/span>&lt;span class="p">](&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">ComputeWordLengthFn&lt;/span>&lt;span class="p">{})&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h5 id="applying-pardo">4.2.1.1. Applying ParDo&lt;/h5>
 &lt;p class="language-java language-py">Like all Beam transforms, you apply &lt;code>ParDo&lt;/code> by calling the &lt;code>apply&lt;/code> method on the
 input &lt;code>PCollection&lt;/code> and passing &lt;code>ParDo&lt;/code> as an argument, as shown in the
@@ -4989,6 +5010,11 @@ as shown in the following example code:&lt;/p>
 &lt;span class="c1">// DoFns must be registered with beam.
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
 &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterType&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TypeOf&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">ComputeWordLengthFn&lt;/span>&lt;span class="p">)(&lt;/span>&lt;span class="kc">nil&lt;/span>&lt;span class="p">)))&lt;/span>
+&lt;span class="c1">// 2 inputs and 0 outputs =&amp;gt; DoFn2x0
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// 1 input =&amp;gt; Emitter1
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// Input/output types are included in order in the brackets
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">DoFn2x0&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">)](&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">ComputeWordLengthFn&lt;/span>&lt;span class="p">{})&lt;/span>
+&lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Emitter1&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">]()&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="c1">// words is an input PCollection of strings
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">var&lt;/span> &lt;span class="nx">words&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="o">...&lt;/span>
@@ -5045,7 +5071,11 @@ look like this:&lt;/p>
 &lt;span class="o">...&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterType&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TypeOf&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">ComputeWordLengthFn&lt;/span>&lt;span class="p">)(&lt;/span>&lt;span class="kc">nil&lt;/span>&lt;span class="p">)))&lt;/span>
+&lt;span class="c1">// 2 inputs and 0 outputs =&amp;gt; DoFn2x0
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// 1 input =&amp;gt; Emitter1
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// Input/output types are included in order in the brackets
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Function2x0&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">ComputeWordLengthFn&lt;/span>&lt;span class="p">{})&lt;/span>
+&lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Emitter1&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">]()&lt;/span>
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
@@ -5111,6 +5141,11 @@ or the framework will raise an error.&lt;/p>
 &lt;span class="c1">// DoFns must be registered with beam.
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
 &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterType&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TypeOf&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">ComputeWordLengthFn&lt;/span>&lt;span class="p">)(&lt;/span>&lt;span class="kc">nil&lt;/span>&lt;span class="p">)))&lt;/span>
+&lt;span class="c1">// 2 inputs and 0 outputs =&amp;gt; DoFn2x0
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// 1 input =&amp;gt; Emitter1
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// Input/output types are included in order in the brackets
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">DoFn2x0&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">)](&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">ComputeWordLengthFn&lt;/span>&lt;span class="p">{})&lt;/span>
+&lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Emitter1&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">]()&lt;/span>
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
@@ -5122,7 +5157,11 @@ or the framework will raise an error.&lt;/p>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="nf">ComputeWordLengthFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emit&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="p">}&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterFunction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ComputeWordLengthFn&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// 2 inputs and 0 outputs =&amp;gt; DoFn2x0
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// 1 input =&amp;gt; Emitter1
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// Input/output types are included in order in the brackets
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">DoFn2x0&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">)](&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">ComputeWordLengthFn&lt;/span>&lt;span class="p">{})&lt;/span>
+&lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Emitter1&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">]()&lt;/span>
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
@@ -5294,7 +5333,7 @@ transforms, including &lt;code>Filter&lt;/code>, &lt;code>FlatMapElements&lt;/co
 &lt;p>&lt;span class="language-go" >&lt;/p>
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> Anonymous function DoFns may not work on distributed runners.
-It&amp;rsquo;s recommended to use named functions and register them with &lt;code>beam.RegisterFunction&lt;/code> in
+It&amp;rsquo;s recommended to use named functions and register them with &lt;code>register.FunctionXxY&lt;/code> in
 an &lt;code>init()&lt;/code> block.&lt;/p>
 &lt;/blockquote>
 &lt;/span>
@@ -5494,9 +5533,8 @@ data contains names and phone numbers.&lt;/p>
 &lt;span class="k">return&lt;/span> &lt;span class="nx">e&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">K&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">e&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">V&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;span class="c1">// Register element types and DoFns.
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterType&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TypeOf&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">stringPair&lt;/span>&lt;span class="p">)(&lt;/span>&lt;span class="kc">nil&lt;/span>&lt;span class="p">)).&lt;/span>&lt;span class="nf">Elem&lt;/span>&lt;span class="p">())&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterFunction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">splitStringPair&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// Register DoFn.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Function1x2&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">splitStringPair&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="c1">// CreateAndSplit is a helper function that creates
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="nf">CreateAndSplit&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">input&lt;/span> &lt;span class="p">[]&lt;/span>&lt;span class="nx">stringPair&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="p">{&lt;/span>
@@ -5677,7 +5715,9 @@ parameters maps to the ordering of the &lt;code>CoGroupByKey&lt;/code> inputs.&l
 &lt;span class="k">return&lt;/span> &lt;span class="nx">fmt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Sprintf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;%s; %s; %s&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">key&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nf">formatStringIter&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">emails&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nf">formatStringIter&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">phones&lt;/span>&lt;span class="p">))&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterFunction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">formatCoGBKResults&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Function3x1&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">formatCoGBKResults&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// 1 input of type string =&amp;gt; Iter1[string]
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Iter1&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">]()&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="c1">// Synthetic example results of a cogbk.
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">results&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="p">[]&lt;/span>&lt;span class="kd">struct&lt;/span> &lt;span class="p">{&lt;/span>
@@ -5809,6 +5849,21 @@ reduces the storage of intermediate accumulators.&lt;/li>
 &lt;span class="n">large_sum&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pc&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombineGlobally&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">bounded_sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bound&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">5000&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># [1111]&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;p class="language-go">&lt;p>All Combiners should be registered using a generic &lt;code>register.CombinerX[...]&lt;/code>
+function. This allows the Go SDK to infer an encoding from any inputs/outputs,
+registers the Combiner for execution on remote runners, and optimizes the runtime
+execution of the Combiner via reflection.&lt;/p>
+&lt;p>Combiner1 should be used when your accumulator, input, and output are all of the
+same type. It can be called with &lt;code>register.Combiner1[T](&amp;amp;CustomCombiner{})&lt;/code> where &lt;code>T&lt;/code>
+is the type of the input/accumulator/output.&lt;/p>
+&lt;p>Combiner2 should be used when your accumulator, input, and output are 2 distinct
+types. It can be called with &lt;code>register.Combiner2[T1, T2](&amp;amp;CustomCombiner{})&lt;/code> where
+&lt;code>T1&lt;/code> is the type of the accumulator and &lt;code>T2&lt;/code> is the other type.&lt;/p>
+&lt;p>Combiner3 should be used when your accumulator, input, and output are 3 distinct
+types. It can be called with &lt;code>register.Combiner3[T1, T2, T3](&amp;amp;CustomCombiner{})&lt;/code>
+where &lt;code>T1&lt;/code> is the type of the accumulator, &lt;code>T2&lt;/code> is the type of the input, and &lt;code>T3&lt;/code> is
+the type of the output.&lt;/p>
+&lt;/p>
 &lt;div class='language-go snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -5818,7 +5873,7 @@ reduces the storage of intermediate accumulators.&lt;/li>
 &lt;span class="k">return&lt;/span> &lt;span class="nx">a&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="nx">v&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterFunction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">sumInts&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Function2x1&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">sumInts&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">globallySumInts&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">ints&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="p">{&lt;/span>
 &lt;span class="k">return&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Combine&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">sumInts&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">ints&lt;/span>&lt;span class="p">)&lt;/span>
@@ -5834,7 +5889,7 @@ reduces the storage of intermediate accumulators.&lt;/li>
 &lt;span class="k">return&lt;/span> &lt;span class="nx">sum&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterType&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TypeOf&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">boundedSum&lt;/span>&lt;span class="p">)(&lt;/span>&lt;span class="kc">nil&lt;/span>&lt;span class="p">)))&lt;/span>
+&lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Combiner1&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">](&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">boundedSum&lt;/span>&lt;span class="p">{})&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">globallyBoundedSumInts&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">bound&lt;/span> &lt;span class="kt">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">ints&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="p">{&lt;/span>
 &lt;span class="k">return&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Combine&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">boundedSum&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="nx">Bound&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">bound&lt;/span>&lt;span class="p">},&lt;/span> &lt;span class="nx">ints&lt;/span>&lt;span class="p">)&lt;/span>
@@ -5958,7 +6013,7 @@ mean average:&lt;/p>
 &lt;span class="k">return&lt;/span> &lt;span class="nb">float64&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">a&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Sum&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="nb">float64&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">a&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Count&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterType&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">reflect&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TypeOf&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">averageFn&lt;/span>&lt;span class="p">)(&lt;/span>&lt;span class="kc">nil&lt;/span>&lt;span class="p">)))&lt;/span>
+&lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Combiner3&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nx">averageAccum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">float64&lt;/span>&lt;span class="p">](&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">averageFn&lt;/span>&lt;span class="p">{})&lt;/span>
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
@@ -6259,7 +6314,7 @@ for instance).&lt;/p>
 &lt;span class="k">return&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">float64&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">student&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Percentile&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="nb">float64&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="p">))&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterFunction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">decileFn&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Function1x1&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">decileFn&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="c1">// Partition returns a slice of PCollections
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">studentsByPercentile&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Partition&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">10&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">decileFn&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">students&lt;/span>&lt;span class="p">)&lt;/span>
@@ -6309,9 +6364,10 @@ a remote worker in your processing cluster.
 as &lt;code>DoFn&lt;/code>, &lt;code>CombineFn&lt;/code>, and &lt;code>WindowFn&lt;/code>, already implement &lt;code>Serializable&lt;/code>;
 however, your subclass must not add any non-serializable members.&lt;/span>
 &lt;span class="language-go">Funcs are serializable as long as
-they are registered with &lt;code>beam.RegisterFunction&lt;/code>, and are not
-closures. Structural &lt;code>DoFn&lt;/code>s will have all exported fields serialized.
-Unexported fields are unable to be serialized, and will be silently ignored.&lt;/span>&lt;/p>
+they are registered with &lt;code>register.FunctionXxY&lt;/code> (for simple functions) or
+&lt;code>register.DoFnXxY&lt;/code> (for sturctural DoFns), and are not closures. Structural
+&lt;code>DoFn&lt;/code>s will have all exported fields serialized. Unexported fields are unable to
+be serialized, and will be silently ignored.&lt;/span>&lt;/p>
 &lt;p>Some other serializability factors you should keep in mind are:&lt;/p>
 &lt;ul>
 &lt;li>&lt;span class="language-java language-py">Transient&lt;/span>&lt;span class="langauage-go">Unexported&lt;/span>
@@ -6362,6 +6418,8 @@ each element.&lt;/p>
 processing each element in the input &lt;code>PCollection&lt;/code>, but the additional data
 needs to be determined at runtime (and not hard-coded). Such values might be
 determined by the input data, or depend on a different branch of your pipeline.&lt;/p>
+&lt;p class="language-go">All side input iterables should be registered using a generic &lt;code>register.IterX[...]&lt;/code>
+function. This optimizes runtime execution of the iterable.&lt;/p>
 &lt;h4 id="side-inputs-pardo">4.4.1. Passing side inputs to ParDo&lt;/h4>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
@@ -6479,8 +6537,12 @@ determined by the input data, or depend on a different branch of your pipeline.&
 &lt;span class="p">}&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterFunction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">filterWordsAbove&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterFunction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">filterWordsBelow&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Function3x1&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">filterWordsAbove&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Function3x0&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">filterWordsBelow&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// 1 input of type string =&amp;gt; Emitter1[string]
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Emitter1&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">]()&lt;/span>
+&lt;span class="c1">// 1 input of type float64 =&amp;gt; Iter1[float64]
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Iter1&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">float64&lt;/span>&lt;span class="p">]()&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="c1">// The Go SDK doesn&amp;#39;t support custom ViewFns.
 &lt;/span>&lt;span class="c1">// See https://github.com/apache/beam/issues/18602 for details
@@ -6617,9 +6679,12 @@ multiple output PCollections.&lt;/p>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="multiple-outputs-dofn">4.5.2. Emitting to multiple outputs in your DoFn&lt;/h4>
-&lt;p class="language-go">Call emitter functions as needed to produce 0 or more elements for its matching
+&lt;p class="language-go">&lt;p>Call emitter functions as needed to produce 0 or more elements for its matching
 &lt;code>PCollection&lt;/code>. The same value can be emitted with multiple emitters.
 As normal, do not mutate values after emitting them from any emitter.&lt;/p>
+&lt;p>All emitters should be registered using a generic &lt;code>register.EmitterX[...]&lt;/code>
+function. This optimizes runtime execution of the emitter.&lt;/p>
+&lt;/p>
 &lt;p class="language-go">DoFns can also return a single element via the standard return.
 The standard return is always the first PCollection returned from beam.ParDo.
 Other emitters output to their own PCollections in their defined parameter order.&lt;/p>
@@ -6709,8 +6774,10 @@ Other emitters output to their own PCollections in their defined parameter order
 &lt;span class="k">return&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="p">}&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterFunction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">processWords&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterFunction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">processWordsMixed&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Function4x0&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">processWords&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Function2x1&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">processWordsMixed&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// 1 input of type string =&amp;gt; Emitter1[string]
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Emitter1&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">]()&lt;/span>
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>

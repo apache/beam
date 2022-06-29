@@ -41,9 +41,15 @@ See also example at apache_beam/examples/inference/pytorch_image_classification.
 &lt;/ul>
 &lt;h2 id="bugfixes">Bugfixes&lt;/h2>
 &lt;ul>
-&lt;li>Fixed X (Java/Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-X">BEAM-X&lt;/a>).&lt;/li>
 &lt;li>Fixed Java expansion service to allow specific files to stage (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14160">BEAM-14160&lt;/a>).&lt;/li>
 &lt;li>Fixed Elasticsearch connection when using both ssl and username/password (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14000">BEAM-14000&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Python&amp;rsquo;s &lt;code>beam.FlatMap&lt;/code> will raise &lt;code>AttributeError: 'builtin_function_or_method' object has no attribute '__func__'&lt;/code> when
+constructed with some
+&lt;a href="https://docs.python.org/3/library/functions.html">built-ins&lt;/a>, like &lt;code>sum&lt;/code>
+and &lt;code>len&lt;/code> (&lt;a href="https://github.com/apache/beam/issues/22091">#22091&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.40.0 release. Thank you to all contributors!&lt;/p>
