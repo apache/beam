@@ -24,6 +24,8 @@ import Flink
 import InfluxDBCredentialsHelper
 
 import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
+import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY_GO
+
 
 String now = new Date().format('MMddHHmmss', TimeZone.getTimeZone('UTC'))
 
@@ -46,7 +48,7 @@ def batchScenarios = {
         parallelism          : 5,
         endpoint             : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY_GO}/beam_go_sdk:latest",
       ]
     ],
     [
@@ -66,7 +68,7 @@ def batchScenarios = {
         parallelism          : 16,
         endpoint             : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY_GO}/beam_go_sdk:latest",
       ]
     ],
     [
@@ -86,7 +88,7 @@ def batchScenarios = {
         '"value_size": 90}\'',
         endpoint             : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY_GO}/beam_go_sdk:latest",
       ]
     ],
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
@@ -102,10 +104,10 @@ def loadTestJob = { scope, triggeringContext, mode ->
   def flink = new Flink(scope, "beam_LoadTests_Go_Combine_Flink_${mode.capitalize()}")
   flink.setUp(
       [
-        "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest"
+        "${DOCKER_CONTAINER_REGISTRY_GO}/beam_go_sdk:latest"
       ],
       initialParallelism,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.12_job_server:latest")
+      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.13_job_server:latest")
 
   // Execute all scenarios connected with initial parallelism.
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.GO, initialScenarios, 'combine', mode)
