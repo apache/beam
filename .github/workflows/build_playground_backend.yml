@@ -52,7 +52,10 @@ jobs:
       - name: Set up Cloud SDK and its components
         uses: google-github-actions/setup-gcloud@v0
         with:
+            version: '388.0.0'
             install_components: 'beta,cloud-datastore-emulator'
+        run: |
+          gcloud components list
 
       - name: Run PreCommit
         run: ./gradlew playground:backend:precommit
