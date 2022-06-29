@@ -15,11 +15,19 @@
 # limitations under the License.
 
 # Launch db emulator
-current_dir="$(dirname "$0")"
-source "$current_dir/envs_and_functions.sh"
-
+DATASTORE_FULL_ADDRESS="${DATASTORE_EMULATOR_HOST:-"127.0.0.1:8888"}"
 echo "${DATASTORE_FULL_ADDRESS}"
+DATASTORE_PORT="${DATASTORE_FULL_ADDRESS##*:}"
 echo "${DATASTORE_PORT}"
+TEST_PROJECT_ID="test"
+
+waitport() {
+  while ! nc -z localhost "$1"; do
+    echo "waiting for datastore emulator to start..."
+    sleep 1
+  done
+}
+
 PID=$(lsof -t -i :"${DATASTORE_PORT}" -s tcp:LISTEN)
 
 if [ -z "$PID" ]; then

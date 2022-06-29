@@ -15,8 +15,8 @@
 # limitations under the License.
 
 # Kill db emulator
-current_dir="$(dirname "$0")"
-source "$current_dir/envs_and_functions.sh"
+DATASTORE_FULL_ADDRESS="${DATASTORE_EMULATOR_HOST:-"127.0.0.1:8888"}"
+DATASTORE_PORT="${DATASTORE_FULL_ADDRESS##*:}"
 
 PID=$(lsof -t -i :"${DATASTORE_PORT}" -s tcp:LISTEN)
 if [ ! -z "$PID" ]; then
