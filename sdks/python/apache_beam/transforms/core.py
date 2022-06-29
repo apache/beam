@@ -726,16 +726,23 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   @property
   def _process_defined(self) -> bool:
-    return (
-        self.process.__func__  # type: ignore
-        if hasattr(self.process, '__self__') else self.process) != DoFn.process
+    # Check if this DoFn's process method has heen overriden
+    # Note that we retrieve the __func__ attribute, if it exists, to get the
+    # underlying function from the bound method.
+    # If __func__ doesn't exist, self.process was likely overriden with a free
+    # function, as in CallableWrapperDoFn.
+    return getattr(self.process, '__func__', self.process) != DoFn.process
 
   @property
   def _process_batch_defined(self) -> bool:
-    return (
-        self.process_batch.__func__  # type: ignore
-        if hasattr(self.process_batch, '__self__')
-        else self.process_batch) != DoFn.process_batch
+    # Check if this DoFn's process_batch method has heen overriden
+    # Note that we retrieve the __func__ attribute, if it exists, to get the
+    # underlying function from the bound method.
+    # If __func__ doesn't exist, self.process_batch was likely overriden with
+    # a free function.
+    return getattr(
+        self.process_batch, '__func__',
+        self.process_batch) != DoFn.process_batch
 
   @property
   def _can_yield_batches(self) -> bool:
