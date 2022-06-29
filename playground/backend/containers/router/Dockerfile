@@ -84,3 +84,4 @@ COPY sdks.yaml /opt/playground/backend/sdks.yaml
 COPY entrypoint.sh /
 
 ENTRYPOINT ["/entrypoint.sh"]
+
