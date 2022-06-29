@@ -85,8 +85,13 @@ import org.slf4j.LoggerFactory;
  * If you need the full ResponseMetadata and SdkHttpMetadata you can call {@link
  * Write#withFullPublishResult}. If you need the HTTP status code but not the response headers you
  * can call {@link Write#withFullPublishResultWithoutHeaders}.
+ *
+ * @deprecated Module <code>beam-sdks-java-io-amazon-web-services</code> is deprecated and will be
+ *     eventually removed. Please migrate to {@link org.apache.beam.sdk.io.aws2.sns.SnsIO} in module
+ *     <code>beam-sdks-java-io-amazon-web-services2</code>.
  */
 @Experimental(Kind.SOURCE_SINK)
+@Deprecated
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

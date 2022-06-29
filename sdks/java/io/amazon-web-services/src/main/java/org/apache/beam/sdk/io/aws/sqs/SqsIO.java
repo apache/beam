@@ -77,8 +77,13 @@ import org.joda.time.Duration;
  * }</pre>
  *
  * <p>For more information on the available options see {@link AwsOptions}.
+ *
+ * @deprecated Module <code>beam-sdks-java-io-amazon-web-services</code> is deprecated and will be
+ *     eventually removed. Please migrate to {@link org.apache.beam.sdk.io.aws2.sqs.SqsIO} in module
+ *     <code>beam-sdks-java-io-amazon-web-services2</code>.
  */
 @Experimental(Kind.SOURCE_SINK)
+@Deprecated
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
