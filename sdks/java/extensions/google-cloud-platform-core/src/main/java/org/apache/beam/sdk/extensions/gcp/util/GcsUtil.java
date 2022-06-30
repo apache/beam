@@ -57,6 +57,7 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -896,6 +897,23 @@ public class GcsUtil {
           lastError = null;
         } else {
           throw new FileNotFoundException(from.toString());
+        }
+      } else if (e.getCode() == 403 && e.getErrors().size() ==1 && e.getErrors()
+          .get(0).getReason().equals("retentionPolicyNotMet")) {
+        List<StorageObjectOrIOException> srcAndDestObjects = getObjects(Arrays.asList(from, to));
+        if (srcAndDestObjects.get(0).storageObject().getMd5Hash()
+            .equals(srcAndDestObjects.get(1).storageObject().getMd5Hash())) {
+          // Source and destination are identical. Treat this as a successful rewrite
+          LOG.warn(
+              "Caught retentionPolicyNotMet error while rewriting to a bucket with retention "
+                  + "policy. Skipping because destination {} and source {} are deemed identical "
+                  + "because their MD5 Hashes are equal.",
+              getFrom(), getTo());
+          readyToEnqueue = false;
+          lastError = null;
+        } else {
+          // User is attempting to write to a file that hasn't met its retention policy yet.
+          throw new IOException(e.getMessage());
         }
       } else {
         lastError = e;
