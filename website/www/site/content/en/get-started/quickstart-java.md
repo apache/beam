@@ -37,7 +37,7 @@ On this page:
 
 1. Download and install the
   [Java Development Kit (JDK)](https://www.oracle.com/technetwork/java/javase/downloads/index.html)
-  version 8, 11, or 17. Verify that the
+  version 8 or 11. Java 17 is not supported currently. Verify that the
   [JAVA_HOME](https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/envvars001.html)
   environment variable is set and points to your JDK installation.
 2. Download and install [Apache Maven](https://maven.apache.org/download.cgi) by
