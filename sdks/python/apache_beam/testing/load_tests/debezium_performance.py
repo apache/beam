@@ -1,3 +1,59 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+"""
+Load test for operations involving side inputs.
+
+The purpose of this test is to measure the cost of materialization and
+accessing side inputs. The test uses synthetic source which can be
+parametrized to generate records with various sizes of keys and values,
+impose delays in the pipeline and simulate other performance challenges.
+
+This test can accept the following parameters:
+  * side_input_type (str) - Required. Specifies how the side input will be
+    materialized in ParDo operation. Choose from (dict, iter, list).
+  * window_count (int) - The number of fixed sized windows to subdivide the
+    side input into. By default, a global window will be used.
+  * access_percentage (int) - Specifies the percentage of elements in the side
+    input to be accessed. By default, all elements will be accessed.
+
+Example test run:
+
+python -m apache_beam.testing.load_tests.sideinput_test \
+    --test-pipeline-options="
+    --side_input_type=iter
+    --input_options='{
+    \"num_records\": 300,
+    \"key_size\": 5,
+    \"value_size\": 15
+    }'"
+
+or:
+
+./gradlew -PloadTest.args="
+    --side_input_type=iter
+    --input_options='{
+      \"num_records\": 300,
+      \"key_size\": 5,
+      \"value_size\": 15}'" \
+-PloadTest.mainClass=apache_beam.testing.load_tests.debezium_performance \
+-Prunner=DirectRunner :sdks:python:apache_beam:testing:load_tests:run
+"""
+
 import psycopg2
 import os
 import time
@@ -89,20 +145,15 @@ class DebeziumLoadTest(LoadTest, beam.DoFn):
 
         connection.commit()
         cursor.close()
+        return "DebeziumTest"
     # En esta funcion, creare el pipeline que se enviara a los diferentes runners 
     def createPipeline(self):
-        beam_options = PipelineOptions(
-        runner='DataflowRunner',
-        project='apache-beam-testing',
-        job_name='debezium-load-test',
-        temp_location='gs://my-bucket/temp',
-        )
         with beam.Pipeline() as pipeline:
             debeziumTest = (
                 pipeline
-                | "label1" >> beam.Create(['debezium'])
-                | "label2" >> beam.ParDo(lambda x: self.randomInsertTest(self.initConnection()))
-                | "label3" >> beam.ParDo(lambda x: self.readFromDebezium())
+                | "Dummy PCollection" >> beam.Create(['debeziumTest'])
+                | "Insert into database" >> beam.ParDo(lambda x: self.randomInsertTest(self.initConnection()))                
+                | "Read from debezium" >> beam.ParDo(lambda x: self.readFromDebezium())
                 )
 
     #Utilizar reed from debezium
@@ -124,14 +175,5 @@ class DebeziumLoadTest(LoadTest, beam.DoFn):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     debeziumTest = DebeziumLoadTest()
-    print ("Hello world testing ")
-    logging.info("Hello world log testing")
     debeziumTest.createPipeline()
-    #print ("Dataflow Job run well")
-    #logging.info("Dataflow Job run well")
-    #debeziumTest.randomInsertTest(debeziumTest.initConnection())
-    print ("Insert into database succefully")
-    logging.info("Insert into database succefully ")
-    #debeziumTest.readFromDebezium()
-    print ("Debezium read correctly")
-    logging.info("Debezium read correctly ")
+    
