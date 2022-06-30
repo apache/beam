@@ -183,7 +183,7 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
 
   model_handler = PytorchNoBatchModelHandler(
       state_dict_path=known_args.model_state_dict_path,
-      model_class=HuggingFaceStripBatchingWrapper,
+      model_class=model_class,
       model_params=model_params)
 
   with beam.Pipeline(options=pipeline_options) as p:
