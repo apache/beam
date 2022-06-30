@@ -151,7 +151,7 @@ _BEAM_SCHEMA_ID = "_beam_schema_id"
 
 
 def named_fields_to_schema(names_and_types):
-  # type: (Union[Dict[str, type], Sequence[Tuple[str, type]]]) -> schema_pb2.Schema
+  # type: (Union[Dict[str, type], Sequence[Tuple[str, type]]]) -> schema_pb2.Schema # noqa: F821
   if isinstance(names_and_types, dict):
     names_and_types = names_and_types.items()
   return schema_pb2.Schema(
