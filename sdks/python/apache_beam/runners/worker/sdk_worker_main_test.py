@@ -126,32 +126,35 @@ class SdkWorkerMainTest(unittest.TestCase):
 
   def test__set_log_level_overrides(self):
     test_cases = [
-
         ([], {}), # not provided, as a smoke test
         (
             # single overrides
-            ['{"a.b":"DEBUG","c.d":"INFO"}'],
-            {"a.b": logging.DEBUG, "a.b.f": logging.DEBUG, "c.d": logging.INFO}
+            ['{"fake_module_1a.b":"DEBUG","fake_module_1c.d":"INFO"}'],
+            {
+                "fake_module_1a.b": logging.DEBUG,
+                "fake_module_1a.b.f": logging.DEBUG,
+                "fake_module_1c.d": logging.INFO
+            }
         ),
         (
             # multiple overrides
-            ['{"a.b":"DEBUG"}', '{"c.d":"ERROR","c.d.e":15}'],
-            {"a.b": logging.DEBUG, "a.b.f": logging.DEBUG, "c.d": logging.ERROR,
-             "c.d.e": 15, "c.d.f": logging.ERROR}
+            [
+                '{"fake_module_2a.b":"DEBUG"}',
+                '{"fake_module_2c.d":"ERROR","fake_module_2c.d.e":15}'
+            ],
+            {
+                "fake_module_2a.b": logging.DEBUG,
+                "fake_module_2a.b.f": logging.DEBUG,
+                "fake_module_2c.d": logging.ERROR,
+                "fake_module_2c.d.e": 15,
+                "fake_module_2c.d.f": logging.ERROR
+            }
         )
     ]
     for case, expected in test_cases:
-      # Set log level overrides for this fake package name.
-      # This avoids polluting real logging, e.g., in case there is a real module
-      # whose name coincides with the test case.
-      pkgname = ''.join(random.choices(string.ascii_lowercase, k=8))
-      case_prefixed = [
-          re.sub(r'(?<=\{|,)"', '"' + pkgname + '.', record) for record in case
-      ]
-      options_dict = {'sdk_harness_log_level_overrides': case_prefixed}
+      options_dict = {'sdk_harness_log_level_overrides': case}
       sdk_worker_main._set_log_level_overrides(options_dict)
       for name, level in expected.items():
-        name = pkgname + '.' + name
         self.assertEqual(logging.getLogger(name).getEffectiveLevel(), level)
 
   def test__set_log_level_overrides_error(self):
