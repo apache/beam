@@ -79,12 +79,12 @@ func TestSearch_Pagination(t *testing.T) {
 		fakeSearch: func(s, s2 string, m map[string]string, pageToken string) (*http.Response, error) {
 			if pageToken == "theNextPageToken" {
 				return &http.Response{
-					Body:       io.NopCloser(bytes.NewBufferString(`{"entry": [{"resource":{}}], "link": []}`)),
+					Body:       io.NopCloser(bytes.NewBufferString(`{"entry": [{"resource":{"resourceType": "Patient", "id": "2"}}], "link": []}`)),
 					StatusCode: http.StatusOK,
 				}, nil
 			} else {
 				return &http.Response{
-					Body:       io.NopCloser(bytes.NewBufferString(`{"entry": [{"resource":{}}], "link": [{"relation":"next", "url":"https://healthcare.googleapis.com?_page_token=theNextPageToken"}]}`)),
+					Body:       io.NopCloser(bytes.NewBufferString(`{"entry": [{"resource":{"resourceType": "Patient", "id": "1"}}], "link": [{"relation":"next", "url":"https://healthcare.googleapis.com?_page_token=theNextPageToken"}]}`)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
