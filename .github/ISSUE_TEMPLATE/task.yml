@@ -39,12 +39,11 @@ body:
     id: priority
     attributes:
       label: Issue Priority
-      description: What priority is this bug?
+      description: What priority is this task? See https://beam.apache.org/contribute/issue-priorities for the meaning and expectations around issue priorities.
       options:
-        - "Priority: 0"
-        - "Priority: 1"
-        - "Priority: 2"
         - "Priority: 3"
+        - "Priority: 2"
+        - "Priority: 1"
     validations:
       required: true
   - type: dropdown
