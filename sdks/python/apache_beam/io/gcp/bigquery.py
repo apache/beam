@@ -2485,6 +2485,7 @@ class ReadFromBigQuery(PTransform):
         return output_pcollection
     elif self.method is ReadFromBigQuery.Method.DIRECT_READ:
       output_pcollection = self._expand_direct_read(pcoll)
+      _LOGGER.warning(output_pcollection)
       if self.output_type == 'BEAM_ROWS':
         return output_pcollection | ReadFromBigQuery._convert_to_usertype(
             beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
@@ -2591,7 +2592,7 @@ class ReadFromBigQuery(PTransform):
   def _convert_to_usertype(table_schema):
     usertype = beam.io.gcp.bigquery_schema_tools. \
           produce_pcoll_with_schema(table_schema)
-    #_LOGGER.info("{}", usertype)
+    _LOGGER.info(usertype)
     return beam.ParDo(
         beam.io.gcp.bigquery_schema_tools.BeamSchemaConversionDoFn(usertype))
 
