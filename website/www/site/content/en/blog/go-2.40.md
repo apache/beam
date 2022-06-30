@@ -60,10 +60,10 @@ gains, check out the [registration doc page](https://pkg.go.dev/github.com/apach
 # What's Next?
 
 Moving forward, we remain focused on improving the streaming experience and
-leveraging generics to improve the Sdk. Specific improvements we are considering
+leveraging generics to improve the SDK. Specific improvements we are considering
 include adding [State & Timers](https://beam.apache.org/documentation/programming-guide/#state-and-timers)
 support, introducing a Go expansion service so that Go DoFns can be used in other
-languages, wrapping more Java and Python IOs so that they can be easily used in Go,
-and exploring the use of generics to simplify the user experience. As always,
-please let us know what changes you would like to see in the Sdk by [filing an issue](https://github.com/apache/beam/issues/new/choose),
+languages, and wrapping more Java and Python IOs so that they can be easily used
+in Go. As always, please let us know what changes you would like to see by
+[filing an issue](https://github.com/apache/beam/issues/new/choose),
 [emailing the dev list](dev@beam.apache.org), or starting a [slack thread](https://app.slack.com/client/T4S1WH2J3/C9H0YNP3P)!
