@@ -60,22 +60,16 @@ class PlaygroundPageProviders extends StatelessWidget {
 
             if (playground.selectedExample == null &&
                 !Uri.base.toString().contains(kIsEmbedded)) {
-              final newPlayground = PlaygroundState(
-                codeRepository: kCodeRepository,
-                sdk: playground.sdk,
-                selectedExample: null,
-              );
-              final example = _getExample(exampleState, newPlayground);
+              final example = _getExample(exampleState, playground);
               if (example != null) {
                 exampleState
                     .loadExampleInfo(
                       example,
-                      newPlayground.sdk,
+                      playground.sdk,
                     )
                     .then((exampleWithInfo) =>
-                        newPlayground.setExample(exampleWithInfo));
+                        playground.setExample(exampleWithInfo));
               }
-              return newPlayground;
             }
             return playground;
           },
