@@ -21,7 +21,7 @@ This example uses the japanese housing data from kaggle.
 https://www.kaggle.com/datasets/nishiodens/japan-real-estate-transaction-prices
 
 Since the data has missing fields, this example illustrates how to split
-data and assign it to appropriate models. The predictions are then recombined.
+data and assign it to the models that are trained on different subsets of features. The predictions are then recombined.
 
 In order to set this example up, you will need two things.
 1. Build models (or use ours) and reference those via the model directory.
