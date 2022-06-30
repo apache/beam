@@ -152,7 +152,7 @@ def run(argv=None, save_main_session=True):
     flattened_predictions = all_predictions | 'Flatten' >> beam.Flatten()
     predictions = (
         flattened_predictions
-        | 'all predictions' >> beam.Map(report_predictions))
+        | 'AllPredictions' >> beam.Map(report_predictions))
     _ = predictions | "WriteOutput" >> beam.io.WriteToText(
         known_args.output, append_trailing_newlines=True)
 
