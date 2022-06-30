@@ -224,6 +224,7 @@ func TestFhirIO_InvalidRead(t *testing.T) {
 	passert.True(s, failedReads, func(errorMsg string) bool {
 		return strings.Contains(errorMsg, strconv.Itoa(http.StatusNotFound))
 	})
+
 	ptest.RunAndValidate(t, p)
 }
 
@@ -241,6 +242,7 @@ func TestFhirIO_ExecuteBundles(t *testing.T) {
 	passert.True(s, failures, func(errorMsg string) bool {
 		return strings.Contains(errorMsg, strconv.Itoa(http.StatusBadRequest))
 	})
+
 	ptest.RunAndValidate(t, p)
 }
 
