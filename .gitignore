@@ -3,7 +3,7 @@
 # This is typically in files named 'src.xml' throughout this repository.
 
 # Learning
-__learn__/*
+__learn__/
 
 # Ignore any offline repositories the user may have created.
 **/offline-repository/**/*
