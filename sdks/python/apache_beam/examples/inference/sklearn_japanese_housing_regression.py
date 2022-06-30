@@ -131,7 +131,7 @@ def run(argv=None, save_main_session=True):
 
   with beam.Pipeline(options=pipeline_options) as p:
     # This example uses a single file, but it is possible to use many files.
-    file_names = p | 'file_names' >> beam.Create([known_args.input])
+    file_names = p | 'FileNames' >> beam.Create([known_args.input])
     loaded_data = file_names | beam.ParDo(load_dataframe)
 
     # Some examples don't have all features. Pipelines
