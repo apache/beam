@@ -760,9 +760,9 @@ public class BigtableIO {
      * Returns a new {@link BigtableIO.Write} that will report amount of time throttling to Dataflow
      */
     @Experimental
-    public Write withDataflowThrottleReporting() {
+    public Write withDataflowThrottleReporting(boolean enabled) {
       BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withDataflowThrottleReporting(true)).build();
+      return toBuilder().setBigtableConfig(config.withDataflowThrottleReporting(enabled)).build();
     }
 
     /**

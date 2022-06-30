@@ -1567,7 +1567,8 @@ public class BigtableIOTest {
 
   @Test
   public void testWriteWithEnabledDataflowThrottleReporting() {
-    BigtableIO.Write write = defaultWrite.withTableId("TEST-TABLE").withDataflowThrottleReporting();
+    BigtableIO.Write write = defaultWrite.withTableId("TEST-TABLE")
+        .withDataflowThrottleReporting(true);
 
     assertTrue(write.isDataflowThrottleReportingEnabled());
   }
