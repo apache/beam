@@ -121,6 +121,56 @@ class SdkWorkerMainTest(unittest.TestCase):
       self.assertEqual(
           sdk_worker_main._get_log_level_from_options_dict(case), expected)
 
+  def test__set_log_level_overrides(self):
+    test_cases = [
+        ([], {}), # not provided, as a smoke test
+        (
+            # single overrides
+            ['{"fake_module_1a.b":"DEBUG","fake_module_1c.d":"INFO"}'],
+            {
+                "fake_module_1a.b": logging.DEBUG,
+                "fake_module_1a.b.f": logging.DEBUG,
+                "fake_module_1c.d": logging.INFO
+            }
+        ),
+        (
+            # multiple overrides
+            [
+                '{"fake_module_2a.b":"DEBUG"}',
+                '{"fake_module_2c.d":"ERROR","fake_module_2c.d.e":15}'
+            ],
+            {
+                "fake_module_2a.b": logging.DEBUG,
+                "fake_module_2a.b.f": logging.DEBUG,
+                "fake_module_2c.d": logging.ERROR,
+                "fake_module_2c.d.e": 15,
+                "fake_module_2c.d.f": logging.ERROR
+            }
+        )
+    ]
+    for case, expected in test_cases:
+      options_dict = {'sdk_harness_log_level_overrides': case}
+      sdk_worker_main._set_log_level_overrides(options_dict)
+      for name, level in expected.items():
+        self.assertEqual(logging.getLogger(name).getEffectiveLevel(), level)
+
+  def test__set_log_level_overrides_error(self):
+    test_cases = [
+        ({
+            'sdk_harness_log_level_overrides': ['{"missed.quote":WARNING}']
+        },
+         "Unable to parse sdk_harness_log_level_overrides"),
+        ({
+            'sdk_harness_log_level_overrides': ['{"invalid.level":"INVALID"}']
+        },
+         "Error occurred when setting log level"),
+    ]
+    for case, expected in test_cases:
+      with self.assertLogs('apache_beam.runners.worker.sdk_worker_main',
+                           level='ERROR') as cm:
+        sdk_worker_main._set_log_level_overrides(case)
+        self.assertIn(expected, cm.output[0])
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
