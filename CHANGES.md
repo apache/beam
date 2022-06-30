@@ -63,6 +63,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Prebuilt Python SDK Docker image now includes ffmpeg and tensorflow_datasets by default for creating audio & video datasets
 
 ## Breaking Changes
 
