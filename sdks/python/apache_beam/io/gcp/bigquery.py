@@ -2552,26 +2552,18 @@ class ReadFromBigQuery(PTransform):
       step_name = 'ReadFromBigQuery_%d' % ReadFromBigQuery.COUNTER
       ReadFromBigQuery.COUNTER += 1
 
-    def create_read(unique_id):
-      return beam.io.Read(
-          _CustomBigQuerySource(
-              gcs_location=self.gcs_location,
-              pipeline_options=pcoll.pipeline.options,
-              method=self.method,
-              job_name=job_name,
-              step_name=step_name,
-              unique_id=unique_id,
-              *self._args,
-              **self._kwargs))
-
-    def apply_read(read):
-      return pcoll | 'ApplyRead' >> read
-
     return (
         pcoll
-        | 'CreateReads' >> beam.FlatMap(
-            create_read, unique_id=beam.pvalue.AsSingleton(unique_id_pcoll))
-        | 'ApplyReads' >> beam.FlatMap(apply_read)
+        | 'ReadFromBigQuery' >> beam.io.Read(
+            _CustomBigQuerySource(
+                gcs_location=self.gcs_location,
+                pipeline_options=pcoll.pipeline.options,
+                method=self.method,
+                job_name=job_name,
+                step_name=step_name,
+                unique_id=beam.pvalue.AsSingleton(unique_id_pcoll),
+                *self._args,
+                **self._kwargs))
         | _PassThroughThenCleanup(files_to_remove_pcoll))
 
   def _expand_direct_read(self, pcoll):

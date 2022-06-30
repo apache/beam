@@ -508,7 +508,9 @@ class TestReadFromBigQuery(unittest.TestCase):
   ])
   def test_create_temp_dataset_exception(self, exception_type, error_message):
 
-    with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+    with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
+                           'estimate_size') as mock_estimate,\
+            mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
                            'Insert'),\
       mock.patch.object(BigQueryWrapper,
                         'get_or_create_dataset') as mock_insert, \
@@ -516,12 +518,15 @@ class TestReadFromBigQuery(unittest.TestCase):
       self.assertRaises(Exception) as exc,\
       beam.Pipeline() as p:
 
+      mock_estimate.return_value = None
       mock_insert.side_effect = exception_type(error_message)
 
       _ = p | ReadFromBigQuery(
           project='apache-beam-testing',
           query='SELECT * FROM `project.dataset.table`',
           gcs_location='gs://temp_location')
+
+    p.run().wait_until_finish(duration=30)
 
     mock_insert.assert_called()
     self.assertIn(error_message, exc.exception.args[0])
@@ -558,6 +563,8 @@ class TestReadFromBigQuery(unittest.TestCase):
           query='SELECT * FROM `project.dataset.table`',
           gcs_location='gs://temp_location')
 
+    p.run().wait_until_finish(duration=30)
+
     mock_query_job.assert_called()
     self.assertIn(error_message, exc.exception.args[0])
 
@@ -588,6 +595,8 @@ class TestReadFromBigQuery(unittest.TestCase):
           method=ReadFromBigQuery.Method.EXPORT,
           table='project:dataset.table',
           gcs_location="gs://temp_location")
+
+    p.run().wait_until_finish(duration=30)
 
     mock_query_job.assert_called()
     self.assertIn(error_message, exc.exception.args[0])
