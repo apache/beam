@@ -567,7 +567,8 @@ public class BatchModeExecutionContext
       }
 
       CounterCell bigtableWriteThrottleTime =
-          container.tryGetCounter(BIGTABLE_WRITE_THROTTLE_TIME_NAMESPACE, THROTTLE_TIME_COUNTER_NAME);
+          container.tryGetCounter(
+              MetricName.named(BIGTABLE_WRITE_THROTTLE_TIME_NAMESPACE, THROTTLE_TIME_COUNTER_NAME));
       if (bigtableWriteThrottleTime != null) {
         totalThrottleMsecs += bigtableWriteThrottleTime.getCumulative();
       }
