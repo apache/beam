@@ -13,21 +13,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module beam.apache.org/playground/backend
+package environment
 
-go 1.16
+import "testing"
 
-require (
-	cloud.google.com/go/logging v1.4.2
-	cloud.google.com/go/storage v1.23.0
-	github.com/go-redis/redis/v8 v8.11.4
-	github.com/go-redis/redismock/v8 v8.0.6
-	github.com/google/uuid v1.3.0
-	github.com/improbable-eng/grpc-web v0.14.1
-	github.com/rs/cors v1.8.0
-	github.com/spf13/viper v1.12.0
-	go.uber.org/goleak v1.1.12
-	google.golang.org/api v0.85.0
-	google.golang.org/grpc v1.47.0
-	google.golang.org/protobuf v1.28.0
-)
+func TestNew(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{
+			name:    "Property constructor in the usual case",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			props, err := NewProperties()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewProperties() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if props.Salt != "Beam playground salt" ||
+				props.MaxSnippetSize != 1000000 ||
+				props.IdLength != 11 {
+				t.Errorf("NewProperties(): unexpected result")
+			}
+		})
+	}
+}
