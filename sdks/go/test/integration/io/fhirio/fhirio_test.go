@@ -48,6 +48,7 @@ const (
 )
 
 var (
+	backoffDuration        = [...]time.Duration{time.Second, 5 * time.Second, 10 * time.Second}
 	storeService           *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService
 	storeManagementService *healthcare.ProjectsLocationsDatasetsFhirStoresService
 )
@@ -153,7 +154,6 @@ func populateStore(storePath string) []string {
 			resourcePaths = append(resourcePaths, resourcePath)
 		}
 	}
-	time.Sleep(time.Second) // give some time for data to propagate. prevents flaky results
 	return resourcePaths
 }
 
@@ -178,6 +178,22 @@ func extractResourcePathFrom(resourceLocationUrl string) (string, error) {
 	return resourceLocationUrl[startIdx:endIdx], nil
 }
 
+// Useful to prevent flaky results.
+func runWithBackoffRetries(t *testing.T, p *beam.Pipeline) error {
+	t.Helper()
+
+	var err error
+	for attempt := 0; attempt < len(backoffDuration); attempt++ {
+		err = ptest.Run(p)
+		if err == nil {
+			break
+		}
+		t.Logf("backoff %v after failure", backoffDuration[attempt])
+		time.Sleep(backoffDuration[attempt])
+	}
+	return err
+}
+
 func TestFhirIO_Read(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
@@ -190,7 +206,10 @@ func TestFhirIO_Read(t *testing.T) {
 	passert.Empty(s, failedReads)
 	passert.Count(s, resources, "", len(testResourcePaths))
 
-	ptest.RunAndValidate(t, p)
+	err := runWithBackoffRetries(t, p)
+	if err != nil {
+		t.Fatalf("Pipeline assertions failed: %v", err)
+	}
 }
 
 func TestFhirIO_InvalidRead(t *testing.T) {
@@ -208,7 +227,6 @@ func TestFhirIO_InvalidRead(t *testing.T) {
 	passert.True(s, failedReads, func(errorMsg string) bool {
 		return strings.Contains(errorMsg, strconv.Itoa(http.StatusNotFound))
 	})
-
 	ptest.RunAndValidate(t, p)
 }
 
@@ -253,7 +271,10 @@ func TestFhirIO_Search(t *testing.T) {
 	}, searchResult)
 	passert.Equals(s, resourcesFoundCount, 4, 2, 1, 0)
 
-	ptest.RunAndValidate(t, p)
+	err := runWithBackoffRetries(t, p)
+	if err != nil {
+		t.Fatalf("Pipeline assertions failed: %v", err)
+	}
 }
 
 func TestMain(m *testing.M) {
