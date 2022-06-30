@@ -2528,16 +2528,22 @@ class ReadFromBigQuery(PTransform):
         GoogleCloudOptions).temp_location
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
     gcs_location_vp = self.gcs_location
-    unique_id = str(uuid.uuid4())[0:10]
 
-    def file_path_to_remove(unused_elm):
+    def generate_uuid(unused_elm):
+      return str(uuid.uuid4())[0:10]
+
+    unique_id_pcoll = (
+        pcoll.pipeline
+        | 'CreateJobIdImpulse' >> beam.Create([None])
+        | 'GenerateJobId' >> beam.Map(generate_uuid))
+
+    def file_path_to_remove(unique_id):
       gcs_location = bigquery_export_destination_uri(
           gcs_location_vp, temp_location, unique_id, True)
       return gcs_location + '/'
 
     files_to_remove_pcoll = beam.pvalue.AsList(
-        pcoll.pipeline
-        | 'FilesToRemoveImpulse' >> beam.Create([None])
+        unique_id_pcoll
         | 'MapFilesToRemove' >> beam.Map(file_path_to_remove))
 
     try:
@@ -2545,18 +2551,27 @@ class ReadFromBigQuery(PTransform):
     except AttributeError:
       step_name = 'ReadFromBigQuery_%d' % ReadFromBigQuery.COUNTER
       ReadFromBigQuery.COUNTER += 1
+
+    def create_read(unique_id):
+      return beam.io.Read(
+          _CustomBigQuerySource(
+              gcs_location=self.gcs_location,
+              pipeline_options=pcoll.pipeline.options,
+              method=self.method,
+              job_name=job_name,
+              step_name=step_name,
+              unique_id=unique_id,
+              *self._args,
+              **self._kwargs))
+
+    def apply_read(read):
+      return pcoll | 'ApplyRead' >> read
+
     return (
         pcoll
-        | beam.io.Read(
-            _CustomBigQuerySource(
-                gcs_location=self.gcs_location,
-                pipeline_options=pcoll.pipeline.options,
-                method=self.method,
-                job_name=job_name,
-                step_name=step_name,
-                unique_id=unique_id,
-                *self._args,
-                **self._kwargs))
+        | 'CreateReads' >> beam.FlatMap(
+            create_read, unique_id=beam.pvalue.AsSingleton(unique_id_pcoll))
+        | 'ApplyReads' >> beam.FlatMap(apply_read)
         | _PassThroughThenCleanup(files_to_remove_pcoll))
 
   def _expand_direct_read(self, pcoll):
