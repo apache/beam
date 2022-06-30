@@ -856,8 +856,10 @@ public class BigtableIO {
     }
 
     public static BigtableWriterFn create(BigtableConfig bigtableConfig) {
-      return new BigtableWriterFn(bigtableConfig,
-          new ResourceStatsSupplierImpl(bigtableConfig.getProjectId().get(), bigtableConfig.getInstanceId().get()));
+      return new BigtableWriterFn(
+          bigtableConfig,
+          new ResourceStatsSupplierImpl(
+              bigtableConfig.getProjectId().get(), bigtableConfig.getInstanceId().get()));
     }
 
     @StartBundle
@@ -885,7 +887,6 @@ public class BigtableIO {
               });
       if (config.getDataflowThrottleReporting()) {
         long delta = 0;
-        System.out.println("HERE HERE HERE! "+stats.getStats().getCumulativeThrottlingTimeNanos());
         synchronized (metricLock) {
           long newAggregratedThrottleTime =
               TimeUnit.NANOSECONDS.toMillis(stats.getStats().getCumulativeThrottlingTimeNanos());
@@ -1501,8 +1502,7 @@ public class BigtableIO {
 
     @Override
     public ResourceLimiterStats getStats() {
-      return ResourceLimiterStats.getInstance(
-          new BigtableInstanceName(project, instance));
+      return ResourceLimiterStats.getInstance(new BigtableInstanceName(project, instance));
     }
   }
 }
