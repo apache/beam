@@ -206,10 +206,7 @@ func TestFhirIO_Read(t *testing.T) {
 	passert.Empty(s, failedReads)
 	passert.Count(s, resources, "", len(testResourcePaths))
 
-	err := runWithBackoffRetries(t, p)
-	if err != nil {
-		t.Fatalf("Pipeline assertions failed: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 }
 
 func TestFhirIO_InvalidRead(t *testing.T) {
