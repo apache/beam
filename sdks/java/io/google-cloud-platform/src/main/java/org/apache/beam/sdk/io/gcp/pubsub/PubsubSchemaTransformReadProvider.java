@@ -1,0 +1,203 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.io.gcp.pubsub;
+
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
+
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
+
+/**
+ * An implementation of {@link TypedSchemaTransformProvider} for Pub/Sub reads configured using
+ * {@link PubsubSchemaTransformReadConfiguration}.
+ *
+ * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
+ * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
+ * repository.
+ */
+@Internal
+@Experimental(Kind.SCHEMAS)
+public class PubsubSchemaTransformReadProvider
+    extends TypedSchemaTransformProvider<PubsubSchemaTransformReadConfiguration> {
+  private static final String API = "pubsub";
+  private static final String OUTPUT_TAG = "OUTPUT";
+
+  private PubsubMessageToRow pubsubMessageToRow;
+
+  /** Returns the expected class of the configuration. */
+  @Override
+  protected Class<PubsubSchemaTransformReadConfiguration> configurationClass() {
+    return null;
+  }
+
+  /** Returns the expected {@link SchemaTransform} of the configuration. */
+  @Override
+  protected SchemaTransform from(PubsubSchemaTransformReadConfiguration configuration) {
+    PubsubMessageToRow toRowTransform = pubsubMessageToRow;
+    if (toRowTransform == null) {
+      toRowTransform =
+          PubsubSchemaTransformMessageToRowFactory.from(configuration).buildMessageToRow();
+    }
+    return new PubsubReadSchemaTransform(configuration, toRowTransform);
+  }
+
+  /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
+  @Override
+  public String identifier() {
+    return String.format("%s:read", API);
+  }
+
+  /**
+   * Implementation of the {@link TypedSchemaTransformProvider} inputCollectionNames method. Since
+   * no input is expected, this returns an empty list.
+   */
+  @Override
+  public List<String> inputCollectionNames() {
+    return Collections.emptyList();
+  }
+
+  /**
+   * Implementation of the {@link TypedSchemaTransformProvider} outputCollectionNames method. Since
+   * a single output is expected, this returns a list with a single name.
+   */
+  @Override
+  public List<String> outputCollectionNames() {
+    return Collections.singletonList(OUTPUT_TAG);
+  }
+
+  public void setMessageToRow(PubsubMessageToRow pubsubMessageToRow) {
+    this.pubsubMessageToRow = pubsubMessageToRow;
+  }
+
+  /**
+   * An implementation of {@link SchemaTransform} for Pub/Sub reads configured using {@link
+   * PubsubSchemaTransformReadConfiguration}.
+   */
+  static class PubsubReadSchemaTransform
+      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> implements SchemaTransform {
+
+    private final PubsubSchemaTransformReadConfiguration configuration;
+    private final PubsubMessageToRow pubsubMessageToRow;
+
+    private PubsubClient.PubsubClientFactory clientFactory;
+
+    private PubsubReadSchemaTransform(
+        PubsubSchemaTransformReadConfiguration configuration,
+        PubsubMessageToRow pubsubMessageToRow) {
+      this.configuration = configuration;
+      this.pubsubMessageToRow = pubsubMessageToRow;
+    }
+
+    /** Implements {@link SchemaTransform} buildTransform method. */
+    @Override
+    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
+      return this;
+    }
+
+    /** Reads from Pub/Sub according to {@link PubsubSchemaTransformReadConfiguration}. */
+    @Override
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      if (!input.getAll().isEmpty()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "%s %s input is expected to be empty",
+                input.getClass().getSimpleName(), getClass().getSimpleName()));
+      }
+
+      PCollectionTuple rowsWithDlq =
+          input
+              .getPipeline()
+              .apply("ReadFromPubsub", buildPubsubRead())
+              .apply("PubsubMessageToRow", pubsubMessageToRow);
+
+      writeToDeadLetterQueue(rowsWithDlq);
+
+      return PCollectionRowTuple.of(OUTPUT_TAG, rowsWithDlq.get(MAIN_TAG));
+    }
+
+    /**
+     * Writes to a dead letter queue for configured {@link
+     * PubsubSchemaTransformReadConfiguration#getDeadLetterQueue()}.
+     */
+    void writeToDeadLetterQueue(PCollectionTuple rowsWithDlq) {
+      PubsubIO.Write<PubsubMessage> deadLetterQueue = buildDeadLetterQueueWrite();
+      if (deadLetterQueue == null) {
+        return;
+      }
+      rowsWithDlq.get(DLQ_TAG).apply("WriteToDeadLetterQueue", deadLetterQueue);
+    }
+
+    /**
+     * Builds {@link PubsubIO.Write} dead letter queue from
+     * {@link PubsubSchemaTransformReadConfiguration}.
+     */
+    PubsubIO.Write<PubsubMessage> buildDeadLetterQueueWrite() {
+      if (configuration.getDeadLetterQueue() == null
+          || !configuration.getDeadLetterQueue().isEmpty()) {
+        return null;
+      }
+
+      PubsubIO.Write<PubsubMessage> writeDlq =
+          PubsubIO.writeMessages().to(configuration.getDeadLetterQueue());
+
+      if (configuration.getTimestampAttribute() != null
+          && !configuration.getTimestampAttribute().isEmpty()) {
+        writeDlq = writeDlq.withTimestampAttribute(configuration.getTimestampAttribute());
+      }
+
+      return writeDlq;
+    }
+
+    /** Builds {@link PubsubIO.Read} from a {@link PubsubSchemaTransformReadConfiguration}. */
+    PubsubIO.Read<PubsubMessage> buildPubsubRead() {
+      PubsubIO.Read<PubsubMessage> read = PubsubIO.readMessagesWithAttributes();
+
+      if (configuration.getSubscription() != null && !configuration.getSubscription().isEmpty()) {
+        read = read.fromSubscription(configuration.getSubscription());
+      }
+
+      if (configuration.getTopic() != null && !configuration.getTopic().isEmpty()) {
+        read = read.fromTopic(configuration.getTopic());
+      }
+
+      if (configuration.getTimestampAttribute() != null
+          && !configuration.getTimestampAttribute().isEmpty()) {
+        read = read.withTimestampAttribute(configuration.getTimestampAttribute());
+      }
+
+      if (configuration.getIdAttribute() != null && !configuration.getIdAttribute().isEmpty()) {
+        read = read.withIdAttribute(configuration.getIdAttribute());
+      }
+
+      if (clientFactory != null) {
+        read = read.withClientFactory(clientFactory);
+      }
+
+      return read;
+    }
+  }
+}
