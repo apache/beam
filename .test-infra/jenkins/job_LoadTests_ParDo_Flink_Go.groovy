@@ -24,7 +24,7 @@ import Flink
 import InfluxDBCredentialsHelper
 
 import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
-import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY_GO
+import static LoadTestsBuilder.GO_SDK_CONTAINER
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -49,7 +49,7 @@ def batchScenarios = {
         parallelism          : 5,
         endpoint             : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY_GO}/beam_go_sdk:latest",
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
     [
@@ -70,7 +70,7 @@ def batchScenarios = {
         parallelism          : 5,
         endpoint             : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY_GO}/beam_go_sdk:latest",
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
     [
@@ -91,7 +91,7 @@ def batchScenarios = {
         parallelism          : 5,
         endpoint             : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY_GO}/beam_go_sdk:latest",
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
     [
@@ -112,7 +112,7 @@ def batchScenarios = {
         parallelism          : 5,
         endpoint             : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY_GO}/beam_go_sdk:latest",
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
@@ -124,7 +124,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
   Flink flink = new Flink(scope, "beam_LoadTests_Go_ParDo_Flink_${mode.capitalize()}")
   flink.setUp(
       [
-        "${DOCKER_CONTAINER_REGISTRY_GO}/beam_go_sdk:latest"
+        GO_SDK_CONTAINER
       ],
       numberOfWorkers,
       "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.13_job_server:latest")
