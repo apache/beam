@@ -87,7 +87,6 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
-import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.ResourceStatsSupplier;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.options.Description;
@@ -121,14 +120,12 @@ import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mock;
 
 /** Unit tests for {@link BigtableIO}. */
 @RunWith(JUnit4.class)
@@ -1570,18 +1567,10 @@ public class BigtableIOTest {
 
   @Test
   public void testWriteWithEnabledDataflowThrottleReporting() {
-    BigtableIO.Write write =
-        BigtableIO.write()
-            .withBigtableOptions(BIGTABLE_OPTIONS)
-            .withTableId("table")
-            .withInstanceId("instance")
-            .withProjectId("project")
-            .withDataflowThrottleReporting();
+    BigtableIO.Write write = defaultWrite.withTableId("TEST-TABLE").withDataflowThrottleReporting();
 
     assertTrue(write.isDataflowThrottleReportingEnabled());
   }
-
-  @Mock ResourceStatsSupplier supplier;
 
   @Test
   public void testWritePipelineWithDataflowThrottleReporting() {
@@ -1598,7 +1587,7 @@ public class BigtableIOTest {
         .apply("write", ParDo.of(fn));
 
     PipelineResult result = p.run();
-    Assert.assertTrue(
+    assertTrue(
         result.metrics().allMetrics().toString().contains("BigtableWriterFn:throttling-msecs"));
   }
 
