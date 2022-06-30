@@ -21,7 +21,8 @@ This example uses the japanese housing data from kaggle.
 https://www.kaggle.com/datasets/nishiodens/japan-real-estate-transaction-prices
 
 Since the data has missing fields, this example illustrates how to split
-data and assign it to the models that are trained on different subsets of features. The predictions are then recombined.
+data and assign it to the models that are trained on different subsets of
+features. The predictions are then recombined.
 
 In order to set this example up, you will need two things.
 1. Build models (or use ours) and reference those via the model directory.
@@ -79,12 +80,13 @@ def sort_by_features(dataframe, max_size):
   return -1
 
 
-def load_dataframe(file_name: str) -> Iterable[pandas.DataFrame]:
-  """ Loads data files as a pandas dataframe."""
-  file = FileSystems.open(file_name, 'rb')
-  dataframe = pandas.read_csv(file)
-  for i in range(dataframe.shape[0]):
-    yield dataframe.iloc[[i]]
+class LoadDataframe(beam.DoFn):
+  def process(self, file_name: str) -> Iterable[pandas.DataFrame]:
+    """ Loads data files as a pandas dataframe."""
+    file = FileSystems.open(file_name, 'rb')
+    dataframe = pandas.read_csv(file)
+    for i in range(dataframe.shape[0]):
+      yield dataframe.iloc[[i]]
 
 
 def report_predictions(prediction_result):
@@ -133,7 +135,7 @@ def run(argv=None, save_main_session=True):
   with beam.Pipeline(options=pipeline_options) as p:
     # This example uses a single file, but it is possible to use many files.
     file_names = p | 'file_names' >> beam.Create([known_args.input])
-    loaded_data = file_names | beam.ParDo(load_dataframe)
+    loaded_data = file_names | beam.ParDo(LoadDataframe())
 
     # Some examples don't have all features. Pipelines
     # that expect those fields will fail. There are many ways to deal with
