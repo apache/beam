@@ -20,9 +20,6 @@
 # pytype: skip-file
 
 import logging
-import random
-import re
-import string
 import unittest
 
 from hamcrest import all_of
