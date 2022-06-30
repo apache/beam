@@ -42,9 +42,9 @@ job('beam_Publish_Docker_Snapshots') {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       commonJobProperties.setGradleSwitches(delegate)
       SUPPORTED_CONTAINER_TASKS.each { taskVer ->
-        tasks(":sdks:python:container:${taskVer}:dockerTagPush")
+        tasks(":sdks:python:container:${taskVer}:dockerPush")
       }
-      tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:job-server-container:dockerTagPush")
+      tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:job-server-container:dockerPush")
       switches("-Pdocker-repository-root=gcr.io/apache-beam-testing/beam_portability")
       switches("-Pdocker-tag=latest")
     }
