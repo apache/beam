@@ -760,9 +760,9 @@ public class BigtableIO {
      * Returns a new {@link BigtableIO.Write} that will report amount of time throttling to Dataflow
      */
     @Experimental
-    public Write withDataflowThrottleReporting(boolean enabled) {
+    public Write withDataflowThrottleReporting(boolean isEnabled) {
       BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withDataflowThrottleReporting(enabled)).build();
+      return toBuilder().setBigtableConfig(config.withDataflowThrottleReporting(isEnabled)).build();
     }
 
     /**
@@ -847,12 +847,12 @@ public class BigtableIO {
         Metrics.counter(BigtableWriterFn.class, "throttling-msecs");
     private static Object metricLock = new Object();
     private static long lastAggregatedThrottleTime = 0;
-    private ResourceStatsSupplier stats;
+    private ResourceStatsSupplier statsSupplier;
 
-    BigtableWriterFn(BigtableConfig bigtableConfig, ResourceStatsSupplier stats) {
+    BigtableWriterFn(BigtableConfig bigtableConfig, ResourceStatsSupplier statsSupplier) {
       this.config = bigtableConfig;
       this.failures = new ConcurrentLinkedQueue<>();
-      this.stats = stats;
+      this.statsSupplier = statsSupplier;
     }
 
     public static BigtableWriterFn create(BigtableConfig bigtableConfig) {
@@ -889,7 +889,8 @@ public class BigtableIO {
         long delta = 0;
         synchronized (metricLock) {
           long newAggregratedThrottleTime =
-              TimeUnit.NANOSECONDS.toMillis(stats.getStats().getCumulativeThrottlingTimeNanos());
+              TimeUnit.NANOSECONDS.toMillis(
+                  statsSupplier.getStats().getCumulativeThrottlingTimeNanos());
           delta = newAggregratedThrottleTime - lastAggregatedThrottleTime;
           lastAggregatedThrottleTime = newAggregratedThrottleTime;
         }
