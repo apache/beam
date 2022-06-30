@@ -134,7 +134,7 @@ def run(argv=None, save_main_session=True):
 
   with beam.Pipeline(options=pipeline_options) as p:
     # This example uses a single file, but it is possible to use many files.
-    file_names = p | 'file_names' >> beam.Create([known_args.input])
+    file_names = p | 'FileNames' >> beam.Create([known_args.input])
     loaded_data = file_names | beam.ParDo(LoadDataframe())
 
     # Some examples don't have all features. Pipelines
@@ -155,7 +155,7 @@ def run(argv=None, save_main_session=True):
     flattened_predictions = all_predictions | 'Flatten' >> beam.Flatten()
     predictions = (
         flattened_predictions
-        | 'all predictions' >> beam.Map(report_predictions))
+        | 'AllPredictions' >> beam.Map(report_predictions))
     _ = predictions | "WriteOutput" >> beam.io.WriteToText(
         known_args.output, append_trailing_newlines=True)
 
