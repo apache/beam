@@ -18,6 +18,7 @@
 """A pipeline that uses RunInference API on a regression about housing prices.
 
 This example uses the japanese housing data from kaggle.
+https://www.kaggle.com/datasets/nishiodens/japan-real-estate-transaction-prices
 
 Since the data has missing fields, this example illustrates how to split
 data and assign it to appropriate models. The predictions are then recombined.
