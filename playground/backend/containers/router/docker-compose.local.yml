@@ -38,7 +38,6 @@ services:
   router:
     image: apache/beam_playground-backend-router
     environment:
-      DB_TYPE: local
       GOOGLE_CLOUD_PROJECT: project-test
       DATASTORE_EMULATOR_HOST: datastore:8081
     ports:

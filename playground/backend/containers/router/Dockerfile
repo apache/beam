@@ -69,7 +69,6 @@ ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_UNSPECIFIED"
 ENV BUCKET_NAME="playground-precompiled-objects"
-ENV DB_TYPE=remote
 ENV SDK_CONFIG=/opt/playground/backend/sdks.yaml
 
 # Copy build result
