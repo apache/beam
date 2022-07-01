@@ -94,6 +94,15 @@ default value and there is no need to set them up to launch locally:
 - `DB_TYPE` - is the type of the code snippet database is used for the backend server. If it is set as a `datastore`,
   then backend server will use Cloud Datastore to keep all code snippets otherwise will be set local database for local deployment and testing (default value = `local`)
 - `SDK_CONFIG` - is the sdk configuration file path, e.g. default example for corresponding sdk. It will be saved to cloud datastore during application startup (default value = `../sdks.yaml`)
+- `DATASTORE_EMULATOR_HOST` - is the datastore emulator address. If it is given in the environment, the application will connect to the datastore emulator.
+
+### Application properties
+
+These properties are stored in `backend/properties.yaml` file:
+
+- `playground_salt` - is the salt to generate the hash to avoid whatever problems a collision may cause.
+- `max_snippet_size` - is the file content size limit. Since 1 character occupies 1 byte of memory, and 1 MB is approximately equal to 1000000 bytes, then maximum size of the snippet is 1000000.
+- `id_length` - is the length of the identifier that is used to store data in the cloud datastore. It's appropriate length to save storage size in the cloud datastore and provide good randomnicity.
 
 ### Running the server app via Docker
 
