@@ -898,21 +898,33 @@ public class GcsUtil {
         } else {
           throw new FileNotFoundException(from.toString());
         }
-      } else if (e.getCode() == 403 && e.getErrors().size() ==1 && e.getErrors()
-          .get(0).getReason().equals("retentionPolicyNotMet")) {
+      } else if (e.getCode() == 403
+          && e.getErrors().size() == 1
+          && e.getErrors().get(0).getReason().equals("retentionPolicyNotMet")) {
         List<StorageObjectOrIOException> srcAndDestObjects = getObjects(Arrays.asList(from, to));
-        if (srcAndDestObjects.get(0).storageObject().getMd5Hash()
+        if (srcAndDestObjects
+            .get(0)
+            .storageObject()
+            .getMd5Hash()
             .equals(srcAndDestObjects.get(1).storageObject().getMd5Hash())) {
           // Source and destination are identical. Treat this as a successful rewrite
           LOG.warn(
               "Caught retentionPolicyNotMet error while rewriting to a bucket with retention "
-                  + "policy. Skipping because destination {} and source {} are deemed identical "
+                  + "policy. Skipping because destination {} and source {} are considered identical "
                   + "because their MD5 Hashes are equal.",
-              getFrom(), getTo());
-          readyToEnqueue = false;
+              getFrom(),
+              getTo());
+
+          if (deleteSource) {
+            readyToEnqueue = true;
+            performDelete = true;
+          } else {
+            readyToEnqueue = false;
+          }
           lastError = null;
         } else {
           // User is attempting to write to a file that hasn't met its retention policy yet.
+          // Not a transient error so likely will not be fixed by a retry
           throw new IOException(e.getMessage());
         }
       } else {
