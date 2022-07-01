@@ -21,7 +21,7 @@
     "apache-beam-worker": "dist/src/apache_beam/worker/worker_main.js"
   },
   "scripts": {
-    "build": "./build.sh",
+    "build": "bash build.sh",
     "clean": "tsc --clean",
     "worker": "node dist/src/apache_beam/worker/external_worker_service.js",
     "pretest": "npm run build",
