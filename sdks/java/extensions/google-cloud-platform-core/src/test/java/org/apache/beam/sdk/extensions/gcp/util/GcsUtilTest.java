@@ -1181,6 +1181,66 @@ public class GcsUtilTest {
   }
 
   @Test
+  public void testIgnoreRetentionPolicyNotMetErrorWhenIdenticalChecksum() throws IOException {
+    // ./gradlew sdks:java:extensions:google-cloud-platform-core:test --tests org.apache.beam.sdk.extensions.gcp.util.GcsUtilTest.testIgnoreRetentionPolicyNotMetErrorWhenIdenticalChecksum
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+
+    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.Rewrite mockStorageRewrite1 = Mockito.mock(Storage.Objects.Rewrite.class);
+    Storage.Objects.Rewrite mockStorageRewrite2 = Mockito.mock(Storage.Objects.Rewrite.class);
+    Storage.Objects.Delete mockStorageDelete1 = Mockito.mock(Storage.Objects.Delete.class);
+    Storage.Objects.Delete mockStorageDelete2 = Mockito.mock(Storage.Objects.Delete.class);
+
+    StorageObjectOrIOException srcObject = new StorageObjectOrIOException() {
+      @Override
+      public @Nullable StorageObject storageObject() {
+        return new StorageObject().setMd5Hash("a");
+      }
+      @Override
+      public @Nullable IOException ioException() {
+        return null;
+      }
+    };
+
+    StorageObjectOrIOException destObject = new StorageObjectOrIOException() {
+      @Override
+      public @Nullable StorageObject storageObject() {
+        return new StorageObject().setMd5Hash("a");
+      }
+      @Override
+      public @Nullable IOException ioException() {
+        return null;
+      }
+    };
+
+    List<StorageObjectOrIOException> mockSrcAndDest = Arrays.asList(srcObject, destObject);
+
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.rewrite("bucket", "s0", "bucket", "d0", null))
+        .thenReturn(mockStorageRewrite1);
+    when(mockStorageRewrite1.execute())
+        .thenThrow(googleJsonResponseException(403, "retentionPolicyNotMet", "Too soon"));
+    when(gcsUtil.getObjects(
+        Arrays.asList(GcsPath.fromUri("gs://bucket/s0"), GcsPath.fromUri("gs://bucket/d0"))))
+        .thenReturn(mockSrcAndDest);
+    when(mockStorageObjects.rewrite("bucket", "s1", "bucket", "d1", null))
+        .thenReturn(mockStorageRewrite2);
+    when(mockStorageObjects.delete("bucket", "s0")).thenReturn(mockStorageDelete1);
+    when(mockStorageObjects.delete("bucket", "s1")).thenReturn(mockStorageDelete1);
+
+    gcsUtil.rename(makeStrings("s", 2), makeStrings("d", 2));
+
+    verify(mockStorageRewrite1, times(1)).execute();
+    verify(mockStorageRewrite2, times(1)).execute();
+    verify(mockStorageDelete1, times(1)).execute();
+    verify(mockStorageDelete2, times(1)).execute();
+  }
+
+  @Test
   public void testMakeRemoveBatches() throws IOException {
     GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
 
