@@ -85,19 +85,19 @@ class ElementStream:
     return utils.obfuscate(self._cache_key, suffix)
 
   def is_computed(self):
-    # type: () -> boolean
+    # type: () -> boolean # noqa: F821
 
     """Returns True if no more elements will be recorded."""
     return self._pcoll in ie.current_env().computed_pcollections
 
   def is_done(self):
-    # type: () -> boolean
+    # type: () -> boolean # noqa: F821
 
     """Returns True if no more new elements will be yielded."""
     return self._done
 
   def read(self, tail=True):
-    # type: (boolean) -> Any
+    # type: (boolean) -> Any # noqa: F821
 
     """Reads the elements currently recorded."""
 
@@ -155,7 +155,7 @@ class Recording:
   def __init__(
       self,
       user_pipeline,  # type: beam.Pipeline
-      pcolls,  # type: List[beam.pvalue.PCollection]
+      pcolls,  # type: List[beam.pvalue.PCollection] # noqa: F821
       result,  # type: beam.runner.PipelineResult
       max_n,  # type: int
       max_duration_secs,  # type: float
@@ -217,7 +217,7 @@ class Recording:
       ie.current_env().mark_pcollection_computed(self._pcolls)
 
   def is_computed(self):
-    # type: () -> boolean
+    # type: () -> boolean # noqa: F821
 
     """Returns True if all PCollections are computed."""
     return all(s.is_computed() for s in self._streams.values())
@@ -275,7 +275,7 @@ class Recording:
 class RecordingManager:
   """Manages recordings of PCollections for a given pipeline."""
   def __init__(self, user_pipeline, pipeline_var=None, test_limiters=None):
-    # type: (beam.Pipeline, str, list[Limiter]) -> None
+    # type: (beam.Pipeline, str, list[Limiter]) -> None # noqa: F821
 
     self.user_pipeline = user_pipeline  # type: beam.Pipeline
     self.pipeline_var = pipeline_var if pipeline_var else ''  # type: str
@@ -284,7 +284,7 @@ class RecordingManager:
     self._test_limiters = test_limiters if test_limiters else []
 
   def _watch(self, pcolls):
-    # type: (List[beam.pvalue.PCollection]) -> None
+    # type: (List[beam.pvalue.PCollection]) -> None # noqa: F821
 
     """Watch any pcollections not being watched.
 
@@ -413,7 +413,7 @@ class RecordingManager:
     return False
 
   def record(self, pcolls, max_n, max_duration):
-    # type: (List[beam.pvalue.PCollection], int, Union[int,str]) -> Recording
+    # type: (List[beam.pvalue.PCollection], int, Union[int,str]) -> Recording # noqa: F821
 
     """Records the given PCollections."""
 
@@ -470,7 +470,7 @@ class RecordingManager:
     return recording
 
   def read(self, pcoll_name, pcoll, max_n, max_duration_secs):
-    # type: (str, beam.pvalue.PValue, int, float) -> Union[None, ElementStream]
+    # type: (str, beam.pvalue.PValue, int, float) -> Union[None, ElementStream] # noqa: F821
 
     """Reads an ElementStream of a computed PCollection.
 

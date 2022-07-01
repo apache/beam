@@ -252,8 +252,8 @@ EOF
 # documentation verbatim.
 python $(type -p sphinx-build) -v -a -E -q target/docs/source \
   target/docs/_build -c target/docs/source \
-  |& grep -E -v 'apache_beam\.dataframe.*WARNING:' \
-  |& tee "target/docs/sphinx-build.log"
+  2>&1 | grep -E -v 'apache_beam\.dataframe.*WARNING:' \
+  2>&1 | tee "target/docs/sphinx-build.log"
 
 # Fail if there are errors or warnings in docs
 ! grep -q "ERROR:" target/docs/sphinx-build.log || exit 1
@@ -264,8 +264,8 @@ python $(type -p sphinx-build) -v -a -E -q target/docs/source \
 # - Interactive code starting with '>>>'
 python -msphinx -M doctest target/docs/source \
   target/docs/_build -c target/docs/source \
-  |& grep -E -v 'apache_beam\.dataframe.*WARNING:' \
-  |& tee "target/docs/sphinx-doctest.log"
+  2>&1 | grep -E -v 'apache_beam\.dataframe.*WARNING:' \
+  2>&1 | tee "target/docs/sphinx-doctest.log"
 
 # Fail if there are errors or warnings in docs
 ! grep -q "ERROR:" target/docs/sphinx-doctest.log || exit 1

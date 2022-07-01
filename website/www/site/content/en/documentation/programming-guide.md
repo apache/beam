@@ -432,12 +432,6 @@ around to distributed workers). The Beam SDKs provide a data encoding mechanism
 that includes built-in encoding for commonly-used types as well as support for
 specifying custom encodings as needed.
 
-{{< paragraph class="language-go" >}}
-Custom struct types should be registered with beam using `beam.RegisterType`.
-Among other things, this allows the Go SDK to infer an encoding from their
-exported fields. Unexported fields in struct types are ignored.
-{{< /paragraph >}}
-
 #### 3.2.2. Element schema {#element-schema}
 
 In many cases, the element type in a `PCollection` has a structure that can introspected.
@@ -704,6 +698,31 @@ processing function.
 
 </span>
 
+{{< paragraph class="language-go" >}}
+All DoFns should be registered using a generic `register.DoFnXxY[...]`
+function. This allows the Go SDK to infer an encoding from any inputs/outputs,
+registers the DoFn for execution on remote runners, and optimizes the runtime
+execution of the DoFns via reflection.
+{{< /paragraph >}}
+
+{{< highlight go >}}
+// ComputeWordLengthFn is a DoFn that computes the word length of string elements.
+type ComputeWordLengthFn struct{}
+
+// ProcessElement computes the length of word and emits the result.
+// When creating structs as a DoFn, the ProcessElement method performs the
+// work of this step in the pipeline.
+func (fn *ComputeWordLengthFn) ProcessElement(ctx context.Context, word string) int {
+   ...
+}
+
+func init() {
+  // 2 inputs and 1 output => DoFn2x1
+  // Input/output types are included in order in the brackets
+	register.DoFn2x1[context.Context, string, int](&ComputeWordLengthFn{})
+}
+{{< /highlight >}}
+
 ##### 4.2.1.1. Applying ParDo {#applying-pardo}
 
 {{< paragraph class="language-java language-py" >}}
@@ -799,7 +818,11 @@ func (fn *ComputeWordLengthFn) ProcessElement(word string, emit func(int)) {
 }
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*ComputeWordLengthFn)(nil)))
+  // 2 inputs and 0 outputs => DoFn2x0
+  // 1 input => Emitter1
+  // Input/output types are included in order in the brackets
+	register.Function2x0(&ComputeWordLengthFn{})
+	register.Emitter1[int]()
 }
 {{< /highlight >}}
 
@@ -862,7 +885,11 @@ Simple DoFns can also be written as functions.
 func ComputeWordLengthFn(word string, emit func(int)) { ... }
 
 func init() {
-	beam.RegisterFunction(ComputeWordLengthFn)
+  // 2 inputs and 0 outputs => DoFn2x0
+  // 1 input => Emitter1
+  // Input/output types are included in order in the brackets
+  register.DoFn2x0[string, func(int)](&ComputeWordLengthFn{})
+  register.Emitter1[int]()
 }
 {{< /highlight >}}
 
@@ -1027,7 +1054,7 @@ var words beam.PCollection = ...
 <span class="language-go" >
 
 > **Note:** Anonymous function DoFns may not work on distributed runners.
-> It's recommended to use named functions and register them with `beam.RegisterFunction` in
+> It's recommended to use named functions and register them with `register.FunctionXxY` in
 > an `init()` block.
 
 </span>
@@ -1040,7 +1067,7 @@ Here is a sequence diagram that shows the lifecycle of the DoFn during
  apply to the objects or particular cases such as failover or
  instance reuse. They also give instantiation use cases.
 
-<!-- The source for the sequence diagram can be found in the the SVG resource. -->
+<!-- The source for the sequence diagram can be found in the SVG resource. -->
 ![This is a sequence diagram that shows the lifecycle of the DoFn](/images/dofn-sequence-diagram.svg)
 
 #### 4.2.2. GroupByKey {#groupbykey}
@@ -1110,6 +1137,10 @@ individual values) to a uni-map (unique keys to collections of values).
 // Save the result as the PCollection reduced.
 PCollection<KV<String, Iterable<String>>> reduced =
  mapped.apply(GroupByKey.<String, String>create());
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" groupbykey >}}
 {{< /highlight >}}
 
 ##### 4.2.2.1 GroupByKey and unbounded PCollections {#groupbykey-and-unbounded-pcollections}
@@ -1328,6 +1359,26 @@ public static class SumInts implements SerializableFunction<Iterable<Integer>, I
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_bounded_sum >}}
 {{< /highlight >}}
+
+{{< paragraph class="language-go" >}}
+All Combiners should be registered using a generic `register.CombinerX[...]`
+function. This allows the Go SDK to infer an encoding from any inputs/outputs,
+registers the Combiner for execution on remote runners, and optimizes the runtime
+execution of the Combiner via reflection.
+
+Combiner1 should be used when your accumulator, input, and output are all of the
+same type. It can be called with `register.Combiner1[T](&CustomCombiner{})` where `T`
+is the type of the input/accumulator/output.
+
+Combiner2 should be used when your accumulator, input, and output are 2 distinct
+types. It can be called with `register.Combiner2[T1, T2](&CustomCombiner{})` where
+`T1` is the type of the accumulator and `T2` is the other type.
+
+Combiner3 should be used when your accumulator, input, and output are 3 distinct
+types. It can be called with `register.Combiner3[T1, T2, T3](&CustomCombiner{})`
+where `T1` is the type of the accumulator, `T2` is the type of the input, and `T3` is
+the type of the output.
+{{< /paragraph >}}
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_simple_sum >}}
@@ -1710,9 +1761,10 @@ a remote worker in your processing cluster.
 as `DoFn`, `CombineFn`, and `WindowFn`, already implement `Serializable`;
 however, your subclass must not add any non-serializable members.</span>
 <span class="language-go">Funcs are serializable as long as
-they are registered with `beam.RegisterFunction`, and are not
-closures. Structural `DoFn`s will have all exported fields serialized.
-Unexported fields are unable to be serialized, and will be silently ignored.</span>
+they are registered with `register.FunctionXxY` (for simple functions) or
+`register.DoFnXxY` (for sturctural DoFns), and are not closures. Structural
+`DoFn`s will have all exported fields serialized. Unexported fields are unable to
+be serialized, and will be silently ignored.</span>
 
 Some other serializability factors you should keep in mind are:
 
@@ -1773,6 +1825,10 @@ processing each element in the input `PCollection`, but the additional data
 needs to be determined at runtime (and not hard-coded). Such values might be
 determined by the input data, or depend on a different branch of your pipeline.
 
+{{< paragraph class="language-go" >}}
+All side input iterables should be registered using a generic `register.IterX[...]`
+function. This optimizes runtime execution of the iterable.
+{{< /paragraph >}}
 
 #### 4.4.1. Passing side inputs to ParDo {#side-inputs-pardo}
 
@@ -1964,6 +2020,9 @@ multiple output PCollections.
 Call emitter functions as needed to produce 0 or more elements for its matching
 `PCollection`. The same value can be emitted with multiple emitters.
 As normal, do not mutate values after emitting them from any emitter.
+
+All emitters should be registered using a generic `register.EmitterX[...]`
+function. This optimizes runtime execution of the emitter.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
@@ -2820,7 +2879,7 @@ transactionPojos.apply(ParDo.of(new DoFn<...>() {
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
-Even though the in both cases the `@Element` parameter differs from the the `PCollection`'s Java type, since the
+Even though the in both cases the `@Element` parameter differs from the `PCollection`'s Java type, since the
 schemas are the same Beam will automatically make the conversion. The built-in `Convert` transform can also be used
 to translate between Java types of equivalent schemas, as detailed below.
 {{< /paragraph >}}
@@ -4386,7 +4445,7 @@ example pipeline in the figure below:
 
 In the above pipeline, we create an unbounded `PCollection` by reading a set of
 key/value pairs using `KafkaIO`, and then apply a windowing function to that
-collection using the `Window` transform. We then apply a `ParDo` to the the
+collection using the `Window` transform. We then apply a `ParDo` to the
 collection, and then later group the result of that `ParDo` using `GroupByKey`.
 The windowing function has no effect on the `ParDo` transform, because the
 windows are not actually used until they're needed for the `GroupByKey`.
@@ -4938,7 +4997,7 @@ element in that window has been processed.
 
 #### 9.4.1. Window accumulation modes {#window-accumulation-modes}
 
-When you specify a trigger, you must also set the the window's **accumulation
+When you specify a trigger, you must also set the window's **accumulation
 mode**. When a trigger fires, it emits the current contents of the window as a
 pane. Since a trigger can fire multiple times, the accumulation mode determines
 whether the system *accumulates* the window panes as the trigger fires, or

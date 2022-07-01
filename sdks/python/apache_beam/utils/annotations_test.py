@@ -25,7 +25,7 @@ from apache_beam.utils.annotations import experimental
 
 
 class AnnotationTests(unittest.TestCase):
-  # Note: use different names for each of the the functions decorated
+  # Note: use different names for each of the functions decorated
   # so that a warning is produced for each of them.
 
   def setUp(self):

@@ -22,8 +22,6 @@ import java.util.EnumMap;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
@@ -316,15 +314,8 @@ public class FnHarness {
                   .setMonitoringInfos(
                       BeamFnApi.MonitoringInfosMetadataResponse.newBuilder()
                           .putAllMonitoringInfo(
-                              StreamSupport.stream(
-                                      request
-                                          .getMonitoringInfos()
-                                          .getMonitoringInfoIdList()
-                                          .spliterator(),
-                                      false)
-                                  .collect(
-                                      Collectors.toMap(
-                                          Function.identity(), metricsShortIds::get)))));
+                              metricsShortIds.get(
+                                  request.getMonitoringInfos().getMonitoringInfoIdList()))));
 
       HarnessMonitoringInfosInstructionHandler processWideHandler =
           new HarnessMonitoringInfosInstructionHandler(metricsShortIds);

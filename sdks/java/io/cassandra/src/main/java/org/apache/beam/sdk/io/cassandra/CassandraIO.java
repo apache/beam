@@ -953,8 +953,8 @@ public class CassandraIO {
     }
 
     /**
-     * Mutate the entity to the Cassandra instance, using {@link Mapper} obtained with the the
-     * Mapper factory, the DefaultObjectMapperFactory uses {@link
+     * Mutate the entity to the Cassandra instance, using {@link Mapper} obtained with the Mapper
+     * factory, the DefaultObjectMapperFactory uses {@link
      * com.datastax.driver.mapping.MappingManager}. This method uses {@link
      * Mapper#saveAsync(Object)} method, which is asynchronous. Beam will wait for all futures to
      * complete, to guarantee all writes have succeeded.

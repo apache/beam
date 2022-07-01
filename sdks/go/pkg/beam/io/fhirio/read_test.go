@@ -16,8 +16,8 @@
 package fhirio
 
 import (
-	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -32,35 +32,19 @@ func TestRead(t *testing.T) {
 		containedError string
 	}{
 		{
-			name: "Read Request Failed",
-			client: &fakeFhirStoreClient{
-				fakeReadResources: func(resource string) (*http.Response, error) {
-					return nil, errors.New("")
-				},
-			},
-			containedError: "failed fetching resource",
+			name:           "Read request returns error",
+			client:         requestReturnErrorFakeClient,
+			containedError: fakeRequestReturnErrorMessage,
 		},
 		{
-			name: "Read Request Returns Bad Status",
-			client: &fakeFhirStoreClient{
-				fakeReadResources: func(resource string) (*http.Response, error) {
-					return &http.Response{StatusCode: 403}, nil
-				},
-			},
-			containedError: "returned bad status",
+			name:           "Read request returns bad status",
+			client:         badStatusFakeClient,
+			containedError: strconv.Itoa(http.StatusForbidden),
 		},
 		{
-			name: "Response body fails to be parsed",
-			client: &fakeFhirStoreClient{
-				fakeReadResources: func(resource string) (*http.Response, error) {
-					return &http.Response{Body: &fakeReaderCloser{
-						fakeRead: func([]byte) (int, error) {
-							return 0, errors.New("")
-						},
-					}, StatusCode: 200}, nil
-				},
-			},
-			containedError: "error reading response body",
+			name:           "Read request response body fails to be read",
+			client:         bodyReaderErrorFakeClient,
+			containedError: fakeBodyReaderErrorMessage,
 		},
 	}
 
@@ -75,23 +59,10 @@ func TestRead(t *testing.T) {
 				return strings.Contains(errorMsg, testCase.containedError)
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
-			counterResults := pipelineResult.Metrics().AllMetrics().Counters()
-
-			if len(counterResults) != 1 {
-				t.Fatalf("counterResults got length %v, expected %v", len(counterResults), 1)
+			err := validateCounter(pipelineResult, errorCounterName, len(testResourcePaths))
+			if err != nil {
+				t.Fatalf("validateCounter returned error [%v]", err.Error())
 			}
-			counterResult := counterResults[0]
-
-			expectedCounterName := "fhirio/read_resource_error_count"
-			if counterResult.Name() != expectedCounterName {
-				t.Fatalf("counterResult.Name() is '%v', expected '%v'", counterResult.Name(), expectedCounterName)
-			}
-
-			expectedCounterResult := int64(len(testResourcePaths))
-			if counterResult.Result() != expectedCounterResult {
-				t.Fatalf("counterResult.Result() is %v, expected %v", counterResult.Result(), expectedCounterResult)
-			}
-
 		})
 	}
 }

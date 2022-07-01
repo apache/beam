@@ -19,10 +19,10 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementation.LEGACY;
 import static org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementation.SDF;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -32,6 +32,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSortedSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
@@ -230,13 +231,31 @@ class KafkaIOReadImplementationCompatibility {
      * fails otherwise.
      */
     void checkSupport(KafkaIOReadImplementation selectedImplementation) {
-      checkState(
-          supports(selectedImplementation),
+      if (!supports(selectedImplementation)) {
+        throw new KafkaIOReadImplementationCompatibilityException(
+            selectedImplementation, notSupported.get(selectedImplementation));
+      }
+    }
+  }
+
+  static class KafkaIOReadImplementationCompatibilityException extends IllegalStateException {
+
+    private final ImmutableSortedSet<KafkaIOReadProperties> conflictingProperties;
+
+    private KafkaIOReadImplementationCompatibilityException(
+        KafkaIOReadImplementation selectedImplementation,
+        Collection<KafkaIOReadProperties> conflictingProperties) {
+      super(
           "The current Kafka read configuration isn't supported by the "
               + selectedImplementation
               + " read implementation! "
               + "Conflicting properties: "
-              + notSupported.get(selectedImplementation));
+              + conflictingProperties);
+      this.conflictingProperties = ImmutableSortedSet.copyOf(conflictingProperties);
+    }
+
+    ImmutableSortedSet<KafkaIOReadProperties> getConflictingProperties() {
+      return conflictingProperties;
     }
   }
 }

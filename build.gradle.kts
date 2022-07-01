@@ -196,7 +196,6 @@ tasks.register("javaPreCommitPortabilityApi") {
 tasks.register("javaPostCommit") {
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:postCommit")
   dependsOn(":sdks:java:extensions:zetasketch:postCommit")
-  dependsOn(":sdks:java:io:google-cloud-platform:postCommit")
   dependsOn(":sdks:java:io:amazon-web-services:integrationTest")
   dependsOn(":sdks:java:io:amazon-web-services2:integrationTest")
   dependsOn(":sdks:java:extensions:ml:postCommit")
@@ -204,8 +203,12 @@ tasks.register("javaPostCommit") {
 
 tasks.register("javaPostCommitSickbay") {
   dependsOn(":runners:samza:validatesRunnerSickbay")
-  dependsOn(":runners:flink:validatesRunnerSickbay")
-  dependsOn(":runners:spark:validatesRunnerSickbay")
+  dependsOn(":runners:flink:1.12:validatesRunnerSickbay")
+  dependsOn(":runners:flink:1.13:validatesRunnerSickbay")
+  dependsOn(":runners:flink:1.14:validatesRunnerSickbay")
+  dependsOn(":runners:flink:1.15:validatesRunnerSickbay")
+  dependsOn(":runners:spark:2:job-server:validatesRunnerSickbay")
+  dependsOn(":runners:spark:3:job-server:validatesRunnerSickbay")
   dependsOn(":runners:direct-java:validatesRunnerSickbay")
   dependsOn(":runners:portability:java:validatesRunnerSickbay")
 }

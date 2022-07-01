@@ -36,9 +36,11 @@ package integration
 
 import (
 	"fmt"
+	"math/rand"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	// common runner flag.
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
@@ -213,8 +215,9 @@ func CheckFilters(t *testing.T) {
 			t.Skipf("Test %v is currently sickbayed on all runners", n)
 		}
 	}
-	// TODO(lostluck): Improve default job names.
-	*jobopts.JobName = fmt.Sprintf("go-%v", strings.ToLower(n))
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	*jobopts.JobName = fmt.Sprintf("go-%v-%v", strings.ToLower(n), r1.Intn(1000))
 
 	// Test for runner-specific skipping second.
 	var filters []string
