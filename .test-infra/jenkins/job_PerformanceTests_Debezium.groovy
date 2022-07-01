@@ -22,6 +22,13 @@ import InfluxDBCredentialsHelper
 
 String jobName = "beam_PerformanceTests_Debezium"
 
+String kubernetesYmlPath = "src/.test-infra/kubernetes/postgres/"
+                           + "postgres-service-for-debezium.yml"
+
+String task = ":sdks:python:apache_beam:testing:load_tests:run "
+              + "-PloadTest.mainClass=apache_beam.testing."
+              + "load_tests.debezium_performance -Prunner=DataflowRunner"
+
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
   common.setAutoJob(delegate, 'H H/12 * * *')
@@ -34,28 +41,16 @@ job(jobName) {
   String namespace = common.getKubernetesNamespace(jobName)
   String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
   Kubernetes k8s = Kubernetes.create(delegate, kubeconfig, namespace)
-  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/postgres/postgres-service-for-debezium.yml"))
+  k8s.apply(common.makePathAbsolute(kubernetesYmlPath))
   String postgresHostName = "LOAD_BALANCER_IP"
   k8s.loadBalancerIP("postgres-for-dev", postgresHostName)
 
   (0..2).each { k8s.loadBalancerIP("outside-$it", "Postgres_IP_$it") }
 
-  Map pipelineOptions = [
-    tempRoot             : 'gs://temp-storage-for-perf-tests',
-    project              : 'apache-beam-testing',
-    runner               : 'DataflowRunner',
-    postgresServerName   : "\$${postgresHostName}",
-    postgresIP           : "\$Postgres_IP_0"
-  ]
-
   steps {
     gradle {
       rootBuildScriptDir(common.checkoutDir)
-      common.setGradleSwitches(delegate)
-      switches("--info")
-      switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
-      switches("-DintegrationTestRunner=dataflow")
-      tasks("apache_beam.testing.load_tests.debezium_performance")
+      tasks(task)
     }
   }
 }

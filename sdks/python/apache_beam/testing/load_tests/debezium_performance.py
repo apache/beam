@@ -16,41 +16,21 @@
 #
 
 """
-Load test for operations involving side inputs.
+Performance test for debezium.
 
-The purpose of this test is to measure the cost of materialization and
-accessing side inputs. The test uses synthetic source which can be
-parametrized to generate records with various sizes of keys and values,
-impose delays in the pipeline and simulate other performance challenges.
-
-This test can accept the following parameters:
-  * side_input_type (str) - Required. Specifies how the side input will be
-    materialized in ParDo operation. Choose from (dict, iter, list).
-  * window_count (int) - The number of fixed sized windows to subdivide the
-    side input into. By default, a global window will be used.
-  * access_percentage (int) - Specifies the percentage of elements in the side
-    input to be accessed. By default, all elements will be accessed.
+The purpose of this test is verify that Python's connector ReadFromDebezium
+work propertly, for this, the test create a postgresql database inside a 
+kubernetes pod and stream querys inside of the database for 20 minutes.
+After that ReadFromDebezium checks if everything goes well
 
 Example test run:
 
-python -m apache_beam.testing.load_tests.sideinput_test \
-    --test-pipeline-options="
-    --side_input_type=iter
-    --input_options='{
-    \"num_records\": 300,
-    \"key_size\": 5,
-    \"value_size\": 15
-    }'"
+python -m apache_beam.testing.load_tests.debezium_performance
 
 or:
 
-./gradlew -PloadTest.args="
-    --side_input_type=iter
-    --input_options='{
-      \"num_records\": 300,
-      \"key_size\": 5,
-      \"value_size\": 15}'" \
--PloadTest.mainClass=apache_beam.testing.load_tests.debezium_performance \
+./gradlew
+ -PloadTest.mainClass=apache_beam.testing.load_tests.debezium_performance \
 -Prunner=DirectRunner :sdks:python:apache_beam:testing:load_tests:run
 """
 
@@ -77,8 +57,8 @@ class DebeziumLoadTest(LoadTest, beam.DoFn):
         # de kubernetes
         self.database = 'postgres'
         self.port = "5432"
-        self.host = os.environ['kubernetesPostgres']
-        #self.host = '146.148.98.7' # Ip provisional, una vez que 
+        # Please verify the way to obtain the IP 
+        self.host = os.environ['kubernetesPostgres'] 
         self.connector_class = DriverClassName.POSTGRESQL
         self.connection_properties = [
             "database.dbname=postgres",
@@ -113,7 +93,7 @@ class DebeziumLoadTest(LoadTest, beam.DoFn):
         alterTableReplica = "ALTER TABLE postgres REPLICA IDENTITY FULL;"
         cursor.execute(alterTableReplica)
         startTime = time.time()
-        testDuration = 120 # Seconds , 20 Minutes
+        testDuration = 1200
         timeFlag = True
         while timeFlag:
             action = random.randint(1,10)
@@ -146,7 +126,7 @@ class DebeziumLoadTest(LoadTest, beam.DoFn):
         connection.commit()
         cursor.close()
         return "DebeziumTest"
-    # En esta funcion, creare el pipeline que se enviara a los diferentes runners 
+         
     def createPipeline(self):
         with beam.Pipeline() as pipeline:
             debeziumTest = (
