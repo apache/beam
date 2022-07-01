@@ -972,6 +972,20 @@ class WorkerOptions(PipelineOptions):
             '(See https://docs.python.org/3/library/logging.html#levels). '
             'Default log level is INFO.'))
     parser.add_argument(
+        '--sdk_harness_log_level_overrides',
+        action='append',
+        default=None,
+        help=(
+            'Controls the log levels for specifically named loggers. The '
+            'expected format is a json string: \'{"module":"log_level",...}\'. '
+            'For example, by specifying the value \'{"a.b.c":"DEBUG"}\', '
+            'the logger underneath the module "a.b.c" will be configured to '
+            'output logs at the DEBUG level. Similarly, by specifying the '
+            'value \'{"a.b.c":"WARNING"}\' all loggers underneath the "a.b.c" '
+            'module will be configured to output logs at the WARNING level. '
+            'Also, note that when multiple overrides are specified, the exact '
+            'name followed by the closest parent takes precedence.'))
+    parser.add_argument(
         '--use_public_ips',
         default=None,
         action='store_true',
