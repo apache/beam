@@ -226,7 +226,8 @@ def get_test_beam_fieldtype_protos():
 
 def get_test_beam_schemas_protos():
   return [
-      fieldtype.row_type.schema for fieldtype in get_test_beam_fieldtype_protos()
+      fieldtype.row_type.schema
+      for fieldtype in get_test_beam_fieldtype_protos()
       if fieldtype.WhichOneof('type_info') == 'row_type'
   ]
 
@@ -381,7 +382,10 @@ class SchemaTest(unittest.TestCase):
     #for attr in dir(expected):
     #  self.assertEqual(getattr(actual, attr), getattr(expected, attr))
 
-  @parameterized.expand([(fieldtype_proto,) for fieldtype_proto in get_test_beam_fieldtype_protos()])
+  @parameterized.expand([
+      (fieldtype_proto, )
+      for fieldtype_proto in get_test_beam_fieldtype_protos()
+  ])
   def test_proto_survives_typing_roundtrip(self, fieldtype_proto):
     self.assertEqual(
         fieldtype_proto,
