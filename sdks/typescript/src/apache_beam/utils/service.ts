@@ -292,21 +292,23 @@ export class JavaJarService extends SubprocessService {
     }
     const gradlePackage = gradleTarget.match(/^:?(.*):[^:]+:?$/)![1];
     const artifactId = "beam-" + gradlePackage.replaceAll(":", "-");
-    const projectRoot = path.dirname(findGitRoot(__dirname));
-    const localPath = path.join(
-      projectRoot,
-      gradlePackage.replaceAll(":", path.sep),
-      "build",
-      "libs",
-      JavaJarService.jarName(
-        artifactId,
-        version.replace(".dev", ""),
-        "SNAPSHOT",
-        appendix
-      )
-    );
+    const projectRoot = getProjectRoot();
+    const localPath = !projectRoot
+      ? undefined
+      : path.join(
+          projectRoot,
+          gradlePackage.replaceAll(":", path.sep),
+          "build",
+          "libs",
+          JavaJarService.jarName(
+            artifactId,
+            version.replace(".dev", ""),
+            "SNAPSHOT",
+            appendix
+          )
+        );
 
-    if (fs.existsSync(localPath)) {
+    if (localPath && fs.existsSync(localPath)) {
       console.log("Using pre-built snapshot at", localPath);
       return localPath;
     } else if (version.includes(".dev")) {
@@ -373,23 +375,12 @@ export class PythonService extends SubprocessService {
   }
 
   static beamPython(): string {
-    const projectRoot = path.dirname(findGitRoot(__dirname));
-    // TODO: Package this up with the npm.
     const bootstrapScript = path.join(
-      projectRoot,
-      "sdks",
-      "java",
-      "extensions",
-      "python",
-      "src",
-      "main",
+      __dirname,
+      "..",
+      "..",
+      "..",
       "resources",
-      "org",
-      "apache",
-      "beam",
-      "sdk",
-      "extensions",
-      "python",
       "bootstrap_beam_venv.py"
     );
     console.debug("Invoking Python bootstrap script.");
@@ -456,5 +447,13 @@ export class PythonService extends SubprocessService {
 function serviceOverrideFor(name: string): string | undefined {
   if (process.env.BEAM_SERVICE_OVERRIDES) {
     return JSON.parse(process.env.BEAM_SERVICE_OVERRIDES)[name];
+  }
+}
+
+function getProjectRoot(): string | undefined {
+  try {
+    return path.dirname(findGitRoot(__dirname));
+  } catch (Error) {
+    return undefined;
   }
 }

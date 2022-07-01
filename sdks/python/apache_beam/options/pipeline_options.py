@@ -348,12 +348,15 @@ class PipelineOptions(HasDisplayData):
         del result[k]
 
     if overrides:
-      _LOGGER.warning("Discarding invalid overrides: %s", overrides)
+      if retain_unknown_options:
+        result.update(overrides)
+      else:
+        _LOGGER.warning("Discarding invalid overrides: %s", overrides)
 
     return result
 
   def display_data(self):
-    return self.get_all_options(True)
+    return self.get_all_options(drop_default=True, retain_unknown_options=True)
 
   def view_as(self, cls):
     # type: (Type[PipelineOptionsT]) -> PipelineOptionsT

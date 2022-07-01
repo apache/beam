@@ -149,7 +149,7 @@ export class GeneralObjectCoder<T> implements Coder<T> {
 globalRegistry().register(GeneralObjectCoder.URN, GeneralObjectCoder);
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.coders.js_coders", exports);
-requireForSerialization("apache_beam.coders.js_coders", {
+requireForSerialization("apache-beam/coders/js_coders", exports);
+requireForSerialization("apache-beam/coders/js_coders", {
   NumberOrFloatCoder: NumberOrFloatCoder,
 });

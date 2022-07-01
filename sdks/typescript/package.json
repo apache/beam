@@ -1,5 +1,5 @@
 {
-  "name": "apache_beam",
+  "name": "apache-beam",
   "version": "0.38.0",
   "devDependencies": {
     "@google-cloud/bigquery": "^5.12.0",
@@ -17,8 +17,11 @@
   "files": [
     "dist"
   ],
+  "bin": {
+    "apache-beam-worker": "dist/src/apache_beam/worker/worker_main.js"
+  },
   "scripts": {
-    "build": "ttsc -p .",
+    "build": "ttsc -p . && mkdir -p dist/resources && cp ../java/extensions/python/src/main/resources/org/apache/beam/sdk/extensions/python/bootstrap_beam_venv.py dist/resources",
     "clean": "tsc --clean",
     "worker": "node dist/src/apache_beam/worker/external_worker_service.js",
     "pretest": "npm run build",
@@ -47,6 +50,9 @@
     "ttypescript": "^1.5.13",
     "uuid": "^8.3.2"
   },
-  "main": "./dist/apache_beam/index.js",
-  "exports": "./dist/apache_beam/index.js"
+  "main": "./dist/src/apache_beam/index.js",
+  "exports": {
+    ".": "./dist/src/apache_beam/index.js",
+    "./": "./dist/src/apache_beam/"
+  }
 }
