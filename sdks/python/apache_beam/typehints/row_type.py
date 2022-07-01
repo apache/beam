@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Sequence
@@ -30,13 +32,6 @@ from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 # Name of the attribute added to user types (existing and generated) to store
 # the corresponding schema ID
 _BEAM_SCHEMA_ID = "_beam_schema_id"
-
-from collections import defaultdict
-from typing import Any
-from typing import List
-from typing import Dict
-from typing import Optional
-from typing import Tuple
 
 
 class RowTypeConstraint(typehints.TypeConstraint):
