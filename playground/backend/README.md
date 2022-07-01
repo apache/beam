@@ -91,7 +91,7 @@ default value and there is no need to set them up to launch locally:
   incoming requests to other instances while the instance will not ready.
 - `LAUNCH_SITE` - is the value to configure log (default value = local). If developers want to use log service on the
   App Engine then need to change this value to `app_engine`.
-- `DB_TYPE` - is the type of the code snippet database is used for the backend server. If it is set as a `datastore`,
+- `DB_TYPE` - is the type of the code snippet database is used for the backend server. If it is set as a `remote`,
   then backend server will use Cloud Datastore to keep all code snippets otherwise will be set local database for local deployment and testing (default value = `local`)
 - `SDK_CONFIG` - is the sdk configuration file path, e.g. default example for corresponding sdk. It will be saved to cloud datastore during application startup (default value = `../sdks.yaml`)
 - `DATASTORE_EMULATOR_HOST` - is the datastore emulator address. If it is given in the environment, the application will connect to the datastore emulator.
