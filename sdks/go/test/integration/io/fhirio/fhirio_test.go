@@ -48,6 +48,7 @@ const (
 )
 
 var (
+	backoffDuration        = [...]time.Duration{time.Second, 5 * time.Second, 10 * time.Second}
 	storeService           *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService
 	storeManagementService *healthcare.ProjectsLocationsDatasetsFhirStoresService
 )
@@ -177,6 +178,22 @@ func extractResourcePathFrom(resourceLocationURL string) (string, error) {
 	return resourceLocationURL[startIdx:endIdx], nil
 }
 
+// Useful to prevent flaky results.
+func runWithBackoffRetries(t *testing.T, p *beam.Pipeline) error {
+	t.Helper()
+
+	var err error
+	for attempt := 0; attempt < len(backoffDuration); attempt++ {
+		err = ptest.Run(p)
+		if err == nil {
+			break
+		}
+		t.Logf("backoff %v after failure", backoffDuration[attempt])
+		time.Sleep(backoffDuration[attempt])
+	}
+	return err
+}
+
 func TestFhirIO_Read(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
@@ -225,7 +242,38 @@ func TestFhirIO_ExecuteBundles(t *testing.T) {
 	passert.True(s, failures, func(errorMsg string) bool {
 		return strings.Contains(errorMsg, strconv.Itoa(http.StatusBadRequest))
 	})
+
 	ptest.RunAndValidate(t, p)
+}
+
+func TestFhirIO_Search(t *testing.T) {
+	integration.CheckFilters(t)
+	checkFlags(t)
+
+	fhirStorePath, _, teardownFhirStore := setupFhirStoreWithData(t)
+	defer teardownFhirStore()
+
+	searchQueries := []fhirio.SearchQuery{
+		{},
+		{ResourceType: "Patient"},
+		{ResourceType: "Patient", Parameters: map[string]string{"gender": "female", "family:contains": "Smith"}},
+		{ResourceType: "Encounter"},
+	}
+
+	p, s, searchQueriesCol := ptest.CreateList(searchQueries)
+	searchResult, deadLetter := fhirio.Search(s, fhirStorePath, searchQueriesCol)
+	passert.Empty(s, deadLetter)
+	passert.Count(s, searchResult, "", len(searchQueries))
+
+	resourcesFoundCount := beam.ParDo(s, func(identifier string, resourcesFound []string) int {
+		return len(resourcesFound)
+	}, searchResult)
+	passert.Equals(s, resourcesFoundCount, 4, 2, 1, 0)
+
+	err := runWithBackoffRetries(t, p)
+	if err != nil {
+		t.Fatalf("Pipeline assertions failed: %v", err)
+	}
 }
 
 func TestMain(m *testing.M) {

@@ -65,6 +65,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Previously available in Java sdk, Python sdk now also supports logging level overrides per module. ([#18222](https://github.com/apache/beam/issues/18222)).
 
 ## Breaking Changes
 
@@ -72,6 +73,7 @@
 
 ## Deprecations
 
+* Support for Spark 2.4.x is deprecated and will be dropped with the release of Beam 2.44.0 or soon after (Spark runner) ([#22094](https://github.com/apache/beam/issues/22094)).
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Bugfixes
