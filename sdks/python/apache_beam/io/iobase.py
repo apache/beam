@@ -848,8 +848,12 @@ class Writer(object):
   See ``iobase.Sink`` for more detailed documentation about the process of
   writing to a sink.
   """
-  def write(self, value):
-    """Writes a value to the sink using the current writer."""
+  def write(self, value) -> Optional[bool]:
+    """Writes a value to the sink using the current writer.
+
+    Returns True if this writer should be considered at capacity and a new one
+    should be created.
+    """
     raise NotImplementedError
 
   def close(self):
@@ -1184,7 +1188,9 @@ class _WriteBundleDoFn(core.DoFn):
     if self.writer is None:
       # We ignore UUID collisions here since they are extremely rare.
       self.writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
-    self.writer.write(element)
+    if self.writer.write(element):
+      yield self.writer.close()
+      self.writer = None
 
   def finish_bundle(self):
     if self.writer is not None:
