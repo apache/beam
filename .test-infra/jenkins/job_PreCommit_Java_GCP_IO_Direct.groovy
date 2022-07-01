@@ -20,7 +20,7 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Java',
+    nameBase: 'Java_GCP_IO_Direct',
     gradleTask: ':sdks:java:io:google-cloud-platform:postCommit',
     gradleSwitches: [
       '-PdisableSpotlessCheck=true'
