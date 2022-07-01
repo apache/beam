@@ -38,14 +38,18 @@ class RowTypeConstraint(typehints.TypeConstraint):
     https://beam.apache.org/documentation/programming-guide/#schemas-for-pl-types
     for guidance on creating PCollections with inferred schemas.
 
-    Note RowTypeConstraint does not currently store functions for converting
-    to/from the user type. Currently we only support a few types that satisfy
-    some assumptions:
+    Note RowTypeConstraint does not currently store arbitrary functions for
+    converting to/from the user type. Instead, we only support ``NamedTuple``
+    user types and make the follow assumptions:
 
-    - **to:** We assume that the user type can be constructed with field values
-      in order.
-    - **from:** We assume that field values can be accessed from instances of
-      the type by attribute (i.e. with ``getattr(obj, field_name)``).
+    - The user type can be constructed with field values as arguments in order
+      (i.e. ``constructor(*field_values)``).
+    - Field values can be accessed from instances of the user type by attribute
+      (i.e. with ``getattr(obj, field_name)``).
+
+    In the future we will add support for dataclasses
+    ([#22085](https://github.com/apache/beam/issues/22085)) which also satisfy
+    these assumptions.
 
     The RowTypeConstraint constructor should not be called directly (even
     internally to Beam). Prefer static methods ``from_user_type`` or
