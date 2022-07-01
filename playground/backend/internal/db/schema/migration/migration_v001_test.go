@@ -72,7 +72,7 @@ func TestInitialStructure_InitiateData(t *testing.T) {
 			dbArgs: &schema.DBArgs{
 				Ctx:    ctx,
 				Db:     datastoreDb,
-				AppEnv: environment.NewApplicationEnvs("/app", "", "", "", "", "MOCK_SALT", "", "", "../../../../../sdks.yaml", nil, 0, "", 0, 11),
+				AppEnv: environment.NewApplicationEnvs("/app", "", "", "", "", "../../../../../sdks.yaml", nil, 0),
 			},
 			wantErr: false,
 		},

@@ -24,7 +24,7 @@ import (
 	"io"
 )
 
-func ID(salt, content string, length int) (string, error) {
+func ID(salt, content string, length int8) (string, error) {
 	hash := sha256.New()
 	if _, err := io.WriteString(hash, salt); err != nil {
 		logger.Errorf("ID(): error during K generation: %s", err.Error())
@@ -34,7 +34,7 @@ func ID(salt, content string, length int) (string, error) {
 	sum := hash.Sum(nil)
 	b := make([]byte, base64.URLEncoding.EncodedLen(len(sum)))
 	base64.URLEncoding.Encode(b, sum)
-	hashLen := length
+	hashLen := int(length)
 	for hashLen <= len(b) && b[hashLen-1] == '_' {
 		hashLen++
 	}

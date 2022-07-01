@@ -27,6 +27,7 @@ type DBArgs struct {
 	Ctx    context.Context
 	Db     db.Database
 	AppEnv *environment.ApplicationEnvs
+	Props  *environment.Properties
 }
 
 type DBSchema struct {
@@ -34,9 +35,9 @@ type DBSchema struct {
 	versions []Version
 }
 
-func New(ctx context.Context, db db.Database, appEnv *environment.ApplicationEnvs, versions []Version) *DBSchema {
+func New(ctx context.Context, db db.Database, appEnv *environment.ApplicationEnvs, props *environment.Properties, versions []Version) *DBSchema {
 	return &DBSchema{
-		args:     &DBArgs{ctx, db, appEnv},
+		args:     &DBArgs{ctx, db, appEnv, props},
 		versions: versions,
 	}
 }

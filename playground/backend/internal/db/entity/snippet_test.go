@@ -57,7 +57,7 @@ func TestSnippet_ID(t *testing.T) {
 			}
 
 			if err == nil {
-				if len(id) != tt.snip.IdLength {
+				if len(id) != int(tt.snip.IdLength) {
 					t.Error("The ID length is not 11")
 				}
 				if tt.want != id {

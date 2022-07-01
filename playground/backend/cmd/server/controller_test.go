@@ -21,7 +21,6 @@ import (
 	"beam.apache.org/playground/backend/internal/db"
 	datastoreDb "beam.apache.org/playground/backend/internal/db/datastore"
 	"beam.apache.org/playground/backend/internal/db/entity"
-	localdb "beam.apache.org/playground/backend/internal/db/local"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/utils"
 	"context"
@@ -43,11 +42,14 @@ import (
 )
 
 const (
-	bufSize               = 1024 * 1024
-	javaConfig            = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
-	javaLogConfigFilename = "logging.properties"
-	baseFileFolder        = "executable_files"
-	configFolder          = "configs"
+	bufSize                    = 1024 * 1024
+	javaConfig                 = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
+	javaLogConfigFilename      = "logging.properties"
+	baseFileFolder             = "executable_files"
+	configFolder               = "configs"
+	datastoreEmulatorHostKey   = "DATASTORE_EMULATOR_HOST"
+	datastoreEmulatorHostValue = "127.0.0.1:8888"
+	datastoreEmulatorProjectId = "test"
 )
 
 var lis *bufconn.Listener
@@ -87,8 +89,14 @@ func setup() *grpc.Server {
 	// setup cache
 	cacheService = local.New(context.Background())
 
-	// setup entity storage
-	snippetDb, err = localdb.New()
+	// setup database
+	datastoreEmulatorHost := os.Getenv(datastoreEmulatorHostKey)
+	if datastoreEmulatorHost == "" {
+		if err = os.Setenv(datastoreEmulatorHostKey, datastoreEmulatorHostValue); err != nil {
+			panic(err)
+		}
+	}
+	snippetDb, err = datastoreDb.New(context.Background(), datastoreEmulatorProjectId)
 	if err != nil {
 		panic(err)
 	}

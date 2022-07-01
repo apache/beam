@@ -17,5 +17,5 @@ package entity
 
 type IDMeta struct {
 	Salt     string
-	IdLength int
+	IdLength int8
 }

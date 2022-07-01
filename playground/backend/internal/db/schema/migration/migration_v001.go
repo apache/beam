@@ -30,8 +30,8 @@ func (is *InitialStructure) InitiateData(args *schema.DBArgs) error {
 	//init snippets
 	dummyStr := "dummy"
 	idInfo := entity.IDMeta{
-		IdLength: args.AppEnv.IdLength(),
-		Salt:     args.AppEnv.PlaygroundSalt(),
+		IdLength: args.Props.IdLength,
+		Salt:     args.Props.Salt,
 	}
 	snip := &entity.Snippet{
 		IDMeta: &idInfo,

@@ -27,9 +27,9 @@ import (
 var testable *EntityMapper
 
 func TestMain(m *testing.M) {
-	appEnv := environment.NewApplicationEnvs("/app", "", "", "", "", "MOCK_SALT", "", "PG_USER", "", nil, 0, "", 1000, 11)
+	appEnv := environment.NewApplicationEnvs("/app", "", "", "", "", "", nil, 0)
 	appEnv.SetSchemaVersion("MOCK_SCHEMA")
-	testable = New(appEnv)
+	testable = New(appEnv, nil)
 }
 
 func TestEntityMapper_ToSnippet(t *testing.T) {

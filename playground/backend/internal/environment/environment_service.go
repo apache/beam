@@ -62,18 +62,6 @@ const (
 	defaultNumOfParallelJobs      = 20
 	bucketNameKey                 = "BUCKET_NAME"
 	defaultBucketName             = "playground-precompiled-objects"
-	DBTypeKey                     = "DB_TYPE"
-	defaultDBType                 = LocalDB
-	playgroundSaltKey             = "PLAYGROUND_SALT"
-	defaultPlaygroundSalt         = "Beam playground salt\n"
-	maxSnippetSizeKey             = "MAX_SNIPPET_SIZE"
-	defaultMaxSnippetSize         = 1000000 //1 MB
-	idLengthKey                   = "ID_LENGTH"
-	defaultIdLength               = 11
-	datastoreEmulatorHostKey      = "DATASTORE_EMULATOR_HOST"
-	defaultDatastoreEmulatorHost  = "localhost:8082"
-	originKey                     = "ORIGIN"
-	defaultOrigin                 = "PG_USER"
 	SDKConfigPathKey              = "SDK_CONFIG"
 	defaultSDKConfigPath          = "../sdks.yaml"
 )
@@ -118,12 +106,6 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	projectId := os.Getenv(projectIdKey)
 	pipelinesFolder := getEnv(pipelinesFolderKey, defaultPipelinesFolder)
 	bucketName := getEnv(bucketNameKey, defaultBucketName)
-	DBType := Database(getEnv(DBTypeKey, defaultDBType.String()))
-	playgroundSalt := getEnv(playgroundSaltKey, defaultPlaygroundSalt)
-	maxSnippetSize := getEnvAsInt(maxSnippetSizeKey, defaultMaxSnippetSize)
-	idLength := getEnvAsInt(idLengthKey, defaultIdLength)
-	datastoreEmulatorHost := getEnv(datastoreEmulatorHostKey, defaultDatastoreEmulatorHost)
-	origin := getEnv(originKey, defaultOrigin)
 	sdkConfigPath := getEnv(SDKConfigPathKey, defaultSDKConfigPath)
 
 	if value, present := os.LookupEnv(cacheKeyExpirationTimeKey); present {
@@ -142,7 +124,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	}
 
 	if value, present := os.LookupEnv(workingDirKey); present {
-		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, bucketName, playgroundSalt, datastoreEmulatorHost, origin, sdkConfigPath, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout, DBType, maxSnippetSize, idLength), nil
+		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, bucketName, sdkConfigPath, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
 	}
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }

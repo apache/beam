@@ -26,19 +26,17 @@ import (
 
 type EntityMapper struct {
 	appEnv *environment.ApplicationEnvs
+	props  *environment.Properties
 }
 
-func New(appEnv *environment.ApplicationEnvs) *EntityMapper {
-	return &EntityMapper{appEnv: appEnv}
+func New(appEnv *environment.ApplicationEnvs, props *environment.Properties) *EntityMapper {
+	return &EntityMapper{appEnv: appEnv, props: props}
 }
 
 func (m *EntityMapper) ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet {
 	nowDate := time.Now()
 	snippet := entity.Snippet{
-		IDMeta: &entity.IDMeta{
-			Salt:     m.appEnv.PlaygroundSalt(),
-			IdLength: m.appEnv.IdLength(),
-		},
+		IDMeta: &entity.IDMeta{Salt: m.props.Salt, IdLength: m.props.IdLength},
 		//OwnerId property will be used in Tour of Beam project
 		Snippet: &entity.SnippetEntity{
 			SchVer:        utils.GetNameKey(datastoreDb.SchemaKind, m.appEnv.SchemaVersion(), datastoreDb.Namespace, nil),
@@ -46,7 +44,7 @@ func (m *EntityMapper) ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet {
 			PipeOpts:      info.PipelineOptions,
 			Created:       nowDate,
 			LVisited:      nowDate,
-			Origin:        entity.Origin(entity.OriginValue[m.appEnv.Origin()]),
+			Origin:        0,
 			NumberOfFiles: len(info.Files),
 		},
 	}

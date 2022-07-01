@@ -18,7 +18,7 @@ package environment
 import "github.com/spf13/viper"
 
 const (
-	configPath = "../../."
+	configPath = "."
 	configName = "properties"
 	configType = "yaml"
 )

@@ -54,20 +54,6 @@ type CacheEnvs struct {
 	keyExpirationTime time.Duration
 }
 
-// Database represents data type that needed to use specific database
-type Database string
-
-// DatastoreDB represents value indicates database as datastore
-// LocalDB represents value indicates database for local usage or testing
-const (
-	DatastoreDB Database = "datastore"
-	LocalDB     Database = "local"
-)
-
-func (db Database) String() string {
-	return string(db)
-}
-
 // CacheType returns cache type
 func (ce *CacheEnvs) CacheType() string {
 	return ce.cacheType
@@ -117,26 +103,8 @@ type ApplicationEnvs struct {
 	// bucketName is a name of the GCS's bucket with examples
 	bucketName string
 
-	// dbType is a database type
-	dbType Database
-
-	// playgroundSalt is a salt to generate hash
-	playgroundSalt string
-
-	// maxSnippetSize is entity size limit
-	maxSnippetSize int
-
-	// idLength is a datastore ID length
-	idLength int
-
-	// datastoreEmulatorHost is the address of datastore emulator
-	datastoreEmulatorHost string
-
 	// schemaVersion is the database schema version
 	schemaVersion string
-
-	// origin is a backend source
-	origin string
 
 	// sdkConfigPath is a sdk configuration file
 	sdkConfigPath string
@@ -144,11 +112,9 @@ type ApplicationEnvs struct {
 
 // NewApplicationEnvs constructor for ApplicationEnvs
 func NewApplicationEnvs(
-	workingDir, launchSite, projectId, pipelinesFolder, bucketName, playgroundSalt, datastoreEmulatorHost, origin, sdkConfigPath string,
+	workingDir, launchSite, projectId, pipelinesFolder, bucketName, sdkConfigPath string,
 	cacheEnvs *CacheEnvs,
 	pipelineExecuteTimeout time.Duration,
-	dbType Database,
-	maxSnippetSize, firestoreIdLength int,
 ) *ApplicationEnvs {
 	return &ApplicationEnvs{
 		workingDir:             workingDir,
@@ -158,12 +124,6 @@ func NewApplicationEnvs(
 		projectId:              projectId,
 		pipelinesFolder:        pipelinesFolder,
 		bucketName:             bucketName,
-		dbType:                 dbType,
-		playgroundSalt:         playgroundSalt,
-		maxSnippetSize:         maxSnippetSize,
-		idLength:               firestoreIdLength,
-		datastoreEmulatorHost:  datastoreEmulatorHost,
-		origin:                 origin,
 		sdkConfigPath:          sdkConfigPath,
 	}
 }
@@ -203,39 +163,9 @@ func (ae *ApplicationEnvs) BucketName() string {
 	return ae.bucketName
 }
 
-// DbType returns database type
-func (ae *ApplicationEnvs) DbType() Database {
-	return ae.dbType
-}
-
-// PlaygroundSalt returns playground salt for hash generation
-func (ae *ApplicationEnvs) PlaygroundSalt() string {
-	return ae.playgroundSalt
-}
-
-// MaxSnippetSize returns entity size limit
-func (ae *ApplicationEnvs) MaxSnippetSize() int {
-	return ae.maxSnippetSize
-}
-
-// IdLength returns the datastore ID length
-func (ae *ApplicationEnvs) IdLength() int {
-	return ae.idLength
-}
-
-// DatastoreEmulatorHost returns the address of datastore emulator
-func (ae *ApplicationEnvs) DatastoreEmulatorHost() string {
-	return ae.datastoreEmulatorHost
-}
-
 // SchemaVersion returns the database schema version
 func (ae *ApplicationEnvs) SchemaVersion() string {
 	return ae.schemaVersion
-}
-
-// Origin returns backend source
-func (ae *ApplicationEnvs) Origin() string {
-	return ae.origin
 }
 
 // SdkConfigPath returns sdk configuration file
