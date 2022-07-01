@@ -66,5 +66,18 @@ docker {
                            "golang:1.16-bullseye" ])
 }
 
+task dockerComposeLocal() {
+    doFirst {
+        exec {
+            commandLine "sh", "build-router-image.sh"
+        }
+    }
+    doLast {
+        exec {
+            commandLine "docker-compose", "-f", "docker-compose.local.yml", "up", "-d"
+        }
+    }
+}
+
 // Ensure that we build the required resources and copy and file dependencies from related projects
 dockerPrepare.dependsOn copyDockerfileDependencies
