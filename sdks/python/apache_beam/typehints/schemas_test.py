@@ -179,22 +179,70 @@ def get_test_beam_fieldtype_protos():
                       typ in enumerate(all_primitives)
                   ],
                   options=[
+                      schema_pb2.Option(name='a_flag'),
                       schema_pb2.Option(
-                          name='some_metadata',
+                          name='a_byte',
                           type=schema_pb2.FieldType(
-                              atomic_type=schema_pb2.STRING),
+                              atomic_type=schema_pb2.BYTE),
                           value=schema_pb2.FieldValue(
                               atomic_value=schema_pb2.AtomicTypeValue(
-                                  string='foo'))),
+                                  byte=127))),
                       schema_pb2.Option(
-                          name='an_integer_option',
+                          name='a_int16',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.INT16),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  int16=255))),
+                      schema_pb2.Option(
+                          name='a_int32',
                           type=schema_pb2.FieldType(
                               atomic_type=schema_pb2.INT32),
                           value=schema_pb2.FieldValue(
                               atomic_value=schema_pb2.AtomicTypeValue(
-                                  int32=123456))),
-                      schema_pb2.Option(name='a_flag',
-                                        )
+                                  int32=255))),
+                      schema_pb2.Option(
+                          name='a_int64',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.INT64),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  int64=255))),
+                      schema_pb2.Option(
+                          name='a_float',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.FLOAT),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  float=3.14))),
+                      schema_pb2.Option(
+                          name='a_double',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.DOUBLE),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  double=2.718))),
+                      schema_pb2.Option(
+                          name='a_str',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.STRING),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  string='str'))),
+                      schema_pb2.Option(
+                          name='a_bool',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.BOOLEAN),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  boolean=True))),
+                      schema_pb2.Option(
+                          name='a_bytes',
+                          type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.BYTES),
+                          value=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  bytes=b'bytes!'))),
                   ]))),
       schema_pb2.FieldType(
           row_type=schema_pb2.RowType(
@@ -205,14 +253,14 @@ def get_test_beam_fieldtype_protos():
                           name='field%d' % i,
                           type=typ,
                           options=[
+                              schema_pb2.Option(name='a_flag'),
                               schema_pb2.Option(
-                                  name='some_metadata',
+                                  name='a_str',
                                   type=schema_pb2.FieldType(
                                       atomic_type=schema_pb2.STRING),
                                   value=schema_pb2.FieldValue(
                                       atomic_value=schema_pb2.AtomicTypeValue(
-                                          string='foo'))),
-                              schema_pb2.Option(name='a_flag')
+                                          string='str'))),
                           ]) for i,
                       typ in enumerate(all_primitives)
                   ]))),
