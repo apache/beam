@@ -118,6 +118,7 @@ from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
+from apache_beam.utils.annotations import experimental
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
@@ -257,9 +258,7 @@ class _ReadMatchesFn(beam.DoFn):
     yield ReadableFile(metadata, self._compression)
 
 
-# TODO(BEAM-14401) experimental() decoration causes docstring not rendering when
-# docstring contains constructor argument documentation.
-# @experimental()
+@experimental()
 class MatchContinuously(beam.PTransform):
   """Checks for new files for a given pattern every interval.
 
@@ -488,9 +487,7 @@ class FileResult(_FileResult):
   pass
 
 
-# TODO(BEAM-14401) experimental() decoration causes docstring not rendering when
-# docstring contains constructor argument documentation.
-# @experimental()
+@experimental()
 class WriteToFiles(beam.PTransform):
   r"""Write the incoming PCollection to a set of output files.
 
