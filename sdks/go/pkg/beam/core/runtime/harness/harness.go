@@ -73,9 +73,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	recordHeader()
 
 	// Connect to FnAPI control server. Receive and execute work.
-	// TODO: setup data manager, DoFn register
-
-	conn, err := dial(ctx, controlEndpoint, 60*time.Second)
+	conn, err := dial(ctx, controlEndpoint, "control", 60*time.Second)
 	if err != nil {
 		return errors.Wrap(err, "failed to connect")
 	}
@@ -669,7 +667,7 @@ func fail(ctx context.Context, id instructionID, format string, args ...interfac
 
 // dial to the specified endpoint. if timeout <=0, call blocks until
 // grpc.Dial succeeds.
-func dial(ctx context.Context, endpoint string, timeout time.Duration) (*grpc.ClientConn, error) {
-	log.Infof(ctx, "Connecting via grpc @ %s ...", endpoint)
+func dial(ctx context.Context, endpoint, purpose string, timeout time.Duration) (*grpc.ClientConn, error) {
+	log.Infof(ctx, "Connecting via grpc @ %s for %s ...", endpoint, purpose)
 	return grpcx.Dial(ctx, endpoint, timeout)
 }

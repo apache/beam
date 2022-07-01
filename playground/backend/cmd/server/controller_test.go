@@ -29,6 +29,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 	"io/fs"
 	"log"
@@ -909,7 +910,7 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 }
 
 func getPlaygroundServiceClient(ctx context.Context, t *testing.T) (pb.PlaygroundServiceClient, func()) {
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}

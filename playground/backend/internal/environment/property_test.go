@@ -13,13 +13,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dataflowlib
+package environment
 
-import (
-	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-)
+import "testing"
 
-// Fixup proto pipeline with Dataflow quirks.
-func Fixup(p *pipepb.Pipeline) (*pipepb.Pipeline, error) {
-	return p, nil
+func TestNew(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{
+			name:    "Property constructor in the usual case",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			props, err := NewProperties()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewProperties() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if props.Salt != "Beam playground salt" ||
+				props.MaxSnippetSize != 1000000 ||
+				props.IdLength != 11 {
+				t.Errorf("NewProperties(): unexpected result")
+			}
+		})
+	}
 }

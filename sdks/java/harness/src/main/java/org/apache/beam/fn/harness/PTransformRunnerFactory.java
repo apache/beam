@@ -29,9 +29,9 @@ import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Timer;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingRunnable;
@@ -49,6 +49,9 @@ public interface PTransformRunnerFactory<T> {
   interface Context {
     /** Pipeline options. */
     PipelineOptions getPipelineOptions();
+
+    /** A way to get or create monitoring short ids. */
+    ShortIdMap getShortIdMap();
 
     /** A client for handling inbound and outbound data streams. */
     BeamFnDataClient getBeamFnDataClient();
@@ -125,7 +128,7 @@ public interface PTransformRunnerFactory<T> {
      * Register any reset methods. This should not invoke any user code which should be done instead
      * using the {@link #addFinishBundleFunction}. The reset method is guaranteed to be invoked
      * after the bundle completes successfully and after {@code T} becomes ineligible to receive
-     * method calls registered with {@link #addProgressRequestCallback} or {@link
+     * requests for monitoring data related to {@link #addBundleProgressReporter} or {@link
      * #getSplitListener}.
      */
     void addResetFunction(ThrowingRunnable resetFunction);
@@ -135,13 +138,6 @@ public interface PTransformRunnerFactory<T> {
      * become garbage collected.
      */
     void addTearDownFunction(ThrowingRunnable tearDownFunction);
-
-    /**
-     * Register a callback whenever progress is being requested. This method will be called
-     * concurrently to any methods registered with {@code pCollectionConsumerRegistry}, {@code
-     * startFunctionRegistry}, and {@code finishFunctionRegistry}.
-     */
-    void addProgressRequestCallback(ProgressRequestCallback progressRequestCallback);
 
     /**
      * Register a callback whenever progress is being requested.
@@ -187,14 +183,5 @@ public interface PTransformRunnerFactory<T> {
      * instantiating an appropriate handler.
      */
     Map<String, PTransformRunnerFactory> getPTransformRunnerFactories();
-  }
-
-  /**
-   * A marker interface used to register providing additional monitoring information whenever
-   * progress is being requested.
-   */
-  @FunctionalInterface
-  interface ProgressRequestCallback {
-    List<MonitoringInfo> getMonitoringInfos() throws Exception;
   }
 }

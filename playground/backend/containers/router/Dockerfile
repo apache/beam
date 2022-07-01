@@ -70,10 +70,6 @@ ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_UNSPECIFIED"
 ENV BUCKET_NAME="playground-precompiled-objects"
 ENV DB_TYPE=datastore
-ENV PLAYGROUND_SALT="Beam playground salt\n"
-ENV MAX_SNIPPET_SIZE=1000000
-ENV ID_LENGTH=11
-ENV ORIGIN=PG_USER
 ENV SDK_CONFIG=/opt/playground/backend/sdks.yaml
 
 # Copy build result
