@@ -123,9 +123,9 @@ export class DoubleCoder implements Coder<number> {
   }
 
   decode(reader: Reader, context: Context): number {
-    const barr = new Uint8Array(reader.buf, reader.pos, 8);
-    const dView = new DataView(barr.buffer);
-    reader.float();
+    const barr = new Uint8Array(reader.buf);
+    const dView = new DataView(barr.buffer.slice(reader.pos, reader.pos + 8));
+    reader.double();
     return dView.getFloat64(0, false);
   }
 

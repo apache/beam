@@ -22,7 +22,7 @@
     "clean": "tsc --clean",
     "worker": "node dist/src/apache_beam/worker/external_worker_service.js",
     "pretest": "npm run build",
-    "test": "mocha dist/test",
+    "test": "mocha dist/test dist/test/docs",
     "codecovTest": "istanbul cover mocha dist/test --reporter lcovonly -- -R spec && codecov",
     "prettier": "prettier --write src/",
     "prettier-check": "prettier --check src/",
