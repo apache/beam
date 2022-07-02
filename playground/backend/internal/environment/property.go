@@ -18,17 +18,19 @@ package environment
 import "github.com/spf13/viper"
 
 const (
+	//configName is the name for the config file.
 	configName = "properties"
+	//configType is the type of the configuration returned by the remote source, e.g. "json", "yaml", "env" and so on.
 	configType = "yaml"
 )
 
-//Properties contains all properties that needed to run backend processes
+//Properties contains all properties that needed to run backend processes.
 type Properties struct {
-	// Salt is the salt to generate the hash to avoid whatever problems a collision may cause
+	// Salt is the salt to generate the hash to avoid whatever problems a collision may cause.
 	Salt string `mapstructure:"playground_salt"`
-	// MaxSnippetSize is the file content size limit. Since 1 character occupies 1 byte of memory, and 1 MB is approximately equal to 1000000 bytes, then maximum size of the snippet is 1000000
+	// MaxSnippetSize is the file content size limit. Since 1 character occupies 1 byte of memory, and 1 MB is approximately equal to 1000000 bytes, then maximum size of the snippet is 1000000.
 	MaxSnippetSize int32 `mapstructure:"max_snippet_size"`
-	// ID_LENGTH is the length of the identifier that is used to store data in the cloud datastore. It's appropriate length to save storage size in the cloud datastore and provide good randomnicity
+	// ID_LENGTH is the length of the identifier that is used to store data in the cloud datastore. It's appropriate length to save storage size in the cloud datastore and provide good randomnicity.
 	IdLength int8 `mapstructure:"id_length"`
 }
 

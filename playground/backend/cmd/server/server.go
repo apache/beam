@@ -29,10 +29,12 @@ import (
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/utils"
 	"context"
+	"fmt"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
 )
 
+// appPropsPath is the path to application properties
 const appPropsPath = "."
 
 // runServer is starting http server wrapped on grpc
@@ -171,13 +173,16 @@ func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache, bucketN
 
 // setupDBStructure initializes the data structure
 func setupDBStructure(ctx context.Context, db db.Database, appEnv *environment.ApplicationEnvs, props *environment.Properties) error {
-	versions := []schema.Version{
-		new(migration.InitialStructure),
-	}
+	versions := []schema.Version{new(migration.InitialStructure)}
 	dbSchema := schema.New(ctx, db, appEnv, props, versions)
 	actualSchemaVersion, err := dbSchema.InitiateData()
 	if err != nil {
 		return err
+	}
+	if actualSchemaVersion == "" {
+		errMsg := "schema version must not be empty"
+		logger.Error(errMsg)
+		return fmt.Errorf(errMsg)
 	}
 	appEnv.SetSchemaVersion(actualSchemaVersion)
 	return nil

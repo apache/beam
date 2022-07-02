@@ -17,24 +17,32 @@ package environment
 
 import "testing"
 
-const appPropsPath = "../../."
-
 func TestNew(t *testing.T) {
 	tests := []struct {
-		name    string
-		wantErr bool
+		name         string
+		appPropsPath string
+		wantErr      bool
 	}{
 		{
-			name:    "Property constructor in the usual case",
-			wantErr: false,
+			name:         "Property constructor: when file path is not valid",
+			appPropsPath: "../.",
+			wantErr:      true,
+		},
+		{
+			name:         "Property constructor: in the usual case",
+			appPropsPath: "../../.",
+			wantErr:      false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			props, err := NewProperties(appPropsPath)
+			props, err := NewProperties(tt.appPropsPath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewProperties() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
 			}
 			if props.Salt != "Beam playground salt" ||
 				props.MaxSnippetSize != 1000000 ||

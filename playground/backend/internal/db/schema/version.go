@@ -57,5 +57,6 @@ func (ds *DBSchema) InitiateData() (string, error) {
 
 type Version interface {
 	GetVersion() string
+	GetDescription() string
 	InitiateData(args *DBArgs) error
 }

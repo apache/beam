@@ -26,25 +26,13 @@ type InitialStructure struct {
 }
 
 func (is *InitialStructure) InitiateData(args *schema.DBArgs) error {
-	description := "Data initialization: file snippet, schema versions, SDK"
 	//init snippets
 	dummyStr := "dummy"
-	idInfo := entity.IDMeta{
-		IdLength: args.Props.IdLength,
-		Salt:     args.Props.Salt,
-	}
+	idInfo := entity.IDMeta{IdLength: args.Props.IdLength, Salt: args.Props.Salt}
 	snip := &entity.Snippet{
-		IDMeta: &idInfo,
-		Snippet: &entity.SnippetEntity{
-			OwnerId:  dummyStr,
-			PipeOpts: dummyStr,
-		},
-		Files: []*entity.FileEntity{
-			{
-				Name:    dummyStr,
-				Content: dummyStr,
-			},
-		},
+		IDMeta:  &idInfo,
+		Snippet: &entity.SnippetEntity{OwnerId: dummyStr, PipeOpts: dummyStr},
+		Files:   []*entity.FileEntity{{Name: dummyStr, Content: dummyStr}},
 	}
 	snipId, err := snip.ID()
 	if err != nil {
@@ -55,7 +43,7 @@ func (is *InitialStructure) InitiateData(args *schema.DBArgs) error {
 	}
 
 	//init schema versions
-	schemaEntity := &entity.SchemaEntity{Descr: description}
+	schemaEntity := &entity.SchemaEntity{Descr: is.GetDescription()}
 	if err = args.Db.PutSchemaVersion(args.Ctx, is.GetVersion(), schemaEntity); err != nil {
 		return err
 	}
@@ -113,4 +101,8 @@ func getDefaultExample(config *SdkConfig, sdk string) string {
 
 func (is *InitialStructure) GetVersion() string {
 	return "0.0.1"
+}
+
+func (is InitialStructure) GetDescription() string {
+	return "Data initialization: file snippet, schema versions, SDKs"
 }
