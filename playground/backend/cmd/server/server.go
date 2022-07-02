@@ -33,6 +33,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+const appPropsPath = "."
+
 // runServer is starting http server wrapped on grpc
 func runServer() error {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -43,7 +45,7 @@ func runServer() error {
 		return err
 	}
 
-	props, err := environment.NewProperties()
+	props, err := environment.NewProperties(appPropsPath)
 	if err != nil {
 		return err
 	}
@@ -62,10 +64,10 @@ func runServer() error {
 	// Examples catalog should be retrieved and saved to cache only if the server doesn't suppose to run code, i.e. SDK is unspecified
 	// Database setup only if the server doesn't suppose to run code, i.e. SDK is unspecified
 	if envService.BeamSdkEnvs.ApacheBeamSdk == pb.Sdk_SDK_UNSPECIFIED {
-		//err = setupExamplesCatalog(ctx, cacheService, envService.ApplicationEnvs.BucketName())
-		//if err != nil {
-		//	return err
-		//}
+		err = setupExamplesCatalog(ctx, cacheService, envService.ApplicationEnvs.BucketName())
+		if err != nil {
+			return err
+		}
 
 		dbClient, err = datastore.New(ctx, envService.ApplicationEnvs.GoogleProjectId())
 		if err != nil {

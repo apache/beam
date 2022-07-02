@@ -21,6 +21,8 @@ import (
 	"beam.apache.org/playground/backend/internal/db"
 	datastoreDb "beam.apache.org/playground/backend/internal/db/datastore"
 	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/db/schema"
+	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/utils"
 	"context"
@@ -50,12 +52,14 @@ const (
 	datastoreEmulatorHostKey   = "DATASTORE_EMULATOR_HOST"
 	datastoreEmulatorHostValue = "127.0.0.1:8888"
 	datastoreEmulatorProjectId = "test"
+	appPropsTestPath           = "../../."
 )
 
 var lis *bufconn.Listener
 var cacheService cache.Cache
-var snippetDb db.Database
+var dbClient db.Database
 var opt goleak.Option
+var ctx context.Context
 
 func TestMain(m *testing.M) {
 	server := setup()
@@ -66,6 +70,7 @@ func TestMain(m *testing.M) {
 }
 
 func setup() *grpc.Server {
+	ctx = context.Background()
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer()
 
@@ -87,7 +92,7 @@ func setup() *grpc.Server {
 	}
 
 	// setup cache
-	cacheService = local.New(context.Background())
+	cacheService = local.New(ctx)
 
 	// setup database
 	datastoreEmulatorHost := os.Getenv(datastoreEmulatorHostKey)
@@ -96,7 +101,13 @@ func setup() *grpc.Server {
 			panic(err)
 		}
 	}
-	snippetDb, err = datastoreDb.New(context.Background(), datastoreEmulatorProjectId)
+	dbClient, err = datastoreDb.New(ctx, datastoreEmulatorProjectId)
+	if err != nil {
+		panic(err)
+	}
+
+	// setup app props
+	props, err := environment.NewProperties(appPropsTestPath)
 	if err != nil {
 		panic(err)
 	}
@@ -109,6 +120,9 @@ func setup() *grpc.Server {
 		panic(err)
 	}
 	if err = os.Setenv("APP_WORK_DIR", path); err != nil {
+		panic(err)
+	}
+	if err = os.Setenv("SDK_CONFIG", "../../../sdks.yaml"); err != nil {
 		panic(err)
 	}
 
@@ -124,10 +138,23 @@ func setup() *grpc.Server {
 	if err != nil {
 		panic(err)
 	}
+
+	// setup initial data
+	versions := []schema.Version{
+		new(migration.InitialStructure),
+	}
+	dbSchema := schema.New(ctx, dbClient, appEnv, props, versions)
+	actualSchemaVersion, err := dbSchema.InitiateData()
+	if err != nil {
+		panic(err)
+	}
+	appEnv.SetSchemaVersion(actualSchemaVersion)
+
 	pb.RegisterPlaygroundServiceServer(s, &playgroundController{
 		env:          environment.NewEnvironment(*networkEnv, *sdkEnv, *appEnv),
 		cacheService: cacheService,
-		db:           snippetDb,
+		db:           dbClient,
+		props:        props,
 	})
 	go func() {
 		if err := s.Serve(lis); err != nil {
@@ -210,7 +237,7 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 					if response.PipelineUuid == "" {
 						t.Errorf("PlaygroundController_RunCode() response.pipeLineId shoudn't be nil")
 					}
-					_, err := cacheService.GetValue(tt.args.ctx, uuid.MustParse(response.PipelineUuid), cache.Status)
+					_, err = cacheService.GetValue(tt.args.ctx, uuid.MustParse(response.PipelineUuid), cache.Status)
 					if err != nil {
 						t.Errorf("PlaygroundController_RunCode() status should exist")
 					}
@@ -222,7 +249,6 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 
 func TestPlaygroundController_CheckStatus(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
-	ctx := context.Background()
 	pipelineId := uuid.New()
 	wantStatus := pb.Status_STATUS_FINISHED
 	client, closeFunc := getPlaygroundServiceClient(ctx, t)
@@ -297,7 +323,6 @@ func TestPlaygroundController_CheckStatus(t *testing.T) {
 
 func TestPlaygroundController_GetCompileOutput(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
-	ctx := context.Background()
 	pipelineId := uuid.New()
 	compileOutput := "MOCK_COMPILE_OUTPUT"
 	client, closeFunc := getPlaygroundServiceClient(ctx, t)
@@ -372,7 +397,6 @@ func TestPlaygroundController_GetCompileOutput(t *testing.T) {
 
 func TestPlaygroundController_GetRunOutput(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
-	ctx := context.Background()
 	pipelineId := uuid.New()
 	runOutput := "MOCK_RUN_OUTPUT"
 	client, closeFunc := getPlaygroundServiceClient(ctx, t)
@@ -477,7 +501,6 @@ func TestPlaygroundController_GetRunOutput(t *testing.T) {
 
 func TestPlaygroundController_GetLogs(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
-	ctx := context.Background()
 	pipelineId := uuid.New()
 	logs := "MOCK_LOGS"
 	client, closeFunc := getPlaygroundServiceClient(ctx, t)
@@ -582,7 +605,6 @@ func TestPlaygroundController_GetLogs(t *testing.T) {
 
 func TestPlaygroundController_GetRunError(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
-	ctx := context.Background()
 	pipelineId := uuid.New()
 	runError := "MOCK_RUN_ERROR"
 	client, closeFunc := getPlaygroundServiceClient(ctx, t)
@@ -671,7 +693,6 @@ func TestPlaygroundController_GetRunError(t *testing.T) {
 
 func TestPlaygroundController_Cancel(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
-	ctx := context.Background()
 	pipelineId := uuid.New()
 	client, closeFunc := getPlaygroundServiceClient(ctx, t)
 	defer closeFunc()
@@ -734,7 +755,6 @@ func TestPlaygroundController_Cancel(t *testing.T) {
 
 func TestPlaygroundController_SaveSnippet(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
-	ctx := context.Background()
 	client, closeFunc := getPlaygroundServiceClient(ctx, t)
 	defer closeFunc()
 
@@ -786,7 +806,7 @@ func TestPlaygroundController_SaveSnippet(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			wantId:  "G8wItE9lRcs",
+			wantId:  "xHce_LOg7Zm",
 		},
 		// Test case with calling SaveSnippet method with too large entity.
 		// As a result, want to receive an error.
@@ -837,7 +857,7 @@ func TestPlaygroundController_SaveSnippet(t *testing.T) {
 			}
 			if err == nil {
 				if len(got.Id) != 11 || got.Id != tt.wantId {
-					t.Errorf("PlaygroundController_SaveSnippet() generated ID length is not 11")
+					t.Errorf("PlaygroundController_SaveSnippet() unexpected generated ID")
 				}
 			}
 		})
@@ -846,7 +866,6 @@ func TestPlaygroundController_SaveSnippet(t *testing.T) {
 
 func TestPlaygroundController_GetSnippet(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
-	ctx := context.Background()
 	client, closeFunc := getPlaygroundServiceClient(ctx, t)
 	defer closeFunc()
 	nowDate := time.Now()
@@ -867,7 +886,7 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 			name: "GetSnippet when the entity not found",
 			args: args{
 				ctx:  ctx,
-				info: &pb.GetSnippetRequest{Id: "MOCK_ID"},
+				info: &pb.GetSnippetRequest{Id: "MOCK_ID_G"},
 			},
 			prepare: func() {},
 			wantErr: true,
@@ -881,14 +900,15 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 				info: &pb.GetSnippetRequest{Id: "MOCK_ID"},
 			},
 			prepare: func() {
-				_ = snippetDb.PutSnippet(ctx, "MOCK_ID",
+				_ = dbClient.PutSnippet(ctx, "MOCK_ID",
 					&entity.Snippet{
 						Snippet: &entity.SnippetEntity{
-							OwnerId:  "",
-							Sdk:      utils.GetNameKey(datastoreDb.SdkKind, pb.Sdk_SDK_JAVA.String(), datastoreDb.Namespace, nil),
-							PipeOpts: "MOCK_OPTIONS",
-							Created:  nowDate,
-							Origin:   entity.PG_USER,
+							OwnerId:       "",
+							Sdk:           utils.GetNameKey(datastoreDb.SdkKind, pb.Sdk_SDK_JAVA.String(), datastoreDb.Namespace, nil),
+							PipeOpts:      "MOCK_OPTIONS",
+							Created:       nowDate,
+							Origin:        entity.PG_USER,
+							NumberOfFiles: 1,
 						},
 						Files: []*entity.FileEntity{{
 							Content: "MOCK_CONTENT",
@@ -923,7 +943,7 @@ func getPlaygroundServiceClient(ctx context.Context, t *testing.T) (pb.Playgroun
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
 	closeFunc := func() {
-		err := conn.Close()
+		err = conn.Close()
 		if err != nil {
 			t.Fatalf("Failed to close grpc connection: %v", err)
 		}

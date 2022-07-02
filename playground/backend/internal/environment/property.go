@@ -18,7 +18,6 @@ package environment
 import "github.com/spf13/viper"
 
 const (
-	configPath = "."
 	configName = "properties"
 	configType = "yaml"
 )
@@ -33,7 +32,7 @@ type Properties struct {
 	IdLength int8 `mapstructure:"id_length"`
 }
 
-func NewProperties() (*Properties, error) {
+func NewProperties(configPath string) (*Properties, error) {
 	viper.AddConfigPath(configPath)
 	viper.SetConfigName(configName)
 	viper.SetConfigType(configType)

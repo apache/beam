@@ -17,6 +17,8 @@ package environment
 
 import "testing"
 
+const appPropsPath = "../../."
+
 func TestNew(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -30,7 +32,7 @@ func TestNew(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			props, err := NewProperties()
+			props, err := NewProperties(appPropsPath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewProperties() error = %v, wantErr %v", err, tt.wantErr)
 			}

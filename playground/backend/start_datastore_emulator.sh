@@ -35,8 +35,8 @@ if [ -z "$PID" ]; then
     --project="${TEST_PROJECT_ID}" \
     --consistency=1 \
     --no-store-on-disk \
-    > /tmp/mock-db-logs &
-    waitport "$DATASTORE_PORT"
+    >/tmp/mock-db-logs &
+  waitport "$DATASTORE_PORT"
 else
   echo "There is an instance of Datastore emulator already running"
 fi

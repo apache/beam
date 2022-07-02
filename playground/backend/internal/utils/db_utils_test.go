@@ -21,7 +21,7 @@ func TestID(t *testing.T) {
 	type args struct {
 		salt    string
 		content string
-		length  int
+		length  int8
 	}
 	tests := []struct {
 		name    string
