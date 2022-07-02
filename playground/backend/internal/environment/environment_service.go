@@ -64,6 +64,8 @@ const (
 	defaultBucketName             = "playground-precompiled-objects"
 	SDKConfigPathKey              = "SDK_CONFIG"
 	defaultSDKConfigPath          = "../sdks.yaml"
+	propertyPathKey               = "PROPERTY_PATH"
+	defaultPropertyPath           = "."
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
@@ -107,6 +109,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	pipelinesFolder := getEnv(pipelinesFolderKey, defaultPipelinesFolder)
 	bucketName := getEnv(bucketNameKey, defaultBucketName)
 	sdkConfigPath := getEnv(SDKConfigPathKey, defaultSDKConfigPath)
+	propertyPath := getEnv(propertyPathKey, defaultPropertyPath)
 
 	if value, present := os.LookupEnv(cacheKeyExpirationTimeKey); present {
 		if converted, err := time.ParseDuration(value); err == nil {
@@ -124,7 +127,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	}
 
 	if value, present := os.LookupEnv(workingDirKey); present {
-		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, bucketName, sdkConfigPath, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
+		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, bucketName, sdkConfigPath, propertyPath, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
 	}
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }

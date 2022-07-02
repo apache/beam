@@ -108,11 +108,14 @@ type ApplicationEnvs struct {
 
 	// sdkConfigPath is a sdk configuration file
 	sdkConfigPath string
+
+	// propertyPath is the application properties path
+	propertyPath string
 }
 
 // NewApplicationEnvs constructor for ApplicationEnvs
 func NewApplicationEnvs(
-	workingDir, launchSite, projectId, pipelinesFolder, bucketName, sdkConfigPath string,
+	workingDir, launchSite, projectId, pipelinesFolder, bucketName, sdkConfigPath, propertyPath string,
 	cacheEnvs *CacheEnvs,
 	pipelineExecuteTimeout time.Duration,
 ) *ApplicationEnvs {
@@ -125,6 +128,7 @@ func NewApplicationEnvs(
 		pipelinesFolder:        pipelinesFolder,
 		bucketName:             bucketName,
 		sdkConfigPath:          sdkConfigPath,
+		propertyPath:           propertyPath,
 	}
 }
 
@@ -171,6 +175,11 @@ func (ae *ApplicationEnvs) SchemaVersion() string {
 // SdkConfigPath returns sdk configuration file
 func (ae *ApplicationEnvs) SdkConfigPath() string {
 	return ae.sdkConfigPath
+}
+
+// PropertyPath returns the application properties path
+func (ae *ApplicationEnvs) PropertyPath() string {
+	return ae.propertyPath
 }
 
 // SetSchemaVersion sets the database schema version

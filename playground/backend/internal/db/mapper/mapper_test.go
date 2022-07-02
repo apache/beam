@@ -27,12 +27,10 @@ import (
 
 var testable *EntityMapper
 
-const appPropsPath = "../../../."
-
 func TestMain(m *testing.M) {
-	appEnv := environment.NewApplicationEnvs("/app", "", "", "", "", "", nil, 0)
+	appEnv := environment.NewApplicationEnvs("/app", "", "", "", "", "", "../../../.", nil, 0)
 	appEnv.SetSchemaVersion("MOCK_SCHEMA")
-	props, _ := environment.NewProperties(appPropsPath)
+	props, _ := environment.NewProperties(appEnv.PropertyPath())
 	testable = New(appEnv, props)
 	exitValue := m.Run()
 	os.Exit(exitValue)
@@ -56,7 +54,6 @@ func TestEntityMapper_ToSnippet(t *testing.T) {
 					Salt:     "Beam playground salt",
 					IdLength: 11,
 				},
-				//OwnerId property will be used in Tour of Beam project
 				Snippet: &entity.SnippetEntity{
 					SchVer:        utils.GetNameKey(datastoreDb.SchemaKind, "MOCK_SCHEMA", datastoreDb.Namespace, nil),
 					Sdk:           utils.GetNameKey(datastoreDb.SdkKind, "SDK_JAVA", datastoreDb.Namespace, nil),

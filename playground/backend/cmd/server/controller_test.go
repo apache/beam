@@ -52,7 +52,6 @@ const (
 	datastoreEmulatorHostKey   = "DATASTORE_EMULATOR_HOST"
 	datastoreEmulatorHostValue = "127.0.0.1:8888"
 	datastoreEmulatorProjectId = "test"
-	appPropsTestPath           = "../../."
 )
 
 var lis *bufconn.Listener
@@ -106,12 +105,7 @@ func setup() *grpc.Server {
 		panic(err)
 	}
 
-	// setup app props
-	props, err := environment.NewProperties(appPropsTestPath)
-	if err != nil {
-		panic(err)
-	}
-
+	// setup environment variables
 	path, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -125,6 +119,9 @@ func setup() *grpc.Server {
 	if err = os.Setenv("SDK_CONFIG", "../../../sdks.yaml"); err != nil {
 		panic(err)
 	}
+	if err = os.Setenv("PROPERTY_PATH", "../../."); err != nil {
+		panic(err)
+	}
 
 	networkEnv, err := environment.GetNetworkEnvsFromOsEnvs()
 	if err != nil {
@@ -135,6 +132,12 @@ func setup() *grpc.Server {
 		panic(err)
 	}
 	sdkEnv, err := environment.ConfigureBeamEnvs(appEnv.WorkingDir())
+	if err != nil {
+		panic(err)
+	}
+
+	// setup app props
+	props, err := environment.NewProperties(appEnv.PropertyPath())
 	if err != nil {
 		panic(err)
 	}

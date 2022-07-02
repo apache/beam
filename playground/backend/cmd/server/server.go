@@ -34,9 +34,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// appPropsPath is the path to application properties
-const appPropsPath = "."
-
 // runServer is starting http server wrapped on grpc
 func runServer() error {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -47,7 +44,7 @@ func runServer() error {
 		return err
 	}
 
-	props, err := environment.NewProperties(appPropsPath)
+	props, err := environment.NewProperties(envService.ApplicationEnvs.PropertyPath())
 	if err != nil {
 		return err
 	}

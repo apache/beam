@@ -93,6 +93,7 @@ default value and there is no need to set them up to launch locally:
   App Engine then need to change this value to `app_engine`.
 - `SDK_CONFIG` - is the sdk configuration file path, e.g. default example for corresponding sdk. It will be saved to cloud datastore during application startup (default value = `../sdks.yaml`)
 - `DATASTORE_EMULATOR_HOST` - is the datastore emulator address. If it is given in the environment, the application will connect to the datastore emulator.
+- `PROPERTY_PATH` - is the application properties path (default value = `.`)
 
 ### Application properties
 

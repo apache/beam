@@ -28,7 +28,6 @@ const (
 	datastoreEmulatorHostKey   = "DATASTORE_EMULATOR_HOST"
 	datastoreEmulatorHostValue = "127.0.0.1:8888"
 	datastoreEmulatorProjectId = "test"
-	appPropsPath               = "../../../../."
 )
 
 var datastoreDb *datastore.Datastore
@@ -63,7 +62,8 @@ func teardown() {
 }
 
 func TestInitialStructure_InitiateData(t *testing.T) {
-	props, err := environment.NewProperties(appPropsPath)
+	appEnvs := environment.NewApplicationEnvs("/app", "", "", "", "", "../../../../../sdks.yaml", "../../../../.", nil, 0)
+	props, err := environment.NewProperties(appEnvs.PropertyPath())
 	if err != nil {
 		t.Errorf("InitiateData(): error during properties initialization, err: %s", err.Error())
 	}
@@ -77,7 +77,7 @@ func TestInitialStructure_InitiateData(t *testing.T) {
 			dbArgs: &schema.DBArgs{
 				Ctx:    ctx,
 				Db:     datastoreDb,
-				AppEnv: environment.NewApplicationEnvs("/app", "", "", "", "", "../../../../../sdks.yaml", nil, 0),
+				AppEnv: appEnvs,
 				Props:  props,
 			},
 			wantErr: false,

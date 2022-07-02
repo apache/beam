@@ -66,7 +66,7 @@ docker {
                            "golang:1.16-bullseye" ])
 }
 
-task dockerComposeLocal() {
+task dockerComposeLocalUp() {
     doFirst {
         exec {
             commandLine "sh", "build-router-image.sh"
@@ -75,6 +75,14 @@ task dockerComposeLocal() {
     doLast {
         exec {
             commandLine "docker-compose", "-f", "docker-compose.local.yml", "up", "-d"
+        }
+    }
+}
+
+task dockerComposeLocalDown() {
+    doLast {
+        exec {
+            commandLine "docker-compose", "-f", "docker-compose.local.yml", "down"
         }
     }
 }

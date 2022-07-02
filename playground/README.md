@@ -64,7 +64,14 @@ cd beam
 
 ```
 cd beam
-./gradlew playground:backend:containers:router:dockerComposeLocal
+./gradlew playground:backend:containers:router:dockerComposeLocalUp
+```
+
+## Stop containers and removes containers created by dockerComposeLocalUp
+
+```
+cd beam
+./gradlew playground:backend:containers:router:dockerComposeLocalDown
 ```
 
 # Deployment
