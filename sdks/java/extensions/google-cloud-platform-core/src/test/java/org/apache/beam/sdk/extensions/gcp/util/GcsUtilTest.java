@@ -1183,6 +1183,40 @@ public class GcsUtilTest {
   }
 
   @Test
+  public void testThrowRetentionPolicyNotMetErrorWhenUnequalChecksum() throws IOException {
+    // ./gradlew sdks:java:extensions:google-cloud-platform-core:test --tests
+    // org.apache.beam.sdk.extensions.gcp.util.GcsUtilTest.testHanRetentionPolicyNotMetError
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+
+    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.Get mockGetRequest1 = Mockito.mock(Storage.Objects.Get.class);
+    Storage.Objects.Get mockGetRequest2 = Mockito.mock(Storage.Objects.Get.class);
+    Storage.Objects.Rewrite mockStorageRewrite = Mockito.mock(Storage.Objects.Rewrite.class);
+
+    // Gcs object to be used when checking the hash of the files during rewrite fail.
+    StorageObject srcObject = new StorageObject().setMd5Hash("a");
+    StorageObject destObject = new StorageObject().setMd5Hash("b");
+
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.rewrite("bucket", "s0", "bucket", "d0", null))
+        .thenReturn(mockStorageRewrite);
+    when(mockStorageRewrite.execute())
+        .thenThrow(googleJsonResponseException(403, "retentionPolicyNotMet", "Too soon"));
+    when(mockStorageObjects.get("bucket", "s0")).thenReturn(mockGetRequest1);
+    when(mockGetRequest1.execute()).thenReturn(srcObject);
+    when(mockStorageObjects.get("bucket", "d0")).thenReturn(mockGetRequest2);
+    when(mockGetRequest2.execute()).thenReturn(destObject);
+
+    assertThrows(IOException.class, () -> gcsUtil.rename(makeStrings("s", 1), makeStrings("d", 1)));
+
+    verify(mockStorageRewrite, times(1)).execute();
+  }
+
+  @Test
   public void testIgnoreRetentionPolicyNotMetErrorWhenEqualChecksum() throws IOException {
     GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
 
