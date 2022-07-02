@@ -14,6 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+"""
+
+TODO(alxr): Translate ops from https://docs.dask.org/en/latest/bag-api.html.
+"""
 import typing as t
 import abc
 import dataclasses
@@ -23,52 +27,58 @@ from apache_beam.pipeline import AppliedPTransform
 
 import dask.bag as db
 
-from apache_beam.runners.dask.overrides import _Create
+from apache_beam.runners.dask.overrides import _Create, _GroupByKeyOnly
 
 
 @dataclasses.dataclass
 class DaskBagOp(abc.ABC):
-    application: AppliedPTransform
+    applied: AppliedPTransform
 
     @property
     def side_inputs(self):
-        return self.application.side_inputs
+        return self.applied.side_inputs
 
     @abc.abstractmethod
-    def apply(self, element: db.Bag) -> db.Bag:
+    def apply(self, input_bag: t.Optional[db.Bag]) -> db.Bag:
         pass
 
 
 class NoOp(DaskBagOp):
-    def apply(self, element: db.Bag) -> db.Bag:
-        return element
+    def apply(self, input_bag: t.Optional[db.Bag]) -> db.Bag:
+        return input_bag
 
 
 class Create(DaskBagOp):
-    def apply(self, element: db.Bag) -> db.Bag:
-        assert element is None, 'Create expects no input!'
-
-        original_transform = t.cast(apache_beam.Create, self.application.transform)
+    def apply(self, input_bag: t.Optional[db.Bag]) -> db.Bag:
+        assert input_bag is None, 'Create expects no input!'
+        original_transform = t.cast(_Create, self.applied.transform)
         items = original_transform.values
         return db.from_sequence(items)
 
 
-class Impulse(DaskBagOp):
-    def apply(self, element: db.Bag) -> db.Bag:
-        raise NotImplementedError()
-
-
 class ParDo(DaskBagOp):
-    def apply(self, element: db.Bag) -> db.Bag:
-        assert element is not None, 'ParDo must receive input!'
-        assert isinstance(element, db.Bag)
-        assert self.application is not None
-        transform = self.application.transform
-        assert isinstance(transform, apache_beam.ParDo)
+    def apply(self, input_bag: t.Optional[db.Bag]) -> db.Bag:
+        fn = t.cast(apache_beam.ParDo, self.applied.transform).fn
+        return input_bag.map(fn).flatten()
 
-        return element
+
+class Map(DaskBagOp):
+    def apply(self, input_bag: t.Optional[db.Bag]) -> db.Bag:
+        fn = t.cast(apache_beam.Map, self.applied.transform).fn
+        return input_bag.map(fn)
+
+
+class GroupByKey(DaskBagOp):
+    def apply(self, input_bag: t.Optional[db.Bag]) -> db.Bag:
+        def key(item):
+            return item[0]
+
+        return input_bag.groupby(key)
 
 
 TRANSLATIONS = {
-    _Create: Create
+    _Create: Create,
+    apache_beam.ParDo: ParDo,
+    apache_beam.Map: Map,
+    _GroupByKeyOnly: GroupByKey,
 }
