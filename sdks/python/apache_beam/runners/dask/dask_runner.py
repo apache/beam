@@ -64,7 +64,7 @@ class DaskRunner(BundleBasedDirectRunner):
 
         @dataclasses.dataclass
         class DaskBagVisitor(PipelineVisitor):
-            bags: t.Dict[AppliedPTransform, db.Bag] = dataclasses.fields(default_factory=dict)
+            bags: t.Dict[AppliedPTransform, db.Bag] = dataclasses.field(default_factory=dict)
 
             def visit_transform(self, transform_node: AppliedPTransform) -> None:
                 op_class = TRANSLATIONS.get(transform_node.transform.__class__, NoOp)
