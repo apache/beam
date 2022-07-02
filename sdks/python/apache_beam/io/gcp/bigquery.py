@@ -236,7 +236,7 @@ also take a callable that receives a table reference.
 [3] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
 
 Chaining of operations after WriteToBigQuery
----------------------------------------
+--------------------------------------------
 WritToBigQuery returns an object with several PCollections that consist of
 metadata about the write operations. These are useful to inspect the write
 operation and follow with the results::
@@ -407,9 +407,11 @@ from apache_beam.utils.annotations import experimental
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
   from apache_beam.io.gcp.internal.clients.bigquery import TableReference
+  from apache_beam.io.gcp.internal.clients.bigquery import JobReference
 except ImportError:
   DatasetReference = None
   TableReference = None
+  JobReference = None
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -2461,11 +2463,11 @@ class WriteResult:
   def __init__(
       self,
       method: WriteToBigQuery.Method = None,
-      destination_load_jobid_pairs: PCollection[Tuple[
-          str, bigquery.JobReference]] = None,
+      destination_load_jobid_pairs: PCollection[Tuple[str,
+                                                      JobReference]] = None,
       destination_file_pairs: PCollection[Tuple[str, Tuple[str, int]]] = None,
-      destination_copy_jobid_pairs: PCollection[Tuple[
-          str, bigquery.JobReference]] = None,
+      destination_copy_jobid_pairs: PCollection[Tuple[str,
+                                                      JobReference]] = None,
       failed_rows: PCollection[Tuple[str, dict]] = None,
       failed_rows_with_errors: PCollection[Tuple[str, dict, list]] = None):
 
@@ -2498,7 +2500,7 @@ class WriteResult:
 
   @property
   def destination_load_jobid_pairs(
-      self) -> PCollection[Tuple[str, bigquery.JobReference]]:
+      self) -> PCollection[Tuple[str, JobReference]]:
     """A ``FILE_LOADS`` method attribute
 
     Returns: A PCollection of the table destinations that were successfully
@@ -2525,7 +2527,7 @@ class WriteResult:
 
   @property
   def destination_copy_jobid_pairs(
-      self) -> PCollection[Tuple[str, bigquery.JobReference]]:
+      self) -> PCollection[Tuple[str, JobReference]]:
     """A ``FILE_LOADS`` method attribute
 
     Returns: A PCollection of the table destinations that were successfully
