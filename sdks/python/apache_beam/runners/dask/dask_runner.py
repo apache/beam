@@ -35,15 +35,11 @@ import argparse
 import dataclasses
 import typing as t
 
-from dask import bag as db
-
 from apache_beam import pvalue
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor, AppliedPTransform
-from apache_beam.pvalue import PCollection
 from apache_beam.runners.dask.overrides import dask_overrides
 from apache_beam.runners.dask.transform_evaluator import TRANSLATIONS, NoOp
-# from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import ConsumerTrackingPipelineVisitor
 from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
 from apache_beam.utils.interactive_utils import is_in_notebook
 
@@ -60,7 +56,9 @@ class DaskRunner(BundleBasedDirectRunner):
     """Executes a pipeline on a Dask distributed client."""
 
     @staticmethod
-    def to_dask_bag_visitor() -> PipelineVisitor:
+    def to_dask_bag_visitor() -> 'DaskBagVisitor':
+
+        from dask import bag as db
 
         @dataclasses.dataclass
         class DaskBagVisitor(PipelineVisitor):
@@ -99,20 +97,20 @@ class DaskRunner(BundleBasedDirectRunner):
         except ImportError:
             raise ImportError('DaskRunner is not available. Please install apache_beam[dask].')
 
-        # TODO(alxr): Wire up a real dask client
-        # dask_options = options.view_as(DaskOptions).get_all_options()
-        # self.client = ddist.Client(**dask_options)
+        # TODO(alxr): Actually use this right.
+        dask_options = options.view_as(DaskOptions).get_all_options(drop_default=True)
+        client = ddist.Client(**dask_options)
 
         pipeline.replace_all(dask_overrides())
-
-        # consumer_tracking_visitor = ConsumerTrackingPipelineVisitor()
-        # pipeline.visit(consumer_tracking_visitor)
 
         dask_visitor = self.to_dask_bag_visitor()
         pipeline.visit(dask_visitor)
 
-        print(dask_visitor)
+        for bag in dask_visitor.bags.values():
+            bag.compute()
 
+        # TODO(alxr): Return the proper thing...
+        return None
         # if pipeline:
         #     pass
         # else:

@@ -78,6 +78,7 @@ class _GroupByKeyOnly(PTransform):
 @typehints.with_input_types(t.Tuple[K, t.Iterable[V]])
 @typehints.with_output_types(t.Tuple[K, t.Iterable[V]])
 class _GroupAlsoByWindow(ParDo):
+    """Not used yet..."""
     def __init__(self, windowing):
         super(_GroupAlsoByWindow, self).__init__(
             _GroupAlsoByWindowDoFn(windowing))
@@ -90,6 +91,7 @@ class _GroupAlsoByWindow(ParDo):
 @typehints.with_input_types(t.Tuple[K, V])
 @typehints.with_output_types(t.Tuple[K, t.Iterable[V]])
 class _GroupByKey(PTransform):
+    """Not used yet..."""
     def expand(self, input_or_inputs):
         return (
                 input_or_inputs
@@ -129,7 +131,7 @@ def dask_overrides() -> t.List[PTransformOverride]:
 
         def get_replacement_transform_for_applied_ptransform(
                 self, applied_ptransform: AppliedPTransform) -> ptransform.PTransform:
-            return _GroupByKey()
+            return _GroupByKeyOnly()
 
     return [
         CreateOverride(),
