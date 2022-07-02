@@ -1,3 +1,19 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 import typing as t
 import abc
 import dataclasses
@@ -7,24 +23,29 @@ from apache_beam.pipeline import AppliedPTransform
 
 import dask.bag as db
 
+from apache_beam.runners.dask.overrides import _Create
+
 
 @dataclasses.dataclass
-class DaskOp(abc.ABC):
+class DaskBagOp(abc.ABC):
     application: AppliedPTransform
-    side_inputs: t.Sequence[t.Any]
+
+    @property
+    def side_inputs(self):
+        return self.application.side_inputs
 
     @abc.abstractmethod
-    def apply(self, element):
+    def apply(self, element: db.Bag) -> db.Bag:
         pass
 
 
-class NoOp(DaskOp):
-    def apply(self, element):
+class NoOp(DaskBagOp):
+    def apply(self, element: db.Bag) -> db.Bag:
         return element
 
 
-class Create(DaskOp):
-    def apply(self, element):
+class Create(DaskBagOp):
+    def apply(self, element: db.Bag) -> db.Bag:
         assert element is None, 'Create expects no input!'
 
         original_transform = t.cast(apache_beam.Create, self.application.transform)
@@ -32,21 +53,22 @@ class Create(DaskOp):
         return db.from_sequence(items)
 
 
-class Impulse(DaskOp):
-    def apply(self, element):
+class Impulse(DaskBagOp):
+    def apply(self, element: db.Bag) -> db.Bag:
         raise NotImplementedError()
 
 
-class ParDo(DaskOp):
-    def apply(self, element):
+class ParDo(DaskBagOp):
+    def apply(self, element: db.Bag) -> db.Bag:
         assert element is not None, 'ParDo must receive input!'
         assert isinstance(element, db.Bag)
         assert self.application is not None
         transform = self.application.transform
         assert isinstance(transform, apache_beam.ParDo)
 
+        return element
+
 
 TRANSLATIONS = {
-    apache_beam.Create: Create
-
+    _Create: Create
 }

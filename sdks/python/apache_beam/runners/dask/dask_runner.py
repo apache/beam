@@ -20,24 +20,32 @@
 The DaskRunner is a runner implementation that executes a graph of
 transformations across processes and workers via Dask distributed's
 scheduler.
+
+
+Ideas to explore / Notes:
+- Write a PCollection subclass that wraps a Dask Bag.
+  - Would be the input + return of the translation operators.
+- The Ray runner is more focused on Task scheduling; This should focus more on graph translation.
+
+- A bundle is a subset of elements in a PCollection. i.e. a small set of elements that are processed together.
+- In Dask, it is probably the same as a partition. Thus, we probably don't need to worry about it; Dask should take
+  care of it.
 """
-import functools
-import itertools
-import typing as t
 import argparse
 import dataclasses
+import typing as t
+
+from dask import bag as db
 
 from apache_beam import pvalue
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.pvalue import PValue
-from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import ConsumerTrackingPipelineVisitor
-from apache_beam.utils.interactive_utils import is_in_notebook
-
-from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
-
 from apache_beam.pipeline import PipelineVisitor, AppliedPTransform
-
-import dask.bag as db
+from apache_beam.pvalue import PCollection
+from apache_beam.runners.dask.overrides import dask_overrides
+from apache_beam.runners.dask.transform_evaluator import TRANSLATIONS, NoOp
+# from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import ConsumerTrackingPipelineVisitor
+from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
+from apache_beam.utils.interactive_utils import is_in_notebook
 
 
 class DaskOptions(PipelineOptions):
@@ -48,76 +56,33 @@ class DaskOptions(PipelineOptions):
         pass
 
 
-@dataclasses.dataclass
-class DaskExecutor:
-    value_to_consumers: t.Dict[pvalue.PValue, t.Set[AppliedPTransform]]
-    root_transforms: t.Set[AppliedPTransform]
-    step_names:  t.Dict[AppliedPTransform, str]
-    views: t.List[pvalue.AsSideInput]
-    _root_nodes = None
-    _all_nodes = None
-
-    @property
-    @functools.cached_property
-    def root_nodes(self):
-        return frozenset(self.root_transforms)
-
-    @property
-    @functools.cached_property
-    def all_nodes(self):
-        return itertools.chain(
-            self.root_nodes, *itertools.chain(self.value_to_consumers.values())))
-
-    def start(self) -> None:
-        for root in self.root_nodes:
-
-
-
-    def await_completion(self) -> None:
-        pass
-
-    def shutdown(self) -> None:
-        pass
-
-
 class DaskRunner(BundleBasedDirectRunner):
     """Executes a pipeline on a Dask distributed client."""
 
     @staticmethod
-    def to_dask_bag_visitor(self) -> PipelineVisitor:
+    def to_dask_bag_visitor() -> PipelineVisitor:
 
         @dataclasses.dataclass
         class DaskBagVisitor(PipelineVisitor):
+            bags: t.Dict[AppliedPTransform, db.Bag] = dataclasses.fields(default_factory=dict)
 
-            value_to_consumers = {
-            }  # type: Dict[pvalue.PValue, Set[AppliedPTransform]]
-            root_transforms = set()  # type: Set[AppliedPTransform]
-            step_names = {}  # type: Dict[AppliedPTransform, str]
+            def visit_transform(self, transform_node: AppliedPTransform) -> None:
+                op_class = TRANSLATIONS.get(transform_node.transform.__class__, NoOp)
+                op = op_class(transform_node)
 
-            def __post_init__(self):
-                self._num_transforms = 0
-                self._views = set()
-
-            def visit_transform(self, applied_ptransform: AppliedPTransform) -> None:
-                inputs = list(applied_ptransform.inputs)
+                inputs = list(transform_node.inputs)
                 if inputs:
                     for input_value in inputs:
                         if isinstance(input_value, pvalue.PBegin):
-                            self.root_transforms.add(applied_ptransform)
-                        if input_value not in self.value_to_consumers:
-                            self.value_to_consumers[input_value] = set()
-                        self.value_to_consumers[input_value].add(applied_ptransform)
-                else:
-                    self.root_transforms.add(applied_ptransform)
-                self.step_names[applied_ptransform] = 's%d' % (self._num_transforms)
-                self._num_transforms += 1
+                            self.bags[transform_node] = op.apply(None)
 
-                for side_input in applied_ptransform.side_inputs:
-                    self._views.add(side_input)
+                        prev_op = input_value.producer
+                        if prev_op in self.bags:
+                            self.bags[transform_node] = op.apply(self.bags[prev_op])
+                else:
+                    self.bags[transform_node] = op.apply(None)
 
         return DaskBagVisitor()
-
-
 
     @staticmethod
     def is_fnapi_compatible():
@@ -134,16 +99,19 @@ class DaskRunner(BundleBasedDirectRunner):
         except ImportError:
             raise ImportError('DaskRunner is not available. Please install apache_beam[dask].')
 
-        dask_options = options.view_as(DaskOptions)
+        # TODO(alxr): Wire up a real dask client
+        # dask_options = options.view_as(DaskOptions).get_all_options()
+        # self.client = ddist.Client(**dask_options)
 
-        self.client = ddist.Client(**dask_options.get_all_options())
+        pipeline.replace_all(dask_overrides())
 
-        self.consumer_tracking_visitor = ConsumerTrackingPipelineVisitor()
-        pipeline.visit(self.consumer_tracking_visitor)
+        # consumer_tracking_visitor = ConsumerTrackingPipelineVisitor()
+        # pipeline.visit(consumer_tracking_visitor)
 
         dask_visitor = self.to_dask_bag_visitor()
         pipeline.visit(dask_visitor)
 
+        print(dask_visitor)
 
         # if pipeline:
         #     pass
