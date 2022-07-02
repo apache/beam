@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
 
+import com.google.api.client.util.Clock;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -44,14 +45,14 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 public class PubsubSchemaTransformReadProvider
     extends TypedSchemaTransformProvider<PubsubSchemaTransformReadConfiguration> {
   private static final String API = "pubsub";
-  private static final String OUTPUT_TAG = "OUTPUT";
+  static final String OUTPUT_TAG = "OUTPUT";
 
   private PubsubMessageToRow pubsubMessageToRow;
 
   /** Returns the expected class of the configuration. */
   @Override
   protected Class<PubsubSchemaTransformReadConfiguration> configurationClass() {
-    return null;
+    return PubsubSchemaTransformReadConfiguration.class;
   }
 
   /** Returns the expected {@link SchemaTransform} of the configuration. */
@@ -105,11 +106,21 @@ public class PubsubSchemaTransformReadProvider
 
     private PubsubClient.PubsubClientFactory clientFactory;
 
+    private Clock clock;
+
     private PubsubReadSchemaTransform(
         PubsubSchemaTransformReadConfiguration configuration,
         PubsubMessageToRow pubsubMessageToRow) {
       this.configuration = configuration;
       this.pubsubMessageToRow = pubsubMessageToRow;
+    }
+
+    void setClientFactory(PubsubClient.PubsubClientFactory value) {
+      this.clientFactory = value;
+    }
+
+    void setClock(Clock clock) {
+      this.clock = clock;
     }
 
     /** Implements {@link SchemaTransform} buildTransform method. */
@@ -139,11 +150,7 @@ public class PubsubSchemaTransformReadProvider
       return PCollectionRowTuple.of(OUTPUT_TAG, rowsWithDlq.get(MAIN_TAG));
     }
 
-    /**
-     * Writes to a dead letter queue for configured {@link
-     * PubsubSchemaTransformReadConfiguration#getDeadLetterQueue()}.
-     */
-    void writeToDeadLetterQueue(PCollectionTuple rowsWithDlq) {
+    private void writeToDeadLetterQueue(PCollectionTuple rowsWithDlq) {
       PubsubIO.Write<PubsubMessage> deadLetterQueue = buildDeadLetterQueueWrite();
       if (deadLetterQueue == null) {
         return;
@@ -152,20 +159,18 @@ public class PubsubSchemaTransformReadProvider
     }
 
     /**
-     * Builds {@link PubsubIO.Write} dead letter queue from
-     * {@link PubsubSchemaTransformReadConfiguration}.
+     * Builds {@link PubsubIO.Write} dead letter queue from {@link
+     * PubsubSchemaTransformReadConfiguration}.
      */
     PubsubIO.Write<PubsubMessage> buildDeadLetterQueueWrite() {
-      if (configuration.getDeadLetterQueue() == null
-          || !configuration.getDeadLetterQueue().isEmpty()) {
+      if (configuration.getDeadLetterQueue() == null) {
         return null;
       }
 
       PubsubIO.Write<PubsubMessage> writeDlq =
           PubsubIO.writeMessages().to(configuration.getDeadLetterQueue());
 
-      if (configuration.getTimestampAttribute() != null
-          && !configuration.getTimestampAttribute().isEmpty()) {
+      if (configuration.getTimestampAttribute() != null) {
         writeDlq = writeDlq.withTimestampAttribute(configuration.getTimestampAttribute());
       }
 
@@ -176,25 +181,28 @@ public class PubsubSchemaTransformReadProvider
     PubsubIO.Read<PubsubMessage> buildPubsubRead() {
       PubsubIO.Read<PubsubMessage> read = PubsubIO.readMessagesWithAttributes();
 
-      if (configuration.getSubscription() != null && !configuration.getSubscription().isEmpty()) {
+      if (configuration.getSubscription() != null) {
         read = read.fromSubscription(configuration.getSubscription());
       }
 
-      if (configuration.getTopic() != null && !configuration.getTopic().isEmpty()) {
+      if (configuration.getTopic() != null) {
         read = read.fromTopic(configuration.getTopic());
       }
 
-      if (configuration.getTimestampAttribute() != null
-          && !configuration.getTimestampAttribute().isEmpty()) {
+      if (configuration.getTimestampAttribute() != null) {
         read = read.withTimestampAttribute(configuration.getTimestampAttribute());
       }
 
-      if (configuration.getIdAttribute() != null && !configuration.getIdAttribute().isEmpty()) {
+      if (configuration.getIdAttribute() != null) {
         read = read.withIdAttribute(configuration.getIdAttribute());
       }
 
       if (clientFactory != null) {
         read = read.withClientFactory(clientFactory);
+      }
+
+      if (clock != null) {
+        read = read.withClock(clock);
       }
 
       return read;
