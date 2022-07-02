@@ -81,3 +81,43 @@ elif [ "$kernelname" = "Darwin" ]; then
       ln -s /usr/local/opt/python@$ver/bin/python3 /usr/local/bin/python$ver
     fi
   done
+
+  ls -l /usr/local/bin/python*
+
+  type -P python3 > /dev/null 2>&1
+  python3Exists=$?
+  type -P pip3 > /dev/null 2>&1
+  pip3Exists=$?
+  if [ $python3Exists -eq 0  -a $pip3Exists -eq 0 ]; then
+    darwin_install_pip3_packages
+  else
+    echo "Please download and install python3 and pip3, they are required"
+    exit
+  fi
+
+  type -P tox > /dev/nul; 2>&1
+  toxExists=$?
+  if [ $toxExists -eq 0 ]; then
+    echo "Hooray, tox is available, on to next task"
+  else
+    echo "installing tox"
+    brew install tox
+
+  type -P docker > /dev/null 2>&1
+  dockerExists=$?
+  if [ $dockerExists -eq 0 ]; then
+    echo "Hooray, docker is available, on to next task"
+  else
+    echo "installing docker"
+
+  type -P go > /dev/null 2>&1
+  goExists=$?
+  if [ $goExists -eq 0 ]; then
+    install_go_packages
+  else
+    echo "You need Go runtime, please download and install, then rerun this script"
+    exit
+  fi
+
+else echo "Your system's kernel ($kernelname) is not supported"
+fi
