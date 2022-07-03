@@ -51,8 +51,6 @@ public class PubsubSchemaTransformReadProvider
   private static final String API = "pubsub";
   static final String OUTPUT_TAG = "OUTPUT";
 
-  private PubsubMessageToRow pubsubMessageToRow;
-
   /** Returns the expected class of the configuration. */
   @Override
   protected Class<PubsubSchemaTransformReadConfiguration> configurationClass() {
@@ -62,11 +60,8 @@ public class PubsubSchemaTransformReadProvider
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
   protected SchemaTransform from(PubsubSchemaTransformReadConfiguration configuration) {
-    PubsubMessageToRow toRowTransform = pubsubMessageToRow;
-    if (toRowTransform == null) {
-      toRowTransform =
-          PubsubSchemaTransformMessageToRowFactory.from(configuration).buildMessageToRow();
-    }
+    PubsubMessageToRow toRowTransform =
+        PubsubSchemaTransformMessageToRowFactory.from(configuration).buildMessageToRow();
     return new PubsubReadSchemaTransform(configuration, toRowTransform);
   }
 
@@ -94,10 +89,6 @@ public class PubsubSchemaTransformReadProvider
     return Collections.singletonList(OUTPUT_TAG);
   }
 
-  public void setMessageToRow(PubsubMessageToRow pubsubMessageToRow) {
-    this.pubsubMessageToRow = pubsubMessageToRow;
-  }
-
   /**
    * An implementation of {@link SchemaTransform} for Pub/Sub reads configured using {@link
    * PubsubSchemaTransformReadConfiguration}.
@@ -119,10 +110,20 @@ public class PubsubSchemaTransformReadProvider
       this.pubsubMessageToRow = pubsubMessageToRow;
     }
 
+    /**
+     * Sets the {@link PubsubClient.PubsubClientFactory}.
+     *
+     * <p>Used for testing.
+     */
     void setClientFactory(PubsubClient.PubsubClientFactory value) {
       this.clientFactory = value;
     }
 
+    /**
+     * Sets the {@link Clock}.
+     *
+     * <p>Used for testing.
+     */
     void setClock(Clock clock) {
       this.clock = clock;
     }
@@ -133,6 +134,7 @@ public class PubsubSchemaTransformReadProvider
       return this;
     }
 
+    /** Validates the {@link PubsubSchemaTransformReadConfiguration}. */
     @Override
     public void validate(@Nullable PipelineOptions options) {
       if (configuration.getSubscription() == null && configuration.getTopic() == null) {
