@@ -44,6 +44,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
  * repository.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 @Internal
 @Experimental(Kind.SCHEMAS)
 public class PubsubSchemaTransformReadProvider
