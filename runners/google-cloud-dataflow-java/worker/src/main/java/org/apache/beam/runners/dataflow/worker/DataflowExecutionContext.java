@@ -282,9 +282,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     }
 
     @Override
-    protected void takeSample(long millisSinceLastSample) {
+    protected void takeSampleOnce(long millisSinceLastSample) {
       elementExecutionTracker.takeSample(millisSinceLastSample);
-      super.takeSample(millisSinceLastSample);
+      super.takeSampleOnce(millisSinceLastSample);
     }
 
     @Override

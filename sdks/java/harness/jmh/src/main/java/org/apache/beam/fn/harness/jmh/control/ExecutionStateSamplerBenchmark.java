@@ -29,12 +29,14 @@ import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
+import org.openjdk.jmh.infra.Blackhole;
 
 /** Benchmarks for sampling execution state. */
 public class ExecutionStateSamplerBenchmark {
@@ -43,7 +45,6 @@ public class ExecutionStateSamplerBenchmark {
   @State(Scope.Benchmark)
   public static class RunnersCoreStateSampler {
     public final ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
-    public final ExecutionStateTracker tracker = new ExecutionStateTracker(sampler);
     public final SimpleExecutionState state1 =
         new SimpleExecutionState(
             "process",
@@ -103,26 +104,30 @@ public class ExecutionStateSamplerBenchmark {
   }
 
   @Benchmark
-  @Threads(1)
-  public void testTinyBundleRunnersCoreStateSampler(RunnersCoreStateSampler state)
+  @Threads(10)
+  @Fork(1)
+  public void testTinyBundleRunnersCoreStateSampler(RunnersCoreStateSampler state, Blackhole bh)
       throws Exception {
-    state.tracker.activate();
+    ExecutionStateTracker tracker = new ExecutionStateTracker(state.sampler);
+    Closeable c = tracker.activate();
     for (int i = 0; i < 3; ) {
-      Closeable close1 = state.tracker.enterState(state.state1);
-      Closeable close2 = state.tracker.enterState(state.state2);
-      Closeable close3 = state.tracker.enterState(state.state3);
+      Closeable close1 = tracker.enterState(state.state1);
+      Closeable close2 = tracker.enterState(state.state2);
+      Closeable close3 = tracker.enterState(state.state3);
       // trival code that is being sampled for this state
       i += 1;
+      bh.consume(i);
       close3.close();
       close2.close();
       close1.close();
     }
-    state.tracker.reset();
+    c.close();
   }
 
   @Benchmark
   @Threads(1)
-  public void testTinyBundleHarnessStateSampler(HarnessStateSampler state) throws Exception {
+  public void testTinyBundleHarnessStateSampler(HarnessStateSampler state, Blackhole bh)
+      throws Exception {
     state.tracker.start("processBundleId");
     for (int i = 0; i < 3; ) {
       state.state1.activate();
@@ -130,6 +135,7 @@ public class ExecutionStateSamplerBenchmark {
       state.state3.activate();
       // trival code that is being sampled for this state
       i += 1;
+      bh.consume(i);
       state.state3.deactivate();
       state.state2.deactivate();
       state.state1.deactivate();
@@ -139,25 +145,29 @@ public class ExecutionStateSamplerBenchmark {
 
   @Benchmark
   @Threads(1)
-  public void testLargeBundleRunnersCoreStateSampler(RunnersCoreStateSampler state)
+  @Fork(1)
+  public void testLargeBundleRunnersCoreStateSampler(RunnersCoreStateSampler state, Blackhole bh)
       throws Exception {
-    state.tracker.activate();
+    ExecutionStateTracker tracker = new ExecutionStateTracker(state.sampler);
+    Closeable c = tracker.activate();
     for (int i = 0; i < 1000; ) {
-      Closeable close1 = state.tracker.enterState(state.state1);
-      Closeable close2 = state.tracker.enterState(state.state2);
-      Closeable close3 = state.tracker.enterState(state.state3);
+      Closeable close1 = tracker.enterState(state.state1);
+      Closeable close2 = tracker.enterState(state.state2);
+      Closeable close3 = tracker.enterState(state.state3);
       // trival code that is being sampled for this state
       i += 1;
+      bh.consume(i);
       close3.close();
       close2.close();
       close1.close();
     }
-    state.tracker.reset();
+    c.close();
   }
 
   @Benchmark
   @Threads(1)
-  public void testLargeBundleHarnessStateSampler(HarnessStateSampler state) throws Exception {
+  public void testLargeBundleHarnessStateSampler(HarnessStateSampler state, Blackhole bh)
+      throws Exception {
     state.tracker.start("processBundleId");
     for (int i = 0; i < 1000; ) {
       state.state1.activate();
@@ -165,6 +175,7 @@ public class ExecutionStateSamplerBenchmark {
       state.state3.activate();
       // trival code that is being sampled for this state
       i += 1;
+      bh.consume(i);
       state.state3.deactivate();
       state.state2.deactivate();
       state.state1.deactivate();
