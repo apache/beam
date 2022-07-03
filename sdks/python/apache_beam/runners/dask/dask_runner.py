@@ -41,6 +41,7 @@ from apache_beam.pipeline import PipelineVisitor, AppliedPTransform
 from apache_beam.runners.dask.overrides import dask_overrides
 from apache_beam.runners.dask.transform_evaluator import TRANSLATIONS, NoOp
 from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
+from apache_beam.runners.runner import PipelineResult, PipelineState
 from apache_beam.utils.interactive_utils import is_in_notebook
 
 
@@ -48,8 +49,36 @@ class DaskOptions(PipelineOptions):
 
     @classmethod
     def _add_argparse_args(cls, parser: argparse.ArgumentParser) -> None:
-        # TODO: get Dask client options
+        # TODO(alxr): get Dask client options
         pass
+
+
+@dataclasses.dataclass
+class DaskRunnerResult(PipelineResult):
+    client: 'dask.distributed.Client'
+    futures: t.Sequence['dask.distributed.Future']
+
+    def __post_init__(self):
+        super().__init__(PipelineState.RUNNING)
+
+    def wait_until_finish(self, duration=None) -> PipelineState:
+        try:
+            self.client.wait_for_workers(timeout=(duration / 1000))
+            self._state = PipelineState.DONE
+        except:  # pylint: disable=broad-except
+            self._state = PipelineState.FAILED
+            raise
+        return self._state
+
+    def cancel(self) -> PipelineState:
+        self._state = PipelineState.CANCELLING
+        self.client.cancel(self.futures)
+        self._state = PipelineState.CANCELLED
+        return self._state
+
+    def metrics(self):
+        # TODO(alxr): Collect and return metrics...
+        raise NotImplementedError('collecting metrics will come later!')
 
 
 class DaskRunner(BundleBasedDirectRunner):
@@ -57,7 +86,6 @@ class DaskRunner(BundleBasedDirectRunner):
 
     @staticmethod
     def to_dask_bag_visitor() -> 'DaskBagVisitor':
-
         from dask import bag as db
 
         @dataclasses.dataclass
@@ -106,11 +134,10 @@ class DaskRunner(BundleBasedDirectRunner):
         dask_visitor = self.to_dask_bag_visitor()
         pipeline.visit(dask_visitor)
 
-        for bag in dask_visitor.bags.values():
-            bag.compute()
+        futures = client.compute(list(dask_visitor.bags.values()))
 
-        # TODO(alxr): Return the proper thing...
-        return None
+        return DaskRunnerResult(client, futures)
+
         # if pipeline:
         #     pass
         # else:
