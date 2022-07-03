@@ -215,6 +215,49 @@ public class PubsubSchemaTransformReadProviderTest {
     clientFactory.close();
   }
 
+  @Test
+  public void testBuildPubSubRead() {
+    for (TestCase testCase : cases) {
+      if (testCase.invalidConfigurationExpected) {
+        continue;
+      }
+      Map<DisplayData.Identifier, DisplayData.Item> actual =
+          DisplayData.from(testCase.pubsubReadSchemaTransform().buildPubsubRead()).asMap();
+
+      Map<DisplayData.Identifier, DisplayData.Item> expected = testCase.expectedPubsubRead;
+
+      assertEquals(testCase.name, expected, actual);
+    }
+  }
+
+  @Test
+  public void testInvalidConfiguration() {
+    for (TestCase testCase : cases) {
+      PCollectionRowTuple begin = PCollectionRowTuple.empty(p);
+      if (testCase.invalidConfigurationExpected) {
+        assertThrows(
+            testCase.name,
+            RuntimeException.class,
+            () -> begin.apply(testCase.pubsubReadSchemaTransform().buildTransform()));
+      }
+    }
+  }
+
+  @Test
+  public void testInvalidInput() {
+    PCollectionRowTuple begin = PCollectionRowTuple.of("BadInput", p.apply(Create.of(ROWS)));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            begin.apply(
+                new PubsubSchemaTransformReadProvider()
+                    .from(
+                        PubsubSchemaTransformReadConfiguration.builder()
+                            .setDataSchema(SCHEMA)
+                            .build())
+                    .buildTransform()));
+  }
+
   private PubsubSchemaTransformReadProvider.PubsubReadSchemaTransform schemaTransformWithClock(
       String format) {
     PubsubSchemaTransformReadProvider.PubsubReadSchemaTransform transform =
@@ -287,49 +330,6 @@ public class PubsubSchemaTransformReadProviderTest {
         0,
         UUID.randomUUID().toString(),
         UUID.randomUUID().toString());
-  }
-
-  @Test
-  public void testBuildPubSubRead() {
-    for (TestCase testCase : cases) {
-      if (testCase.invalidConfigurationExpected) {
-        continue;
-      }
-      Map<DisplayData.Identifier, DisplayData.Item> actual =
-          DisplayData.from(testCase.pubsubReadSchemaTransform().buildPubsubRead()).asMap();
-
-      Map<DisplayData.Identifier, DisplayData.Item> expected = testCase.expectedPubsubRead;
-
-      assertEquals(testCase.name, expected, actual);
-    }
-  }
-
-  @Test
-  public void testInvalidConfiguration() {
-    for (TestCase testCase : cases) {
-      PCollectionRowTuple begin = PCollectionRowTuple.empty(p);
-      if (testCase.invalidConfigurationExpected) {
-        assertThrows(
-            testCase.name,
-            RuntimeException.class,
-            () -> begin.apply(testCase.pubsubReadSchemaTransform().buildTransform()));
-      }
-    }
-  }
-
-  @Test
-  public void testInvalidInput() {
-    PCollectionRowTuple begin = PCollectionRowTuple.of("BadInput", p.apply(Create.of(ROWS)));
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            begin.apply(
-                new PubsubSchemaTransformReadProvider()
-                    .from(
-                        PubsubSchemaTransformReadConfiguration.builder()
-                            .setDataSchema(SCHEMA)
-                            .build())
-                    .buildTransform()));
   }
 
   static TestCase testCase(String name, PubsubSchemaTransformReadConfiguration configuration) {
