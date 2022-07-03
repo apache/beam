@@ -22,15 +22,19 @@ import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
 
 import com.google.api.client.util.Clock;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for Pub/Sub reads configured using
@@ -127,6 +131,33 @@ public class PubsubSchemaTransformReadProvider
     @Override
     public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
       return this;
+    }
+
+    @Override
+    public void validate(@Nullable PipelineOptions options) {
+      if (configuration.getSubscription() == null && configuration.getTopic() == null) {
+        throw new IllegalArgumentException(
+            String.format(
+                "%s needs to set either the topic or the subscription",
+                PubsubSchemaTransformReadConfiguration.class));
+      }
+
+      if (configuration.getSubscription() != null && configuration.getTopic() != null) {
+        throw new IllegalArgumentException(
+            String.format(
+                "%s should not set both the topic or the subscription",
+                PubsubSchemaTransformReadConfiguration.class));
+      }
+
+      try {
+        PayloadSerializers.getSerializer(
+            configuration.getFormat(), configuration.getDataSchema(), new HashMap<>());
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Invalid %s, no serializer provider exists for format `%s`",
+                PubsubSchemaTransformReadConfiguration.class, configuration.getFormat()));
+      }
     }
 
     /** Reads from Pub/Sub according to {@link PubsubSchemaTransformReadConfiguration}. */

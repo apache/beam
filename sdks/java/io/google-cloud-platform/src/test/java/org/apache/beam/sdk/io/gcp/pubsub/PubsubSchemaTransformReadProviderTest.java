@@ -64,25 +64,47 @@ public class PubsubSchemaTransformReadProviderTest {
           Schema.Field.of("name", Schema.FieldType.STRING),
           Schema.Field.of("number", Schema.FieldType.INT64));
 
-  private static final String SUBSCRIPTION = "projects/figaro-the-cat/subscriptions/feedme";
-  private static final String TOPIC = "projects/figaro-the-cat/topics/feedme";
+  private static final String SUBSCRIPTION = "projects/project/subscriptions/subscription";
+  private static final String TOPIC = "projects/project/topics/topic";
 
   private static final List<TestCase> cases =
       Arrays.asList(
-          testCase(PubsubSchemaTransformReadConfiguration.builder().setDataSchema(SCHEMA).build()),
           testCase(
+                  "no configured topic or subscription",
+                  PubsubSchemaTransformReadConfiguration.builder().setDataSchema(SCHEMA).build())
+              .expectInvalidConfiguration(),
+          testCase(
+                  "both topic and subscription configured",
+                  PubsubSchemaTransformReadConfiguration.builder()
+                      .setSubscription(SUBSCRIPTION)
+                      .setSubscription(TOPIC)
+                      .setDataSchema(SCHEMA)
+                      .build())
+              .expectInvalidConfiguration(),
+          testCase(
+                  "invalid format configured",
+                  PubsubSchemaTransformReadConfiguration.builder()
+                      .setSubscription(SUBSCRIPTION)
+                      .setDataSchema(SCHEMA)
+                      .setFormat("invalidformat")
+                      .build())
+              .expectInvalidConfiguration(),
+          testCase(
+                  "configuration with subscription",
                   PubsubSchemaTransformReadConfiguration.builder()
                       .setSubscription(SUBSCRIPTION)
                       .setDataSchema(SCHEMA)
                       .build())
               .withExpectedPubsubRead(PubsubIO.readMessages().fromSubscription(SUBSCRIPTION)),
           testCase(
+                  "configuration with topic",
                   PubsubSchemaTransformReadConfiguration.builder()
                       .setTopic(TOPIC)
                       .setDataSchema(SCHEMA)
                       .build())
               .withExpectedPubsubRead(PubsubIO.readMessages().fromTopic(TOPIC)),
           testCase(
+                  "configuration with subscription, timestamp and id attributes",
                   PubsubSchemaTransformReadConfiguration.builder()
                       .setSubscription(SUBSCRIPTION)
                       .setTimestampAttribute("timestampAttribute")
@@ -95,19 +117,26 @@ public class PubsubSchemaTransformReadProviderTest {
                       .withTimestampAttribute("timestampAttribute")
                       .withIdAttribute("idAttribute")),
           testCase(
+                  "configuration with subscription and dead letter queue",
                   PubsubSchemaTransformReadConfiguration.builder()
+                      .setSubscription(SUBSCRIPTION)
                       .setDataSchema(SCHEMA)
                       .setDeadLetterQueue(TOPIC)
                       .build())
+              .withExpectedPubsubRead(PubsubIO.readMessages().fromSubscription(SUBSCRIPTION))
               .withExpectedDeadLetterQueue(PubsubIO.writeMessages().to(TOPIC)),
           testCase(
+                  "configuration with subscription, timestamp attribute, and dead letter queue",
                   PubsubSchemaTransformReadConfiguration.builder()
+                      .setSubscription(SUBSCRIPTION)
                       .setTimestampAttribute("timestampAttribute")
                       .setDataSchema(SCHEMA)
                       .setDeadLetterQueue(TOPIC)
                       .build())
               .withExpectedPubsubRead(
-                  PubsubIO.readMessages().withTimestampAttribute("timestampAttribute"))
+                  PubsubIO.readMessages()
+                      .fromSubscription(SUBSCRIPTION)
+                      .withTimestampAttribute("timestampAttribute"))
               .withExpectedDeadLetterQueue(
                   PubsubIO.writeMessages().to(TOPIC).withTimestampAttribute("timestampAttribute")));
 
@@ -119,17 +148,11 @@ public class PubsubSchemaTransformReadProviderTest {
 
   private static final List<Row> ROWS =
       Arrays.asList(
+          Row.withSchema(SCHEMA).withFieldValue("name", "a").withFieldValue("number", 100L).build(),
+          Row.withSchema(SCHEMA).withFieldValue("name", "b").withFieldValue("number", 200L).build(),
           Row.withSchema(SCHEMA)
-              .withFieldValue("name", "breakfast")
-              .withFieldValue("number", 100L)
-              .build(),
-          Row.withSchema(SCHEMA)
-              .withFieldValue("name", "2 AM snack")
-              .withFieldValue("number", 200L)
-              .build(),
-          Row.withSchema(SCHEMA)
-              .withFieldValue("name", "4 AM snack, because I can")
-              .withFieldValue("number", 3L)
+              .withFieldValue("name", "c")
+              .withFieldValue("number", 300L)
               .build());
 
   private static final Clock CLOCK = (Clock & Serializable) () -> 1656788475425L;
@@ -148,14 +171,14 @@ public class PubsubSchemaTransformReadProviderTest {
           testCase.pubsubReadSchemaTransform().buildDeadLetterQueueWrite();
 
       if (testCase.expectedDeadLetterQueue == null) {
-        assertNull(dlq);
+        assertNull(testCase.name, dlq);
         return;
       }
 
       Map<DisplayData.Identifier, DisplayData.Item> actual = DisplayData.from(dlq).asMap();
       Map<DisplayData.Identifier, DisplayData.Item> expected = testCase.expectedDeadLetterQueue;
 
-      assertEquals(testCase.configuration.toString(), expected, actual);
+      assertEquals(testCase.name, expected, actual);
     }
   }
 
@@ -269,12 +292,15 @@ public class PubsubSchemaTransformReadProviderTest {
   @Test
   public void testBuildPubSubRead() {
     for (TestCase testCase : cases) {
+      if (testCase.invalidConfigurationExpected) {
+        continue;
+      }
       Map<DisplayData.Identifier, DisplayData.Item> actual =
           DisplayData.from(testCase.pubsubReadSchemaTransform().buildPubsubRead()).asMap();
 
       Map<DisplayData.Identifier, DisplayData.Item> expected = testCase.expectedPubsubRead;
 
-      assertEquals(testCase.configuration.toString(), expected, actual);
+      assertEquals(testCase.name, expected, actual);
     }
   }
 
@@ -282,11 +308,10 @@ public class PubsubSchemaTransformReadProviderTest {
   public void testInvalidConfiguration() {
     for (TestCase testCase : cases) {
       PCollectionRowTuple begin = PCollectionRowTuple.empty(p);
-      if (DisplayData.from(testCase.pubsubReadSchemaTransform().buildPubsubRead())
-          .asMap()
-          .isEmpty()) {
+      if (testCase.invalidConfigurationExpected) {
         assertThrows(
-            IllegalStateException.class,
+            testCase.name,
+            RuntimeException.class,
             () -> begin.apply(testCase.pubsubReadSchemaTransform().buildTransform()));
       }
     }
@@ -307,11 +332,13 @@ public class PubsubSchemaTransformReadProviderTest {
                     .buildTransform()));
   }
 
-  static TestCase testCase(PubsubSchemaTransformReadConfiguration configuration) {
-    return new TestCase(configuration);
+  static TestCase testCase(String name, PubsubSchemaTransformReadConfiguration configuration) {
+    return new TestCase(name, configuration);
   }
 
   private static class TestCase {
+
+    private final String name;
     private final PubsubSchemaTransformReadConfiguration configuration;
 
     private Map<DisplayData.Identifier, DisplayData.Item> expectedDeadLetterQueue;
@@ -319,7 +346,10 @@ public class PubsubSchemaTransformReadProviderTest {
     private Map<DisplayData.Identifier, DisplayData.Item> expectedPubsubRead =
         DisplayData.from(PubsubIO.readMessages()).asMap();
 
-    TestCase(PubsubSchemaTransformReadConfiguration configuration) {
+    private boolean invalidConfigurationExpected = false;
+
+    TestCase(String name, PubsubSchemaTransformReadConfiguration configuration) {
+      this.name = name;
       this.configuration = configuration;
     }
 
@@ -345,6 +375,11 @@ public class PubsubSchemaTransformReadProviderTest {
 
     TestCase withExpectedPubsubRead(PubsubIO.Read<PubsubMessage> value) {
       this.expectedPubsubRead = DisplayData.from(value).asMap();
+      return this;
+    }
+
+    TestCase expectInvalidConfiguration() {
+      this.invalidConfigurationExpected = true;
       return this;
     }
   }
