@@ -24,26 +24,26 @@ from apache_beam.testing import test_pipeline
 class DaskRunnerRunPipelineTest(unittest.TestCase):
     """Test class used to introspect the dask runner via a debugger."""
 
+    def setUp(self) -> None:
+        self.p = test_pipeline.TestPipeline(runner=DaskRunner())
+
     def test_create(self):
-        p = test_pipeline.TestPipeline(runner=DaskRunner())
-        _ = p | beam.Create([1])
-        p.run()
+        _ = self.p | beam.Create([1])
+        self.p.run()
 
     def test_create_and_map(self):
         def double(x):
             return x * 2
 
-        p = test_pipeline.TestPipeline(runner=DaskRunner())
-        _ = p | beam.Create([1]) | beam.Map(double)
-        p.run()
+        _ = self.p | beam.Create([1]) | beam.Map(double)
+        self.p.run()
 
     def test_create_map_and_groupby(self):
         def double(x):
             return x * 2, x
 
-        p = test_pipeline.TestPipeline(runner=DaskRunner())
-        _ = p | beam.Create([1]) | beam.Map(double) | beam.GroupByKey()
-        p.run()
+        _ = self.p | beam.Create([1]) | beam.Map(double) | beam.GroupByKey()
+        self.p.run()
 
 
 if __name__ == '__main__':
