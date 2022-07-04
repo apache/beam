@@ -27,6 +27,7 @@ import (
 	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/tasks"
 	"beam.apache.org/playground/backend/internal/utils"
 	"context"
 	"fmt"
@@ -74,6 +75,12 @@ func runServer() error {
 		}
 
 		if err = setupDBStructure(ctx, dbClient, &envService.ApplicationEnvs, props); err != nil {
+			return err
+		}
+
+		// Since only router server has the scheduled task, the task creation is here
+		scheduledTasks := tasks.New(ctx)
+		if err = scheduledTasks.StartRemovingExtraSnippets(props.RemovingUnusedSnptsCron, props.RemovingUnusedSnptsDays, dbClient); err != nil {
 			return err
 		}
 	}

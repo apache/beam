@@ -378,6 +378,73 @@ func TestDatastore_GetSDK(t *testing.T) {
 	}
 }
 
+func TestDatastore_DeleteUnusedSnippets(t *testing.T) {
+	type args struct {
+		ctx     context.Context
+		dayDiff int
+	}
+	now := time.Now()
+	tests := []struct {
+		name    string
+		args    args
+		prepare func()
+		wantErr bool
+	}{
+		{
+			name: "DeleteUnusedSnippets() in the usual case",
+			args: args{ctx: ctx, dayDiff: 10},
+			prepare: func() {
+				putSnippet("MOCK_ID0", now.Add(-time.Hour*24*7))
+				putSnippet("MOCK_ID1", now.Add(-time.Hour*24*10))
+				putSnippet("MOCK_ID2", now.Add(-time.Hour*24*15))
+				putSnippet("MOCK_ID3", now)
+				putSnippet("MOCK_ID4", now.Add(time.Hour*24*2))
+				putSnippet("MOCK_ID5", now.Add(time.Hour*24*10))
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			err := datastoreDb.DeleteUnusedSnippets(tt.args.ctx, tt.args.dayDiff)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DeleteUnusedSnippets() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if err == nil {
+				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID0")
+				if err != nil {
+					t.Errorf("DeleteUnusedSnippets() this snippet shouldn't be deleted, err: %s", err)
+				}
+				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID1")
+				if err == nil {
+					t.Errorf("DeleteUnusedSnippets() this snippet should be deleted, err: %s", err)
+				}
+				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID2")
+				if err == nil {
+					t.Errorf("DeleteUnusedSnippets() this snippet should be deleted, err: %s", err)
+				}
+				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID3")
+				if err != nil {
+					t.Errorf("DeleteUnusedSnippets() this snippet shouldn't be deleted, err: %s", err)
+				}
+				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID4")
+				if err != nil {
+					t.Errorf("DeleteUnusedSnippets() this snippet shouldn't be deleted, err: %s", err)
+				}
+				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID5")
+				if err != nil {
+					t.Errorf("DeleteUnusedSnippets() this snippet shouldn't be deleted, err: %s", err)
+				}
+			}
+
+		})
+	}
+
+}
+
 func TestNew(t *testing.T) {
 	type args struct {
 		ctx       context.Context
@@ -425,4 +492,25 @@ func getSDKs() []*entity.SDKEntity {
 		})
 	}
 	return sdkEntities
+}
+
+func putSnippet(id string, lVisited time.Time) {
+	_ = datastoreDb.PutSnippet(ctx, id, &entity.Snippet{
+		IDMeta: &entity.IDMeta{
+			Salt:     "MOCK_SALT",
+			IdLength: 11,
+		},
+		Snippet: &entity.SnippetEntity{
+			Sdk:      utils.GetNameKey(SdkKind, pb.Sdk_SDK_GO.String(), Namespace, nil),
+			PipeOpts: "MOCK_OPTIONS",
+			LVisited: lVisited,
+			Origin:   entity.PG_USER,
+			OwnerId:  "",
+		},
+		Files: []*entity.FileEntity{{
+			Name:    "MOCK_NAME",
+			Content: "MOCK_CONTENT",
+			IsMain:  false,
+		}},
+	})
 }

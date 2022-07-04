@@ -19,3 +19,7 @@ playground_salt: Beam playground salt
 max_snippet_size: 1000000
 # Length of the identifier that is used to store data in the cloud datastore. It's appropriate length to save storage size in the cloud datastore and provide good randomnicity
 id_length: 11
+# Cron expression for the scheduled task to remove unused snippets
+removing_unused_snippets_cron: 0 0 1 1 *
+# Number of days after which a snippet becomes unused
+removing_unused_snippets_days: 90

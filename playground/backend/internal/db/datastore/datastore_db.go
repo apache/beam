@@ -194,3 +194,8 @@ func (d *Datastore) GetSDK(ctx context.Context, id string) (*entity.SDKEntity, e
 	}
 	return sdk, nil
 }
+
+//DeleteUnusedSnippets deletes all unused snippets
+func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, dayDiff int) error {
+	return nil
+}
