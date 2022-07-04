@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """DaskRunner, executing remote jobs on Dask.distributed.
 
 The DaskRunner is a runner implementation that executes a graph of
@@ -35,6 +34,8 @@ import argparse
 import dataclasses
 import typing as t
 
+import dask.distributed
+
 from apache_beam import pvalue
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor, AppliedPTransform
@@ -47,10 +48,28 @@ from apache_beam.utils.interactive_utils import is_in_notebook
 
 class DaskOptions(PipelineOptions):
 
+    @staticmethod
+    def _parse_timeout(candidate):
+        try:
+            return int(candidate)
+        except:  # noqa
+            import dask
+            return dask.config.no_default
+
     @classmethod
     def _add_argparse_args(cls, parser: argparse.ArgumentParser) -> None:
-        # TODO(alxr): get Dask client options
-        pass
+        parser.add_argument('--dask_client_address', type=str, default=None,
+                            help='Address of a dask Scheduler server. Will default to a `dask.LocalCluster()`.')
+        parser.add_argument('--dask_connection_timeout', dest='timeout', type=DaskOptions._parse_timeout,
+                            help='Timeout duration for initial connection to the scheduler.')
+        parser.add_argument('--dask_scheduler_file', type=str, default=None,
+                            help='Path to a file with scheduler information if available.')
+        # TODO(alxr): Add options for security.
+        parser.add_argument('--dask_client_name', dest='name', type=str, default=None,
+                            help='Gives the client a name that will be included in logs generated on the scheduler '
+                                 'for matters relating to this client.')
+        parser.add_argument('--dask_connection_limit', dest='connection_limit', type=int, default=512,
+                            help='The number of open comms to maintain at once in the connection pool.')
 
 
 @dataclasses.dataclass
@@ -63,7 +82,10 @@ class DaskRunnerResult(PipelineResult):
 
     def wait_until_finish(self, duration=None) -> PipelineState:
         try:
-            self.client.wait_for_workers(timeout=(duration / 1000))
+            if duration is not None:
+                # Convert milliseconds to seconds
+                duration /= 1000
+            self.client.wait_for_workers(timeout=duration)
             self._state = PipelineState.DONE
         except:  # pylint: disable=broad-except
             self._state = PipelineState.FAILED
