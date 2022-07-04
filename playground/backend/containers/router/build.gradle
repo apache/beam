@@ -67,11 +67,7 @@ docker {
 }
 
 task dockerComposeLocalUp() {
-    doFirst {
-        exec {
-            commandLine "sh", "build-router-image.sh"
-        }
-    }
+    dependsOn ':playground:backend:containers:router:docker'
     doLast {
         exec {
             commandLine "docker-compose", "-f", "docker-compose.local.yml", "up", "-d"
