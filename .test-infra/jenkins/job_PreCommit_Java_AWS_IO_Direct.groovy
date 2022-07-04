@@ -20,15 +20,15 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Java_GCP_IO_Direct',
-    gradleTask: ':sdks:java:io:google-cloud-platform:postCommit',
+    nameBase: 'Java_Amazon-Web-Services_IO_Direct',
+    gradleTask: ':sdks:java:io:amazon-web-services:integrationTest',
     gradleSwitches: [
       '-PdisableSpotlessCheck=true'
     ], // spotless checked in separate pre-commit
-    timeoutMins: 120,
     triggerPathPatterns: [
-      '^sdks/java/io/google-cloud-platform/.*$',
-    ]
+      '^sdks/java/io/amazon-web-services/.*$',
+    ],
+    timeoutMins: 120,
     )
 builder.build {
   publishers {
