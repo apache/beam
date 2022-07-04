@@ -53,6 +53,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
   private PulsarAdmin admin;
   private String clientUrl;
   private String adminUrl;
+  private long failOverTimestamp;
 
   private final SerializableFunction<Message<byte[]>, Instant> extractOutputTimestampFn;
 
@@ -61,6 +62,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
     this.clientUrl = transform.getClientUrl();
     this.adminUrl = transform.getAdminUrl();
     this.pulsarClientSerializableFunction = transform.getPulsarClient();
+    this.failOverTimestamp = 0L;
   }
 
   // Open connection to Pulsar clients
@@ -167,6 +169,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
         // if tracker.tryclaim() return true, sdf must execute work otherwise
         // doFn must exit processElement() without doing any work associated
         // or claiming more work
+        LOG.info("Current time before claimed {}", currentTimestamp);
         if (!tracker.tryClaim(currentTimestamp)) {
           reader.close();
           return ProcessContinuation.stop();
@@ -183,6 +186,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
             return ProcessContinuation.stop();
           }
         }
+        failOverTimestamp = currentTimestamp;
         PulsarMessage pulsarMessage =
             new PulsarMessage(message.getTopicName(), message.getPublishTime(), message);
         Instant outputTimestamp = extractOutputTimestampFn.apply(message);
@@ -206,12 +210,17 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
   @NewTracker
   public OffsetRangeTracker restrictionTracker(
       @Element PulsarSourceDescriptor pulsarSource, @Restriction OffsetRange restriction) {
+    LOG.info("Restriction Tracker {} to {}", restriction.getFrom(), restriction.getTo());
     if (restriction.getTo() < Long.MAX_VALUE) {
-      return new OffsetRangeTracker(restriction);
+      if(restriction.getFrom() < failOverTimestamp && restriction.getTo() > failOverTimestamp) {
+        LOG.info("Restriction Tracker with limit {} to {}", failOverTimestamp, restriction.getTo());
+        return new OffsetRangeTracker(new OffsetRange(failOverTimestamp, restriction.getTo()));
+      }
+      return new OffsetRangeTracker(new OffsetRange(restriction.getFrom(), restriction.getTo()));
     }
     PulsarLatestOffsetEstimator offsetEstimator =
         new PulsarLatestOffsetEstimator(this.admin, pulsarSource.getTopic());
-    LOG.warn("RestrictionFrom {}", restriction.getFrom());
+    LOG.info("RestrictionFrom {}", restriction.getFrom());
     return new GrowableOffsetRangeTracker(restriction.getFrom(), offsetEstimator);
   }
 
