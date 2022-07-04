@@ -21,11 +21,11 @@ import (
 )
 
 type Database interface {
-	Snippet
-	Catalogue
+	SnippetDatabase
+	CatalogDatabase
 }
 
-type Snippet interface {
+type SnippetDatabase interface {
 	PutSnippet(ctx context.Context, id string, snip *entity.Snippet) error
 
 	GetSnippet(ctx context.Context, id string) (*entity.SnippetEntity, error)
@@ -33,7 +33,7 @@ type Snippet interface {
 	GetFiles(ctx context.Context, snipId string, numberOfFiles int) ([]*entity.FileEntity, error)
 }
 
-type Catalogue interface {
+type CatalogDatabase interface {
 	PutSchemaVersion(ctx context.Context, id string, schema *entity.SchemaEntity) error
 
 	PutSDKs(ctx context.Context, sdks []*entity.SDKEntity) error
