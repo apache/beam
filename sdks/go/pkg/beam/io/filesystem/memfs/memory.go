@@ -19,10 +19,11 @@ package memfs
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"regexp"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -54,14 +55,16 @@ func (f *fs) List(_ context.Context, glob string) ([]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	pattern, err := regexp.Compile(glob)
-	if err != nil {
-		return nil, err
-	}
+	// As with other functions, the memfs:// prefix is optional.
+	globNoScheme := strings.TrimPrefix(glob, "memfs://")
 
 	var ret []string
 	for k := range f.m {
-		if pattern.MatchString(k) {
+		matched, err := filepath.Match(globNoScheme, strings.TrimPrefix(k, "memfs://"))
+		if err != nil {
+			return nil, fmt.Errorf("invalid glob pattern: %w", err)
+		}
+		if matched {
 			ret = append(ret, k)
 		}
 	}
