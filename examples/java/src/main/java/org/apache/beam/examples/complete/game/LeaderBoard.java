@@ -195,27 +195,30 @@ public class LeaderBoard extends HourlyTeamScore {
     return tableConfigure;
   }
 
-  public static void main(String[] args) throws Exception {
+  protected static PubsubIO.Read<String> readRecordsFromPubSub(Options options) {
 
-    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-    // Enforce that this pipeline is always run in streaming mode.
-    options.setStreaming(true);
-    runLeaderBoard(options);
+    // Read game events from Pub/Sub using custom timestamps, which are extracted from the
+    // pubsub data elements, and parse the data.
+    PubsubIO.Read<String> recordsWithTimeStamp =
+        PubsubIO.readStrings().withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE);
+
+    PubsubIO.Read<String> records = null;
+
+    if (options.getSubscription() != null && !options.getSubscription().isEmpty()) {
+      records = recordsWithTimeStamp.fromSubscription(options.getSubscription());
+    } else {
+      records = recordsWithTimeStamp.fromTopic(options.getTopic());
+    }
+
+    return records;
   }
 
-  static void runLeaderBoard(Options options) throws IOException {
+  public static void applyLeaderBoard(Pipeline p, Options options) {
 
-    Pipeline pipeline = Pipeline.create(options);
+    PubsubIO.Read<String> records = readRecordsFromPubSub(options);
 
-    // Read game events from Pub/Sub using custom timestamps, which are extracted from the pubsub
-    // data elements, and parse the data.
     PCollection<GameActionInfo> gameEvents =
-        pipeline
-            .apply(
-                PubsubIO.readStrings()
-                    .fromSubscription(options.getSubscription())
-                    .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE))
-            .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
+        p.apply(records).apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     gameEvents
         .apply(
@@ -244,8 +247,20 @@ public class LeaderBoard extends HourlyTeamScore {
                 options.getDataset(),
                 options.getLeaderBoardTableName() + "_user",
                 configureGlobalWindowBigQueryWrite()));
+  }
 
-    pipeline.run(options);
+  public static void runLeaderBoard(Options options) throws IOException {
+    Pipeline pipeline = Pipeline.create(options);
+    applyLeaderBoard(pipeline, options);
+    pipeline.run();
+  }
+
+  public static void main(String[] args) throws Exception {
+
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+    // Enforce that this pipeline is always run in streaming mode.
+    options.setStreaming(true);
+    runLeaderBoard(options);
   }
 
   /** Calculates scores for each team within the configured window duration. */

@@ -134,14 +134,18 @@ public class HourlyTeamScore extends UserScore {
     runHourlyTeamScore(options);
   }
 
-  static void runHourlyTeamScore(Options options) {
+  public static void runHourlyTeamScore(Options options) {
     Pipeline pipeline = Pipeline.create(options);
+    applyHourlyTeamScore(pipeline, options);
+    pipeline.run();
+  }
+
+  public static void applyHourlyTeamScore(Pipeline p, Options options) {
     final Instant stopMinTimestamp = new Instant(minFmt.parseMillis(options.getStopMin()));
     final Instant startMinTimestamp = new Instant(minFmt.parseMillis(options.getStartMin()));
 
     // Read 'gaming' events from a text file.
-    pipeline
-        .apply(TextIO.read().from(options.getInput()))
+    p.apply(TextIO.read().from(options.getInput()))
         // Parse the incoming data.
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
 
@@ -178,8 +182,6 @@ public class HourlyTeamScore extends UserScore {
         .apply(
             "WriteTeamScoreSums",
             new WriteToText<>(options.getOutput(), configureOutput(), options.getIsWindowed()));
-
-    pipeline.run().waitUntilFinish();
   }
   // [END DocInclude_HTSMain]
 

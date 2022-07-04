@@ -254,21 +254,23 @@ public class UserScore {
     runUserScore(options);
   }
 
-  static void runUserScore(Options options) {
+  public static void runUserScore(Options options) {
     Pipeline pipeline = Pipeline.create(options);
+    applyUserScore(pipeline, options);
+    pipeline.run();
+  }
+
+  public static void applyUserScore(Pipeline p, Options options) {
 
     // Read events from a text file and parse them.
 
-    pipeline
-        .apply(TextIO.read().from(options.getInput()))
+    p.apply(TextIO.read().from(options.getInput()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
         // Extract and sum username/score pairs from the event data.
         .apply("ExtractUserScore", new ExtractAndSumScore("user"))
         .apply(
             "WriteUserScoreSums",
             new WriteToText<>(options.getOutput(), configureOutput(), options.getIsWindowed()));
-
-    pipeline.run().waitUntilFinish();
   }
   // [END DocInclude_USMain]
 }

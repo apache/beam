@@ -117,21 +117,9 @@ public class StatefulTeamScore extends LeaderBoard {
 
   public static void applyStatefulTeamScore(Pipeline p, Options options) throws IOException {
 
-    PubsubIO.Read<String> recordsWithTimeStamp =
-        PubsubIO.readStrings().withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE);
+    PubsubIO.Read<String> records = readRecordsFromPubSub(options);
 
-    PubsubIO.Read<String> records = null;
-
-    if (options.getSubscription() != null && !options.getSubscription().isEmpty()) {
-      records = recordsWithTimeStamp.fromSubscription(options.getSubscription());
-    } else {
-      records = recordsWithTimeStamp.fromTopic(options.getTopic());
-    }
-
-    p
-        // Read game events from Pub/Sub using custom timestamps, which are extracted from the
-        // pubsub data elements, and parse the data.
-        .apply(records)
+    p.apply(records)
         // Create <team, GameActionInfo> mapping & Outputs a team's score every time it passes a new
         // multiple of the threshold
         .apply(new TeamScore(options))

@@ -366,22 +366,13 @@ public class GameStats extends LeaderBoard {
     }
   }
 
-  static void applyGameStats(Pipeline p, Options options) throws IOException {
+  static void applyGameStats(Pipeline p, Options options) {
 
     Integer fixedWindowDuration = options.getFixedWindowDuration();
     Integer userActivityWindowDuration = options.getUserActivityWindowDuration();
     Integer sessionGap = options.getSessionGap();
 
-    PubsubIO.Read<String> recordsWithTimeStamp =
-        PubsubIO.readStrings().withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE);
-
-    PubsubIO.Read<String> records = null;
-
-    if (options.getSubscription() != null && !options.getSubscription().isEmpty()) {
-      records = recordsWithTimeStamp.fromSubscription(options.getSubscription());
-    } else {
-      records = recordsWithTimeStamp.fromTopic(options.getTopic());
-    }
+    PubsubIO.Read<String> records = readRecordsFromPubSub(options);
 
     p.apply("TeamScoreSum", records)
         .apply(new GameStatsTeamScore(fixedWindowDuration))

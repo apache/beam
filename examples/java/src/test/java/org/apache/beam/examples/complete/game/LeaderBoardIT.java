@@ -208,6 +208,7 @@ public class LeaderBoardIT {
     options.setProject(projectId);
     options.setDataset(OUTPUT_DATASET);
     options.setSubscription(subscriptionPath.getPath());
+    options.setTopic(eventsTopicPath.getPath());
     options.setStreaming(false);
     options.setBlockOnRun(false);
     options.setTeamWindowDuration(1);
