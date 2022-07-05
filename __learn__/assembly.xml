@@ -38,6 +38,39 @@
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?\.externalToolBuilders(/.*)?]</exclude>
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?\.deployables(/.*)?]</exclude>
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?\.wtpmodules(/.*)?]</exclude>
+        <!-- misc -->
+        <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?cobertura\.ser]</exclude>
+        <!-- Gradle build process artifacts -->
+        <exclude>**/.gradle/**</exclude>
+        <exclude>**/.gogradle/**</exclude>
+        <exclude>**/build/**</exclude>
+        <exclude>**/out/**</exclude>
+        <exclude>**/.gradletasknamecache</exclude>
+        <!-- Maven build artifacts -->
+        <exclude>**/bin/**</exclude>
+        <exclude>**/dependency-reduced-pom.xml</exclude>
+        <!-- Maven archetypes support -->
+        <exclude>sdks/java/maven-archetypes/examples/src/main/resources/archetype-resources/src/</exclude>
+        <exclude>sdks/java/maven-archetypes/examples-java8/src/main/resources/archetype-resources/src/</exclude>
+
+        <!-- Python build artifacts -->
+        <exclude>**/*.py[cod]</exclude>
+        <exclude>**/*.egg-info/</exclude>
+        <exclude>**/.egges/**</exclude>
+        <exclude>**/nose-*.egg/**</exclude>
+        <exclude>**/.tox/**</exclude>
+        <exclude>**/dist/**</exclude>
+        <exclude>**/env/**</exclude>
+        <exclude>sdks/python/**/*.c</exclude>
+        <exclude>sdks/python/**/*.so</exclude>
+        <exclude>sdks/python/**/*.eggs</exclude>
+        <exclude>sdks/python/LICENSE</exclude>
+        <exclude>sdks/python/NOTICE</exclude>
+        <exclude>sdks/python/README.md</exclude>
+        <exclude>sdks/python/apache_beam/portability/api/*pb2*.*</exclude>
+        <!-- release-plugin artifacts (temp) -->
+        <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?pom\.xml\.releaseBackup]</exclude>
+        <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?release\.properties]</exclude>
       </excludes>
     </fileSet>
   </fileSets>
