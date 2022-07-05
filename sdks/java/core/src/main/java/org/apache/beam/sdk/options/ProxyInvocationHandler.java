@@ -139,6 +139,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     }
   }
 
+  @SuppressFBWarnings("SE_BAD_FIELD")
   private volatile ComputedProperties computedProperties;
 
   // ProxyInvocationHandler implements Serializable only for the sake of throwing an informative
@@ -174,6 +175,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
   }
 
   @Override
+  @SuppressFBWarnings("AT_OPERATION_SEQUENCE_ON_CONCURRENT_ABSTRACTION")
   public Object invoke(Object proxy, Method method, Object[] args) {
     if (args == null && "toString".equals(method.getName())) {
       return toString();
