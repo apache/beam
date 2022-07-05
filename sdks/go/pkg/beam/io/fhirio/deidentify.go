@@ -16,7 +16,6 @@
 // Package fhirio provides an API for reading and writing resources to Google
 // Cloud Healthcare Fhir stores.
 // Experimental.
-
 package fhirio
 
 import (
