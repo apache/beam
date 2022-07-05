@@ -146,10 +146,12 @@ public final class SparkStructuredStreamingRunner
             });
     executorService.shutdown();
 
-    // TODO: Streaming.
+    Runnable onTerminalState =
+        options.getUseActiveSparkSession()
+            ? () -> {}
+            : () -> translationContext.getSparkSession().stop();
     SparkStructuredStreamingPipelineResult result =
-        new SparkStructuredStreamingPipelineResult(
-            submissionFuture, translationContext.getSparkSession());
+        new SparkStructuredStreamingPipelineResult(submissionFuture, onTerminalState);
 
     if (options.getEnableSparkMetricSinks()) {
       registerMetricsSource(options.getAppName());
@@ -162,7 +164,6 @@ public final class SparkStructuredStreamingRunner
 
     if (options.getTestMode()) {
       result.waitUntilFinish();
-      result.stop();
     }
 
     return result;

@@ -18,20 +18,68 @@
 package org.apache.beam.runners.spark.metrics.sink;
 
 import com.codahale.metrics.MetricRegistry;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.lang.reflect.Constructor;
 import java.util.Properties;
 import org.apache.beam.runners.spark.metrics.AggregatorMetric;
 import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
 import org.apache.spark.metrics.sink.Sink;
 
-/** A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics to Graphite. */
-// Intentionally overriding parent name because inheritors should replace the parent.
-@SuppressFBWarnings("NM_SAME_SIMPLE_NAME_AS_SUPERCLASS")
-public class GraphiteSink extends org.apache.spark.metrics.sink.GraphiteSink {
+/**
+ * A {@link Sink} for <a href="https://spark.apache.org/docs/latest/monitoring.html#metrics">Spark's
+ * metric system</a> that is tailored to report {@link AggregatorMetric}s to Graphite.
+ *
+ * <p>The sink is configured using Spark configuration parameters, for example:
+ *
+ * <pre>{@code
+ * "spark.metrics.conf.*.sink.graphite.class"="org.apache.beam.runners.spark.metrics.sink.GraphiteSink"
+ * "spark.metrics.conf.*.sink.graphite.host"="<graphite_hostname>"
+ * "spark.metrics.conf.*.sink.graphite.port"=<graphite_listening_port>
+ * "spark.metrics.conf.*.sink.graphite.period"=10
+ * "spark.metrics.conf.*.sink.graphite.unit"=seconds
+ * "spark.metrics.conf.*.sink.graphite.prefix"="<optional_prefix>"
+ * "spark.metrics.conf.*.sink.graphite.regex"="<optional_regex_to_send_matching_metrics>"
+ * }</pre>
+ */
+public class GraphiteSink implements Sink {
+
+  // Initialized reflectively as done by Spark's MetricsSystem
+  private final org.apache.spark.metrics.sink.GraphiteSink delegate;
+
+  /** Constructor for Spark 3.1.x. */
   public GraphiteSink(
       final Properties properties,
       final MetricRegistry metricRegistry,
       final org.apache.spark.SecurityManager securityMgr) {
-    super(properties, WithMetricsSupport.forRegistry(metricRegistry), securityMgr);
+    delegate = newDelegate(properties, WithMetricsSupport.forRegistry(metricRegistry), securityMgr);
+  }
+
+  /** Constructor for Spark 3.2.x and later. */
+  public GraphiteSink(final Properties properties, final MetricRegistry metricRegistry) {
+    delegate = newDelegate(properties, WithMetricsSupport.forRegistry(metricRegistry));
+  }
+
+  @Override
+  public void start() {
+    delegate.start();
+  }
+
+  @Override
+  public void stop() {
+    delegate.stop();
+  }
+
+  @Override
+  public void report() {
+    delegate.report();
+  }
+
+  private static org.apache.spark.metrics.sink.GraphiteSink newDelegate(Object... params) {
+    try {
+      Constructor<?> constructor =
+          org.apache.spark.metrics.sink.GraphiteSink.class.getConstructors()[0];
+      return (org.apache.spark.metrics.sink.GraphiteSink) constructor.newInstance(params);
+    } catch (ReflectiveOperationException ex) {
+      throw new RuntimeException(ex);
+    }
   }
 }

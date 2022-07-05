@@ -75,6 +75,18 @@ public abstract class AbstractTranslationContext {
   private final Map<PCollectionView<?>, Dataset<?>> broadcastDataSets;
 
   public AbstractTranslationContext(SparkStructuredStreamingPipelineOptions options) {
+    this.sparkSession = getOrCreateSession(options);
+    this.serializablePipelineOptions = new SerializablePipelineOptions(options);
+    this.datasets = new HashMap<>();
+    this.leaves = new HashSet<>();
+    this.broadcastDataSets = new HashMap<>();
+  }
+
+  private static SparkSession getOrCreateSession(SparkStructuredStreamingPipelineOptions options) {
+    if (options.getUseActiveSparkSession()) {
+      return SparkSession.active();
+    }
+
     SparkConf sparkConf = new SparkConf();
     sparkConf.setMaster(options.getSparkMaster());
     sparkConf.setAppName(options.getAppName());
@@ -86,22 +98,17 @@ public abstract class AbstractTranslationContext {
     // mode, so try to align with value of "sparkMaster" option in this case.
     // We should not overwrite this value (or any user-defined spark configuration value) if the
     // user has already configured it.
-    String sparkMaster = options.getSparkMaster();
-    if (sparkMaster != null
-        && sparkMaster.startsWith("local[")
+    String master = options.getSparkMaster();
+    if (master != null
+        && master.startsWith("local[")
         && System.getProperty("spark.sql.shuffle.partitions") == null) {
       int numPartitions =
-          Integer.parseInt(sparkMaster.substring("local[".length(), sparkMaster.length() - 1));
+          Integer.parseInt(master.substring("local[".length(), master.length() - 1));
       if (numPartitions > 0) {
         sparkConf.set("spark.sql.shuffle.partitions", String.valueOf(numPartitions));
       }
     }
-
-    this.sparkSession = SparkSession.builder().config(sparkConf).getOrCreate();
-    this.serializablePipelineOptions = new SerializablePipelineOptions(options);
-    this.datasets = new HashMap<>();
-    this.leaves = new HashSet<>();
-    this.broadcastDataSets = new HashMap<>();
+    return SparkSession.builder().config(sparkConf).getOrCreate();
   }
 
   public SparkSession getSparkSession() {

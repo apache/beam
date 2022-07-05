@@ -38,10 +38,25 @@ public class BeamMetricTest {
                 "myStep.one.two(three)", MetricName.named("myNameSpace//", "myName()")),
             123,
             456);
-    String renderedName = new SparkBeamMetric().renderName(metricResult);
+    String renderedName = SparkBeamMetric.renderName("", metricResult);
     assertThat(
         "Metric name was not rendered correctly",
         renderedName,
         equalTo("myStep_one_two_three.myNameSpace__.myName__"));
+  }
+
+  @Test
+  public void testRenderNameWithPrefix() {
+    MetricResult<Object> metricResult =
+        MetricResult.create(
+            MetricKey.create(
+                "myStep.one.two(three)", MetricName.named("myNameSpace//", "myName()")),
+            123,
+            456);
+    String renderedName = SparkBeamMetric.renderName("prefix", metricResult);
+    assertThat(
+        "Metric name was not rendered correctly",
+        renderedName,
+        equalTo("prefix.myStep_one_two_three.myNameSpace__.myName__"));
   }
 }

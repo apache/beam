@@ -68,6 +68,7 @@ public class WordCount {
   public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
     @Override
     public String apply(KV<String, Long> input) {
+      System.out.println("Element: " + input);
       return input.getKey() + ": " + input.getValue();
     }
   }

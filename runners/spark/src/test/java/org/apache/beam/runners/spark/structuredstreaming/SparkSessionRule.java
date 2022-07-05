@@ -23,6 +23,8 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.spark.sql.SparkSession;
 import org.junit.rules.ExternalResource;
@@ -37,14 +39,21 @@ public class SparkSessionRule extends ExternalResource implements Serializable {
     builder = SparkSession.builder();
     sparkConfig.forEach(builder::config);
     builder.master(sparkMaster);
+    builder.config("spark.sql.shuffle.partitions", numDriverCores(sparkMaster));
   }
 
   public SparkSessionRule(KV<String, String>... sparkConfig) {
-    this("local", sparkConfig);
+    this("local[2]", sparkConfig);
   }
 
   public SparkSessionRule(String sparkMaster, KV<String, String>... sparkConfig) {
     this(sparkMaster, Arrays.stream(sparkConfig).collect(toMap(KV::getKey, KV::getValue)));
+  }
+
+  private static int numDriverCores(String master) {
+    return master.startsWith("local[")
+        ? Integer.parseInt(master.substring("local[".length(), master.length() - 1))
+        : 1;
   }
 
   public SparkSession getSession() {
@@ -52,6 +61,19 @@ public class SparkSessionRule extends ExternalResource implements Serializable {
       throw new IllegalStateException("SparkSession not available");
     }
     return session;
+  }
+
+  public PipelineOptions createPipelineOptions() {
+    return configure(TestPipeline.testingPipelineOptions());
+  }
+
+  public PipelineOptions configure(PipelineOptions options) {
+    SparkStructuredStreamingPipelineOptions opts =
+        options.as(SparkStructuredStreamingPipelineOptions.class);
+    opts.setUseActiveSparkSession(true);
+    opts.setRunner(SparkStructuredStreamingRunner.class);
+    opts.setTestMode(true);
+    return opts;
   }
 
   @Override
