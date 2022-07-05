@@ -45,6 +45,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -162,6 +163,7 @@ public class PulsarIOTest {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/21714 Test reliably fails.")
   public void testReadFromSimpleTopic() {
     try {
       List<PulsarMessage> inputsMock = produceMessages();
