@@ -22,12 +22,13 @@ import (
 	"context"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"google.golang.org/api/healthcare/v1"
 )
 
 func init() {
-	register.DoFn3x1[context.Context, string, func(string), error]((*deidentifyFn)(nil))
+	register.DoFn3x0[context.Context, string, func(string)]((*deidentifyFn)(nil))
 	register.Emitter1[string]()
 }
 
@@ -49,20 +50,21 @@ func (fn *deidentifyFn) Setup() {
 	fn.operationSuccessCount = beam.NewCounter(fn.String(), baseMetricPrefix+"operation_success_count")
 }
 
-func (fn *deidentifyFn) ProcessElement(ctx context.Context, srcStorePath string, emitDstStore func(string)) error {
+func (fn *deidentifyFn) ProcessElement(ctx context.Context, srcStorePath string, emitDstStore func(string)) {
 	result, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() (operationResults, error) {
 		return fn.client.deidentify(srcStorePath, fn.DestinationStorePath, fn.DeidentifyConfig)
 	})
 	if err != nil {
+		log.Warnf(ctx, "Deidentify operation failed. Reason: %v", err)
 		fn.operationErrorCount.Inc(ctx, 1)
-		return err
+		return
 	}
 
 	fn.operationSuccessCount.Inc(ctx, 1)
 	fn.resourcesSuccessCount.Inc(ctx, result.Successes)
 	fn.resourcesErrorCount.Inc(ctx, result.Failures)
 	emitDstStore(fn.DestinationStorePath)
-	return nil
+	return
 }
 
 func Deidentify(s beam.Scope, srcStore, dstStore string, config *healthcare.DeidentifyConfig) beam.PCollection {
