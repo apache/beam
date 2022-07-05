@@ -21,6 +21,7 @@ import (
 	"beam.apache.org/playground/backend/internal/utils"
 	"cloud.google.com/go/datastore"
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -381,7 +382,7 @@ func TestDatastore_GetSDK(t *testing.T) {
 func TestDatastore_DeleteUnusedSnippets(t *testing.T) {
 	type args struct {
 		ctx     context.Context
-		dayDiff int
+		dayDiff int32
 	}
 	now := time.Now()
 	tests := []struct {
@@ -394,12 +395,20 @@ func TestDatastore_DeleteUnusedSnippets(t *testing.T) {
 			name: "DeleteUnusedSnippets() in the usual case",
 			args: args{ctx: ctx, dayDiff: 10},
 			prepare: func() {
-				putSnippet("MOCK_ID0", now.Add(-time.Hour*24*7))
-				putSnippet("MOCK_ID1", now.Add(-time.Hour*24*10))
-				putSnippet("MOCK_ID2", now.Add(-time.Hour*24*15))
-				putSnippet("MOCK_ID3", now)
-				putSnippet("MOCK_ID4", now.Add(time.Hour*24*2))
-				putSnippet("MOCK_ID5", now.Add(time.Hour*24*10))
+				//last visit date is now - 7 days
+				putSnippet("MOCK_ID0", now.Add(-time.Hour*24*7), 2)
+				//last visit date is now - 10 days
+				putSnippet("MOCK_ID1", now.Add(-time.Hour*24*10), 4)
+				//last visit date is now - 15 days
+				putSnippet("MOCK_ID2", now.Add(-time.Hour*24*15), 8)
+				//last visit date is now
+				putSnippet("MOCK_ID3", now, 1)
+				//last visit date is now + 2 days
+				putSnippet("MOCK_ID4", now.Add(time.Hour*24*2), 2)
+				//last visit date is now + 10 days
+				putSnippet("MOCK_ID5", now.Add(time.Hour*24*10), 2)
+				//last visit date is now - 18 days
+				putSnippet("MOCK_ID6", now.Add(-time.Hour*24*18), 3)
 			},
 			wantErr: false,
 		},
@@ -415,34 +424,44 @@ func TestDatastore_DeleteUnusedSnippets(t *testing.T) {
 
 			if err == nil {
 				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID0")
+				_, err = datastoreDb.GetFiles(tt.args.ctx, "MOCK_ID0", 2)
 				if err != nil {
 					t.Errorf("DeleteUnusedSnippets() this snippet shouldn't be deleted, err: %s", err)
 				}
 				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID1")
+				_, err = datastoreDb.GetFiles(tt.args.ctx, "MOCK_ID1", 4)
 				if err == nil {
 					t.Errorf("DeleteUnusedSnippets() this snippet should be deleted, err: %s", err)
 				}
 				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID2")
+				_, err = datastoreDb.GetFiles(tt.args.ctx, "MOCK_ID2", 8)
 				if err == nil {
 					t.Errorf("DeleteUnusedSnippets() this snippet should be deleted, err: %s", err)
 				}
 				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID3")
+				_, err = datastoreDb.GetFiles(tt.args.ctx, "MOCK_ID3", 1)
 				if err != nil {
 					t.Errorf("DeleteUnusedSnippets() this snippet shouldn't be deleted, err: %s", err)
 				}
 				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID4")
+				_, err = datastoreDb.GetFiles(tt.args.ctx, "MOCK_ID4", 2)
 				if err != nil {
 					t.Errorf("DeleteUnusedSnippets() this snippet shouldn't be deleted, err: %s", err)
 				}
 				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID5")
+				_, err = datastoreDb.GetFiles(tt.args.ctx, "MOCK_ID5", 2)
 				if err != nil {
 					t.Errorf("DeleteUnusedSnippets() this snippet shouldn't be deleted, err: %s", err)
+				}
+				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID6")
+				_, err = datastoreDb.GetFiles(tt.args.ctx, "MOCK_ID6", 3)
+				if err == nil {
+					t.Errorf("DeleteUnusedSnippets() this snippet should be deleted, err: %s", err)
 				}
 			}
 
 		})
 	}
-
 }
 
 func TestNew(t *testing.T) {
@@ -494,23 +513,24 @@ func getSDKs() []*entity.SDKEntity {
 	return sdkEntities
 }
 
-func putSnippet(id string, lVisited time.Time) {
+func putSnippet(id string, lVisited time.Time, numberOfFiles int) {
+	var files []*entity.FileEntity
+	for i := 0; i < numberOfFiles; i++ {
+		file := &entity.FileEntity{
+			Name:    fmt.Sprintf("%s_%d", "MOCK_NAME", i),
+			Content: fmt.Sprintf("%s_%d", "MOCK_CONTENT", i),
+		}
+		files = append(files, file)
+	}
 	_ = datastoreDb.PutSnippet(ctx, id, &entity.Snippet{
-		IDMeta: &entity.IDMeta{
-			Salt:     "MOCK_SALT",
-			IdLength: 11,
-		},
+		IDMeta: &entity.IDMeta{Salt: "MOCK_SALT", IdLength: 11},
 		Snippet: &entity.SnippetEntity{
-			Sdk:      utils.GetNameKey(SdkKind, pb.Sdk_SDK_GO.String(), Namespace, nil),
-			PipeOpts: "MOCK_OPTIONS",
-			LVisited: lVisited,
-			Origin:   entity.PG_USER,
-			OwnerId:  "",
+			Sdk:           utils.GetNameKey(SdkKind, pb.Sdk_SDK_GO.String(), Namespace, nil),
+			PipeOpts:      "MOCK_OPTIONS",
+			LVisited:      lVisited,
+			Origin:        entity.PG_USER,
+			NumberOfFiles: numberOfFiles,
 		},
-		Files: []*entity.FileEntity{{
-			Name:    "MOCK_NAME",
-			Content: "MOCK_CONTENT",
-			IsMain:  false,
-		}},
+		Files: files,
 	})
 }
