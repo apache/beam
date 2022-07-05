@@ -35,11 +35,13 @@ import (
 )
 
 const (
-	UserAgent             = "apache-beam-io-google-cloud-platform-healthcare/" + core.SdkVersion
-	baseMetricPrefix      = "fhirio/"
-	errorCounterName      = baseMetricPrefix + "resource_error_count"
-	successCounterName    = baseMetricPrefix + "resource_success_count"
-	pageTokenParameterKey = "_page_token"
+	UserAgent                   = "apache-beam-io-google-cloud-platform-healthcare/" + core.SdkVersion
+	baseMetricPrefix            = "fhirio/"
+	errorCounterName            = baseMetricPrefix + "resource_error_count"
+	operationErrorCounterName   = baseMetricPrefix + "operation_error_count"
+	operationSuccessCounterName = baseMetricPrefix + "operation_success_count"
+	successCounterName          = baseMetricPrefix + "resource_success_count"
+	pageTokenParameterKey       = "_page_token"
 )
 
 type operationResults struct {

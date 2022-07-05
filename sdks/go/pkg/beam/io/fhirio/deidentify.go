@@ -46,8 +46,8 @@ func (fn deidentifyFn) String() string {
 
 func (fn *deidentifyFn) Setup() {
 	fn.fnCommonVariables.setup(fn.String())
-	fn.operationErrorCount = beam.NewCounter(fn.String(), baseMetricPrefix+"operation_error_count")
-	fn.operationSuccessCount = beam.NewCounter(fn.String(), baseMetricPrefix+"operation_success_count")
+	fn.operationErrorCount = beam.NewCounter(fn.String(), operationErrorCounterName)
+	fn.operationSuccessCount = beam.NewCounter(fn.String(), operationSuccessCounterName)
 }
 
 func (fn *deidentifyFn) ProcessElement(ctx context.Context, srcStorePath string, emitDstStore func(string)) {

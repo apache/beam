@@ -18,9 +18,9 @@ package fhirio
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
+	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
@@ -118,19 +118,23 @@ func (m *fakeReaderCloser) Read(b []byte) (int, error) {
 	return m.fakeRead(b)
 }
 
-func validateCounter(pipelineResult beam.PipelineResult, expectedCounterName string, expectedCount int) error {
-	counterResults := pipelineResult.Metrics().AllMetrics().Counters()
+func validateCounter(t *testing.T, pipelineResult beam.PipelineResult, expectedCounterName string, expectedCount int) {
+	t.Helper()
+
+	counterResults := pipelineResult.Metrics().Query(func(mr beam.MetricResult) bool {
+		return mr.Name() == expectedCounterName
+	}).Counters()
+
+	if expectedCount == 0 && len(counterResults) == 0 {
+		return
+	}
+
 	if len(counterResults) != 1 {
-		return fmt.Errorf("counterResults got length %v, expected %v", len(counterResults), 1)
+		t.Fatalf("counter %v got length %v, expected %v", expectedCounterName, len(counterResults), 1)
 	}
 	counterResult := counterResults[0]
 
-	if counterResult.Name() != expectedCounterName {
-		return fmt.Errorf("counterResult.Name() is '%v', expected '%v'", counterResult.Name(), expectedCounterName)
-	}
-
 	if counterResult.Result() != int64(expectedCount) {
-		return fmt.Errorf("counterResult.Result() is %v, expected %v", counterResult.Result(), expectedCount)
+		t.Fatalf("counter %v result is %v, expected %v", expectedCounterName, counterResult.Result(), expectedCount)
 	}
-	return nil
 }

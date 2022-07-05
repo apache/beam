@@ -66,10 +66,7 @@ func TestSearch_Errors(t *testing.T) {
 				return strings.Contains(errorMsg, testCase.containedError)
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
-			err := validateCounter(pipelineResult, errorCounterName, 1)
-			if err != nil {
-				t.Fatalf("validateCounter returned error [%v]", err.Error())
-			}
+			validateCounter(t, pipelineResult, errorCounterName, 1)
 		})
 	}
 }
@@ -99,8 +96,5 @@ func TestSearch_Pagination(t *testing.T) {
 		return len(resourcesFound) == 2
 	})
 	pipelineResult := ptest.RunAndValidate(t, p)
-	err := validateCounter(pipelineResult, successCounterName, 1)
-	if err != nil {
-		t.Fatalf("validateCounter returned error [%v]", err.Error())
-	}
+	validateCounter(t, pipelineResult, successCounterName, 1)
 }
