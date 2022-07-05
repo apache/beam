@@ -15,26 +15,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Chmod of docker.sock
 sudo chmod 666 /var/run/docker.sock
 
-#escaping env variables to avoid issues in k8s deployment
-GITHUB_TOKEN=$(echo "$GITHUB_TOKEN")
+# Verify gcloud installation and activate the mounted Service Account
+gcloud version
+gcloud auth activate-service-account --key-file="${GOOGLE_APPLICATION_CREDENTIALS}" --no-user-output-enabled
 
-registration_url="https://api.github.com/orgs/$ORG_NAME/actions/runners/registration-token"
-echo "Requesting registration Org URL at '${registration_url}'"
-payload=$(curl -sX POST -H "Authorization: token $GITHUB_TOKEN" ${registration_url})
-RUNNER_TOKEN=$(echo $payload | jq '.token' --raw-output)
-echo "export RUNNER_TOKEN3=$RUNNER_TOKEN" | sudo tee /etc/bash.bashrc > /dev/null && source /etc/bash.bashrc
+# Register the Runner Token in the given Organization.
+CLOUD_FUNCTION_URL="https://${REGION}-${PROJECT_ID}.cloudfunctions.net/${CLOUD_FUNCTION_NAME}"
+
+# Get the Runner token from the specified Google Cloud Function
+response=$(curl -sX POST -H "Authorization:bearer $(gcloud auth print-identity-token)" "${CLOUD_FUNCTION_URL}")
+RUNNER_TOKEN=$(echo "$response" | jq '.token' --raw-output)
 
 ./config.sh \
-    --name $(hostname) \
-    --token ${RUNNER_TOKEN} \
-    --url https://github.com/$ORG_NAME \
+    --name "$(hostname)" \
+    --token "${RUNNER_TOKEN}" \
+    --url https://github.com/"$ORG_NAME" \
     --work _work \
     --unattended \
     --replace \
-    --labels ubuntu-20.04,ubuntu-latest \
-    --runnergroup ${ORG_RUNNER_GROUP} \
+    --labels ubuntu-20.04,beam \
+    --runnergroup "${ORG_RUNNER_GROUP}" \
     --ephemeral
 
 remove() {
