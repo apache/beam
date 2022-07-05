@@ -25,6 +25,7 @@ users can then compare against the true label.
 """
 
 import argparse
+import logging
 from typing import Iterable
 from typing import List
 from typing import Tuple
@@ -37,6 +38,7 @@ from apache_beam.ml.inference.sklearn_inference import ModelFileType
 from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.runner import PipelineResult
 
 
 def process_input(row: str) -> Tuple[int, List[int]]:
@@ -60,6 +62,7 @@ def parse_known_args(argv):
   """Parses args for the workflow."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
+      '--input',
       '--input_file',
       dest='input',
       required=True,
@@ -77,7 +80,8 @@ def parse_known_args(argv):
   return parser.parse_known_args(argv)
 
 
-def run(argv=None, save_main_session=True):
+def run(
+    argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
   """Entry point. Defines and runs the pipeline."""
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
@@ -90,23 +94,30 @@ def run(argv=None, save_main_session=True):
           model_file_type=ModelFileType.PICKLE,
           model_uri=known_args.model_path))
 
-  with beam.Pipeline(options=pipeline_options) as p:
-    label_pixel_tuple = (
-        p
-        | "ReadFromInput" >> beam.io.ReadFromText(
-            known_args.input, skip_header_lines=1)
-        | "PreProcessInputs" >> beam.Map(process_input))
+  if not test_pipeline:
+    pipeline = beam.Pipeline(options=pipeline_options)
+  else:
+    pipeline = test_pipeline
 
-    predictions = (
-        label_pixel_tuple
-        | "RunInference" >> RunInference(model_loader)
-        | "PostProcessOutputs" >> beam.ParDo(PostProcessor()))
+  label_pixel_tuple = (
+      pipeline
+      | "ReadFromInput" >> beam.io.ReadFromText(
+          known_args.input, skip_header_lines=1)
+      | "PreProcessInputs" >> beam.Map(process_input))
 
-    _ = predictions | "WriteOutput" >> beam.io.WriteToText(
-        known_args.output,
-        shard_name_template='',
-        append_trailing_newlines=True)
+  predictions = (
+      label_pixel_tuple
+      | "RunInference" >> RunInference(model_loader)
+      | "PostProcessOutputs" >> beam.ParDo(PostProcessor()))
+
+  _ = predictions | "WriteOutput" >> beam.io.WriteToText(
+      known_args.output, shard_name_template='', append_trailing_newlines=True)
+
+  result = pipeline.run()
+  result.wait_until_finish()
+  return result
 
 
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
   run()

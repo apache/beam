@@ -19,6 +19,7 @@
 
 import argparse
 import io
+import logging
 import os
 from typing import Iterable
 from typing import Optional
@@ -33,9 +34,10 @@ from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.runner import PipelineResult
 from PIL import Image
+from torchvision import models
 from torchvision import transforms
-from torchvision.models.mobilenetv2 import MobileNetV2
 
 
 def read_image(image_file_name: str,
@@ -72,6 +74,7 @@ def parse_known_args(argv):
   """Parses args for the workflow."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
+      '--input_file',
       '--input',
       dest='input',
       required=True,
@@ -95,7 +98,12 @@ def parse_known_args(argv):
   return parser.parse_known_args(argv)
 
 
-def run(argv=None, model_class=None, model_params=None, save_main_session=True):
+def run(
+    argv=None,
+    model_class=None,
+    model_params=None,
+    save_main_session=True,
+    test_pipeline=None) -> PipelineResult:
   """
   Args:
     argv: Command line arguments defined for this example.
@@ -103,13 +111,15 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
     model_params: Parameters passed to the constructor of the model_class.
                   These will be used to instantiate the model object in the
                   RunInference API.
+    test_pipeline: used for internal testing. No backwards-compatibility,
   """
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
   if not model_class:
-    model_class = MobileNetV2
+    # default model class will be mobilenet with pretrained weights.
+    model_class = models.mobilenet_v2
     model_params = {'num_classes': 1000}
 
   # In this example we pass keyed inputs to RunInference transform.
@@ -120,27 +130,35 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
           model_class=model_class,
           model_params=model_params))
 
-  with beam.Pipeline(options=pipeline_options) as p:
-    filename_value_pair = (
-        p
-        | 'ReadImageNames' >> beam.io.ReadFromText(
-            known_args.input, skip_header_lines=1)
-        | 'ReadImageData' >> beam.Map(
-            lambda image_name: read_image(
-                image_file_name=image_name, path_to_dir=known_args.images_dir))
-        | 'PreprocessImages' >> beam.MapTuple(
-            lambda file_name, data: (file_name, preprocess_image(data))))
-    predictions = (
-        filename_value_pair
-        | 'PyTorchRunInference' >> RunInference(model_handler)
-        | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
+  if not test_pipeline:
+    pipeline = beam.Pipeline(options=pipeline_options)
+  else:
+    pipeline = test_pipeline
 
-    if known_args.output:
-      predictions | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
-        known_args.output,
-        shard_name_template='',
-        append_trailing_newlines=True)
+  filename_value_pair = (
+      pipeline
+      | 'ReadImageNames' >> beam.io.ReadFromText(
+          known_args.input, skip_header_lines=1)
+      | 'ReadImageData' >> beam.Map(
+          lambda image_name: read_image(
+              image_file_name=image_name, path_to_dir=known_args.images_dir))
+      | 'PreprocessImages' >> beam.MapTuple(
+          lambda file_name, data: (file_name, preprocess_image(data))))
+  predictions = (
+      filename_value_pair
+      | 'PyTorchRunInference' >> RunInference(model_handler)
+      | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
+
+  predictions | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
+    known_args.output,
+    shard_name_template='',
+    append_trailing_newlines=True)
+
+  result = pipeline.run()
+  result.wait_until_finish()
+  return result
 
 
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
   run()
