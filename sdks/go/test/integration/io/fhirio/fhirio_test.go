@@ -276,6 +276,24 @@ func TestFhirIO_Search(t *testing.T) {
 	}
 }
 
+func TestFhirIO_Deidentify(t *testing.T) {
+	integration.CheckFilters(t)
+	checkFlags(t)
+
+	srcFhirStorePath, _, teardownSrcFhirStore := setupFhirStoreWithData(t)
+	defer teardownSrcFhirStore()
+
+	dstFhirStorePath, teardownDstFhirStore := setupEmptyFhirStore(t)
+	defer teardownDstFhirStore()
+
+	p := beam.NewPipeline()
+	s := p.Root()
+	res := fhirio.Deidentify(s, srcFhirStorePath, dstFhirStorePath, &healthcare.DeidentifyConfig{})
+	passert.Count(s, res, "", 1)
+
+	ptest.RunAndValidate(t, p)
+}
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 	beam.Init()

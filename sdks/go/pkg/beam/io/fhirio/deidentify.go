@@ -1,0 +1,84 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package fhirio provides an API for reading and writing resources to Google
+// Cloud Healthcare Fhir stores.
+// Experimental.
+
+package fhirio
+
+import (
+	"context"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"google.golang.org/api/healthcare/v1"
+)
+
+func init() {
+	register.DoFn3x1[context.Context, string, func(string), error]((*deidentifyFn)(nil))
+	register.Emitter1[string]()
+}
+
+type deidentifyFn struct {
+	fnCommonVariables
+	DestinationStorePath  string
+	DeidentifyConfig      *healthcare.DeidentifyConfig
+	operationErrorCount   beam.Counter
+	operationSuccessCount beam.Counter
+}
+
+func (fn deidentifyFn) String() string {
+	return "deidentifyFn"
+}
+
+func (fn *deidentifyFn) Setup() {
+	fn.fnCommonVariables.setup(fn.String())
+	fn.operationErrorCount = beam.NewCounter(fn.String(), baseMetricPrefix+"operation_error_count")
+	fn.operationSuccessCount = beam.NewCounter(fn.String(), baseMetricPrefix+"operation_success_count")
+}
+
+func (fn *deidentifyFn) ProcessElement(ctx context.Context, srcStorePath string, emitDstStore func(string)) error {
+	result, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() (operationResults, error) {
+		return fn.client.deidentify(srcStorePath, fn.DestinationStorePath, fn.DeidentifyConfig)
+	})
+	if err != nil {
+		fn.operationErrorCount.Inc(ctx, 1)
+		return err
+	}
+
+	fn.operationSuccessCount.Inc(ctx, 1)
+	fn.resourcesSuccessCount.Inc(ctx, result.Successes)
+	fn.resourcesErrorCount.Inc(ctx, result.Failures)
+	emitDstStore(fn.DestinationStorePath)
+	return nil
+}
+
+func Deidentify(s beam.Scope, srcStore, dstStore string, config *healthcare.DeidentifyConfig) beam.PCollection {
+	s = s.Scope("fhirio.Deidentify")
+	return deidentify(s, srcStore, dstStore, config, nil)
+}
+
+func deidentify(s beam.Scope, srcStore, dstStore string, config *healthcare.DeidentifyConfig, client fhirStoreClient) beam.PCollection {
+	return beam.ParDo(
+		s,
+		&deidentifyFn{
+			fnCommonVariables:    fnCommonVariables{client: client},
+			DestinationStorePath: dstStore,
+			DeidentifyConfig:     config,
+		},
+		beam.Create(s, srcStore),
+	)
+}
