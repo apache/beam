@@ -164,9 +164,6 @@ dependencies {
     compileOnly "org.scala-lang:scala-library:2.12.15"
     runtimeOnly library.java.jackson_module_scala_2_12
   }
-  if (project.property("spark_version").equals("3.1.2")) {
-    compileOnly "org.apache.parquet:parquet-common:1.10.1"
-  }
   // Force paranamer 2.8 to avoid issues when using Scala 2.12
   runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"
   provided library.java.hadoop_common
