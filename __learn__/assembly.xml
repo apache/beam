@@ -71,7 +71,14 @@
         <!-- release-plugin artifacts (temp) -->
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?pom\.xml\.releaseBackup]</exclude>
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?release\.properties]</exclude>
+        <!-- code review artifacts -->
+        <exclude>**/OWNERS</exclude>
       </excludes>
     </fileSet>
+    <!-- project artifacts at build time -->
+    <fileset>
+      <directory>${project.build.directory}/maven-shared-archive-resources/META-INF</directory>
+      <outputDirectory></outputDirectory>
+    </fileset>
   </fileSets>
 </assemblies>
