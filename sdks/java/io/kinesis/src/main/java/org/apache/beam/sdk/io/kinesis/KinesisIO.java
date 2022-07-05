@@ -660,6 +660,10 @@ public final class KinesisIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
+      LOG.warn(
+          "You are using a deprecated IO for Kinesis. Please migrate to module "
+              + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
+
       Unbounded<KinesisRecord> unbounded =
           org.apache.beam.sdk.io.Read.from(
               new KinesisSource(
@@ -880,6 +884,10 @@ public final class KinesisIO {
 
     @Override
     public PDone expand(PCollection<byte[]> input) {
+      LOG.warn(
+          "You are using a deprecated IO for Kinesis. Please migrate to module "
+              + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
+
       checkArgument(getStreamName() != null, "withStreamName() is required");
       checkArgument(
           (getPartitionKey() != null) || (getPartitioner() != null),

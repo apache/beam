@@ -313,6 +313,11 @@ public final class SnsIO {
 
     @Override
     public PCollectionTuple expand(PCollection<PublishRequest> input) {
+      LoggerFactory.getLogger(SnsIO.class)
+          .warn(
+              "You are using a deprecated IO for Sns. Please migrate to module "
+                  + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
+
       checkArgument(getTopicName() != null, "withTopicName() is required");
       PCollectionTuple result =
           input.apply(

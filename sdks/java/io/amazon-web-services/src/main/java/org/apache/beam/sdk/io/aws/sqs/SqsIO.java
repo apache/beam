@@ -36,6 +36,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.slf4j.LoggerFactory;
 
 /**
  * An unbounded source for Amazon Simple Queue Service (SQS).
@@ -169,6 +170,10 @@ public class SqsIO {
 
     @Override
     public PCollection<Message> expand(PBegin input) {
+      LoggerFactory.getLogger(SqsIO.class)
+          .warn(
+              "You are using a deprecated IO for Sqs. Please migrate to module "
+                  + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
 
       org.apache.beam.sdk.io.Read.Unbounded<Message> unbounded =
           org.apache.beam.sdk.io.Read.from(
@@ -202,6 +207,11 @@ public class SqsIO {
 
     @Override
     public PDone expand(PCollection<SendMessageRequest> input) {
+      LoggerFactory.getLogger(SqsIO.class)
+          .warn(
+              "You are using a deprecated IO for Sqs. Please migrate to module "
+                  + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
+
       input.apply(
           ParDo.of(
               new SqsWriteFn(

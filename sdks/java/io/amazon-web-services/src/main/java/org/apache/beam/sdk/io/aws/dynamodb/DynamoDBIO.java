@@ -232,6 +232,11 @@ public final class DynamoDBIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
+      LoggerFactory.getLogger(DynamoDBIO.class)
+          .warn(
+              "You are using a deprecated IO for DynamoDB. Please migrate to module "
+                  + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
+
       checkArgument((getScanRequestFn() != null), "withScanRequestFn() is required");
       checkArgument((getAwsClientsProvider() != null), "withAwsClientsProvider() is required");
       ScanRequest scanRequest = getScanRequestFn().apply(null);
@@ -459,6 +464,11 @@ public final class DynamoDBIO {
 
     @Override
     public PCollection<Void> expand(PCollection<T> input) {
+      LoggerFactory.getLogger(DynamoDBIO.class)
+          .warn(
+              "You are using a deprecated IO for DynamoDB. Please migrate to module "
+                  + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
+
       return input.apply(ParDo.of(new WriteFn<>(this)));
     }
 
