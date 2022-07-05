@@ -25,7 +25,7 @@ import (
 	"testing"
 )
 
-var testable *EntityMapper
+var testable *DatastoreMapper
 
 func TestMain(m *testing.M) {
 	appEnv := environment.NewApplicationEnvs("/app", "", "", "", "", "", "../../../.", nil, 0)

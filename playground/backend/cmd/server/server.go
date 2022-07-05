@@ -23,6 +23,7 @@ import (
 	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/db"
 	"beam.apache.org/playground/backend/internal/db/datastore"
+	"beam.apache.org/playground/backend/internal/db/mapper"
 	"beam.apache.org/playground/backend/internal/db/schema"
 	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
@@ -60,6 +61,7 @@ func runServer() error {
 	}
 
 	var dbClient db.Database
+	var entityMapper mapper.EntityMapper
 
 	// Examples catalog should be retrieved and saved to cache only if the server doesn't suppose to run code, i.e. SDK is unspecified
 	// Database setup only if the server doesn't suppose to run code, i.e. SDK is unspecified
@@ -78,6 +80,8 @@ func runServer() error {
 			return err
 		}
 
+		entityMapper = mapper.New(&envService.ApplicationEnvs, props)
+
 		// Since only router server has the scheduled task, the task creation is here
 		scheduledTasks := tasks.New(ctx)
 		if err = scheduledTasks.StartRemovingExtraSnippets(props.RemovingUnusedSnptsCron, props.RemovingUnusedSnptsDays, dbClient); err != nil {
@@ -90,6 +94,7 @@ func runServer() error {
 		cacheService: cacheService,
 		db:           dbClient,
 		props:        props,
+		entityMapper: entityMapper,
 	})
 
 	errChan := make(chan error)

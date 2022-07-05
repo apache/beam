@@ -21,6 +21,7 @@ import (
 	"beam.apache.org/playground/backend/internal/db"
 	datastoreDb "beam.apache.org/playground/backend/internal/db/datastore"
 	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/db/mapper"
 	"beam.apache.org/playground/backend/internal/db/schema"
 	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
@@ -153,11 +154,14 @@ func setup() *grpc.Server {
 	}
 	appEnv.SetSchemaVersion(actualSchemaVersion)
 
+	entityMapper := mapper.New(appEnv, props)
+
 	pb.RegisterPlaygroundServiceServer(s, &playgroundController{
 		env:          environment.NewEnvironment(*networkEnv, *sdkEnv, *appEnv),
 		cacheService: cacheService,
 		db:           dbClient,
 		props:        props,
+		entityMapper: entityMapper,
 	})
 	go func() {
 		if err := s.Serve(lis); err != nil {
