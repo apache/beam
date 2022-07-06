@@ -15,21 +15,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.util.common.worker;
+package org.apache.beam.runners.dataflow.worker;
 
-import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.UnsafeByteOperations;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 
-/** A collection of ShuffleEntries, all with the same key. */
-public class KeyGroupedShuffleEntries {
-  public final ShufflePosition position;
-  public final ByteString key;
-  public final Reiterable<ShuffleEntry> values;
+class ByteArrayReader {
 
-  public KeyGroupedShuffleEntries(
-      ShufflePosition position, ByteString key, Reiterable<ShuffleEntry> values) {
-    this.position = position;
-    this.key = key;
-    this.values = values;
+  private final byte[] arr;
+  private int pos;
+
+  public ByteArrayReader(byte[] arr) {
+    this.arr = arr;
+    this.pos = 0;
+  }
+
+  public int available() {
+    return arr.length - pos;
+  }
+
+  public int readInt() {
+    int ret = Ints.fromBytes(arr[pos], arr[pos + 1], arr[pos + 2], arr[pos + 3]);
+    pos += 4;
+    return ret;
+  }
+
+  public ByteString read(int size) {
+    if (size == 0) {
+      return ByteString.EMPTY;
+    }
+
+    ByteString ret = UnsafeByteOperations.unsafeWrap(arr, pos, size);
+    pos += size;
+    return ret;
   }
 }
