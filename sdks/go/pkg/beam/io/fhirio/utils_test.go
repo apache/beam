@@ -139,7 +139,7 @@ func validateCounter(t *testing.T, pipelineResult beam.PipelineResult, expectedC
 	}
 
 	if len(counterResults) != 1 {
-		t.Fatalf("counter %v got length %v, expected %v", expectedCounterName, len(counterResults), 1)
+		t.Fatalf("got %v counters with name %v, expected 1", len(counterResults), expectedCounterName)
 	}
 	counterResult := counterResults[0]
 
