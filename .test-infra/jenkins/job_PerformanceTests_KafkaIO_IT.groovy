@@ -21,11 +21,22 @@ import Kubernetes
 import InfluxDBCredentialsHelper
 
 String jobName = "beam_PerformanceTests_Kafka_IO"
+String HIGH_RANGE_PORT = "32767"
 
+/**
+ * This job runs the Kafka IO performance tests.
+ It runs on a kafka cluster that is build by applying the folder .test-infra/kubernetes/kafka-cluster,
+ in an existing kubernetes cluster (DEFAULT_CLUSTER in Kubernetes.groovy).
+ The services created to run this test are:
+ Pods: 3 kafka pods, 3 zookeeper pods, 1 kafka-config pod which run a job that creates topics.
+ Services: 1 bootstrap, 1 broker, 3 outside, 1 zookeeper
+ Job: job.batch/kafka-config-eff079ec
+ When the performance tests finish all resources are cleaned up by a postBuild step in Kubernetes.groovy
+ */
 job(jobName) {
-  common.setTopLevelMainJobProperties(delegate)
-  // TODO(https://github.com/apache/beam/issues/20333): Re-enable once fixed.
-  // common.setAutoJob(delegate, 'H H/6 * * *')
+  common.setTopLevelMainJobProperties(delegate, 'master', 120)
+  common.setAutoJob(delegate, 'H H/6 * * *')
+  // [Issue#21824] Disable trigger
   //  common.enablePhraseTriggeringFromPullRequest(
   //      delegate,
   //      'Java KafkaIO Performance Test',
@@ -35,9 +46,28 @@ job(jobName) {
   String namespace = common.getKubernetesNamespace(jobName)
   String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
   Kubernetes k8s = Kubernetes.create(delegate, kubeconfig, namespace)
-  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/kafka-cluster"))
 
+  String kafkaDir = common.makePathAbsolute("src/.test-infra/kubernetes/kafka-cluster")
+  String kafkaTopicJob = "job.batch/kafka-config-eff079ec"
+
+  /**
+   * Specifies steps to avoid port collisions when the Kafka outside services (1,2,3) are created.
+   Function k8s.availablePort finds unused ports in the Kubernetes cluster in a range from 32400
+   to 32767 by querying used ports, those ports are stored in env vars like KAFKA_SERVICE_PORT_${service},
+   which are used to replace default ports for outside-${service}.yml files, before the apply command.
+   */
+  steps {
+    String[] configuredPorts = ["32400", "32401", "32402"]
+    (0..2).each { service ->
+      k8s.availablePort(service == 0 ? configuredPorts[service] : "\$KAFKA_SERVICE_PORT_${service-1}",
+          HIGH_RANGE_PORT, "KAFKA_SERVICE_PORT_$service")
+      shell("sed -i -e s/${configuredPorts[service]}/\$KAFKA_SERVICE_PORT_$service/ \
+                  ${kafkaDir}/04-outside-services/outside-${service}.yml")
+    }
+  }
+  k8s.apply(kafkaDir)
   (0..2).each { k8s.loadBalancerIP("outside-$it", "KAFKA_BROKER_$it") }
+  k8s.waitForJob(kafkaTopicJob,"40m")
 
   Map pipelineOptions = [
     tempRoot                     : 'gs://temp-storage-for-perf-tests',
@@ -55,7 +85,8 @@ job(jobName) {
     influxMeasurement            : 'kafkaioit_results',
     influxDatabase               : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influxHost                   : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-    kafkaBootstrapServerAddresses: "\$KAFKA_BROKER_0:32400,\$KAFKA_BROKER_1:32401,\$KAFKA_BROKER_2:32402",
+    kafkaBootstrapServerAddresses: "\$KAFKA_BROKER_0:\$KAFKA_SERVICE_PORT_0,\$KAFKA_BROKER_1:\$KAFKA_SERVICE_PORT_1," +
+    "\$KAFKA_BROKER_2:\$KAFKA_SERVICE_PORT_2", //KAFKA_BROKER_ represents IP and KAFKA_SERVICE_ port of outside services
     kafkaTopic                   : 'beam',
     readTimeout                  : '900',
     numWorkers                   : '5',
