@@ -64,7 +64,6 @@ func (fn *deidentifyFn) ProcessElement(ctx context.Context, srcStorePath string,
 	fn.resourcesSuccessCount.Inc(ctx, result.Successes)
 	fn.resourcesErrorCount.Inc(ctx, result.Failures)
 	emitDstStore(fn.DestinationStorePath)
-	return
 }
 
 // Deidentify transform de-identifies sensitive data in resources located in a
