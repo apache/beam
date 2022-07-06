@@ -328,9 +328,9 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
       // Move forward enough bytes so we can prefix the size on after performing the write
       int initialChunkSize = chunk.size();
       chunk.resetTo(initialChunkSize + Ints.BYTES);
+
       coder.encode(value, chunk.asOutputStream(), Context.OUTER);
       int elementSize = chunk.size() - initialChunkSize - Ints.BYTES;
-
       byte[] internalBytes = chunk.array();
       internalBytes[initialChunkSize] = (byte) ((elementSize >>> 24) & 0xFF);
       internalBytes[initialChunkSize + 1] = (byte) ((elementSize >>> 16) & 0xFF);
