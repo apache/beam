@@ -570,7 +570,7 @@ public class BigtableIO {
     }
 
     /**
-     * Returns whether client's throttle time is being passed to Dataflow for bulk mutations
+     * Returns whether client's throttle time is being passed to Dataflow for bulk mutations.
      *
      * <p>This change is experimental and may be changed and relocated in the future
      */
@@ -1493,7 +1493,7 @@ public class BigtableIO {
     }
   }
 
-  interface ResourceStatsSupplier extends Serializable {
+  interface ResourceStatsSupplier {
     ResourceLimiterStats getStats();
   }
 
@@ -1503,7 +1503,6 @@ public class BigtableIO {
     private final String instance;
 
     ResourceStatsSupplierImpl(String project, String instance) {
-
       this.project = project;
       this.instance = instance;
     }

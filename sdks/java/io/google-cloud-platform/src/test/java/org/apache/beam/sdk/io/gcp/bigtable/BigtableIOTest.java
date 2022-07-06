@@ -55,6 +55,7 @@ import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
 import com.google.cloud.bigtable.config.RetryOptions;
+import com.google.cloud.bigtable.grpc.async.ResourceLimiterStats;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
@@ -1578,10 +1579,10 @@ public class BigtableIOTest {
     final String table = "TEST-TABLE";
     service.createTable(table);
 
-    BigtableConfig mockConfig =
+    BigtableConfig fakeConfig =
         config.withTableId(StaticValueProvider.of(table)).withDataflowThrottleReporting(true);
     FakeResourceStatsSupplier fakeStats = new FakeResourceStatsSupplier();
-    BigtableIO.BigtableWriterFn fn = new BigtableIO.BigtableWriterFn(mockConfig, fakeStats);
+    BigtableIO.BigtableWriterFn fn = new BigtableIO.BigtableWriterFn(fakeConfig, fakeStats);
 
     p.apply(GenerateSequence.from(0).to(10))
         .apply("convert", ParDo.of(new WriteGeneratorDoFn()))
@@ -1962,5 +1963,23 @@ public class BigtableIOTest {
 
       abstract FailureOptions build();
     }
+  }
+}
+
+class FakeResourceStatsSupplier implements BigtableIO.ResourceStatsSupplier, Serializable {
+
+  @Override
+  public ResourceLimiterStats getStats() {
+    return new FakeResourceStats();
+  }
+}
+
+class FakeResourceStats extends ResourceLimiterStats implements Serializable {
+
+  FakeResourceStats() {}
+
+  @Override
+  public long getCumulativeThrottlingTimeNanos() {
+    return 10000000;
   }
 }
