@@ -28,7 +28,7 @@ class PhraseTriggeringPostCommitBuilder extends PostcommitJobBuilder {
       githubUiHint,
       scope,
       jobDefinition = {}) {
-       new PostcommitJobBuilder(scope, jobDefinition).defineGhprbTriggeredJob(
-           nameBase + "_PR", triggerPhrase, githubUiHint, false)
+    new PostcommitJobBuilder(scope, jobDefinition).defineGhprbTriggeredJob(
+        nameBase + "_PR", triggerPhrase, githubUiHint, false)
   }
 }
