@@ -67,6 +67,15 @@ func (fn *deidentifyFn) ProcessElement(ctx context.Context, srcStorePath string,
 	return
 }
 
+// Deidentify transform de-identifies sensitive data in resources located in a
+// Google CLoud FHIR store. It receives a source and destination store paths as
+// well as de-identification configuration (
+// https://cloud.google.com/healthcare-api/docs/reference/rest/v1/DeidentifyConfig#FhirConfig).
+// It performs de-identification on the source store using the provided
+// configuration and applies the result in the destination store. It outputs a
+// PCollection containing the destination store path if de-identification was
+// performed successfully, otherwise it returns an empty PCollection.
+// See: https://cloud.google.com/healthcare-api/docs/how-tos/fhir-deidentify
 func Deidentify(s beam.Scope, srcStore, dstStore string, config *healthcare.DeidentifyConfig) beam.PCollection {
 	s = s.Scope("fhirio.Deidentify")
 	return deidentify(s, srcStore, dstStore, config, nil)
