@@ -139,12 +139,19 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     }
   }
 
-  @SuppressFBWarnings("SE_BAD_FIELD")
   /** Only modified while holding a lock on {@code this}. */
+  @SuppressFBWarnings("SE_BAD_FIELD")
   private volatile ComputedProperties computedProperties;
 
   // ProxyInvocationHandler implements Serializable only for the sake of throwing an informative
   // exception in writeObject()
+  /**
+   * Enumerating {@code options} must always be done on a copy made before accessing or deriving
+   * properties from {@code computedProperties} since concurrent hash maps are <a
+   * href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/package-summary.html#Weakly>weakly
+   * consistent</a>. This will allow us to ensure that the keys in {code options} will always be a
+   * subset of properties stored in {code computedProperties}.
+   */
   @SuppressFBWarnings("SE_BAD_FIELD")
   private final ConcurrentHashMap<String, BoundValue> options;
 
@@ -358,12 +365,16 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
      */
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      // We must first make a copy of the current options because a concurrent modification
+      // may add a new option after we have derived optionSpecs but before we have enumerated
+      // all the pipeline options.
+      Map<String, BoundValue> copiedOptions = new HashMap<>(options);
       Set<PipelineOptionSpec> optionSpecs =
           PipelineOptionsReflector.getOptionSpecs(computedProperties.knownInterfaces);
 
       Multimap<String, PipelineOptionSpec> optionsMap = buildOptionNameToSpecMap(optionSpecs);
 
-      for (Map.Entry<String, BoundValue> option : options.entrySet()) {
+      for (Map.Entry<String, BoundValue> option : copiedOptions.entrySet()) {
         BoundValue boundValue = option.getValue();
         if (boundValue.isDefault()) {
           continue;
@@ -390,7 +401,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
       }
 
       for (Map.Entry<String, JsonNode> jsonOption : jsonOptions.entrySet()) {
-        if (options.containsKey(jsonOption.getKey())) {
+        if (copiedOptions.containsKey(jsonOption.getKey())) {
           // Option overwritten since deserialization; don't re-write
           continue;
         }
@@ -708,7 +719,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
   }
 
   static class Serializer extends JsonSerializer<PipelineOptions> {
-    private void serializeEntry(
+    private static void serializeEntry(
         String name,
         Object value,
         JsonGenerator jgen,
@@ -728,7 +739,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         throws IOException {
       ProxyInvocationHandler handler = (ProxyInvocationHandler) Proxy.getInvocationHandler(value);
       PipelineOptionsFactory.Cache cache = PipelineOptionsFactory.CACHE.get();
-      // We first filter out any properties that have been modified since
+      // We first copy and then filter out any properties that have been modified since
       // the last serialization of this PipelineOptions and then verify that
       // they are all serializable.
       Map<String, BoundValue> filteredOptions = Maps.newHashMap(handler.options);
@@ -773,7 +784,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
       jgen.writeEndObject();
     }
 
-    private Map<String, JsonSerializer<Object>> getSerializerMap(
+    private static Map<String, JsonSerializer<Object>> getSerializerMap(
         PipelineOptionsFactory.Cache cache, Set<Class<? extends PipelineOptions>> interfaces) {
 
       Map<String, JsonSerializer<Object>> propertyToSerializer = Maps.newHashMap();
@@ -794,7 +805,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
      * We remove all properties within the passed in options where there getter is annotated with
      * {@link JsonIgnore @JsonIgnore} from the passed in options using the passed in interfaces.
      */
-    private void removeIgnoredOptions(
+    private static void removeIgnoredOptions(
         PipelineOptionsFactory.Cache cache,
         Set<Class<? extends PipelineOptions>> interfaces,
         Map<String, ?> options) {
@@ -817,7 +828,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
      * We use an {@link ObjectMapper} to verify that the passed in options are serializable and
      * deserializable.
      */
-    private void ensureSerializable(
+    private static void ensureSerializable(
         PipelineOptionsFactory.Cache cache,
         Set<Class<? extends PipelineOptions>> interfaces,
         Map<String, BoundValue> options,
