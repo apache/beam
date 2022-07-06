@@ -131,7 +131,7 @@ func (c *fhirStoreClientImpl) deidentify(srcStorePath, dstStorePath string, deid
 func (c *fhirStoreClientImpl) waitTillCompleteAndCollectResults(operation *healthcare.Operation) (operationResults, error) {
 	var err error
 	for !operation.Done {
-		time.Sleep(5 * time.Second)
+		time.Sleep(15 * time.Second)
 		operation, err = c.healthcareService.Projects.Locations.Datasets.Operations.Get(operation.Name).Do()
 		if err != nil {
 			return operationResults{}, err
