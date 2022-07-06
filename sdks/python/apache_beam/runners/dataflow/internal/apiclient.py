@@ -670,6 +670,7 @@ class DataflowApplicationClient(object):
             # We should not be overriding this, as dep.role_payload.staged_name
             # refers to the desired name on the worker, whereas staged_name
             # refers to its placement in a distributed filesystem.
+            # TODO(heejong): Clean this up.
             dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
                 staged_name=remote_name).SerializeToString()
         elif type_payload.path and type_payload.path in staged_paths:
@@ -682,6 +683,7 @@ class DataflowApplicationClient(object):
             # We should not be overriding this, as dep.role_payload.staged_name
             # refers to the desired name on the worker, whereas staged_name
             # refers to its placement in a distributed filesystem.
+            # TODO(heejong): Clean this up.
             dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
                 staged_name=remote_name).SerializeToString()
         else:
