@@ -47,7 +47,7 @@ func TestNew(t *testing.T) {
 			if props.Salt != "Beam playground salt" ||
 				props.MaxSnippetSize != 1000000 ||
 				props.IdLength != 11 ||
-				props.RemovingUnusedSnptsCron != "0 0 1 1 *" ||
+				props.RemovingUnusedSnptsCron != "0 0 0 1 */4 *" ||
 				props.RemovingUnusedSnptsDays != 90 {
 				t.Errorf("NewProperties(): unexpected result")
 			}
