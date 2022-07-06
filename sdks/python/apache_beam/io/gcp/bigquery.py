@@ -563,8 +563,8 @@ class _BigQuerySource(dataflow_io.NativeSource):
     Args:
       table (str): The ID of a BigQuery table. If specified all data of the
         table will be used as input of the current source. The ID must contain
-        only letters ``a-z``, ``A-Z``, numbers ``0-9``, or underscores
-        ``_``. If dataset and query arguments are :data:`None` then the table
+        only letters ``a-z``, ``A-Z``, numbers ``0-9``, underscores
+        ``_`` or white spaces. If dataset and query arguments are :data:`None` then the table
         argument must contain the entire table reference specified as:
         ``'DATASET.TABLE'`` or ``'PROJECT:DATASET.TABLE'``.
       dataset (str): The ID of the dataset containing this table or
@@ -950,7 +950,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
   using the BigQuery Storage API.
   Args:
     table (str, TableReference): The ID of the table. The ID must contain only
-      letters ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``  If
+      letters ``a-z``, ``A-Z``, numbers ``0-9``, underscores ``_`` or white space. If
       **dataset** argument is :data:`None` then the table argument must
       contain the entire table reference specified as:
       ``'PROJECT:DATASET.TABLE'`` or must specify a TableReference.
@@ -1355,7 +1355,7 @@ class BigQuerySink(dataflow_io.NativeSink):
 
     Args:
       table (str): The ID of the table. The ID must contain only letters
-        ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``. If
+        ``a-z``, ``A-Z``, numbers ``0-9``, underscores ``_`` or white spaces. If
         **dataset** argument is :data:`None` then the table argument must
         contain the entire table reference specified as: ``'DATASET.TABLE'`` or
         ``'PROJECT:DATASET.TABLE'``.
@@ -2401,7 +2401,7 @@ class ReadFromBigQuery(PTransform):
       'method' is 'DIRECT_READ'.
     table (str, callable, ValueProvider): The ID of the table, or a callable
       that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
-      numbers ``0-9``, or underscores ``_``. If dataset argument is
+      numbers ``0-9``, underscores ``_`` or white spaces. If dataset argument is
       :data:`None` then the table argument must contain the entire table
       reference specified as: ``'DATASET.TABLE'``
       or ``'PROJECT:DATASET.TABLE'``. If it's a callable, it must receive one
@@ -2620,7 +2620,7 @@ class ReadFromBigQueryRequest:
       This parameter is ignored for table inputs.
     :param table:
       The ID of the table to read. The ID must contain only letters
-      ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``. Table should
+      ``a-z``, ``A-Z``, numbers ``0-9``, underscores ``_`` or white spaces. Table should
       define project and dataset (ex.: ``'PROJECT:DATASET.TABLE'``).
     :param flatten_results:
       Flattens all nested and repeated fields in the query results.
