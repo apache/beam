@@ -461,11 +461,6 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
     ],
     excludedTests: [
-      'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing',
-      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection',
-      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
-      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsWithoutCustomWindowTypes',
-
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
 
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testFnCallSequenceStateful',
@@ -483,8 +478,6 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testLargeKeys10MB',
       // TODO(https://github.com/apache/beam/issues/20931): Identify whether it's bug or a feature gap.
       'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testRewindowWithTimestampCombiner',
-
-      'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2',
 
       // TODO(https://github.com/apache/beam/issues/21472)
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
