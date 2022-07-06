@@ -303,7 +303,58 @@ rvballada,
 sachinag,
 tvalentyn,
 vachan-shetty,
-yirutang&lt;/p></description><link>/blog/beam-2.39.0/</link><pubDate>Wed, 25 May 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.39.0/</guid><category>blog</category></item><item><title>Running Beam SQL in notebooks</title><description>
+yirutang&lt;/p></description><link>/blog/beam-2.39.0/</link><pubDate>Wed, 25 May 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.39.0/</guid><category>blog</category></item><item><title>Big Improvements in Beam Go's 2.40 Release</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>The 2.40 release is one of Beam Go&amp;rsquo;s biggest yet, and we wanted to highlight
+some of the biggest changes coming with this important release!&lt;/p>
+&lt;h1 id="native-streaming-support">Native Streaming Support&lt;/h1>
+&lt;p>2.40 marks the release of one of our most anticipated feature sets yet:
+native streaming Go pipelines. This includes adding support for:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#user-initiated-checkpoint">Self Checkpointing&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#watermark-estimation">Watermark Estimation&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#truncating-during-drain">Pipeline Drain/Truncation&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#bundle-finalization">Bundle Finalization&lt;/a> (added in 2.39)&lt;/li>
+&lt;/ul>
+&lt;p>With all of these features, it is now possible to write your own streaming
+pipeline source DoFns in Go without relying on cross-language transforms
+from Java or Python. We encourage you to try out all of these new features
+in your streaming pipelines! The &lt;a href="https://beam.apache.org/documentation/programming-guide/#splittable-dofns">programming guide&lt;/a>
+has additional information on getting started with native Go streaming DoFns.&lt;/p>
+&lt;h1 id="generic-registration-make-your-pipelines-3x-faster">Generic Registration (Make Your Pipelines 3x Faster)&lt;/h1>
+&lt;p>The release of &lt;a href="https://go.dev/blog/intro-generics">Go Generics&lt;/a> in Go 1.18
+unlocked significant performance improvements for Beam Go. With generics,
+we were able to add simple registration functions that can massively reduce
+your pipeline&amp;rsquo;s runtime and resource consumption. For example, registering
+the ParDo&amp;rsquo;s in our load tests which are designed to simulate a basic pipeline
+reduced execution time from around 25 minutes to around 7 minutes on average&lt;/p>
+&lt;ul>
+&lt;li>an over 70% reduction!&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/go-registration.png"
+alt="Beam Registration Load Tests ParDo Improvements">&lt;/p>
+&lt;p>To get started with registering your own DoFns and unlocking these performance
+gains, check out the &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/register">registration doc page&lt;/a>.&lt;/p>
+&lt;h1 id="whats-next">What&amp;rsquo;s Next?&lt;/h1>
+&lt;p>Moving forward, we remain focused on improving the streaming experience and
+leveraging generics to improve the SDK. Specific improvements we are considering
+include adding &lt;a href="https://beam.apache.org/documentation/programming-guide/#state-and-timers">State &amp;amp; Timers&lt;/a>
+support, introducing a Go expansion service so that Go DoFns can be used in other
+languages, and wrapping more Java and Python IOs so that they can be easily used
+in Go. As always, please let us know what changes you would like to see by
+&lt;a href="https://github.com/apache/beam/issues/new/choose">filing an issue&lt;/a>,
+&lt;a href="dev@beam.apache.org">emailing the dev list&lt;/a>, or starting a &lt;a href="https://app.slack.com/client/T4S1WH2J3/C9H0YNP3P">slack thread&lt;/a>!&lt;/p></description><link>/blog/go-2.40/</link><pubDate>Tue, 17 May 2022 00:00:01 -0800</pubDate><guid>/blog/go-2.40/</guid><category>blog</category><category>go</category></item><item><title>Running Beam SQL in notebooks</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1717,139 +1768,4 @@ Udi Meiri
 vachan-shetty
 Valentyn Tymofieiev
 Yichi Zhang
-zhoufek&lt;/p></description><link>/blog/beam-2.35.0/</link><pubDate>Wed, 29 Dec 2021 10:11:00 -0800</pubDate><guid>/blog/beam-2.35.0/</guid><category>blog</category></item><item><title>Apache Beam 2.34.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.34.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2340-2021-11-11">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.34.0, check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12350405">detailed release
-notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>The Beam Java API for Calcite SqlTransform is no longer experimental (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12680">BEAM-12680&lt;/a>).&lt;/li>
-&lt;li>Python&amp;rsquo;s ParDo (Map, FlatMap, etc.) transforms now suport a &lt;code>with_exception_handling&lt;/code> option for easily ignoring bad records and implementing the dead letter pattern.&lt;/li>
-&lt;/ul>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>&lt;code>ReadFromBigQuery&lt;/code> and &lt;code>ReadAllFromBigQuery&lt;/code> now run queries with BATCH priority by default. The &lt;code>query_priority&lt;/code> parameter is introduced to the same transforms to allow configuring the query priority (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12913">BEAM-12913&lt;/a>).&lt;/li>
-&lt;li>[EXPERIMENTAL] Support for &lt;a href="https://cloud.google.com/bigquery/docs/reference/storage">BigQuery Storage Read API&lt;/a> added to &lt;code>ReadFromBigQuery&lt;/code>. The newly introduced &lt;code>method&lt;/code> parameter can be set as &lt;code>DIRECT_READ&lt;/code> to use the Storage Read API. The default is &lt;code>EXPORT&lt;/code> which invokes a BigQuery export request. (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10917">BEAM-10917&lt;/a>).&lt;/li>
-&lt;li>[EXPERIMENTAL] Added &lt;code>use_native_datetime&lt;/code> parameter to &lt;code>ReadFromBigQuery&lt;/code> to configure the return type of &lt;a href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#datetime_type">DATETIME&lt;/a> fields when using &lt;code>ReadFromBigQuery&lt;/code>. This parameter can &lt;em>only&lt;/em> be used when &lt;code>method = DIRECT_READ&lt;/code>(Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10917">BEAM-10917&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Upgrade to Calcite 1.26.0 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9379">BEAM-9379&lt;/a>).&lt;/li>
-&lt;li>Added a new &lt;code>dataframe&lt;/code> extra to the Python SDK that tracks &lt;code>pandas&lt;/code> versions
-we&amp;rsquo;ve verified compatibility with. We now recommend installing Beam with &lt;code>pip install apache-beam[dataframe]&lt;/code> when you intend to use the DataFrame API
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-12906">BEAM-12906&lt;/a>).&lt;/li>
-&lt;li>Add an &lt;a href="https://github.com/cometta/python-apache-beam-spark">example&lt;/a> of deploying Python Apache Beam job with Spark Cluster&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>SQL Rows are no longer flattened (&lt;a href="https://issues.apache.org/jira/browse/BEAM-5505">BEAM-5505&lt;/a>).&lt;/li>
-&lt;li>[Go SDK] beam.TryCrossLanguage&amp;rsquo;s signature now matches beam.CrossLanguage. Like other Try functions it returns an error instead of panicking. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9918">BEAM-9918&lt;/a>).&lt;/li>
-&lt;li>&lt;a href="https://jira.apache.org/jira/browse/BEAM-12925">BEAM-12925&lt;/a> was fixed. It used to silently pass incorrect null data read from JdbcIO. Pipelines affected by this will now start throwing failures instead of silently passing incorrect data.&lt;/li>
-&lt;/ul>
-&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
-&lt;ul>
-&lt;li>Fixed error while writing multiple DeferredFrames to csv (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12701">BEAM-12701&lt;/a>).&lt;/li>
-&lt;li>Fixed error when importing the DataFrame API with pandas 1.0.x installed (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12945">BEAM-12945&lt;/a>).&lt;/li>
-&lt;li>Fixed top.SmallestPerKey implementation in the Go SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12946">BEAM-12946&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.34.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay,
-Aizhamal Nurmamat kyzy,
-Alex Amato,
-Alexander Chermenin,
-Alexey Romanenko,
-AlikRodriguez,
-Andrew Pilloud,
-Andy Xu,
-Ankur Goenka,
-Aydar Farrakhov,
-Aydar Zainutdinov,
-Aydar Zaynutdinov,
-AydarZaynutdinov,
-Benjamin Gonzalez,
-BenWhitehead,
-Brachi Packter,
-Brian Hulette,
-Bu Sun Kim,
-Chamikara Jayalath,
-Chris Gray,
-Chuck Yang,
-Chun Yang,
-Claire McGinty,
-comet,
-Daniel Collins,
-Daniel Oliveira,
-Daniel Thevessen,
-daria.malkova,
-David Cavazos,
-David Huntsperger,
-Dmytro Kozhevin,
-dpcollins-google,
-Eduardo Sánchez López,
-Elias Djurfeldt,
-emily,
-Emily Ye,
-Enis Sert,
-Etienne Chauchot,
-Fernando Morales,
-Heejong Lee,
-Ihor Indyk,
-Ismaël Mejía,
-Israel Herraiz,
-Jack McCluskey,
-Jonathan Hourany,
-Judah Rand,
-Kenneth Knowles,
-KevinGG,
-Ke Wu,
-kileys,
-Kyle Weaver,
-Luke Cwik,
-masahitojp,
-MiguelAnzoWizeline,
-Minbo Bae,
-Niels Basjes,
-Ning Kang,
-Pablo Estrada,
-pareshsarafmdb,
-Paul Féraud,
-Piotr Szczepanik,
-Reuven Lax,
-Ritesh Ghorse,
-R. Miles McCain,
-Robert Bradshaw,
-Robert Burke,
-Rogan Morrow,
-Ruwan Lambrichts,
-rvballada,
-Ryan Thompson,
-Sam Rohde,
-Sam Whittle,
-Ștefan Istrate,
-Steve Niemitz,
-Thomas Li Fredriksen,
-Tomo Suzuki,
-tvalentyn,
-Udi Meiri,
-Vachan,
-Valentyn Tymofieiev,
-Vincent Marquez,
-WinsonT,
-Yichi Zhang,
-Yifan Mai,
-Yilei &amp;ldquo;Dolee&amp;rdquo; Yang,
-zhoufek&lt;/p></description><link>/blog/beam-2.34.0/</link><pubDate>Thu, 11 Nov 2021 00:11:00 -0800</pubDate><guid>/blog/beam-2.34.0/</guid><category>blog</category></item></channel></rss>
+zhoufek&lt;/p></description><link>/blog/beam-2.35.0/</link><pubDate>Wed, 29 Dec 2021 10:11:00 -0800</pubDate><guid>/blog/beam-2.35.0/</guid><category>blog</category></item></channel></rss>

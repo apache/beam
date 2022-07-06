@@ -303,7 +303,58 @@ rvballada,
 sachinag,
 tvalentyn,
 vachan-shetty,
-yirutang&lt;/p></description></item><item><title>Blog: Running Beam SQL in notebooks</title><link>/blog/beam-sql-with-notebooks/</link><pubDate>Thu, 28 Apr 2022 00:00:01 -0800</pubDate><guid>/blog/beam-sql-with-notebooks/</guid><description>
+yirutang&lt;/p></description></item><item><title>Blog: Big Improvements in Beam Go's 2.40 Release</title><link>/blog/go-2.40/</link><pubDate>Tue, 17 May 2022 00:00:01 -0800</pubDate><guid>/blog/go-2.40/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>The 2.40 release is one of Beam Go&amp;rsquo;s biggest yet, and we wanted to highlight
+some of the biggest changes coming with this important release!&lt;/p>
+&lt;h1 id="native-streaming-support">Native Streaming Support&lt;/h1>
+&lt;p>2.40 marks the release of one of our most anticipated feature sets yet:
+native streaming Go pipelines. This includes adding support for:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#user-initiated-checkpoint">Self Checkpointing&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#watermark-estimation">Watermark Estimation&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#truncating-during-drain">Pipeline Drain/Truncation&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#bundle-finalization">Bundle Finalization&lt;/a> (added in 2.39)&lt;/li>
+&lt;/ul>
+&lt;p>With all of these features, it is now possible to write your own streaming
+pipeline source DoFns in Go without relying on cross-language transforms
+from Java or Python. We encourage you to try out all of these new features
+in your streaming pipelines! The &lt;a href="https://beam.apache.org/documentation/programming-guide/#splittable-dofns">programming guide&lt;/a>
+has additional information on getting started with native Go streaming DoFns.&lt;/p>
+&lt;h1 id="generic-registration-make-your-pipelines-3x-faster">Generic Registration (Make Your Pipelines 3x Faster)&lt;/h1>
+&lt;p>The release of &lt;a href="https://go.dev/blog/intro-generics">Go Generics&lt;/a> in Go 1.18
+unlocked significant performance improvements for Beam Go. With generics,
+we were able to add simple registration functions that can massively reduce
+your pipeline&amp;rsquo;s runtime and resource consumption. For example, registering
+the ParDo&amp;rsquo;s in our load tests which are designed to simulate a basic pipeline
+reduced execution time from around 25 minutes to around 7 minutes on average&lt;/p>
+&lt;ul>
+&lt;li>an over 70% reduction!&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/go-registration.png"
+alt="Beam Registration Load Tests ParDo Improvements">&lt;/p>
+&lt;p>To get started with registering your own DoFns and unlocking these performance
+gains, check out the &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/register">registration doc page&lt;/a>.&lt;/p>
+&lt;h1 id="whats-next">What&amp;rsquo;s Next?&lt;/h1>
+&lt;p>Moving forward, we remain focused on improving the streaming experience and
+leveraging generics to improve the SDK. Specific improvements we are considering
+include adding &lt;a href="https://beam.apache.org/documentation/programming-guide/#state-and-timers">State &amp;amp; Timers&lt;/a>
+support, introducing a Go expansion service so that Go DoFns can be used in other
+languages, and wrapping more Java and Python IOs so that they can be easily used
+in Go. As always, please let us know what changes you would like to see by
+&lt;a href="https://github.com/apache/beam/issues/new/choose">filing an issue&lt;/a>,
+&lt;a href="dev@beam.apache.org">emailing the dev list&lt;/a>, or starting a &lt;a href="https://app.slack.com/client/T4S1WH2J3/C9H0YNP3P">slack thread&lt;/a>!&lt;/p></description></item><item><title>Blog: Running Beam SQL in notebooks</title><link>/blog/beam-sql-with-notebooks/</link><pubDate>Thu, 28 Apr 2022 00:00:01 -0800</pubDate><guid>/blog/beam-sql-with-notebooks/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5295,37 +5346,4 @@ Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Radoslaw Stankiewicz,
 Reuven Lax, Robbe Sneyders, Robert Bradshaw, Robert Burke, Rui Wang,
 Ruoyun Huang, Ryan Williams, Slava Chernyak, Shahar Frank, Sunil Pedapudi,
 Thomas Weise, Tim Robertson, Tanay Tummalapalli, Udi Meiri,
-Valentyn Tymofieiev, Xinyu Liu, Yifan Zou, Yueyang Qiu&lt;/p></description></item><item><title>Blog: Apache Beam is applying to Season of Docs</title><link>/blog/season-of-docs/</link><pubDate>Fri, 19 Apr 2019 00:00:01 -0800</pubDate><guid>/blog/season-of-docs/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>The Apache Beam community is thrilled to announce its application to the first edition of Season of Docs 2019!&lt;/p>
-&lt;p>&lt;img src="/images/blog/SoD.png" alt="Season of Docs 2019 flyer" height="455" width="640" >&lt;/p>
-&lt;p>&lt;a href="https://developers.google.com/season-of-docs/">Season of Docs&lt;/a> is a unique program that pairs technical writers with open source mentors to contribute to open source. This creates an opportunity to introduce the technical writer to an open source community and provide guidance while the writer works on a real world open source project. We, in the Apache Beam community, would love to take this chance and invite technical writers to collaborate with us, and help us improve our documentation in many ways.&lt;/p>
-&lt;p>Apache Beam does have help from excellent technical writers, but the documentation needs of the project often exceed their bandwidth. This is why we are excited about this program.&lt;/p>
-&lt;p>After discussing ideas in the community, we have been able to find mentors, and frame two ideas that we think would be a great fit for an incoming tech writer to tackle. We hope you will find this opportunity interesting - and if you do, please get in touch by emailing the Apache Beam mailing list at &lt;a href="mailto:dev@beam.apache.org">dev@beam.apache.org&lt;/a> (you will need to subscribe first by emailing to &lt;a href="mailto:dev-subscribe@beam.apache.org">dev-subscribe@beam.apache.org&lt;/a>).&lt;/p>
-&lt;p>The project ideas available in Apache Beam are described below. Please take a look and ask any questions that you may have. We will be very happy to help you get onboarded with the project.&lt;/p>
-&lt;h3 id="project-ideas">Project ideas&lt;/h3>
-&lt;p>&lt;strong>Deployment of Flink and Spark Clusters for use with Portable Beam&lt;/strong>&lt;/p>
-&lt;p>The Apache Beam vision has been to provide a framework for users to write and execute pipelines on the programming language of your choice, and the runner of your choice. As the reality of Beam has evolved towards this vision, the way in which Beam is run on top of runners such as Apache Spark and Apache Flink has changed.&lt;/p>
-&lt;p>These changes are documented in the wiki and in design documents, and are accessible for Beam contributors; but they are not available in the user-facing documentation. This has been a barrier of adoption for other users of Beam.&lt;/p>
-&lt;p>This project involves improving the &lt;a href="https://beam.apache.org/documentation/runners/flink/">Flink Runner page&lt;/a> to include strategies to deploy Beam on a few different environments: A Kubernetes cluster, a Google Cloud Dataproc cluster, and an AWS EMR cluster. There are other places in the documentation that should be updated in this regard, such as the &lt;a href="https://beam.apache.org/documentation/sdks/python-streaming/">Python streaming&lt;/a> section, and the &lt;a href="https://beam.apache.org/documentation/sdks/python-streaming/#unsupported-features">set of supported features&lt;/a>.&lt;/p>
-&lt;p>After working on the Flink Runner, then similar updates should be made to the &lt;a href="https://beam.apache.org/documentation/runners/spark/">Spark Runner page&lt;/a>, and the &lt;a href="https://beam.apache.org/get-started/beam-overview/">getting started documentation&lt;/a>.&lt;/p>
-&lt;p>&lt;strong>The runner comparison page / capability matrix update&lt;/strong>&lt;/p>
-&lt;p>Beam maintains a &lt;a href="https://beam.apache.org/documentation/runners/capability-matrix/">capability matrix&lt;/a> to track which Beam features are supported by which set of language SDKs + Runners.
-This project involves a number of &lt;a href="https://issues.apache.org/jira/browse/BEAM-2888">corrections and improvements to the capability matrix&lt;/a>; followed by a few larger set of changes, involving:&lt;/p>
-&lt;ul>
-&lt;li>Plain english summaries for each runner’s support of the Beam model.&lt;/li>
-&lt;li>A paragraph-length description of the production-readiness for each runner.&lt;/li>
-&lt;li>Comparisons for non-model differences between runners.&lt;/li>
-&lt;li>Comparison for support of the portability framework for each runner.&lt;/li>
-&lt;/ul>
-&lt;p>Thank you, and we are looking forward to hearing from you!&lt;/p></description></item></channel></rss>
+Valentyn Tymofieiev, Xinyu Liu, Yifan Zou, Yueyang Qiu&lt;/p></description></item></channel></rss>

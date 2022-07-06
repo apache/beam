@@ -1,0 +1,52 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – go</title><link>/categories/go/</link><description>Recent content in go on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Tue, 17 May 2022 00:00:01 -0800</lastBuildDate><atom:link href="/categories/go/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Big Improvements in Beam Go's 2.40 Release</title><link>/blog/go-2.40/</link><pubDate>Tue, 17 May 2022 00:00:01 -0800</pubDate><guid>/blog/go-2.40/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>The 2.40 release is one of Beam Go&amp;rsquo;s biggest yet, and we wanted to highlight
+some of the biggest changes coming with this important release!&lt;/p>
+&lt;h1 id="native-streaming-support">Native Streaming Support&lt;/h1>
+&lt;p>2.40 marks the release of one of our most anticipated feature sets yet:
+native streaming Go pipelines. This includes adding support for:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#user-initiated-checkpoint">Self Checkpointing&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#watermark-estimation">Watermark Estimation&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#truncating-during-drain">Pipeline Drain/Truncation&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#bundle-finalization">Bundle Finalization&lt;/a> (added in 2.39)&lt;/li>
+&lt;/ul>
+&lt;p>With all of these features, it is now possible to write your own streaming
+pipeline source DoFns in Go without relying on cross-language transforms
+from Java or Python. We encourage you to try out all of these new features
+in your streaming pipelines! The &lt;a href="https://beam.apache.org/documentation/programming-guide/#splittable-dofns">programming guide&lt;/a>
+has additional information on getting started with native Go streaming DoFns.&lt;/p>
+&lt;h1 id="generic-registration-make-your-pipelines-3x-faster">Generic Registration (Make Your Pipelines 3x Faster)&lt;/h1>
+&lt;p>The release of &lt;a href="https://go.dev/blog/intro-generics">Go Generics&lt;/a> in Go 1.18
+unlocked significant performance improvements for Beam Go. With generics,
+we were able to add simple registration functions that can massively reduce
+your pipeline&amp;rsquo;s runtime and resource consumption. For example, registering
+the ParDo&amp;rsquo;s in our load tests which are designed to simulate a basic pipeline
+reduced execution time from around 25 minutes to around 7 minutes on average&lt;/p>
+&lt;ul>
+&lt;li>an over 70% reduction!&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/go-registration.png"
+alt="Beam Registration Load Tests ParDo Improvements">&lt;/p>
+&lt;p>To get started with registering your own DoFns and unlocking these performance
+gains, check out the &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/register">registration doc page&lt;/a>.&lt;/p>
+&lt;h1 id="whats-next">What&amp;rsquo;s Next?&lt;/h1>
+&lt;p>Moving forward, we remain focused on improving the streaming experience and
+leveraging generics to improve the SDK. Specific improvements we are considering
+include adding &lt;a href="https://beam.apache.org/documentation/programming-guide/#state-and-timers">State &amp;amp; Timers&lt;/a>
+support, introducing a Go expansion service so that Go DoFns can be used in other
+languages, and wrapping more Java and Python IOs so that they can be easily used
+in Go. As always, please let us know what changes you would like to see by
+&lt;a href="https://github.com/apache/beam/issues/new/choose">filing an issue&lt;/a>,
+&lt;a href="dev@beam.apache.org">emailing the dev list&lt;/a>, or starting a &lt;a href="https://app.slack.com/client/T4S1WH2J3/C9H0YNP3P">slack thread&lt;/a>!&lt;/p></description></item></channel></rss>
