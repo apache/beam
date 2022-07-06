@@ -125,10 +125,10 @@ func (c *fhirStoreClientImpl) deidentify(srcStorePath, dstStorePath string, deid
 	if err != nil {
 		return operationResults{}, err
 	}
-	return c.waitTillCompleteAndCollectResults(operation)
+	return c.pollTilCompleteAndCollectResults(operation)
 }
 
-func (c *fhirStoreClientImpl) waitTillCompleteAndCollectResults(operation *healthcare.Operation) (operationResults, error) {
+func (c *fhirStoreClientImpl) pollTilCompleteAndCollectResults(operation *healthcare.Operation) (operationResults, error) {
 	var err error
 	for !operation.Done {
 		time.Sleep(15 * time.Second)

@@ -22,7 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestWaitTillCompleteAndCollectResults(t *testing.T) {
+func TestPollTilCompleteAndCollectResults(t *testing.T) {
 	testCases := []struct {
 		name           string
 		operation      *healthcare.Operation
@@ -64,7 +64,7 @@ func TestWaitTillCompleteAndCollectResults(t *testing.T) {
 	client := &fhirStoreClientImpl{}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			operationResult, err := client.waitTillCompleteAndCollectResults(testCase.operation)
+			operationResult, err := client.pollTilCompleteAndCollectResults(testCase.operation)
 			if err != nil && !testCase.expectedError {
 				t.Fatalf("Got unexpected error [%v]", err)
 			}

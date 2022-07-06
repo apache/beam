@@ -68,7 +68,7 @@ func (fn *deidentifyFn) ProcessElement(ctx context.Context, srcStorePath string,
 }
 
 // Deidentify transform de-identifies sensitive data in resources located in a
-// Google CLoud FHIR store. It receives a source and destination store paths as
+// Google Cloud FHIR store. It receives a source and destination store paths as
 // well as de-identification configuration (
 // https://cloud.google.com/healthcare-api/docs/reference/rest/v1/DeidentifyConfig#FhirConfig).
 // It performs de-identification on the source store using the provided
