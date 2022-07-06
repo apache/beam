@@ -951,7 +951,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
   Args:
     table (str, TableReference): The ID of the table. The ID must contain only
       letters ``a-z``, ``A-Z``, numbers ``0-9``, underscores ``_`` or white
-      spaces. If       **dataset** argument is :data:`None` then the table
+      spaces. If **dataset** argument is :data:`None` then the table
       argument must contain the entire table reference specified as:
       ``'PROJECT:DATASET.TABLE'`` or must specify a TableReference.
     dataset (str): Optional ID of the dataset containing this table or
