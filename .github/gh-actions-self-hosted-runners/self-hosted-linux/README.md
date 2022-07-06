@@ -58,10 +58,13 @@ These folders contain the required resources to deploy the GitHub Actions self-h
 
 `gcloud container clusters get-credentials $CLUSTER_NAME --zone us-central1-a --project $PROJECT-ID`
 
+* Create the GKE secret from a json file 
+
+ `kubectl create secret generic $k8s_SECRET_NAME --from-file=key.json=$LOCAL_PATH`
+
 * Update the `github-actions-secrets.yml` file with its corresponding encrypted in base64 values
 
-`echo $GITHUB_TOKEN | base64`
-`echo GITHUB_REPO | base64`
+`echo -n "$ORG_NAME" | base64`
 
 * Replace in `github-actions-deployment.yml` file the `$IMAGE_URL` variable with the corresponding image URL: `LOCATION-docker.pkg.dev/PROJECT-ID/REPOSITORY/IMAGE`
 

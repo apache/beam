@@ -23,21 +23,21 @@ gcloud version
 gcloud auth activate-service-account --key-file="${GOOGLE_APPLICATION_CREDENTIALS}" --no-user-output-enabled
 
 # Register the Runner Token in the given Organization.
-CLOUD_FUNCTION_URL="https://${REGION}-${PROJECT_ID}.cloudfunctions.net/${CLOUD_FUNCTION_NAME}"
+CLOUD_FUNCTION_URL="https://$GCP_REGION-$GCP_PROJECT_ID.cloudfunctions.net/$CLOUD_FUNCTION_NAME"
 
 # Get the Runner token from the specified Google Cloud Function
-response=$(curl -sX POST -H "Authorization:bearer $(gcloud auth print-identity-token)" "${CLOUD_FUNCTION_URL}")
+response=$(curl -sX POST -H "Authorization:bearer $(gcloud auth print-identity-token)" ${CLOUD_FUNCTION_URL})
 RUNNER_TOKEN=$(echo "$response" | jq '.token' --raw-output)
 
 ./config.sh \
-    --name "$(hostname)" \
-    --token "${RUNNER_TOKEN}" \
-    --url https://github.com/"$ORG_NAME" \
+    --name $(hostname) \
+    --token ${RUNNER_TOKEN} \
+    --url https://github.com/$ORG_NAME \
     --work _work \
     --unattended \
     --replace \
     --labels ubuntu-20.04,beam \
-    --runnergroup "${ORG_RUNNER_GROUP}" \
+    --runnergroup ${ORG_RUNNER_GROUP} \
     --ephemeral
 
 remove() {

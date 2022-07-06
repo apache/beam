@@ -39,18 +39,22 @@ spec:
           envFrom:
             - secretRef:
                 name: github-actions-secrets
+          env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/secrets/google/key.json
           volumeMounts:
             - name: docker-sock
               mountPath:  /var/run/docker.sock
+            - name: gcloud-key
+              mountPath: /var/secrets/google
           resources:
             requests:
               memory: "1028Mi"
               cpu: "2"
-          lifecycle:
-            preStop:
-              exec:
-                command: [ "/bin/sh", "-c",'./config.sh remove --unattended --token "${RUNNER_TOKEN}"' ]
       volumes:
         - name: docker-sock
           hostPath:
             path: /var/run/docker.sock
+        - name: gcloud-key
+          secret:
+            secretName: $k8s_SECRET_NAME
