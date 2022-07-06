@@ -1,6 +1,6 @@
 ---
 title:  "Big Improvements in Beam Go's 2.40 Release"
-date:   2022-06-06 00:00:01 -0800
+date:   2022-07-06 00:00:01 -0800
 categories:
   - blog
   - go
