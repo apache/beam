@@ -432,6 +432,7 @@ class TableRowJsonCoder(coders.Coder):
   table schema in order to obtain the ordered list of field names. Reading from
   sources on the other hand does not need the table schema.
   """
+
   def __init__(self, table_schema=None):
     # The table schema is needed for encoding TableRows as JSON (writing to
     # sinks) because the ordered list of field names is used in the JSON
@@ -546,6 +547,7 @@ def BigQuerySource(
 @deprecated(since='2.25.0', current="ReadFromBigQuery")
 class _BigQuerySource(dataflow_io.NativeSource):
   """A source based on a BigQuery table."""
+
   def __init__(
       self,
       table=None,
@@ -683,6 +685,7 @@ class _BigQueryExportResult:
 
 
 class _CustomBigQuerySource(BoundedSource):
+
   def __init__(
       self,
       method,
@@ -855,8 +858,10 @@ class _CustomBigQuerySource(BoundedSource):
           weight=1.0, source=source, start_position=None, stop_position=None)
 
   def get_range_tracker(self, start_position, stop_position):
+
     class CustomBigQuerySourceRangeTracker(RangeTracker):
       """A RangeTracker that always returns positions as None."""
+
       def start_position(self):
         return None
 
@@ -1203,9 +1208,11 @@ class _CustomBigQueryStorageSource(BoundedSource):
           weight=1.0, source=source, start_position=None, stop_position=None)
 
   def get_range_tracker(self, start_position, stop_position):
+
     class NonePositionRangeTracker(RangeTracker):
       """A RangeTracker that always returns positions as None. Prevents the
       BigQuery Storage source from being read() before being split()."""
+
       def start_position(self):
         return None
 
@@ -1221,6 +1228,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
 class _CustomBigQueryStorageStreamSource(BoundedSource):
   """A source representing a single stream in a read session."""
+
   def __init__(
       self, read_stream_name: str, use_native_datetime: Optional[bool] = True):
     self.read_stream_name = read_stream_name
@@ -1307,6 +1315,7 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
 class _ReadReadRowsResponsesWithFastAvro():
   """An iterator that deserializes ReadRowsResponses using the fastavro
   library."""
+
   def __init__(self, read_rows_iterator, read_rows_response):
     self.read_rows_iterator = read_rows_iterator
     self.read_rows_response = read_rows_response
@@ -1340,6 +1349,7 @@ class BigQuerySink(dataflow_io.NativeSink):
   Instead of using this sink directly, please use WriteToBigQuery
   transform that works for both batch and streaming pipelines.
   """
+
   def __init__(
       self,
       table,
@@ -1468,6 +1478,7 @@ bigquery_v2_messages.TableSchema` object.
 
   def schema_as_json(self):
     """Returns the TableSchema associated with the sink as a JSON string."""
+
     def schema_list_as_object(schema_list):
       """Returns a list of TableFieldSchema objects as a list of dicts."""
       fields = []
@@ -1838,6 +1849,7 @@ DEFAULT_BATCH_BUFFERING_DURATION_LIMIT_SEC = 0.2
 
 
 class _StreamToBigQuery(PTransform):
+
   def __init__(
       self,
       table_reference,
@@ -1874,6 +1886,7 @@ class _StreamToBigQuery(PTransform):
     self.max_retries = max_retries or MAX_INSERT_RETRIES
 
   class InsertIdPrefixFn(DoFn):
+
     def start_bundle(self):
       self.prefix = str(uuid.uuid4())
       self._row_count = 0
@@ -1963,6 +1976,7 @@ class WriteToBigQuery(PTransform):
   tables. The elements would come in as Python dictionaries, or as `TableRow`
   instances.
   """
+
   class Method(object):
     DEFAULT = 'DEFAULT'
     STREAMING_INSERTS = 'STREAMING_INSERTS'
@@ -2472,6 +2486,7 @@ class ReadFromBigQuery(PTransform):
       reading from a table rather than a query. To learn more about query
       priority, see: https://cloud.google.com/bigquery/docs/running-queries
    """
+
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.
     DIRECT_READ = 'DIRECT_READ'
@@ -2603,6 +2618,7 @@ class ReadFromBigQueryRequest:
   """
   Class that defines data to read from BQ.
   """
+
   def __init__(
       self,
       query: str = None,

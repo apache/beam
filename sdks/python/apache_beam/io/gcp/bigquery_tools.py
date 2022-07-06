@@ -255,7 +255,8 @@ def parse_table_reference(table, dataset=None, project=None):
   # table name.
   if dataset is None:
     match = re.match(
-        r'^((?P<project>.+):)?(?P<dataset>\w+)\.(?P<table>[-\w\$]+( +\-*\w+)*)$', table)
+        r'^((?P<project>.+):)?(?P<dataset>\w+)\.(?P<table>[-\w\$]+( +\-*\w+)*)$',
+        table)
     if not match:
       raise ValueError(
           'Expected a table reference (PROJECT:DATASET.TABLE or '
@@ -1343,6 +1344,7 @@ class BigQueryWrapper(object):
 
 class BigQueryReader(dataflow_io.NativeSourceReader):
   """A reader for a BigQuery source."""
+
   def __init__(
       self,
       source,
@@ -1462,6 +1464,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
 
 class BigQueryWriter(dataflow_io.NativeSinkWriter):
   """The sink writer for a BigQuerySink."""
+
   def __init__(self, sink, test_bigquery_client=None, buffer_size=None):
     self.sink = sink
     self.test_bigquery_client = test_bigquery_client
@@ -1527,6 +1530,7 @@ class RowAsDictJsonCoder(coders.Coder):
   This is the default coder for sources and sinks if the coder argument is not
   specified.
   """
+
   def encode(self, table_row):
     # The normal error when dumping NAN/INF values is:
     # ValueError: Out of range float values are not JSON compliant
@@ -1551,6 +1555,7 @@ class JsonRowWriter(io.IOBase):
   A writer which provides an IOBase-like interface for writing table rows
   (represented as dicts) as newline-delimited JSON strings.
   """
+
   def __init__(self, file_handle):
     """Initialize an JsonRowWriter.
 
@@ -1591,6 +1596,7 @@ class AvroRowWriter(io.IOBase):
   A writer which provides an IOBase-like interface for writing table rows
   (represented as dicts) as Avro records.
   """
+
   def __init__(self, file_handle, schema):
     """Initialize an AvroRowWriter.
 
@@ -1672,6 +1678,7 @@ class AppendDestinationsFn(DoFn):
 
   Experimental; no backwards compatibility guarantees.
   """
+
   def __init__(self, destination):
     self._display_destination = destination
     self.destination = AppendDestinationsFn._get_table_fn(destination)
@@ -1731,6 +1738,7 @@ bigquery_v2_messages.TableSchema` format.
 def table_schema_to_dict(table_schema):
   """Create a dictionary representation of table schema for serialization
   """
+
   def get_table_field(field):
     """Create a dictionary representation of a table field
     """
