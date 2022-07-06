@@ -44,11 +44,6 @@ const (
 	pageTokenParameterKey       = "_page_token"
 )
 
-type operationResults struct {
-	Successes int64 `json:"success,string"`
-	Failures  int64 `json:"failure,string"`
-}
-
 func executeAndRecordLatency[T any](ctx context.Context, latencyMs *beam.Distribution, executionSupplier func() (T, error)) (T, error) {
 	timeBeforeReadRequest := time.Now()
 	result, err := executionSupplier()
@@ -70,6 +65,11 @@ func extractBodyFrom(response *http.Response) (string, error) {
 	return string(bodyBytes), nil
 }
 
+type operationResults struct {
+	Successes int64 `json:"success,string"`
+	Failures  int64 `json:"failure,string"`
+}
+
 type fhirStoreClient interface {
 	readResource(resourcePath string) (*http.Response, error)
 	executeBundle(storePath string, bundle []byte) (*http.Response, error)
@@ -79,6 +79,14 @@ type fhirStoreClient interface {
 
 type fhirStoreClientImpl struct {
 	healthcareService *healthcare.Service
+}
+
+func newFhirStoreClient() *fhirStoreClientImpl {
+	healthcareService, err := healthcare.NewService(context.Background(), option.WithUserAgent(UserAgent))
+	if err != nil {
+		panic("Failed to initialize Google Cloud Healthcare Service. Reason: " + err.Error())
+	}
+	return &fhirStoreClientImpl{healthcareService}
 }
 
 func (c *fhirStoreClientImpl) readResource(resourcePath string) (*http.Response, error) {
@@ -147,14 +155,6 @@ func parseOperationCounterResultsFrom(operationMetadata []byte) (operationResult
 		return operationResults{}, err
 	}
 	return operationCounterField.Counter.operationResults, nil
-}
-
-func newFhirStoreClient() *fhirStoreClientImpl {
-	healthcareService, err := healthcare.NewService(context.Background(), option.WithUserAgent(UserAgent))
-	if err != nil {
-		panic("Failed to initialize Google Cloud Healthcare Service. Reason: " + err.Error())
-	}
-	return &fhirStoreClientImpl{healthcareService}
 }
 
 type fnCommonVariables struct {

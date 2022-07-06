@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"google.golang.org/api/healthcare/v1"
 )
 
 var (
@@ -36,6 +37,9 @@ var (
 		},
 		fakeSearch: func(string, string, map[string]string, string) (*http.Response, error) {
 			return nil, errors.New(fakeRequestReturnErrorMessage)
+		},
+		fakeDeidentify: func(string, string, *healthcare.DeidentifyConfig) (operationResults, error) {
+			return operationResults{}, errors.New(fakeRequestReturnErrorMessage)
 		},
 	}
 
@@ -94,6 +98,7 @@ type fakeFhirStoreClient struct {
 	fakeReadResources  func(string) (*http.Response, error)
 	fakeExecuteBundles func(string, []byte) (*http.Response, error)
 	fakeSearch         func(string, string, map[string]string, string) (*http.Response, error)
+	fakeDeidentify     func(string, string, *healthcare.DeidentifyConfig) (operationResults, error)
 }
 
 func (c *fakeFhirStoreClient) executeBundle(storePath string, bundle []byte) (*http.Response, error) {
@@ -106,6 +111,10 @@ func (c *fakeFhirStoreClient) readResource(resourcePath string) (*http.Response,
 
 func (c *fakeFhirStoreClient) search(storePath, resourceType string, queries map[string]string, pageToken string) (*http.Response, error) {
 	return c.fakeSearch(storePath, resourceType, queries, pageToken)
+}
+
+func (c *fakeFhirStoreClient) deidentify(srcStorePath, dstStorePath string, deidConfig *healthcare.DeidentifyConfig) (operationResults, error) {
+	return c.fakeDeidentify(srcStorePath, dstStorePath, deidConfig)
 }
 
 // Useful to fake the Body of a http.Response.

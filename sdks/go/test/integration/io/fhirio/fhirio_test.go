@@ -286,8 +286,7 @@ func TestFhirIO_Deidentify(t *testing.T) {
 	dstFhirStorePath, teardownDstFhirStore := setupEmptyFhirStore(t)
 	defer teardownDstFhirStore()
 
-	p := beam.NewPipeline()
-	s := p.Root()
+	p, s := beam.NewPipelineWithRoot()
 	res := fhirio.Deidentify(s, srcFhirStorePath, dstFhirStorePath, &healthcare.DeidentifyConfig{})
 	passert.Count(s, res, "", 1)
 
