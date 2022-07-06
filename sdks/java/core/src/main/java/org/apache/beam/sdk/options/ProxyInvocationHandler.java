@@ -140,6 +140,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
   }
 
   @SuppressFBWarnings("SE_BAD_FIELD")
+  /** Only modified while holding a lock on {@code this}. */
   private volatile ComputedProperties computedProperties;
 
   // ProxyInvocationHandler implements Serializable only for the sake of throwing an informative

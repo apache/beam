@@ -168,6 +168,8 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * A cache of constructors of generated {@link DoFnInvoker} classes, keyed by {@link DoFn} class.
    * Needed because generating an invoker class is expensive, and to avoid generating an excessive
    * number of classes consuming PermGen memory.
+   *
+   * <p>Note that special care must be taken to enumerate this object as concurrent hash maps are <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/package-summary.html#Weakly>weakly consistent</a>.
    */
   private final Map<Class<?>, Constructor<?>> byteBuddyInvokerConstructorCache =
       new ConcurrentHashMap<>();

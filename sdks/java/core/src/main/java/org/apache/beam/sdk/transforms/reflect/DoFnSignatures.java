@@ -114,6 +114,9 @@ public class DoFnSignatures {
 
   private DoFnSignatures() {}
 
+ /**
+   * Note that special care must be taken to enumerate this object as concurrent hash maps are <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/package-summary.html#Weakly>weakly consistent</a>.
+   */
   private static final Map<Class<? extends DoFn<?, ?>>, DoFnSignature> signatureCache =
       new ConcurrentHashMap<>();
 
