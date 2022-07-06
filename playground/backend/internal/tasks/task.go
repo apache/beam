@@ -25,8 +25,8 @@ func (st *ScheduledTask) StartRemovingExtraSnippets(cron string, dayDiff int32, 
 			logger.Errorf("ScheduledTask: StartRemovingExtraSnippets() error during deleting unused snippets, err: %s\n", err.Error())
 		}
 		diffTime := time.Now().Sub(startDate).Milliseconds()
-		logger.Info("ScheduledTask: StartRemovingExtraSnippets() finished, work time: %d\n", diffTime)
-	}, cron)
+		logger.Infof("ScheduledTask: StartRemovingExtraSnippets() finished, work time: %d ms\n", diffTime)
+	}, cron, chrono.WithLocation("UTC"))
 
 	if err != nil {
 		logger.Errorf("ScheduledTask: StartRemovingExtraSnippets() error during task running, err: %s\n", err.Error())

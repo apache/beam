@@ -74,6 +74,13 @@ cd beam
 ./gradlew playground:backend:containers:router:dockerComposeLocalDown
 ```
 
+## Run the method to remove unused code snippets, where dayDiff is the number of days after which a snippet becomes unused and projectId is the Google Cloud Project ID
+
+```
+cd beam
+./gradlew playground:backend:removeUnusedSnippet -DdayDiff={int} -DprojectId={string}
+```
+
 # Deployment
 
 See [terraform](./terraform/README.md) for details on how to build and deploy
