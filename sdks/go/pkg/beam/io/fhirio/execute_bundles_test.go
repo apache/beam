@@ -66,6 +66,7 @@ func TestExecuteBundles(t *testing.T) {
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
 			validateCounter(t, pipelineResult, errorCounterName, len(testBundles))
+			validateCounter(t, pipelineResult, successCounterName, 0)
 		})
 	}
 }

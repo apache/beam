@@ -67,6 +67,7 @@ func TestSearch_Errors(t *testing.T) {
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
 			validateCounter(t, pipelineResult, errorCounterName, 1)
+			validateCounter(t, pipelineResult, successCounterName, 0)
 		})
 	}
 }

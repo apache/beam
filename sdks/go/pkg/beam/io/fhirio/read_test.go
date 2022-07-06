@@ -60,6 +60,7 @@ func TestRead(t *testing.T) {
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
 			validateCounter(t, pipelineResult, errorCounterName, len(testResourcePaths))
+			validateCounter(t, pipelineResult, successCounterName, 0)
 		})
 	}
 }
