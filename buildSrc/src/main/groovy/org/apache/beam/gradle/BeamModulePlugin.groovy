@@ -669,7 +669,7 @@ class BeamModulePlugin implements Plugin<Project> {
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_all                                   : "io.netty:netty-all:$netty_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
-        netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.46.Final",
+        netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.47.Final",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         powermock                                   : "org.powermock:powermock-module-junit4:$powermock_version",
@@ -1776,7 +1776,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
     }
     def cleanUpTask = project.tasks.register('cleanUp') {
-      dependsOn ':runners:google-cloud-dataflow-java:cleanUpDockerImages'
+      dependsOn ':runners:google-cloud-dataflow-java:cleanUpDockerJavaImages'
     }
 
     // When applied in a module's build.gradle file, this closure provides task for running
@@ -1805,18 +1805,18 @@ class BeamModulePlugin implements Plugin<Project> {
 
         if (pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
           if (pipelineOptionsString.contains('use_runner_v2')) {
-            dependsOn ':runners:google-cloud-dataflow-java:buildAndPushDockerContainer'
+            dependsOn ':runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer'
           }
         }
 
-        // We construct the pipeline options during task execution time in order to get dockerImageName.
+        // We construct the pipeline options during task execution time in order to get dockerJavaImageName.
         doFirst {
           if (pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
             def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
             if (pipelineOptionsString.contains('use_runner_v2')) {
-              def dockerImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerImageName
+              def dockerJavaImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerJavaImageName
               allOptionsList.addAll([
-                "--sdkContainerImage=${dockerImageName}",
+                "--sdkContainerImage=${dockerJavaImageName}",
                 "--region=${dataflowRegion}"
               ])
             } else {
@@ -1847,7 +1847,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.afterEvaluate {
         // Ensure all tasks which use published docker images run before they are cleaned up
         project.tasks.each { t ->
-          if (t.dependsOn.contains(":runners:google-cloud-dataflow-java:buildAndPushDockerContainer")) {
+          if (t.dependsOn.contains(":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer")) {
             t.finalizedBy cleanUpTask
           }
         }

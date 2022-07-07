@@ -54,6 +54,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.FnHarness;
@@ -937,11 +938,14 @@ public class RemoteExecutionTest implements Serializable {
               (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputContents::add));
     }
 
+    AtomicReference<List<MonitoringInfo>> progressMonitoringInfos = new AtomicReference<>();
+
     final String testPTransformId = "create-ParMultiDo-Metrics-";
     BundleProgressHandler progressHandler =
         new BundleProgressHandler() {
           @Override
           public void onProgress(ProcessBundleProgressResponse response) {
+            progressMonitoringInfos.set(response.getMonitoringInfosList());
             MetricsDoFn.ALLOW_COMPLETION.get(metricsDoFn.uuid).countDown();
             List<Matcher<MonitoringInfo>> matchers = new ArrayList<>();
 
@@ -1149,9 +1153,15 @@ public class RemoteExecutionTest implements Serializable {
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
                     MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(3)));
 
-            assertThat(
-                response.getMonitoringInfosList(),
-                Matchers.hasItems(matchers.toArray(new Matcher[0])));
+            List<MonitoringInfo> oldMonitoringInfos = progressMonitoringInfos.get();
+            if (oldMonitoringInfos == null) {
+              throw new IllegalStateException(
+                  "Progress request did not complete before timeout allowing for bundle to complete.");
+            }
+            List<MonitoringInfo> mergedMonitoringInfos =
+                mergeMonitoringInfos(oldMonitoringInfos, response.getMonitoringInfosList());
+
+            assertThat(mergedMonitoringInfos, Matchers.hasItems(matchers.toArray(new Matcher[0])));
           }
         };
 
@@ -1172,6 +1182,18 @@ public class RemoteExecutionTest implements Serializable {
           });
     }
     executor.shutdown();
+  }
+
+  private static List<MonitoringInfo> mergeMonitoringInfos(
+      List<MonitoringInfo> oldMonitoringInfos, List<MonitoringInfo> newMonitoringInfos) {
+    Map<MonitoringInfo, MonitoringInfo> miKeyToMiWithPayload = new HashMap<>();
+    for (MonitoringInfo monitoringInfo : oldMonitoringInfos) {
+      miKeyToMiWithPayload.put(monitoringInfo.toBuilder().clearPayload().build(), monitoringInfo);
+    }
+    for (MonitoringInfo monitoringInfo : newMonitoringInfos) {
+      miKeyToMiWithPayload.put(monitoringInfo.toBuilder().clearPayload().build(), monitoringInfo);
+    }
+    return new ArrayList<>(miKeyToMiWithPayload.values());
   }
 
   @Test

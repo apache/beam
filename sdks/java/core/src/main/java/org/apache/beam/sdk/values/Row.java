@@ -106,7 +106,8 @@ public abstract class Row implements Serializable {
   /** Return the size of data fields. */
   public abstract int getFieldCount();
 
-  /** Return the list of data values. */
+  /** Return the list of raw unmodified data values to enable 0-copy code. */
+  @Internal
   public abstract List<Object> getValues();
 
   /** Return a list of data values. Any LogicalType values are returned as base values. * */

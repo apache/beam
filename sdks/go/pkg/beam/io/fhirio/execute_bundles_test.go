@@ -16,8 +16,9 @@
 package fhirio
 
 import (
-	"bytes"
+	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -39,7 +40,7 @@ func TestExecuteBundles(t *testing.T) {
 		{
 			name:           "Execute Bundles request returns bad status",
 			client:         badStatusFakeClient,
-			containedError: fakeBadStatus,
+			containedError: strconv.Itoa(http.StatusForbidden),
 		},
 		{
 			name:           "Execute Bundles request response body fails to be read",
@@ -47,18 +48,9 @@ func TestExecuteBundles(t *testing.T) {
 			containedError: fakeBodyReaderErrorMessage,
 		},
 		{
-			name: "Execute Bundles request response body failed to be decoded",
-			client: &fakeFhirStoreClient{
-				fakeExecuteBundles: func(storePath string, bundle []byte) (*http.Response, error) {
-					return &http.Response{
-						Body: &fakeReaderCloser{
-							fakeRead: func(t []byte) (int, error) {
-								return bytes.NewReader([]byte("")).Read(t)
-							},
-						}, Status: "200 Ok"}, nil
-				},
-			},
-			containedError: "EOF",
+			name:           "Execute Bundles request response body failed to be decoded",
+			client:         emptyResponseBodyFakeClient,
+			containedError: io.EOF.Error(),
 		},
 	}
 
@@ -73,9 +65,9 @@ func TestExecuteBundles(t *testing.T) {
 				return strings.Contains(errorMsg, testCase.containedError)
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
-			err := validateResourceErrorCounter(pipelineResult, len(testBundles))
+			err := validateCounter(pipelineResult, errorCounterName, len(testBundles))
 			if err != nil {
-				t.Fatalf("validateResourceErrorCounter returned error [%v]", err.Error())
+				t.Fatalf("validateCounter returned error [%v]", err.Error())
 			}
 		})
 	}

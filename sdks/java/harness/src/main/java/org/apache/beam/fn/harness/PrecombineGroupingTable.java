@@ -168,16 +168,16 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
     this.cache.put(Key.INSTANCE, this);
   }
 
-  private abstract static interface GroupingTableKey extends Weighted {
-    public abstract Object getStructuralKey();
+  private interface GroupingTableKey extends Weighted {
+    Object getStructuralKey();
 
-    public abstract Collection<? extends BoundedWindow> getWindows();
-
-    @Override
-    public abstract boolean equals(Object o);
+    Collection<? extends BoundedWindow> getWindows();
 
     @Override
-    public abstract int hashCode();
+    boolean equals(Object o);
+
+    @Override
+    int hashCode();
   }
 
   private static class WindowedGroupingTableKey implements GroupingTableKey {

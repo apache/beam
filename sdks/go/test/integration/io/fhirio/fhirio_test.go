@@ -48,6 +48,7 @@ const (
 )
 
 var (
+	backoffDuration        = [...]time.Duration{time.Second, 5 * time.Second, 10 * time.Second}
 	storeService           *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService
 	storeManagementService *healthcare.ProjectsLocationsDatasetsFhirStoresService
 )
@@ -104,13 +105,13 @@ func setupFhirStore(t *testing.T, shouldPopulateStore bool) (string, []string, f
 
 func createStore(dataset string) (*healthcare.FhirStore, error) {
 	randInt, _ := rand.Int(rand.Reader, big.NewInt(32))
-	testFhirStoreId := "FHIR_store_write_it_" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "_" + randInt.String()
+	testFhirStoreID := "FHIR_store_write_it_" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "_" + randInt.String()
 	fhirStore := &healthcare.FhirStore{
 		DisableReferentialIntegrity: true,
 		EnableUpdateCreate:          true,
 		Version:                     "R4",
 	}
-	return storeManagementService.Create(dataset, fhirStore).FhirStoreId(testFhirStoreId).Do()
+	return storeManagementService.Create(dataset, fhirStore).FhirStoreId(testFhirStoreID).Do()
 }
 
 func deleteStore(storePath string) (*healthcare.Empty, error) {
@@ -165,16 +166,32 @@ func readPrettyBundles() [][]byte {
 	return bundles
 }
 
-func extractResourcePathFrom(resourceLocationUrl string) (string, error) {
+func extractResourcePathFrom(resourceLocationURL string) (string, error) {
 	// The resource location url is in the following format:
 	// https://healthcare.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/fhirStores/STORE_ID/fhir/RESOURCE_NAME/RESOURCE_ID/_history/HISTORY_ID
 	// But the API calls use this format: projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/fhirStores/STORE_ID/fhir/RESOURCE_NAME/RESOURCE_ID
-	startIdx := strings.Index(resourceLocationUrl, "projects/")
-	endIdx := strings.Index(resourceLocationUrl, "/_history")
+	startIdx := strings.Index(resourceLocationURL, "projects/")
+	endIdx := strings.Index(resourceLocationURL, "/_history")
 	if startIdx == -1 || endIdx == -1 {
 		return "", errors.New("resource location url is invalid")
 	}
-	return resourceLocationUrl[startIdx:endIdx], nil
+	return resourceLocationURL[startIdx:endIdx], nil
+}
+
+// Useful to prevent flaky results.
+func runWithBackoffRetries(t *testing.T, p *beam.Pipeline) error {
+	t.Helper()
+
+	var err error
+	for attempt := 0; attempt < len(backoffDuration); attempt++ {
+		err = ptest.Run(p)
+		if err == nil {
+			break
+		}
+		t.Logf("backoff %v after failure", backoffDuration[attempt])
+		time.Sleep(backoffDuration[attempt])
+	}
+	return err
 }
 
 func TestFhirIO_Read(t *testing.T) {
@@ -225,7 +242,38 @@ func TestFhirIO_ExecuteBundles(t *testing.T) {
 	passert.True(s, failures, func(errorMsg string) bool {
 		return strings.Contains(errorMsg, strconv.Itoa(http.StatusBadRequest))
 	})
+
 	ptest.RunAndValidate(t, p)
+}
+
+func TestFhirIO_Search(t *testing.T) {
+	integration.CheckFilters(t)
+	checkFlags(t)
+
+	fhirStorePath, _, teardownFhirStore := setupFhirStoreWithData(t)
+	defer teardownFhirStore()
+
+	searchQueries := []fhirio.SearchQuery{
+		{},
+		{ResourceType: "Patient"},
+		{ResourceType: "Patient", Parameters: map[string]string{"gender": "female", "family:contains": "Smith"}},
+		{ResourceType: "Encounter"},
+	}
+
+	p, s, searchQueriesCol := ptest.CreateList(searchQueries)
+	searchResult, deadLetter := fhirio.Search(s, fhirStorePath, searchQueriesCol)
+	passert.Empty(s, deadLetter)
+	passert.Count(s, searchResult, "", len(searchQueries))
+
+	resourcesFoundCount := beam.ParDo(s, func(identifier string, resourcesFound []string) int {
+		return len(resourcesFound)
+	}, searchResult)
+	passert.Equals(s, resourcesFoundCount, 4, 2, 1, 0)
+
+	err := runWithBackoffRetries(t, p)
+	if err != nil {
+		t.Fatalf("Pipeline assertions failed: %v", err)
+	}
 }
 
 func TestMain(m *testing.M) {

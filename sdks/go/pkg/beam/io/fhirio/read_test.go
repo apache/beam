@@ -16,6 +16,8 @@
 package fhirio
 
 import (
+	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -37,7 +39,7 @@ func TestRead(t *testing.T) {
 		{
 			name:           "Read request returns bad status",
 			client:         badStatusFakeClient,
-			containedError: fakeBadStatus,
+			containedError: strconv.Itoa(http.StatusForbidden),
 		},
 		{
 			name:           "Read request response body fails to be read",
@@ -57,9 +59,9 @@ func TestRead(t *testing.T) {
 				return strings.Contains(errorMsg, testCase.containedError)
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
-			err := validateResourceErrorCounter(pipelineResult, len(testResourcePaths))
+			err := validateCounter(pipelineResult, errorCounterName, len(testResourcePaths))
 			if err != nil {
-				t.Fatalf("validateResourceErrorCounter returned error [%v]", err.Error())
+				t.Fatalf("validateCounter returned error [%v]", err.Error())
 			}
 		})
 	}
