@@ -39,6 +39,7 @@ public class FakePulsarReader implements Reader<byte[]> {
   private long endTimestamp;
   private boolean reachedEndOfTopic;
   private int numberOfMessages;
+  private boolean useWrongSeek;
 
   public FakePulsarReader(String topic, int numberOfMessages) {
     this.numberOfMessages = numberOfMessages;
@@ -66,6 +67,7 @@ public class FakePulsarReader implements Reader<byte[]> {
   public void reset() {
     this.reachedEndOfTopic = false;
     this.currentMsg = 0;
+    this.useWrongSeek = false;
     emptyMockRecords();
     setMock(topic, numberOfMessages);
   }
@@ -80,6 +82,14 @@ public class FakePulsarReader implements Reader<byte[]> {
 
   public long getEndTimestamp() {
     return this.endTimestamp;
+  }
+
+  public void setWrongSeek(boolean flag) {
+    this.useWrongSeek = flag;
+  }
+
+  public long getMessageTimestamp(int position) {
+    return this.fakeMessages.get(position).getPublishTime();
   }
 
   @Override
@@ -141,6 +151,10 @@ public class FakePulsarReader implements Reader<byte[]> {
   @Override
   public void seek(long timestamp) throws PulsarClientException {
     for (int i = 0; i < fakeMessages.size(); i++) {
+      if(useWrongSeek) {
+        currentMsg = 1;
+        break;
+      }
       if (timestamp == fakeMessages.get(i).getPublishTime()) {
         currentMsg = i;
         break;
