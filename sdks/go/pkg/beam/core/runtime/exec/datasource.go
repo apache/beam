@@ -134,7 +134,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 	case coder.IsCoGBK(c):
 		cp = MakeElementDecoder(c.Components[0])
 
-		// TODO(BEAM-490): Support multiple value streams (coder components) with
+		// TODO(https://github.com/apache/beam/issues/18032): Support multiple value streams (coder components) with
 		// with CoGBK.
 		cvs = []ElementDecoder{MakeElementDecoder(c.Components[1])}
 	default:
@@ -366,13 +366,13 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 
 	ow := su.GetOutputWatermark()
 
-	// Always split at fraction 0.0, should have no primaries left.
-	ps, rs, err := su.Split(0.0)
+	// Checkpointing is functionally a split at fraction 0.0
+	rs, err := su.Checkpoint()
 	if err != nil {
 		return SplitResult{}, -1 * time.Minute, false, err
 	}
-	if len(ps) != 0 {
-		return SplitResult{}, -1 * time.Minute, false, fmt.Errorf("failed to checkpoint: got %v primary roots, want none", ps)
+	if len(rs) == 0 {
+		return SplitResult{}, -1 * time.Minute, false, nil
 	}
 
 	encodeElms := n.makeEncodeElms()
@@ -472,7 +472,7 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 		return SplitResult{PI: s, RI: s + 1}, nil
 	}
 
-	// TODO(BEAM-10579) Eventually encode elements with the splittable
+	// TODO(https://github.com/apache/beam/issues/20343) Eventually encode elements with the splittable
 	// unit's input coder instead of the DataSource's coder.
 	encodeElms := n.makeEncodeElms()
 

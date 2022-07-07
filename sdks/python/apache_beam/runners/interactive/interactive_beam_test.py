@@ -563,6 +563,12 @@ class InteractiveBeamClustersTest(unittest.TestCase):
     meta_list = self.clusters.describe(cid_meta)
     self.assertEqual([known_meta, known_meta2], meta_list)
 
+  def test_default_value_for_invalid_worker_number(self):
+    meta = ClusterMetadata(project_id='test-project', num_workers=1)
+    self.clusters.create(meta)
+
+    self.assertEqual(meta.num_workers, 2)
+
 
 if __name__ == '__main__':
   unittest.main()

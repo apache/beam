@@ -16,12 +16,14 @@
 package primitives
 
 import (
+	"context"
 	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
 
@@ -53,7 +55,7 @@ func (fn *selfCheckpointingDoFn) RestrictionSize(_ []byte, rest offsetrange.Rest
 // SplitRestriction modifies the offsetrange.Restriction's sized restriction function to produce a size-zero restriction
 // at the end of execution.
 func (fn *selfCheckpointingDoFn) SplitRestriction(_ []byte, rest offsetrange.Restriction) []offsetrange.Restriction {
-	size := int64(1)
+	size := int64(10)
 	s := rest.Start
 	var splits []offsetrange.Restriction
 	for e := s + size; e <= rest.End; s, e = e, e+size {
@@ -68,18 +70,26 @@ func (fn *selfCheckpointingDoFn) SplitRestriction(_ []byte, rest offsetrange.Res
 func (fn *selfCheckpointingDoFn) ProcessElement(rt *sdf.LockRTracker, _ []byte, emit func(int64)) sdf.ProcessContinuation {
 	position := rt.GetRestriction().(offsetrange.Restriction).Start
 
+	counter := 0
 	for {
 		if rt.TryClaim(position) {
 			// Successful claim, emit the value and move on.
 			emit(position)
-			position += 1
-			return sdf.ResumeProcessingIn(1 * time.Second)
+			position++
+			counter++
 		} else if rt.GetError() != nil || rt.IsDone() {
 			// Stop processing on error or completion
+			if err := rt.GetError(); err != nil {
+				log.Errorf(context.Background(), "error in restriction tracker, got %v", err)
+			}
 			return sdf.StopProcessing()
 		} else {
-			// Failed to claim but no error, resume later.
+			// Resume later.
 			return sdf.ResumeProcessingIn(5 * time.Second)
+		}
+
+		if counter >= 10 {
+			return sdf.ResumeProcessingIn(1 * time.Second)
 		}
 	}
 }

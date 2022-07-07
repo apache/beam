@@ -21,6 +21,8 @@ applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.extensions.python')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Python"
 
+evaluationDependsOn(":runners:core-construction-java")
+
 dependencies {
     implementation library.java.vendored_guava_26_0_jre
     implementation library.java.vendored_grpc_1_43_2
@@ -30,5 +32,12 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     testImplementation library.java.junit
     testImplementation library.java.hamcrest
+    testImplementation project(":runners:core-construction-java").sourceSets.test.output
     testRuntimeOnly library.java.slf4j_simple
+}
+
+test {
+  useJUnit {
+    excludeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+  }
 }

@@ -84,7 +84,7 @@ import org.slf4j.LoggerFactory;
 
 /** Creates a {@link DataflowMapTaskExecutor} from a {@link MapTask} definition. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(IntrinsicMapTaskExecutorFactory.class);

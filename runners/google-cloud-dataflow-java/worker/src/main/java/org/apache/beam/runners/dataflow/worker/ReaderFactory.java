@@ -31,7 +31,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * CloudObject}.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public interface ReaderFactory {
 

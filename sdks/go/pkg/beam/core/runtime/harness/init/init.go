@@ -42,7 +42,6 @@ var (
 	id              = flag.String("id", "", "Local identifier (required in worker mode).")
 	loggingEndpoint = flag.String("logging_endpoint", "", "Local logging gRPC endpoint (required in worker mode).")
 	controlEndpoint = flag.String("control_endpoint", "", "Local control gRPC endpoint (required in worker mode).")
-	statusEndpoint  = flag.String("status_endpoint", "", "Local status gRPC endpoint (optional in worker mode).")
 	//lint:ignore U1000 semiPersistDir flag is passed in through the boot container, will need to be removed later
 	semiPersistDir = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional in worker mode).")
 	options        = flag.String("options", "", "JSON-encoded pipeline options (required in worker mode).")
@@ -68,7 +67,7 @@ func init() {
 	runtime.RegisterInit(hook)
 }
 
-// hook starts the harness, if in worker mode. Otherwise, is is a no-op.
+// hook starts the harness, if in worker mode. Otherwise, is a no-op.
 func hook() {
 	if !*worker {
 		return
@@ -106,9 +105,12 @@ func hook() {
 
 	// Since Init() is hijacking main, it's appropriate to do as main
 	// does, and establish the background context here.
-
-	ctx := grpcx.WriteWorkerID(context.Background(), *id)
-	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint, harness.StatusAddress(*statusEndpoint)); err != nil {
+	// We produce a cancelFn here so runs in Loopback mode and similar can clean up
+	// any leftover goroutines.
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+	ctx = grpcx.WriteWorkerID(ctx, *id)
+	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint); err != nil {
 		fmt.Fprintf(os.Stderr, "Worker failed: %v\n", err)
 		switch ShutdownMode {
 		case Terminate:

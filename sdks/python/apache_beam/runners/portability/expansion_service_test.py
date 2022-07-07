@@ -33,6 +33,7 @@ from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import expansion_service
+from apache_beam.transforms import fully_qualified_named_transform
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.environments import PyPIArtifactRegistry
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
@@ -359,26 +360,31 @@ def main(unused_argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '-p', '--port', type=int, help='port on which to serve the job api')
+  parser.add_argument('--fully_qualified_name_glob', default=None)
   options = parser.parse_args()
-  global server
-  server = grpc.server(thread_pool_executor.shared_unbounded_instance())
-  beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
-      expansion_service.ExpansionServiceServicer(
-          PipelineOptions(
-              ["--experiments", "beam_fn_api", "--sdk_location", "container"])),
-      server)
-  beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
-      artifact_service.ArtifactRetrievalService(
-          artifact_service.BeamFilesystemHandler(None).file_reader),
-      server)
-  server.add_insecure_port('localhost:{}'.format(options.port))
-  server.start()
-  _LOGGER.info('Listening for expansion requests at %d', options.port)
 
-  signal.signal(signal.SIGTERM, cleanup)
-  signal.signal(signal.SIGINT, cleanup)
-  # blocking main thread forever.
-  signal.pause()
+  global server
+  with fully_qualified_named_transform.FullyQualifiedNamedTransform.with_filter(
+      options.fully_qualified_name_glob):
+    server = grpc.server(thread_pool_executor.shared_unbounded_instance())
+    beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
+        expansion_service.ExpansionServiceServicer(
+            PipelineOptions(
+                ["--experiments", "beam_fn_api", "--sdk_location",
+                 "container"])),
+        server)
+    beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
+        artifact_service.ArtifactRetrievalService(
+            artifact_service.BeamFilesystemHandler(None).file_reader),
+        server)
+    server.add_insecure_port('localhost:{}'.format(options.port))
+    server.start()
+    _LOGGER.info('Listening for expansion requests at %d', options.port)
+
+    signal.signal(signal.SIGTERM, cleanup)
+    signal.signal(signal.SIGINT, cleanup)
+    # blocking main thread forever.
+    signal.pause()
 
 
 if __name__ == '__main__':

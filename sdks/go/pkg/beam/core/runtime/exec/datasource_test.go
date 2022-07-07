@@ -611,6 +611,12 @@ func (n *TestSplittableUnit) Split(f float64) ([]*FullValue, []*FullValue, error
 	return []*FullValue{{Elm: n.elm}}, []*FullValue{{Elm: n.elm}}, nil
 }
 
+// Checkpoint routes through the Split() function to satisfy the interface.
+func (n *TestSplittableUnit) Checkpoint() ([]*FullValue, error) {
+	_, r, err := n.Split(0.0)
+	return r, err
+}
+
 // GetProgress always returns 0, to keep tests consistent.
 func (n *TestSplittableUnit) GetProgress() float64 {
 	return 0

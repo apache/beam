@@ -32,6 +32,7 @@ from typing import Optional
 from unittest.mock import patch
 
 import hamcrest as hc
+import numpy as np
 import pytest
 from parameterized import parameterized_class
 
@@ -380,6 +381,26 @@ class PTransformTest(unittest.TestCase):
       with TestPipeline() as p:
         p | 'Start' >> beam.Create([1, 2, 3]) | 'Do' >> beam.ParDo(MyDoFn())
 
+  def test_map_builtin(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create([[1, 2], [1], [1, 2, 3]])
+      result = pcoll | beam.Map(len)
+      assert_that(result, equal_to([1, 2, 3]))
+
+  def test_flatmap_builtin(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create([
+          [np.array([1, 2, 3])] * 3, [np.array([5, 4, 3]), np.array([5, 6, 7])]
+      ])
+      result = pcoll | beam.FlatMap(sum)
+      assert_that(result, equal_to([3, 6, 9, 10, 10, 10]))
+
+  def test_filter_builtin(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create([[], [2], [], [4]])
+      result = pcoll | 'Filter' >> beam.Filter(len)
+      assert_that(result, equal_to([[2], [4]]))
+
   def test_filter(self):
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3, 4])
@@ -700,7 +721,8 @@ class PTransformTest(unittest.TestCase):
       result = (pcoll, ) | 'Single Flatten' >> beam.Flatten()
       assert_that(result, equal_to(input))
 
-  # TODO(BEAM-9002): Does not work in streaming mode on Dataflow.
+  # TODO(https://github.com/apache/beam/issues/20067): Does not work in
+  # streaming mode on Dataflow.
   @pytest.mark.no_sickbay_streaming
   @pytest.mark.it_validatesrunner
   def test_flatten_same_pcollections(self):

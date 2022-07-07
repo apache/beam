@@ -114,7 +114,7 @@ website/www/yarn-error.log
 !website/www/site/content
 
 # Node
-sdks/typescript/node_modules
+**/node_modules
 
 # Dart/Flutter
 **/.dart_tool

@@ -49,10 +49,27 @@ import * as service from "../utils/service";
 // TODO: (API) (Types) This class expects PCollections to already have the
 // correct Coders. It would be great if we could infer coders, or at least have
 // a cleaner way to specify them than using internal.WithCoderInternal.
-export class RawExternalTransform<
+export function rawExternalTransform<
   InputT extends PValue<any>,
   OutputT extends PValue<any>
-> extends transform.AsyncPTransform<InputT, OutputT> {
+>(
+  urn: string,
+  payload: Uint8Array | { [key: string]: any },
+  serviceProviderOrAddress: string | (() => Promise<service.Service>),
+  inferPValueType: boolean = true
+): transform.AsyncPTransform<InputT, OutputT> {
+  return new RawExternalTransform(
+    urn,
+    payload,
+    serviceProviderOrAddress,
+    inferPValueType
+  );
+}
+
+class RawExternalTransform<
+  InputT extends PValue<any>,
+  OutputT extends PValue<any>
+> extends transform.AsyncPTransformClass<InputT, OutputT> {
   static namespaceCounter = 0;
   static freshNamespace() {
     return "namespace_" + RawExternalTransform.namespaceCounter++ + "_";
@@ -68,7 +85,7 @@ export class RawExternalTransform<
     private inferPValueType: boolean = true
   ) {
     super("External(" + urn + ")");
-    if (payload == undefined) {
+    if (payload === null || payload === undefined) {
       this.payload = undefined;
     } else if (payload instanceof Uint8Array) {
       this.payload = payload as Uint8Array;
@@ -76,7 +93,7 @@ export class RawExternalTransform<
       this.payload = encodeSchemaPayload(payload);
     }
 
-    if (typeof serviceProviderOrAddress == "string") {
+    if (typeof serviceProviderOrAddress === "string") {
       this.serviceProvider = async () =>
         new service.ExternalService(serviceProviderOrAddress);
     } else {
@@ -110,7 +127,7 @@ export class RawExternalTransform<
       request.components!.transforms[fakeImpulseNamespace + pcId] =
         runnerApi.PTransform.create({
           uniqueName: fakeImpulseNamespace + "_create_" + pcId,
-          spec: { urn: internal.Impulse.urn, payload: new Uint8Array() },
+          spec: { urn: internal.impulse.urn, payload: new Uint8Array() },
           outputs: { main: pcId },
         });
     }
@@ -168,7 +185,7 @@ export class RawExternalTransform<
     // Don't even bother creating a connection if there are no dependencies.
     if (
       Object.values(components.environments).every(
-        (env) => env.dependencies.length == 0
+        (env) => env.dependencies.length === 0
       )
     ) {
       return components;
@@ -233,7 +250,7 @@ export class RawExternalTransform<
     );
     if (newTags.length > 1) {
       throw new Error("Ambiguous renaming of tags.");
-    } else if (newTags.length == 1) {
+    } else if (newTags.length === 1) {
       const missingTags = difference(
         new Set(Object.keys(transformProto.inputs)),
         new Set(Object.keys(response.transform!.inputs))
@@ -259,7 +276,9 @@ export class RawExternalTransform<
       t.inputs = Object.fromEntries(
         Object.entries(t.inputs).map(([k, v]) => [
           k,
-          renamedInputs[v] != undefined ? renamedInputs[v] : v,
+          renamedInputs[v] !== null && renamedInputs[v] !== undefined
+            ? renamedInputs[v]
+            : v,
         ])
       );
     }
@@ -308,9 +327,9 @@ export class RawExternalTransform<
     // See: https://github.com/microsoft/TypeScript/issues/3628
     if (this.inferPValueType) {
       const outputKeys = [...Object.keys(response.transform!.outputs)];
-      if (outputKeys.length == 0) {
+      if (outputKeys.length === 0) {
         return null!;
-      } else if (outputKeys.length == 1) {
+      } else if (outputKeys.length === 1) {
         return new PCollection(
           pipeline,
           response.transform!.outputs[outputKeys[0]]

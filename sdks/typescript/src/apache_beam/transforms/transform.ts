@@ -27,13 +27,13 @@ export function withName<T>(name: string | (() => string), arg: T): T {
 
 export function extractName<T>(withName: T): string {
   const untyped = withName as any;
-  if (untyped.beamName != undefined) {
-    if (typeof untyped.beamName == "string") {
+  if (untyped.beamName !== null && untyped.beamName !== undefined) {
+    if (typeof untyped.beamName === "string") {
       return untyped.beamName;
     } else {
       return untyped.beamName();
     }
-  } else if (untyped.name && untyped.name != "anonymous") {
+  } else if (untyped.name && untyped.name !== "anonymous") {
     return untyped.name;
   } else {
     const stringified = ("" + withName)
@@ -63,7 +63,7 @@ export function extractName<T>(withName: T): string {
 // call rather than forcing the asynchronous nature all the way up the call
 // hierarchy).
 
-export class AsyncPTransform<
+export class AsyncPTransformClass<
   InputT extends PValue<any>,
   OutputT extends PValue<any>
 > {
@@ -86,10 +86,10 @@ export class AsyncPTransform<
   }
 }
 
-export class PTransform<
+export class PTransformClass<
   InputT extends PValue<any>,
   OutputT extends PValue<any>
-> extends AsyncPTransform<InputT, OutputT> {
+> extends AsyncPTransformClass<InputT, OutputT> {
   expand(input: InputT): OutputT {
     throw new Error("Method expand has not been implemented.");
   }
@@ -114,3 +114,27 @@ export class PTransform<
     return this.expandInternal(input, pipeline, transformProto);
   }
 }
+
+export type AsyncPTransform<
+  InputT extends PValue<any>,
+  OutputT extends PValue<any>
+> =
+  | AsyncPTransformClass<InputT, OutputT>
+  | ((input: InputT) => Promise<OutputT>)
+  | ((
+      input: InputT,
+      pipeline: Pipeline,
+      transformProto: runnerApi.PTransform
+    ) => Promise<OutputT>);
+
+export type PTransform<
+  InputT extends PValue<any>,
+  OutputT extends PValue<any>
+> =
+  | PTransformClass<InputT, OutputT>
+  | ((input: InputT) => OutputT)
+  | ((
+      input: InputT,
+      pipeline: Pipeline,
+      transformProto: runnerApi.PTransform
+    ) => OutputT);

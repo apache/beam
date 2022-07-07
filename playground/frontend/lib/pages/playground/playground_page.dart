@@ -18,6 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/components/logo/logo_component.dart';
+import 'package:playground/components/summit_banner/summit_banner_button.dart';
 import 'package:playground/components/toggle_theme_button/toggle_theme_button.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/actions/components/new_example_action.dart';
@@ -83,7 +84,7 @@ class PlaygroundPage extends StatelessWidget {
                 );
               },
             ),
-            actions: const [ToggleThemeButton(), MoreActions()],
+            actions: const [SummitBanner(), ToggleThemeButton(), MoreActions()],
           ),
           body: Column(
             children: [

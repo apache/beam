@@ -122,31 +122,24 @@ func NewFn(fn interface{}) (*Fn, error) {
 				}
 				methods[name] = f
 			}
-			return &Fn{Recv: fn, methods: methods, annotations: annotations}, nil
 		}
-		// TODO(lostluck): Consider moving this into the reflectx package.
-		for i := 0; i < val.Type().NumMethod(); i++ {
-			m := val.Type().Method(i)
-			if m.PkgPath != "" {
-				continue // skip: unexported
+		for mName := range lifecycleMethods {
+			if _, ok := methods[mName]; ok {
+				continue // skip : already wrapped
 			}
-			if m.Name == "String" {
-				continue // skip: harmless
+			m, ok := val.Type().MethodByName(mName)
+			if !ok {
+				continue // skip: doesn't exist
 			}
 
 			// CAVEAT(herohde) 5/22/2017: The type val.Type.Method.Type is not
 			// the same as val.Method.Type: the former has the explicit receiver.
 			// We'll use the receiver-less version.
-
-			// TODO(herohde) 5/22/2017: Alternatively, it looks like we could
-			// serialize each method, call them explicitly and avoid struct
-			// registration.
-
-			f, err := funcx.New(reflectx.MakeFunc(val.Method(i).Interface()))
+			f, err := funcx.New(reflectx.MakeFunc(val.Method(m.Index).Interface()))
 			if err != nil {
-				return nil, errors.Wrapf(err, "method %v invalid", m.Name)
+				return nil, errors.Wrapf(err, "method %v invalid", mName)
 			}
-			methods[m.Name] = f
+			methods[mName] = f
 		}
 		return &Fn{Recv: fn, methods: methods, annotations: annotations}, nil
 
@@ -447,9 +440,6 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 	}
 	if fn.Fn != nil {
 		fn.methods[processElementName] = fn.Fn
-	}
-	if err := verifyValidNames("graph.AsDoFn", fn, doFnNames...); err != nil {
-		return nil, err
 	}
 
 	if _, ok := fn.methods[processElementName]; !ok {
@@ -1001,6 +991,14 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 					"Ensure that all restrictions in an SDF are the same type.",
 					truncateRestrictionName, 0, method.Ret[0].T, restrictionT, createInitialRestrictionName)
 			}
+			processFn := fn.methods[processElementName]
+			if _, exists := processFn.ProcessContinuation(); !exists {
+				err := errors.Errorf("missing return value in %v: return value of type %v is not present",
+					processElementName, reflect.TypeOf((*sdf.ProcessContinuation)(nil)).Elem())
+				return errors.SetTopLevelMsgf(err, "Missing output value in method %v, "+
+					"%v method should return %v when %v method is defined.",
+					processElementName, processElementName, reflect.TypeOf((*sdf.ProcessContinuation)(nil)).Elem(), truncateRestrictionName)
+			}
 		}
 	}
 
@@ -1285,9 +1283,6 @@ func AsCombineFn(fn *Fn) (*CombineFn, error) {
 	if fn.Fn != nil {
 		fn.methods[mergeAccumulatorsName] = fn.Fn
 	}
-	if err := verifyValidNames(fnKind, fn, setupName, createAccumulatorName, addInputName, mergeAccumulatorsName, extractOutputName, compactName, teardownName); err != nil {
-		return nil, err
-	}
 
 	mergeFn, ok := fn.methods[mergeAccumulatorsName]
 	if !ok {
@@ -1341,20 +1336,6 @@ func validateSignature(fnKind, methodName string, fn *Fn, accumType reflect.Type
 		sig := sigFunc(fx, accumType)
 		if err := funcx.Satisfy(fx, sig); err != nil {
 			return &verifyMethodError{fnKind, methodName, err, fn, accumType, sig}
-		}
-	}
-	return nil
-}
-
-func verifyValidNames(fnKind string, fn *Fn, names ...string) error {
-	m := make(map[string]bool)
-	for _, name := range names {
-		m[name] = true
-	}
-
-	for key := range fn.methods {
-		if !m[key] {
-			return errors.Errorf("%s: unexpected exported method %v present. Valid methods are: %v", fnKind, key, names)
 		}
 	}
 	return nil

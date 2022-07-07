@@ -24,7 +24,6 @@ export const IDENTITY_DOFN_URN = "beam:dofn:identity:0.1";
 
 export const SERIALIZED_JS_DOFN_INFO = "beam:dofn:serialized_js_dofn_info:v1";
 export const SPLITTING_JS_DOFN_URN = "beam:dofn:splitting_dofn:v1";
-export const SPLITTING2_JS_DOFN_URN = "beam:dofn:splitting2_dofn:v1";
 export const JS_WINDOW_INTO_DOFN_URN = "beam:dofn:js_window_into:v1";
 export const JS_ASSIGN_TIMESTAMPS_DOFN_URN =
   "beam:dofn:js_assign_timestamps:v1";

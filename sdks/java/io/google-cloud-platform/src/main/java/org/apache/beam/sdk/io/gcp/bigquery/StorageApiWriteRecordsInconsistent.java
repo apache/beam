@@ -40,7 +40,6 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       BigQueryServices bqServices) {
     this.dynamicDestinations = dynamicDestinations;
-    ;
     this.bqServices = bqServices;
   }
 
@@ -57,7 +56,9 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
                     dynamicDestinations,
                     bqServices,
                     true,
-                    bigQueryOptions.getStorageApiAppendThresholdBytes()))
+                    bigQueryOptions.getStorageApiAppendThresholdBytes(),
+                    bigQueryOptions.getStorageApiAppendThresholdRecordCount(),
+                    bigQueryOptions.getNumStorageWriteApiStreamAppendClients()))
             .withSideInputs(dynamicDestinations.getSideInputs()));
     return input.getPipeline().apply("voids", Create.empty(VoidCoder.of()));
   }

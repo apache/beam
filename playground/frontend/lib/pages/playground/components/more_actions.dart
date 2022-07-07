@@ -122,7 +122,7 @@ class _MoreActionsState extends State<MoreActions> {
   }
 
   _openLink(String link, BuildContext context) {
-    launch(link);
+    launchUrl(Uri.parse(link));
     AnalyticsService.get(context).trackOpenLink(link);
   }
 }

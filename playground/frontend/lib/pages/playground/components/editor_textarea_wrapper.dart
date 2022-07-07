@@ -38,7 +38,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<PlaygroundState>(builder: (context, state, child) {
       if (state.result?.errorMessage?.isNotEmpty ?? false) {
-        WidgetsBinding.instance?.addPostFrameCallback((_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
           _handleError(context, state);
         });
       }
@@ -92,6 +92,9 @@ class CodeTextAreaWrapper extends StatelessWidget {
                           disabled: state.selectedExample?.isMultiFile ?? false,
                           isRunning: state.isCodeRunning,
                           cancelRun: () {
+                            final exampleName = getAnalyticsExampleName(state);
+                            AnalyticsService.get(context)
+                                .trackClickCancelRunEvent(exampleName);
                             state.cancelRun().catchError(
                                   (_) => NotificationManager.showError(
                                     context,
@@ -104,11 +107,8 @@ class CodeTextAreaWrapper extends StatelessWidget {
                             AnalyticsService analyticsService =
                                 AnalyticsService.get(context);
                             final stopwatch = Stopwatch()..start();
-                            final exampleName = getAnalyticsExampleName(
-                              state.selectedExample,
-                              state.isExampleChanged,
-                              state.sdk,
-                            );
+                            final exampleName = getAnalyticsExampleName(state);
+
                             state.runCode(
                               onFinish: () {
                                 analyticsService.trackRunTimeEvent(
@@ -117,8 +117,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
                                 );
                               },
                             );
-                            AnalyticsService.get(context)
-                                .trackClickRunEvent(exampleName);
+                            analyticsService.trackClickRunEvent(exampleName);
                           },
                         ),
                       ),

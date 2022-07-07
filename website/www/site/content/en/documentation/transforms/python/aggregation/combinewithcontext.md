@@ -18,6 +18,6 @@ limitations under the License.
 # CombineWithContext
 
 ## Examples
-See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates.
+See [Issue 19547](https://github.com/apache/beam/issues/19547) for updates.
 
 ## Related transforms

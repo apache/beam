@@ -34,7 +34,6 @@ import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
@@ -44,8 +43,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamFnDataWriteRunner<InputT> {
 
@@ -92,8 +91,7 @@ public class BeamFnDataWriteRunner<InputT> {
                   });
       context.addPCollectionConsumer(
           getOnlyElement(context.getPTransform().getInputsMap().values()),
-          context.addOutgoingDataEndpoint(port.getApiServiceDescriptor(), coder),
-          ((WindowedValueCoder<InputT>) coder).getValueCoder());
+          context.addOutgoingDataEndpoint(port.getApiServiceDescriptor(), coder));
 
       return new BeamFnDataWriteRunner();
     }

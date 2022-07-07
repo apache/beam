@@ -90,7 +90,7 @@ function registerObject(qualified_name, value) {
 }
 
 function registerItem(name, entry) {
-  if (!entry || typeof entry == "number" || typeof entry == "string") {
+  if (!entry || typeof entry === "number" || typeof entry === "string") {
     // These already serialize just fine.
     return;
   } else if (registeredObjectSet.has(entry)) {

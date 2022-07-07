@@ -35,11 +35,13 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonTableRefToTableSpec;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
@@ -50,9 +52,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Contains some useful helper instances of {@link DynamicDestinations}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class DynamicDestinationsHelpers {
   private static final Logger LOG = LoggerFactory.getLogger(DynamicDestinationsHelpers.class);
 
@@ -85,14 +84,14 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
-    public TableDestination getDestination(ValueInSingleWindow<T> element) {
+    public TableDestination getDestination(@Nullable ValueInSingleWindow<T> element) {
       String tableSpec = this.tableSpec.get();
       checkArgument(tableSpec != null, "tableSpec can not be null");
       return new TableDestination(tableSpec, tableDescription);
     }
 
     @Override
-    public TableSchema getSchema(TableDestination destination) {
+    public @Nullable TableSchema getSchema(TableDestination destination) {
       return null;
     }
 
@@ -113,18 +112,19 @@ class DynamicDestinationsHelpers {
 
   /** Returns tables based on a user-supplied function. */
   static class TableFunctionDestinations<T> extends DynamicDestinations<T, TableDestination> {
-    private final SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction;
+    private final SerializableFunction<@Nullable ValueInSingleWindow<T>, TableDestination>
+        tableFunction;
     private final boolean clusteringEnabled;
 
     TableFunctionDestinations(
-        SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction,
+        SerializableFunction<@Nullable ValueInSingleWindow<T>, TableDestination> tableFunction,
         boolean clusteringEnabled) {
       this.tableFunction = tableFunction;
       this.clusteringEnabled = clusteringEnabled;
     }
 
     @Override
-    public TableDestination getDestination(ValueInSingleWindow<T> element) {
+    public TableDestination getDestination(@Nullable ValueInSingleWindow<T> element) {
       TableDestination res = tableFunction.apply(element);
       checkArgument(
           res != null,
@@ -135,7 +135,7 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
-    public TableSchema getSchema(TableDestination destination) {
+    public @Nullable TableSchema getSchema(TableDestination destination) {
       return null;
     }
 
@@ -168,12 +168,12 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
-    public DestinationT getDestination(ValueInSingleWindow<T> element) {
+    public DestinationT getDestination(@Nullable ValueInSingleWindow<T> element) {
       return inner.getDestination(element);
     }
 
     @Override
-    public TableSchema getSchema(DestinationT destination) {
+    public @Nullable TableSchema getSchema(DestinationT destination) {
       return inner.getSchema(destination);
     }
 
@@ -183,7 +183,7 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
-    public Coder<DestinationT> getDestinationCoder() {
+    public @Nullable Coder<DestinationT> getDestinationCoder() {
       return inner.getDestinationCoder();
     }
 
@@ -217,12 +217,12 @@ class DynamicDestinationsHelpers {
   /** Returns the same schema for every table. */
   static class ConstantSchemaDestinations<T, DestinationT>
       extends DelegatingDynamicDestinations<T, DestinationT> {
-    private final @Nullable ValueProvider<String> jsonSchema;
+    private final ValueProvider<String> jsonSchema;
 
     ConstantSchemaDestinations(
         DynamicDestinations<T, DestinationT> inner, ValueProvider<String> jsonSchema) {
       super(inner);
-      checkArgument(jsonSchema != null, "jsonSchema can not be null");
+      Preconditions.checkArgumentNotNull(jsonSchema, "jsonSchema can not be null");
       this.jsonSchema = jsonSchema;
     }
 
@@ -245,7 +245,7 @@ class DynamicDestinationsHelpers {
   static class ConstantTimePartitioningDestinations<T>
       extends DelegatingDynamicDestinations<T, TableDestination> {
 
-    private final @Nullable ValueProvider<String> jsonTimePartitioning;
+    private final ValueProvider<String> jsonTimePartitioning;
     private final @Nullable ValueProvider<String> jsonClustering;
 
     ConstantTimePartitioningDestinations(
@@ -253,16 +253,18 @@ class DynamicDestinationsHelpers {
         ValueProvider<String> jsonTimePartitioning,
         ValueProvider<String> jsonClustering) {
       super(inner);
-      checkArgument(jsonTimePartitioning != null, "jsonTimePartitioning provider can not be null");
+      Preconditions.checkArgumentNotNull(
+          jsonTimePartitioning, "jsonTimePartitioning provider can not be null");
       if (jsonTimePartitioning.isAccessible()) {
-        checkArgument(jsonTimePartitioning.get() != null, "jsonTimePartitioning can not be null");
+        Preconditions.checkArgumentNotNull(
+            jsonTimePartitioning.get(), "jsonTimePartitioning can not be null");
       }
       this.jsonTimePartitioning = jsonTimePartitioning;
       this.jsonClustering = jsonClustering;
     }
 
     @Override
-    public TableDestination getDestination(ValueInSingleWindow<T> element) {
+    public TableDestination getDestination(@Nullable ValueInSingleWindow<T> element) {
       TableDestination destination = super.getDestination(element);
       String partitioning = this.jsonTimePartitioning.get();
       checkArgument(partitioning != null, "jsonTimePartitioning can not be null");
@@ -320,8 +322,8 @@ class DynamicDestinationsHelpers {
     public TableSchema getSchema(TableDestination destination) {
       Map<String, String> mapValue = sideInput(schemaView);
       String schema = mapValue.get(destination.getTableSpec());
-      checkArgument(
-          schema != null,
+      Preconditions.checkArgumentNotNull(
+          schema,
           "Schema view must contain data for every destination used, "
               + "but view %s does not contain data for table destination %s "
               + "produced by %s",
@@ -355,7 +357,7 @@ class DynamicDestinationsHelpers {
       this.bqServices = bqServices;
     }
 
-    private Table getBigQueryTable(TableReference tableReference) {
+    private @Nullable Table getBigQueryTable(TableReference tableReference) {
       BackOff backoff =
           BackOffAdapter.toGcpBackOff(
               FluentBackoff.DEFAULT
@@ -366,7 +368,11 @@ class DynamicDestinationsHelpers {
       try {
         do {
           try {
-            BigQueryOptions bqOptions = getPipelineOptions().as(BigQueryOptions.class);
+            PipelineOptions options = getPipelineOptions();
+            if (options == null) {
+              throw new IllegalStateException("pipeline options cannot be null");
+            }
+            BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
             if (tableReference.getProjectId() == null) {
               tableReference.setProjectId(
                   bqOptions.getBigQueryProject() == null
@@ -415,11 +421,11 @@ class DynamicDestinationsHelpers {
       }
     }
 
-    /** Returns the table schema for the destination. May not return null. */
+    /** Returns the table schema for the destination. */
     @Override
-    public TableSchema getSchema(DestinationT destination) {
+    public @Nullable TableSchema getSchema(DestinationT destination) {
       TableDestination wrappedDestination = super.getTable(destination);
-      Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
+      @Nullable Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
       if (existingTable == null) {
         return super.getSchema(destination);
       } else {

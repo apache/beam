@@ -23,7 +23,7 @@ export * from "./group_and_combine";
 export * from "./pardo";
 export * from "./transform";
 export * from "./window";
-export { Impulse } from "./internal";
+export { impulse, withRowCoder } from "./internal";
 
 import { requireForSerialization } from "../serialization";
 requireForSerialization("apache_beam.transforms", exports);
