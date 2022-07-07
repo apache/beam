@@ -95,6 +95,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
   // Close connection to Pulsar clients
   @Teardown
   public void teardown() throws Exception {
+    LOG.info("Client closed");
     this.client.close();
     this.admin.close();
   }
@@ -166,28 +167,34 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
           return ProcessContinuation.resume();
         }
         Long currentTimestamp = message.getPublishTime();
+
+        // validate when pulsar client seek for the start timestamp, the next timestamp should be
+        // greater than the start restriction
+        if(currentTimestamp < tracker.currentRestriction().getFrom()) {
+          reader.close();
+          return ProcessContinuation.stop();
+        }
         // if tracker.tryclaim() return true, sdf must execute work otherwise
         // doFn must exit processElement() without doing any work associated
         // or claiming more work
+        LOG.info("From time {}", tracker.currentRestriction().getFrom());
         LOG.info("Current time before claimed {}", currentTimestamp);
+        LOG.info("To time {}", tracker.currentRestriction().getTo());
         if (!tracker.tryClaim(currentTimestamp)) {
           reader.close();
           return ProcessContinuation.stop();
         }
-        LOG.info("From time {}", tracker.currentRestriction().getFrom());
-        LOG.info("Current time {}", currentTimestamp);
-        LOG.info("To time {}", tracker.currentRestriction().getTo());
+        LOG.info("Current time claimed {}", currentTimestamp);
 
         if (pulsarSourceDescriptor.getEndMessageId() != null) {
           MessageId currentMsgId = message.getMessageId();
           boolean hasReachedEndMessageId =
               currentMsgId.compareTo(pulsarSourceDescriptor.getEndMessageId()) == 0;
           if (hasReachedEndMessageId) {
+            reader.close();
             return ProcessContinuation.stop();
           }
         }
-        failOverTimestamp = currentTimestamp;
-        LOG.info("Failover timestamp {}", failOverTimestamp);
         PulsarMessage pulsarMessage =
             new PulsarMessage(message.getTopicName(), message.getPublishTime(), message);
         Instant outputTimestamp = extractOutputTimestampFn.apply(message);
@@ -211,12 +218,8 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
   @NewTracker
   public OffsetRangeTracker restrictionTracker(
       @Element PulsarSourceDescriptor pulsarSource, @Restriction OffsetRange restriction) {
-    LOG.info("Restriction Tracker {} to {} with failovertimestamp {}", restriction.getFrom(), restriction.getTo(), failOverTimestamp);
+    LOG.info("Restriction Tracker {} to {}", restriction.getFrom(), restriction.getTo());
     if (restriction.getTo() < Long.MAX_VALUE) {
-      if(restriction.getFrom() < failOverTimestamp && restriction.getTo() > failOverTimestamp) {
-        LOG.info("Restriction Tracker with limit {} to {}", failOverTimestamp, restriction.getTo());
-        return new OffsetRangeTracker(new OffsetRange(failOverTimestamp, restriction.getTo()));
-      }
       return new OffsetRangeTracker(new OffsetRange(restriction.getFrom(), restriction.getTo()));
     }
     PulsarLatestOffsetEstimator offsetEstimator =
