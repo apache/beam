@@ -27,8 +27,14 @@ Ubuntu Self-hosted runners are stored in Artifact Registry and implemented using
 * Cluster: [github-actions-linux-runners](https://console.cloud.google.com/kubernetes/clusters/details/us-central1-a/github-actions-linux-runners/details?project=apache-beam-testing)
 * Image: [linux-github-actions-runner](https://console.cloud.google.com/artifacts/docker/apache-beam-testing/us-central1/beam-github-actions/linux-github-actions-runner?project=apache-beam-testing)
 
+#### Pool
+* Number of nodes: 5
+* Cluster Autoscaler: ON
+  * Minimum number of nodes: 5
+  * Maximum number of nodes: 10
+
 #### Node
-* Machine Type: 2-custom-6-18432
+* Machine Type: e2-custom-6-18432
 * Disk Size: 100 GB
 * CPU: 6 vCPUs
 * Memory : 18 GB
@@ -37,24 +43,30 @@ Ubuntu Self-hosted runners are stored in Artifact Registry and implemented using
 * Image: $LOCAL_IMAGE_NAME LOCATION-docker.pkg.dev/PROJECT-ID/REPOSITORY/IMAGE:latest
 * CPU: 2
 * Memory: 1028 Mi
-* Volumes: docker.sock
-* Secret env variables: Kubernetes Secrets
+* Volumes 
+  * docker-sock
+  * gcloud-key
+* Secret env variables
+  * Kubernetes Secrets 
+    * github-actions-secrets
+    * gcloud-key
 
 #### AutoScaling
 * Horizontal Pod Autoscaling
-  * 5-10 nodes
+  * 5-10 nodes (From Pool Cluster Autoscaler)
   * HorizontalPodAutoscaler
     * Min replicas: 10
     * Max replicas: 20
     * CPU utilization: 70%
-* Vertical Pod Autoscaling: updateMode: "Auto"
+* Vertical Pod Autoscaling 
+  * updateMode: "Auto"
 
 
 ## Windows
 Windows Virtual machines have the following specifications
 
 #### VM specifications
-* Instace Template: _TODO: Add GCP link when final resources are in place._
+* Instance Template: _TODO: Add GCP link when final resources are in place._
 * Machine Type: n2-standard-2
 * Disk Size: 70 GB
 * Disk Image: [disk-image-windows-runner](https://console.cloud.google.com/compute/imagesDetail/projects/apache-beam-testing/global/images/disk-image-windows-runner?project=apache-beam-testing)

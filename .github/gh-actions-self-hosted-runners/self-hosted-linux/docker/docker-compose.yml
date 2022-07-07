@@ -24,6 +24,6 @@ services:
     image: $IMAGE_URL:${TAG:-latest}
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
-      -  "$USER_LOCAL_PATH:/var/secrets/google/key.json"
+      -  "$USER_LOCAL_PATH:/var/secrets/google/key.json" # Replace variable manually
     env_file:
       - ./var.env

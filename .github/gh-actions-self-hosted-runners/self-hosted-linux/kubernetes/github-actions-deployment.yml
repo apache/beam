@@ -33,7 +33,7 @@ spec:
     spec:
       containers:
         - name: github-actions-ubuntu-runner
-          image: $IMAGE_URL:latest # replace variable manually
+          image: $IMAGE_URL:latest # Replace variable manually
           securityContext:
             privileged: true
           envFrom:

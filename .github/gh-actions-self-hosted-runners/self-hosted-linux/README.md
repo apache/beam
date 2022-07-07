@@ -15,6 +15,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 -->
+
 # GitHub Actions - Self-hosted Linux Runners
 These folders contain the required resources to deploy the GitHub Actions self-hosted runners for the workflows running in Ubuntu OS.
 * /docker
@@ -22,7 +23,7 @@ These folders contain the required resources to deploy the GitHub Actions self-h
   * docker-compose.yml: In case you would like to test and run the self-hosted runner locally.
 
 * /kubernetes
-  * Kubernetes files to create the resources needed to deploy the sel-hosted runners.
+  * Kubernetes files to create the resources needed to deploy the self-hosted runners.
 
 ## Docker
 
@@ -45,7 +46,14 @@ These folders contain the required resources to deploy the GitHub Actions self-h
 
 #### How to run a self-hosted locally?
 
-* Create a `.var.env` file from the `example.var.env` file and replace the corresponding values
+* Create a `.var.env` file from the `example.var.env` file and replace the corresponding values:
+  * GOOGLE_APPLICATION_CREDENTIALS: Path where the json file will be stored (Same path as the one given in the docker-compose.yml file)
+  * CLOUD_FUNCTION_NAME: Function where the self-hosted runner will get the RUNNER_TOKEN
+  * ORG_RUNNER_GROUP: Name of the GitHub Actions Runner Group. You can find it here: https://github.com/organizations/ORG_NAME/settings/actions/runner-groups
+  * ORG_NAME: Name of the Organization
+  * GCP_REGION: GCP Region where your Cloud Function is deployed
+  * GCP_PROJECT_ID: GCP Project Id where your Cloud Function is deployed
+
 
 * Run the container
 
@@ -54,24 +62,29 @@ These folders contain the required resources to deploy the GitHub Actions self-h
 * You will be able to see the self-hosted runner in the Settings of your GitHub repository
 
 ## Kubernetes
+
+ For the current implementation we are using Google Kubernetes Engine (GKE) as a container orchestration platform.
+
 * Configure your Kubernetes local context
 
-`gcloud container clusters get-credentials $CLUSTER_NAME --zone us-central1-a --project $PROJECT-ID`
+`gcloud container clusters get-credentials $GCP_CLUSTER_NAME --zone $GCP_REGION --project $GCP_PROJECT-ID`
 
 * Create the GKE secret from a json file 
 
  `kubectl create secret generic $k8s_SECRET_NAME --from-file=key.json=$LOCAL_PATH`
 
-* Update the `github-actions-secrets.yml` file with its corresponding encrypted in base64 values
+* Update the `github-actions-secrets.yml` file with its corresponding values encrypted in base64
 
-`echo -n "$ORG_NAME" | base64`
+`echo -n "$VARIABLE_VALUE" | base64`
 
-* Replace in `github-actions-deployment.yml` file the `$IMAGE_URL` variable with the corresponding image URL: `LOCATION-docker.pkg.dev/PROJECT-ID/REPOSITORY/IMAGE`
+* Replace in `github-actions-deployment.yml` file the `$IMAGE_URL` variable with the corresponding image URL: `GCP_LOCATION-docker.pkg.dev/GCP_PROJECT_ID/REPOSITORY_NAME/IMAGE_NAME`
 
-* In case you would like to create the deployment from scratch, run the `run-k8s-deployment.sh` script to do the Kubernetes deployment in the GKE cluster. Make sure you have the GKE context selected in your local machine
+
+* In case you would like to create the deployment from scratch, run the `run-k8s-deployment.sh` script to execute the Kubernetes deployment in the GKE cluster. 
+  * **Important: Make sure you have the GKE context selected in your local machine:** `kubectl config current-context`
 
 `./run-k8s-deployment.sh`
 
-* Otherwise, apply only the changes. Make sure you have the GKE context selected in your local machine
+* Otherwise, apply only the changes. **Important: Make sure you have the GKE context selected in your local machine:** `kubectl config current-context`
 
 `kubectl apply -f github-actions-$FILE_NAME.yml`
