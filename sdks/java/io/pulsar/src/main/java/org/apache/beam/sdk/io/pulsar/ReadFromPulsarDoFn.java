@@ -187,6 +187,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
           }
         }
         failOverTimestamp = currentTimestamp;
+        LOG.info("Failover timestamp {}", failOverTimestamp);
         PulsarMessage pulsarMessage =
             new PulsarMessage(message.getTopicName(), message.getPublishTime(), message);
         Instant outputTimestamp = extractOutputTimestampFn.apply(message);
@@ -210,7 +211,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
   @NewTracker
   public OffsetRangeTracker restrictionTracker(
       @Element PulsarSourceDescriptor pulsarSource, @Restriction OffsetRange restriction) {
-    LOG.info("Restriction Tracker {} to {}", restriction.getFrom(), restriction.getTo());
+    LOG.info("Restriction Tracker {} to {} with failovertimestamp {}", restriction.getFrom(), restriction.getTo(), failOverTimestamp);
     if (restriction.getTo() < Long.MAX_VALUE) {
       if(restriction.getFrom() < failOverTimestamp && restriction.getTo() > failOverTimestamp) {
         LOG.info("Restriction Tracker with limit {} to {}", failOverTimestamp, restriction.getTo());
@@ -220,7 +221,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
     }
     PulsarLatestOffsetEstimator offsetEstimator =
         new PulsarLatestOffsetEstimator(this.admin, pulsarSource.getTopic());
-    LOG.info("RestrictionFrom {}", restriction.getFrom());
+    LOG.info("GrowableOffsetRangeTracker from {}", restriction.getFrom());
     return new GrowableOffsetRangeTracker(restriction.getFrom(), offsetEstimator);
   }
 
