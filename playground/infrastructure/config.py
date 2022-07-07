@@ -63,6 +63,7 @@ class Config:
   CD_STEP_NAME = "CD"
   CI_CD_LITERAL = Literal["CI", "CD"]
   LINK_PREFIX = "https://github.com/apache/beam/blob/master"
+  GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT", "local-project")
 
 
 @dataclass(frozen=True)
