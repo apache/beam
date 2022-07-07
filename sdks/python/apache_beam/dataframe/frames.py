@@ -103,7 +103,10 @@ def _fillna_alias(method):
           frame_base.populate_defaults(pd.DataFrame)(wrapper)))
 
 
+# These aggregations are commutative and associative, they can be trivially
+# "lifted" (i.e. we can pre-aggregate on partitions, group, then post-aggregate)
 LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'sum']
+# These aggregations can be lifted if post-aggregated with "sum"
 LIFTABLE_WITH_SUM_AGGREGATIONS = ['size', 'count']
 UNLIFTABLE_AGGREGATIONS = [
     'mean',
@@ -115,10 +118,6 @@ UNLIFTABLE_AGGREGATIONS = [
     'skew',
     'kurt',
     'kurtosis',
-    # TODO: The below all have specialized distributed
-    # implementations, but they require tracking
-    # multiple intermediate series, which is difficult
-    # to lift in groupby
     'std',
     'var',
     'corr',
@@ -129,12 +128,30 @@ ALL_AGGREGATIONS = (
     LIFTABLE_AGGREGATIONS + LIFTABLE_WITH_SUM_AGGREGATIONS +
     UNLIFTABLE_AGGREGATIONS)
 
+# These aggregations have specialized distributed implementations on
+# DeferredSeries, which are re-used in DeferredFrame. Note they are *not* used
+# for grouped aggregations, since they generally require tracking multiple
+# intermediate series, which is difficult to lift in groupby.
+HAND_IMPLEMENTED_GLOBAL_AGGREGATIONS = {
+    'quantile',
+    'std',
+    'var',
+    'nunique',
+    'corr',
+    'cov',
+    'skew',
+    'kurt',
+    'kurtosis'
+}
+UNLIFTABLE_GLOBAL_AGGREGATIONS = (
+    set(UNLIFTABLE_AGGREGATIONS) - set(HAND_IMPLEMENTED_GLOBAL_AGGREGATIONS))
+
 
 def _agg_method(base, func):
   def wrapper(self, *args, **kwargs):
     return self.agg(func, *args, **kwargs)
 
-  if func in UNLIFTABLE_AGGREGATIONS:
+  if func in UNLIFTABLE_GLOBAL_AGGREGATIONS:
     wrapper.__doc__ = (
         f"``{func}`` cannot currently be parallelized. It will "
         "require collecting all data on a single node.")
@@ -1987,15 +2004,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             "single node.")
 
       # We have specialized distributed implementations for these
-      if base_func in ('quantile',
-                       'std',
-                       'var',
-                       'nunique',
-                       'corr',
-                       'cov',
-                       'skew',
-                       'kurt',
-                       'kurtosis'):
+      if base_func in HAND_IMPLEMENTED_GLOBAL_AGGREGATIONS:
         result = getattr(self, base_func)(*args, **kwargs)
         if isinstance(func, list):
           with expressions.allow_non_parallel_operations(True):
