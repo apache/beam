@@ -204,10 +204,20 @@ class SchemaTranslation(object):
         schema = schema_pb2.Schema(
             fields=[
                 schema_pb2.Field(
-                    name=name, type=self.typing_to_runner_api(field_type))
-                for (name, field_type) in type_._fields
+                    name=field_name,
+                    type=self.typing_to_runner_api(field_type),
+                    options=[
+                        self.option_to_runner_api(option_tuple)
+                        for option_tuple in type_.field_options(field_name)
+                    ],
+                ) for (field_name, field_type) in type_._fields
             ],
-            id=schema_id)
+            id=schema_id,
+            options=[
+                self.option_to_runner_api(option_tuple)
+                for option_tuple in type_.schema_options
+            ],
+        )
         self.schema_registry.add(type_.user_type, schema)
       return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=schema))
     else:
@@ -260,6 +270,86 @@ class SchemaTranslation(object):
               representation=self.typing_to_runner_api(
                   logical_type.representation_type())))
 
+  def option_from_runner_api(
+      self, option_proto: schema_pb2.Option) -> Tuple[str, Any]:
+    if not option_proto.HasField('type'):
+      return option_proto.name, None
+
+    fieldtype_proto = option_proto.type
+    if fieldtype_proto.WhichOneof("type_info") != "atomic_type":
+      raise ValueError(
+          "Encounterd option with unsupported type. Only "
+          f"atomic_type options are supported: {option_proto}")
+
+    if fieldtype_proto.atomic_type == schema_pb2.BYTE:
+      value = np.int8(option_proto.value.atomic_value.byte)
+    elif fieldtype_proto.atomic_type == schema_pb2.INT16:
+      value = np.int16(option_proto.value.atomic_value.int16)
+    elif fieldtype_proto.atomic_type == schema_pb2.INT32:
+      value = np.int32(option_proto.value.atomic_value.int32)
+    elif fieldtype_proto.atomic_type == schema_pb2.INT64:
+      value = np.int64(option_proto.value.atomic_value.int64)
+    elif fieldtype_proto.atomic_type == schema_pb2.FLOAT:
+      value = np.float32(option_proto.value.atomic_value.float)
+    elif fieldtype_proto.atomic_type == schema_pb2.DOUBLE:
+      value = np.float64(option_proto.value.atomic_value.double)
+    elif fieldtype_proto.atomic_type == schema_pb2.STRING:
+      value = option_proto.value.atomic_value.string
+    elif fieldtype_proto.atomic_type == schema_pb2.BOOLEAN:
+      value = option_proto.value.atomic_value.boolean
+    elif fieldtype_proto.atomic_type == schema_pb2.BYTES:
+      value = option_proto.value.atomic_value.bytes
+    else:
+      raise ValueError(
+          f"Unrecognized atomic_type ({fieldtype_proto.atomic_type}) "
+          f"when decoding option {option_proto!r}")
+
+    return option_proto.name, value
+
+  def option_to_runner_api(self, option: Tuple[str, Any]) -> schema_pb2.Option:
+    name, value = option
+
+    if value is None:
+      # a value of None indicates the option is just a flag.
+      # Don't set type, value
+      return schema_pb2.Option(name=name)
+
+    fieldtype_proto = self.typing_to_runner_api(type(value))
+    if fieldtype_proto.WhichOneof("type_info") != "atomic_type":
+      # TODO: Allow other value types
+      raise ValueError(
+          "Only atomic_type option values are currently supported in Python. "
+          f"Got {value!r}, which maps to fieldtype {fieldtype_proto!r}.")
+
+    if fieldtype_proto.atomic_type == schema_pb2.BYTE:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(byte=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.INT16:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(int16=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.INT32:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(int32=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.INT64:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(int64=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.FLOAT:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(float=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.DOUBLE:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(double=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.STRING:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(string=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.BOOLEAN:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(boolean=value)
+    elif fieldtype_proto.atomic_type == schema_pb2.BYTES:
+      atomictypevalue_proto = schema_pb2.AtomicTypeValue(bytes=value)
+    else:
+      raise ValueError(
+          "Unrecognized atomic_type in fieldtype_proto="
+          f"{fieldtype_proto!r} when encoding option {option!r}")
+
+    return schema_pb2.Option(
+        name=name,
+        type=fieldtype_proto,
+        value=schema_pb2.FieldValue(atomic_value=atomictypevalue_proto),
+    )
+
   def typing_from_runner_api(
       self, fieldtype_proto: schema_pb2.FieldType) -> type:
     if fieldtype_proto.nullable:
@@ -290,6 +380,17 @@ class SchemaTranslation(object):
           self.typing_from_runner_api(fieldtype_proto.map_type.value_type)]
     elif type_info == "row_type":
       schema = fieldtype_proto.row_type.schema
+      schema_options = [
+          self.option_from_runner_api(option_proto)
+          for option_proto in schema.options
+      ]
+      field_options = {
+          field.name: [
+              self.option_from_runner_api(option_proto)
+              for option_proto in field.options
+          ]
+          for field in schema.fields if field.options
+      }
       # First look for user type in the registry
       user_type = self.schema_registry.get_typing_by_id(schema.id)
 
@@ -326,11 +427,17 @@ class SchemaTranslation(object):
 
         self.schema_registry.add(user_type, schema)
         coders.registry.register_coder(user_type, coders.RowCoder)
-        result = row_type.RowTypeConstraint.from_user_type(user_type)
+        result = row_type.RowTypeConstraint.from_user_type(
+            user_type,
+            schema_options=schema_options,
+            field_options=field_options)
         result.set_schema_id(schema.id)
         return result
       else:
-        return row_type.RowTypeConstraint.from_user_type(user_type)
+        return row_type.RowTypeConstraint.from_user_type(
+            user_type,
+            schema_options=schema_options,
+            field_options=field_options)
 
     elif type_info == "logical_type":
       if fieldtype_proto.logical_type.urn == PYTHON_ANY_URN:
