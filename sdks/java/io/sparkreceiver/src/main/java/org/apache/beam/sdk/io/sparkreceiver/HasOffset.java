@@ -24,13 +24,9 @@ import org.apache.spark.streaming.receiver.Receiver;
  */
 public interface HasOffset {
 
-  /**
-   * @param offset inclusive start offset from which the reading should be started.
-   */
+  /** @param offset inclusive start offset from which the reading should be started. */
   void setStartOffset(Long offset);
 
-  /**
-   * @return exclusive end offset to which the reading from current page will occur.
-   */
+  /** @return exclusive end offset to which the reading from current page will occur. */
   Long getEndOffset();
 }
