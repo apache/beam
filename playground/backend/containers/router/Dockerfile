@@ -81,4 +81,3 @@ COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
 
 ENTRYPOINT ["/entrypoint.sh"]
-
