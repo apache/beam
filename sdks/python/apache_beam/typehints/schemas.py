@@ -276,7 +276,7 @@ class SchemaTranslation(object):
       return option_proto.name, None
 
     fieldtype_proto = option_proto.type
-    if not fieldtype_proto.WhichOneof("type_info") == "atomic_type":
+    if fieldtype_proto.WhichOneof("type_info") != "atomic_type":
       raise ValueError(
           "Encounterd option with unsupported type. Only "
           f"atomic_type options are supported: {option_proto}")
@@ -301,8 +301,8 @@ class SchemaTranslation(object):
       value = option_proto.value.atomic_value.bytes
     else:
       raise ValueError(
-          "Unrecognized atomic_type ({fieldtype_proto.atomic_type}) "
-          "when decoding option {option_proto!r}")
+          f"Unrecognized atomic_type ({fieldtype_proto.atomic_type}) "
+          f"when decoding option {option_proto!r}")
 
     return option_proto.name, value
 
@@ -315,7 +315,7 @@ class SchemaTranslation(object):
       return schema_pb2.Option(name=name)
 
     fieldtype_proto = self.typing_to_runner_api(type(value))
-    if not fieldtype_proto.WhichOneof("type_info") == "atomic_type":
+    if fieldtype_proto.WhichOneof("type_info") != "atomic_type":
       # TODO: Allow other value types
       raise ValueError(
           "Only atomic_type option values are currently supported in Python. "
