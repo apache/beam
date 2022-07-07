@@ -7066,9 +7066,9 @@ function to access the transform.
 
 **Expansion Services**
 
-The Go SDK supports automatically starting Java expansion services by passing an `auto` keyword as the targeted
-expansion address. In order to use Python cross-language transforms, you must manually start any necessary
-expansion services on your local machine and ensure they are accessible to your code during pipeline construction.
+The Go SDK supports automatically starting Java expansion services if an expansion address is not provided, although this is slower than
+providing a persistent expansion service. In order to use Python cross-language transforms, you must manually start any necessary expansion 
+services on your local machine and ensure they are accessible to your code during pipeline construction.
 
 **Using an SDK wrapper**
 
