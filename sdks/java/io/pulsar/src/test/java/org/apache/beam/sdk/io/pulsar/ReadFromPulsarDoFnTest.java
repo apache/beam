@@ -160,6 +160,22 @@ public class ReadFromPulsarDoFnTest {
     assertEquals(DoFn.ProcessContinuation.stop(), result);
   }
 
+  @Test
+  public void testProcessElementWhenPulsarSeeksWrongTimestamp() throws Exception {
+    MockOutputReceiver receiver = new MockOutputReceiver();
+    fakePulsarReader.setWrongSeek(true);
+    long startOffset = fakePulsarReader.getMessageTimestamp(3);
+    long endOffset = fakePulsarReader.getEndTimestamp();
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(startOffset, endOffset));
+    DoFn.ProcessContinuation result =
+            dofnInstance.processElement(
+                    PulsarSourceDescriptor.of(TOPIC, null, null, null, SERVICE_URL, ADMIN_URL),
+                    tracker,
+                    null,
+                    (DoFn.OutputReceiver) receiver);
+    assertEquals(DoFn.ProcessContinuation.stop(), result);
+  }
+
   private static class MockOutputReceiver implements DoFn.OutputReceiver<PulsarMessage> {
 
     private final List<PulsarMessage> records = new ArrayList<>();

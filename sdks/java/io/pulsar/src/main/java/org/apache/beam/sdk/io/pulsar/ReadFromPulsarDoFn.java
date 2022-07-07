@@ -53,7 +53,6 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
   private PulsarAdmin admin;
   private String clientUrl;
   private String adminUrl;
-  private long failOverTimestamp;
 
   private final SerializableFunction<Message<byte[]>, Instant> extractOutputTimestampFn;
 
@@ -62,7 +61,6 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
     this.clientUrl = transform.getClientUrl();
     this.adminUrl = transform.getAdminUrl();
     this.pulsarClientSerializableFunction = transform.getPulsarClient();
-    this.failOverTimestamp = 0L;
   }
 
   // Open connection to Pulsar clients
@@ -171,6 +169,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
         // validate when pulsar client seek for the start timestamp, the next timestamp should be
         // greater than the start restriction
         if(currentTimestamp < tracker.currentRestriction().getFrom()) {
+          LOG.warn("Initial restriction ({}) is greather than Current timestamp ({})", tracker.currentRestriction().getFrom(), currentTimestamp);
           reader.close();
           return ProcessContinuation.stop();
         }
