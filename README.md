@@ -32,7 +32,7 @@
 [![Java tests](https://github.com/apache/beam/workflows/Java%20Tests/badge.svg?branch=master&event=schedule)](https://github.com/apache/beam/actions?query=workflow%3A%22Java+Tests%22+branch%3Amaster+event%3Aschedule)
 [![Go tests (Jenkins)](https://ci-beam.apache.org/job/beam_PreCommit_Go_Cron/lastCompletedBuild/badge/icon?subject=Go%20Tests%28Jenkins%29)](https://ci-beam.apache.org/job/beam_PreCommit_Go_Cron/lastCompletedBuild/)
 [![Java tests (Jenkins)](https://ci-beam.apache.org/job/beam_PreCommit_Java_Cron/lastCompletedBuild/badge/icon?subject=Java%20Tests%28Jenkins%29)](https://ci-beam.apache.org/job/beam_PreCommit_Java_Cron/lastCompletedBuild/)
-[![Python tests (Jenkins)](https://ci-beam.apache.org/job/beam_PreCommit_Python_Cron/lastCompletedBuild/badge/icon?subject=Python%20Tests%28Jenkins%29)](https://ci-beam.apache.org/job/beam_PreCommit_Python_Cron/lastCompletedBuild/)
+[![Python tests (Jenkins)](https://ci-beam.apache.org/job/beam_PreCommit_Python_Cron/lastCompletedBuild/badge/icon?subject=Python%20Tests%28Jenkins%29)](https://ci-beam.apache.org/job/beam_PreCommit_Python_Cron/lastCompletedBuild/) [![Join the chat at https://gitter.im/apache-beam-chat/community](https://badges.gitter.im/apache-beam-chat/community.svg)](https://gitter.im/apache-beam-chat/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Overview
 
