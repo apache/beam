@@ -40,8 +40,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * GetterBasedSchemaProvider#fromRowFunction(TypeDescriptor) fromRowFunction}.
  *
  * <p>Each benchmark method invocation, depending on {@link RowBundle#action}, either reads a bundle
- * of {@link RowBundle#bundleSize n} rows to a {@link RowBundle.Sink Sink} using corresponding getters or
- * writes objects using corresponding setters.
+ * of {@link RowBundle#bundleSize n} rows to a {@link RowBundle.Sink Sink} using corresponding
+ * getters or writes objects using corresponding setters.
  *
  * <p>Rows are created upfront and provided as JMH {@link State} to exclude initialization costs
  * from the measurement.
