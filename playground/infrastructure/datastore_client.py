@@ -16,6 +16,7 @@
 """
 Module contains the client to communicate with Google Cloud Datastore
 """
+import string
 from typing import List
 
 from google.cloud import datastore
@@ -24,20 +25,18 @@ from tqdm import tqdm
 from config import Config
 from helper import Example
 
-namespace = "Playground"
-exampleKind = "pg_examples"
-snippetKind = "pg_snippets"
-schemaVersionKind = "pg_schema_versions"
-precompiledObjectKind = "pg_pc_objects"
-fileKind = "pg_files"
+import constant
+from hashlib import sha256
+from base64 import urlsafe_b64encode
 
 
+# https://cloud.google.com/datastore/docs/concepts/entities
 class DatastoreClient:
     """DatastoreClient is a datastore client for sending a request to the Google."""
 
     def __init__(self):
         self._datastore_client = datastore.Client(
-            namespace=namespace,
+            namespace=constant.NAMESPACE,
             project=Config.GOOGLE_CLOUD_PROJECT
         )
 
@@ -51,6 +50,11 @@ class DatastoreClient:
 
         with self._datastore_client.transaction():
             for example in tqdm(examples):
-                exampleEntity = datastore.Entity(self._datastore_client.key(""))
+                exampleEntity = datastore.Entity(self._datastore_client.key(constant.FILED_KIND, ))
 
             self._datastore_client.put_multi()
+
+    def _generate_id(self, salt, content: string, length: int) -> string:
+        hash_init = sha256()
+        hash_init.update(salt + content)
+        return urlsafe_b64encode(hash_init.digest())[:length]

@@ -26,9 +26,6 @@ import shutil
 from pathlib import Path
 from typing import List
 
-from tqdm import tqdm
-from google.cloud import storage
-
 from api.v1.api_pb2 import Sdk, SDK_PYTHON, SDK_JAVA, PrecompiledObjectType
 from config import Config, PrecompiledExample
 from grpc_client import GRPCClient
@@ -95,32 +92,6 @@ class CDHelper:
 
         for log, example in zip(logs, examples):
             example.logs = log
-
-    def _save_to_cloud_storage(self, examples: List[Example]):
-        """
-        Save examples, outputs and meta to bucket
-
-        Args:
-            examples: precompiled examples
-        """
-        self._storage_client = storage.Client()
-        self._bucket = self._storage_client.bucket(Config.BUCKET_NAME)
-
-        for example in tqdm(examples):
-            file_names = self._write_to_local_fs(example)
-
-            if example.tag.default_example:
-                default_example_path = str(Path([*file_names].pop()).parent)
-                cloud_path = self._write_default_example_path_to_local_fs(
-                    default_example_path)
-
-                self._upload_blob(
-                    source_file=os.path.join(Config.TEMP_FOLDER, cloud_path),
-                    destination_blob_name=cloud_path)
-
-            for cloud_file_name, local_file_name in file_names.items():
-                self._upload_blob(
-                    source_file=local_file_name, destination_blob_name=cloud_file_name)
 
     def _write_default_example_path_to_local_fs(self, path: str) -> str:
         """
@@ -239,22 +210,6 @@ class CDHelper:
             PrecompiledObjectType.Name(type),
             base_folder_name,
             f"{file_name}.{extension}")
-
-    def _upload_blob(self, source_file: str, destination_blob_name: str):
-        """
-        Upload a file to the bucket.
-
-        Args:
-            source_file: name of the file to be stored
-            destination_blob_name: "storage-object-name"
-        """
-
-        blob = self._bucket.blob(destination_blob_name)
-        blob.upload_from_filename(source_file)
-        # change caching to no caching
-        blob.cache_control = Config.NO_STORE
-        blob.patch()
-        logging.info("File uploaded to %s", destination_blob_name)
 
     def _clear_temp_folder(self):
         """

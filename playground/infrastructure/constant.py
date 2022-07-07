@@ -13,12 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-
-from logger import setup_logger
-
-
-def test_setup_logger():
-    count_default_handlers = len(logging.getLogger().handlers)
-    setup_logger()  # adding 2 handlers in root logger
-    assert (len(logging.getLogger().handlers) - count_default_handlers) == 2
+NAMESPACE = "Playground"
+EXAMPLE_KIND = "pg_examples"
+SNIPPET_KIND = "pg_snippets"
+SCHEMA_KIND = "pg_schema_versions"
+PRECOMPILED_OBJECT_KIND = "pg_pc_objects"
+FILED_KIND = "pg_files"
