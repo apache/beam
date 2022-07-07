@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-/**
- * Transforms for reading and writing from streaming CDAP plugins.
- */
+/** Transforms for reading and writing from streaming CDAP plugins. */
 @Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.sparkreceiver;
 
