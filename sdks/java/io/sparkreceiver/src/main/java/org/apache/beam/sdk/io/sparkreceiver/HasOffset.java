@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
-import org.apache.spark.streaming.receiver.Receiver;
-
-/** Interface for any Spark {@link Receiver} that supports reading from and to some offset. */
+/** Interface for any Spark {@link org.apache.spark.streaming.receiver.Receiver} that supports reading from and to some offset. */
 public interface HasOffset {
 
   /** @param offset inclusive start offset from which the reading should be started. */

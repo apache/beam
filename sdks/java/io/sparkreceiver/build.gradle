@@ -33,14 +33,7 @@ ext.summary = """Apache Beam SDK provides a simple, Java-based
 interface for streaming integration with CDAP plugins."""
 
 dependencies {
-    implementation library.java.commons_lang3
-    implementation library.java.joda_time
-    implementation library.java.slf4j_api
-    implementation library.java.spark_streaming
-    implementation library.java.spark_core
-    implementation library.java.vendored_guava_26_0_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    compileOnly "org.scala-lang:scala-library:2.11.12"
     testImplementation library.java.junit
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation project(path: ":examples:java", configuration: "testRuntimeMigration")
