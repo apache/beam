@@ -64,19 +64,18 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.description.modifier.Visibility;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.dynamic.DynamicType;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.ByteBuddy;
+import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.modifier.Visibility;
+import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.type.TypeDescription;
+import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.DynamicType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -1315,7 +1314,7 @@ public class ProxyInvocationHandlerTest {
     ExecutorService executor = Executors.newFixedThreadPool(numWorkers + numReaders);
     List<Future<?>> futs = Lists.newArrayList();
 
-    // launch a `numWorkers` concurrent "writers" that will try to cast the proxy handler to various
+    // launch `numWorkers` concurrent "writers" that will try to cast the proxy handler to various
     // interfaces and set a value on them.
     for (int start = 0; start < numInterfaces; start += step) {
       final int s = start;
@@ -1341,7 +1340,7 @@ public class ProxyInvocationHandlerTest {
       Callable<Void> worker =
           () -> {
             while (true) {
-              if (done.await(0, TimeUnit.MILLISECONDS)) {
+              if (done.getCount() == 0) {
                 return null;
               }
               assertNotNull(handler.toString());
@@ -1354,7 +1353,6 @@ public class ProxyInvocationHandlerTest {
 
     // wait for everything to finish
     startWaiter.countDown();
-    done.await();
     for (Future<?> fut : futs) {
       fut.get();
     }
