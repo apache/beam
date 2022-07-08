@@ -12828,8 +12828,7 @@ S3FileSystem
 &lt;/td>
 &lt;td>&lt;code>FileSystem&lt;/code> implementation for &lt;a href="https://aws.amazon.com/s3/">Amazon S3&lt;/a>.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/s3/S3FileSystemRegistrar.html">org.apache.beam.sdk.io.aws2.s3.S3FileSystemRegistrar (recommended)&lt;/a>&lt;/div>
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/s3/S3FileSystemRegistrar.html">org.apache.beam.sdk.io.aws.s3.S3FileSystemRegistrar&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/s3/S3FileSystemRegistrar.html">org.apache.beam.sdk.io.aws2.s3.S3FileSystemRegistrar&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-go">
@@ -12860,8 +12859,7 @@ KinesisIO
 &lt;/td>
 &lt;td>PTransforms for reading from and writing to &lt;a href="https://aws.amazon.com/kinesis/">Kinesis&lt;/a> streams.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/kinesis/KinesisIO.html">org.apache.beam.sdk.io.aws2.kinesis.KinesisIO (recommended)&lt;/a>&lt;/div>
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kinesis/KinesisIO.html">org.apache.beam.sdk.io.kinesis.KinesisIO&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/kinesis/KinesisIO.html">org.apache.beam.sdk.io.aws2.kinesis.KinesisIO&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-java">
@@ -12952,8 +12950,7 @@ SqsIO
 &lt;/td>
 &lt;td>An unbounded source for &lt;a href="https://aws.amazon.com/sqs/">Amazon Simple Queue Service (SQS)&lt;/a>.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sqs/SqsIO.html">org.apache.beam.sdk.io.aws2.sqs.SqsIO (recommended)&lt;/a>&lt;/div>
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/sqs/SqsIO.html">org.apache.beam.sdk.io.aws.sqs.SqsIO&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sqs/SqsIO.html">org.apache.beam.sdk.io.aws2.sqs.SqsIO&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-java">
@@ -12962,8 +12959,6 @@ SnsIO
 &lt;/td>
 &lt;td>PTransforms for writing to &lt;a href="https://aws.amazon.com/sns/">Amazon Simple Notification Service (SNS)&lt;/a>.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sns/SnsIO.html">org.apache.beam.sdk.io.aws2.sns.SnsIO (recommended)&lt;/a>&lt;/div>
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/sns/SnsIO.html">org.apache.beam.sdk.io.aws.sns.SnsIO&lt;/a>&lt;/div>
 &lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sns/SnsIO.html">org.apache.beam.sdk.io.aws2.sns.SnsIO&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
@@ -13200,8 +13195,7 @@ DynamoDBIO
 &lt;/td>
 &lt;td>Read from and write to &lt;a href="https://aws.amazon.com/dynamodb/">Amazon DynamoDB&lt;/a>.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/dynamodb/DynamoDBIO.html">org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO (recommended)&lt;/a>&lt;/div>
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/dynamodb/DynamoDBIO.html">org.apache.beam.sdk.io.aws.dynamodb.DynamoDBIO&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/dynamodb/DynamoDBIO.html">org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-java">
