@@ -35,7 +35,7 @@ const String kFeedbackContentText = 'Have feedback? We\'d love to hear it,'
     '\nHave questions? Try help or support.';
 
 class FeedbackDropdownContent extends StatelessWidget {
-  final Function close;
+  final void Function() close;
   final TextEditingController textController;
 
   const FeedbackDropdownContent({

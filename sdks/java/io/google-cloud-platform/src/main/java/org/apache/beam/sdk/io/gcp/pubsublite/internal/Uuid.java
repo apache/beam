@@ -29,7 +29,7 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 @DefaultCoder(UuidCoder.class)
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class Uuid {
   public static final String DEFAULT_ATTRIBUTE = "x-goog-pubsublite-dataflow-uuid";

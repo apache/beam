@@ -101,8 +101,9 @@ squash, split, etc, the commits, so that the history is most useful:
 * Favor commits that do just one thing. The commit is the smallest unit of easy
 rollback; it is easy to roll back many commits, or a whole pull request, but
 harder to roll back part of a commit.
-* Commit messages should tag JIRAs and be otherwise descriptive.
+* Commit messages should be descriptive and should reference the issue number that they address.
 It should later not be necessary to find a merge or first PR commit to find out what caused a change.
+* Pull request descriptions should contain a link to the issue being addressed by the changes.
 * `CHANGES.md` file should be updated with noteworthy changes (e.g. new features, backward
 incompatible changes, dependency changes, etc.).
 * Squash the "Fixup!", "Address comments" type of commits that resulted from review iterations.

@@ -61,7 +61,7 @@ type EventTime = mtime.Time
 
 // Window represents a concrete Window.
 type Window interface {
-	// MaxTimestamp returns the the inclusive upper bound of timestamps for values in this window.
+	// MaxTimestamp returns the inclusive upper bound of timestamps for values in this window.
 	MaxTimestamp() EventTime
 
 	// Equals returns true iff the windows are identical.

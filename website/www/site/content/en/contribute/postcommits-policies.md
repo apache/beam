@@ -46,11 +46,14 @@ When a post-commit test fails, follow the provided steps for your situation.
 
 ### I found a test failure {#found-failing-test}
 
-1.  Create a [JIRA issue](https://s.apache.org/beam-test-failure) and assign it to yourself.
+1.  Create a [GitHub issue](https://github.com/apache/tag-beam-it/issues/new/choose) and assign it to yourself.
+  - Components: testing, anything else relevant
+  - Label: precommit
+  - Reference this page in the description.
 1.  Do high level triage of the failure.
-1.  [Assign the JIRA issue to a relevant person](/contribute/postcommits-guides/index.html#find_specialist).
+1.  [Assign the issue to a relevant person](/contribute/postcommits-guides/index.html#find_specialist).
 
-### I was assigned a JIRA issue for a test failure {#assigned-failing-test}
+### I was assigned an issue for a test failure {#assigned-failing-test}
 
 1.  [Rollback the culprit change](/contribute/postcommits-guides/index.html#rollback).
 1.  If you determine that rollback will take longer than 8 hours, [disable the
@@ -63,7 +66,7 @@ When a post-commit test fails, follow the provided steps for your situation.
 ### My change was rolled back due to a test failure {#pr-rolled-back}
 
 After rollback there is time for deeper investigation. Start by looking at the
-JIRA issue to see the background information for the rollback. These scenarios
+GitHub issue to see the background information for the rollback. These scenarios
 are all common:
 
 *   Your change contained a bug.
@@ -87,7 +90,7 @@ If the bug is not in your code, here is how to "create a fix":
     [a flaky test is a critical bug](/contribute/postcommits-policies-details/index.html#flake_is_failing). Other
     bad tests are similar: they may fail for arbitrary reasons having nothing
     to do with what is being tested, making our signal unreliable.
-2.  Mark the problematic test to be skipped, with a link to the JIRA ticket.
+2.  Mark the problematic test to be skipped, with a link to the GitHub issue.
 
 ## Useful links
 

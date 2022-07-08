@@ -91,7 +91,7 @@ import org.joda.time.Instant;
  * Dataflow batch overrides for {@link CreatePCollectionView}, specialized for different view types.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class BatchViewOverrides {
   /**
@@ -119,8 +119,8 @@ class BatchViewOverrides {
    * </ul>
    *
    * <p>The {@code [META, Window, 0]} record stores the number of unique keys per window, while
-   * {@code [META, Window, i]} for {@code i} in {@code [1, size of map]} stores a the users key.
-   * This allows for one to access the size of the map by looking at {@code [META, Window, 0]} and
+   * {@code [META, Window, i]} for {@code i} in {@code [1, size of map]} stores the users key. This
+   * allows for one to access the size of the map by looking at {@code [META, Window, 0]} and
    * iterate over all the keys by accessing {@code [META, Window, i]} for {@code i} in {@code [1,
    * size of map]}.
    *
@@ -238,7 +238,7 @@ class BatchViewOverrides {
       Coder<W> windowCoder = (Coder<W>) input.getWindowingStrategy().getWindowFn().windowCoder();
 
       @SuppressWarnings({
-        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
         "unchecked"
       })
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
@@ -284,8 +284,8 @@ class BatchViewOverrides {
    * </ul>
    *
    * <p>The {@code [META, Window, 0]} record stores the number of unique keys per window, while
-   * {@code [META, Window, i]} for {@code i} in {@code [1, size of map]} stores a the users key.
-   * This allows for one to access the size of the map by looking at {@code [META, Window, 0]} and
+   * {@code [META, Window, i]} for {@code i} in {@code [1, size of map]} stores the users key. This
+   * allows for one to access the size of the map by looking at {@code [META, Window, 0]} and
    * iterate over all the keys by accessing {@code [META, Window, i]} for {@code i} in {@code [1,
    * size of map]}.
    *
@@ -723,7 +723,7 @@ class BatchViewOverrides {
       Coder<W> windowCoder = (Coder<W>) input.getWindowingStrategy().getWindowFn().windowCoder();
 
       @SuppressWarnings({
-        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
         "unchecked"
       })
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
@@ -755,7 +755,7 @@ class BatchViewOverrides {
       Coder<W> windowCoder = (Coder<W>) input.getWindowingStrategy().getWindowFn().windowCoder();
 
       @SuppressWarnings({
-        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
         "unchecked"
       })
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();

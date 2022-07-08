@@ -43,6 +43,15 @@ def kafkaVersions = [
     '251': "2.5.1",
 ]
 
+def sdfKafkaVersions = [
+        '201',
+        '211',
+        '222',
+        '231',
+        '241',
+        '251'
+]
+
 kafkaVersions.each{k,v -> configurations.create("kafkaVersion$k")}
 
 dependencies {
@@ -135,7 +144,8 @@ kafkaVersions.each {kv ->
     include '**/KafkaIOIT.class'
 
     filter {
-      includeTestsMatching "*InBatch"
+      excludeTestsMatching "*InStreaming"
+      if (!(kv.key in sdfKafkaVersions)) excludeTestsMatching "*DynamicPartitions" //admin client create partitions does not exist in kafka 0.11.0.3 and kafka sdf does not appear to work for kafka versions <2.0.1
     }
   }
 }

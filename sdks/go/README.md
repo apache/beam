@@ -112,7 +112,7 @@ See [BUILD.md](./BUILD.md) for how to build Go code in general. See
 
 ## Issues
 
-Please use the [`sdk-go`](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20component%20%3D%20sdk-go%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) component for any bugs or feature requests.
+Please use the [`sdk-go`](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Asdk-go) component for any bugs or feature requests.
 
 ## Contributing to the Go SDK
 

@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -37,24 +39,27 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
-// StatusAddress is a type of status endpoint address as an optional argument to harness.Main().
-type StatusAddress string
+// URNMonitoringInfoShortID is a URN indicating support for short monitoring info IDs.
+const URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
 
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
 // "pipeline-construction time" -- on each worker. It is a FnAPI client and
 // ultimately responsible for correctly executing user code.
-func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options ...interface{}) error {
+func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	hooks.DeserializeHooksFromOptions(ctx)
 
-	statusEndpoint := ""
-	for _, option := range options {
-		switch option := option.(type) {
-		case StatusAddress:
-			statusEndpoint = string(option)
-		default:
-			return errors.Errorf("unknown type %T, value %v in error call", option, option)
+	// Extract environment variables. These are optional runner supported capabilities.
+	// Expected env variables:
+	// RUNNER_CAPABILITIES : list of runner supported capability urn.
+	// STATUS_ENDPOINT : Endpoint to connect to status server used for worker status reporting.
+	statusEndpoint := os.Getenv("STATUS_ENDPOINT")
+	runnerCapabilities := strings.Split(os.Getenv("RUNNER_CAPABILITIES"), " ")
+	rcMap := make(map[string]bool)
+	if len(runnerCapabilities) > 0 {
+		for _, capability := range runnerCapabilities {
+			rcMap[capability] = true
 		}
 	}
 
@@ -68,9 +73,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 	recordHeader()
 
 	// Connect to FnAPI control server. Receive and execute work.
-	// TODO: setup data manager, DoFn register
-
-	conn, err := dial(ctx, controlEndpoint, 60*time.Second)
+	conn, err := dial(ctx, controlEndpoint, "control", 60*time.Second)
 	if err != nil {
 		return errors.Wrap(err, "failed to connect")
 	}
@@ -112,18 +115,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		log.Debugf(ctx, "control response channel closed")
 	}()
 
-	// if the runner supports worker status api then expose SDK harness status
-	if statusEndpoint != "" {
-		statusHandler, err := newWorkerStatusHandler(ctx, statusEndpoint)
-		if err != nil {
-			log.Errorf(ctx, "error establishing connection to worker status API: %v", err)
-		} else {
-			if err := statusHandler.start(ctx); err == nil {
-				defer statusHandler.stop(ctx)
-			}
-		}
-	}
-
 	sideCache := statecache.SideInputCache{}
 	sideCache.Init(cacheSize)
 
@@ -139,7 +130,21 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		data:                 &DataChannelManager{},
 		state:                &StateChannelManager{},
 		cache:                &sideCache,
+		runnerCapabilities:   rcMap,
 	}
+
+	// if the runner supports worker status api then expose SDK harness status
+	if statusEndpoint != "" {
+		statusHandler, err := newWorkerStatusHandler(ctx, statusEndpoint, ctrl.cache, func(statusInfo *strings.Builder) { ctrl.metStoreToString(statusInfo) })
+		if err != nil {
+			log.Errorf(ctx, "error establishing connection to worker status API: %v", err)
+		} else {
+			if err := statusHandler.start(ctx); err == nil {
+				defer statusHandler.stop(ctx)
+			}
+		}
+	}
+
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
 	// is responsible for managing the network data. All it does is pull data from
 	// the stream, and hand off the message to a goroutine to actually be handled,
@@ -275,7 +280,18 @@ type control struct {
 	data  *DataChannelManager
 	state *StateChannelManager
 	// TODO(BEAM-11097): Cache is currently unused.
-	cache *statecache.SideInputCache
+	cache              *statecache.SideInputCache
+	runnerCapabilities map[string]bool
+}
+
+func (c *control) metStoreToString(statusInfo *strings.Builder) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for bundleID, store := range c.metStore {
+		statusInfo.WriteString(fmt.Sprintf("Bundle ID: %v\n", bundleID))
+		statusInfo.WriteString(fmt.Sprintf("\t%s", store.BundleState()))
+		statusInfo.WriteString(fmt.Sprintf("\t%s", store.StateRegistry()))
+	}
 }
 
 func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
@@ -370,7 +386,8 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		c.cache.CompleteBundle(tokens...)
 
-		mons, pylds := monitoring(plan, store)
+		mons, pylds := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
+
 		requiresFinalization := false
 		// Move the plan back to the candidate state
 		c.mu.Lock()
@@ -493,7 +510,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			}
 		}
 
-		mons, pylds := monitoring(plan, store)
+		mons, pylds := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
 
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
@@ -650,7 +667,7 @@ func fail(ctx context.Context, id instructionID, format string, args ...interfac
 
 // dial to the specified endpoint. if timeout <=0, call blocks until
 // grpc.Dial succeeds.
-func dial(ctx context.Context, endpoint string, timeout time.Duration) (*grpc.ClientConn, error) {
-	log.Infof(ctx, "Connecting via grpc @ %s ...", endpoint)
+func dial(ctx context.Context, endpoint, purpose string, timeout time.Duration) (*grpc.ClientConn, error) {
+	log.Infof(ctx, "Connecting via grpc @ %s for %s ...", endpoint, purpose)
 	return grpcx.Dial(ctx, endpoint, timeout)
 }

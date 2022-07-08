@@ -25,6 +25,8 @@ project.ext {
   // Copy shared sources for Spark 2 to use Spark 3 as primary version in place
   copySourceBase = true
   archives_base_name = 'beam-runners-spark'
+  // Only export Javadocs for Spark 3
+  exportJavadoc = false
 }
 
 // Load the main build script which contains all build logic.

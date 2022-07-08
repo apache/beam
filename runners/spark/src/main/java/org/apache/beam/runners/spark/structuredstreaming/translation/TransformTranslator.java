@@ -22,7 +22,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 
 /** Supports translation between a Beam transform, and Spark's operations on Datasets. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public interface TransformTranslator<TransformT extends PTransform> extends Serializable {
 

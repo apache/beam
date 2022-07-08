@@ -306,17 +306,17 @@ func genericTypingRepresentation(in int, out int, includeType bool) string {
 func possibleBundleLifecycleParameterCombos(numInInterface interface{}, processElementInInterface interface{}) [][]string {
 	numIn := numInInterface.(int)
 	processElementIn := processElementInInterface.(int)
-	ordered_known_parameter_options := []string{"context.Context", "typex.PaneInfo", "[]typex.Window", "typex.EventTime", "typex.BundleFinalization"}
+	orderedKnownParameterOptions := []string{"context.Context", "typex.PaneInfo", "[]typex.Window", "typex.EventTime", "typex.BundleFinalization"}
 	// Because of how Bundle lifecycle functions are invoked, all known parameters must precede unknown options and be in order.
 	// Once we hit an unknown options, all remaining unknown options must be included since all iters/emitters must be included
 	// Therefore, we can generate a powerset of the known options and fill out any remaining parameters with an ordered set of remaining unknown options
-	pSetSize := int(math.Pow(2, float64(len(ordered_known_parameter_options))))
+	pSetSize := int(math.Pow(2, float64(len(orderedKnownParameterOptions))))
 	combos := make([][]string, 0, pSetSize)
 
 	for index := 0; index < pSetSize; index++ {
 		var subSet []string
 
-		for j, elem := range ordered_known_parameter_options {
+		for j, elem := range orderedKnownParameterOptions {
 			// And with the bit representation to get this iteration of the powerset.
 			if index&(1<<uint(j)) > 0 {
 				subSet = append(subSet, elem)

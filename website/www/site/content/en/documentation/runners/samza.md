@@ -26,7 +26,7 @@ The Samza Runner and Samza are suitable for large scale, stateful streaming jobs
 * First class support for local state (with RocksDB store). This allows fast state access for high frequency streaming jobs.
 * Fault-tolerance with support for incremental checkpointing of state instead of full snapshots. This enables Samza to scale to applications with very large state.
 * A fully asynchronous processing engine that makes remote calls efficient.
-* Flexible deployment model for running the the applications in any hosting environment with Zookeeper.
+* Flexible deployment model for running the applications in any hosting environment with Zookeeper.
 * Features like canaries, upgrades and rollbacks that support extremely large deployments with minimal downtime.
 
 The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the currently supported capabilities of the Samza Runner.

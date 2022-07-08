@@ -72,8 +72,8 @@ import org.slf4j.LoggerFactory;
 
 /** ZetaSQLQueryPlanner. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ZetaSQLQueryPlanner implements QueryPlanner {
   public static final Collection<RelOptRule> DEFAULT_CALC =
@@ -127,7 +127,8 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     for (RuleSet ruleSet : ruleSets) {
       ImmutableList.Builder<RelOptRule> bd = ImmutableList.builder();
       for (RelOptRule rule : ruleSet) {
-        // TODO[BEAM-9075]: Fix join re-ordering for ZetaSQL planner. Currently join re-ordering
+        // TODO[https://github.com/apache/beam/issues/20077]: Fix join re-ordering for ZetaSQL
+        // planner. Currently join re-ordering
         //  requires the JoinCommuteRule, which doesn't work without struct flattening.
         if (rule instanceof JoinCommuteRule) {
           continue;

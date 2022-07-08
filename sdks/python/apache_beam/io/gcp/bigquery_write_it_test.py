@@ -36,14 +36,18 @@ from parameterized import param
 from parameterized import parameterized
 
 import apache_beam as beam
+from apache_beam.io.gcp.bigquery import BigQueryWriteFn
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import FileFormat
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
+
 try:
   from apitools.base.py.exceptions import HttpError
 except ImportError:
@@ -372,6 +376,85 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               table_id,
               write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
               temp_file_format=FileFormat.JSON))
+
+  @pytest.mark.it_postcommit
+  def test_big_query_write_insert_errors_reporting(self):
+    """
+    Test that errors returned by beam.io.WriteToBigQuery
+    contain both the failed rows amd the reason for it failing.
+    """
+    table_name = 'python_write_table'
+    table_id = '{}.{}'.format(self.dataset_id, table_name)
+
+    input_data = [{
+        'number': 1,
+        'str': 'some_string',
+    }, {
+        'number': 2
+    },
+                  {
+                      'number': 3,
+                      'str': 'some_string',
+                      'additional_field_str': 'some_string',
+                  }]
+
+    table_schema = {
+        "fields": [{
+            "name": "number", "type": "INTEGER", 'mode': 'REQUIRED'
+        }, {
+            "name": "str", "type": "STRING", 'mode': 'REQUIRED'
+        }]
+    }
+
+    bq_result_errors = [(
+        {
+            "number": 2
+        },
+        [{
+            "reason": "invalid",
+            "location": "",
+            "debugInfo": "",
+            "message": "Missing required field: Msg_0_CLOUD_QUERY_TABLE.str."
+        }],
+    ),
+                        ({
+                            "number": 3,
+                            "str": "some_string",
+                            "additional_field_str": "some_string"
+                        },
+                         [{
+                             "reason": "invalid",
+                             "location": "additional_field_str",
+                             "debugInfo": "",
+                             "message": "no such field: additional_field_str."
+                         }])]
+
+    pipeline_verifiers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT number, str FROM %s" % table_id,
+            data=[(1, 'some_string')]),
+    ]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=hc.all_of(*pipeline_verifiers))
+
+    with beam.Pipeline(argv=args) as p:
+      # pylint: disable=expression-not-assigned
+      errors = (
+          p | 'create' >> beam.Create(input_data)
+          | 'write' >> beam.io.WriteToBigQuery(
+              table_id,
+              schema=table_schema,
+              method='STREAMING_INSERTS',
+              insert_retry_strategy='RETRY_NEVER',
+              create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+              write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND))
+
+      assert_that(
+          errors[BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
+          | 'ParseErrors' >> beam.Map(lambda err: (err[1], err[2])),
+          equal_to(bq_result_errors))
 
   @pytest.mark.it_postcommit
   @parameterized.expand([

@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
  * <p>This low-level client is responsible only for correlating requests with responses.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FnApiControlClient implements Closeable, InstructionRequestHandler {
   private static final Logger LOG = LoggerFactory.getLogger(FnApiControlClient.class);

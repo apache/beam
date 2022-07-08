@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 
 /** Jet specific implementation of {@link PipelineResult}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class JetPipelineResult implements PipelineResult {
 

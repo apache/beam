@@ -191,19 +191,18 @@ class DataInputOperation(RunnerIOOperation):
     self.started = False
 
   def setup(self):
-    with self.scoped_start_state:
-      super().setup()
-      # We must do this manually as we don't have a spec or spec.output_coders.
-      self.receivers = [
-          operations.ConsumerSet.create(
-              self.counter_factory,
-              self.name_context.step_name,
-              0,
-              self.consumer,
-              self.windowed_coder,
-              self.get_output_batch_converter(),
-              self._get_runtime_performance_hints())
-      ]
+    super().setup()
+    # We must do this manually as we don't have a spec or spec.output_coders.
+    self.receivers = [
+        operations.ConsumerSet.create(
+            self.counter_factory,
+            self.name_context.step_name,
+            0,
+            self.consumer,
+            self.windowed_coder,
+            self.get_output_batch_converter(),
+            self._get_runtime_performance_hints())
+    ]
 
   def start(self):
     # type: () -> None
@@ -239,7 +238,8 @@ class DataInputOperation(RunnerIOOperation):
         read_progress_info)] = read_progress_info
     return all_monitoring_infos
 
-  # TODO(BEAM-7746): typing not compatible with super type
+  # TODO(https://github.com/apache/beam/issues/19737): typing not compatible
+  # with super type
   def try_split(  # type: ignore[override]
       self, fraction_of_remainder, total_buffer_size, allowed_split_points):
     # type: (...) -> Optional[Tuple[int, Iterable[operations.SdfSplitResultsPrimary], Iterable[operations.SdfSplitResultsResidual], int]]
@@ -1889,7 +1889,7 @@ def create_merge_windows(
       original_windows = set(windows)  # type: Set[window.BoundedWindow]
       merged_windows = collections.defaultdict(
           set
-      )  # type: MutableMapping[window.BoundedWindow, Set[window.BoundedWindow]]
+      )  # type: MutableMapping[window.BoundedWindow, Set[window.BoundedWindow]] # noqa: F821
 
       class RecordingMergeContext(window.WindowFn.MergeContext):
         def merge(

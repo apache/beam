@@ -65,8 +65,7 @@ class PlaygroundPageBody extends StatelessWidget {
 
   Widget createOutput(PlaygroundState state) => Output(
         isEmbedded: false,
-        showGraph: state.graphAvailable,
-        key: ValueKey(state.selectedExample?.path ?? state.sdk.toString()),
+        playgroundState: state,
       );
 
   Widget getVerticalSeparator(BuildContext context) => Container(

@@ -35,8 +35,8 @@ public class TpcdsRun implements Callable<TpcdsRunResult> {
     TpcdsRunResult tpcdsRunResult;
 
     try {
-      PipelineResult pipelineResult = pipeline.run();
       long startTimeStamp = System.currentTimeMillis();
+      PipelineResult pipelineResult = pipeline.run();
       State state = pipelineResult.waitUntilFinish();
       long endTimeStamp = System.currentTimeMillis();
 

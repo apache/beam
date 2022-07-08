@@ -136,8 +136,14 @@ async function processPrUpdate() {
 
   // TODO(damccorm) - remove this when we roll out to more than go
   const existingLabels = payload.issue?.labels || payload.pull_request?.labels;
-  if (!existingLabels.find((label) => label.name.toLowerCase() === "go")) {
-    console.log("Does not contain the go label - skipping");
+  if (
+    !existingLabels.find(
+      (label) =>
+        label.name.toLowerCase() === "go" ||
+        label.name.toLowerCase() === "python"
+    )
+  ) {
+    console.log("Does not contain the go or python labels - skipping");
     return;
   }
 

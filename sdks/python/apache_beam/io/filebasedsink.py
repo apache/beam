@@ -67,7 +67,8 @@ class FileBasedSink(iobase.Sink):
       num_shards=0,
       shard_name_template=None,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
+      compression_type=CompressionTypes.AUTO,
+      skip_if_empty=False):
     """
      Raises:
       TypeError: if file path parameters are not a :class:`str` or
@@ -107,6 +108,7 @@ class FileBasedSink(iobase.Sink):
         shard_name_template)
     self.compression_type = compression_type
     self.mime_type = mime_type
+    self.skip_if_empty = skip_if_empty
 
   def display_data(self):
     return {

@@ -213,7 +213,7 @@ func AddFakeImpulses(p *pipepb.Pipeline) {
 
 }
 
-// RemoveFakeImpulses removes each fake impulse per input to the the transform.
+// RemoveFakeImpulses removes each fake impulse per input to the transform.
 // Multiple producers for one Input cannot be present.
 func RemoveFakeImpulses(c *pipepb.Components, ext *pipepb.PTransform) {
 	transforms := c.GetTransforms()

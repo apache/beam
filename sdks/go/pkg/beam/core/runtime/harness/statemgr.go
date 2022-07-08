@@ -326,7 +326,7 @@ func (c *StateChannel) terminateStreamOnError(err error) {
 
 func newStateChannel(ctx context.Context, port exec.Port) (*StateChannel, error) {
 	ctx, cancelFn := context.WithCancel(ctx)
-	cc, err := dial(ctx, port.URL, 15*time.Second)
+	cc, err := dial(ctx, port.URL, "state", 15*time.Second)
 	if err != nil {
 		cancelFn()
 		return nil, errors.Wrapf(err, "failed to connect to state service %v", port.URL)
@@ -337,10 +337,13 @@ func newStateChannel(ctx context.Context, port exec.Port) (*StateChannel, error)
 		cancelFn()
 		return nil, errors.Wrapf(err, "failed to create state client %v", port.URL)
 	}
-	return makeStateChannel(ctx, cancelFn, port.URL, client), nil
+	return makeStateChannel(ctx, port.URL, client, func() {
+		cc.Close()
+		cancelFn()
+	}), nil
 }
 
-func makeStateChannel(ctx context.Context, cancelFn context.CancelFunc, id string, client stateClient) *StateChannel {
+func makeStateChannel(ctx context.Context, id string, client stateClient, cancelFn context.CancelFunc) *StateChannel {
 	ret := &StateChannel{
 		id:        id,
 		client:    client,

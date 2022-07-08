@@ -41,7 +41,7 @@ import org.apache.beam.sdk.values.Row;
 @Internal
 @AutoService(SchemaIOProvider.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class JdbcSchemaIOProvider implements SchemaIOProvider {
 
@@ -68,6 +68,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         .addNullableField("writeStatement", FieldType.STRING)
         .addNullableField("fetchSize", FieldType.INT16)
         .addNullableField("outputParallelization", FieldType.BOOLEAN)
+        .addNullableField("autosharding", FieldType.BOOLEAN)
         .build();
   }
 
@@ -139,11 +140,15 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
       return new PTransform<PCollection<Row>, PDone>() {
         @Override
         public PDone expand(PCollection<Row> input) {
-          return input.apply(
+          JdbcIO.Write<Row> writeRows =
               JdbcIO.<Row>write()
                   .withDataSourceConfiguration(getDataSourceConfiguration())
                   .withStatement(generateWriteStatement(input.getSchema()))
-                  .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter()));
+                  .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter());
+          if (config.getBoolean("autosharding") != null && config.getBoolean("autosharding")) {
+            writeRows = writeRows.withAutoSharding();
+          }
+          return input.apply(writeRows);
         }
       };
     }

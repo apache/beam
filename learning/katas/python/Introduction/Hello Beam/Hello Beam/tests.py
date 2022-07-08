@@ -20,6 +20,9 @@ from test_helper import failed, passed, get_file_output, test_is_not_empty
 def test_output():
     output = get_file_output()
 
+    # Remove warning line about docker and Python versions
+    output = [x for x in output if not x.startswith("WARNING")]
+
     if len(output) == 1 and 'Hello Beam' in output:
         passed()
     else:

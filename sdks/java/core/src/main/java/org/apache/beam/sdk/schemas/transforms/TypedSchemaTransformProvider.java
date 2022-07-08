@@ -42,13 +42,13 @@ import org.apache.beam.sdk.values.Row;
 @Experimental(Kind.SCHEMAS)
 public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTransformProvider {
 
-  abstract Class<ConfigT> configurationClass();
+  protected abstract Class<ConfigT> configurationClass();
 
   /**
    * Produce a SchemaTransform from ConfigT. Can throw a {@link InvalidConfigurationException} or a
    * {@link InvalidSchemaException}.
    */
-  abstract SchemaTransform from(ConfigT configuration);
+  protected abstract SchemaTransform from(ConfigT configuration);
 
   /**
    * List the dependencies needed for this transform. Jars from classpath are used by default when
