@@ -244,8 +244,8 @@ def pipeline_options_remote():
   args = beam_options.view_as(MyOptions)
 
   with TestPipeline() as pipeline:  # Use TestPipeline for testing.
-    lines = pipeline | beam.io.ReadFromText(args.input_file)
-    lines | beam.io.WriteToText(args.output_path)
+    lines = pipeline | beam.io.ReadFromText(args.input)
+    lines | beam.io.WriteToText(args.output)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
@@ -263,9 +263,7 @@ def pipeline_options_local():
           default='gs://dataflow-samples/shakespeare/kinglear.txt',
           help='The file path for the input text to process.')
       parser.add_argument(
-          '--output',
-          required=True,
-          help='The path prefix for output files.')
+          '--output', required=True, help='The path prefix for output files.')
 
   # [END pipeline_options_define_custom_with_help_and_default]
 
