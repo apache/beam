@@ -19,16 +19,6 @@
 The DaskRunner is a runner implementation that executes a graph of
 transformations across processes and workers via Dask distributed's
 scheduler.
-
-
-Ideas to explore / Notes:
-- Write a PCollection subclass that wraps a Dask Bag.
-  - Would be the input + return of the translation operators.
-- The Ray runner is more focused on Task scheduling; This should focus more on graph translation.
-
-- A bundle is a subset of elements in a PCollection. i.e. a small set of elements that are processed together.
-- In Dask, it is probably the same as a partition. Thus, we probably don't need to worry about it; Dask should take
-  care of it.
 """
 import argparse
 import dataclasses

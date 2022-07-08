@@ -17,7 +17,6 @@
 import unittest
 
 import apache_beam as beam
-from apache_beam.runners import DirectRunner
 from apache_beam.runners.dask.dask_runner import DaskRunner
 from apache_beam.testing import test_pipeline
 from apache_beam.testing.util import assert_that, equal_to
