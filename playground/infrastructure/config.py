@@ -22,77 +22,77 @@ from dataclasses import dataclass
 from typing import Literal
 
 from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
-  STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
-  STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR, SDK_JAVA, SDK_GO, SDK_PYTHON, \
-  SDK_SCIO, Sdk
+    STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
+    STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR, SDK_JAVA, SDK_GO, SDK_PYTHON, \
+    SDK_SCIO, Sdk
 
 
 @dataclass(frozen=True)
 class Config:
-  """
-  General configuration for CI/CD steps
-  """
-  SERVER_ADDRESS = os.getenv("SERVER_ADDRESS", "localhost:8080")
-  EXTENSION_TO_SDK = {
-      "java": SDK_JAVA, "go": SDK_GO, "py": SDK_PYTHON, "scala": SDK_SCIO
-  }
-  SUPPORTED_SDK = (
-      Sdk.Name(SDK_JAVA),
-      Sdk.Name(SDK_GO),
-      Sdk.Name(SDK_PYTHON),
-      Sdk.Name(SDK_SCIO))
-  BUCKET_NAME = "playground-precompiled-objects"
-  TEMP_FOLDER = "temp"
-  DEFAULT_PRECOMPILED_OBJECT = "defaultPrecompiledObject.info"
-  SDK_TO_EXTENSION = {
-      SDK_JAVA: "java", SDK_GO: "go", SDK_PYTHON: "py", SDK_SCIO: "scala"
-  }
-  NO_STORE = "no-store"
-  ERROR_STATUSES = [
-      STATUS_VALIDATION_ERROR,
-      STATUS_ERROR,
-      STATUS_PREPARATION_ERROR,
-      STATUS_COMPILE_ERROR,
-      STATUS_RUN_TIMEOUT,
-      STATUS_RUN_ERROR
-  ]
-  BEAM_PLAYGROUND_TITLE = "beam-playground:\n"
-  BEAM_PLAYGROUND = "beam-playground"
-  PAUSE_DELAY = 10
-  CI_STEP_NAME = "CI"
-  CD_STEP_NAME = "CD"
-  CI_CD_LITERAL = Literal["CI", "CD"]
-  LINK_PREFIX = "https://github.com/apache/beam/blob/master"
+    """
+    General configuration for CI/CD steps
+    """
+    SERVER_ADDRESS = os.getenv("SERVER_ADDRESS", "localhost:8080")
+    EXTENSION_TO_SDK = {
+        "java": SDK_JAVA, "go": SDK_GO, "py": SDK_PYTHON, "scala": SDK_SCIO
+    }
+    SUPPORTED_SDK = (
+        Sdk.Name(SDK_JAVA),
+        Sdk.Name(SDK_GO),
+        Sdk.Name(SDK_PYTHON),
+        Sdk.Name(SDK_SCIO))
+    BUCKET_NAME = "playground-precompiled-objects"
+    TEMP_FOLDER = "temp"
+    DEFAULT_PRECOMPILED_OBJECT = "defaultPrecompiledObject.info"
+    SDK_TO_EXTENSION = {
+        SDK_JAVA: "java", SDK_GO: "go", SDK_PYTHON: "py", SDK_SCIO: "scala"
+    }
+    NO_STORE = "no-store"
+    ERROR_STATUSES = [
+        STATUS_VALIDATION_ERROR,
+        STATUS_ERROR,
+        STATUS_PREPARATION_ERROR,
+        STATUS_COMPILE_ERROR,
+        STATUS_RUN_TIMEOUT,
+        STATUS_RUN_ERROR
+    ]
+    BEAM_PLAYGROUND_TITLE = "beam-playground:\n"
+    BEAM_PLAYGROUND = "beam-playground"
+    PAUSE_DELAY = 10
+    CI_STEP_NAME = "CI"
+    CD_STEP_NAME = "CD"
+    CI_CD_LITERAL = Literal["CI", "CD"]
+    LINK_PREFIX = "https://github.com/apache/beam/blob/master"
 
 
 @dataclass(frozen=True)
 class TagFields:
-  name: str = "name"
-  description: str = "description"
-  multifile: str = "multifile"
-  categories: str = "categories"
-  pipeline_options: str = "pipeline_options"
-  default_example: str = "default_example"
-  context_line: int = "context_line"
+    name: str = "name"
+    description: str = "description"
+    multifile: str = "multifile"
+    categories: str = "categories"
+    pipeline_options: str = "pipeline_options"
+    default_example: str = "default_example"
+    context_line: int = "context_line"
 
 
 @dataclass(frozen=True)
 class PrecompiledExample:
-  OUTPUT_EXTENSION = "output"
-  LOG_EXTENSION = "log"
-  GRAPH_EXTENSION = "graph"
-  META_NAME = "meta"
-  META_EXTENSION = "info"
+    OUTPUT_EXTENSION = "output"
+    LOG_EXTENSION = "log"
+    GRAPH_EXTENSION = "graph"
+    META_NAME = "meta"
+    META_EXTENSION = "info"
 
 
 @dataclass(frozen=True)
 class PrecompiledExampleType:
-  examples = "examples"
-  katas = "katas"
-  test_ends = ("test", "it")
+    examples = "examples"
+    katas = "katas"
+    test_ends = ("test", "it")
 
 
 @dataclass(frozen=True)
 class OptionalTagFields:
-  pipeline_options: str = "pipeline_options"
-  default_example: str = "default_example"
+    pipeline_options: str = "pipeline_options"
+    default_example: str = "default_example"
