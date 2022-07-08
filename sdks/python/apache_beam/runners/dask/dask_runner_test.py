@@ -27,10 +27,10 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
     """Test class used to introspect the dask runner via a debugger."""
 
     def setUp(self) -> None:
-        self.p = test_pipeline.TestPipeline(runner=DaskRunner())
+        self.pipeline = test_pipeline.TestPipeline(runner=DaskRunner())
 
     def test_create(self):
-        with self.p as p:
+        with self.pipeline as p:
             pcoll = p | beam.Create([1])
             assert_that(pcoll, equal_to([1]))
 
@@ -38,15 +38,19 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
         def double(x):
             return x * 2
 
-        _ = self.p | beam.Create([1]) | beam.Map(double)
-        self.p.run()
+        with self.pipeline as p:
+            pcoll = p | beam.Create([1]) | beam.Map(double)
+            assert_that(pcoll, equal_to([2]))
 
     def test_create_map_and_groupby(self):
         def double(x):
             return x * 2, x
 
-        _ = self.p | beam.Create([1]) | beam.Map(double) | beam.GroupByKey()
-        self.p.run()
+        with self.pipeline as p:
+            pcoll = p | beam.Create([1]) | beam.Map(double) | beam.GroupByKey()
+            assert_that(pcoll, equal_to([
+                (2, [1])
+            ]))
 
 
 if __name__ == '__main__':
