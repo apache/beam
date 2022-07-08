@@ -104,9 +104,9 @@ abstract class BigtableConfig implements Serializable {
 
     /**
      This feature is used to report back the client's throttling time to a Dataflow job. This will
-     reduce the number of workers that Dataflow spawns when the throttling time is increasing.
+     reduce the number of workers during a Dataflow bulk mutation job.
 
-     {@link BigtableIO.withDataflowThrottleReporting}
+     {@link BigtableIO.Write}
     */
     abstract Builder setDataflowThrottleReporting(boolean isEnabled);
 
