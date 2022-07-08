@@ -16,4 +16,4 @@
  * limitations under the License.
  */
 
-export {createRunner, Runner} from "./runner"
+export { createRunner, Runner } from "./runner";
