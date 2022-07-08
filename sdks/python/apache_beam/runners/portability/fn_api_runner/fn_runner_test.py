@@ -357,13 +357,15 @@ class FnApiRunnerTest(unittest.TestCase):
         return np.int64
 
     with self.create_pipeline() as p:
-      res = (
+      pc = (
           p
           | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
               np.int64)
-          | beam.ParDo(ArrayProduceDoFn())
-          | beam.ParDo(ArrayMultiplyDoFn())
-          | beam.Map(lambda x: x * 3))
+          | beam.ParDo(ArrayProduceDoFn()))
+
+      self.assertEqual(pc.element_type, np.int64)
+
+      res = (pc | beam.ParDo(ArrayMultiplyDoFn()) | beam.Map(lambda x: x * 3))
 
       assert_that(res, equal_to([6, 12, 12, 18, 18, 18]))
 
