@@ -32,6 +32,8 @@ from apache_beam.runners.dask.overrides import (
     _Flatten
 )
 
+OpInput = t.Union[db.Bag, t.Sequence[db.Bag], None]
+
 
 @dataclasses.dataclass
 class DaskBagOp(abc.ABC):
@@ -42,17 +44,17 @@ class DaskBagOp(abc.ABC):
         return self.applied.side_inputs
 
     @abc.abstractmethod
-    def apply(self, input_bag: t.Optional[db.Bag]) -> db.Bag:
+    def apply(self, input_bag: OpInput) -> db.Bag:
         pass
 
 
 class NoOp(DaskBagOp):
-    def apply(self, input_bag: t.Optional[db.Bag]) -> db.Bag:
+    def apply(self, input_bag: OpInput) -> db.Bag:
         return input_bag
 
 
 class Create(DaskBagOp):
-    def apply(self, input_bag: t.Optional[db.Bag]) -> db.Bag:
+    def apply(self, input_bag: OpInput) -> db.Bag:
         assert input_bag is None, 'Create expects no input!'
         original_transform = t.cast(_Create, self.applied.transform)
         items = original_transform.values
@@ -60,19 +62,19 @@ class Create(DaskBagOp):
 
 
 class ParDo(DaskBagOp):
-    def apply(self, input_bag: t.Optional[db.Bag]) -> db.Bag:
+    def apply(self, input_bag: OpInput) -> db.Bag:
         fn = t.cast(apache_beam.ParDo, self.applied.transform).fn
         return input_bag.map(fn.process).flatten()
 
 
 class Map(DaskBagOp):
-    def apply(self, input_bag: t.Optional[db.Bag]) -> db.Bag:
+    def apply(self, input_bag: OpInput) -> db.Bag:
         fn = t.cast(apache_beam.Map, self.applied.transform).fn
         return input_bag.map(fn.process)
 
 
 class GroupByKey(DaskBagOp):
-    def apply(self, input_bag: t.Optional[db.Bag]) -> db.Bag:
+    def apply(self, input_bag: OpInput) -> db.Bag:
         def key(item):
             return item[0]
 
@@ -84,7 +86,7 @@ class GroupByKey(DaskBagOp):
 
 
 class Flatten(DaskBagOp):
-    def apply(self, input_bag: t.Optional[t.Sequence[db.Bag]]) -> db.Bag:
+    def apply(self, input_bag: OpInput) -> db.Bag:
         assert type(input_bag) is list, 'Must take a sequence of bags!'
         return db.concat(input_bag)
 

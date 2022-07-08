@@ -15,13 +15,11 @@
 # limitations under the License.
 #
 import dataclasses
-import time
 import typing as t
 
 import apache_beam as beam
 from apache_beam import (
     Create,
-    GroupByKey,
     ParDo,
     PTransform,
     pvalue,
@@ -33,8 +31,6 @@ from apache_beam.pipeline import PTransformOverride, AppliedPTransform
 from apache_beam.runners.direct.direct_runner import _GroupAlsoByWindowDoFn
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.window import GlobalWindows
-from apache_beam.typehints import TypeCheckError
-from apache_beam.utils.windowed_value import WindowedValue
 
 K = t.TypeVar("K")
 V = t.TypeVar("V")
@@ -81,6 +77,7 @@ class _GroupByKeyOnly(PTransform):
 @typehints.with_input_types(t.Tuple[K, t.Iterable[V]])
 @typehints.with_output_types(t.Tuple[K, t.Iterable[V]])
 class _GroupAlsoByWindow(ParDo):
+    """Not used yet..."""
 
     def __init__(self, windowing):
         super(_GroupAlsoByWindow, self).__init__(
@@ -98,10 +95,7 @@ class _GroupByKey(PTransform):
     def expand(self, input_or_inputs):
         return (
                 input_or_inputs
-                # | "ReifyWindows" >> ParDo(GroupByKey.ReifyWindows())
                 | "GroupByKey" >> _GroupByKeyOnly()
-                # | "GetValue" >> beam.Map(lambda p: p[1])
-                # | "GroupByWindow" >> _GroupAlsoByWindow(input_or_inputs.windowing)
         )
 
 

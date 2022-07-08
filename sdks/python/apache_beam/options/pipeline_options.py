@@ -455,7 +455,6 @@ class StandardOptions(PipelineOptions):
       'apache_beam.runners.portability.spark_runner.SparkRunner',
       'apache_beam.runners.test.TestDirectRunner',
       'apache_beam.runners.test.TestDataflowRunner',
-      'apache_beam.runners.dask.dask_runner.DaskRunner',
   )
 
   KNOWN_RUNNER_NAMES = [path.split('.')[-1] for path in ALL_KNOWN_RUNNERS]
