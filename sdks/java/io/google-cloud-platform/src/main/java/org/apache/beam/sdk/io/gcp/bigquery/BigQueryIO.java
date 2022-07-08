@@ -2508,10 +2508,10 @@ public class BigQueryIO {
 
     /**
      * If true, it enables the propagation of the successfully inserted TableRows on BigQuery as
-     * part of the {@link WriteResult} object. By default this property is set on true. In the cases
-     * where a pipeline won't make use of the insert results this property can be set on false,
-     * which will make the pipeline let go of those inserted TableRows and reclaim the memory
-     * resources.
+     * part of the {@link WriteResult} object when using {@link Method#STREAMING_INSERTS}. 
+     * By default this property is set on true. In the cases where a pipeline won't make use of 
+     * the insert results this property can be set on false, which will make the pipeline let go 
+     * of those inserted TableRows and reclaim worker resources.
      */
     public Write<T> withSuccessfulInsertsPropagation(boolean propagateSuccessful) {
       return toBuilder().setPropagateSuccessful(propagateSuccessful).build();
