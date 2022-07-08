@@ -14,10 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""
+"""Transform Beam PTransforms into Dask Bag operations.
 
-TODO(alxr): Translate ops from https://docs.dask.org/en/latest/bag-api.html.
+A minimum set of operation substitutions, to adap Beam's PTransform model
+to Dask Bag functions.
 """
+# TODO(alxr): Translate ops from https://docs.dask.org/en/latest/bag-api.html.
 import abc
 import dataclasses
 import typing as t
