@@ -18,13 +18,6 @@ import dataclasses
 import typing as t
 
 import apache_beam as beam
-from apache_beam import (
-    Create,
-    ParDo,
-    PTransform,
-    pvalue,
-    Windowing,
-)
 from apache_beam import typehints
 from apache_beam.io.iobase import SourceBase
 from apache_beam.pipeline import PTransformOverride, AppliedPTransform
@@ -37,37 +30,37 @@ V = t.TypeVar("V")
 
 
 @dataclasses.dataclass
-class _Create(PTransform):
+class _Create(beam.PTransform):
     values: t.Tuple[t.Any]
 
     def expand(self, input_or_inputs):
-        return pvalue.PCollection.from_(input_or_inputs)
+        return beam.pvalue.PCollection.from_(input_or_inputs)
 
     def get_windowing(self, inputs):
         # type: (typing.Any) -> Windowing
-        return Windowing(GlobalWindows())
+        return beam.Windowing(GlobalWindows())
 
 
 @typehints.with_input_types(K)
 @typehints.with_output_types(K)
-class _Reshuffle(PTransform):
+class _Reshuffle(beam.PTransform):
     def expand(self, input_or_inputs):
-        return pvalue.PCollection.from_(input_or_inputs)
+        return beam.pvalue.PCollection.from_(input_or_inputs)
 
 
 @dataclasses.dataclass
-class _Read(PTransform):
+class _Read(beam.PTransform):
     source: SourceBase
 
     def expand(self, input_or_inputs):
-        return pvalue.PCollection.from_(input_or_inputs)
+        return beam.pvalue.PCollection.from_(input_or_inputs)
 
 
 @typehints.with_input_types(t.Tuple[K, V])
 @typehints.with_output_types(t.Tuple[K, t.Iterable[V]])
-class _GroupByKeyOnly(PTransform):
+class _GroupByKeyOnly(beam.PTransform):
     def expand(self, input_or_inputs):
-        return pvalue.PCollection.from_(input_or_inputs)
+        return beam.pvalue.PCollection.from_(input_or_inputs)
 
     def infer_output_type(self, input_type):
         key_type, value_type = typehints.trivial_inference.key_value_types(input_type)
@@ -76,7 +69,7 @@ class _GroupByKeyOnly(PTransform):
 
 @typehints.with_input_types(t.Tuple[K, t.Iterable[V]])
 @typehints.with_output_types(t.Tuple[K, t.Iterable[V]])
-class _GroupAlsoByWindow(ParDo):
+class _GroupAlsoByWindow(beam.ParDo):
     """Not used yet..."""
 
     def __init__(self, windowing):
@@ -85,12 +78,12 @@ class _GroupAlsoByWindow(ParDo):
         self.windowing = windowing
 
     def expand(self, input_or_inputs):
-        return pvalue.PCollection.from_(input_or_inputs)
+        return beam.pvalue.PCollection.from_(input_or_inputs)
 
 
 @typehints.with_input_types(t.Tuple[K, V])
 @typehints.with_output_types(t.Tuple[K, t.Iterable[V]])
-class _GroupByKey(PTransform):
+class _GroupByKey(beam.PTransform):
 
     def expand(self, input_or_inputs):
         return (
@@ -99,10 +92,10 @@ class _GroupByKey(PTransform):
         )
 
 
-class _Flatten(PTransform):
+class _Flatten(beam.PTransform):
     def expand(self, input_or_inputs):
         is_bounded = all(pcoll.is_bounded for pcoll in input_or_inputs)
-        return pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
+        return beam.pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
 
 
 def dask_overrides() -> t.List[PTransformOverride]:
@@ -112,7 +105,7 @@ def dask_overrides() -> t.List[PTransformOverride]:
 
         def get_replacement_transform_for_applied_ptransform(
                 self, applied_ptransform: AppliedPTransform) -> ptransform.PTransform:
-            return _Create(t.cast(Create, applied_ptransform.transform).values)
+            return _Create(t.cast(beam.Create, applied_ptransform.transform).values)
 
     class ReshuffleOverride(PTransformOverride):
         def matches(self, applied_ptransform: AppliedPTransform) -> bool:

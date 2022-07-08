@@ -145,7 +145,6 @@ class DaskRunner(BundleBasedDirectRunner):
         except ImportError:
             raise ImportError('DaskRunner is not available. Please install apache_beam[dask].')
 
-        # TODO(alxr): Actually use this right.
         dask_options = options.view_as(DaskOptions).get_all_options(drop_default=True)
         client = ddist.Client(**dask_options)
 
@@ -157,16 +156,3 @@ class DaskRunner(BundleBasedDirectRunner):
         futures = client.compute(list(dask_visitor.bags.values()))
 
         return DaskRunnerResult(client, futures)
-
-        # if pipeline:
-        #     pass
-        # else:
-        #     raise ValueError('Proto or FunctionAPI environments are not supported.')
-        # if pipeline:
-        #
-        #     # Flatten / Optimize graph?
-        #
-        #     # Trigger a traversal of all reachable nodes.
-        #     self.visit_transforms(pipeline, options)
-        #
-        # Get API Client?
