@@ -7066,10 +7066,10 @@ function to access the transform.
 
 **Expansion Services**
 
-The Go SDK does not yet support automatically starting an expansion service. In order to use
-cross-language transforms, you must manually start any necessary expansion services on your local
-machine and ensure they are accessible to your code during pipeline construction; see more at
-[BEAM-12862](https://issues.apache.org/jira/browse/BEAM-12862).
+The Go SDK supports automatically starting Java expansion services if an expansion address is not provided, although this is slower than
+providing a persistent expansion service. Many wrapped Java transforms manage perform this automatically; if you wish to do this manually, use the `xlangx` package's
+[UseAutomatedJavaExpansionService()](https://pkg.go.dev/github.com/apache/beam/sdks/v2@v2.40.0/go/pkg/beam/core/runtime/xlangx#UseAutomatedJavaExpansionService) function. In order to use Python cross-language transforms, you must manually start any necessary expansion
+services on your local machine and ensure they are accessible to your code during pipeline construction.
 
 **Using an SDK wrapper**
 
