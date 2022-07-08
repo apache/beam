@@ -1012,7 +1012,8 @@ class _CustomBigQuerySource(BoundedSource):
           "Error exporting table: %s. "
           "Note that external tables cannot be exported: "
           "https://cloud.google.com/bigquery/docs/external-tables"
-          "#external_table_limitations", exn)
+          "#external_table_limitations",
+          exn)
       raise
     metadata_list = FileSystems.match([gcs_location])[0].metadata_list
 
