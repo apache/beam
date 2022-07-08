@@ -109,6 +109,9 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
             TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema);
         descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema);
         descriptorHash = BigQueryUtils.hashSchemaDescriptorDeterministic(descriptor);
+        if (ignoreUnknownValues) {
+          refreshSchemaInternal();
+        }
       }
 
       @Override
