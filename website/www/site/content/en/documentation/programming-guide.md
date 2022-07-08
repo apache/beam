@@ -1803,6 +1803,7 @@ playerAccuracies := ... // PCollection<string,int>
 <span class="language-java">[`Flatten`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
 <span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
 <span class="language-go">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/flatten.go)</span>
+<span class="language-typescript">`Flatten`</span>
 is a Beam transform for `PCollection` objects that store the same data type.
 `Flatten` merges multiple `PCollection` objects into a single logical
 `PCollection`.
@@ -1837,7 +1838,7 @@ PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 {{< highlight typescript >}}
 // Flatten takem an array of PCollection objects, wrapped in beam.P(...)
 // Returns a single PCollection that contains a union of all of the elements in all input PCollections.
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten >}}
+{{< code_sample "sdks/typescript/test/docs/programming_guide.ts" model_multiple_pcollections_flatten >}}
 {{< /highlight >}}
 
 ##### 4.2.5.1. Data encoding in merged collections {#data-encoding-merged-collections}
@@ -2276,7 +2277,9 @@ multiple output PCollections.
 Call emitter functions as needed to produce 0 or more elements for its matching
 `PCollection`. The same value can be emitted with multiple emitters.
 As normal, do not mutate values after emitting them from any emitter.
+{{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
 All emitters should be registered using a generic `register.EmitterX[...]`
 function. This optimizes runtime execution of the emitter.
 {{< /paragraph >}}
