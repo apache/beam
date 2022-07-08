@@ -708,6 +708,34 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   def default_type_hints(self):
     fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self.process)
+    batch_fn_type_hints = typehints.decorators.IOTypeHints.from_callable(
+        self.process_batch)
+
+    if fn_type_hints is not None:
+      # process method produces batches, don't use its output typehint
+      if self._process_yields_batches:
+        fn_type_hints = fn_type_hints.with_output_types_from(
+            typehints.decorators.IOTypeHints.empty())
+
+      # process_batch produces elements, use its output typehint
+      if self._process_batch_yields_elements and batch_fn_type_hints is not None:
+        if (fn_type_hints.output_types !=
+            typehints.decorators.IOTypeHints.empty().output_types and
+            batch_fn_type_hints.output_types != fn_type_hints.output_types):
+          raise TypeError(
+              f"DoFn {self!r} yields element from both process and "
+              "process_batch, but they have mismatched output typehints:\n"
+              f" process: {fn_type_hints.output_types}\n"
+              f" process_batch: {batch_fn_type_hints.output_types}")
+
+        fn_type_hints = fn_type_hints.with_output_types_from(
+            batch_fn_type_hints)
+    else:  # no typehints from process
+      # process_batch produces elements, grab its output typehint
+      if self._process_batch_yields_elements and batch_fn_type_hints is not None:
+        fn_type_hints = batch_fn_type_hints.with_input_types_from(
+            typehints.decorators.IOTypeHints.empty())
+
     if fn_type_hints is not None:
       try:
         fn_type_hints = fn_type_hints.strip_iterable()

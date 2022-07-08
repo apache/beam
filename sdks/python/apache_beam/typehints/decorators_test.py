@@ -97,6 +97,46 @@ class IOTypeHintsTest(unittest.TestCase):
     after = th.strip_iterable()
     self.assertEqual(((expected_after, ), {}), after.output_types)
 
+  def test_with_output_types_from(self):
+    th = decorators.IOTypeHints(
+        input_types=((int), {
+            'foo': str
+        }),
+        output_types=((int, str), {}),
+        origin=[])
+
+    self.assertEqual(
+        th.with_output_types_from(decorators.IOTypeHints.empty()),
+        decorators.IOTypeHints(
+            input_types=((int), {
+                'foo': str
+            }), output_types=None, origin=[]))
+
+    self.assertEqual(
+        decorators.IOTypeHints.empty().with_output_types_from(th),
+        decorators.IOTypeHints(
+            input_types=None, output_types=((int, str), {}), origin=[]))
+
+  def test_with_input_types_from(self):
+    th = decorators.IOTypeHints(
+        input_types=((int), {
+            'foo': str
+        }),
+        output_types=((int, str), {}),
+        origin=[])
+
+    self.assertEqual(
+        th.with_input_types_from(decorators.IOTypeHints.empty()),
+        decorators.IOTypeHints(
+            input_types=None, output_types=((int, str), {}), origin=[]))
+
+    self.assertEqual(
+        decorators.IOTypeHints.empty().with_input_types_from(th),
+        decorators.IOTypeHints(
+            input_types=((int), {
+                'foo': str
+            }), output_types=None, origin=[]))
+
   def _test_strip_iterable_fail(self, before):
     with self.assertRaisesRegex(ValueError, r'not iterable'):
       self._test_strip_iterable(before, None)
