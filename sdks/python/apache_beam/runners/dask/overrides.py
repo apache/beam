@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import dataclasses
+import time
 import typing as t
 
 import apache_beam as beam
@@ -32,6 +33,8 @@ from apache_beam.pipeline import PTransformOverride, AppliedPTransform
 from apache_beam.runners.direct.direct_runner import _GroupAlsoByWindowDoFn
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.typehints import TypeCheckError
+from apache_beam.utils.windowed_value import WindowedValue
 
 K = t.TypeVar("K")
 V = t.TypeVar("V")
@@ -78,7 +81,7 @@ class _GroupByKeyOnly(PTransform):
 @typehints.with_input_types(t.Tuple[K, t.Iterable[V]])
 @typehints.with_output_types(t.Tuple[K, t.Iterable[V]])
 class _GroupAlsoByWindow(ParDo):
-    """Not used yet..."""
+
     def __init__(self, windowing):
         super(_GroupAlsoByWindow, self).__init__(
             _GroupAlsoByWindowDoFn(windowing))
@@ -91,13 +94,21 @@ class _GroupAlsoByWindow(ParDo):
 @typehints.with_input_types(t.Tuple[K, V])
 @typehints.with_output_types(t.Tuple[K, t.Iterable[V]])
 class _GroupByKey(PTransform):
-    """Not used yet..."""
+
     def expand(self, input_or_inputs):
         return (
                 input_or_inputs
-                | "ReifyWindows" >> ParDo(GroupByKey.ReifyWindows())
+                # | "ReifyWindows" >> ParDo(GroupByKey.ReifyWindows())
                 | "GroupByKey" >> _GroupByKeyOnly()
-                | "GroupByWindow" >> _GroupAlsoByWindow(input_or_inputs.windowing))
+                # | "GetValue" >> beam.Map(lambda p: p[1])
+                # | "GroupByWindow" >> _GroupAlsoByWindow(input_or_inputs.windowing)
+        )
+
+
+class _Flatten(PTransform):
+    def expand(self, input_or_inputs):
+        is_bounded = all(pcoll.is_bounded for pcoll in input_or_inputs)
+        return pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
 
 
 def dask_overrides() -> t.List[PTransformOverride]:
@@ -131,11 +142,20 @@ def dask_overrides() -> t.List[PTransformOverride]:
 
         def get_replacement_transform_for_applied_ptransform(
                 self, applied_ptransform: AppliedPTransform) -> ptransform.PTransform:
-            return _GroupByKeyOnly()
+            return _GroupByKey()
+
+    class FlattenOverride(PTransformOverride):
+        def matches(self, applied_ptransform: AppliedPTransform) -> bool:
+            return applied_ptransform.transform.__class__ == beam.Flatten
+
+        def get_replacement_transform_for_applied_ptransform(
+                self, applied_ptransform: AppliedPTransform) -> ptransform.PTransform:
+            return _Flatten()
 
     return [
         CreateOverride(),
         ReshuffleOverride(),
         ReadOverride(),
         GroupByKeyOverride(),
+        FlattenOverride(),
     ]
