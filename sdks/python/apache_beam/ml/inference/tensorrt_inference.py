@@ -18,7 +18,6 @@
 # pytype: skip-file
 
 import numpy as np
-import os
 import pycuda.driver as cuda
 import sys
 import tensorrt as trt
@@ -43,8 +42,7 @@ def _load_onnx(onnx_path):
   network = builder.create_network(
       flags=1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
   parser = trt.OnnxParser(network, LOGGER)
-  onnx_path = os.path.realpath(onnx_path)
-  with open(onnx_path, "rb") as f:
+  with FileSystems.open(onnx_path) as f:
     if not parser.parse(f.read()):
       print("Failed to load ONNX file: {}".format(onnx_path))
       for error in range(parser.num_errors):
