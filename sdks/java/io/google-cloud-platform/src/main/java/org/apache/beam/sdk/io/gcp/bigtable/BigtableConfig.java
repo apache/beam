@@ -102,10 +102,12 @@ abstract class BigtableConfig implements Serializable {
 
     abstract Builder setEmulatorHost(String emulatorHost);
 
-    /*
-     This feature is experimental and may be changed and relocated in the future
+    /**
+     This feature is used to report back the client's throttling time to a Dataflow job. This will
+     reduce the number of workers that Dataflow spawns when the throttling time is increasing.
+
+     {@link BigtableIO.withDataflowThrottleReporting}
     */
-    @Experimental
     abstract Builder setDataflowThrottleReporting(boolean isEnabled);
 
     abstract BigtableConfig build();

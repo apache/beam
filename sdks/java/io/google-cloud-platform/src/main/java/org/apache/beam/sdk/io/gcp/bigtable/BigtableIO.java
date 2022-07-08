@@ -856,17 +856,6 @@ public class BigtableIO {
     }
 
     public static BigtableWriterFn create(BigtableConfig bigtableConfig) {
-      /*if (bigtableConfig.getProjectId() == null || bigtableConfig.getInstanceId() == null) {
-        return new BigtableWriterFn(
-            bigtableConfig,
-            new ResourceStatsSupplierImpl(
-                bigtableConfig.getBigtableOptions().getProjectId(),
-                bigtableConfig.getBigtableOptions().getInstanceId()));
-      }
-      return new BigtableWriterFn(
-          bigtableConfig,
-          new ResourceStatsSupplierImpl(
-              bigtableConfig.getProjectId().get(), bigtableConfig.getInstanceId().get()));*/
       return new BigtableWriterFn(
           bigtableConfig,
           new ResourceStatsSupplierImpl(
