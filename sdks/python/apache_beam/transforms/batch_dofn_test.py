@@ -193,7 +193,7 @@ class MismatchedElementProducingDoFn(beam.DoFn):
 
   @beam.DoFn.yields_elements
   def process_batch(self, batch: List[int], *args, **kwargs) -> Iterator[int]:
-    yield element[0]
+    yield batch[0]
 
 
 class BatchDoFnTest(unittest.TestCase):
@@ -237,7 +237,8 @@ class BatchDoFnTest(unittest.TestCase):
     # https://docs.python.org/3.4/library/re.html#regular-expression-syntax
     with self.assertRaisesRegex(
         TypeError,
-        r'(?ms)MismatchedBatchProducingDoFn.*process: List\[int\].*process_batch: List\[float\]'
+        (r'(?ms)MismatchedBatchProducingDoFn.*'
+         r'process: List\[int\].*process_batch: List\[float\]')
     ):
       _ = pc | beam.ParDo(MismatchedBatchProducingDoFn())
 
