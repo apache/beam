@@ -334,4 +334,4 @@ export function singletonSideInput<T>(
 // restriction trackers, counters, etc.
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.transforms.pardo", exports);
+requireForSerialization("apache-beam/transforms/pardo", exports);

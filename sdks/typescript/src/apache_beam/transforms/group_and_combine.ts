@@ -329,7 +329,7 @@ function extractFn<T, K>(extractor: string | string[] | ((T) => K)) {
 }
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.transforms.pardo", exports);
-requireForSerialization("apache_beam.transforms.pardo", {
+requireForSerialization("apache-beam/transforms/pardo", exports);
+requireForSerialization("apache-beam/transforms/pardo", {
   GroupByAndCombine: GroupByAndCombine,
 });
