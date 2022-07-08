@@ -1932,13 +1932,16 @@ public class BigtableIOTest {
     }
   }
 
-  /** A {@link BigtableIO.ResourceStatsSupplier} implementation which returns a
-   * fake {@link ResourceLimiterStats} which contains a non-zero value throttling value*/
-  private static class FakeResourceStatsSupplier implements BigtableIO.ResourceStatsSupplier, Serializable {
+  /**
+   * A {@link BigtableIO.ResourceStatsSupplier} implementation which returns a fake {@link
+   * ResourceLimiterStats} which contains a non-zero value throttling value
+   */
+  private static class FakeResourceStatsSupplier
+      implements BigtableIO.ResourceStatsSupplier, Serializable {
 
     private final int fakeCumulativeThrottlingTimeNanos;
 
-    FakeResourceStatsSupplier(int fakeCumulativeThrottlingTimeNanos){
+    FakeResourceStatsSupplier(int fakeCumulativeThrottlingTimeNanos) {
       this.fakeCumulativeThrottlingTimeNanos = fakeCumulativeThrottlingTimeNanos;
     }
 

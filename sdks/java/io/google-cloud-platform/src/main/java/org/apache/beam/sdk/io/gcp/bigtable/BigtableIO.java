@@ -572,7 +572,7 @@ public class BigtableIO {
     /**
      * Returns whether client's throttle time is being passed to Dataflow for bulk mutations.
      *
-     * <p>This change is experimental and may be changed and relocated in the future
+     * <p>This change is experimental and may be changed and relocated in the future.
      */
     @Experimental
     public boolean isDataflowThrottleReportingEnabled() {
@@ -755,9 +755,11 @@ public class BigtableIO {
       return toBuilder().setBigtableConfig(config.withEmulator(emulatorHost)).build();
     }
 
-    /* This is an experimental feature that may get changed in the future
+    /**
+     * Returns a new {@link BigtableIO.Write} that will report amount of time throttling to
+     * Dataflow.
      *
-     * Returns a new {@link BigtableIO.Write} that will report amount of time throttling to Dataflow
+     * <p>This is an experimental feature that may get changed in the future.
      */
     @Experimental
     public Write withDataflowThrottleReporting(boolean isEnabled) {
@@ -856,10 +858,7 @@ public class BigtableIO {
     }
 
     public static BigtableWriterFn create(BigtableConfig bigtableConfig) {
-      return new BigtableWriterFn(
-          bigtableConfig,
-          new ResourceStatsSupplierImpl(
-              bigtableConfig));
+      return new BigtableWriterFn(bigtableConfig, new ResourceStatsSupplierImpl(bigtableConfig));
     }
 
     @StartBundle
@@ -1501,10 +1500,14 @@ public class BigtableIO {
     @Override
     public ResourceLimiterStats getStats() {
       if (bigtableConfig.getProjectId() == null || bigtableConfig.getInstanceId() == null) {
-        return ResourceLimiterStats.getInstance(new BigtableInstanceName(bigtableConfig.getBigtableOptions().getProjectId(),
+        return ResourceLimiterStats.getInstance(
+            new BigtableInstanceName(
+                bigtableConfig.getBigtableOptions().getProjectId(),
                 bigtableConfig.getBigtableOptions().getInstanceId()));
       }
-      return ResourceLimiterStats.getInstance(new BigtableInstanceName(bigtableConfig.getProjectId().get(), bigtableConfig.getInstanceId().get()));
+      return ResourceLimiterStats.getInstance(
+          new BigtableInstanceName(
+              bigtableConfig.getProjectId().get(), bigtableConfig.getInstanceId().get()));
     }
   }
 }
