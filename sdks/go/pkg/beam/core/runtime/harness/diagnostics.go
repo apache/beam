@@ -46,6 +46,9 @@ func UploadHeapDump(ctx context.Context, dest string) error {
 	}
 	defer fs.Close()
 	fd, err := fs.OpenWrite(ctx, dest)
+	if err != nil {
+		return err
+	}
 	buf := bufio.NewWriterSize(fd, 1<<20) // use 1MB buffer
 
 	log.Infof(ctx, "Writing heap dump to %v", dest)
