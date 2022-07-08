@@ -1581,7 +1581,7 @@ public class BigtableIOTest {
 
     BigtableConfig fakeConfig =
         config.withTableId(StaticValueProvider.of(table)).withDataflowThrottleReporting(true);
-    FakeResourceStatsSupplier fakeStats = new FakeResourceStatsSupplier();
+    FakeResourceStatsSupplier fakeStats = new FakeResourceStatsSupplier(10000000);
     BigtableIO.BigtableWriterFn fn = new BigtableIO.BigtableWriterFn(fakeConfig, fakeStats);
 
     p.apply(GenerateSequence.from(0).to(10))
@@ -1932,6 +1932,36 @@ public class BigtableIOTest {
     }
   }
 
+  /** A {@link BigtableIO.ResourceStatsSupplier} implementation which returns a
+   * fake {@link ResourceLimiterStats} which contains a non-zero value throttling value*/
+  private static class FakeResourceStatsSupplier implements BigtableIO.ResourceStatsSupplier, Serializable {
+
+    private final int fakeCumulativeThrottlingTimeNanos;
+
+    FakeResourceStatsSupplier(int fakeCumulativeThrottlingTimeNanos){
+      this.fakeCumulativeThrottlingTimeNanos = fakeCumulativeThrottlingTimeNanos;
+    }
+
+    @Override
+    public ResourceLimiterStats getStats() {
+      return new FakeResourceStats(fakeCumulativeThrottlingTimeNanos);
+    }
+  }
+
+  private static class FakeResourceStats extends ResourceLimiterStats implements Serializable {
+
+    private final int fakeCumulativeThrottlingTimeNanos;
+
+    FakeResourceStats(int fakeCumulativeThrottlingTimeNanos) {
+      this.fakeCumulativeThrottlingTimeNanos = fakeCumulativeThrottlingTimeNanos;
+    }
+
+    @Override
+    public long getCumulativeThrottlingTimeNanos() {
+      return fakeCumulativeThrottlingTimeNanos;
+    }
+  }
+
   /** Error injection options for FakeBigtableService and FakeBigtableReader. */
   @AutoValue
   abstract static class FailureOptions implements Serializable {
@@ -1963,23 +1993,5 @@ public class BigtableIOTest {
 
       abstract FailureOptions build();
     }
-  }
-}
-
-class FakeResourceStatsSupplier implements BigtableIO.ResourceStatsSupplier, Serializable {
-
-  @Override
-  public ResourceLimiterStats getStats() {
-    return new FakeResourceStats();
-  }
-}
-
-class FakeResourceStats extends ResourceLimiterStats implements Serializable {
-
-  FakeResourceStats() {}
-
-  @Override
-  public long getCumulativeThrottlingTimeNanos() {
-    return 10000000;
   }
 }

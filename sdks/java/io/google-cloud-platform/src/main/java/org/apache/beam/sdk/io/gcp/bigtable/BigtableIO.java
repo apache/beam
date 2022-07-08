@@ -847,7 +847,7 @@ public class BigtableIO {
         Metrics.counter(BigtableWriterFn.class, "throttling-msecs");
     private static Object metricLock = new Object();
     private static long lastAggregatedThrottleTime = 0;
-    private ResourceStatsSupplier statsSupplier;
+    private final ResourceStatsSupplier statsSupplier;
 
     BigtableWriterFn(BigtableConfig bigtableConfig, ResourceStatsSupplier statsSupplier) {
       this.config = bigtableConfig;
@@ -856,7 +856,7 @@ public class BigtableIO {
     }
 
     public static BigtableWriterFn create(BigtableConfig bigtableConfig) {
-      if (bigtableConfig.getProjectId() == null || bigtableConfig.getInstanceId() == null) {
+      /*if (bigtableConfig.getProjectId() == null || bigtableConfig.getInstanceId() == null) {
         return new BigtableWriterFn(
             bigtableConfig,
             new ResourceStatsSupplierImpl(
@@ -866,7 +866,11 @@ public class BigtableIO {
       return new BigtableWriterFn(
           bigtableConfig,
           new ResourceStatsSupplierImpl(
-              bigtableConfig.getProjectId().get(), bigtableConfig.getInstanceId().get()));
+              bigtableConfig.getProjectId().get(), bigtableConfig.getInstanceId().get()));*/
+      return new BigtableWriterFn(
+          bigtableConfig,
+          new ResourceStatsSupplierImpl(
+              bigtableConfig));
     }
 
     @StartBundle
@@ -1497,19 +1501,21 @@ public class BigtableIO {
     ResourceLimiterStats getStats();
   }
 
-  static class ResourceStatsSupplierImpl implements ResourceStatsSupplier, Serializable {
+  private static class ResourceStatsSupplierImpl implements ResourceStatsSupplier, Serializable {
 
-    private final String project;
-    private final String instance;
+    private final BigtableConfig bigtableConfig;
 
-    ResourceStatsSupplierImpl(String project, String instance) {
-      this.project = project;
-      this.instance = instance;
+    ResourceStatsSupplierImpl(BigtableConfig bigtableConfig) {
+      this.bigtableConfig = bigtableConfig;
     }
 
     @Override
     public ResourceLimiterStats getStats() {
-      return ResourceLimiterStats.getInstance(new BigtableInstanceName(project, instance));
+      if (bigtableConfig.getProjectId() == null || bigtableConfig.getInstanceId() == null) {
+        return ResourceLimiterStats.getInstance(new BigtableInstanceName(bigtableConfig.getBigtableOptions().getProjectId(),
+                bigtableConfig.getBigtableOptions().getInstanceId()));
+      }
+      return ResourceLimiterStats.getInstance(new BigtableInstanceName(bigtableConfig.getProjectId().get(), bigtableConfig.getInstanceId().get()));
     }
   }
 }
