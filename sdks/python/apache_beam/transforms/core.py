@@ -718,7 +718,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
             typehints.decorators.IOTypeHints.empty())
 
       # process_batch produces elements, use its output typehint
-      if self._process_batch_yields_elements and batch_fn_type_hints is not None:
+      if (self._process_batch_yields_elements and
+          batch_fn_type_hints is not None):
         if (fn_type_hints.output_types !=
             typehints.decorators.IOTypeHints.empty().output_types and
             batch_fn_type_hints.output_types != fn_type_hints.output_types):
@@ -732,7 +733,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
             batch_fn_type_hints)
     else:  # no typehints from process
       # process_batch produces elements, grab its output typehint
-      if self._process_batch_yields_elements and batch_fn_type_hints is not None:
+      if (self._process_batch_yields_elements and
+          batch_fn_type_hints is not None):
         fn_type_hints = batch_fn_type_hints.with_input_types_from(
             typehints.decorators.IOTypeHints.empty())
 
