@@ -165,7 +165,7 @@ public class ExecutionStateSampler {
   public class ExecutionStateTracker implements BundleProgressReporter {
 
     // The set of execution states that this tracker is responsible for. Effectively
-    // final after the first execution of start().
+    // final since create() should not be invoked once any bundle starts processing.
     private final List<ExecutionStateImpl> executionStates;
     // Read by multiple threads, written by the bundle processing thread lazily.
     private final AtomicReference<@Nullable String> processBundleId;
