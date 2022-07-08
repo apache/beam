@@ -1008,7 +1008,7 @@ class _CustomBigQuerySource(BoundedSource):
     except Exception as exn:  # pylint: disable=broad-except
       # The error messages thrown in this case are generic and misleading,
       # so leave this breadcrumb in case it's the root cause.
-      logging.error(
+      logging.warning(
           f"Error exporting table: {exn}. "
           "Note that external tables cannot be exported: "
           "https://cloud.google.com/bigquery/docs/external-tables"

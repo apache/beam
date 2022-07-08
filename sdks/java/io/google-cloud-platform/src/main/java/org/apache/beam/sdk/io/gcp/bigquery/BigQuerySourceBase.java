@@ -218,7 +218,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     } catch (IOException exn) {
       // The error messages thrown in this case are generic and misleading, so leave this breadcrumb
       // in case it's the root cause.
-      LOG.error(
+      LOG.warning(
           "Error extracting table. "
               + exn
               + "Note that external tables cannot be exported: "
