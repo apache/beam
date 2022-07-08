@@ -15,21 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
-import org.apache.beam.sdk.util.common.Reiterable;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import PrecommitJobBuilder
 
-/** A collection of ShuffleEntries, all with the same key. */
-public class KeyGroupedShuffleEntries {
-  public final ShufflePosition position;
-  public final ByteString key;
-  public final Reiterable<ShuffleEntry> values;
-
-  public KeyGroupedShuffleEntries(
-      ShufflePosition position, ByteString key, Reiterable<ShuffleEntry> values) {
-    this.position = position;
-    this.key = key;
-    this.values = values;
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+    scope: this,
+    nameBase: 'Java_Amazon-Web-Services2_IO_Direct',
+    gradleTask: 'sdks:java:io:amazon-web-services2:integrationTest',
+    gradleSwitches: [
+      '-PdisableSpotlessCheck=true'
+    ], // spotless checked in separate pre-commit
+    triggerPathPatterns: [
+      '^sdks/java/io/amazon-web-services2/.*$',
+    ],
+    timeoutMins: 120,
+    )
+builder.build {
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
   }
 }
