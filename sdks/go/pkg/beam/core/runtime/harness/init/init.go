@@ -22,15 +22,17 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"time"
-
 	"fmt"
 	"os"
+	"strings"
+	"time"
 
 	"runtime/debug"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 )
 
@@ -88,10 +90,24 @@ func hook() {
 		runtime.GlobalOptions.Import(opt.Options)
 	}
 
+	// Since Init() is hijacking main, it's appropriate to do as main
+	// does, and establish the background context here.
+	// We produce a cancelFn here so runs in Loopback mode and similar can clean up
+	// any leftover goroutines.
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+	ctx = grpcx.WriteWorkerID(ctx, *id)
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Fprintf(os.Stderr, "Worker panic: %v\n", r)
 			debug.PrintStack()
+			log.Warnf(ctx, "Worker panic detected: %v", r)
+
+			if tempLocation := beam.PipelineOptions.Get("temp_location"); tempLocation != "" {
+				log.Warnf(ctx, "Capturing heap dump")
+				harness.UploadHeapDump(ctx, fmt.Sprintf("%v/heapDumps/dump-%d", strings.TrimSuffix(tempLocation, "/"), time.Now().Unix()))
+			}
+
 			switch ShutdownMode {
 			case Terminate:
 				os.Exit(2)
@@ -102,14 +118,6 @@ func hook() {
 			}
 		}
 	}()
-
-	// Since Init() is hijacking main, it's appropriate to do as main
-	// does, and establish the background context here.
-	// We produce a cancelFn here so runs in Loopback mode and similar can clean up
-	// any leftover goroutines.
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
-	ctx = grpcx.WriteWorkerID(ctx, *id)
 	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint); err != nil {
 		fmt.Fprintf(os.Stderr, "Worker failed: %v\n", err)
 		switch ShutdownMode {
