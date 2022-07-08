@@ -170,8 +170,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
         // greater than the start restriction
         if(currentTimestamp < tracker.currentRestriction().getFrom()) {
           LOG.warn("Initial restriction ({}) is greather than Current timestamp ({})", tracker.currentRestriction().getFrom(), currentTimestamp);
-          reader.close();
-          return ProcessContinuation.stop();
+          return ProcessContinuation.resume();
         }
         // if tracker.tryclaim() return true, sdf must execute work otherwise
         // doFn must exit processElement() without doing any work associated

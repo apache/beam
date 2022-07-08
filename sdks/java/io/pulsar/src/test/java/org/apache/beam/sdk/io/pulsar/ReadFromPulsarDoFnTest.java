@@ -173,7 +173,7 @@ public class ReadFromPulsarDoFnTest {
                     tracker,
                     null,
                     (DoFn.OutputReceiver) receiver);
-    assertEquals(DoFn.ProcessContinuation.stop(), result);
+    assertEquals(DoFn.ProcessContinuation.resume(), result);
   }
 
   private static class MockOutputReceiver implements DoFn.OutputReceiver<PulsarMessage> {
