@@ -86,6 +86,7 @@ class DaskRunnerResult(PipelineResult):
                 # Convert milliseconds to seconds
                 duration /= 1000
             self.client.wait_for_workers(timeout=duration)
+            self.client.gather(self.futures, errors='raise')
             self._state = PipelineState.DONE
         except:  # pylint: disable=broad-except
             self._state = PipelineState.FAILED
@@ -120,13 +121,20 @@ class DaskRunner(BundleBasedDirectRunner):
 
                 inputs = list(transform_node.inputs)
                 if inputs:
+                    bag_inputs = []
                     for input_value in inputs:
                         if isinstance(input_value, pvalue.PBegin):
-                            self.bags[transform_node] = op.apply(None)
+                            bag_inputs.append(None)
 
                         prev_op = input_value.producer
                         if prev_op in self.bags:
-                            self.bags[transform_node] = op.apply(self.bags[prev_op])
+                            bag_inputs.append(self.bags[prev_op])
+
+                    if len(bag_inputs) == 1:
+                        self.bags[transform_node] = op.apply(bag_inputs[0])
+                    else:
+                        self.bags[transform_node] = op.apply(bag_inputs)
+
                 else:
                     self.bags[transform_node] = op.apply(None)
 

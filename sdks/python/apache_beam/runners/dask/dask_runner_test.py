@@ -17,8 +17,10 @@
 import unittest
 
 import apache_beam as beam
+from apache_beam.runners import DirectRunner
 from apache_beam.runners.dask.dask_runner import DaskRunner
 from apache_beam.testing import test_pipeline
+from apache_beam.testing.util import assert_that, equal_to
 
 
 class DaskRunnerRunPipelineTest(unittest.TestCase):
@@ -28,8 +30,9 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
         self.p = test_pipeline.TestPipeline(runner=DaskRunner())
 
     def test_create(self):
-        _ = self.p | beam.Create([1])
-        self.p.run()
+        with self.p as p:
+            pcoll = p | beam.Create([1])
+            assert_that(pcoll, equal_to([1]))
 
     def test_create_and_map(self):
         def double(x):

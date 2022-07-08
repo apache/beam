@@ -18,16 +18,19 @@
 
 TODO(alxr): Translate ops from https://docs.dask.org/en/latest/bag-api.html.
 """
-import typing as t
 import abc
 import dataclasses
-
-import apache_beam
-from apache_beam.pipeline import AppliedPTransform
+import typing as t
 
 import dask.bag as db
 
-from apache_beam.runners.dask.overrides import _Create, _GroupByKeyOnly
+import apache_beam
+from apache_beam.pipeline import AppliedPTransform
+from apache_beam.runners.dask.overrides import (
+    _Create,
+    _GroupByKeyOnly,
+    _Flatten
+)
 
 
 @dataclasses.dataclass
@@ -76,9 +79,16 @@ class GroupByKey(DaskBagOp):
         return input_bag.groupby(key)
 
 
+class Flatten(DaskBagOp):
+    def apply(self, input_bag: t.Optional[t.Sequence[db.Bag]]) -> db.Bag:
+        assert type(input_bag) is list, 'Must take a sequence of bags!'
+        return db.concat(input_bag)
+
+
 TRANSLATIONS = {
     _Create: Create,
     apache_beam.ParDo: ParDo,
     apache_beam.Map: Map,
     _GroupByKeyOnly: GroupByKey,
+    _Flatten: Flatten,
 }
