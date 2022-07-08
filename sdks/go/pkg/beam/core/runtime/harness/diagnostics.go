@@ -28,7 +28,6 @@ import (
 )
 
 func UploadHeapDump(ctx context.Context, dest string) error {
-	// TODO - we should probably make sure we can write to the filesystem first
 	heapDumpLoc := "heapdump"
 	err := generateHeapDump(ctx, heapDumpLoc)
 	if err != nil {
