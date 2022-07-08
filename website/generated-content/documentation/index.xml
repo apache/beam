@@ -12302,10 +12302,10 @@ version = “v” 1*(DIGIT / “.”) ; For example, ‘v1.2’&lt;/code>&lt;/pr
 lower-level &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#CrossLanguage">CrossLanguage&lt;/a>
 function to access the transform.&lt;/p>
 &lt;p>&lt;strong>Expansion Services&lt;/strong>&lt;/p>
-&lt;p>The Go SDK does not yet support automatically starting an expansion service. In order to use
-cross-language transforms, you must manually start any necessary expansion services on your local
-machine and ensure they are accessible to your code during pipeline construction; see more at
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-12862">BEAM-12862&lt;/a>.&lt;/p>
+&lt;p>The Go SDK supports automatically starting Java expansion services if an expansion address is not provided, although this is slower than
+providing a persistent expansion service. Many wrapped Java transforms manage perform this automatically; if you wish to do this manually, use the &lt;code>xlangx&lt;/code> package&amp;rsquo;s
+&lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2@v2.40.0/go/pkg/beam/core/runtime/xlangx#UseAutomatedJavaExpansionService">UseAutomatedJavaExpansionService()&lt;/a> function. In order to use Python cross-language transforms, you must manually start any necessary expansion
+services on your local machine and ensure they are accessible to your code during pipeline construction.&lt;/p>
 &lt;p>&lt;strong>Using an SDK wrapper&lt;/strong>&lt;/p>
 &lt;p>To use a cross-language transform through an SDK wrapper, import the package for the SDK wrapper
 and call it from your pipeline as shown in the example:&lt;/p>
