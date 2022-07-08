@@ -19,6 +19,6 @@ from logger import setup_logger
 
 
 def test_setup_logger():
-  count_default_handlers = len(logging.getLogger().handlers)
-  setup_logger()  # adding 2 handlers in root logger
-  assert (len(logging.getLogger().handlers) - count_default_handlers) == 2
+    count_default_handlers = len(logging.getLogger().handlers)
+    setup_logger()  # adding 2 handlers in root logger
+    assert (len(logging.getLogger().handlers) - count_default_handlers) == 2
