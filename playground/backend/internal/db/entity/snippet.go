@@ -24,27 +24,6 @@ import (
 	"time"
 )
 
-type Origin int32
-
-const (
-	PG_USER Origin = iota
-	PG_EXAMPLES
-	TOUR_OF_BEAM
-)
-
-// OriginValue value maps for Origin.
-var (
-	OriginValue = map[string]int32{
-		"PG_USER":      0,
-		"PG_EXAMPLES":  1,
-		"TOUR_OF_BEAM": 2,
-	}
-)
-
-func (s Origin) Value() int32 {
-	return int32(s)
-}
-
 type FileEntity struct {
 	Name     string `datastore:"name"`
 	Content  string `datastore:"content,noindex"`
@@ -58,7 +37,7 @@ type SnippetEntity struct {
 	PipeOpts      string         `datastore:"pipeOpts"`
 	Created       time.Time      `datastore:"created"`
 	LVisited      time.Time      `datastore:"lVisited"`
-	Origin        Origin         `datastore:"origin"`
+	Origin        string         `datastore:"origin"`
 	VisitCount    int            `datastore:"visitCount"`
 	SchVer        *datastore.Key `datastore:"schVer"`
 	NumberOfFiles int            `datastore:"numberOfFiles"`

@@ -58,7 +58,7 @@ func TestEntityMapper_ToSnippet(t *testing.T) {
 					SchVer:        utils.GetNameKey(datastoreDb.SchemaKind, "MOCK_SCHEMA", datastoreDb.Namespace, nil),
 					Sdk:           utils.GetNameKey(datastoreDb.SdkKind, "SDK_JAVA", datastoreDb.Namespace, nil),
 					PipeOpts:      "MOCK_OPTIONS",
-					Origin:        entity.Origin(entity.OriginValue["PG_USER"]),
+					Origin:        "PG_USER",
 					NumberOfFiles: 1,
 				},
 				Files: []*entity.FileEntity{
@@ -80,7 +80,7 @@ func TestEntityMapper_ToSnippet(t *testing.T) {
 				result.Salt != tt.expected.Salt ||
 				result.Snippet.PipeOpts != tt.expected.Snippet.PipeOpts ||
 				result.Snippet.NumberOfFiles != 1 ||
-				result.Snippet.Origin != 0 {
+				result.Snippet.Origin != "PG_USER" {
 				t.Error("Unexpected result")
 			}
 		})
