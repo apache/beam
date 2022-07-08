@@ -355,10 +355,10 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       # The error messages thrown in this case are generic and misleading,
       # so leave this breadcrumb in case it's the root cause.
       logging.warning(
-          f"Error exporting table: {exn}. "
+          "Error exporting table: %s. "
           "Note that external tables cannot be exported: "
           "https://cloud.google.com/bigquery/docs/external-tables"
-          "#external_table_limitations")
+          "#external_table_limitations", exn)
       raise
     metadata_list = FileSystems.match([gcs_location])[0].metadata_list
 
