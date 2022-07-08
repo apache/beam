@@ -17,6 +17,8 @@
 Module contains the client to communicate with Google Cloud Datastore
 """
 import string
+import uuid
+from datetime import datetime
 from typing import List
 
 from google.cloud import datastore
@@ -48,13 +50,31 @@ class DatastoreClient:
             examples: precompiled examples
         """
 
+        snippets = []
+        now = datetime.today()
+        last_schema_version_query = self._datastore_client.query(kind=constant.SCHEMA_KIND)
+        schema_keys = last_schema_version_query.fetch()
         with self._datastore_client.transaction():
             for example in tqdm(examples):
-                exampleEntity = datastore.Entity(self._datastore_client.key(constant.FILED_KIND, ))
-
-            self._datastore_client.put_multi()
+                snippet_id = uuid.UUID  # The grpc client will call the router to generate an ID
+                snippet_entity = datastore.Entity(self._get_key(constant.SNIPPET_KIND, str(snippet_id)))
+                snippet_entity.update(
+                    {
+                        "sdk": self._get_key(constant.SDK_KIND, example.sdk),
+                        "created": now,
+                        "lVisited": now,
+                        "origin": "PG_EXAMPLES",
+                        "numberOfFiles": 1,
+                        "schVer": self._get_key(constant.SCHEMA_KIND, "version")
+                    }
+                )
+                snippets.append(snippet_entity)
+            self._datastore_client.put_multi(snippets)
 
     def _generate_id(self, salt, content: string, length: int) -> string:
         hash_init = sha256()
         hash_init.update(salt + content)
         return urlsafe_b64encode(hash_init.digest())[:length]
+
+    def _get_key(self, kind, identifier: str) -> datastore.key:
+        return self._datastore_client.key(kind, identifier)
