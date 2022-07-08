@@ -76,7 +76,11 @@ class GroupByKey(DaskBagOp):
         def key(item):
             return item[0]
 
-        return input_bag.groupby(key)
+        def value(item):
+            k, v = item
+            return k, [elm[1] for elm in v]
+
+        return input_bag.groupby(key).map(value)
 
 
 class Flatten(DaskBagOp):
