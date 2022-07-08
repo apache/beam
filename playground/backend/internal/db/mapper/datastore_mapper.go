@@ -44,7 +44,7 @@ func (m *DatastoreMapper) ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet
 			PipeOpts:      info.PipelineOptions,
 			Created:       nowDate,
 			LVisited:      nowDate,
-			Origin:        0,
+			Origin:        "PG_USER",
 			NumberOfFiles: len(info.Files),
 		},
 	}

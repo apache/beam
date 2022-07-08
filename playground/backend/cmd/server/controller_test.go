@@ -914,7 +914,7 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 							Sdk:           utils.GetNameKey(datastoreDb.SdkKind, pb.Sdk_SDK_JAVA.String(), datastoreDb.Namespace, nil),
 							PipeOpts:      "MOCK_OPTIONS",
 							Created:       nowDate,
-							Origin:        entity.PG_USER,
+							Origin:        "PG_USER",
 							NumberOfFiles: 1,
 						},
 						Files: []*entity.FileEntity{{
