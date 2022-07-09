@@ -51,24 +51,18 @@ class DatastoreClient:
         """
 
         snippets = []
+        examples = []
         now = datetime.today()
         last_schema_version_query = self._datastore_client.query(kind=constant.SCHEMA_KIND)
         schema_keys = last_schema_version_query.fetch()
+        actual_schema_version_key = schema_keys.sort(key=self._getKeyName)[0]
         with self._datastore_client.transaction():
             for example in tqdm(examples):
-                snippet_id = uuid.UUID  # The grpc client will call the router to generate an ID
-                snippet_entity = datastore.Entity(self._get_key(constant.SNIPPET_KIND, str(snippet_id)))
-                snippet_entity.update(
-                    {
-                        "sdk": self._get_key(constant.SDK_KIND, example.sdk),
-                        "created": now,
-                        "lVisited": now,
-                        "origin": "PG_EXAMPLES",
-                        "numberOfFiles": 1,
-                        "schVer": self._get_key(constant.SCHEMA_KIND, "version")
-                    }
-                )
-                snippets.append(snippet_entity)
+                snp_id = str(uuid.UUID)  # The grpc client will call the router to generate an ID
+                sdk_key = self._get_key(constant.SDK_KIND, example.sdk)
+                self._to_snippet_entity(snp_id, sdk_key, now, actual_schema_version_key, snippets)
+                self._to_example_entity()
+
             self._datastore_client.put_multi(snippets)
 
     def _generate_id(self, salt, content: string, length: int) -> string:
@@ -78,3 +72,23 @@ class DatastoreClient:
 
     def _get_key(self, kind, identifier: str) -> datastore.key:
         return self._datastore_client.key(kind, identifier)
+
+    def _getKeyName(self, key: datastore.key):
+        return key["arg_1"]
+
+    def _to_snippet_entity(self, snp_id: string, sdk_key: datastore.key, now: datetime, schema_key: datastore.key, snippets: List):
+        snippet_entity = datastore.Entity(self._get_key(constant.SNIPPET_KIND, snp_id))
+        snippet_entity.update(
+            {
+                "sdk": sdk_key,
+                "created": now,
+                "lVisited": now,
+                "origin": "PG_EXAMPLES",
+                "numberOfFiles": 1,
+                "schVer": schema_key
+            }
+        )
+        snippets.append(snippet_entity)
+
+    def _to_example_entity(self):
+        print("hi")
