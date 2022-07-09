@@ -327,7 +327,10 @@ if __name__ == '__main__':
             'azure-core >=1.7.0',
           ],
           'dataframe': ['pandas>=1.0,<1.5'],
-          'dask': ['dask[distributed] >= 2022.6']
+          'dask': [
+            'dask >= 2022.6'
+            'distributed >= 2022.6'
+          ],
       },
       zip_safe=False,
       # PyPI package information.
