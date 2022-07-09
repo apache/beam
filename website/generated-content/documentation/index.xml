@@ -4216,10 +4216,12 @@ programming guide, take a look at the
 &lt;li data-type="language-java" class="active">Java SDK&lt;/li>
 &lt;li data-type="language-py">Python SDK&lt;/li>
 &lt;li data-type="language-go">Go SDK&lt;/li>
+&lt;li data-type="language-typescript">Typescript SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;p class="language-py">The Python SDK supports Python 3.7, 3.8, and 3.9.&lt;/p>
 &lt;p class="language-go">The Go SDK supports Go v1.18+. SDK release 2.32.0 is the last experimental version.&lt;/p>
+&lt;p class="language-typescript">The Typescript SDK supports Node v16+ and is still experimental.&lt;/p>
 &lt;h2 id="overview">1. Overview&lt;/h2>
 &lt;p>To use Beam, you need to first create a driver program using the classes in one
 of the Beam SDKs. Your driver program &lt;em>defines&lt;/em> your pipeline, including all of
@@ -4307,6 +4309,10 @@ class &lt;code>Pipeline&lt;/code> (typically in the &lt;code>main()&lt;/code> fu
 your pipeline&amp;rsquo;s configuration options programmatically, but it&amp;rsquo;s often easier to
 set the options ahead of time (or read them from the command line) and pass them
 to the &lt;code>Pipeline&lt;/code> object when you create the object.&lt;/p>
+&lt;span class="language-typescript">
+A Pipeline in the Typescript API is simply a function that will be called
+with a single `root` object and is passed to a Runner's `run` method.
+&lt;/span>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -4340,6 +4346,17 @@ to the &lt;code>Pipeline&lt;/code> object when you create the object.&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">pipeline&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">scope&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewPipelineWithRoot&lt;/span>&lt;span class="p">()&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="nx">await&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">createRunner&lt;/span>&lt;span class="p">().&lt;/span>&lt;span class="nx">run&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kd">function&lt;/span> &lt;span class="nx">pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">root&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// Use root to build a pipeline.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="p">});&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h3 id="configuring-pipeline-options">2.1. Configuring pipeline options&lt;/h3>
 &lt;p>Use the pipeline options to configure different aspects of your pipeline, such
 as the pipeline runner that will execute your pipeline and any runner-specific
@@ -4357,6 +4374,9 @@ you can use to set fields in &lt;code>PipelineOptions&lt;/code> using command-li
 as demonstrated in the following example code:&lt;/p>
 &lt;p class="language-go">Use Go flags to parse command line arguments to configure your pipeline. Flags must be parsed
 before &lt;code>beam.Init()&lt;/code> is called.&lt;/p>
+&lt;p class="language-typescript">Any Javascript object can be used as pipeline options.
+One can either construct one manually, but it is also common to pass an object
+created from command line options such as &lt;code>yargs.argv&lt;/code>.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -4385,6 +4405,20 @@ before &lt;code>beam.Init()&lt;/code> is called.&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">flag&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Parse&lt;/span>&lt;span class="p">()&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">pipeline_options&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">runner&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;default&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">project&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;my_project&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">};&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">runner&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">createRunner&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">pipeline_options&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">runnerFromCommandLineOptions&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">createRunner&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">yargs&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">argv&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>This interprets command-line arguments that follow the format:&lt;/p>
 &lt;pre>&lt;code>--&amp;lt;option&amp;gt;=&amp;lt;value&amp;gt;
 &lt;/code>&lt;/pre>&lt;span class="language-java">
@@ -4403,9 +4437,10 @@ options.&lt;/p>
 &lt;/blockquote>
 &lt;h4 id="creating-custom-options">2.1.2. Creating custom options&lt;/h4>
 &lt;p>You can add your own custom options in addition to the standard
-&lt;code>PipelineOptions&lt;/code>. To add your own options, define an interface with getter and
-setter methods for each option, as in the following example for
-adding &lt;code>input&lt;/code> and &lt;code>output&lt;/code> custom options:&lt;/p>
+&lt;code>PipelineOptions&lt;/code>.
+&lt;p class="language-java">To add your own options, define an interface with getter and
+setter methods for each option.&lt;/p>
+The following example shows how to add &lt;code>input&lt;/code> and &lt;code>output&lt;/code> custom options:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -4428,8 +4463,8 @@ adding &lt;code>input&lt;/code> and &lt;code>output&lt;/code> custom options:&lt
 &lt;span class="k">class&lt;/span> &lt;span class="nc">MyOptions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="nd">@classmethod&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">_add_argparse_args&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">cls&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">parser&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;--input-file&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;--output-path&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;--input&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;--output&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;div class='language-go snippet'>
@@ -4444,9 +4479,20 @@ adding &lt;code>input&lt;/code> and &lt;code>output&lt;/code> custom options:&lt
 &lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">options&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">yargs&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">argv&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c1">// Or an alternative command-line parsing library.
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="c1">// Use options.input and options.output during pipeline construction.
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>You can also specify a description, which appears when a user passes &lt;code>--help&lt;/code> as
 a command-line argument, and a default value.&lt;/p>
-&lt;p>You set the description and default value using annotations, as follows:&lt;/p>
+&lt;p class="language-java language-py langauge-go">You set the description and default value using annotations, as follows:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -4474,13 +4520,11 @@ a command-line argument, and a default value.&lt;/p>
 &lt;span class="nd">@classmethod&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">_add_argparse_args&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">cls&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">parser&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="s1">&amp;#39;--input-file&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="s1">&amp;#39;--input&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="n">default&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;gs://dataflow-samples/shakespeare/kinglear.txt&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;The file path for the input text to process.&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="s1">&amp;#39;--output-path&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">required&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">True&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;The path prefix for output files.&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="s1">&amp;#39;--output&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">required&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">True&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;The path prefix for output files.&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;div class='language-go snippet'>
@@ -4494,6 +4538,8 @@ a command-line argument, and a default value.&lt;/p>
 &lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;p class="language-py">For Python, you can also simply parse your custom options with argparse; there
+is no need to create a separate PipelineOptions subclass.&lt;/p>
 &lt;p class="language-java">It&amp;rsquo;s recommended that you register your interface with &lt;code>PipelineOptionsFactory&lt;/code>
 and then pass the interface when creating the &lt;code>PipelineOptions&lt;/code> object. When you
 register your interface with &lt;code>PipelineOptionsFactory&lt;/code>, the &lt;code>--help&lt;/code> can find
@@ -4543,12 +4589,16 @@ represent the data records in that source.&lt;/p>
 transform to the &lt;code>Pipeline&lt;/code> object itself.
 &lt;span class="language-java">&lt;code>TextIO.Read&lt;/code>&lt;/span>
 &lt;span class="language-py">&lt;code>io.TextFileSource&lt;/code>&lt;/span>
-&lt;span class="language-go">&lt;code>textio.Read&lt;/code>&lt;/span>, for example, reads from an
+&lt;span class="language-go">&lt;code>textio.Read&lt;/code>&lt;/span>
+&lt;span class="language-typescript">&lt;code>textio.ReadFromText&lt;/code>&lt;/span>,
+for example, reads from an
 external text file and returns a &lt;code>PCollection&lt;/code> whose elements are of type
 &lt;code>String&lt;/code>, each &lt;code>String&lt;/code> represents one line from the text file. Here&amp;rsquo;s how you
 would apply &lt;span class="language-java">&lt;code>TextIO.Read&lt;/code>&lt;/span>
 &lt;span class="language-py">&lt;code>io.TextFileSource&lt;/code>&lt;/span>
-&lt;span class="language-go">&lt;code>textio.Read&lt;/code>&lt;/span> to your &lt;code>Pipeline&lt;/code> to create
+&lt;span class="language-go">&lt;code>textio.Read&lt;/code>&lt;/span>
+&lt;span class="language-typescript">&lt;code>textio.ReadFromText&lt;/code>&lt;/span>
+to your &lt;code>Pipeline&lt;/code> &lt;span class="language-typescript">root&lt;/span> to create
 a &lt;code>PCollection&lt;/code>:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
@@ -4587,6 +4637,19 @@ a &lt;code>PCollection&lt;/code>:&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">lines&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">textio&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Read&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;gs://some/inputData.txt&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">async&lt;/span> &lt;span class="nx">function&lt;/span> &lt;span class="nf">pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">root&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Root&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// Note that textio.ReadFromText is an AsyncPTransform.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="kd">const&lt;/span> &lt;span class="nx">pcoll&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">&amp;lt;&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">await&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">asyncApply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">textio&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;path/to/text_pattern&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">);&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>See the &lt;a href="#pipeline-io">section on I/O&lt;/a> to learn more about how to read from the
 various data sources supported by the Beam SDK.&lt;/p>
 &lt;h4 id="creating-pcollection-in-memory">3.1.2. Creating a PCollection from in-memory data&lt;/h4>
@@ -4601,8 +4664,13 @@ Beam-provided &lt;code>Create&lt;/code> transform. Much like a data adapter&amp;
 itself.&lt;/p>
 &lt;p class="language-go">To create a &lt;code>PCollection&lt;/code> from an in-memory &lt;code>slice&lt;/code>, you use the Beam-provided
 &lt;code>beam.CreateList&lt;/code> transform. Pass the pipeline &lt;code>scope&lt;/code>, and the &lt;code>slice&lt;/code> to this transform.&lt;/p>
+&lt;p class="language-typescript">To create a &lt;code>PCollection&lt;/code> from an in-memory &lt;code>array&lt;/code>, you use the Beam-provided
+&lt;code>Create&lt;/code> transform. Apply this transform directly to your &lt;code>Root&lt;/code> object.&lt;/p>
 &lt;p>The following example code shows how to create a &lt;code>PCollection&lt;/code> from an in-memory
-&lt;span class="language-java">&lt;code>List&lt;/code>&lt;/span>&lt;span class="language-py">&lt;code>list&lt;/code>&lt;/span>&lt;span class="language-go">&lt;code>slice&lt;/code>&lt;/span>:&lt;/p>
+&lt;span class="language-java">&lt;code>List&lt;/code>&lt;/span>
+&lt;span class="language-py">&lt;code>list&lt;/code>&lt;/span>
+&lt;span class="language-go">&lt;code>slice&lt;/code>&lt;/span>
+&lt;span class="language-typescript">&lt;code>array&lt;/code>&lt;/span>:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -4660,6 +4728,24 @@ itself.&lt;/p>
 &lt;/span>&lt;span class="c1">// The scope variable s is used to add the CreateList transform
 &lt;/span>&lt;span class="c1">// to the pipeline.
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">linesPCol&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">CreateList&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">lines&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kd">function&lt;/span> &lt;span class="nx">pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">root&lt;/span>: &lt;span class="kt">beam.Root&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">pcoll&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">([&lt;/span>
+&lt;span class="s2">&amp;#34;To be, or not to be: that is the question: &amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="s2">&amp;#34;Whether &amp;#39;tis nobler in the mind to suffer &amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="s2">&amp;#34;The slings and arrows of outrageous fortune, &amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="s2">&amp;#34;Or to take arms against a sea of troubles, &amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">])&lt;/span>
+&lt;span class="p">);&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="pcollection-characteristics">3.2. PCollection characteristics&lt;/h3>
@@ -4793,7 +4879,17 @@ the transform itself as an argument, and the operation returns the output
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="p">[&lt;/span>&lt;span class="nx">Output&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">Transform&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">Input&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">])&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p class="language-java language-py">Because Beam uses a generic &lt;code>apply&lt;/code> method for &lt;code>PCollection&lt;/code>, you can both chain
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="p">[&lt;/span>&lt;span class="nx">Output&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">Input&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">].&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="nx">Transform&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="p">[&lt;/span>&lt;span class="nx">Output&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">await&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">Input&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">].&lt;/span>&lt;span class="nx">asyncApply&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="nx">AsyncTransform&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-java language-py language-typescript">Because Beam uses a generic &lt;code>apply&lt;/code> method for &lt;code>PCollection&lt;/code>, you can both chain
 transforms sequentially and also apply transforms that contain other transforms
 nested within (called &lt;a href="#composite-transforms">composite transforms&lt;/a> in the Beam
 SDKs).&lt;/p>
@@ -4841,6 +4937,17 @@ For example, you can successively call transforms on PCollections to modify the 
 &lt;span class="p">[&lt;/span>&lt;span class="nx">Final&lt;/span> &lt;span class="nx">Output&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">Third&lt;/span> &lt;span class="nx">Transform&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">Third&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">])&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="p">[&lt;/span>&lt;span class="nx">Final&lt;/span> &lt;span class="nx">Output&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">Initial&lt;/span> &lt;span class="nx">Input&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">].&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="nx">First&lt;/span> &lt;span class="nx">Transform&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="nx">Second&lt;/span> &lt;span class="nx">Transform&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="nx">Third&lt;/span> &lt;span class="nx">Transform&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>The graph of this pipeline looks like the following:&lt;/p>
 &lt;p>&lt;img src="/images/design-your-pipeline-linear.svg" alt="This linear pipeline starts with one input collection, sequentially appliesthree transforms, and ends with one output collection.">&lt;/p>
 &lt;p>&lt;em>Figure 1: A linear pipeline with three sequential transforms.&lt;/em>&lt;/p>
@@ -4878,6 +4985,17 @@ a branching pipeline, like so:&lt;/p>
 &lt;span class="p">[&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="nx">of&lt;/span> &lt;span class="sc">&amp;#39;B&amp;#39;&lt;/span> &lt;span class="nx">names&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">Transform&lt;/span> &lt;span class="nx">B&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="nx">of&lt;/span> &lt;span class="nx">database&lt;/span> &lt;span class="nx">table&lt;/span> &lt;span class="nx">rows&lt;/span>&lt;span class="p">])&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="p">[&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="nx">of&lt;/span> &lt;span class="nx">database&lt;/span> &lt;span class="nx">table&lt;/span> &lt;span class="nx">rows&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">Database&lt;/span> &lt;span class="nx">Table&lt;/span> &lt;span class="nx">Reader&lt;/span>&lt;span class="p">].&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="nx">Read&lt;/span> &lt;span class="nx">Transform&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="p">[&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="nx">of&lt;/span> &lt;span class="s1">&amp;#39;A&amp;#39;&lt;/span> &lt;span class="nx">names&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="nx">of&lt;/span> &lt;span class="nx">database&lt;/span> &lt;span class="nx">table&lt;/span> &lt;span class="nx">rows&lt;/span>&lt;span class="p">].&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="nx">Transform&lt;/span> &lt;span class="nx">A&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="p">[&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="nx">of&lt;/span> &lt;span class="s1">&amp;#39;B&amp;#39;&lt;/span> &lt;span class="nx">names&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="nx">of&lt;/span> &lt;span class="nx">database&lt;/span> &lt;span class="nx">table&lt;/span> &lt;span class="nx">rows&lt;/span>&lt;span class="p">].&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="nx">Transform&lt;/span> &lt;span class="nx">B&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>The graph of this branching pipeline looks like the following:&lt;/p>
 &lt;p>&lt;img src="/images/design-your-pipeline-multiple-pcollections.svg" alt="This pipeline applies two transforms to a single input collection. Eachtransform produces an output collection.">&lt;/p>
 &lt;p>&lt;em>Figure 2: A branching pipeline. Two transforms are applied to a single
@@ -4886,6 +5004,18 @@ PCollection of database table rows.&lt;/em>&lt;/p>
 nest multiple transforms inside a single, larger transform. Composite transforms
 are particularly useful for building a reusable sequence of simple steps that
 get used in a lot of different places.&lt;/p>
+&lt;p class="language-python">The pipe syntax allows one to apply PTransforms to &lt;code>tuple&lt;/code>s and &lt;code>dict&lt;/code>s of
+PCollections as well for those transforms accepting multiple inputs (such as
+&lt;code>Flatten&lt;/code> and &lt;code>CoGroupByKey&lt;/code>).&lt;/p>
+&lt;p class="language-typescript">PTransforms can also be applied to any &lt;code>PValue&lt;/code>, which include the Root object,
+PCollections, arrays of &lt;code>PValue&lt;/code>s, and objects with &lt;code>PValue&lt;/code> values.
+One can apply transforms to these composite types by wrapping them with
+&lt;code>beam.P&lt;/code>, e.g.
+&lt;code>beam.P({left: pcollA, right: pcollB}).apply(transformExpectingTwoPCollections)&lt;/code>.&lt;/p>
+&lt;p class="language-typescript">PTransforms come in two flavors, synchronous and asynchronous, depending on
+whether their &lt;em>application&lt;/em>* involves asynchronous invocations.
+An &lt;code>AsyncTransform&lt;/code> must be applied with &lt;code>asyncApply&lt;/code> and returns a &lt;code>Promise&lt;/code>
+which must be awaited before further pipeline construction.&lt;/p>
 &lt;h3 id="core-beam-transforms">4.2. Core Beam transforms&lt;/h3>
 &lt;p>Beam provides the following core transforms, each of which represents a different
 processing paradigm:&lt;/p>
@@ -4897,6 +5027,8 @@ processing paradigm:&lt;/p>
 &lt;li>&lt;code>Flatten&lt;/code>&lt;/li>
 &lt;li>&lt;code>Partition&lt;/code>&lt;/li>
 &lt;/ul>
+&lt;p class="language-typescript">The Typescript SDK provides some of the most basic of these transforms
+as methods on &lt;code>PCollection&lt;/code> itself.&lt;/p>
 &lt;h4 id="pardo">4.2.1. ParDo&lt;/h4>
 &lt;p>&lt;code>ParDo&lt;/code> is a Beam transform for generic parallel processing. The &lt;code>ParDo&lt;/code>
 processing paradigm is similar to the &amp;ldquo;Map&amp;rdquo; phase of a
@@ -5021,6 +5153,25 @@ as shown in the following example code:&lt;/p>
 &lt;span class="nx">wordLengths&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">ComputeWordLengthFn&lt;/span>&lt;span class="p">{},&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="err">#&lt;/span> &lt;span class="nx">The&lt;/span> &lt;span class="nx">input&lt;/span> &lt;span class="nx">PCollection&lt;/span> &lt;span class="nx">of&lt;/span> &lt;span class="nx">Strings&lt;/span>&lt;span class="p">.&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">words&lt;/span> : &lt;span class="kt">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">...&lt;/span>
+&lt;span class="err">#&lt;/span> &lt;span class="nx">The&lt;/span> &lt;span class="nx">DoFn&lt;/span> &lt;span class="nx">to&lt;/span> &lt;span class="nx">perform&lt;/span> &lt;span class="nx">on&lt;/span> &lt;span class="nx">each&lt;/span> &lt;span class="nx">element&lt;/span> &lt;span class="k">in&lt;/span> &lt;span class="nx">the&lt;/span> &lt;span class="nx">input&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">.&lt;/span>
+&lt;span class="kd">function&lt;/span> &lt;span class="nx">computeWordLengthFn&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">number&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">process&lt;/span>: &lt;span class="kt">function&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">element&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">yield&lt;/span> &lt;span class="nx">element&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;span class="p">},&lt;/span>
+&lt;span class="p">};&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">parDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">computeWordLengthFn&lt;/span>&lt;span class="p">()));&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>In the example, our input &lt;code>PCollection&lt;/code> contains &lt;span class="language-java language-py">&lt;code>String&lt;/code>&lt;/span>
 &lt;span class="language-go">&lt;code>string&lt;/code>&lt;/span> values. We apply a
 &lt;code>ParDo&lt;/code> transform that specifies a function (&lt;code>ComputeWordLengthFn&lt;/code>) to compute
@@ -5089,7 +5240,7 @@ provides a method for emitting elements. The parameter types must match the inpu
 and output types of your &lt;code>DoFn&lt;/code> or the framework will raise an error. Note: &lt;code>@Element&lt;/code> and
 &lt;code>OutputReceiver&lt;/code> were introduced in Beam 2.5.0; if using an earlier release of Beam, a
 &lt;code>ProcessContext&lt;/code> parameter should be used instead.&lt;/p>
-&lt;p class="language-py">Inside your &lt;code>DoFn&lt;/code> subclass, you&amp;rsquo;ll write a method &lt;code>process&lt;/code> where you provide
+&lt;p class="language-py language-typescript">Inside your &lt;code>DoFn&lt;/code> subclass, you&amp;rsquo;ll write a method &lt;code>process&lt;/code> where you provide
 the actual processing logic. You don&amp;rsquo;t need to manually extract the elements
 from the input collection; the Beam SDKs handle that for you. Your &lt;code>process&lt;/code> method
 should accept an argument &lt;code>element&lt;/code>, which is the input element, and return an
@@ -5149,6 +5300,21 @@ or the framework will raise an error.&lt;/p>
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kd">function&lt;/span> &lt;span class="nx">computeWordLengthFn&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kt">number&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">process&lt;/span>: &lt;span class="kt">function&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">element&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">yield&lt;/span> &lt;span class="nx">element&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;span class="p">},&lt;/span>
+&lt;span class="p">};&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p class="language-go">Simple DoFns can also be written as functions.&lt;/p>
 &lt;div class='language-go snippet'>
 &lt;div class="notebook-skip code-snippet">
@@ -5205,7 +5371,7 @@ elements from the input collection).&lt;/li>
 that value in any way.&lt;/li>
 &lt;/ul>
 &lt;/span>
-&lt;span class="language-py">
+&lt;span class="language-py language-typescript">
 &lt;ul>
 &lt;li>You should not in any way modify the &lt;code>element&lt;/code> argument provided to the
 &lt;code>process&lt;/code> method, or any side inputs.&lt;/li>
@@ -5226,12 +5392,14 @@ that value in any way.&lt;/li>
 &lt;code>ParDo&lt;/code> by providing a lightweight &lt;code>DoFn&lt;/code> in-line, as
 &lt;span class="language-java">an anonymous inner class instance&lt;/span>
 &lt;span class="language-py">a lambda function&lt;/span>
-&lt;span class="language-go">an anonymous function&lt;/span>.&lt;/p>
+&lt;span class="language-go">an anonymous function&lt;/span>
+&lt;span class="language-typescript">a function passed to &lt;code>PCollection.map&lt;/code> or &lt;code>PCollection.flatMap&lt;/code>&lt;/span>.&lt;/p>
 &lt;p>Here&amp;rsquo;s the previous example, &lt;code>ParDo&lt;/code> with &lt;code>ComputeLengthWordsFn&lt;/code>, with the
 &lt;code>DoFn&lt;/code> specified as
 &lt;span class="language-java">an anonymous inner class instance&lt;/span>
 &lt;span class="language-py">a lambda function&lt;/span>
-&lt;span class="language-go">an anonymous function&lt;/span>:&lt;/p>
+&lt;span class="language-go">an anonymous function&lt;/span>
+&lt;span class="language-typescript">a function&lt;/span>:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -5275,15 +5443,26 @@ that value in any way.&lt;/li>
 &lt;span class="p">},&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="c1">// The input PCollection of strings.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">words&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">...&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">flatMap&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span>&lt;span class="p">]);&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>If your &lt;code>ParDo&lt;/code> performs a one-to-one mapping of input elements to output
 elements&amp;ndash;that is, for each input element, it applies a function that produces
 &lt;em>exactly one&lt;/em> output element, &lt;span class="language-go">you can return that
 element directly.&lt;/span>&lt;span class="language-java language-py">you can use the higher-level
-&lt;span class="language-java">&lt;code>MapElements&lt;/code>&lt;/span>&lt;span class="language-py">&lt;code>Map&lt;/code>&lt;/span>
+&lt;span class="language-java">&lt;code>MapElements&lt;/code>&lt;/span>&lt;span class="language-py language-py">&lt;code>Map&lt;/code>&lt;/span>
 transform.&lt;/span>&lt;span class="language-java">&lt;code>MapElements&lt;/code> can accept an anonymous
 Java 8 lambda function for additional brevity.&lt;/span>&lt;/p>
 &lt;p>Here&amp;rsquo;s the previous example using &lt;span class="language-java">&lt;code>MapElements&lt;/code>&lt;/span>
-&lt;span class="language-py">&lt;code>Map&lt;/code>&lt;/span>&lt;span class="language-go">a direct return&lt;/span>:&lt;/p>
+&lt;span class="language-py language-typescript">&lt;code>Map&lt;/code>&lt;/span>&lt;span class="language-go">a direct return&lt;/span>:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -5322,6 +5501,17 @@ Java 8 lambda function for additional brevity.&lt;/span>&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">wordLengths&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">int&lt;/span> &lt;span class="p">{&lt;/span>
 &lt;span class="k">return&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="p">},&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="c1">// The input PCollection of string.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">words&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">...&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">word&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>&lt;span class="language-java" >&lt;/p>
@@ -5390,6 +5580,11 @@ tree, [2]
 &lt;/code>&lt;/pre>&lt;p>Thus, &lt;code>GroupByKey&lt;/code> represents a transform from a multimap (multiple keys to
 individual values) to a uni-map (unique keys to collections of values).&lt;/p>
 &lt;p>&lt;span class="language-java">Using &lt;code>GroupByKey&lt;/code> is straightforward:&lt;/span>&lt;/p>
+&lt;p class="language-py language-typescript">While all SDKs have a &lt;code>GroupByKey&lt;/code> transform, using &lt;code>GroupBy&lt;/code> is
+generally more natural.
+The &lt;code>GroupBy&lt;/code> transform can be parameterized by the name(s) of properties
+on which to group the elements of the PCollection, or a function taking
+the each element as input that maps to a key on which to do grouping.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -5403,6 +5598,16 @@ individual values) to a uni-map (unique keys to collections of values).&lt;/p>
 &lt;span class="n">mapped&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">GroupByKey&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">create&lt;/span>&lt;span class="o">());&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="c1"># The input PCollection of (`string`, `int`) tuples.&lt;/span>
+&lt;span class="n">words_and_counts&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...&lt;/span>
+&lt;span class="n">grouped_words&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">words_and_counts&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupByKey&lt;/span>&lt;span class="p">()&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;div class='language-go snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -5412,6 +5617,27 @@ individual values) to a uni-map (unique keys to collections of values).&lt;/p>
 &lt;/span>&lt;span class="c1">// from an input slice of stringPair (struct with K, V string fields).
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">pairs&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nf">CreateAndSplit&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">input&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="nx">keyed&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">GroupByKey&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pairs&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="c1">// A PCollection of elements like
+&lt;/span>&lt;span class="c1">// {word: &amp;#34;cat&amp;#34;, score: 1}, {word: &amp;#34;dog&amp;#34;, score: 5}, {word: &amp;#34;cat&amp;#34;, score: 5}, ...
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kr">const&lt;/span> &lt;span class="nx">scores&lt;/span> : &lt;span class="kt">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="nx">word&lt;/span>: &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">score&lt;/span>: &lt;span class="kt">number&lt;/span>&lt;span class="p">}&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">...&lt;/span>
+&lt;span class="c1">// This will produce a PCollection with elements like
+&lt;/span>&lt;span class="c1">// {key: &amp;#34;cat&amp;#34;, value: [{ word: &amp;#34;cat&amp;#34;, score: 1 },
+&lt;/span>&lt;span class="c1">// { word: &amp;#34;cat&amp;#34;, score: 5 }, ...]}
+&lt;/span>&lt;span class="c1">// {key: &amp;#34;dog&amp;#34;, value: [{ word: &amp;#34;dog&amp;#34;, score: 5 }, ...]}
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kr">const&lt;/span> &lt;span class="nx">grouped_by_word&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">scores&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">groupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;word&amp;#34;&lt;/span>&lt;span class="p">));&lt;/span>
+&lt;span class="c1">// This will produce a PCollection with elements like
+&lt;/span>&lt;span class="c1">// {key: 3, value: [{ word: &amp;#34;cat&amp;#34;, score: 1 },
+&lt;/span>&lt;span class="c1">// { word: &amp;#34;dog&amp;#34;, score: 5 },
+&lt;/span>&lt;span class="c1">// { word: &amp;#34;cat&amp;#34;, score: 5 }, ...]}
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kr">const&lt;/span> &lt;span class="nx">by_word_length&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">scores&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">groupBy&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="nx">x&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">x&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span>&lt;span class="p">));&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h5 id="groupbykey-and-unbounded-pcollections">4.2.2.1 GroupByKey and unbounded PCollections&lt;/h5>
@@ -5557,6 +5783,28 @@ data contains names and phone numbers.&lt;/p>
 &lt;span class="nx">phones&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nf">CreateAndSplit&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Scope&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;CreatePhones&amp;#34;&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">phoneSlice&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">emails_list&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;amy&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">email&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;amy@example.com&amp;#34;&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;carl&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">email&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;carl@example.com&amp;#34;&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;julia&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">email&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;julia@example.com&amp;#34;&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;carl&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">email&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;carl@email.com&amp;#34;&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">];&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">phones_list&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;amy&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">phone&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;111-222-3333&amp;#34;&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;james&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">phone&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;222-333-4444&amp;#34;&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;amy&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">phone&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;333-444-5555&amp;#34;&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;carl&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">phone&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;444-555-6666&amp;#34;&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">];&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">emails&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">emails_list&lt;/span>&lt;span class="p">));&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">phones&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">phones_list&lt;/span>&lt;span class="p">));&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>After &lt;code>CoGroupByKey&lt;/code>, the resulting data contains all data associated with each
 unique key from any of the input collections.&lt;/p>
 &lt;div class='language-java snippet'>
@@ -5645,7 +5893,51 @@ unique key from any of the input collections.&lt;/p>
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p class="language-java language-py">The following code example joins the two &lt;code>PCollection&lt;/code>s with &lt;code>CoGroupByKey&lt;/code>,
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">results&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;span class="p">{&lt;/span>
+&lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;amy&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">values&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">emails&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">[{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;amy&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">email&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;amy@example.com&amp;#34;&lt;/span> &lt;span class="p">}],&lt;/span>
+&lt;span class="nx">phones&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;amy&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">phone&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;111-222-3333&amp;#34;&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;amy&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">phone&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;333-444-5555&amp;#34;&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">],&lt;/span>
+&lt;span class="p">},&lt;/span>
+&lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span>
+&lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;carl&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">values&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">emails&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;carl&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">email&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;carl@example.com&amp;#34;&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;carl&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">email&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;carl@email.com&amp;#34;&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">],&lt;/span>
+&lt;span class="nx">phones&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">[{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;carl&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">phone&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;444-555-6666&amp;#34;&lt;/span> &lt;span class="p">}],&lt;/span>
+&lt;span class="p">},&lt;/span>
+&lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span>
+&lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;james&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">values&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">emails&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">[],&lt;/span>
+&lt;span class="nx">phones&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">[{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;james&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">phone&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;222-333-4444&amp;#34;&lt;/span> &lt;span class="p">}],&lt;/span>
+&lt;span class="p">},&lt;/span>
+&lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span>
+&lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;julia&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">values&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">emails&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">[{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;julia&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">email&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;julia@example.com&amp;#34;&lt;/span> &lt;span class="p">}],&lt;/span>
+&lt;span class="nx">phones&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">[],&lt;/span>
+&lt;span class="p">},&lt;/span>
+&lt;span class="p">},&lt;/span>
+&lt;span class="p">];&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-java language-py language-typescript">The following code example joins the two &lt;code>PCollection&lt;/code>s with &lt;code>CoGroupByKey&lt;/code>,
 followed by a &lt;code>ParDo&lt;/code> to consume the result. Then, the code uses tags to look up
 and format data from each collection.&lt;/p>
 &lt;p class="language-go">The following code example joins the two &lt;code>PCollection&lt;/code>s with &lt;code>CoGroupByKey&lt;/code>,
@@ -5744,6 +6036,22 @@ parameters maps to the ordering of the &lt;code>CoGroupByKey&lt;/code> inputs.&l
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">formatted_results_pcoll&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">beam&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">P&lt;/span>&lt;span class="p">({&lt;/span> &lt;span class="nx">emails&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">phones&lt;/span> &lt;span class="p">})&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">coGroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;name&amp;#34;&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kd">function&lt;/span> &lt;span class="nx">formatResults&lt;/span>&lt;span class="p">({&lt;/span> &lt;span class="nx">key&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">values&lt;/span> &lt;span class="p">})&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">emails&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">values&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">emails&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="nx">x&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">x&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">email&lt;/span>&lt;span class="p">).&lt;/span>&lt;span class="nx">sort&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">phones&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">values&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">phones&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="nx">x&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">x&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">phone&lt;/span>&lt;span class="p">).&lt;/span>&lt;span class="nx">sort&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="sb">`&lt;/span>&lt;span class="si">${&lt;/span>&lt;span class="nx">key&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="sb">; [&lt;/span>&lt;span class="si">${&lt;/span>&lt;span class="nx">emails&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="sb">]; [&lt;/span>&lt;span class="si">${&lt;/span>&lt;span class="nx">phones&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="sb">]`&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;span class="p">});&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>The formatted data looks like this:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
@@ -5784,10 +6092,25 @@ parameters maps to the ordering of the &lt;code>CoGroupByKey&lt;/code> inputs.&l
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">formatted_results&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;span class="s2">&amp;#34;amy; [amy@example.com]; [111-222-3333,333-444-5555]&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="s2">&amp;#34;carl; [carl@email.com,carl@example.com]; [444-555-6666]&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="s2">&amp;#34;james; []; [222-333-4444]&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="s2">&amp;#34;julia; [julia@example.com]; []&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">];&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="combine">4.2.4. Combine&lt;/h4>
 &lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.40.0/index.html?org/apache/beam/sdk/transforms/Combine.html">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-go">&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/combine.go#L27">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
+&lt;span class="language-typescript">&lt;a href="https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/group_and_combine.ts">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
 is a Beam transform for combining collections of elements or values in your
 data. &lt;code>Combine&lt;/code> has variants that work on entire &lt;code>PCollection&lt;/code>s, and some that
 combine the values for each key in &lt;code>PCollection&lt;/code>s of key/value pairs.&lt;/p>
@@ -5818,7 +6141,14 @@ that your streaming computation might be idle. Incremental combining also
 reduces the storage of intermediate accumulators.&lt;/li>
 &lt;/ul>
 &lt;h5 id="simple-combines">4.2.4.1. Simple combinations using simple functions&lt;/h5>
-&lt;p>The following example code shows a simple combine function.&lt;/p>
+&lt;p>The following example code shows a simple combine function.
+&lt;span class="language-typescript">
+Combining is done by modifying a grouping transform with the &lt;code>combining&lt;/code> method.
+This method takes three parameters: the value to combine (either as a named
+property of the input elements, or a function of the entire input),
+the combining operation (either a binary function or a &lt;code>CombineFn&lt;/code>),
+and finally a name for the combined value in the output object.
+&lt;/span>&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -5894,6 +6224,22 @@ the type of the output.&lt;/p>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">globallyBoundedSumInts&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">bound&lt;/span> &lt;span class="kt">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">ints&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="p">{&lt;/span>
 &lt;span class="k">return&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Combine&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">boundedSum&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="nx">Bound&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">bound&lt;/span>&lt;span class="p">},&lt;/span> &lt;span class="nx">ints&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">pcoll&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">10&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">100&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1000&lt;/span>&lt;span class="p">]));&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">pcoll&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">beam&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">groupGlobally&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">combining&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="nx">c&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">c&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">y&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="nx">y&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;sum&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">combining&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="nx">c&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">c&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">y&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="nx">y&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;product&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">);&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">expected&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">sum&lt;/span>: &lt;span class="kt">1111&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">product&lt;/span>: &lt;span class="kt">1000000&lt;/span> &lt;span class="p">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h5 id="advanced-combines">4.2.4.2. Advanced combinations using CombineFn&lt;/h5>
@@ -6017,6 +6363,27 @@ mean average:&lt;/p>
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">const&lt;/span> &lt;span class="nx">meanCombineFn&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">CombineFn&lt;/span>&lt;span class="p">&amp;lt;&lt;/span>&lt;span class="nx">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">number&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="nx">number&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="p">=&lt;/span>
+&lt;span class="p">{&lt;/span>
+&lt;span class="nx">createAccumulator&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">()&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;span class="nx">addInput&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">([&lt;/span>&lt;span class="nx">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">count&lt;/span>&lt;span class="p">]:&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">number&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">number&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;span class="nx">sum&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">count&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">],&lt;/span>
+&lt;span class="nx">mergeAccumulators&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">accumulators&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">number&lt;/span>&lt;span class="p">][])&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span>
+&lt;span class="nx">accumulators&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">reduce&lt;/span>&lt;span class="p">(([&lt;/span>&lt;span class="nx">sum0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">count0&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">sum1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">count1&lt;/span>&lt;span class="p">])&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;span class="nx">sum0&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="nx">sum1&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">count0&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="nx">count1&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">]),&lt;/span>
+&lt;span class="nx">extractOutput&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">([&lt;/span>&lt;span class="nx">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">count&lt;/span>&lt;span class="p">]:&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">number&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">number&lt;/span>&lt;span class="p">])&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="nx">sum&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="nx">count&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">};&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;span class="language-go">
 &lt;blockquote>
 &lt;p>&lt;strong>Note&lt;/strong>: Only &lt;code>MergeAccumulators&lt;/code> is a required method. The others will have a default interpretation
@@ -6059,6 +6426,17 @@ of integers.&lt;/p>
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">average&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Combine&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">averageFn&lt;/span>&lt;span class="p">{},&lt;/span> &lt;span class="nx">ints&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">const&lt;/span> &lt;span class="nx">pcoll&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">4&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">5&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">6&lt;/span>&lt;span class="p">]));&lt;/span>
+&lt;span class="kd">const&lt;/span> &lt;span class="nx">result&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">pcoll&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">groupGlobally&lt;/span>&lt;span class="p">().&lt;/span>&lt;span class="nf">combining&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="nx">c&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="nx">c&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">meanCombineFn&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;mean&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h5 id="combine-global-windowing">4.2.4.4. Combine and global windowing&lt;/h5>
@@ -6192,10 +6570,38 @@ PerKey must be an associative reduction function or a
 &lt;span class="o">//&lt;/span> &lt;span class="nx">avgAccuracyPerPlayer&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">a&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">&amp;lt;&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="kt">float64&lt;/span>&lt;span class="p">&amp;gt;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">pcoll&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">([&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">player&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;alice&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">accuracy&lt;/span>: &lt;span class="kt">1.0&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">player&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;bob&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">accuracy&lt;/span>: &lt;span class="kt">0.99&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">player&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;eve&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">accuracy&lt;/span>: &lt;span class="kt">0.5&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">player&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;eve&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">accuracy&lt;/span>: &lt;span class="kt">0.25&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">])&lt;/span>
+&lt;span class="p">);&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">pcoll&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">beam&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">groupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;player&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">combining&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;accuracy&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">combiners&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">mean&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;mean&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">combining&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;accuracy&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">combiners&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">max&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;max&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">);&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">expected&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">player&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;alice&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">mean&lt;/span>: &lt;span class="kt">1.0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">max&lt;/span>: &lt;span class="kt">1.0&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">player&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;bob&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">mean&lt;/span>: &lt;span class="kt">0.99&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">max&lt;/span>: &lt;span class="kt">0.99&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">{&lt;/span> &lt;span class="nx">player&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;eve&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">mean&lt;/span>: &lt;span class="kt">0.375&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">max&lt;/span>: &lt;span class="kt">0.5&lt;/span> &lt;span class="p">},&lt;/span>
+&lt;span class="p">];&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="flatten">4.2.5. Flatten&lt;/h4>
 &lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.40.0/index.html?org/apache/beam/sdk/transforms/Flatten.html">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-go">&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/flatten.go">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
+&lt;span class="language-typescript">&lt;code>Flatten&lt;/code>&lt;/span>
 is a Beam transform for &lt;code>PCollection&lt;/code> objects that store the same data type.
 &lt;code>Flatten&lt;/code> merges multiple &lt;code>PCollection&lt;/code> objects into a single logical
 &lt;code>PCollection&lt;/code>.&lt;/p>
@@ -6239,6 +6645,20 @@ is a Beam transform for &lt;code>PCollection&lt;/code> objects that store the sa
 &lt;span class="nx">merged&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Flatten&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pcol1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pcol2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pcol3&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="c1">// Flatten takem an array of PCollection objects, wrapped in beam.P(...)
+&lt;/span>&lt;span class="c1">// Returns a single PCollection that contains a union of all of the elements in all input PCollections.
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">fib&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">5&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">8&lt;/span>&lt;span class="p">]));&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">pow&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">4&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">8&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">16&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">32&lt;/span>&lt;span class="p">]));&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">P&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="nx">fib&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pow&lt;/span>&lt;span class="p">]).&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">flatten&lt;/span>&lt;span class="p">());&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h5 id="data-encoding-merged-collections">4.2.5.1. Data encoding in merged collections&lt;/h5>
 &lt;p>By default, the coder for the output &lt;code>PCollection&lt;/code> is the same as the coder for
 the first &lt;code>PCollection&lt;/code> in the input &lt;code>PCollectionList&lt;/code>. However, the input
@@ -6257,9 +6677,11 @@ pipeline is constructed.&lt;/p>
 &lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.40.0/index.html?org/apache/beam/sdk/transforms/Partition.html">&lt;code>Partition&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py">&lt;code>Partition&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-go">&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/partition.go">&lt;code>Partition&lt;/code>&lt;/a>&lt;/span>
+&lt;span class="language-typescript">&lt;code>Partition&lt;/code>&lt;/span>
 is a Beam transform for &lt;code>PCollection&lt;/code> objects that store the same data
 type. &lt;code>Partition&lt;/code> splits a single &lt;code>PCollection&lt;/code> into a fixed number of smaller
 collections.&lt;/p>
+&lt;p class="language-typescript">Often in the Typescript SDK the &lt;code>Split&lt;/code> transform is more natural to use.&lt;/p>
 &lt;p>&lt;code>Partition&lt;/code> divides the elements of a &lt;code>PCollection&lt;/code> according to a partitioning
 function that you provide. The partitioning function contains the logic that
 determines how to split up the elements of the input &lt;code>PCollection&lt;/code> into each
@@ -6322,6 +6744,22 @@ for instance).&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">fortiethPercentile&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">studentsByPercentile&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">4&lt;/span>&lt;span class="p">]&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">deciles&lt;/span>: &lt;span class="kt">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="nx">Student&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">[]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">students&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">partition&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="nx">student&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">numPartitions&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span>
+&lt;span class="nb">Math&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">floor&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="nx">getPercentile&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">student&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="mi">100&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="nx">numPartitions&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="mi">10&lt;/span>
+&lt;span class="p">)&lt;/span>
+&lt;span class="p">);&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">topDecile&lt;/span>: &lt;span class="kt">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="nx">Student&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">deciles&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">9&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h3 id="requirements-for-writing-user-code-for-beam-transforms">4.3. Requirements for writing user code for Beam transforms&lt;/h3>
 &lt;p>When you build user code for a Beam transform, you should keep in mind the
 distributed nature of execution. For example, there might be many copies of your
@@ -6367,7 +6805,21 @@ however, your subclass must not add any non-serializable members.&lt;/span>
 they are registered with &lt;code>register.FunctionXxY&lt;/code> (for simple functions) or
 &lt;code>register.DoFnXxY&lt;/code> (for sturctural DoFns), and are not closures. Structural
 &lt;code>DoFn&lt;/code>s will have all exported fields serialized. Unexported fields are unable to
-be serialized, and will be silently ignored.&lt;/span>&lt;/p>
+be serialized, and will be silently ignored.&lt;/span>
+&lt;span class="language-typescript">
+The Typescript SDK use &lt;a href="https://github.com/nokia/ts-serialize-closures">ts-serialize-closures&lt;/a>
+to serialize functions (and other objects).
+This works out of the box for functions that are not closures, and also works
+for closures as long as the function in question (and any closures it references)
+are compiled with the
+&lt;a href="https://github.com/apache/beam/blob/master/sdks/typescript/tsconfig.json">&lt;code>ts-closure-transform&lt;/code> hooks&lt;/a>
+(e.g. by using &lt;code>ttsc&lt;/code> in place of &lt;code>tsc&lt;/code>).
+One can alternatively call
+&lt;code>requireForSerialization(&amp;quot;importableModuleDefiningFunc&amp;quot;, {func})&lt;/code>
+to &lt;a href="https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/serialization.ts">register a function directly&lt;/a> by name which can be less error-prone.
+Note that if, as is often the case in Javascript, &lt;code>func&lt;/code> returns objects that
+contain closures, it is not sufficient to register &lt;code>func&lt;/code> alone&amp;ndash;its return
+value must be registered if used.&lt;/span>&lt;/p>
 &lt;p>Some other serializability factors you should keep in mind are:&lt;/p>
 &lt;ul>
 &lt;li>&lt;span class="language-java language-py">Transient&lt;/span>&lt;span class="langauage-go">Unexported&lt;/span>
@@ -6549,6 +7001,43 @@ function. This optimizes runtime execution of the iterable.&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="o">//&lt;/span> &lt;span class="nx">on&lt;/span> &lt;span class="nx">how&lt;/span> &lt;span class="nx">to&lt;/span> &lt;span class="nx">contribute&lt;/span> &lt;span class="nx">them&lt;/span>&lt;span class="p">!&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="c1">// Side inputs are provided by passing an extra context object to
+&lt;/span>&lt;span class="c1">// `map`, `flatMap`, or `parDo` transforms. This object will get passed as an
+&lt;/span>&lt;span class="c1">// extra argument to the provided function (or `process` method of the `DoFn`).
+&lt;/span>&lt;span class="c1">// `SideInputParam` properties (generally created with `pardo.xxxSideInput(...)`)
+&lt;/span>&lt;span class="c1">// have a `lookup` method that can be invoked from within the process method.
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="c1">// Let words be a PCollection of strings.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kr">const&lt;/span> &lt;span class="nx">words&lt;/span> : &lt;span class="kt">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">...&lt;/span>
+&lt;span class="c1">// meanLengthPColl will contain a single number whose value is the
+&lt;/span>&lt;span class="c1">// average length of the words
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kr">const&lt;/span> &lt;span class="nx">meanLengthPColl&lt;/span>: &lt;span class="kt">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="kt">number&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">words&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">beam&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">groupGlobally&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">combining&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">word&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">combiners&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">mean&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;mean&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">)&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">(({&lt;/span> &lt;span class="nx">mean&lt;/span> &lt;span class="p">})&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">mean&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;span class="c1">// Now we use this as a side input to yield only words that are
+&lt;/span>&lt;span class="c1">// smaller than average.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kr">const&lt;/span> &lt;span class="nx">smallWords&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">flatMap&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="c1">// This is the function, taking context as a second argument.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="kd">function&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="nx">keepSmall&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">context&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="nx">context&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">meanLength&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">lookup&lt;/span>&lt;span class="p">())&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">yield&lt;/span> &lt;span class="nx">word&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="p">},&lt;/span>
+&lt;span class="c1">// This is the context that will be passed as a second argument.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">meanLength&lt;/span>: &lt;span class="kt">pardo.singletonSideInput&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">meanLengthPColl&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">}&lt;/span>
+&lt;span class="p">);&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="side-inputs-windowing">4.4.2. Side inputs and windowing&lt;/h4>
 &lt;p>A windowed &lt;code>PCollection&lt;/code> may be infinite and thus cannot be compressed into a
 single value (or single collection class). When you create a &lt;code>PCollectionView&lt;/code>
@@ -6584,7 +7073,17 @@ If you choose to have multiple outputs, your &lt;code>DoFn&lt;/code> needs to be
 function that matches the number of outputs. &lt;code>beam.ParDo2&lt;/code> for two output &lt;code>PCollection&lt;/code>s,
 &lt;code>beam.ParDo3&lt;/code> for three and so on until &lt;code>beam.ParDo7&lt;/code>. If you need more, you can
 use &lt;code>beam.ParDoN&lt;/code> which will return a &lt;code>[]beam.PCollection&lt;/code>.&lt;/p>
+&lt;p class="language-typescript">While &lt;code>ParDo&lt;/code> always produces a main output &lt;code>PCollection&lt;/code> (as the return value
+from &lt;code>apply&lt;/code>). If you want to have multiple outputs, emit an object with distinct
+properties in your &lt;code>ParDo&lt;/code> operation and follow this operation with a &lt;code>Split&lt;/code>
+to break it into multiple &lt;code>PCollection&lt;/code>s.&lt;/p>
 &lt;h4 id="output-tags">4.5.1. Tags for multiple outputs&lt;/h4>
+&lt;p class="language-typescript">The &lt;code>Split&lt;/code> PTransform will take a PCollection of elements of the form
+&lt;code>{tagA?: A, tagB?: B, ...}&lt;/code> and return a object
+&lt;code>{tagA: PCollection&amp;lt;A&amp;gt;, tagB: PCollection&amp;lt;B&amp;gt;, ...}&lt;/code>.
+The set of expected tags is passed to the operation; how multiple or
+unknown tags are handled can be specified by passing a non-default
+&lt;code>SplitOptions&lt;/code> instance.&lt;/p>
 &lt;p class="language-go">The Go SDK doesn&amp;rsquo;t use output tags, and instead uses positional ordering for
 multiple output PCollections.&lt;/p>
 &lt;div class='language-java snippet'>
@@ -6678,13 +7177,24 @@ multiple output PCollections.&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">length&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">mixedMarked&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo2&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">processWordsMixed&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="err">#&lt;/span> &lt;span class="nx">Create&lt;/span> &lt;span class="nx">three&lt;/span> &lt;span class="nx">PCollections&lt;/span> &lt;span class="nx">from&lt;/span> &lt;span class="nx">a&lt;/span> &lt;span class="nx">single&lt;/span> &lt;span class="nx">input&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">.&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">below&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">above&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">marked&lt;/span> &lt;span class="p">}&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">to_split&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">split&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="s2">&amp;#34;below&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;above&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;marked&amp;#34;&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="p">);&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="multiple-outputs-dofn">4.5.2. Emitting to multiple outputs in your DoFn&lt;/h4>
-&lt;p class="language-go">&lt;p>Call emitter functions as needed to produce 0 or more elements for its matching
+&lt;p class="language-go">Call emitter functions as needed to produce 0 or more elements for its matching
 &lt;code>PCollection&lt;/code>. The same value can be emitted with multiple emitters.
 As normal, do not mutate values after emitting them from any emitter.&lt;/p>
-&lt;p>All emitters should be registered using a generic &lt;code>register.EmitterX[...]&lt;/code>
+&lt;p class="language-go">All emitters should be registered using a generic &lt;code>register.EmitterX[...]&lt;/code>
 function. This optimizes runtime execution of the emitter.&lt;/p>
-&lt;/p>
 &lt;p class="language-go">DoFns can also return a single element via the standard return.
 The standard return is always the first PCollection returned from beam.ParDo.
 Other emitters output to their own PCollections in their defined parameter order.&lt;/p>
@@ -6781,11 +7291,31 @@ Other emitters output to their own PCollections in their defined parameter order
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kr">const&lt;/span> &lt;span class="nx">to_split&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">flatMap&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kd">function&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="mi">5&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">yield&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">below&lt;/span>: &lt;span class="kt">word&lt;/span> &lt;span class="p">};&lt;/span>
+&lt;span class="p">}&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">yield&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">above&lt;/span>: &lt;span class="kt">word&lt;/span> &lt;span class="p">};&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">isMarkedWord&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">yield&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">marked&lt;/span>: &lt;span class="kt">word&lt;/span> &lt;span class="p">};&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="p">});&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="other-dofn-parameters">4.5.3. Accessing additional parameters in your DoFn&lt;/h4>
 &lt;p class="language-java">In addition to the element and the &lt;code>OutputReceiver&lt;/code>, Beam will populate other parameters to your DoFn&amp;rsquo;s &lt;code>@ProcessElement&lt;/code> method.
 Any combination of these parameters can be added to your process method in any order.&lt;/p>
 &lt;p class="language-py">In addition to the element, Beam will populate other parameters to your DoFn&amp;rsquo;s &lt;code>process&lt;/code> method.
 Any combination of these parameters can be added to your process method in any order.&lt;/p>
+&lt;p class="language-typescript">In addition to the element, Beam will populate other parameters to your DoFn&amp;rsquo;s &lt;code>process&lt;/code> method.
+These are available by placing accessors in the context argument, just as for side inputs.&lt;/p>
 &lt;p class="language-go">In addition to the element, Beam will populate other parameters to your DoFn&amp;rsquo;s &lt;code>ProcessElement&lt;/code> method.
 Any combination of these parameters can be added to your process method in a standard order.&lt;/p>
 &lt;p class="language-go">&lt;strong>context.Context:&lt;/strong>
@@ -6805,6 +7335,8 @@ To access the timestamp of an input element, add a parameter annotated with &lt;
 To access the timestamp of an input element, add a keyword parameter default to &lt;code>DoFn.TimestampParam&lt;/code>. For example:&lt;/p>
 &lt;p class="language-go">&lt;strong>Timestamp:&lt;/strong>
 To access the timestamp of an input element, add a &lt;code>beam.EventTime&lt;/code> parameter before the element. For example:&lt;/p>
+&lt;p class="language-typescript">&lt;strong>Timestamp:&lt;/strong>
+To access the window an input element falls into, add a &lt;code>pardo.windowParam()&lt;/code> to the context argument.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6835,6 +7367,18 @@ To access the timestamp of an input element, add a &lt;code>beam.EventTime&lt;/c
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="nf">MyDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ts&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">EventTime&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kd">function&lt;/span> &lt;span class="nx">processFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">context&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">context&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">timestamp&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">lookup&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="nx">pcoll&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">processFn&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">timestamp&lt;/span>: &lt;span class="kt">pardo.timestampParam&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">});&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p class="language-java">&lt;strong>Window:&lt;/strong>
 To access the window an input element falls into, add a parameter of the type of the window used for the input &lt;code>PCollection&lt;/code>.
 If the parameter is a window type (a subclass of &lt;code>BoundedWindow&lt;/code>) that does not match the input &lt;code>PCollection&lt;/code>, then an error
@@ -6851,6 +7395,10 @@ If an element falls in multiple windows (for example, this will happen when usin
 then the &lt;code>ProcessElement&lt;/code> method will be invoked multiple time for the element, once for each window.
 Since &lt;code>beam.Window&lt;/code> is an interface it&amp;rsquo;s possible to type assert to the concrete implementation of the window.
 For example, when fixed windows are being used, the window is of type &lt;code>window.IntervalWindow&lt;/code>.&lt;/p>
+&lt;p class="language-typescript">&lt;strong>Window:&lt;/strong>
+To access the window an input element falls into, add a &lt;code>pardo.windowParam()&lt;/code> to the context argument.
+If an element falls in multiple windows (for example, this will happen when using &lt;code>SlidingWindows&lt;/code>), then the
+function will be invoked multiple time for the element, once for each window.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6884,6 +7432,15 @@ For example, when fixed windows are being used, the window is of type &lt;code>w
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="nx">pcoll&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">processFn&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">timestamp&lt;/span>: &lt;span class="kt">pardo.windowParam&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">});&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p class="language-java">&lt;strong>PaneInfo:&lt;/strong>
 When triggers are used, Beam provides a &lt;code>PaneInfo&lt;/code> object that contains information about the current firing. Using &lt;code>PaneInfo&lt;/code>
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.&lt;/p>
@@ -6894,6 +7451,10 @@ This feature implementation in Python SDK is not fully completed; see more at &l
 &lt;p class="language-go">&lt;strong>PaneInfo:&lt;/strong>
 When triggers are used, Beam provides &lt;code>beam.PaneInfo&lt;/code> object that contains information about the current firing. Using &lt;code>beam.PaneInfo&lt;/code>
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.&lt;/p>
+&lt;p class="language-typescript">&lt;strong>Window:&lt;/strong>
+To access the window an input element falls into, add a &lt;code>pardo.paneInfoParam()&lt;/code> to the context argument.
+Using &lt;code>beam.PaneInfo&lt;/code> you can determine whether this is an early or a late firing,
+and how many times this window has already fired for this key.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6941,6 +7502,15 @@ you can determine whether this is an early or a late firing, and how many times 
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="nx">pcoll&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">processFn&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">timestamp&lt;/span>: &lt;span class="kt">pardo.paneInfoParam&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">});&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p class="language-java">&lt;strong>PipelineOptions:&lt;/strong>
 The &lt;code>PipelineOptions&lt;/code> for the current pipeline can always be accessed in a process method by adding it
 as a parameter:&lt;/p>
@@ -6965,6 +7535,9 @@ Timers and States are explained in more detail in the
 &lt;a href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam&lt;/a> blog post.&lt;/p>
 &lt;p class="language-go">&lt;strong>Timer and State:&lt;/strong>
 This feature isn&amp;rsquo;t implemented in the Go SDK; see more at &lt;a href="https://github.com/apache/beam/issues/20510">Issue 20510&lt;/a>. Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.&lt;/p>
+&lt;p class="language-typescript">&lt;strong>Timer and State:&lt;/strong>
+This feature isn&amp;rsquo;t implemented in the Typescript SDK yet,
+but can be used from a cross-language transform.&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -7117,11 +7690,30 @@ appeared in the original data.&lt;/li>
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-typescript snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="kd">function&lt;/span> &lt;span class="nx">countWords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">lines&lt;/span>: &lt;span class="kt">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">lines&lt;/span> &lt;span class="c1">//
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="nx">s&lt;/span>: &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">toLowerCase&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">flatMap&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kd">function&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="nx">splitWords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">line&lt;/span>: &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">yield&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="nx">line&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">split&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="sr">/[^a-z]+/&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;span class="p">})&lt;/span>
+&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">countPerElement&lt;/span>&lt;span class="p">());&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kr">const&lt;/span> &lt;span class="nx">counted&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">lines&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">countWords&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> Because &lt;code>Count&lt;/code> is itself a composite transform,
 &lt;code>CountWords&lt;/code> is also a nested composite transform.&lt;/p>
 &lt;/blockquote>
 &lt;h4 id="composite-transform-creation">4.6.2. Creating a composite transform&lt;/h4>
+&lt;p class="language-typescript">A PTransform in the Typescript SDK is simply a function that accepts and
+returns &lt;code>PValue&lt;/code>s such as &lt;code>PCollection&lt;/code>s.&lt;/p>
 &lt;p class="language-java language-py">To create your own composite transform, create a subclass of the &lt;code>PTransform&lt;/code>
 class and override the &lt;code>expand&lt;/code> method to specify the actual processing logic.
 You can then use this transform just as you would a built-in transform from the
