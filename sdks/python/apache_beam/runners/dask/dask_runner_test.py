@@ -19,38 +19,39 @@ import unittest
 import apache_beam as beam
 from apache_beam.runners.dask.dask_runner import DaskRunner
 from apache_beam.testing import test_pipeline
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class DaskRunnerRunPipelineTest(unittest.TestCase):
-    """Test class used to introspect the dask runner via a debugger."""
+  """Test class used to introspect the dask runner via a debugger."""
 
-    def setUp(self) -> None:
-        self.pipeline = test_pipeline.TestPipeline(runner=DaskRunner())
+  def setUp(self) -> None:
+    self.pipeline = test_pipeline.TestPipeline(runner=DaskRunner())
 
-    def test_create(self):
-        with self.pipeline as p:
-            pcoll = p | beam.Create([1])
-            assert_that(pcoll, equal_to([1]))
+  def test_create(self):
+    with self.pipeline as p:
+      pcoll = p | beam.Create([1])
+      assert_that(pcoll, equal_to([1]))
 
-    def test_create_and_map(self):
-        def double(x):
-            return x * 2
+  def test_create_and_map(self):
+    def double(x):
+      return x * 2
 
-        with self.pipeline as p:
-            pcoll = p | beam.Create([1]) | beam.Map(double)
-            assert_that(pcoll, equal_to([2]))
+    with self.pipeline as p:
+      pcoll = p | beam.Create([1]) | beam.Map(double)
+      assert_that(pcoll, equal_to([2]))
 
-    def test_create_map_and_groupby(self):
-        def double(x):
-            return x * 2, x
+  def test_create_map_and_groupby(self):
+    def double(x):
+      return x * 2, x
 
-        with self.pipeline as p:
-            pcoll = p | beam.Create([1]) | beam.Map(double) | beam.GroupByKey()
-            assert_that(pcoll, equal_to([
-                (2, [1])
-            ]))
+    with self.pipeline as p:
+      pcoll = p | beam.Create([1]) | beam.Map(double) | beam.GroupByKey()
+      assert_that(pcoll, equal_to([
+        (2, [1])
+      ]))
 
 
 if __name__ == '__main__':
-    unittest.main()
+  unittest.main()
