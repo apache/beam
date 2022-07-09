@@ -18,8 +18,9 @@
 
 import { KV } from "../values";
 import { PTransform, PTransformClass, withName } from "./transform";
+import { flatten } from "./flatten";
 import { PCollection } from "../pvalue";
-import { PValue } from "../pvalue";
+import { PValue, P } from "../pvalue";
 import * as internal from "./internal";
 import { count } from "./combiners";
 
@@ -66,6 +67,7 @@ export class GroupBy<T, K> extends PTransformClass<
   ) {
     super();
     [this.keyFn, this.keyNames] = extractFnAndName(key, keyName || "key");
+    // XXX: Actually use this.
     this.keyName = typeof this.keyNames === "string" ? this.keyNames : "key";
   }
 
@@ -294,6 +296,40 @@ function multiCombineFn(
       }
       return result;
     },
+  };
+}
+
+// TODO: Consider adding valueFn(s) rather than using the full value.
+export function coGroupBy<T, K>(
+  key: string | string[] | ((element: T) => K),
+  keyName: string | undefined = undefined
+): PTransform<
+  { [key: string]: PCollection<any> },
+  PCollection<{ key: K; values: { [key: string]: Iterable<any> } }>
+> {
+  return function coGroupBy(inputs: { [key: string]: PCollection<any> }) {
+    const [keyFn, keyNames] = extractFnAndName(key, keyName || "key");
+    keyName = typeof keyNames === "string" ? keyNames : "key";
+    const tags = [...Object.keys(inputs)];
+    const tagged = [...Object.entries(inputs)].map(([tag, pcoll]) =>
+      pcoll.map((element) => ({
+        key: keyFn(element),
+        tag,
+        element,
+      }))
+    );
+    return P(tagged)
+      .apply(flatten())
+      .apply(groupBy("key"))
+      .map(function groupValues({ key, value }) {
+        const groupedValues: { [key: string]: any[] } = Object.fromEntries(
+          tags.map((tag) => [tag, []])
+        );
+        for (const { tag, element } of value) {
+          groupedValues[tag].push(element);
+        }
+        return { key, values: groupedValues };
+      });
   };
 }
 
