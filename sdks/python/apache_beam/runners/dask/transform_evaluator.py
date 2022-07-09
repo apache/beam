@@ -18,85 +18,84 @@
 
 A minimum set of operation substitutions, to adap Beam's PTransform model
 to Dask Bag functions.
-"""
-# TODO(alxr): Translate ops from https://docs.dask.org/en/latest/bag-api.html.
-import abc
-import dataclasses
-import typing as t
 
+TODO(alxr): Translate ops from https://docs.dask.org/en/latest/bag-api.html.
+"""
+import dataclasses
+
+import abc
 import dask.bag as db
+import typing as t
 
 import apache_beam
 from apache_beam.pipeline import AppliedPTransform
-from apache_beam.runners.dask.overrides import (
-    _Create,
-    _GroupByKeyOnly,
-    _Flatten
-)
+from apache_beam.runners.dask.overrides import _Create
+from apache_beam.runners.dask.overrides import _Flatten
+from apache_beam.runners.dask.overrides import _GroupByKeyOnly
 
 OpInput = t.Union[db.Bag, t.Sequence[db.Bag], None]
 
 
 @dataclasses.dataclass
 class DaskBagOp(abc.ABC):
-    applied: AppliedPTransform
+  applied: AppliedPTransform
 
-    @property
-    def side_inputs(self):
-        return self.applied.side_inputs
+  @property
+  def side_inputs(self):
+    return self.applied.side_inputs
 
-    @abc.abstractmethod
-    def apply(self, input_bag: OpInput) -> db.Bag:
-        pass
+  @abc.abstractmethod
+  def apply(self, input_bag: OpInput) -> db.Bag:
+    pass
 
 
 class NoOp(DaskBagOp):
-    def apply(self, input_bag: OpInput) -> db.Bag:
-        return input_bag
+  def apply(self, input_bag: OpInput) -> db.Bag:
+    return input_bag
 
 
 class Create(DaskBagOp):
-    def apply(self, input_bag: OpInput) -> db.Bag:
-        assert input_bag is None, 'Create expects no input!'
-        original_transform = t.cast(_Create, self.applied.transform)
-        items = original_transform.values
-        return db.from_sequence(items)
+  def apply(self, input_bag: OpInput) -> db.Bag:
+    assert input_bag is None, 'Create expects no input!'
+    original_transform = t.cast(_Create, self.applied.transform)
+    items = original_transform.values
+    return db.from_sequence(items)
 
 
 class ParDo(DaskBagOp):
-    def apply(self, input_bag: OpInput) -> db.Bag:
-        fn = t.cast(apache_beam.ParDo, self.applied.transform).fn
-        return input_bag.map(fn.process).flatten()
+  def apply(self, input_bag: OpInput) -> db.Bag:
+    fn = t.cast(apache_beam.ParDo, self.applied.transform).fn
+    return input_bag.map(fn.process).flatten()
 
 
 class Map(DaskBagOp):
-    def apply(self, input_bag: OpInput) -> db.Bag:
-        fn = t.cast(apache_beam.Map, self.applied.transform).fn
-        return input_bag.map(fn.process)
+  def apply(self, input_bag: OpInput) -> db.Bag:
+    fn = t.cast(apache_beam.Map, self.applied.transform).fn
+    return input_bag.map(fn.process)
 
 
 class GroupByKey(DaskBagOp):
-    def apply(self, input_bag: OpInput) -> db.Bag:
-        def key(item):
-            return item[0]
+  def apply(self, input_bag: OpInput) -> db.Bag:
+    def key(item):
+      return item[0]
 
-        def value(item):
-            k, v = item
-            return k, [elm[1] for elm in v]
+    def value(item):
+      k, v = item
+      return k, [elm[1] for elm in v]
 
-        return input_bag.groupby(key).map(value)
+    return input_bag.groupby(key).map(value)
 
 
 class Flatten(DaskBagOp):
-    def apply(self, input_bag: OpInput) -> db.Bag:
-        assert type(input_bag) is list, 'Must take a sequence of bags!'
-        return db.concat(input_bag)
+  def apply(self, input_bag: OpInput) -> db.Bag:
+    assert type(input_bag) is list, 'Must take a sequence of bags!'
+    return db.concat(input_bag)
 
 
 TRANSLATIONS = {
-    _Create: Create,
-    apache_beam.ParDo: ParDo,
-    apache_beam.Map: Map,
-    _GroupByKeyOnly: GroupByKey,
-    _Flatten: Flatten,
+  _Create: Create,
+  apache_beam.ParDo: ParDo,
+  apache_beam.Map: Map,
+  _GroupByKeyOnly: GroupByKey,
+  _Flatten: Flatten,
 }
