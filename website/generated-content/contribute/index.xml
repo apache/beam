@@ -245,7 +245,7 @@ Anyone has read access. If you wish to contribute changes, please create an acco
 &lt;li>&lt;a href="https://www.docker.com/">Docker&lt;/a> installed for some tasks including building worker containers and testing changes to this website locally.&lt;/li>
 &lt;li>For SDK Development:
 &lt;ul>
-&lt;li>&lt;a href="https://golang.org">Go&lt;/a> 1.12 or later installed for Go SDK development.&lt;/li>
+&lt;li>&lt;a href="https://golang.org">Go&lt;/a> 1.16.0 or later installed for Go SDK development.&lt;/li>
 &lt;li>Python 3.x interpreters. You will need Python interpreters for all Python versions supported by Beam.
 Interpreters should be installed and available in shell via &lt;code>python3.x&lt;/code> commands. For more information, see:
 Python installation tips in &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters">Developer Wiki&lt;/a>.&lt;/li>
