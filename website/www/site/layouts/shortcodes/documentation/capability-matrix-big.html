@@ -9,6 +9,8 @@
  See the License for the specific language governing permissions and
  limitations under the License. See accompanying LICENSE file.
 */}}
+
+{{ $auto_data := index $.Site.Data.myjsonfile }}
 {{ $cap_view := .Get "cap-view" }}
 {{ $index := .Get "cap-index" }}
 {{ $cap_data := index $.Site.Data.capability_matrix (.Get "cap-data") }}
@@ -16,6 +18,77 @@
     {{ $cap_data = index $.Site.Data.capability_matrix_snapshot (.Get "cap-data") }}
 {{ end }}
 
+{{$idx := 7}}
+
+{{ if eq $idx $index }}
+
+
+<a class="back-button" href="/documentation/runners/capability-matrix">
+    <i class="fas fa-arrow-left"></i>
+    {{ T "capability-back" }}
+</a>
+
+{{ range $categ := $auto_data.capability_matrix.categories }}
+{{ $colcol := $auto_data.capability_matrix.columns}}
+
+<h3>{{ $categ.description }}</h3>
+
+    <div class="table-container">
+        <div class="table-left big-left">
+        <table>
+            <tr>
+                <th></th>
+            </tr>
+            {{ range $row := $categ.rows }}
+                <tr>
+                    <th>{{ $row.name }}</th>
+                </tr>
+            {{ end }}
+        </table>
+        </div>
+       <div class="table-right big-right">
+        <div id="{{ $categ.description | urlize }}" class="table-headers big-headers">
+            <table>
+                <tr>
+                    {{ range $col := $colcol }}
+                        <th>{{ $col.name }}</th>
+                    {{ end }}
+                </tr>
+            </table>
+        </div>
+        <div id="{{ $categ.description | urlize }}" class="table-center big-center">
+            <table>
+                {{ range $row := $categ.rows }}
+                    <tr>
+                        {{ range $val := $row.values }}
+                            <td style='height:0;word-wrap:break-word; background-color:#{{ if eq $val.l1 "Yes" }}{{ index $categ "color-y" }}{{ else if eq $val.l1 "Partially" }}{{ index $categ "color-p" }}{{ else }}{{ index $categ "color-n" }}{{ end }};border-color:#{{ if eq $val.l1 "Yes" }}{{ index $categ "color-yb" }}{{ else if eq $val.l1 "Partially" }}{{ index $categ "color-pb" }}{{ else }}{{ index $categ "color-nb" }}{{ end }}'>
+                                <!-- {{ partial "documentation/capability-matrix-row" (dict "type" $cap_view "val" $val) }} -->
+                              
+                                <div style="height: 338px; overflow-y: scroll">
+                                    <p style=" color: #ff6d00">
+                                        {{$val.l1}}: {{$val.l2}}
+                                    </p>
+                                    {{range $l3 := $val.l3}}
+                                    <p>{{$l3.name}}</p>
+                                    <p>- {{$l3.status}}</p>
+                                    {{end}}
+                                    {{range $l4 := $val.l4}}
+                                    <p style="color: red">{{$l4.name}}</p>
+                                    <p style="color: red">- {{$l4.status}}</p>
+                                    {{end}}
+                                </div>
+                               
+                            </td>
+                        {{ end }}
+                    </tr>
+                {{ end }}
+            </table>
+        </div>
+    </div>
+
+</div>
+{{end}}
+{{end}}
 {{ range $i, $category := $cap_data.categories }}
     {{ if eq $i $index}}
         <a class="back-button" href="/documentation/runners/capability-matrix">
