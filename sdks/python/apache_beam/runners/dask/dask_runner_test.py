@@ -22,6 +22,11 @@ from apache_beam.testing import test_pipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+try:
+ import dask
+except (ImportError, ModuleNotFoundError):
+  raise unittest.SkipTest('Dask must be installed to run tests.')
+
 
 class DaskRunnerRunPipelineTest(unittest.TestCase):
   """Test class used to introspect the dask runner via a debugger."""
