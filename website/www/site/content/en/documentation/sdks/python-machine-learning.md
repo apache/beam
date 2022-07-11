@@ -153,3 +153,7 @@ from apache_beam.ml.inference.base import PredictionResult
 
 For detailed instructions explaining how to build and run a pipeline that uses ML models, see the
 [Example RunInference API pipelines](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference) on GitHub.
+
+## Troubleshooting
+
+When you use a dictionary of tensors, the output might not include the prediction results. This issue occurs because the RunInference API supports tensors but not dictionaries of tensors. 
