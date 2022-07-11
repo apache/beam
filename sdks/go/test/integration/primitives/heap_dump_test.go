@@ -1,0 +1,58 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package primitives
+
+import (
+	"context"
+	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
+)
+
+func TestOomParDo(t *testing.T) {
+	integration.CheckFilters(t)
+	ctx := context.Background()
+	if *integration.TempLocation == "" {
+		t.Fatalf("A temp_location must be provided to correctly run TestOomParDo")
+	}
+
+	fs, err := filesystem.New(ctx, *integration.TempLocation)
+	if err != nil {
+		t.Fatalf("Failed to connect to filesystem: %v", err)
+	}
+	defer fs.Close()
+
+	files, err := fs.List(ctx, *integration.TempLocation)
+	if err != nil {
+		t.Fatalf("Failed to connect to filesystem: %v", err)
+	}
+	startFiles := len(files)
+
+	beam.Run(ctx, "test", OomParDo())
+
+	files, err = fs.List(ctx, *integration.TempLocation)
+	if err != nil {
+		t.Fatalf("Failed to connect to filesystem: %v", err)
+	}
+	endFiles := len(files)
+
+	if (startFiles >= endFiles) {
+		t.Fatalf("No new heap dumps generated on OOM.")
+	}
+}

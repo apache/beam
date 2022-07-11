@@ -13,21 +13,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !linux
-// +build !linux
+package primitives
 
-package syscallx
+import (
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+)
 
-// PhysicalMemorySize returns the total physical memory size.
-func PhysicalMemorySize() (uint64, error) {
-	return 0, ErrUnsupported
+func oomFn(elm int, emit func(int)) {
+	_ = make([]int64, 1<<40)
+	emit(elm)
 }
 
-// FreeDiskSpace returns the free disk space for a given path.
-func FreeDiskSpace(path string) (uint64, error) {
-	return 0, ErrUnsupported
-}
+// OomParDo test a DoFn that OOMs.
+func OomParDo() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
 
-func SetProcessMemoryCeiling(softCeiling, hardCeiling uint64) error {
-	return ErrUnsupported
+	in := beam.Create(s, 1)
+	beam.ParDo(s, oomFn, in)
+
+	return p
 }

@@ -17,6 +17,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -25,8 +26,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
@@ -115,7 +119,19 @@ func main() {
 		os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
 	}
 
-	log.Fatalf("User program exited: %v", execx.Execute(prog, args...))
+	err = execx.Execute(prog, args...)
+
+	if err != nil {
+		var opt runtime.RawOptionsWrapper
+		err = json.Unmarshal([]byte(options), &opt)
+		if err == nil {
+			if tempLocation, ok := opt.Options.Options["temp_location"]; ok {
+				harness.UploadHeapDump(ctx, fmt.Sprintf("%v/heapDumps/dump-%v-%d", strings.TrimSuffix(tempLocation, "/"), *id, time.Now().Unix()), fmt.Sprintf("Options %v", opt))
+			}
+		}
+	}
+
+	log.Fatalf("User program exited: %v", err)
 }
 
 func getGoWorkerArtifactName(artifacts []*pipepb.ArtifactInformation) (string, error) {
