@@ -41,14 +41,14 @@ func FreeDiskSpace(path string) (uint64, error) {
 func SetProcessMemoryCeiling(softCeiling, hardCeiling uint64) error {
 	var rLimit unix.Rlimit
 
-    err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rLimit)
+	err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rLimit)
 
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
-    rLimit.Max = hardCeiling
-    rLimit.Cur = softCeiling
+	rLimit.Max = hardCeiling
+	rLimit.Cur = softCeiling
 
-    return unix.Setrlimit(unix.RLIMIT_NOFILE, &rLimit)
+	return unix.Setrlimit(unix.RLIMIT_NOFILE, &rLimit)
 }

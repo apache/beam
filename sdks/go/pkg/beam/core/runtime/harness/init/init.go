@@ -112,9 +112,9 @@ func hook() {
 	defer cancelFn()
 	ctx = grpcx.WriteWorkerID(ctx, *id)
 	memLimit := memoryLimit()
-    if err := syscallx.SetProcessMemoryCeiling(memLimit, memLimit); err != nil && err != syscallx.ErrUnsupported {
-        fmt.Println("Error Setting Rlimit ", err)
-    }
+	if err := syscallx.SetProcessMemoryCeiling(memLimit, memLimit); err != nil && err != syscallx.ErrUnsupported {
+		fmt.Println("Error Setting Rlimit ", err)
+	}
 	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint); err != nil {
 		fmt.Fprintf(os.Stderr, "Worker failed: %v\n", err)
 		switch ShutdownMode {

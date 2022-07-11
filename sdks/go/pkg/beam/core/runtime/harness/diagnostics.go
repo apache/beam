@@ -112,7 +112,7 @@ func findCoreDump() string {
 	return location
 }
 
-func listFilesRecursive(dir string) string{
+func listFilesRecursive(dir string) string {
 	files, _ := ioutil.ReadDir(dir)
 	fileString := ""
 	for _, f := range files {

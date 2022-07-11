@@ -17,6 +17,7 @@ package primitives
 
 import (
 	"context"
+	"flag"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -27,18 +28,22 @@ import (
 
 func TestOomParDo(t *testing.T) {
 	integration.CheckFilters(t)
-	ctx := context.Background()
-	if *integration.TempLocation == "" {
+	if flag.Lookup("temp_location") == nil {
 		t.Fatalf("A temp_location must be provided to correctly run TestOomParDo")
 	}
+	tempLocation := flag.Lookup("temp_location").Value.(flag.Getter).Get().(string)
+	if tempLocation == "" {
+		t.Fatalf("A temp_location must be provided to correctly run TestOomParDo")
+	}
+	ctx := context.Background()
 
-	fs, err := filesystem.New(ctx, *integration.TempLocation)
+	fs, err := filesystem.New(ctx, tempLocation)
 	if err != nil {
 		t.Fatalf("Failed to connect to filesystem: %v", err)
 	}
 	defer fs.Close()
 
-	files, err := fs.List(ctx, *integration.TempLocation)
+	files, err := fs.List(ctx, tempLocation)
 	if err != nil {
 		t.Fatalf("Failed to connect to filesystem: %v", err)
 	}
@@ -46,13 +51,13 @@ func TestOomParDo(t *testing.T) {
 
 	beam.Run(ctx, "test", OomParDo())
 
-	files, err = fs.List(ctx, *integration.TempLocation)
+	files, err = fs.List(ctx, tempLocation)
 	if err != nil {
 		t.Fatalf("Failed to connect to filesystem: %v", err)
 	}
 	endFiles := len(files)
 
-	if (startFiles >= endFiles) {
+	if startFiles >= endFiles {
 		t.Fatalf("No new heap dumps generated on OOM.")
 	}
 }
