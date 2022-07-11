@@ -101,9 +101,9 @@ class SdkWorkerMainTest(unittest.TestCase):
     self.assertTrue(test_runtime_provider.is_accessible())
     self.assertEqual(test_runtime_provider.get(), 37)
 
-  def test_crerate_sdk_harness_log_handler_received_log(self):
-    # tests that the log handler created in crerate_sdk_harness() does not miss
-    # logs emitted from crerate_sdk_harness() itself.
+  def test_create_sdk_harness_log_handler_received_log(self):
+    # tests that the log handler created in create_harness() does not miss
+    # logs emitted from create_harness() itself.
     logstream = io.StringIO()
 
     class InMemoryHandler(logging.StreamHandler):
