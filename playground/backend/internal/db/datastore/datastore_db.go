@@ -200,7 +200,11 @@ func (d *Datastore) GetSDK(ctx context.Context, id string) (*entity.SDKEntity, e
 func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, dayDiff int32) error {
 	var hoursDiff = dayDiff * 24
 	boundaryDate := time.Now().Add(-time.Hour * time.Duration(hoursDiff))
-	snippetQuery := datastore.NewQuery(SnippetKind).Namespace(Namespace).Filter("lVisited <= ", boundaryDate).Project("numberOfFiles")
+	snippetQuery := datastore.NewQuery(SnippetKind).
+		Namespace(Namespace).
+		Filter("lVisited <= ", boundaryDate).
+		Filter("origin =", "PG_USER").
+		Project("numberOfFiles")
 	var snpDtos []*dto.SnippetDeleteDTO
 	snpKeys, err := d.Client.GetAll(ctx, snippetQuery, &snpDtos)
 	if err != nil {

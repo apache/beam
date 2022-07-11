@@ -392,23 +392,25 @@ func TestDatastore_DeleteUnusedSnippets(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "DeleteUnusedSnippets() in the usual case",
+			name: "DeleteUnusedSnippets() with different cases",
 			args: args{ctx: ctx, dayDiff: 10},
 			prepare: func() {
 				//last visit date is now - 7 days
-				putSnippet("MOCK_ID0", now.Add(-time.Hour*24*7), 2)
+				putSnippet("MOCK_ID0", "PG_USER", now.Add(-time.Hour*24*7), 2)
 				//last visit date is now - 10 days
-				putSnippet("MOCK_ID1", now.Add(-time.Hour*24*10), 4)
+				putSnippet("MOCK_ID1", "PG_USER", now.Add(-time.Hour*24*10), 4)
 				//last visit date is now - 15 days
-				putSnippet("MOCK_ID2", now.Add(-time.Hour*24*15), 8)
+				putSnippet("MOCK_ID2", "PG_USER", now.Add(-time.Hour*24*15), 8)
 				//last visit date is now
-				putSnippet("MOCK_ID3", now, 1)
+				putSnippet("MOCK_ID3", "PG_USER", now, 1)
 				//last visit date is now + 2 days
-				putSnippet("MOCK_ID4", now.Add(time.Hour*24*2), 2)
+				putSnippet("MOCK_ID4", "PG_USER", now.Add(time.Hour*24*2), 2)
 				//last visit date is now + 10 days
-				putSnippet("MOCK_ID5", now.Add(time.Hour*24*10), 2)
+				putSnippet("MOCK_ID5", "PG_USER", now.Add(time.Hour*24*10), 2)
 				//last visit date is now - 18 days
-				putSnippet("MOCK_ID6", now.Add(-time.Hour*24*18), 3)
+				putSnippet("MOCK_ID6", "PG_USER", now.Add(-time.Hour*24*18), 3)
+				//last visit date is now - 18 days and origin != PG_USER
+				putSnippet("MOCK_ID7", "PG_EXAMPLES", now.Add(-time.Hour*24*18), 2)
 			},
 			wantErr: false,
 		},
@@ -457,6 +459,11 @@ func TestDatastore_DeleteUnusedSnippets(t *testing.T) {
 				_, err = datastoreDb.GetFiles(tt.args.ctx, "MOCK_ID6", 3)
 				if err == nil {
 					t.Errorf("DeleteUnusedSnippets() this snippet should be deleted, err: %s", err)
+				}
+				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID7")
+				_, err = datastoreDb.GetFiles(tt.args.ctx, "MOCK_ID7", 2)
+				if err != nil {
+					t.Errorf("DeleteUnusedSnippets() this snippet shouldn't be deleted, err: %s", err)
 				}
 			}
 
@@ -513,7 +520,7 @@ func getSDKs() []*entity.SDKEntity {
 	return sdkEntities
 }
 
-func putSnippet(id string, lVisited time.Time, numberOfFiles int) {
+func putSnippet(id, origin string, lVisited time.Time, numberOfFiles int) {
 	var files []*entity.FileEntity
 	for i := 0; i < numberOfFiles; i++ {
 		file := &entity.FileEntity{
@@ -528,7 +535,7 @@ func putSnippet(id string, lVisited time.Time, numberOfFiles int) {
 			Sdk:           utils.GetNameKey(SdkKind, pb.Sdk_SDK_GO.String(), Namespace, nil),
 			PipeOpts:      "MOCK_OPTIONS",
 			LVisited:      lVisited,
-			Origin:        entity.PG_USER,
+			Origin:        origin,
 			NumberOfFiles: numberOfFiles,
 		},
 		Files: files,
