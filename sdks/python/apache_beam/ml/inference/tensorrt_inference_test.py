@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-# pytype: skip-file
+# pylint: skip-file
 
 import numpy as np
 import pytest
@@ -48,21 +48,28 @@ SINGLE_FEATURE_PREDICTIONS = [
     PredictionResult(ex, pred) for ex,
     pred in zip(
         SINGLE_FEATURE_EXAMPLES,
-        [[np.array(example * 2.0 + 0.5, dtype=np.float32)] for example in SINGLE_FEATURE_EXAMPLES])
+        [[np.array(example * 2.0 + 0.5, dtype=np.float32)]
+         for example in SINGLE_FEATURE_EXAMPLES])
 ]
 
-TWO_FEATURES_EXAMPLES = np.array([[1, 5],[3, 10],[-14, 0],[0.5, 0.5]], dtype=np.float32)
+TWO_FEATURES_EXAMPLES = np.array([[1, 5], [3, 10], [-14, 0], [0.5, 0.5]],
+                                 dtype=np.float32)
 
 TWO_FEATURES_PREDICTIONS = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
-            TWO_FEATURES_EXAMPLES,
-            [[np.array([example[0] * 2.0 + example[1] * 3 + 0.5], dtype=np.float32)] for example in TWO_FEATURES_EXAMPLES])
+    PredictionResult(ex, pred) for ex,
+    pred in zip(
+        TWO_FEATURES_EXAMPLES,
+        [[
+            np.array([example[0] * 2.0 + example[1] * 3 + 0.5],
+                     dtype=np.float32)
+        ] for example in TWO_FEATURES_EXAMPLES])
 ]
 
+
 def _compare_prediction_result(a, b):
-  return ((a.example == b.example).all() and 
-        all(np.array_equal(actual, expected) for actual, expected in zip(a.inference, b.inference)))
+  return ((a.example == b.example).all() and all(
+      np.array_equal(actual, expected) for actual,
+      expected in zip(a.inference, b.inference)))
 
 
 @pytest.mark.uses_tensorrt
@@ -73,11 +80,15 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     This tests ONNX parser and TensorRT engine creation from parsed ONNX network. 
     Single feature tensors batched into size of 4 are used as input.
     """
-    inference_runner = TensorRTEngineHandlerNumPy(min_batch_size=4, max_batch_size=4, 
-        onnx_path="gs://apache-beam-ml/models/single_tensor_features_model.onnx")
+    inference_runner = TensorRTEngineHandlerNumPy(
+        min_batch_size=4,
+        max_batch_size=4,
+        onnx_path=
+        "gs://anandinguva-test/tensorRT/single_tensor_features_model.onnx")
     network = inference_runner.load_onnx()
     engine = inference_runner.build_engine(network)
-    predictions = inference_runner.run_inference(SINGLE_FEATURE_EXAMPLES, engine)
+    predictions = inference_runner.run_inference(
+        SINGLE_FEATURE_EXAMPLES, engine)
     for actual, expected in zip(predictions, SINGLE_FEATURE_PREDICTIONS):
       self.assertEqual(actual, expected)
 
@@ -87,8 +98,11 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     This tests ONNX parser and TensorRT engine creation from parsed ONNX network. 
     Two feature tensors batched into size of 4 are used as input.
     """
-    inference_runner = TensorRTEngineHandlerNumPy(min_batch_size=4, max_batch_size=4, 
-        onnx_path='gs://apache-beam-ml/models/multiple_tensor_features_model.onnx')
+    inference_runner = TensorRTEngineHandlerNumPy(
+        min_batch_size=4,
+        max_batch_size=4,
+        onnx_path=
+        'gs://anandinguva-test/tensorRT/multiple_tensor_features_model.onnx')
     network = inference_runner.load_onnx()
     engine = inference_runner.build_engine(network)
     predictions = inference_runner.run_inference(TWO_FEATURES_EXAMPLES, engine)
@@ -101,20 +115,33 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     but natively in TensorRT. After network creation, network is used to build a TensorRT engine.
     Single feature tensors batched into size of 4 are used as input.
     """
-    inference_runner = TensorRTEngineHandlerNumPy(min_batch_size=4, max_batch_size=4)
+    inference_runner = TensorRTEngineHandlerNumPy(
+        min_batch_size=4, max_batch_size=4)
     builder = trt.Builder(LOGGER)
-    network = builder.create_network(flags=1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
-    input_tensor = network.add_input(name="input", dtype=trt.float32, shape=(4, 1))
-    weight_const = network.add_constant((1, 1), trt.Weights((np.ascontiguousarray([2.0], dtype=np.float32))))
-    mm = network.add_matrix_multiply(input_tensor, trt.MatrixOperation.NONE, weight_const.get_output(0), trt.MatrixOperation.NONE)
-    bias_const = network.add_constant((1, 1), trt.Weights((np.ascontiguousarray([0.5], dtype=np.float32))))
-    bias_add = network.add_elementwise(mm.get_output(0), bias_const.get_output(0), trt.ElementWiseOperation.SUM)
+    network = builder.create_network(
+        flags=1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+    input_tensor = network.add_input(
+        name="input", dtype=trt.float32, shape=(4, 1))
+    weight_const = network.add_constant(
+        (1, 1), trt.Weights((np.ascontiguousarray([2.0], dtype=np.float32))))
+    mm = network.add_matrix_multiply(
+        input_tensor,
+        trt.MatrixOperation.NONE,
+        weight_const.get_output(0),
+        trt.MatrixOperation.NONE)
+    bias_const = network.add_constant(
+        (1, 1), trt.Weights((np.ascontiguousarray([0.5], dtype=np.float32))))
+    bias_add = network.add_elementwise(
+        mm.get_output(0),
+        bias_const.get_output(0),
+        trt.ElementWiseOperation.SUM)
     bias_add.get_output(0).name = "output"
     network.mark_output(tensor=bias_add.get_output(0))
     builder.reset()
-    
+
     engine = inference_runner.build_engine(network)
-    predictions = inference_runner.run_inference(SINGLE_FEATURE_EXAMPLES, engine)
+    predictions = inference_runner.run_inference(
+        SINGLE_FEATURE_EXAMPLES, engine)
     for actual, expected in zip(predictions, SINGLE_FEATURE_PREDICTIONS):
       self.assertEqual(actual, expected)
 
@@ -124,23 +151,35 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     but natively in TensorRT. After network creation, network is used to build a TensorRT engine.
     Two feature tensors batched into size of 4 are used as input.
     """
-    inference_runner = TensorRTEngineHandlerNumPy(min_batch_size=4, max_batch_size=4)
+    inference_runner = TensorRTEngineHandlerNumPy(
+        min_batch_size=4, max_batch_size=4)
     builder = trt.Builder(LOGGER)
-    network = builder.create_network(flags=1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
-    input_tensor = network.add_input(name="input", dtype=trt.float32, shape=(4, 2))
-    weight_const = network.add_constant((1, 2), trt.Weights((np.ascontiguousarray([2.0, 3], dtype=np.float32))))
-    mm = network.add_matrix_multiply(input_tensor, trt.MatrixOperation.NONE, weight_const.get_output(0), trt.MatrixOperation.TRANSPOSE)
-    bias_const = network.add_constant((1, 1), trt.Weights((np.ascontiguousarray([0.5], dtype=np.float32))))
-    bias_add = network.add_elementwise(mm.get_output(0), bias_const.get_output(0), trt.ElementWiseOperation.SUM)
+    network = builder.create_network(
+        flags=1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+    input_tensor = network.add_input(
+        name="input", dtype=trt.float32, shape=(4, 2))
+    weight_const = network.add_constant(
+        (1, 2), trt.Weights((np.ascontiguousarray([2.0, 3], dtype=np.float32))))
+    mm = network.add_matrix_multiply(
+        input_tensor,
+        trt.MatrixOperation.NONE,
+        weight_const.get_output(0),
+        trt.MatrixOperation.TRANSPOSE)
+    bias_const = network.add_constant(
+        (1, 1), trt.Weights((np.ascontiguousarray([0.5], dtype=np.float32))))
+    bias_add = network.add_elementwise(
+        mm.get_output(0),
+        bias_const.get_output(0),
+        trt.ElementWiseOperation.SUM)
     bias_add.get_output(0).name = "output"
     network.mark_output(tensor=bias_add.get_output(0))
     builder.reset()
-    
+
     engine = inference_runner.build_engine(network)
     predictions = inference_runner.run_inference(TWO_FEATURES_EXAMPLES, engine)
     for actual, expected in zip(predictions, TWO_FEATURES_PREDICTIONS):
-      self.assertTrue(_compare_prediction_result(actual, expected))   
-  
+      self.assertTrue(_compare_prediction_result(actual, expected))
+
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_inference_single_tensor_feature_built_engine(self):
     """
@@ -152,10 +191,15 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#compatibility-serialized-engines
     Single feature tensors batched into size of 4 are used as input.
     """
-    inference_runner = TensorRTEngineHandlerNumPy(min_batch_size=4, max_batch_size=4, 
-        engine_path='gs://apache-beam-ml/models/single_tensor_features_engine.trt')
+    inference_runner = TensorRTEngineHandlerNumPy(
+        min_batch_size=4,
+        max_batch_size=4,
+        engine_path=
+        'gs://anandinguva-test/tensorRT/tensorRT_engines/single_tensor_features_engine.trt'
+    )
     engine = inference_runner.load_model()
-    predictions = inference_runner.run_inference(SINGLE_FEATURE_EXAMPLES, engine)
+    predictions = inference_runner.run_inference(
+        SINGLE_FEATURE_EXAMPLES, engine)
     for actual, expected in zip(predictions, SINGLE_FEATURE_PREDICTIONS):
       self.assertEqual(actual, expected)
 
@@ -170,49 +214,65 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#compatibility-serialized-engines
     Two feature tensors batched into size of 4 are used as input.
     """
-    inference_runner = TensorRTEngineHandlerNumPy(min_batch_size=4, max_batch_size=4, 
-        engine_path='gs://apache-beam-ml/models/multiple_tensor_features_engine.trt')
+    inference_runner = TensorRTEngineHandlerNumPy(
+        min_batch_size=4,
+        max_batch_size=4,
+        engine_path=
+        'gs://anandinguva-test/tensorRT/tensorRT_engines/multiple_tensor_features_engine.trt'
+    )
     engine = inference_runner.load_model()
     predictions = inference_runner.run_inference(TWO_FEATURES_EXAMPLES, engine)
     for actual, expected in zip(predictions, TWO_FEATURES_PREDICTIONS):
       self.assertTrue(_compare_prediction_result(actual, expected))
-  
+
   def test_num_bytes(self):
-    inference_runner = TensorRTEngineHandlerNumPy(min_batch_size=1, max_batch_size=1)
+    inference_runner = TensorRTEngineHandlerNumPy(
+        min_batch_size=1, max_batch_size=1)
     examples = np.array([[1, 5], [3, 10], [-14, 0], [0.5, 0.5]],
-                 dtype="float32")
+                        dtype="float32")
     self.assertEqual((examples[0].itemsize) * 8,
                      inference_runner.get_num_bytes(examples))
 
   def test_namespace(self):
-    inference_runner = TensorRTEngineHandlerNumPy(min_batch_size=4, max_batch_size=4)
+    inference_runner = TensorRTEngineHandlerNumPy(
+        min_batch_size=4, max_batch_size=4)
     self.assertEqual(
         'RunInferenceTensorRT', inference_runner.get_metrics_namespace())
-      
+
 
 @pytest.mark.uses_tensorrt
 class TensorRTRunInferencePipelineTest(unittest.TestCase):
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_single_tensor_feature_built_engine(self):
     with TestPipeline() as pipeline:
-      engine_handler = TensorRTEngineHandlerNumPy(min_batch_size=4, max_batch_size=4, 
-        engine_path='gs://apache-beam-ml/models/single_tensor_features_engine.trt')
+      engine_handler = TensorRTEngineHandlerNumPy(
+          min_batch_size=4,
+          max_batch_size=4,
+          engine_path=
+          'gs://anandinguva-test/tensorRT/tensorRT_engines/single_tensor_features_engine.trt'
+      )
       pcoll = pipeline | 'start' >> beam.Create(SINGLE_FEATURE_EXAMPLES)
       predictions = pcoll | RunInference(engine_handler)
       assert_that(
           predictions,
-          equal_to(SINGLE_FEATURE_PREDICTIONS, equals_fn=_compare_prediction_result))
+          equal_to(
+              SINGLE_FEATURE_PREDICTIONS, equals_fn=_compare_prediction_result))
 
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_multiple_tensor_feature_built_engine(self):
     with TestPipeline() as pipeline:
-      engine_handler = TensorRTEngineHandlerNumPy(min_batch_size=4, max_batch_size=4, 
-        engine_path='gs://apache-beam-ml/models/multiple_tensor_features_engine.trt')
+      engine_handler = TensorRTEngineHandlerNumPy(
+          min_batch_size=4,
+          max_batch_size=4,
+          engine_path=
+          'gs://anandinguva-test/tensorRT/tensorRT_engines/multiple_tensor_features_engine.trt'
+      )
       pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
       predictions = pcoll | RunInference(engine_handler)
       assert_that(
           predictions,
-          equal_to(TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
+          equal_to(
+              TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
 
 
 if __name__ == '__main__':
