@@ -369,14 +369,15 @@ class RowCoderTest(unittest.TestCase):
         fields=[
             schema_pb2.Field(
                 name="type_with_no_typeinfo", type=schema_pb2.FieldType())
-        ])
+        ],
+        id='bad-schema')
 
     # Should raise an exception referencing the problem field
     self.assertRaisesRegex(
         ValueError, "type_with_no_typeinfo", lambda: RowCoder(schema_proto))
 
   def test_row_coder_cloud_object_schema(self):
-    schema_proto = schema_pb2.Schema()
+    schema_proto = schema_pb2.Schema(id='some-cloud-object-schema')
     schema_proto_json = json_format.MessageToJson(schema_proto).encode('utf-8')
 
     coder = RowCoder(schema_proto)

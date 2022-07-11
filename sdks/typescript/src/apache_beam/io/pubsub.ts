@@ -131,4 +131,4 @@ export function writeToPubSub(topic: string, options: WriteOptions = {}) {
 }
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.io.pubsub.PubSub", PubSub);
+requireForSerialization("apache-beam/io/pubsub", PubSub);

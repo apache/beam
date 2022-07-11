@@ -131,8 +131,13 @@ import org.slf4j.LoggerFactory;
  *   <li>ScanRequestFn, which you build a ScanRequest object with at least table name and total
  *       number of segment. Note This number should base on the number of your workers
  * </ul>
+ *
+ * @deprecated Module <code>beam-sdks-java-io-amazon-web-services</code> is deprecated and will be
+ *     eventually removed. Please migrate to {@link org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO}
+ *     in module <code>beam-sdks-java-io-amazon-web-services2</code>.
  */
 @Experimental(Kind.SOURCE_SINK)
+@Deprecated
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -227,6 +232,11 @@ public final class DynamoDBIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
+      LoggerFactory.getLogger(DynamoDBIO.class)
+          .warn(
+              "You are using a deprecated IO for DynamoDB. Please migrate to module "
+                  + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
+
       checkArgument((getScanRequestFn() != null), "withScanRequestFn() is required");
       checkArgument((getAwsClientsProvider() != null), "withAwsClientsProvider() is required");
       ScanRequest scanRequest = getScanRequestFn().apply(null);
@@ -454,6 +464,11 @@ public final class DynamoDBIO {
 
     @Override
     public PCollection<Void> expand(PCollection<T> input) {
+      LoggerFactory.getLogger(DynamoDBIO.class)
+          .warn(
+              "You are using a deprecated IO for DynamoDB. Please migrate to module "
+                  + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
+
       return input.apply(ParDo.of(new WriteFn<>(this)));
     }
 

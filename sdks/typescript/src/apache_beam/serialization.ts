@@ -56,14 +56,20 @@ const registeredObjectSet: Set<any> = new Set();
  * will also be executed on the worker, this registration code would be run
  * allowing these instances to be deserialized there.
  */
-export function requireForSerialization(moduleName: string, extraObjects = {}) {
-  registerExports(moduleName, extraObjects);
-  if (
-    !moduleName.startsWith("apache_beam") &&
-    !registeredModules.includes(moduleName)
-  ) {
-    registerExports(moduleName, require(moduleName));
+export function requireForSerialization(moduleName: string, values = {}) {
+  // TODO: It'd be nice to always validate moduleName, but self imports don't
+  // work by default (even if they will on the worker).
+  if (!values) {
+    values = require(moduleName);
   }
+  if (!registeredModules.includes(moduleName)) {
+    registeredModules.push(moduleName);
+  }
+  registerExports(moduleName, values);
+}
+
+export function getRegisteredModules() {
+  return registeredModules;
 }
 
 function registerExports(qualified_name, module) {
