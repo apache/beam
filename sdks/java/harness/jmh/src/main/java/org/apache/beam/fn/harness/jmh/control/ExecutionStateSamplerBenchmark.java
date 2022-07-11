@@ -29,7 +29,6 @@ import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
@@ -105,7 +104,6 @@ public class ExecutionStateSamplerBenchmark {
 
   @Benchmark
   @Threads(10)
-  @Fork(1)
   public void testTinyBundleRunnersCoreStateSampler(RunnersCoreStateSampler state, Blackhole bh)
       throws Exception {
     ExecutionStateTracker tracker = new ExecutionStateTracker(state.sampler);
@@ -125,7 +123,7 @@ public class ExecutionStateSamplerBenchmark {
   }
 
   @Benchmark
-  @Threads(1)
+  @Threads(10)
   public void testTinyBundleHarnessStateSampler(HarnessStateSampler state, Blackhole bh)
       throws Exception {
     state.tracker.start("processBundleId");
@@ -144,8 +142,7 @@ public class ExecutionStateSamplerBenchmark {
   }
 
   @Benchmark
-  @Threads(1)
-  @Fork(1)
+  @Threads(10)
   public void testLargeBundleRunnersCoreStateSampler(RunnersCoreStateSampler state, Blackhole bh)
       throws Exception {
     ExecutionStateTracker tracker = new ExecutionStateTracker(state.sampler);
@@ -165,7 +162,7 @@ public class ExecutionStateSamplerBenchmark {
   }
 
   @Benchmark
-  @Threads(1)
+  @Threads(10)
   public void testLargeBundleHarnessStateSampler(HarnessStateSampler state, Blackhole bh)
       throws Exception {
     state.tracker.start("processBundleId");
