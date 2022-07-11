@@ -1264,7 +1264,6 @@ class ElasticsearchIOTestCommon implements Serializable {
       offset = offset.plus(step);
     }
 
-    //    docsBuilder = docsBuilder.advanceWatermarkTo(new Instant(0).plus(offset));
     TestStream<String> docs = docsBuilder.advanceWatermarkToInfinity();
 
     Write write =
