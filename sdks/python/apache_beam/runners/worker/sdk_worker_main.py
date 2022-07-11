@@ -69,11 +69,6 @@ def _import_beam_plugins(plugins):
 
 def create_harness(environment, dry_run=False):
   """Creates SDK Fn Harness."""
-  pipeline_options_dict = _load_pipeline_options(
-      environment.get('PIPELINE_OPTIONS'))
-  default_log_level = _get_log_level_from_options_dict(pipeline_options_dict)
-  logging.getLogger().setLevel(default_log_level)
-  _set_log_level_overrides(pipeline_options_dict)
 
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in environment:
     try:
@@ -93,6 +88,12 @@ def create_harness(environment, dry_run=False):
       fn_log_handler = None
   else:
     fn_log_handler = None
+
+  pipeline_options_dict = _load_pipeline_options(
+      environment.get('PIPELINE_OPTIONS'))
+  default_log_level = _get_log_level_from_options_dict(pipeline_options_dict)
+  logging.getLogger().setLevel(default_log_level)
+  _set_log_level_overrides(pipeline_options_dict)
 
   # These are used for dataflow templates.
   RuntimeValueProvider.set_runtime_options(pipeline_options_dict)
@@ -256,8 +257,8 @@ def _get_log_level_from_options_dict(options_dict: dict) -> int:
   """Get log level from options dict's entry `default_sdk_harness_log_level`.
   If not specified, default log level is logging.INFO.
   """
-  log_level = options_dict.get('default_sdk_harness_log_level', 'INFO')
-
+  dict_level = options_dict.get('default_sdk_harness_log_level', 'INFO')
+  log_level = dict_level
   if log_level.isdecimal():
     log_level = int(log_level)
   else:
@@ -265,7 +266,7 @@ def _get_log_level_from_options_dict(options_dict: dict) -> int:
     log_level = getattr(logging, log_level, None)
     if not isinstance(log_level, int):
       # unknown log level.
-      _LOGGER.error("Unknown log level. Use default value INFO.", exc_info=True)
+      _LOGGER.error("Unknown log level %s. Use default value INFO.", dict_level)
       log_level = logging.INFO
 
   return log_level
