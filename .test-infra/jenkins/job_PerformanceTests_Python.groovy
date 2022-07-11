@@ -72,13 +72,12 @@ private void createPythonPerformanceTestJob(Map testConfig) {
     // Run job in postcommit, don't trigger every push.
     commonJobProperties.setAutoJob(delegate, 'H H/6 * * *')
 
-    // [Issue#21824] Disable trigger
     // Allows triggering this build against pull requests.
-    //    commonJobProperties.enablePhraseTriggeringFromPullRequest(
-    //        delegate,
-    //        testConfig.jobDescription,
-    //        testConfig.jobTriggerPhrase,
-    //        )
+    commonJobProperties.enablePhraseTriggeringFromPullRequest(
+        delegate,
+        testConfig.jobDescription,
+        testConfig.jobTriggerPhrase,
+        )
 
     publishers {
       archiveJunit('**/pytest*.xml')

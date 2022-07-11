@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -25,12 +27,6 @@ import * as beam from "../index";
 import { Worker, WorkerEndpoints } from "./worker";
 import { LogEntry, LogEntry_Severity_Enum } from "../proto/beam_fn_api";
 import { BeamFnLoggingClient } from "../proto/beam_fn_api.grpc-client";
-
-// Needed for registration.
-import * as row_coder from "../coders/row_coder";
-import * as combiners from "../transforms/combiners";
-import * as pubsub from "../io/pubsub";
-import * as assert from "../testing/assert";
 
 function createLoggingChannel(workerId: string, endpoint: string) {
   const logQueue = new Queue<LogEntry>();
@@ -82,6 +78,17 @@ async function main() {
     pushLogs = createLoggingChannel(argv.id, argv.logging_endpoint);
   }
 
+  let options = JSON.parse(argv.options);
+  if (options["options"]) {
+    // Dataflow adds another level of nesting.
+    options = options["options"];
+  }
+  (
+    options["beam:option:registered_node_modules:v1"] ||
+    options["registered_node_modules"] ||
+    []
+  ).forEach(require);
+
   console.log("Starting worker", argv.id);
   const worker = new Worker(
     argv.id,
@@ -89,7 +96,7 @@ async function main() {
       controlUrl: argv.control_endpoint,
       //loggingUrl: argv.logging_endpoint,
     },
-    JSON.parse(argv.options)
+    options
   );
   if (pushLogs) {
     await pushLogs();

@@ -23,7 +23,7 @@
 
 absl-py==1.1.0
 astunparse==1.6.3
-atomicwrites==1.4.0
+atomicwrites==1.4.1
 attrs==21.4.0
 beautifulsoup4==4.11.1
 bs4==0.0.1
