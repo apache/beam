@@ -30,15 +30,13 @@ because the `apache_beam.examples.inference` module was added in that release.
 pip install apache-beam==2.40.0
 ```
 
-**Note:** You cannot batch elements of different sizes, because [`torch.stack()` expects tensors of the same length](https://github.com/pytorch/nestedtensor). Either elements need to be a fixed size, or you need to disable batching. To disable batching, set the maximum batch size to one: `max_batch_size=1`.
-
 ### PyTorch dependencies
 
 The following installation requirements are for the files used in these examples.
 
 The RunInference API supports the PyTorch framework. To use PyTorch locally, first install `torch`.
 ```
-pip install torch==1.11.0
+pip install torch==1.10.0
 ```
 
 If you are using pretrained models from Pytorch's `torchvision.models` [subpackage](https://pytorch.org/vision/0.12/models.html#models-and-pre-trained-weights), you also need to install `torchvision`.
@@ -53,6 +51,14 @@ pip install transformers
 
 For installation of the `torch` dependency on a distributed runner such as Dataflow, refer to the 
 [PyPI dependency instructions](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pypi-dependencies).
+
+RunInference uses dynamic batching. However, the RunInference API cannot batch tensor elements of different sizes, because `torch.stack()` expects tensors of the same length. If you provide images of different sizes or word embeddings of different lengths, errors might occur.
+
+To avoid this issue:
+
+1. Either use elements that have the same size, or resize image inputs and word embeddings to make them 
+the same size. Depending on the language model and encoding technique, this option might not be available. 
+2. Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see BatchElements PTransforms.
 
 <!---
 TODO: Add link to full documentation on Beam website when it's published.
