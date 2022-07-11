@@ -108,6 +108,7 @@ abstract class BigtableConfig implements Serializable {
      *
      * <p>{@link BigtableIO.Write}
      */
+    @Experimental
     abstract Builder setDataflowThrottleReporting(boolean isEnabled);
 
     abstract BigtableConfig build();

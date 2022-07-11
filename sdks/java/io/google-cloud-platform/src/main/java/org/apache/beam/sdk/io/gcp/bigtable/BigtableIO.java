@@ -1499,15 +1499,15 @@ public class BigtableIO {
 
     @Override
     public ResourceLimiterStats getStats() {
-      if (bigtableConfig.getProjectId() == null || bigtableConfig.getInstanceId() == null) {
-        return ResourceLimiterStats.getInstance(
-            new BigtableInstanceName(
-                bigtableConfig.getBigtableOptions().getProjectId(),
-                bigtableConfig.getBigtableOptions().getInstanceId()));
+      String projectId = bigtableConfig.getProjectId().get();
+      String instanceId = bigtableConfig.getInstanceId().get();
+      if (projectId == null || instanceId == null) {
+        projectId = bigtableConfig.getBigtableOptions().getProjectId();
+        instanceId = bigtableConfig.getBigtableOptions().getInstanceId();
       }
-      return ResourceLimiterStats.getInstance(
-          new BigtableInstanceName(
-              bigtableConfig.getProjectId().get(), bigtableConfig.getInstanceId().get()));
+
+      BigtableInstanceName instanceName = new BigtableInstanceName(projectId, instanceId);
+      return ResourceLimiterStats.getInstance(instanceName);
     }
   }
 }
