@@ -46,6 +46,8 @@ import org.apache.beam.runners.samza.metrics.DoFnRunnerWithMetrics;
 import org.apache.beam.runners.samza.util.StateUtils;
 import org.apache.beam.runners.samza.util.WindowUtils;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -237,6 +239,8 @@ public class SamzaDoFnRunners {
   }
 
   private static class SdkHarnessDoFnRunner<InT, FnOutT> implements DoFnRunner<InT, FnOutT> {
+    private static final IdGenerator ID_GENERATOR = IdGenerators.incrementingLongs();
+
     private final SamzaTimerInternalsFactory timerInternalsFactory;
     private final WindowingStrategy windowingStrategy;
     private final DoFnRunners.OutputManager outputManager;
@@ -249,7 +253,7 @@ public class SamzaDoFnRunners {
     private final StateRequestHandler stateRequestHandler;
     private final SamzaExecutionContext samzaExecutionContext;
     private long startBundleTime;
-    private String metricName;
+    private final String metricName;
 
     private SdkHarnessDoFnRunner(
         SamzaTimerInternalsFactory<?> timerInternalsFactory,
@@ -268,6 +272,7 @@ public class SamzaDoFnRunners {
       this.bundledEventsBag = bundledEventsBag;
       this.stateRequestHandler = stateRequestHandler;
       this.samzaExecutionContext = samzaExecutionContext;
+      this.metricName = "ExecutableStage-" + ID_GENERATOR.getId() + "-process-ns";
     }
 
     @SuppressWarnings("unchecked")
@@ -306,7 +311,6 @@ public class SamzaDoFnRunners {
                 timerReceiverFactory,
                 stateRequestHandler,
                 BundleProgressHandler.ignored());
-        metricName = toExecutableStageMetricName(remoteBundle);
 
         inputReceiver = Iterables.getOnlyElement(remoteBundle.getInputReceivers().values());
         bundledEventsBag
@@ -396,10 +400,6 @@ public class SamzaDoFnRunners {
         remoteBundle = null;
         inputReceiver = null;
       }
-    }
-
-    private static String toExecutableStageMetricName(RemoteBundle remoteBundle) {
-      return "ExecutableStage-" + remoteBundle.getId() + "-process-ns";
     }
 
     @Override
