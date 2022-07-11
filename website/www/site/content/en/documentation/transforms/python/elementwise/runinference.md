@@ -63,7 +63,7 @@ In this example, we create a pipeline that performs image classification using t
 This pipeline reads your set of images, performs preprocessing, passes the images to the PyTorch implementation of RunInference, and then writes the predictions to a text file.
 
 {{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/runinference" >}}
+  class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" images >}}
 {{</ highlight >}}
 
