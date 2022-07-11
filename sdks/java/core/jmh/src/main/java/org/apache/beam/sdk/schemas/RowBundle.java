@@ -30,7 +30,6 @@ import org.apache.beam.sdk.values.RowWithStorage;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -210,46 +209,117 @@ public class RowBundle {
   }
 
   interface Sink<T> extends BiConsumer<T, Blackhole> {
-    Sink<Object> VALUE_SINK = (val, bh) -> bh.consume(val);
-
-    /** Create sink for {@link Schema}, traversing recursive structures and collection types. */
+    /**
+     * Create sink for {@link Schema}, traversing recursive structures and collection types.
+     *
+     * <p>Note: To make profiling easier, this avoids using lambdas as much as possible.
+     */
     static Sink<Row> create(Schema schema) {
       Sink<Object> sink = sink(schema.getField(0).getType());
-      return (row, bh) -> sink.accept(row.getValue(0), bh);
+      return sink != ValueSink.INSTANCE ? new RowSink(sink) : RowValueSink.INSTANCE;
     }
 
     @SuppressWarnings("rawtypes")
     static Sink<Object> sink(Schema.FieldType type) {
       switch (type.getTypeName()) {
         case ARRAY:
-          {
-            Sink<Object> elemSink = sink(type.getCollectionElementType());
-            return (list, bh) -> elemSink.accept(((List) list).get(0), bh);
-          }
         case ITERABLE:
-          {
-            Sink<Object> elemSink = sink(type.getCollectionElementType());
-            return (it, bh) -> elemSink.accept(Iterables.get((Iterable) it, 0), bh);
-          }
+          Sink<Object> elemSink = sink(type.getCollectionElementType());
+          return (elemSink != ValueSink.INSTANCE
+              ? (Sink) new ArraySink(elemSink)
+              : (Sink) ArrayValueSink.INSTANCE);
         case MAP:
-          {
-            Sink<Entry> entrySink = entry(sink(type.getMapKeyType()), sink(type.getMapValueType()));
-            return (map, bh) ->
-                entrySink.accept(Iterables.get(((Map<Object, Object>) map).entrySet(), 0), bh);
-          }
+          Sink<Object> keySink = sink(type.getMapKeyType());
+          Sink<Object> valueSink = sink(type.getMapValueType());
+          return (keySink != ValueSink.INSTANCE || valueSink != ValueSink.INSTANCE
+              ? (Sink) new MapSink(keySink, valueSink)
+              : (Sink) MapValueSink.INSTANCE);
         case ROW:
           return (Sink) create(type.getRowSchema());
         default:
-          return VALUE_SINK;
+          return ValueSink.INSTANCE;
       }
     }
 
-    @SuppressWarnings("rawtypes")
-    static Sink<Entry> entry(Sink<Object> kSink, Sink<Object> vSink) {
-      return (kv, bh) -> {
-        kSink.accept(kv.getKey(), bh);
-        vSink.accept(kv.getValue(), bh);
-      };
+    class ValueSink implements Sink<Object> {
+      private static final Sink<Object> INSTANCE = new ValueSink();
+
+      @Override
+      public final void accept(Object o, Blackhole bh) {
+        bh.consume(o);
+      }
+    }
+
+    class RowSink implements Sink<Row> {
+      private final Sink<Object> fieldSink;
+
+      public RowSink(Sink<Object> fieldSink) {
+        this.fieldSink = fieldSink;
+      }
+
+      @Override
+      public final void accept(Row row, Blackhole bh) {
+        fieldSink.accept(row.getValue(0), bh);
+      }
+    }
+
+    class RowValueSink implements Sink<Row> {
+      private static final Sink<Row> INSTANCE = new RowValueSink();
+
+      @Override
+      public final void accept(Row row, Blackhole bh) {
+        bh.consume(row.getValue(0));
+      }
+    }
+
+    class ArrayValueSink implements Sink<List<Object>> {
+      private static final Sink<List<Object>> INSTANCE = new ArrayValueSink();
+
+      @Override
+      public final void accept(List<Object> objects, Blackhole bh) {
+        bh.consume(objects.get(0));
+      }
+    }
+
+    class ArraySink implements Sink<List<Object>> {
+      private final Sink<Object> elementSink;
+
+      public ArraySink(Sink<Object> elementSink) {
+        this.elementSink = elementSink;
+      }
+
+      @Override
+      public final void accept(List<Object> objects, Blackhole bh) {
+        elementSink.accept(objects.get(0), bh);
+      }
+    }
+
+    class MapValueSink implements Sink<Map<Object, Object>> {
+      private static final Sink<Map<Object, Object>> INSTANCE = new MapValueSink();
+
+      @Override
+      public final void accept(Map<Object, Object> map, Blackhole bh) {
+        Entry<Object, Object> entry = map.entrySet().iterator().next();
+        bh.consume(entry.getKey());
+        bh.consume(entry.getValue());
+      }
+    }
+
+    class MapSink implements Sink<Map<Object, Object>> {
+      private final Sink<Object> keySink;
+      private final Sink<Object> valueSink;
+
+      public MapSink(Sink<Object> keySink, Sink<Object> valueSink) {
+        this.keySink = keySink;
+        this.valueSink = valueSink;
+      }
+
+      @Override
+      public final void accept(Map<Object, Object> map, Blackhole bh) {
+        Entry<Object, Object> entry = map.entrySet().iterator().next();
+        keySink.accept(entry.getKey(), bh);
+        valueSink.accept(entry.getValue(), bh);
+      }
     }
   }
 }
