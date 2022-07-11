@@ -37,7 +37,7 @@ func TestOomParDo(t *testing.T) {
 	if tempLocation == "" {
 		t.Fatalf("A temp_location must be provided to correctly run TestOomParDo")
 	}
-	dumpLocation := fmt.Sprintf("%v/heapDumps/", strings.TrimSuffix(tempLocation, "/"))
+	dumpLocation := fmt.Sprintf("%v/heapDumps/*", strings.TrimSuffix(tempLocation, "/"))
 	ctx := context.Background()
 
 	fs, err := filesystem.New(ctx, dumpLocation)
@@ -61,6 +61,6 @@ func TestOomParDo(t *testing.T) {
 	endFiles := len(files)
 
 	if startFiles >= endFiles {
-		t.Fatalf("No new heap dumps generated on OOM.")
+		t.Fatalf("No new heap dumps generated on OOM. There were %v dumps before running and %v after", startFiles, endFiles)
 	}
 }
