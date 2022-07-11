@@ -144,10 +144,12 @@ packages:
   code_text_field:
     dependency: "direct main"
     description:
-      name: code_text_field
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "1.0.2"
+      path: "."
+      ref: "9e2c9fe52a69481f038f4b6609e8a0a776429437"
+      resolved-ref: "9e2c9fe52a69481f038f4b6609e8a0a776429437"
+      url: "https://github.com/BertrandBev/code_field.git"
+    source: git
+    version: "1.0.3"
   collection:
     dependency: "direct main"
     description:

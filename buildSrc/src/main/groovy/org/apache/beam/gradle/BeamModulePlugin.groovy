@@ -1079,6 +1079,12 @@ class BeamModulePlugin implements Plugin<Project> {
         maxErrors = 0
       }
       project.checkstyle { toolVersion = "8.23" }
+      // CheckStyle can be removed from the 'check' task by passing -PdisableCheckStyle=true on the Gradle
+      // command-line. This is useful for pre-commit which runs checkStyle separately.
+      def disableCheckStyle = project.hasProperty('disableCheckStyle') &&
+          project.disableCheckStyle == 'true'
+      project.checkstyleMain.enabled = !disableCheckStyle
+      project.checkstyleTest.enabled = !disableCheckStyle
 
       // Configures javadoc plugin and ensure check runs javadoc.
       project.tasks.withType(Javadoc) {

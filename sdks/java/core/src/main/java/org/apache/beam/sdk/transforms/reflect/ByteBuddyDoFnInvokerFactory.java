@@ -24,9 +24,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -168,9 +168,13 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * A cache of constructors of generated {@link DoFnInvoker} classes, keyed by {@link DoFn} class.
    * Needed because generating an invoker class is expensive, and to avoid generating an excessive
    * number of classes consuming PermGen memory.
+   *
+   * <p>Note that special care must be taken to enumerate this object as concurrent hash maps are <a
+   * href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/package-summary.html#Weakly>weakly
+   * consistent</a>.
    */
   private final Map<Class<?>, Constructor<?>> byteBuddyInvokerConstructorCache =
-      new LinkedHashMap<>();
+      new ConcurrentHashMap<>();
 
   private ByteBuddyDoFnInvokerFactory() {}
 
@@ -291,19 +295,18 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * <p>These are cached such that at most one {@link DoFnInvoker} class exists for a given {@link
    * DoFn} class.
    */
-  private synchronized Constructor<?> getByteBuddyInvokerConstructor(DoFnSignature signature) {
+  private Constructor<?> getByteBuddyInvokerConstructor(DoFnSignature signature) {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
-    Constructor<?> constructor = byteBuddyInvokerConstructorCache.get(fnClass);
-    if (constructor == null) {
-      Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature);
-      try {
-        constructor = invokerClass.getConstructor(fnClass);
-      } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
-        throw new RuntimeException(e);
-      }
-      byteBuddyInvokerConstructorCache.put(fnClass, constructor);
-    }
-    return constructor;
+    return byteBuddyInvokerConstructorCache.computeIfAbsent(
+        fnClass,
+        clazz -> {
+          Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature);
+          try {
+            return invokerClass.getConstructor(clazz);
+          } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
+            throw new RuntimeException(e);
+          }
+        });
   }
 
   /** Default implementation of {@link DoFn.SplitRestriction}, for delegation by bytebuddy. */
