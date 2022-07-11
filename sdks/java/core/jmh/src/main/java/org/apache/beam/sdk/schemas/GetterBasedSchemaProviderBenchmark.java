@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static org.apache.beam.sdk.schemas.RowBundles.ArrayOfNestedIntBundle;
 import static org.apache.beam.sdk.schemas.RowBundles.ByteBufferBundle;
 import static org.apache.beam.sdk.schemas.RowBundles.BytesBundle;
 import static org.apache.beam.sdk.schemas.RowBundles.DateTimeBundle;
@@ -29,6 +28,8 @@ import static org.apache.beam.sdk.schemas.RowBundles.NestedIntBundle;
 import static org.apache.beam.sdk.schemas.RowBundles.StringBuilderBundle;
 import static org.apache.beam.sdk.schemas.RowBundles.StringBundle;
 
+import org.apache.beam.sdk.schemas.RowBundles.ArrayOfNestedStringBundle;
+import org.apache.beam.sdk.schemas.RowBundles.ArrayOfStringBundle;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.State;
@@ -96,7 +97,12 @@ public class GetterBasedSchemaProviderBenchmark {
   }
 
   @Benchmark
-  public void processArrayOfNestedIntField(ArrayOfNestedIntBundle state, Blackhole bh) {
+  public void processArrayOfStringField(ArrayOfStringBundle state, Blackhole bh) {
+    state.processRows(bh);
+  }
+
+  @Benchmark
+  public void processArrayOfNestedStringField(ArrayOfNestedStringBundle state, Blackhole bh) {
     state.processRows(bh);
   }
 

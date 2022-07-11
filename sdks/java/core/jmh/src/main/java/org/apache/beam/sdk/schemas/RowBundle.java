@@ -17,20 +17,20 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
-import static java.util.stream.IntStream.range;
-
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-import java.util.stream.IntStream;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
 import org.apache.beam.sdk.values.RowWithStorage;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -94,7 +94,7 @@ public class RowBundle {
   @Param("100000")
   int bundleSize;
 
-  @Param({"READ_ONCE", "WRITE"})
+  @Param({"READ_REPEATED", "WRITE"})
   Action action;
 
   public RowBundle() {
@@ -117,25 +117,34 @@ public class RowBundle {
   public void setup() {
     if (factory == null) {
       factory = action.factoryProvider.apply(coder);
+      rows = new Row[bundleSize];
     }
-    rows = range(0, bundleSize).mapToObj(factory::apply).toArray(Row[]::new);
+    for (int i = 0; i < bundleSize; i++) {
+      rows[i] = factory.apply(i);
+    }
   }
 
   public void processRows(Blackhole blackhole) {
     if (action == Action.READ_ONCE) {
-      readField(blackhole, 1);
+      readRowsOnce(blackhole);
     } else if (action == Action.READ_REPEATED) {
-      readField(blackhole, 3);
+      readRowsRepeatedly(blackhole);
     } else {
       writeField(blackhole);
     }
   }
 
-  private void readField(Blackhole blackhole, int reads) {
+  private void readRowsOnce(Blackhole blackhole) {
     for (Row row : rows) {
-      for (int i = 0; i < reads; i++) {
-        sink.accept(row, blackhole);
-      }
+      sink.accept(row, blackhole);
+    }
+  }
+
+  private void readRowsRepeatedly(Blackhole blackhole) {
+    for (Row row : rows) {
+      sink.accept(row, blackhole);
+      sink.accept(row, blackhole);
+      sink.accept(row, blackhole);
     }
   }
 
@@ -147,7 +156,6 @@ public class RowBundle {
   }
 
   public interface Factory<T> extends Function<Integer, T> {
-    int ELEMENTS = 10;
     Instant TODAY = DateTime.now().withTimeAtStartOfDay().toInstant();
 
     /** Create factory of rows of type {@link RowWithStorage}. */
@@ -193,15 +201,16 @@ public class RowBundle {
     }
 
     static Factory<Object> list(Factory<Object> fn) {
-      return i -> IntStream.range(i, ELEMENTS + i).mapToObj(fn::apply).collect(toList());
+      return i -> ImmutableList.of(fn.apply(i));
     }
 
     static Factory<Object> map(Factory<Object> kFn, Factory<Object> vFn) {
-      return i -> IntStream.range(i, ELEMENTS + i).boxed().collect(toMap(kFn::apply, vFn::apply));
+      return i -> ImmutableMap.of(kFn.apply(i), vFn.apply(i));
     }
   }
 
   interface Sink<T> extends BiConsumer<T, Blackhole> {
+    Sink<Object> VALUE_SINK = (val, bh) -> bh.consume(val);
 
     /** Create sink for {@link Schema}, traversing recursive structures and collection types. */
     static Sink<Row> create(Schema schema) {
@@ -212,25 +221,31 @@ public class RowBundle {
     @SuppressWarnings("rawtypes")
     static Sink<Object> sink(Schema.FieldType type) {
       switch (type.getTypeName()) {
-        case ITERABLE:
         case ARRAY:
-          return foreach((Iterable it) -> it, sink(type.getCollectionElementType()));
+          {
+            Sink<Object> elemSink = sink(type.getCollectionElementType());
+            return (list, bh) -> elemSink.accept(((List) list).get(0), bh);
+          }
+        case ITERABLE:
+          {
+            Sink<Object> elemSink = sink(type.getCollectionElementType());
+            return (it, bh) -> elemSink.accept(Iterables.get((Iterable) it, 0), bh);
+          }
         case MAP:
-          Sink<Map.Entry> sink = entry(sink(type.getMapKeyType()), sink(type.getMapValueType()));
-          return foreach((Map m) -> m.entrySet(), sink);
+          {
+            Sink<Entry> entrySink = entry(sink(type.getMapKeyType()), sink(type.getMapValueType()));
+            return (map, bh) ->
+                entrySink.accept(Iterables.get(((Map<Object, Object>) map).entrySet(), 0), bh);
+          }
         case ROW:
           return (Sink) create(type.getRowSchema());
         default:
-          return (val, bh) -> bh.consume(val);
+          return VALUE_SINK;
       }
     }
 
-    static <T, V> Sink<Object> foreach(Function<T, Iterable<V>> fn, Sink<V> sink) {
-      return (val, bh) -> fn.apply((T) val).forEach(v -> sink.accept(v, bh));
-    }
-
     @SuppressWarnings("rawtypes")
-    static Sink<Map.Entry> entry(Sink<Object> kSink, Sink<Object> vSink) {
+    static Sink<Entry> entry(Sink<Object> kSink, Sink<Object> vSink) {
       return (kv, bh) -> {
         kSink.accept(kv.getKey(), bh);
         vSink.accept(kv.getValue(), bh);

@@ -122,14 +122,26 @@ public interface RowBundles {
   }
 
   @State(Scope.Benchmark)
-  class ArrayOfNestedIntBundle extends RowBundle {
-    public ArrayOfNestedIntBundle() {
+  class ArrayOfStringBundle extends RowBundle {
+    public ArrayOfStringBundle() {
       super(Field.class);
     }
 
     @DefaultSchema(JavaFieldSchema.class)
     public static class Field {
-      public IntBundle.Field[] field;
+      public String[] field;
+    }
+  }
+
+  @State(Scope.Benchmark)
+  class ArrayOfNestedStringBundle extends RowBundle {
+    public ArrayOfNestedStringBundle() {
+      super(Field.class);
+    }
+
+    @DefaultSchema(JavaFieldSchema.class)
+    public static class Field {
+      public StringBundle.Field[] field;
     }
   }
 
