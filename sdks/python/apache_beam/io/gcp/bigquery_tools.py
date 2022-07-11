@@ -254,8 +254,11 @@ def parse_table_reference(table, dataset=None, project=None):
   # table argument will contain a full table reference instead of just a
   # table name.
   if dataset is None:
-    match = re.match(
-        r'^((?P<project>.+):)?(?P<dataset>\w+)\.(?P<table>[-\w\$]+)$', table)
+    regex = re.compile(
+        r'''^((?P<project>.+):)?(?P<dataset>\w+)\.
+            (?P<table>[-\w\$]+(\s+\-*\w+)*)$''',
+        re.X)
+    match = regex.match(table)
     if not match:
       raise ValueError(
           'Expected a table reference (PROJECT:DATASET.TABLE or '
