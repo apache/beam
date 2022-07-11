@@ -60,7 +60,7 @@ describe("Programming Guide Tested Samples", function () {
       // [START pipelines_constructing_reading]
       async function pipeline(root: beam.Root) {
         // Note that textio.ReadFromText is an AsyncPTransform.
-        const pcoll: PCollection<string> = await root.asyncApply(
+        const pcoll: PCollection<string> = await root.applyAsync(
           textio.ReadFromText("path/to/text_pattern")
         );
       }

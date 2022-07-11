@@ -617,7 +617,7 @@ the transform itself as an argument, and the operation returns the output
 
 {{< highlight typescript >}}
 [Output PCollection] = [Input PCollection].apply([Transform])
-[Output PCollection] = await [Input PCollection].asyncApply([AsyncTransform])
+[Output PCollection] = await [Input PCollection].applyAsync([AsyncTransform])
 {{< /highlight >}}
 
 {{< paragraph class="language-java language-py language-typescript" >}}
@@ -735,7 +735,7 @@ One can apply transforms to these composite types by wrapping them with
 {{< paragraph class="language-typescript" >}}
 PTransforms come in two flavors, synchronous and asynchronous, depending on
 whether their *application** involves asynchronous invocations.
-An `AsyncTransform` must be applied with `asyncApply` and returns a `Promise`
+An `AsyncTransform` must be applied with `applyAsync` and returns a `Promise`
 which must be awaited before further pipeline construction.
 {{< /paragraph >}}
 
