@@ -26,26 +26,8 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: Core :: JMH"
 ext.summary = "This contains JMH benchmarks for the SDK Core for Beam Java"
 
-configurations {
-  jammAgent
-}
-
 dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.joda_time
   runtimeOnly library.java.slf4j_jdk14
-  jammAgent library.java.jamm
 }
-
-jmh {
-  configurations.jammAgent.resolvedConfiguration.files.each {
-    jvmArgs '-javaagent:' + it
-  }
-}
-
-jmhTest {
-  configurations.jammAgent.resolvedConfiguration.files.each {
-    jvmArgs '-javaagent:' + it
-  }
-}
-
