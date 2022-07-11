@@ -117,6 +117,6 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
    */
   public abstract void clearState(Context context) throws Exception;
 
-  /** Returns true if the there is no buffered state. */
+  /** Returns true if there is no buffered state. */
   public abstract ReadableState<Boolean> isEmpty(StateAccessor<K> context);
 }

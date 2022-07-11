@@ -56,13 +56,13 @@ _INTERACTIVE_LOG_STYLE = """
 
 
 def to_element_list(
-    reader,  # type: Generator[Union[beam_runner_api_pb2.TestStreamPayload.Event, WindowedValueHolder]]
-    coder,  # type: Coder
+    reader,  # type: Generator[Union[beam_runner_api_pb2.TestStreamPayload.Event, WindowedValueHolder]] # noqa: F821
+    coder,  # type: Coder # noqa: F821
     include_window_info,  # type: bool
     n=None,  # type: int
     include_time_events=False, # type: bool
 ):
-  # type: (...) -> List[WindowedValue]
+  # type: (...) -> List[WindowedValue] # noqa: F821
 
   """Returns an iterator that properly decodes the elements from the reader.
   """
@@ -102,7 +102,7 @@ def to_element_list(
 
 
 def elements_to_df(elements, include_window_info=False, element_type=None):
-  # type: (List[WindowedValue], bool, Any) -> DataFrame
+  # type: (List[WindowedValue], bool, Any) -> DataFrame # noqa: F821
 
   """Parses the given elements into a Dataframe.
 
@@ -267,7 +267,7 @@ class ProgressIndicator(object):
 
 
 def progress_indicated(func):
-  # type: (Callable[..., Any]) -> Callable[..., Any]
+  # type: (Callable[..., Any]) -> Callable[..., Any] # noqa: F821
 
   """A decorator using a unique progress indicator as a context manager to
   execute the given function within."""
@@ -280,7 +280,7 @@ def progress_indicated(func):
 
 
 def as_json(func):
-  # type: (Callable[..., Any]) -> Callable[..., str]
+  # type: (Callable[..., Any]) -> Callable[..., str] # noqa: F821
 
   """A decorator convert python objects returned by callables to json
   string.

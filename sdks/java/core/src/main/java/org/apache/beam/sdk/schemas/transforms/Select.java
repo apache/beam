@@ -116,7 +116,7 @@ public class Select {
   }
 
   /**
-   * Selects every leaf-level field. This results in a a nested schema being flattened into a single
+   * Selects every leaf-level field. This results in a nested schema being flattened into a single
    * top-level schema. By default nested field names will be concatenated with _ characters, though
    * this can be overridden using {@link Flattened#keepMostNestedFieldName()} and {@link
    * Flattened#withFieldNameAs}.

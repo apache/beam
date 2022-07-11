@@ -16,119 +16,27 @@
  * limitations under the License.
  */
 
-import 'package:flutter/cupertino.dart';
-import 'package:playground/config.g.dart';
-import 'package:playground/modules/analytics/analytics_events.dart';
+import 'package:flutter/widgets.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:provider/provider.dart';
-import 'package:usage/usage_html.dart';
 
-class AnalyticsService {
-  late final Analytics _analytics;
-
-  AnalyticsService() {
-    _analytics = AnalyticsHtml(kAnalyticsUA, 'beam', '1.0');
-  }
-
+abstract class AnalyticsService {
   static AnalyticsService get(BuildContext context) {
     return Provider.of<AnalyticsService>(context, listen: false);
   }
 
-  void trackSelectSdk(SDK oldSdk, SDK newSdk) {
-    safeSendEvent(
-      kSdkCategory,
-      kSelectSdkEvent,
-      label: '${oldSdk.displayName}_${newSdk.displayName}',
-    );
-  }
-
-  void trackSelectExample(ExampleModel newExample) {
-    safeSendEvent(
-      kExampleCategory,
-      kSelectExampleEvent,
-      label: newExample.path,
-    );
-  }
-
-  void trackClickNewExample() {
-    safeSendEvent(kExampleCategory, kClickNewExampleEvent);
-  }
-
-  void trackReset() {
-    safeSendEvent(kCommonCategory, kClickResetEvent);
-  }
-
-  void trackClickToggleTheme(bool isDark) {
-    safeSendEvent(
-      kCommonCategory,
-      kClickToggleThemeEvent,
-      label: isDark ? 'dark' : 'light',
-    );
-  }
-
-  void trackOpenShortcutsModal() {
-    safeSendEvent(kCommonCategory, kOpenShortcutsModalEvent);
-  }
-
-  void trackOpenLink(String link) {
-    safeSendEvent(
-      kLinkCategory,
-      kOpenShortcutsModalEvent,
-      label: link,
-    );
-  }
-
-  void trackClickEnjoyPlayground(bool isEnjoying) {
-    safeSendEvent(
-      kFeedbackCategory,
-      kClickEnjoyPlaygroundEvent,
-      label: 'isEnjoying = ' + isEnjoying.toString(),
-    );
-  }
-
-  void trackClickReportIssue() {
-    safeSendEvent(kFeedbackCategory, kClickReportIssueEvent);
-  }
-
-  void trackClickRunEvent(String exampleName) {
-    safeSendEvent(
-      kRunCodeCategory,
-      kClickRunEvent,
-      label: exampleName,
-    );
-  }
-
-  void trackClickSendFeedback(String feedback) {
-    safeSendEvent(
-      kFeedbackCategory,
-      kClickSendFeedbackEvent,
-      label: feedback,
-    );
-  }
-
-  void trackRunTimeEvent(String exampleName, int runTimeMs) {
-    safeSendEvent(
-      kRunCodeCategory,
-      kRunTimeEvent,
-      label: exampleName,
-      value: runTimeMs,
-    );
-  }
-
-  void safeSendEvent(String category, String action,
-      {String? label, int? value, Map<String, String>? parameters}) {
-    try {
-      _analytics.sendEvent(
-        category,
-        action,
-        label: label,
-        value: value,
-        parameters: parameters,
-      );
-    } catch (e) {
-      // ignore analytics errors sync they don't affect app
-      print(e);
-    }
-  }
+  void trackSelectSdk(SDK oldSdk, SDK newSdk);
+  void trackSelectExample(ExampleModel newExample);
+  void trackClickNewExample();
+  void trackReset();
+  void trackClickToggleTheme(bool isDark);
+  void trackOpenShortcutsModal();
+  void trackOpenLink(String link);
+  void trackClickEnjoyPlayground(bool isEnjoying);
+  void trackClickReportIssue();
+  void trackClickRunEvent(String exampleName);
+  void trackClickCancelRunEvent(String exampleName);
+  void trackClickSendFeedback(String feedback);
+  void trackRunTimeEvent(String exampleName, int runTimeMs);
 }

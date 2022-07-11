@@ -17,15 +17,25 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTrackerStatus;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
@@ -37,41 +47,89 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PrepareForTest(MetricsEnvironment.class)
 public class PTransformFunctionRegistryTest {
 
-  @Test
-  public void functionsAreInvokedIndirectlyAfterRegisteringAndInvoking() throws Exception {
-    PTransformFunctionRegistry testObject =
-        new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
+  private ExecutionStateSampler sampler;
 
-    ThrowingRunnable runnableA = mock(ThrowingRunnable.class);
-    ThrowingRunnable runnableB = mock(ThrowingRunnable.class);
-    testObject.register("pTransformA", runnableA);
-    testObject.register("pTransformB", runnableB);
+  @Before
+  public void setUp() {
+    sampler = new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis);
+  }
 
-    for (ThrowingRunnable func : testObject.getFunctions()) {
-      func.run();
-    }
-
-    verify(runnableA, times(1)).run();
-    verify(runnableB, times(1)).run();
+  @After
+  public void tearDown() {
+    sampler.stop();
   }
 
   @Test
-  public void testScopedMetricContainerInvokedUponRunningFunctions() throws Exception {
+  public void testStateTrackerRecordsStateTransitions() throws Exception {
+    ExecutionStateTracker executionStateTracker = sampler.create();
+    PTransformFunctionRegistry testObject =
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class),
+            new ShortIdMap(),
+            executionStateTracker,
+            Urns.START_BUNDLE_MSECS);
+
+    final AtomicBoolean runnableAWasCalled = new AtomicBoolean();
+    final AtomicBoolean runnableBWasCalled = new AtomicBoolean();
+    ThrowingRunnable runnableA =
+        new ThrowingRunnable() {
+          @Override
+          public void run() throws Exception {
+            runnableAWasCalled.set(true);
+            ExecutionStateTrackerStatus executionStateTrackerStatus =
+                executionStateTracker.getStatus();
+            assertNotNull(executionStateTrackerStatus);
+            assertEquals(Thread.currentThread(), executionStateTrackerStatus.getTrackedThread());
+            assertEquals("pTransformA", executionStateTrackerStatus.getPTransformId());
+          }
+        };
+    ThrowingRunnable runnableB =
+        new ThrowingRunnable() {
+          @Override
+          public void run() throws Exception {
+            runnableBWasCalled.set(true);
+            ExecutionStateTrackerStatus executionStateTrackerStatus =
+                executionStateTracker.getStatus();
+            assertNotNull(executionStateTrackerStatus);
+            assertEquals(Thread.currentThread(), executionStateTrackerStatus.getTrackedThread());
+            assertEquals("pTransformB", executionStateTrackerStatus.getPTransformId());
+          }
+        };
+    testObject.register("pTransformA", "pTranformAName", runnableA);
+    testObject.register("pTransformB", "pTranformBName", runnableB);
+
+    executionStateTracker.start("testBundleId");
+    for (ThrowingRunnable func : testObject.getFunctions()) {
+      func.run();
+    }
+    executionStateTracker.reset();
+
+    assertTrue(runnableAWasCalled.get());
+    assertTrue(runnableBWasCalled.get());
+  }
+
+  @Test
+  public void testMetricsUponRunningFunctions() throws Exception {
+    ExecutionStateTracker executionStateTracker = sampler.create();
     mockStatic(MetricsEnvironment.class);
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PTransformFunctionRegistry testObject =
         new PTransformFunctionRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class), "start");
+            metricsContainerRegistry,
+            new ShortIdMap(),
+            executionStateTracker,
+            Urns.START_BUNDLE_MSECS);
 
     ThrowingRunnable runnableA = mock(ThrowingRunnable.class);
     ThrowingRunnable runnableB = mock(ThrowingRunnable.class);
-    testObject.register("pTransformA", runnableA);
-    testObject.register("pTransformB", runnableB);
+    testObject.register("pTransformA", "pTranformAName", runnableA);
+    testObject.register("pTransformB", "pTranformBName", runnableB);
 
+    executionStateTracker.start("testBundleId");
     for (ThrowingRunnable func : testObject.getFunctions()) {
       func.run();
     }
+    executionStateTracker.reset();
 
     // Verify that static scopedMetricsContainer is called with pTransformA's container.
     PowerMockito.verifyStatic(MetricsEnvironment.class, times(1));

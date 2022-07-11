@@ -261,7 +261,7 @@ class DataflowRunner(PipelineRunner):
 
   @staticmethod
   def _only_element(iterable):
-    # type: (Iterable[T]) -> T
+    # type: (Iterable[T]) -> T # noqa: F821
     element, = iterable
     return element
 

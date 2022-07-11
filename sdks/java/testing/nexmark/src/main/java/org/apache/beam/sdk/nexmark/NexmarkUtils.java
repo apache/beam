@@ -178,7 +178,7 @@ public class NexmarkUtils {
     QUERY,
     /** Names are suffixed with the query being run and a random number. */
     QUERY_AND_SALT,
-    /** Names are suffixed with the runner being used and a the mode (streaming/batch). */
+    /** Names are suffixed with the runner being used and a mode (streaming/batch). */
     QUERY_RUNNER_AND_MODE
   }
 

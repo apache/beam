@@ -16,10 +16,17 @@
  * limitations under the License.
  */
 
+import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
 
-Map<String, TextStyle> createTheme(ThemeColors colors) {
+CodeThemeData createTheme(ThemeColors colors) {
+  return CodeThemeData(
+    styles: _createThemeStyles(colors),
+  );
+}
+
+Map<String, TextStyle> _createThemeStyles(ThemeColors colors) {
   return {
     'root': TextStyle(
       backgroundColor: colors.primaryBackground,
