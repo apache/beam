@@ -22,7 +22,7 @@ You can use Apache Beam with the RunInference API to use machine learning (ML) m
 
 ## Why use the RunInference API?
 
-RunInference leverages existing Beam concepts, such as the the `BatchElements` transform and the `Shared` class, and it allows you to build multi-model pipelines.
+RunInference leverages existing Apache Beam concepts, such as the the `BatchElements` transform and the `Shared` class, and it allows you to build multi-model pipelines. In addition, the RunInference API allows you to find the input that determined the prediction without returning to the full input data.
 
 ### BatchElements PTransform
 
@@ -43,7 +43,7 @@ The RunInference API allows you to build complex multi-model pipelines with mini
 
 ### Prediction results
 
-When doing a prediction in Apache Beam, the output `PCollection` includes both the keys of the input examples and the inferences. Including both these items in the output allows users to find the input that determined the predictions without returning the full input data.
+When doing a prediction in Apache Beam, the output `PCollection` includes both the keys of the input examples and the inferences. Including both these items in the output allows you to find the input that determined the predictions without returning the full input data.
 
 For more information, see the [`PredictionResult` documentation](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/base.py#L65). 
 
@@ -78,13 +78,13 @@ from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedT
 You need to provide a path to the model weights that's accessible by the pipeline. To use pre-trained models with the RunInference API and the PyTorch framework, complete the following steps:
 
 1. Download the pre-trained weights and host them in a location that the pipeline can access.
-2. Pass the hosted path of the model to the PyTorch `model_handler`: `state_dict_path=*<path_to_weights>*`.
+2. Pass the hosted path of the model to the PyTorch `model_handler` by using the following code: `state_dict_path=<path_to_weights>`.
 
 ### Use multiple inference models
 
 You can also use the RunInference transform to add multiple inference models to your pipeline.
 
-**A/B Pattern**
+#### A/B Pattern
 
 ```
 with pipeline as p:
@@ -93,7 +93,7 @@ with pipeline as p:
    model_b_predictions = data | RunInference(ModelHandlerB)
 ```
 
-**Ensemble Pattern**
+#### Ensemble Pattern
 
 ```
 with pipeline as p:
