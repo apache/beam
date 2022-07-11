@@ -20,9 +20,9 @@ import (
 	"flag"
 	"testing"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
@@ -49,7 +49,7 @@ func TestOomParDo(t *testing.T) {
 	}
 	startFiles := len(files)
 
-	beam.Run(ctx, "test", OomParDo())
+	ptest.Run(OomParDo())
 
 	files, err = fs.List(ctx, tempLocation)
 	if err != nil {

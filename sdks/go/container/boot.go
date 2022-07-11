@@ -30,10 +30,10 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/diagnostics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 )
@@ -126,7 +126,7 @@ func main() {
 		err = json.Unmarshal([]byte(options), &opt)
 		if err == nil {
 			if tempLocation, ok := opt.Options.Options["temp_location"]; ok {
-				harness.UploadHeapDump(ctx, fmt.Sprintf("%v/heapDumps/dump-%v-%d", strings.TrimSuffix(tempLocation, "/"), *id, time.Now().Unix()), fmt.Sprintf("Options %v", opt))
+				diagnostics.UploadHeapDump(ctx, fmt.Sprintf("%v/heapDumps/dump-%v-%d", strings.TrimSuffix(tempLocation, "/"), *id, time.Now().Unix()), fmt.Sprintf("Options %v", opt))
 			}
 		}
 	}

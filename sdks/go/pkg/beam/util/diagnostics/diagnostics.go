@@ -13,14 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package harness
+package diagnostics
 
 import (
 	"bufio"
 	"context"
 	"os"
 
-	"io/ioutil"
 	"runtime/debug"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
@@ -77,50 +76,4 @@ func generateHeapDump(location string) error {
 	debug.WriteHeapDump(f.Fd())
 
 	return nil
-}
-
-func findCoreDump() string {
-	location := "dannystest"
-	f, err := os.Create(location)
-	if err != nil {
-		return ""
-	}
-	// if _, err := f.Write([]byte(listDirContents("/bin"))); err != nil {
-	// 	return ""
-	// }
-	// if _, err := f.Write([]byte(listDirContents("/var/lib/systemd/"))); err != nil {
-	// 	return ""
-	// }
-	// if _, err := f.Write([]byte(listDirContents("/lib/systemd/system"))); err != nil {
-	// 	return ""
-	// }
-	// if _, err := f.Write([]byte(listDirContents("./"))); err != nil {
-	// 	return ""
-	// }
-	if _, err := f.Write([]byte(listFilesRecursive("/"))); err != nil {
-		return ""
-	}
-	dat, _ := os.ReadFile("/proc/sys/kernel/core_pattern")
-	if _, err := f.Write(dat); err != nil {
-		return ""
-	}
-
-	if err := f.Close(); err != nil {
-		return ""
-	}
-
-	return location
-}
-
-func listFilesRecursive(dir string) string {
-	files, _ := ioutil.ReadDir(dir)
-	fileString := ""
-	for _, f := range files {
-		if f.IsDir() {
-			fileString += listFilesRecursive(dir + "/" + f.Name())
-		} else {
-			fileString += dir + "/" + f.Name() + "\n"
-		}
-	}
-	return fileString
 }
