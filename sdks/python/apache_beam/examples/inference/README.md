@@ -30,6 +30,8 @@ because the `apache_beam.examples.inference` module was added in that release.
 pip install apache-beam==2.40.0
 ```
 
+**Note:** You cannot batch elements of different sizes, because [`torch.stack()` expects tensors of the same length](https://github.com/pytorch/nestedtensor). Either elements need to be a fixed size, or you need to disable batching. To disable batching, set the maximum batch size to one: `max_batch_size=1`.
+
 ### PyTorch dependencies
 
 The following installation requirements are for the files used in these examples.
