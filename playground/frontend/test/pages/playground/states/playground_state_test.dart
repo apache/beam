@@ -101,7 +101,7 @@ void main() {
       'Playground state reset should reset source to example notify all listeners',
       () {
     final state = PlaygroundState(sdk: SDK.go, selectedExample: exampleMock1);
-    state.setSource('source');
+    state.source = 'source';
     state.addListener(() {
       expect(state.source, exampleMock1.source);
     });

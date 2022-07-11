@@ -115,7 +115,7 @@ class PlaygroundState with ChangeNotifier {
     notifyListeners();
   }
 
-  void setSource(String source) {
+  set source(String source) {
     codeController.text = source;
   }
 
