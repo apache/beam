@@ -28,13 +28,13 @@ import (
 
 func UploadHeapDump(ctx context.Context, dest string, additionalDataToWrite string) error {
 	heapDumpLoc := "heapDump"
-	if heapDumpLoc == "" {
-		return nil
-	}
-	err := generateHeapDump(heapDumpLoc)
+
+	f, err := os.Create(heapDumpLoc)
 	if err != nil {
 		return err
 	}
+	debug.WriteHeapDump(f.Fd())
+
 	heapDump, err := os.Open(heapDumpLoc)
 	if err != nil {
 		return err
@@ -65,15 +65,4 @@ func UploadHeapDump(ctx context.Context, dest string, additionalDataToWrite stri
 	}
 
 	return fd.Close()
-}
-
-func generateHeapDump(location string) error {
-	f, err := os.Create(location)
-	if err != nil {
-		return err
-	}
-
-	debug.WriteHeapDump(f.Fd())
-
-	return nil
 }

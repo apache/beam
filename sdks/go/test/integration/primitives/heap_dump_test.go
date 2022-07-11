@@ -18,6 +18,8 @@ package primitives
 import (
 	"context"
 	"flag"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
@@ -35,15 +37,16 @@ func TestOomParDo(t *testing.T) {
 	if tempLocation == "" {
 		t.Fatalf("A temp_location must be provided to correctly run TestOomParDo")
 	}
+	dumpLocation := fmt.Sprintf("%v/heapDumps/", strings.TrimSuffix(tempLocation, "/"))
 	ctx := context.Background()
 
-	fs, err := filesystem.New(ctx, tempLocation)
+	fs, err := filesystem.New(ctx, dumpLocation)
 	if err != nil {
 		t.Fatalf("Failed to connect to filesystem: %v", err)
 	}
 	defer fs.Close()
 
-	files, err := fs.List(ctx, tempLocation)
+	files, err := fs.List(ctx, dumpLocation)
 	if err != nil {
 		t.Fatalf("Failed to connect to filesystem: %v", err)
 	}
@@ -51,7 +54,7 @@ func TestOomParDo(t *testing.T) {
 
 	ptest.Run(OomParDo())
 
-	files, err = fs.List(ctx, tempLocation)
+	files, err = fs.List(ctx, dumpLocation)
 	if err != nil {
 		t.Fatalf("Failed to connect to filesystem: %v", err)
 	}

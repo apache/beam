@@ -24,7 +24,7 @@ func oomFn(elm int, emit func(int)) {
 	emit(elm)
 }
 
-// OomParDo test a DoFn that OOMs.
+// OomParDo tests a DoFn that OOMs.
 func OomParDo() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
