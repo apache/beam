@@ -25,8 +25,6 @@ Uses models to do local and remote inference. A `RunInference` transform uses a 
 
 You must have Apache Beam 2.40.0 or later installed to run these pipelines.
 
-You cannot batch elements of different sizes, because `torch.stack()` [expects tensors of the same length](https://github.com/pytorch/nestedtensor). Either elements need to be a fixed size, or you need to disable batching. To disable batching, set the maximum batch size to one: `max_batch_size=1`.
-
 See more [RunInference API pipeline examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference).
 
 ## PyTorch dependencies
@@ -43,7 +41,7 @@ If you are using pretrained models from Hugging Face's [`transformers` package](
 
 `pip install transformers`
 
-For information about installing the `torch` dependency on a distributed runner such as Dataflow, see the [PyPI dependency instructions](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pypi-dependencies).
+For information about installing the `torch` dependency on a distributed runner such as Dataflow, see the [PyPI dependency instructions](/documentation/sdks/python-pipeline-dependencies/#pypi-dependencies).
 
 RunInference uses dynamic batching. However, the RunInference API cannot batch tensor elements of different sizes, because `torch.stack()` expects tensors of the same length. If you provide images of different sizes or word embeddings of different lengths, errors might occur.
 
@@ -51,7 +49,8 @@ To avoid this issue:
 
 1. Either use elements that have the same size, or resize image inputs and word embeddings to make them 
 the same size. Depending on the language model and encoding technique, this option might not be available. 
-2. Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see BatchElements PTransforms.
+2. Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see
+[BatchElements PTransforms](/documentation/sdks/python-machine-learning/#batchelements-ptransform).
 
 ## Examples
 
@@ -60,6 +59,8 @@ In the following examples, we explore how to create pipelines that use the Beam 
 ### Example 1: Image classification
 
 In this example, we create a pipeline that performs image classification using the `mobilenet_v2` architecture.
+
+This pipeline reads your set of images, performs preprocessing, passes the images to the PyTorch implementation of RunInference, and then writes the predictions to a text file.
 
 {{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/runinference" >}}
