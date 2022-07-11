@@ -312,4 +312,4 @@ class AsyncPTransformClassFromCallable<
 }
 
 import { requireForSerialization } from "./serialization";
-requireForSerialization("apache_beam.pvalue", exports);
+requireForSerialization("apache-beam/pvalue", exports);

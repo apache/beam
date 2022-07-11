@@ -720,6 +720,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       return StreamingModeExecutionContext.this.getSideInputNotifications();
     }
 
+    private void ensureStateful(String errorPrefix) {
+      if (stateFamily == null) {
+        throw new IllegalStateException(errorPrefix + " for stateless step: " + getNameContext());
+      }
+    }
+
     @Override
     public <T, W extends BoundedWindow> void writePCollectionViewData(
         TupleTag<?> tag,
@@ -738,10 +744,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       ByteString.Output windowStream = ByteString.newOutput();
       windowCoder.encode(window, windowStream, Coder.Context.OUTER);
 
-      if (stateFamily == null) {
-        throw new IllegalStateException(
-            "Tried to write view data for stateless step: " + getNameContext());
-      }
+      ensureStateful("Tried to write view data");
 
       Windmill.GlobalData.Builder builder =
           Windmill.GlobalData.newBuilder()
@@ -768,9 +771,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     /** Note that there is data on the current key that is blocked on the given side input. */
     @Override
     public void addBlockingSideInput(Windmill.GlobalDataRequest sideInput) {
-      checkState(
-          stateFamily != null,
-          "Tried to set global data request for stateless step: " + getNameContext());
+      ensureStateful("Tried to set global data request");
       sideInput =
           Windmill.GlobalDataRequest.newBuilder(sideInput).setStateFamily(stateFamily).build();
       outputBuilder.addGlobalDataRequests(sideInput);
@@ -787,22 +788,18 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     @Override
     public StateInternals stateInternals() {
-      checkState(
-          stateFamily != null, "Tried to access state for stateless step: " + getNameContext());
+      ensureStateful("Tried to access state");
       return checkNotNull(stateInternals);
     }
 
     @Override
     public TimerInternals timerInternals() {
-      checkState(
-          stateFamily != null, "Tried to access timers for stateless step: " + getNameContext());
+      ensureStateful("Tried to access timers");
       return checkNotNull(systemTimerInternals);
     }
 
     public TimerInternals userTimerInternals() {
-      checkState(
-          stateFamily != null,
-          "Tried to access user timers for stateless step: " + getNameContext());
+      ensureStateful("Tried to access user timers");
       return checkNotNull(userTimerInternals);
     }
   }

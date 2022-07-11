@@ -334,4 +334,4 @@ function onlyValueOr<T>(
 }
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.pipeline", exports);
+requireForSerialization("apache-beam/internal/pipeline", exports);

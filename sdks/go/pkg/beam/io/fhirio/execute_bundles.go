@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -41,7 +42,7 @@ func init() {
 }
 
 type executeBundleFn struct {
-	fhirioFnCommon
+	fnCommonVariables
 	successesCount beam.Counter
 	// Path to FHIR store where bundle requests will be executed on.
 	FhirStorePath string
@@ -52,12 +53,12 @@ func (fn executeBundleFn) String() string {
 }
 
 func (fn *executeBundleFn) Setup() {
-	fn.fhirioFnCommon.setup(fn.String())
+	fn.fnCommonVariables.setup(fn.String())
 	fn.successesCount = beam.NewCounter(fn.String(), baseMetricPrefix+"success_count")
 }
 
 func (fn *executeBundleFn) ProcessElement(ctx context.Context, inputBundleBody []byte, emitSuccess, emitFailure func(string)) {
-	response, err := executeRequestAndRecordLatency(ctx, &fn.latencyMs, func() (*http.Response, error) {
+	response, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() (*http.Response, error) {
 		return fn.client.executeBundle(fn.FhirStorePath, inputBundleBody)
 	})
 	if err != nil {
@@ -114,7 +115,7 @@ func (fn *executeBundleFn) processResponseBody(ctx context.Context, body string,
 				continue
 			}
 
-			if isBadStatusCode(entryFields.Response.Status) {
+			if batchResponseStatusIsBad(entryFields.Response.Status) {
 				fn.resourcesErrorCount.Inc(ctx, 1)
 				emitFailure(errors.Errorf("execute bundles entry contains bad status: [%v]", entryFields.Response.Status).Error())
 			} else {
@@ -125,6 +126,15 @@ func (fn *executeBundleFn) processResponseBody(ctx context.Context, body string,
 	}
 
 	fn.successesCount.Inc(ctx, 1)
+}
+
+func batchResponseStatusIsBad(status string) bool {
+	// 2XXs are successes, otherwise failure.
+	isMatch, err := regexp.MatchString("^2\\d{2}", status)
+	if err != nil {
+		return true
+	}
+	return !isMatch
 }
 
 // ExecuteBundles performs all the requests in the specified bundles on a given
@@ -142,5 +152,5 @@ func ExecuteBundles(s beam.Scope, fhirStorePath string, bundles beam.PCollection
 
 // This is useful as an entry point for testing because we can provide a fake FHIR store client.
 func executeBundles(s beam.Scope, fhirStorePath string, bundles beam.PCollection, client fhirStoreClient) (beam.PCollection, beam.PCollection) {
-	return beam.ParDo2(s, &executeBundleFn{fhirioFnCommon: fhirioFnCommon{client: client}, FhirStorePath: fhirStorePath}, bundles)
+	return beam.ParDo2(s, &executeBundleFn{fnCommonVariables: fnCommonVariables{client: client}, FhirStorePath: fhirStorePath}, bundles)
 }

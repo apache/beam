@@ -82,8 +82,8 @@ export function assertContentsSatisfies<T>(
 }
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.testing.assert", exports);
-requireForSerialization("apache_beam.testing.assert", {
-  callAssertDeepEqual: callAssertDeepEqual,
+requireForSerialization("apache-beam/testing/assert", exports);
+requireForSerialization("apache-beam/testing/assert", {
+  callAssertDeepEqual,
 });
 requireForSerialization("assert");
