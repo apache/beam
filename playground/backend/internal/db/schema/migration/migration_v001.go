@@ -88,5 +88,5 @@ func (is *InitialStructure) GetVersion() string {
 }
 
 func (is InitialStructure) GetDescription() string {
-	return "Data initialization: file snippet, schema versions, SDKs"
+	return "Data initialization: a schema version, SDKs"
 }
