@@ -417,7 +417,7 @@ createCrossLanguageValidatesRunnerTask(
     "--runner=TestDataflowRunner",
     "--project=${dataflowProject}",
     "--region=${dataflowRegion}",
-    "--sdk_container_image=${dockerPythonImageContainer}:${dockerTag}"
+    "--sdk_container_image=${dockerPythonImageContainer}:${dockerTag}",
     "--sdk_harness_container_image_overrides=.*java.*,${dockerJavaImageContainer}:${dockerTag}",
     // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved
     "--experiments=shuffle_mode=appliance",
