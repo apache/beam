@@ -27,7 +27,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"reflect"
 	"sort"
 
 	"github.com/apache/beam/sdks/v2/go/examples/xlang"
@@ -73,11 +72,6 @@ func sumCounts(key int64, iter1 func(*string) bool) (int64, []string) {
 }
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*KV)(nil)).Elem())
-	beam.RegisterFunction(formatFn)
-	beam.RegisterFunction(getKV)
-	beam.RegisterFunction(sumCounts)
-
 	register.Function2x1(formatFn)
 	register.Function2x0(getKV)
 	register.Function2x2(sumCounts)
