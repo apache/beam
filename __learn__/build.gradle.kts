@@ -162,3 +162,14 @@ tasks.register("sqlPreCommit") {
 	dependsOn(":sdks:java:extensions:sql:build")
 	dependsOn(":sdks:java:extensions:sql:buildDependents")
 }
+
+tasks.register("javaPreCommitPortabilityApi") {
+	dependsOn(":runners:google-cloud-dataflow-java:worker:build")
+}
+
+tasks.register("javaPostCommit") {
+	dependsOn(":sdks:java:extensions:google-cloud-platform-core:postCommit")
+	dependsOn(":sdks:java:extensions:zetasketch:postCommit")
+	dependsOn(":sdks:java:extensions:ml:postCommit")
+}
+
