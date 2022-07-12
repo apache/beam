@@ -16,10 +16,10 @@
 package fhirio
 
 import (
-	"google.golang.org/api/healthcare/v1"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/api/healthcare/v1"
 )
 
 func TestPollTilCompleteAndCollectResults(t *testing.T) {
