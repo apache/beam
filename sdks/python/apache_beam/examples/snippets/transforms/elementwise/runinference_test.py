@@ -281,7 +281,7 @@ class RunInferenceTest(unittest.TestCase):
 @mock.patch('sys.stdout', new_callable=StringIO)
 class RunInferenceStdoutTest(unittest.TestCase):
   def test_images_methods(self, mock_stdout):
-    expected = pardo.images_methods(check_images_methods)
+    expected = runinference.images_methods(check_images_methods)
     actual = mock_stdout.getvalue().splitlines()
 
     # For the stdout, check the ordering of the methods, not of the elements.
