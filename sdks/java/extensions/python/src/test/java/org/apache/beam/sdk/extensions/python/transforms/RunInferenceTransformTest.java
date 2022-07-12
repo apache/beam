@@ -56,6 +56,11 @@ public class RunInferenceTransformTest extends BaseExternalTest {
                         "apache_beam.ml.inference.sklearn_inference.SklearnModelHandlerNumpy",
                         schema)
                     .withKwarg(
+                        // The test expansion service creates the test model and saves it to the
+                        // returning external environment as a dependency.
+                        // (sdks/python/apache_beam/runners/portability/expansion_service_test.py)
+                        // The dependencies for Python SDK harness are supposed to be staged to
+                        // $SEMI_PERSIST_DIR/staged directory.
                         "model_uri", String.format("%s/staged/sklearn_model", stagingLocation))
                     .withExpansionService(expansionAddr));
     PAssert.that(col).containsInAnyOrder(row0, row1);

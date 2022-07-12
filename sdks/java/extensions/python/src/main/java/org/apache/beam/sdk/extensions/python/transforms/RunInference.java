@@ -37,7 +37,7 @@ public class RunInference extends PTransform<PCollection<?>, PCollection<Row>> {
   /**
    * Instantiates a multi-language wrapper for a Python RunInference with a given model loader.
    *
-   * @param modelLoader A Python lambda function for a model loader class object.
+   * @param modelLoader A Python callable for a model loader class object.
    * @param exampleType A schema field type for the example column in output rows.
    * @param inferenceType A schema field type for the inference column in output rows.
    * @return A {@link RunInference} for the given model loader.
@@ -53,7 +53,7 @@ public class RunInference extends PTransform<PCollection<?>, PCollection<Row>> {
   /**
    * Instantiates a multi-language wrapper for a Python RunInference with a given model loader.
    *
-   * @param modelLoader A Python lambda function for a model loader class object.
+   * @param modelLoader A Python callable for a model loader class object.
    * @param schema A schema for output rows.
    * @return A {@link RunInference} for the given model loader.
    */
@@ -62,7 +62,7 @@ public class RunInference extends PTransform<PCollection<?>, PCollection<Row>> {
   }
 
   /**
-   * Sets keyword arguments for RunInference constructor.
+   * Sets keyword arguments for the model loader.
    *
    * @return A {@link RunInference} with keyword arguments.
    */
@@ -94,7 +94,7 @@ public class RunInference extends PTransform<PCollection<?>, PCollection<Row>> {
   public PCollection<Row> expand(PCollection<?> input) {
     return input.apply(
         PythonExternalTransform.<PCollection<?>, PCollection<Row>>from(
-                "apache_beam.ml.inference.base.RunInference.create", expansionService)
+                "apache_beam.ml.inference.base.RunInference.from_callable", expansionService)
             .withKwarg("model_handler_provider", PythonCallableSource.of(modelLoader))
             .withKwargs(kwargs)
             .withOutputCoder(RowCoder.of(schema)));
