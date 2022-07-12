@@ -160,4 +160,8 @@ If you run into problems with your pipeline or job, this section lists issues th
 
 ### Prediction results missing
 
-When you use a dictionary of tensors, the output might not include the prediction results. This issue occurs because the RunInference API supports tensors but not dictionaries of tensors.
+When you use a dictionary of tensors, the output might not include the prediction results. This issue occurs because the RunInference API supports tensors but not dictionaries of tensors. 
+
+Many model inferences return a dictionary with the predictions and additional metadata, for example, `Dict[str, Tensor]`. The RunInference API currently expects outputs to be an `Iterable[Any]`, for example, `Iterable[Tensor]` or `Iterable[Dict[str, Tensor]]`.
+
+When RunInference zips the inputs with the predictions, the predictions iterate over the dictionary keys instead of the batch elements. The result is that the key name is preserved but the prediction tensors are discarded. For more information, see [Pytorch RunInference PredictionResult is a Dict](https://github.com/apache/beam/issues/22240).

@@ -74,7 +74,7 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_test.py" images >}}
 {{< /highlight >}}
 
-### Example 2: MNIST digit classification
+### Example 2: Digit classification
 
 In this example, we create a pipeline that performs image classification on handwritten digits from the
 [MNIST](https://en.wikipedia.org/wiki/MNIST_database) database.
@@ -83,7 +83,7 @@ This pipeline reads a text file that contains data in comma separated integers. 
 column contains the true label and the following integers in the row are pixel values. The transform processes the data and then uses a model trained on the MNIST data to perform the prediction. The pipeline writes the prediction to an output file.
 
 {{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
+  class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" digits >}}
 {{</ highlight >}}
 
@@ -92,7 +92,7 @@ Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" digits >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_test.py" digits >}}
 {{< /highlight >}}
 
 
