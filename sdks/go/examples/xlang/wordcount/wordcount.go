@@ -33,6 +33,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/examples/xlang"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 
@@ -69,8 +70,10 @@ func formatFn(w string, c int64) string {
 }
 
 func init() {
-	beam.RegisterFunction(extractFn)
-	beam.RegisterFunction(formatFn)
+	register.Function3x0(extractFn)
+	register.Function2x1(formatFn)
+
+	register.Emitter1[string]()
 }
 
 func main() {
