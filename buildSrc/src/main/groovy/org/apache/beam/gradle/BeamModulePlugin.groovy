@@ -2311,10 +2311,8 @@ class BeamModulePlugin implements Plugin<Project> {
         throw new GradleException("unsupported java version.")
       }
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
-        if (!project.hasProperty('skipContainerBuilds')) {
-          dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
-          dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
-        }
+        dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
+        dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
         dependsOn ":sdks:python:installGcpTest"
         // setup test env
