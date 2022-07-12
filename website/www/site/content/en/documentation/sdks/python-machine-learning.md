@@ -178,3 +178,8 @@ To avoid this issue:
 the same size. Depending on the language model and encoding technique, this option might not be available. 
 2. Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see
 [BatchElements PTransforms](/documentation/sdks/python-machine-learning/#batchelements-ptransform).
+
+## Related links
+
+* [RunInference transforms](/documentation/transforms/python/elementwise/runinference)
+* [RunInference API pipeline examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference)
