@@ -38,16 +38,13 @@ This folder contains the required resources to deploy the GitHub Actions self-ho
 
 * Now that you have the image disk you can create an instance template by using it and adding the startup and shutdown scripts through the respective metadata fields.
 
-Be sure that you are using a service account that has permissions to access your secrets.
+Be sure that you are using a service account that has permissions to invoke cloud functions.
 
-#### How to launch an instance group?
-
-Use the specifications located in the parent README for dockerized-github-actions and deploy a managed instance group using the previously generated instance template.
+Now that the instance template is ready you can use it to either run it independently for an individual runner or create an instance group for a set of runners.
 
 
-### How to launch the runners removal cloud function?
 
-Generate a new cloud function for python 3.8 subscribed to a Pub/Sub topic, use cloud scheduler to trigger the topic in a desired basis and copy the code and requirements located inside this folder to your cloud function.
+
 
 
 

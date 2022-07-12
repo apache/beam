@@ -16,12 +16,21 @@
 #     limitations under the License.
 # -->
 
+Start-Sleep -Seconds 60
 $env:Path += ';C:\Program Files\git\bin' 
-  
-
 $response= Invoke-RestMethod https://api.github.com/repos/actions/runner/tags
 $version= $response[0].name.substring(1,$response[0].name.Length-1)
+
+$ORG_NAME="apache"
+$ORG_RUNNER_GROUP="Beam"
+$GCP_TOKEN=gcloud auth print-identity-token
+
+
+$TOKEN_PROVIDER="https://$GCP_REGION-$GCP_PROJECT_ID.cloudfunctions.net/$CLOUD_FUNCTION_NAME" #Replace variables manually 
+
 Set-Location C:/
+
+Write-Output "Starting registration process"
 
 mkdir "actionsDir"    
 
@@ -31,24 +40,14 @@ Invoke-WebRequest -Uri https://github.com/actions/runner/releases/download/v$ver
 
 Expand-Archive -LiteralPath $PWD\actions-runner-win-x64-$version.zip -DestinationPath $PWD -Force
 
-$GITHUB_ORG=gcloud secrets versions access latest --secret="ORG_SECRET"
-$GITHUB_RUNNER_GROUP=gcloud secrets versions access latest --secret="GROUP_SECRET" 
-$GITHUB_TOKEN=gcloud secrets versions access latest --secret="TOKEN_SECRET"    
+$RUNNER_TOKEN=(Invoke-WebRequest -Uri $TOKEN_PROVIDER -Method POST -Headers @{'Accept' = 'application/json'; 'Authorization' = "bearer $GCP_TOKEN"} -UseBasicParsing | ConvertFrom-Json).token
 
 
-Write-Output "Starting registration process"
-
-$registration_url="https://api.github.com/orgs/$GITHUB_ORG/actions/runners/registration-token"
-Write-Output "Requesting registration URL at '${registration_url}'"
-
-
-
-$payload= Invoke-WebRequest ${registration_url} -UseBasicParsing -Method 'POST' -Headers @{'Authorization'="token $GITHUB_TOKEN"} | ConvertFrom-Json
-[System.Environment]::SetEnvironmentVariable('GITHUB_TOKEN', $payload.token,[System.EnvironmentVariableTarget]::Machine)
-Write-Output $payload.token | Out-File "token.txt"
+[System.Environment]::SetEnvironmentVariable('GITHUB_TOKEN', $RUNNER_TOKEN,[System.EnvironmentVariableTarget]::Machine)
+Write-Output $RUNNER_TOKEN | Out-File "token.txt"
 
 $hostname= "windows-runner-"+[guid]::NewGuid()
 
-./config.cmd --name $hostname --token $payload.token --url https://github.com/$GITHUB_ORG --runnergroup $GITHUB_RUNNER_GROUP --work _work --unattended --replace --labels windows,windows-latest,windows-server-2019
+./config.cmd --name $hostname --token $RUNNER_TOKEN --url https://github.com/$ORG_NAME --work _work --unattended --replace --labels windows,beam,windows-server-2019 --runnergroup $ORG_RUNNER_GROUP
 
 ./run.cmd
