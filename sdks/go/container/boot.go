@@ -126,7 +126,7 @@ func main() {
 		err = json.Unmarshal([]byte(options), &opt)
 		if err == nil {
 			if tempLocation, ok := opt.Options.Options["temp_location"]; ok {
-				diagnostics.UploadHeapDump(ctx, fmt.Sprintf("%v/heapDumps/dump-%v-%d", strings.TrimSuffix(tempLocation, "/"), *id, time.Now().Unix()), fmt.Sprintf("Options %v", opt))
+				diagnostics.UploadHeapDump(ctx, fmt.Sprintf("%v/heapDumps/dump-%v-%d", strings.TrimSuffix(tempLocation, "/"), *id, time.Now().Unix()))
 			}
 		}
 	}

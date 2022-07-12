@@ -26,7 +26,7 @@ import (
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
 )
 
-func UploadHeapDump(ctx context.Context, dest string, additionalDataToWrite string) error {
+func UploadHeapDump(ctx context.Context, dest string) error {
 	heapDumpLoc := "heapDump"
 
 	f, err := os.Create(heapDumpLoc)
@@ -52,8 +52,6 @@ func UploadHeapDump(ctx context.Context, dest string, additionalDataToWrite stri
 		return err
 	}
 	buf := bufio.NewWriterSize(fd, 1<<20) // use 1MB buffer
-
-	buf.WriteString(additionalDataToWrite)
 
 	_, err = heapDumpReader.WriteTo(buf)
 	if err != nil {
