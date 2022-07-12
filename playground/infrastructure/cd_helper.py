@@ -39,6 +39,7 @@ class CDHelper:
 
     It is used to save beam examples/katas/tests and their output on the Google Cloud Datastore.
     """
+
     def save_examples(self, examples: List[Example]):
         """
         Save beam examples and their output in the Google Cloud Datastore.
@@ -53,7 +54,7 @@ class CDHelper:
 
         logging.info("Start of sending Playground examples to the datastore ...")
         datastore_client = DatastoreClient()
-        datastore_client.save_to_cloud_datastore(examples)
+        datastore_client.save_to_cloud_datastore(single_file_examples)
         logging.info("Finish of sending Playground examples to the datastore")
         self._clear_temp_folder()
 

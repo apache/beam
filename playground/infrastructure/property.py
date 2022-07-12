@@ -12,13 +12,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import configparser
 
-# Cloud Datastore
-NAMESPACE = "Playground"
-EXAMPLE_KIND = "pg_examples"
-SNIPPET_KIND = "pg_snippets"
-SCHEMA_KIND = "pg_schema_versions"
-PRECOMPILED_OBJECT_KIND = "pg_pc_objects"
-FILED_KIND = "pg_files"
-SDK_KIND = "pg_sdks"
-ORIGIN_PROPERTY_VALUE = "PG_EXAMPLES"
+
+class Properties:
+    # common
+    _salt: str = None
+    _id_length: int = None
+
+    def __init__(self):
+        config = configparser.ConfigParser()
+        config.read("props.ini")
+
+        self._salt = config["common"]["salt"]
+        self._id_length = int(config["common"]["idLength"])
+
+    def get_salt(self) -> str:
+        return self._salt
+
+    def get_id_length(self) -> int:
+        return self._id_length
