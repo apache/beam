@@ -32,6 +32,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/examples/xlang"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 
@@ -76,6 +77,13 @@ func init() {
 	beam.RegisterFunction(formatFn)
 	beam.RegisterFunction(getKV)
 	beam.RegisterFunction(sumCounts)
+
+	register.Function2x1(formatFn)
+	register.Function2x0(getKV)
+	register.Function2x2(sumCounts)
+
+	register.Emitter2[int64, string]()
+	register.Iter1[string]()
 }
 
 func main() {
