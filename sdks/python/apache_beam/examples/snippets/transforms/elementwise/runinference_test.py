@@ -252,17 +252,16 @@ def check_digits(actual):
   # pylint: disable=line-too-long
   expected = '\n'.join(
       '''[START digits]
-# timestamp
-type(timestamp) -> <class 'apache_beam.utils.timestamp.Timestamp'>
-timestamp.micros -> 1584675660000000
-timestamp.to_rfc3339() -> '2020-03-20T03:41:00Z'
-timestamp.to_utc_datetime() -> datetime.datetime(2020, 3, 20, 3, 41)
-
-# window
-type(window) -> <class 'apache_beam.transforms.window.IntervalWindow'>
-window.start -> Timestamp(1584675660) (2020-03-20 03:41:00)
-window.end -> Timestamp(1584675690) (2020-03-20 03:41:30)
-window.max_timestamp() -> Timestamp(1584675689.999999) (2020-03-20 03:41:29.999999)
+(1, PredictionResult(example=array([ 0.,  0.,  0., 12., 13.,  5.,  0.,  0.,  0.,  0.,  0., 11., 16.,
+        9.,  0.,  0.,  0.,  0.,  3., 15., 16.,  6.,  0.,  0.,  0.,  7.,
+       15., 16., 16.,  2.,  0.,  0.,  0.,  0.,  1., 16., 16.,  3.,  0.,
+        0.,  0.,  0.,  1., 16., 16.,  6.,  0.,  0.,  0.,  0.,  1., 16.,
+       16.,  6.,  0.,  0.,  0.,  0.,  0., 11., 16., 10.,  0.,  0.]), inference=1))
+(2, PredictionResult(example=array([ 0.,  0.,  0.,  4., 15., 12.,  0.,  0.,  0.,  0.,  3., 16., 15.,
+       14.,  0.,  0.,  0.,  0.,  8., 13.,  8., 16.,  0.,  0.,  0.,  0.,
+        1.,  6., 15., 11.,  0.,  0.,  0.,  1.,  8., 13., 15.,  1.,  0.,
+        0.,  0.,  9., 16., 16.,  5.,  0.,  0.,  0.,  0.,  3., 13., 16.,
+       16., 11.,  5.,  0.,  0.,  0.,  0.,  3., 11., 16.,  9.,  0.]), inference=2))
 [END digits]'''.splitlines()[1:-1])
   # pylint: enable=line-too-long
   assert_that(actual, equal_to([expected]))
@@ -270,7 +269,7 @@ window.max_timestamp() -> Timestamp(1584675689.999999) (2020-03-20 03:41:29.9999
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
     'apache_beam.examples.snippets.transforms.elementwise.runinference.print', str)
-class ParDoTest(unittest.TestCase):
+class RunInferenceTest(unittest.TestCase):
   def test_images(self):
     runinference.images(check_images)
 

@@ -156,4 +156,8 @@ For detailed instructions explaining how to build and run a pipeline that uses M
 
 ## Troubleshooting
 
-When you use a dictionary of tensors, the output might not include the prediction results. This issue occurs because the RunInference API supports tensors but not dictionaries of tensors. 
+If you run into problems with your pipeline or job, this section lists issues that you might encounter and provides suggestions for how to fix them.
+
+### Prediction results missing
+
+When you use a dictionary of tensors, the output might not include the prediction results. This issue occurs because the RunInference API supports tensors but not dictionaries of tensors.
