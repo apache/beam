@@ -43,15 +43,6 @@ If you are using pretrained models from Hugging Face's [`transformers` package](
 
 For information about installing the `torch` dependency on a distributed runner such as Dataflow, see the [PyPI dependency instructions](/documentation/sdks/python-pipeline-dependencies/#pypi-dependencies).
 
-RunInference uses dynamic batching. However, the RunInference API cannot batch tensor elements of different sizes, because `torch.stack()` expects tensors of the same length. If you provide images of different sizes or word embeddings of different lengths, errors might occur.
-
-To avoid this issue:
-
-1. Either use elements that have the same size, or resize image inputs and word embeddings to make them 
-the same size. Depending on the language model and encoding technique, this option might not be available. 
-2. Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see
-[BatchElements PTransforms](/documentation/sdks/python-machine-learning/#batchelements-ptransform).
-
 ## Examples
 
 In the following examples, we explore how to create pipelines that use the Beam RunInference API to make predictions based on models.
