@@ -23,7 +23,6 @@ import (
 	"runtime/debug"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
 )
 
 func UploadHeapDump(ctx context.Context, dest string) error {
