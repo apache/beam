@@ -18,11 +18,14 @@
 package org.apache.beam.sdk.schemas;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.infra.Blackhole;
 
 public interface RowBundles {
   @State(Scope.Benchmark)
@@ -46,6 +49,11 @@ public interface RowBundles {
     @DefaultSchema(JavaFieldSchema.class)
     public static class Field {
       public IntBundle.Field field;
+    }
+
+    @Override
+    protected final void readField(Row row, Blackhole bh) {
+      bh.consume(row.getRow(0).getValue(0));
     }
   }
 
@@ -107,6 +115,11 @@ public interface RowBundles {
     public static class Field {
       public BytesBundle.Field field;
     }
+
+    @Override
+    protected final void readField(Row row, Blackhole bh) {
+      bh.consume(row.getRow(0).getValue(0));
+    }
   }
 
   @State(Scope.Benchmark)
@@ -131,6 +144,11 @@ public interface RowBundles {
     public static class Field {
       public String[] field;
     }
+
+    @Override
+    protected final void readField(Row row, Blackhole bh) {
+      bh.consume(((List<String>) row.getValue(0)).get(0));
+    }
   }
 
   @State(Scope.Benchmark)
@@ -142,6 +160,11 @@ public interface RowBundles {
     @DefaultSchema(JavaFieldSchema.class)
     public static class Field {
       public StringBundle.Field[] field;
+    }
+
+    @Override
+    protected final void readField(Row row, Blackhole bh) {
+      bh.consume(((List<Row>) row.getValue(0)).get(0).getValue(0));
     }
   }
 
@@ -155,6 +178,13 @@ public interface RowBundles {
     public static class Field {
       public Map<Integer, Integer> field;
     }
+
+    @Override
+    protected final void readField(Row row, Blackhole bh) {
+      Map.Entry<?, ?> entry = row.getMap(0).entrySet().iterator().next();
+      bh.consume(entry.getKey());
+      bh.consume(entry.getValue());
+    }
   }
 
   @State(Scope.Benchmark)
@@ -166,6 +196,13 @@ public interface RowBundles {
     @DefaultSchema(JavaFieldSchema.class)
     public static class Field {
       public Map<Integer, NestedIntBundle.Field> field;
+    }
+
+    @Override
+    protected final void readField(Row row, Blackhole bh) {
+      Map.Entry<Integer, Row> entry = row.<Integer, Row>getMap(0).entrySet().iterator().next();
+      bh.consume(entry.getKey());
+      bh.consume(entry.getValue().getValue(0));
     }
   }
 }

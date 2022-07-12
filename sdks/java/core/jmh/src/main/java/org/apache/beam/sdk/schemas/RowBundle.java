@@ -18,10 +18,6 @@
 package org.apache.beam.sdk.schemas;
 
 import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
@@ -85,7 +81,7 @@ public class RowBundle {
   private static final SchemaRegistry REGISTRY = SchemaRegistry.createDefault();
 
   private final SchemaCoder<?> coder;
-  private final Sink<Row> sink;
+  private final SerializableFunction<Row, ?> fromRow;
   private Factory<Row> factory;
 
   protected Row[] rows;
@@ -103,10 +99,10 @@ public class RowBundle {
   public RowBundle(Class<?> clazz) {
     try {
       coder = REGISTRY.getSchemaCoder(clazz);
+      fromRow = coder.getFromRowFunction();
       if (coder.getSchema().getFieldCount() != 1) {
         throw new IllegalArgumentException("Expected class with a single field");
       }
-      sink = Sink.create(coder.getSchema());
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(e);
     }
@@ -129,26 +125,29 @@ public class RowBundle {
     } else if (action == Action.READ_REPEATED) {
       readRowsRepeatedly(blackhole);
     } else {
-      writeField(blackhole);
+      writeRows(blackhole);
     }
   }
 
   private void readRowsOnce(Blackhole blackhole) {
     for (Row row : rows) {
-      sink.accept(row, blackhole);
+      readField(row, blackhole);
     }
   }
 
   private void readRowsRepeatedly(Blackhole blackhole) {
     for (Row row : rows) {
-      sink.accept(row, blackhole);
-      sink.accept(row, blackhole);
-      sink.accept(row, blackhole);
+      readField(row, blackhole);
+      readField(row, blackhole);
+      readField(row, blackhole);
     }
   }
 
-  private void writeField(Blackhole blackhole) {
-    SerializableFunction<Row, ?> fromRow = coder.getFromRowFunction();
+  protected void readField(Row row, Blackhole blackhole) {
+    blackhole.consume(row.getValue(0));
+  }
+
+  private void writeRows(Blackhole blackhole) {
     for (Row row : rows) {
       blackhole.consume(fromRow.apply(row));
     }
@@ -205,121 +204,6 @@ public class RowBundle {
 
     static Factory<Object> map(Factory<Object> kFn, Factory<Object> vFn) {
       return i -> ImmutableMap.of(kFn.apply(i), vFn.apply(i));
-    }
-  }
-
-  interface Sink<T> extends BiConsumer<T, Blackhole> {
-    /**
-     * Create sink for {@link Schema}, traversing recursive structures and collection types.
-     *
-     * <p>Note: To make profiling easier, this avoids using lambdas as much as possible.
-     */
-    static Sink<Row> create(Schema schema) {
-      Sink<Object> sink = sink(schema.getField(0).getType());
-      return sink != ValueSink.INSTANCE ? new RowSink(sink) : RowValueSink.INSTANCE;
-    }
-
-    @SuppressWarnings("rawtypes")
-    static Sink<Object> sink(Schema.FieldType type) {
-      switch (type.getTypeName()) {
-        case ARRAY:
-        case ITERABLE:
-          Sink<Object> elemSink = sink(type.getCollectionElementType());
-          return (elemSink != ValueSink.INSTANCE
-              ? (Sink) new ArraySink(elemSink)
-              : (Sink) ArrayValueSink.INSTANCE);
-        case MAP:
-          Sink<Object> keySink = sink(type.getMapKeyType());
-          Sink<Object> valueSink = sink(type.getMapValueType());
-          return (keySink != ValueSink.INSTANCE || valueSink != ValueSink.INSTANCE
-              ? (Sink) new MapSink(keySink, valueSink)
-              : (Sink) MapValueSink.INSTANCE);
-        case ROW:
-          return (Sink) create(type.getRowSchema());
-        default:
-          return ValueSink.INSTANCE;
-      }
-    }
-
-    class ValueSink implements Sink<Object> {
-      private static final Sink<Object> INSTANCE = new ValueSink();
-
-      @Override
-      public final void accept(Object o, Blackhole bh) {
-        bh.consume(o);
-      }
-    }
-
-    class RowSink implements Sink<Row> {
-      private final Sink<Object> fieldSink;
-
-      public RowSink(Sink<Object> fieldSink) {
-        this.fieldSink = fieldSink;
-      }
-
-      @Override
-      public final void accept(Row row, Blackhole bh) {
-        fieldSink.accept(row.getValue(0), bh);
-      }
-    }
-
-    class RowValueSink implements Sink<Row> {
-      private static final Sink<Row> INSTANCE = new RowValueSink();
-
-      @Override
-      public final void accept(Row row, Blackhole bh) {
-        bh.consume(row.getValue(0));
-      }
-    }
-
-    class ArrayValueSink implements Sink<List<Object>> {
-      private static final Sink<List<Object>> INSTANCE = new ArrayValueSink();
-
-      @Override
-      public final void accept(List<Object> objects, Blackhole bh) {
-        bh.consume(objects.get(0));
-      }
-    }
-
-    class ArraySink implements Sink<List<Object>> {
-      private final Sink<Object> elementSink;
-
-      public ArraySink(Sink<Object> elementSink) {
-        this.elementSink = elementSink;
-      }
-
-      @Override
-      public final void accept(List<Object> objects, Blackhole bh) {
-        elementSink.accept(objects.get(0), bh);
-      }
-    }
-
-    class MapValueSink implements Sink<Map<Object, Object>> {
-      private static final Sink<Map<Object, Object>> INSTANCE = new MapValueSink();
-
-      @Override
-      public final void accept(Map<Object, Object> map, Blackhole bh) {
-        Entry<Object, Object> entry = map.entrySet().iterator().next();
-        bh.consume(entry.getKey());
-        bh.consume(entry.getValue());
-      }
-    }
-
-    class MapSink implements Sink<Map<Object, Object>> {
-      private final Sink<Object> keySink;
-      private final Sink<Object> valueSink;
-
-      public MapSink(Sink<Object> keySink, Sink<Object> valueSink) {
-        this.keySink = keySink;
-        this.valueSink = valueSink;
-      }
-
-      @Override
-      public final void accept(Map<Object, Object> map, Blackhole bh) {
-        Entry<Object, Object> entry = map.entrySet().iterator().next();
-        keySink.accept(entry.getKey(), bh);
-        valueSink.accept(entry.getValue(), bh);
-      }
     }
   }
 }
