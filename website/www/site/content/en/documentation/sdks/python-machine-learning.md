@@ -164,4 +164,17 @@ When you use a dictionary of tensors, the output might not include the predictio
 
 Many model inferences return a dictionary with the predictions and additional metadata, for example, `Dict[str, Tensor]`. The RunInference API currently expects outputs to be an `Iterable[Any]`, for example, `Iterable[Tensor]` or `Iterable[Dict[str, Tensor]]`.
 
-When RunInference zips the inputs with the predictions, the predictions iterate over the dictionary keys instead of the batch elements. The result is that the key name is preserved but the prediction tensors are discarded. For more information, see [Pytorch RunInference PredictionResult is a Dict](https://github.com/apache/beam/issues/22240).
+When RunInference zips the inputs with the predictions, the predictions iterate over the dictionary keys instead of the batch elements. The result is that the key name is preserved but the prediction tensors are discarded. For more information, see the [Pytorch RunInference PredictionResult is a Dict](https://github.com/apache/beam/issues/22240) issue in the Apache Beam GitHub project.
+
+To work with current RunInference implementation, override the `forward()` function and convert the standard Hugging Face forward output into the appropriate format of `List[Dict[str, torch.Tensor]]`. For more information, see an [example with the batching flag added](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py#L49).
+
+### Unable to batch tensor elements
+
+RunInference uses dynamic batching. However, the RunInference API cannot batch tensor elements of different sizes, because `torch.stack()` expects tensors of the same length. If you provide images of different sizes or word embeddings of different lengths, errors might occur.
+
+To avoid this issue:
+
+1. Either use elements that have the same size, or resize image inputs and word embeddings to make them 
+the same size. Depending on the language model and encoding technique, this option might not be available. 
+2. Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see
+[BatchElements PTransforms](/documentation/sdks/python-machine-learning/#batchelements-ptransform).
