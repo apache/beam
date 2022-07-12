@@ -48,7 +48,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import avro.shaded.com.google.common.collect.Iterables;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.io.PipedInputStream;
@@ -1276,7 +1278,8 @@ class ElasticsearchIOTestCommon implements Serializable {
             .withConnectionConfiguration(connectionConfiguration)
             .withUseStatefulBatches(true)
             // Ensure that max batch will be hit before all buffered elements from
-            // GroupIntoBatches are processed in a single bundle
+            // GroupIntoBatches are processed in a single bundle so that both ProcessContext and
+            // FinishBundleContext flush code paths are exercised
             .withMaxBatchSize(numDocs / 2);
 
     PCollection<Document> successfulWrites =
@@ -1292,7 +1295,8 @@ class ElasticsearchIOTestCommon implements Serializable {
               new IntervalWindow(
                   new Instant(0).plus(windowDuration.multipliedBy(i)),
                   new Instant(0).plus(windowDuration.multipliedBy(i + 1))))
-          .satisfies(windowPreservationValidator(windowSize));
+          .satisfies(
+              windowPreservationValidator(windowSize, i * windowSize, (i + 1) * windowSize - 1));
     }
 
     pipeline.run();
@@ -1304,9 +1308,23 @@ class ElasticsearchIOTestCommon implements Serializable {
     assertEquals(numDocs / NUM_SCIENTISTS, count);
   }
 
-  SerializableFunction<Iterable<Document>, Void> windowPreservationValidator(int expected) {
+  SerializableFunction<Iterable<Document>, Void> windowPreservationValidator(
+      int expectedNumDocs, int idRangeStart, int idRangeEnd) {
+    JsonMapper mapper = new JsonMapper();
+    Set<Integer> range =
+        IntStream.rangeClosed(idRangeStart, idRangeEnd).boxed().collect(Collectors.toSet());
+
     return input -> {
-      assertEquals(expected, Iterables.size(input));
+      assertEquals(expectedNumDocs, Iterables.size(input));
+
+      for (Document d : input) {
+        try {
+          ObjectNode doc = (ObjectNode) mapper.readTree(d.getInputDoc());
+          assertTrue(range.contains(doc.get("id").asInt()));
+        } catch (JsonProcessingException e) {
+          throw new RuntimeException(e);
+        }
+      }
       return null;
     };
   }
