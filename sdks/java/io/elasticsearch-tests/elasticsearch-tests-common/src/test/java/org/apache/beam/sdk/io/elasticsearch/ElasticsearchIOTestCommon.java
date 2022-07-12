@@ -47,6 +47,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import avro.shaded.com.google.common.collect.Iterables;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
@@ -86,6 +87,7 @@ import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -1253,15 +1255,18 @@ class ElasticsearchIOTestCommon implements Serializable {
         ElasticsearchIOTestUtils.createDocuments(
             numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
 
-    Duration windowSize = Duration.standardSeconds(5);
-    Duration step = Duration.standardSeconds(1);
+    int step = 1;
+    int windowSize = 5;
+    long numExpectedWindows = numDocs / windowSize;
+    Duration windowDuration = Duration.standardSeconds(windowSize);
+    Duration stepDuration = Duration.standardSeconds(step);
     Duration offset = Duration.ZERO;
     TestStream.Builder<String> docsBuilder =
         TestStream.create(StringUtf8Coder.of()).advanceWatermarkTo(new Instant(0));
 
     for (String doc : data) {
       docsBuilder = docsBuilder.addElements(TimestampedValue.of(doc, new Instant(0).plus(offset)));
-      offset = offset.plus(step);
+      offset = offset.plus(stepDuration);
     }
 
     TestStream<String> docs = docsBuilder.advanceWatermarkToInfinity();
@@ -1274,7 +1279,21 @@ class ElasticsearchIOTestCommon implements Serializable {
             // GroupIntoBatches are processed in a single bundle
             .withMaxBatchSize(numDocs / 2);
 
-    pipeline.apply(docs).apply(Window.into(FixedWindows.of(windowSize))).apply(write);
+    PCollection<Document> successfulWrites =
+        pipeline
+            .apply(docs)
+            .apply(Window.into(FixedWindows.of(windowDuration)))
+            .apply(write)
+            .get(Write.SUCCESSFUL_WRITES);
+
+    for (int i = 0; i < numExpectedWindows; i++) {
+      PAssert.that(successfulWrites)
+          .inWindow(
+              new IntervalWindow(
+                  new Instant(0).plus(windowDuration.multipliedBy(i)),
+                  new Instant(0).plus(windowDuration.multipliedBy(i + 1))))
+          .satisfies(windowPreservationValidator(windowSize));
+    }
 
     pipeline.run();
 
@@ -1283,5 +1302,12 @@ class ElasticsearchIOTestCommon implements Serializable {
 
     int count = countByScientistName(connectionConfiguration, restClient, "Einstein", null);
     assertEquals(numDocs / NUM_SCIENTISTS, count);
+  }
+
+  SerializableFunction<Iterable<Document>, Void> windowPreservationValidator(int expected) {
+    return input -> {
+      assertEquals(expected, Iterables.size(input));
+      return null;
+    };
   }
 }
