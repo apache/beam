@@ -48,7 +48,7 @@ language-specific implementation guidance.
 
 ## Using Beam Python SDK in your ML pipelines
 
-To use the Beam Python SDK with your machine learning pipelines, you can either use the RunInference API or TensorFlow.
+To use the Beam Python SDK with your machine learning pipelines, use the RunInference API for PyTorch and Sklearn models. If using Tensorflow model, you can make use of the library from `tfx_bsl`. Further integrations for tensorflow are planned.
 
 You can create multiple types of transforms using the RunInference API: the API takes multiple types of setup parameters from model handlers, and the parameter type determines the model implementation. For more information,
 see [Machine Learning](/documentation/sdks/python-machine-learning).

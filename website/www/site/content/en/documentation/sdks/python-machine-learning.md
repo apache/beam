@@ -22,7 +22,7 @@ You can use Apache Beam with the RunInference API to use machine learning (ML) m
 
 ## Why use the RunInference API?
 
-RunInference leverages existing Apache Beam concepts, such as the the `BatchElements` transform and the `Shared` class, and it allows you to build multi-model pipelines. In addition, the RunInference API allows you to find the input that determined the prediction without returning to the full input data.
+RunInference leverages existing Apache Beam concepts, such as the the `BatchElements` transform and the `Shared` class, and it allows you to build multi-model pipelines. In addition, the RunInference API has built in capabilities for dealing with [keyed values](#use-the-prediction-results-object).
 
 ### BatchElements PTransform
 
@@ -34,12 +34,12 @@ For more information, see the [`BatchElements` transform documentation](https://
 
 ### Shared helper class
 
-Instead of loading a model for each thread in a worker, we use the `Shared` class, which allows us to load one model that is shared across all threads of each worker in a DoFn. For more information, see the
+Instead of loading a model for each thread in the process, we use the `Shared` class, which allows us to load one model that is shared across all threads of each worker in a DoFn. For more information, see the
 [`Shared` class documentation](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/shared.py#L20).
 
 ### Multi-model pipelines
 
-The RunInference API allows you to build complex multi-model pipelines with minimum effort. Multi-model pipelines are useful for A/B testing and for building out ensembles for tokenization, sentence segmentation, part-of-speech tagging, named entity extraction, language detection, coreference resolution, and more.
+The RunInference API can be composed into multi-model pipelines. Multi-model pipelines are useful for A/B testing and for building out ensembles for tokenization, sentence segmentation, part-of-speech tagging, named entity extraction, language detection, coreference resolution, and more.
 
 ### Prediction results
 
@@ -99,7 +99,7 @@ with pipeline as p:
 with pipeline as p:
    data = p | 'Read' >> beam.ReadFromSource('a_source') 
    model_a_predictions = data | RunInference(ModelHandlerA)
-   model_b_predictions = data | RunInference(ModelHandlerB)
+   model_b_predictions = model_a_predictions | beam.Map(some_post_processing) | RunInference(ModelHandlerB)
 ```
 
 ### Use a key handler
@@ -183,3 +183,4 @@ the same size. Depending on the language model and encoding technique, this opti
 
 * [RunInference transforms](/documentation/transforms/python/elementwise/runinference)
 * [RunInference API pipeline examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference)
+* [apache_beam.ml.inference package](/releases/pydoc/current/apache_beam.ml.inference.html#apache_beam.ml.inference.RunInference)
