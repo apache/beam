@@ -256,3 +256,39 @@ This writes the output to the `predictions.txt` with contents like:
 ...
 ```
 Each line has data separated by a comma ",". The first item is the actual label of the digit. The second item is the predicted label of the digit.
+
+### Running `sklearn_japanese_housing_regression.py`
+
+#### Getting the data:
+Data for this example can be found at:
+https://www.kaggle.com/datasets/nishiodens/japan-real-estate-transaction-prices
+
+#### Models:
+This example relies on having different sklearn pipelines. Since not all
+examples in this dataset are full, a different model will be chosen based on
+what is available. Prebuilt sklearn pipelines are hosted at:
+https://storage.cloud.google.com/apache-beam-ml/models/japanese_housing/
+
+#### Running the Pipeline
+To run locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.sklearn_japanese_housing_regression.py \
+  --input_file INPUT \
+  --output OUTPUT \
+  --model_path MODEL_PATH
+```
+For example:
+```sh
+python -m apache_beam.examples.inference.sklearn_japanese_housing_regression.py \
+  --input_file mnist_data.csv \
+  --output predictions.txt \
+  --model_path https://storage.cloud.google.com/apache-beam-ml/models/japanese_housing/
+```
+
+This writes the output to the `predictions.txt` with contents like:
+```
+True Price 40000000.0, Predicted Price 34645912.039208
+True Price 34000000.0, Predicted Price 28648634.135857
+True Price 31000000.0, Predicted Price 25654277.256461
+...
+```
