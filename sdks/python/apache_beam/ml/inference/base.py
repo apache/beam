@@ -272,7 +272,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
-  def create(cls, model_handler_provider, **kwargs):
+  def from_callable(cls, model_handler_provider, **kwargs):
     """Multi-language friendly constructor.
 
     This constructor can be used with fully_qualified_named_transform to
