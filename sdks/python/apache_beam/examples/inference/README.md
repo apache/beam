@@ -52,22 +52,9 @@ pip install transformers
 For installation of the `torch` dependency on a distributed runner such as Dataflow, refer to the 
 [PyPI dependency instructions](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pypi-dependencies).
 
-RunInference uses dynamic batching. However, the RunInference API cannot batch tensor elements of different sizes, because `torch.stack()` expects tensors of the same length. If you provide images of different sizes or word embeddings of different lengths, errors might occur.
-
-To avoid this issue:
-
-1. Either use elements that have the same size, or resize image inputs and word embeddings to make them 
-the same size. Depending on the language model and encoding technique, this option might not be available. 
-2. Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see BatchElements PTransforms.
-
-<!---
-TODO: Add link to full documentation on Beam website when it's published.
-
-i.e. "For more information, see the
-[Machine Learning](https://beam.apache.org/documentation/sdks/python-machine-learning/) documentation."
-
-Also relevant: https://beam.apache.org/documentation/transforms/python/elementwise/runinference/
--->
+For more information, see the
+[Machine Learning](/documentation/sdks/python-machine-learning) and the
+[RunInference transform](/documentation/transforms/python/elementwise/runinference) documenation.
 
 ---
 ## Image classification
