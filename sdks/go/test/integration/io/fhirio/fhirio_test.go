@@ -188,6 +188,7 @@ func extractResourcePathFrom(resourceLocationURL string) (string, error) {
 func readTestTask(t *testing.T, s beam.Scope, testStoreInfo fhirStoreInfo) func() {
 	t.Helper()
 
+	s = s.Scope("fhirio_test.readTestTask")
 	testResources := append(testStoreInfo.resourcesPaths, testStoreInfo.path+"/fhir/Patient/invalid")
 	resourcePathsPCollection := beam.CreateList(s, testResources)
 	resources, failedReads := fhirio.Read(s, resourcePathsPCollection)
@@ -199,6 +200,7 @@ func readTestTask(t *testing.T, s beam.Scope, testStoreInfo fhirStoreInfo) func(
 func executeBundlesTestTask(t *testing.T, s beam.Scope, testStoreInfo fhirStoreInfo) func() {
 	t.Helper()
 
+	s = s.Scope("fhirio_test.executeBundlesTestTask")
 	fhirStorePath, teardownFhirStore := setupEmptyFhirStore(t)
 	bundlesPCollection := beam.CreateList(s, readPrettyBundles())
 	successBodies, failures := fhirio.ExecuteBundles(s, fhirStorePath, bundlesPCollection)
@@ -213,6 +215,7 @@ func executeBundlesTestTask(t *testing.T, s beam.Scope, testStoreInfo fhirStoreI
 func searchTestTask(t *testing.T, s beam.Scope, testStoreInfo fhirStoreInfo) func() {
 	t.Helper()
 
+	s = s.Scope("fhirio_test.searchTestTask")
 	searchQueries := []fhirio.SearchQuery{
 		{},
 		{ResourceType: "Patient"},
@@ -234,6 +237,7 @@ func searchTestTask(t *testing.T, s beam.Scope, testStoreInfo fhirStoreInfo) fun
 func deidentifyTestTask(t *testing.T, s beam.Scope, testStoreInfo fhirStoreInfo) func() {
 	t.Helper()
 
+	s = s.Scope("fhirio_test.deidentifyTestTask")
 	dstFhirStorePath, teardownDstFhirStore := setupEmptyFhirStore(t)
 	res := fhirio.Deidentify(s, testStoreInfo.path, dstFhirStorePath, &healthcare.DeidentifyConfig{})
 	passert.Count(s, res, "", 1)
