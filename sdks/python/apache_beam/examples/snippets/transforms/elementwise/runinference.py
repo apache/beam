@@ -26,18 +26,24 @@ import torch
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
-from torchvision.models.mobilenetv2 import MobileNetV2
+from torchvision.models import mobilenet_v2
 
-model_class = MobileNetV2
+# Save pretrained weights to a local file
+model = mobilenet_v2(pretrained=True)
+state_dict_path = 'mobilenet_v2_state_dict.pth'
+torch.save(model.state_dict(), 'mobilenet_v2_state_dict.pth')
+
+# Load model and state_dict into the model handler
+model_class = mobilenet_v2
 model_params = {'num_classes': 1000}
-
 model_handler = KeyedModelHandler(
    PytorchModelHandlerTensor(
-     state_dict_path=TODO,
+     state_dict_path=state_dict_path,
      model_class=model_class,
      model_params=model_params))
 
-with beam.Pipeline() as pipeline:
+# Run pipeline
+with beam.Pipeline() as p:
     images = (
         p
         | 'CreateImages' >> beam.Create([
@@ -54,50 +60,54 @@ with beam.Pipeline() as pipeline:
     predictions = (
         images
         | 'PyTorchRunInference' >> RunInference(model_handler)
-        | 'ProcessOutput' >> beam.Map(print))
+        | 'Print' >> beam.Map(print))
+
     # [END images]
     if test:
-      test(plants)
+      test(images)
 
 
 def digits(test=None):
   # pylint: disable=line-too-long
   # [START digits]
-  import apache_beam as beam
+from sklearn import svm
+from sklearn import datasets
+import pickle
 
-  class AnalyzeElement(beam.DoFn):
-    def process(
-        self,
-        elem,
-        timestamp=beam.DoFn.TimestampParam,
-        window=beam.DoFn.WindowParam):
-      yield '\n'.join([
-          '# timestamp',
-          'type(timestamp) -> ' + repr(type(timestamp)),
-          'timestamp.micros -> ' + repr(timestamp.micros),
-          'timestamp.to_rfc3339() -> ' + repr(timestamp.to_rfc3339()),
-          'timestamp.to_utc_datetime() -> ' + repr(timestamp.to_utc_datetime()),
-          '',
-          '# window',
-          'type(window) -> ' + repr(type(window)),
-          'window.start -> {} ({})'.format(
-              window.start, window.start.to_utc_datetime()),
-          'window.end -> {} ({})'.format(
-              window.end, window.end.to_utc_datetime()),
-          'window.max_timestamp() -> {} ({})'.format(
-              window.max_timestamp(), window.max_timestamp().to_utc_datetime()),
-      ])
+import apache_beam as beam
+from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.inference.sklearn_inference import ModelFileType
+from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
 
-  with beam.Pipeline() as pipeline:
-    dofn_params = (
-        pipeline
-        | 'Create a single test element' >> beam.Create([':)'])
-        | 'Add timestamp (Spring equinox 2020)' >>
-        beam.Map(lambda elem: beam.window.TimestampedValue(elem, 1584675660))
-        |
-        'Fixed 30sec windows' >> beam.WindowInto(beam.window.FixedWindows(30))
-        | 'Analyze element' >> beam.ParDo(AnalyzeElement())
-        | beam.Map(print))
+# Train and pickle model
+clf = svm.SVC()
+X, y = datasets.load_digits(return_X_y=True)
+clf.fit(X, y)
+model_uri = 'mnist_model.pkl'
+with open(model_uri, 'wb') as file:
+  pickle.dump(clf, file)
+
+# Load pickled model into the model handler
+model_handler = KeyedModelHandler(
+    SklearnModelHandlerNumpy(
+        model_file_type=ModelFileType.PICKLE,
+        model_uri=model_uri))
+
+# Run pipeline
+with beam.Pipeline() as p:
+    pixels = (
+        p
+        | 'CreatePixels' >> beam.Create([
+            (y[1], X[1]),
+            (y[2], X[2]),
+        ])
+    )
+    predictions = (
+        pixels
+        | 'SklearnRunInference' >> RunInference(model_handler)
+        | 'Print' >> beam.Map(print))
+
     # [END digits]
     # pylint: enable=line-too-long
     if test:
