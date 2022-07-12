@@ -19,7 +19,8 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
-CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS = [3.9]
+import static PythonTestProperties.CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS
+
 // This job runs the suite of ValidatesRunner tests against the Dataflow runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_JavaUsingPython_Dataflow',
     'Run XVR_JavaUsingPython_Dataflow PostCommit', 'Dataflow CrossLanguageValidatesRunner JavaUsingPython Tests', this) {

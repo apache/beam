@@ -36,10 +36,12 @@ RUN apt-get update && \
 # Install required packages for Beam Python SDK and common dependencies used by users.
 ####
 
+RUN pip install google-cloud-bigquery-storage==2.13.2
 COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
 RUN \
     # use --no-deps to ensure the list includes all transitive dependencies.
     pip install --no-deps -r /tmp/base_image_requirements.txt && \
+
     python -c "import nltk; nltk.download('stopwords')" && \
     rm /root/nltk_data/corpora/stopwords.zip && \
     # Check that the fast implementation of protobuf is used.
