@@ -23,7 +23,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Java_Amazon-Web-Services2_IO_Direct',
     gradleTask: 'sdks:java:io:amazon-web-services2:integrationTest',
     gradleSwitches: [
-      '-PdisableSpotlessCheck=true'
+      '-PdisableSpotlessCheck=true',
+      '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^sdks/java/io/amazon-web-services2/.*$',
