@@ -264,10 +264,12 @@ Data for this example can be found at:
 https://www.kaggle.com/datasets/nishiodens/japan-real-estate-transaction-prices
 
 #### Models:
-This example relies on having different sklearn pipelines. Since not all
-examples in this dataset are full, a different model will be chosen based on
-what is available. Prebuilt sklearn pipelines are hosted at:
+ Prebuilt sklearn pipelines are hosted at:
 https://storage.cloud.google.com/apache-beam-ml/models/japanese_housing/
+
+Note: This example uses more than one model. Since not all features in an example are populated, a different model will be chosen based on available data.
+
+For example an example without distance to the nearest station will use a model that doesn't rely on that data.
 
 #### Running the Pipeline
 To run locally, use the following command:
