@@ -89,12 +89,16 @@ func newFhirStoreClient() *fhirStoreClientImpl {
 	return &fhirStoreClientImpl{healthcareService}
 }
 
+func (c *fhirStoreClientImpl) fhirService() *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService {
+	return c.healthcareService.Projects.Locations.Datasets.FhirStores.Fhir
+}
+
 func (c *fhirStoreClientImpl) readResource(resourcePath string) (*http.Response, error) {
-	return c.healthcareService.Projects.Locations.Datasets.FhirStores.Fhir.Read(resourcePath).Do()
+	return c.fhirService().Read(resourcePath).Do()
 }
 
 func (c *fhirStoreClientImpl) executeBundle(storePath string, bundle []byte) (*http.Response, error) {
-	return c.healthcareService.Projects.Locations.Datasets.FhirStores.Fhir.ExecuteBundle(storePath, bytes.NewReader(bundle)).Do()
+	return c.fhirService().ExecuteBundle(storePath, bytes.NewReader(bundle)).Do()
 }
 
 func (c *fhirStoreClientImpl) search(storePath, resourceType string, queries map[string]string, pageToken string) (*http.Response, error) {
@@ -108,12 +112,10 @@ func (c *fhirStoreClientImpl) search(storePath, resourceType string, queries map
 	}
 
 	searchRequest := &healthcare.SearchResourcesRequest{}
-	fhirService := c.healthcareService.Projects.Locations.Datasets.FhirStores.Fhir
-
 	if resourceType == "" {
-		return fhirService.Search(storePath, searchRequest).Do(queryParams...)
+		return c.fhirService().Search(storePath, searchRequest).Do(queryParams...)
 	}
-	return fhirService.SearchType(storePath, resourceType, searchRequest).Do(queryParams...)
+	return c.fhirService().SearchType(storePath, resourceType, searchRequest).Do(queryParams...)
 }
 
 func (c *fhirStoreClientImpl) deidentify(srcStorePath, dstStorePath string, deidConfig *healthcare.DeidentifyConfig) (operationResults, error) {
