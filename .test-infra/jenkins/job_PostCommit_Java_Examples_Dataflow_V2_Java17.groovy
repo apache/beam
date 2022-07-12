@@ -42,6 +42,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2_ja
           // overloading the machines.
           commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
           switches '-PdisableSpotlessCheck=true'
+          switches '-PdisableCheckStyle=true'
           switches '-PcompileAndRunTestsWithJava17'
           switches '-PskipCheckerFramework'
           switches "-Pjava17Home=${commonJobProperties.JAVA_17_HOME}"

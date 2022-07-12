@@ -56,7 +56,7 @@ jobs:
         name: get Difference
         id: check_file_changed
         run: |
-          $diff = git diff --name-only master
+          $diff = git diff --name-only origin/master
           Write-Host "::set-output name=example_diff::$diff"
       - name: has Examples
         run: |

@@ -179,7 +179,7 @@ export class Pipeline {
     return this.postApplyTransform(transform, transformProto, result);
   }
 
-  async asyncApplyTransform<
+  async applyAsyncTransform<
     InputT extends pvalue.PValue<any>,
     OutputT extends pvalue.PValue<any>
   >(transform: AsyncPTransformClass<InputT, OutputT>, input: InputT) {
@@ -190,7 +190,7 @@ export class Pipeline {
     let result: OutputT;
     try {
       this.transformStack.push(transformId);
-      result = await transform.asyncExpandInternal(input, this, transformProto);
+      result = await transform.expandInternalAsync(input, this, transformProto);
     } finally {
       this.transformStack.pop();
     }
@@ -334,4 +334,4 @@ function onlyValueOr<T>(
 }
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.pipeline", exports);
+requireForSerialization("apache-beam/internal/pipeline", exports);
