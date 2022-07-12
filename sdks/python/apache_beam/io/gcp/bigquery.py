@@ -2474,24 +2474,26 @@ class ReadFromBigQuery(PTransform):
   def expand(self, pcoll):
     if self.method is ReadFromBigQuery.Method.EXPORT:
       output_pcollection = self._expand_export(pcoll)
-      print(output_pcollection)
       if self.output_type == 'BEAM_ROWS':
         return output_pcollection | ReadFromBigQuery._convert_to_usertype(
-          beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
-              project_id="apache-beam-testing", #self._kwargs['project']
-              dataset_id="beam_bigquery_io_test",
-              table_id="dfsqltable_3c7d6fd5_16e0460dfd0").schema)
+            beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
+                project_id=output_pcollection.pipeline.options.view_as(
+                    GoogleCloudOptions).project,
+                dataset_id=str(self._kwargs['table']).split('.', maxsplit=1)[0],
+                table_id=str(self._kwargs['table']).rsplit(
+                    '.', maxsplit=1)[-1]).schema)
       else:
         return output_pcollection
     elif self.method is ReadFromBigQuery.Method.DIRECT_READ:
       output_pcollection = self._expand_direct_read(pcoll)
-      _LOGGER.warning(output_pcollection)
       if self.output_type == 'BEAM_ROWS':
         return output_pcollection | ReadFromBigQuery._convert_to_usertype(
             beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
-                project_id="apache-beam-testing",
-                dataset_id="beam_bigquery_io_test",
-                table_id="dfsqltable_3c7d6fd5_16e0460dfd0").schema)
+                project_id=output_pcollection.pipeline.options.view_as(
+                    GoogleCloudOptions).project,
+                dataset_id=str(self._kwargs['table']).split('.', maxsplit=1)[0],
+                table_id=str(self._kwargs['table']).rsplit(
+                    '.', maxsplit=1)[-1]).schema)
       else:
         return output_pcollection
     else:
@@ -2575,24 +2577,9 @@ class ReadFromBigQuery(PTransform):
                   **self._kwargs))
           | _PassThroughThenCleanupTempDatasets(project_to_cleanup_pcoll))
 
-  def _check_output_type(self):
-    if self.output_type is None:
-      self.output_type = 'PYTHON_DICT'
-    if self.output_type not in ('PYTHON_DICT', 'BEAM_ROWS'):
-      raise TypeError(f"Encountered an unsupported type: {self.output_type!r}")
-    elif self.output_type == 'BEAM_ROWS':
-      if 'table' in self._kwargs:
-        print(self._kwargs)
-        ReadFromBigQuery._convert_to_usertype(
-            beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
-                project_id=self._kwargs['project'],
-                dataset_id="beam_bigquery_io_test",
-                table_id="dfsqltable_3c7d6fd5_16e0460dfd0").schema)
-
   def _convert_to_usertype(table_schema):
     usertype = beam.io.gcp.bigquery_schema_tools. \
           produce_pcoll_with_schema(table_schema)
-    _LOGGER.info(usertype)
     return beam.ParDo(
         beam.io.gcp.bigquery_schema_tools.BeamSchemaConversionDoFn(usertype))
 

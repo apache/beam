@@ -35,7 +35,7 @@ class TestBigQueryToSchema(unittest.TestCase):
     fields = [
         bigquery.TableFieldSchema(name='stn', type='STRING', mode="NULLABLE"),
         bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
-        bigquery.TableFieldSchema(name='count', type='INTEGER', mode="None")
+        bigquery.TableFieldSchema(name='count', type='INTEGER', mode=None)
     ]
     schema = bigquery.TableSchema(fields=fields)
 
@@ -62,7 +62,7 @@ class TestBigQueryToSchema(unittest.TestCase):
         bigquery.TableFieldSchema(
             name='number', type='DOUBLE', mode="NULLABLE"),
         bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
-        bigquery.TableFieldSchema(name='count', type='INTEGER', mode="None")
+        bigquery.TableFieldSchema(name='count', type='INTEGER', mode=None)
     ]
     schema = bigquery.TableSchema(fields=fields)
     with self.assertRaisesRegex(ValueError,
@@ -73,7 +73,7 @@ class TestBigQueryToSchema(unittest.TestCase):
     fields = [
         bigquery.TableFieldSchema(name='number', type='INTEGER', mode="NESTED"),
         bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
-        bigquery.TableFieldSchema(name='count', type='INTEGER', mode="NONE")
+        bigquery.TableFieldSchema(name='count', type='INTEGER', mode=None)
     ]
     schema = bigquery.TableSchema(fields=fields)
     with self.assertRaisesRegex(ValueError,
@@ -85,7 +85,7 @@ class TestBigQueryToSchema(unittest.TestCase):
     fields = [
         bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
         bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
-        bigquery.TableFieldSchema(name='count', type='INTEGER', mode="None")
+        bigquery.TableFieldSchema(name='count', type='INTEGER', mode=None)
     ]
     schema = bigquery.TableSchema(fields=fields)
     table = Table(schema=schema)

@@ -55,7 +55,7 @@ def produce_pcoll_with_schema(the_table_schema):
       Args:
         the_table_schema: A BQ schema of type TableSchema
       Returns:
-        type: type that can be used to work with pCollections.
+        usertype: type that can be used to work with pCollections.
   """
 
   the_schema = beam.io.gcp.bigquery_tools.get_dict_table_schema(
@@ -76,12 +76,6 @@ def produce_pcoll_with_schema(the_table_schema):
   sample_schema = beam.typehints.schemas.named_fields_to_schema(dict_of_tuples)
   usertype = beam.typehints.schemas.named_tuple_from_schema(sample_schema)
   return usertype
-
-
-def produce_pcoll_using_bqio(project_id, dataset_id, table_id):
-  the_table_schema = beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper(
-  ).get_table(project_id, dataset_id, table_id)
-  beam.io.gcp.bigquery_schema_tools.produce_pcoll_with_schema(the_table_schema)
 
 
 def bq_field_to_type(field, mode):
