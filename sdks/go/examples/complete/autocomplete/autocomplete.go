@@ -40,8 +40,9 @@ var (
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
 func init() {
-	register.Function2x0[string, func(string)](extractFn)
-	register.Function2x1[string, string, bool](less)
+	register.Function2x0(extractFn)
+	register.Function2x1(less)
+	register.Emitter1[string]()
 }
 
 func extractFn(line string, emit func(string)) {
