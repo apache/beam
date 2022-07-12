@@ -605,6 +605,14 @@ public class GcsUtil {
     return new GoogleCloudStorageImpl(options, storage, credentials);
   }
 
+  /**
+   * Checks whether the GCS bucket exists. Similar to {@link #bucketAccessible(GcsPath)}, but throws
+   * exception if the bucket is inaccessible due to permissions or does not exist.
+   */
+  public void verifyBucketAccessible(GcsPath path) throws IOException {
+    verifyBucketAccessible(path, createBackOff(), Sleeper.DEFAULT);
+  }
+
   /** Returns whether the GCS bucket exists and is accessible. */
   public boolean bucketAccessible(GcsPath path) throws IOException {
     return bucketAccessible(path, createBackOff(), Sleeper.DEFAULT);
@@ -638,6 +646,16 @@ public class GcsUtil {
     } catch (AccessDeniedException | FileNotFoundException e) {
       return false;
     }
+  }
+
+  /**
+   * Checks whether the GCS bucket exists. Similar to {@link #bucketAccessible(GcsPath, BackOff,
+   * Sleeper)}, but throws exception if the bucket is inaccessible due to permissions or does not
+   * exist.
+   */
+  @VisibleForTesting
+  void verifyBucketAccessible(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
+    getBucket(path, backoff, sleeper);
   }
 
   @VisibleForTesting
@@ -895,7 +913,7 @@ public class GcsUtil {
           readyToEnqueue = false;
           lastError = null;
         } else {
-          throw new FileNotFoundException(from.toString());
+          throw new FileNotFoundException(e.getMessage());
         }
       } else {
         lastError = e;

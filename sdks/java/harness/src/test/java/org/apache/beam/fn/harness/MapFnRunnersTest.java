@@ -75,7 +75,7 @@ public class MapFnRunnersTest {
             .coders(Collections.singletonMap("coder-id", valueCoder))
             .build();
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    context.addPCollectionConsumer("outputPC", outputConsumer::add, StringUtf8Coder.of());
+    context.addPCollectionConsumer("outputPC", outputConsumer::add);
 
     ValueMapFnFactory<String, String> factory = (ptId, pt) -> String::toUpperCase;
     MapFnRunners.forValueMapFnFactory(factory).createRunnerForPTransform(context);
@@ -101,7 +101,7 @@ public class MapFnRunnersTest {
             .coders(Collections.singletonMap("coder-id", valueCoder))
             .build();
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    context.addPCollectionConsumer("outputPC", outputConsumer::add, StringUtf8Coder.of());
+    context.addPCollectionConsumer("outputPC", outputConsumer::add);
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
         .createRunnerForPTransform(context);
 
@@ -126,7 +126,7 @@ public class MapFnRunnersTest {
             .coders(Collections.singletonMap("coder-id", valueCoder))
             .build();
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    context.addPCollectionConsumer("outputPC", outputConsumer::add, StringUtf8Coder.of());
+    context.addPCollectionConsumer("outputPC", outputConsumer::add);
 
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
         .createRunnerForPTransform(context);

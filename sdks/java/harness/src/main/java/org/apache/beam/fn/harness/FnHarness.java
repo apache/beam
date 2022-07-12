@@ -22,10 +22,9 @@ import java.util.EnumMap;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
 import org.apache.beam.fn.harness.control.HarnessMonitoringInfosInstructionHandler;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
@@ -40,7 +39,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
@@ -220,6 +218,9 @@ public class FnHarness {
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
     ShortIdMap metricsShortIds = new ShortIdMap();
     ExecutorService executorService = options.as(GcsOptions.class).getExecutorService();
+    ExecutionStateSampler executionStateSampler =
+        new ExecutionStateSampler(options, System::currentTimeMillis);
+
     // The logging client variable is not used per se, but during its lifetime (until close()) it
     // intercepts logging and sends it to the logging service.
     try (BeamFnLoggingClient logging =
@@ -277,6 +278,7 @@ public class FnHarness {
               beamFnStateGrpcClientCache,
               finalizeBundleHandler,
               metricsShortIds,
+              executionStateSampler,
               processWideCache);
 
       BeamFnStatusClient beamFnStatusClient = null;
@@ -316,15 +318,8 @@ public class FnHarness {
                   .setMonitoringInfos(
                       BeamFnApi.MonitoringInfosMetadataResponse.newBuilder()
                           .putAllMonitoringInfo(
-                              StreamSupport.stream(
-                                      request
-                                          .getMonitoringInfos()
-                                          .getMonitoringInfoIdList()
-                                          .spliterator(),
-                                      false)
-                                  .collect(
-                                      Collectors.toMap(
-                                          Function.identity(), metricsShortIds::get)))));
+                              metricsShortIds.get(
+                                  request.getMonitoringInfos().getMonitoringInfoIdList()))));
 
       HarnessMonitoringInfosInstructionHandler processWideHandler =
           new HarnessMonitoringInfosInstructionHandler(metricsShortIds);
@@ -333,14 +328,6 @@ public class FnHarness {
           processWideHandler::harnessMonitoringInfos);
 
       JvmInitializers.runBeforeProcessing(options);
-
-      String samplingPeriodMills =
-          ExperimentalOptions.getExperimentValue(
-              options, ExperimentalOptions.STATE_SAMPLING_PERIOD_MILLIS);
-      if (samplingPeriodMills != null) {
-        ExecutionStateSampler.setSamplingPeriod(Integer.parseInt(samplingPeriodMills));
-      }
-      ExecutionStateSampler.instance().start();
 
       LOG.info("Entering instruction processing loop");
 
@@ -360,7 +347,7 @@ public class FnHarness {
       processBundleHandler.shutdown();
     } finally {
       System.out.println("Shutting SDK harness down.");
-      ExecutionStateSampler.instance().stop();
+      executionStateSampler.stop();
       executorService.shutdown();
     }
   }

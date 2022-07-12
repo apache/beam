@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.TreeMap;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
@@ -88,6 +89,8 @@ public class RowWithGetters extends Row {
     return getters.size();
   }
 
+  /** Return the list of raw unmodified data values to enable 0-copy code. */
+  @Internal
   @Override
   public List<Object> getValues() {
     List<Object> rawValues = new ArrayList<>(getters.size());

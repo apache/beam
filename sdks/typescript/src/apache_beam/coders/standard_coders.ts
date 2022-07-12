@@ -123,9 +123,9 @@ export class DoubleCoder implements Coder<number> {
   }
 
   decode(reader: Reader, context: Context): number {
-    const barr = new Uint8Array(reader.buf, reader.pos, 8);
-    const dView = new DataView(barr.buffer);
-    reader.float();
+    const barr = new Uint8Array(reader.buf);
+    const dView = new DataView(barr.buffer.slice(reader.pos, reader.pos + 8));
+    reader.double();
     return dView.getFloat64(0, false);
   }
 
@@ -233,4 +233,4 @@ export class IntervalWindowCoder implements Coder<IntervalWindow> {
 globalRegistry().register(IntervalWindowCoder.URN, IntervalWindowCoder);
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.coders.standard_coders", exports);
+requireForSerialization("apache-beam/coders/standard_coders", exports);

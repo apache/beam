@@ -69,8 +69,8 @@ const (
 // and random data in different data types to provide a reasonable signal that reading and writing
 // works at a basic level.
 type TestRow struct {
-	Counter   int64    `beam:"counter"`   // A deterministic counter, increments for each row generated.
-	Rand_data RandData `beam:"rand_data"` // An inner struct containing randomized data.
+	Counter  int64    `beam:"counter"`   // A deterministic counter, increments for each row generated.
+	RandData RandData `beam:"rand_data"` // An inner struct containing randomized data.
 }
 
 func shuffleText() []string {
@@ -106,7 +106,7 @@ func (fn *CreateTestRowsFn) ProcessElement(_ []byte, emit func(TestRow)) {
 	for i := 0; i < inputSize; i++ {
 		emit(TestRow{
 			Counter: int64(i),
-			Rand_data: RandData{
+			RandData: RandData{
 				Flip: rand.Int63n(2) != 0,
 				Num:  rand.Int63(),
 				Word: words[i],
@@ -151,8 +151,8 @@ func ReadPipeline(expansionAddr, table string, createFn interface{}) *beam.Pipel
 //
 // TODO(https://github.com/apache/beam/issues/21784): Change back to a named struct once resolved.
 type TestRowPtrs = struct {
-	Counter   *int64        `beam:"counter"`
-	Rand_data *RandDataPtrs `beam:"rand_data"`
+	Counter  *int64        `beam:"counter"`
+	RandData *RandDataPtrs `beam:"rand_data"`
 }
 
 // RandDataPtrs is equivalent to RandData but all fields are pointers, meant to be used when reading
@@ -170,10 +170,10 @@ type RandDataPtrs = struct {
 func castFn(elm TestRowPtrs) TestRow {
 	return TestRow{
 		Counter: *elm.Counter,
-		Rand_data: RandData{
-			Flip: *elm.Rand_data.Flip,
-			Num:  *elm.Rand_data.Num,
-			Word: *elm.Rand_data.Word,
+		RandData: RandData{
+			Flip: *elm.RandData.Flip,
+			Num:  *elm.RandData.Num,
+			Word: *elm.RandData.Word,
 		},
 	}
 }

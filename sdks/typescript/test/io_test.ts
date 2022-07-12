@@ -71,12 +71,12 @@ xdescribe("IO Tests", function () {
     await createRunner().run(async (root) => {
       await root //
         .apply(beam.create(lines))
-        .asyncApply(textio.writeToText(path.join(tempDir, "out.txt")));
+        .applyAsync(textio.writeToText(path.join(tempDir, "out.txt")));
     });
 
     await createRunner().run(async (root) => {
       (
-        await root.asyncApply(
+        await root.applyAsync(
           textio.readFromText(path.join(tempDir, "out.txt*"))
         )
       ).apply(testing.assertDeepEqual(lines));
@@ -90,13 +90,13 @@ xdescribe("IO Tests", function () {
       await root //
         .apply(beam.create(elements))
         .apply(internal.withCoderInternal(RowCoder.fromJSON(elements[0])))
-        .asyncApply(textio.writeToCsv(path.join(tempDir, "out.csv")));
+        .applyAsync(textio.writeToCsv(path.join(tempDir, "out.csv")));
     });
     console.log(tempDir);
 
     await createRunner().run(async (root) => {
       (
-        await root.asyncApply(
+        await root.applyAsync(
           textio.readFromCsv(path.join(tempDir, "out.csv*"))
         )
       ).apply(testing.assertDeepEqual(elements));
@@ -110,12 +110,12 @@ xdescribe("IO Tests", function () {
       await root //
         .apply(beam.create(elements))
         .apply(internal.withCoderInternal(RowCoder.fromJSON(elements[0])))
-        .asyncApply(textio.writeToJson(path.join(tempDir, "out.json")));
+        .applyAsync(textio.writeToJson(path.join(tempDir, "out.json")));
     });
 
     await createRunner().run(async (root) => {
       (
-        await root.asyncApply(
+        await root.applyAsync(
           textio.readFromJson(path.join(tempDir, "out.json*"))
         )
       ).apply(testing.assertDeepEqual(elements));
@@ -129,14 +129,14 @@ xdescribe("IO Tests", function () {
       await root //
         .apply(beam.create(elements))
         .apply(internal.withCoderInternal(RowCoder.fromJSON(elements[0])))
-        .asyncApply(
+        .applyAsync(
           parquetio.writeToParquet(path.join(tempDir, "out.parquet"))
         );
     });
 
     await createRunner().run(async (root) => {
       (
-        await root.asyncApply(
+        await root.applyAsync(
           parquetio.readFromParquet(path.join(tempDir, "out.parquet*"))
         )
       ).apply(testing.assertDeepEqual(elements));
@@ -144,7 +144,7 @@ xdescribe("IO Tests", function () {
 
     await createRunner().run(async (root) => {
       (
-        await root.asyncApply(
+        await root.applyAsync(
           parquetio.readFromParquet(path.join(tempDir, "out.parquet*"), {
             columns: ["label", "rank"],
           })
@@ -176,14 +176,14 @@ xdescribe("IO Tests", function () {
     await createRunner(options).run(async (root) => {
       await root //
         .apply(beam.create(elements))
-        .asyncApply(
+        .applyAsync(
           avroio.writeToAvro(path_join(tempDir, "out.avro"), { schema })
         );
     });
 
     await createRunner(options).run(async (root) => {
       (
-        await root.asyncApply(
+        await root.applyAsync(
           avroio.readFromAvro(path_join(tempDir, "out.avro*"), { schema })
         )
       ).apply(testing.assertDeepEqual(elements));
@@ -239,19 +239,19 @@ xdescribe("IO Tests", function () {
         await root //
           .apply(beam.create(elements))
           .apply(internal.withCoderInternal(RowCoder.fromJSON(elements[0])))
-          .asyncApply(
+          .applyAsync(
             bigqueryio.writeToBigQuery(table, { createDisposition: "IfNeeded" })
           );
       });
 
       await createRunner(options).run(async (root) => {
-        (await root.asyncApply(bigqueryio.readFromBigQuery({ table }))) //
+        (await root.applyAsync(bigqueryio.readFromBigQuery({ table }))) //
           .apply(testing.assertDeepEqual(elements));
       });
 
       await createRunner(options).run(async (root) => {
         (
-          await root.asyncApply(
+          await root.applyAsync(
             bigqueryio.readFromBigQuery({
               query: `SELECT label, rank FROM ${table}`,
             })
@@ -286,7 +286,7 @@ xdescribe("IO Tests", function () {
     try {
       pipelineHandle = await createRunner(options).runAsync(async (root) => {
         await (
-          await root.asyncApply(
+          await root.applyAsync(
             pubsub.readFromPubSub({
               subscription: readSubscription.name,
             })
@@ -296,7 +296,7 @@ xdescribe("IO Tests", function () {
           .map((msg) => msg.toUpperCase())
           .map((msg) => new TextEncoder().encode(msg))
           .apply(internal.withCoderInternal(new BytesCoder()))
-          .asyncApply(pubsub.writeToPubSub(writeTopic.name));
+          .applyAsync(pubsub.writeToPubSub(writeTopic.name));
       });
       console.log("Pipeline started", pipelineHandle.jobId);
 

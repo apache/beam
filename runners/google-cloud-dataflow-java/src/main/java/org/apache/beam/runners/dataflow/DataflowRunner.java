@@ -1103,8 +1103,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       options.setStreaming(true);
     }
 
-    if (!options.isStreaming()
-        && !ExperimentalOptions.hasExperiment(options, "disable_projection_pushdown")) {
+    if (!ExperimentalOptions.hasExperiment(options, "disable_projection_pushdown")) {
       ProjectionPushdownOptimizer.optimize(pipeline);
     }
 
