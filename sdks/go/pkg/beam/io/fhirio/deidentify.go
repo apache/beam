@@ -28,16 +28,16 @@ import (
 )
 
 func init() {
-	register.DoFn3x0[context.Context, string, func(string)]((*deidentifyFn)(nil))
+	register.DoFn3x0[context.Context, []byte, func(string)]((*deidentifyFn)(nil))
 	register.Emitter1[string]()
 }
 
 type deidentifyFn struct {
 	fnCommonVariables
-	DestinationStorePath  string
-	DeidentifyConfig      *healthcare.DeidentifyConfig
-	operationErrorCount   beam.Counter
-	operationSuccessCount beam.Counter
+	SourceStorePath, DestinationStorePath string
+	DeidentifyConfig                      *healthcare.DeidentifyConfig
+	operationErrorCount                   beam.Counter
+	operationSuccessCount                 beam.Counter
 }
 
 func (fn deidentifyFn) String() string {
@@ -50,9 +50,9 @@ func (fn *deidentifyFn) Setup() {
 	fn.operationSuccessCount = beam.NewCounter(fn.String(), operationSuccessCounterName)
 }
 
-func (fn *deidentifyFn) ProcessElement(ctx context.Context, srcStorePath string, emitDstStore func(string)) {
+func (fn *deidentifyFn) ProcessElement(ctx context.Context, _ []byte, emitDstStore func(string)) {
 	result, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() (operationResults, error) {
-		return fn.client.deidentify(srcStorePath, fn.DestinationStorePath, fn.DeidentifyConfig)
+		return fn.client.deidentify(fn.SourceStorePath, fn.DestinationStorePath, fn.DeidentifyConfig)
 	})
 	if err != nil {
 		log.Warnf(ctx, "Deidentify operation failed. Reason: %v", err)
@@ -81,13 +81,15 @@ func Deidentify(s beam.Scope, srcStore, dstStore string, config *healthcare.Deid
 }
 
 func deidentify(s beam.Scope, srcStore, dstStore string, config *healthcare.DeidentifyConfig, client fhirStoreClient) beam.PCollection {
+	imp := beam.Impulse(s)
 	return beam.ParDo(
 		s,
 		&deidentifyFn{
 			fnCommonVariables:    fnCommonVariables{client: client},
+			SourceStorePath:      srcStore,
 			DestinationStorePath: dstStore,
 			DeidentifyConfig:     config,
 		},
-		beam.Create(s, srcStore),
+		imp,
 	)
 }
