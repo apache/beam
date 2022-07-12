@@ -44,6 +44,8 @@ const (
 	pageTokenParameterKey       = "_page_token"
 )
 
+var backoffDuration = [...]time.Duration{time.Second, 5 * time.Second, 10 * time.Second, 15 * time.Second}
+
 func executeAndRecordLatency[T any](ctx context.Context, latencyMs *beam.Distribution, executionSupplier func() (T, error)) (T, error) {
 	timeBeforeReadRequest := time.Now()
 	result, err := executionSupplier()
@@ -132,8 +134,12 @@ func (c *fhirStoreClientImpl) deidentify(srcStorePath, dstStorePath string, deid
 
 func (c *fhirStoreClientImpl) pollTilCompleteAndCollectResults(operation *healthcare.Operation) (operationResults, error) {
 	var err error
-	for !operation.Done {
-		time.Sleep(15 * time.Second)
+	for i := 0; !operation.Done; {
+		time.Sleep(backoffDuration[i])
+		if i < len(backoffDuration)-1 {
+			i += 1
+		}
+
 		operation, err = c.healthcareService.Projects.Locations.Datasets.Operations.Get(operation.Name).Do()
 		if err != nil {
 			return operationResults{}, err
