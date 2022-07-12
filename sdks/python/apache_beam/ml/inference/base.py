@@ -262,7 +262,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
     Args:
         model_handler: An implementation of ModelHandler.
-        clock: A clock implementing time_ns.
+        clock: A clock implementing time_ns. Used for unit testing.
         inference_args: Extra arguments for models whose inference call requires
           extra parameters.
     """
@@ -352,13 +352,18 @@ class _MetricsCollector:
 
 
 class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
-  """A DoFn implementation generic to frameworks."""
   def __init__(
       self, model_handler: ModelHandler[ExampleT, PredictionT, Any], clock):
     self._model_handler = model_handler
     self._shared_model_handle = shared.Shared()
     self._clock = clock
     self._model = None
+    """A DoFn implementation generic to frameworks.
+
+      Args:
+        model_handler: An implementation of ModelHandler.
+        clock: A clock implementing time_ns. Used for unit testing.
+    """
 
   def _load_model(self):
     def load():
