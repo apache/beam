@@ -365,7 +365,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
       Args:
         model_handler: An implementation of ModelHandler.
-        clock: A clock implementing time_ns. Used for unit testing.
+        clock: A clock implementing time_ns. *Used for unit testing.*
     """
     self._model_handler = model_handler
     self._shared_model_handle = shared.Shared()
