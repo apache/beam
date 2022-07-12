@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Property tests for coders in the Python SDK.
 
 The tests in this file utilize the hypothesis library to generate random test
@@ -23,50 +24,39 @@ These tests are similar to fuzzing, except they test invariant properties
 of code.
 """
 
-import typing
-
-# TODO(pabloem): Include other categories
-from string import ascii_letters
-
-import unittest
 import math
+import typing
+import unittest
+# TODO(pabloem): Include other categories of characters
+from string import ascii_letters
+from string import digits
+
 import numpy as np
-from pytz import utc
-
-from apache_beam.coders import StrUtf8Coder
-from apache_beam.coders import FloatCoder
-from apache_beam.coders import RowCoder
-from apache_beam.coders.typecoders import registry as coders_registry
-from apache_beam.typehints.schemas import typing_to_runner_api
-
-from apache_beam.utils.timestamp import Timestamp
-
-from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis import assume
+from hypothesis import given
+from pytz import utc
 
+from apache_beam.coders import FloatCoder
+from apache_beam.coders import RowCoder
+from apache_beam.coders import StrUtf8Coder
+from apache_beam.coders.typecoders import registry as coders_registry
+from apache_beam.typehints.schemas import typing_to_runner_api
+from apache_beam.utils.timestamp import Timestamp
 
-SCHEMA_TYPES = [
-  str,
-  bytes,
-  Timestamp,
-  int,
-  np.int32,
-  np.int64,
-  bool
-]
+SCHEMA_TYPES = [str, bytes, Timestamp, int, np.int32, np.int64, bool]
 
 SCHEMA_TYPES_TO_STRATEGY = {
-  str: st.text(),
-  bytes: st.binary(),
-  Timestamp: st.datetimes().map(
-    lambda dt: Timestamp.from_utc_datetime(dt.astimezone(utc))),
-  int: st.integers(min_value=-(1<<64 - 1), max_value=1<<64 - 1),
-  np.int32: st.integers(min_value=-(1<<31 - 1), max_value=1<<31 - 1),
-  np.int64: st.integers(min_value=-(1<<64 - 1), max_value=1<<64 - 1),
-  np.uint32: st.integers(min_value=0, max_value=1<<32 - 1),
-  np.uint64: st.integers(min_value=0, max_value=1<<65 - 1),
-  bool: st.booleans()
+    str: st.text(),
+    bytes: st.binary(),
+    Timestamp: st.datetimes().map(
+        lambda dt: Timestamp.from_utc_datetime(dt.astimezone(utc))),
+    int: st.integers(min_value=-(1 << 64 - 1), max_value=1 << 64 - 1),
+    np.int32: st.integers(min_value=-(1 << 31 - 1), max_value=1 << 31 - 1),
+    np.int64: st.integers(min_value=-(1 << 64 - 1), max_value=1 << 64 - 1),
+    np.uint32: st.integers(min_value=0, max_value=1 << 32 - 1),
+    np.uint64: st.integers(min_value=0, max_value=1 << 65 - 1),
+    bool: st.booleans()
 }
 
 # A hypothesis strategy that generates schemas.
@@ -75,13 +65,13 @@ SCHEMA_TYPES_TO_STRATEGY = {
 # This strategy currently generates rows with simple types (i.e. non-list, and
 # non-map fields).
 SCHEMA_GENERATOR_STRATEGY = st.lists(
-  st.tuples(st.text(ascii_letters, min_size=1),
-            st.sampled_from(SCHEMA_TYPES),
-            st.booleans()))
+    st.tuples(
+        st.text(ascii_letters + digits + '_', min_size=1),
+        st.sampled_from(SCHEMA_TYPES),
+        st.booleans()))
 
 
 class ProperyTestingCoders(unittest.TestCase):
-
   @given(st.text())
   def test_string_coder(self, txt: str):
     coder = StrUtf8Coder()
@@ -110,24 +100,25 @@ class ProperyTestingCoders(unittest.TestCase):
     # names for fields.
     # If this condition does not hold, then we must not continue the
     # test.
+    assume(len({name for name, _, _ in schema}) == len(schema))
     assume(
-      len({name for name, _, _ in schema}) == len(schema))
+        len({n[0]
+             for n, _, _ in schema}.intersection(set(digits + '_'))) == 0)
     RowType = typing.NamedTuple(
-      'RandomRowType',
-      [
-        (name, type_ if not nullable else typing.Optional[type_])
-        for name, type_, nullable in schema
-      ]
-    )
+        'RandomRowType',
+        [(name, type_ if not nullable else typing.Optional[type_]) for name,
+         type_,
+         nullable in schema])
     coders_registry.register_coder(RowType, RowCoder)
 
     # TODO(pabloem): Also apply nullability for these schemas.
     row = RowType(
-      **{
-        name: data.draw(SCHEMA_TYPES_TO_STRATEGY[type_])
-        for name, type_, nullable in schema
-      }
-    )
+        **{
+            name: data.draw(SCHEMA_TYPES_TO_STRATEGY[type_])
+            for name,
+            type_,
+            nullable in schema
+        })
 
     expected_coder = RowCoder(typing_to_runner_api(RowType).row_type.schema)
     real_coder = coders_registry.get_coder(RowType)
