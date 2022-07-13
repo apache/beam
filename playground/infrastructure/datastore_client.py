@@ -47,7 +47,7 @@ class DatastoreClient:
         Save examples, output and meta to datastore
 
         Args:
-            :param examples_from_rep:
+            :param examples_from_rep: examples from the repository for saving to the Cloud Datastore
         """
 
         snippets = []
@@ -60,13 +60,12 @@ class DatastoreClient:
         actual_schema_version_key = self._get_actual_schema_version(schema_keys)
         with self._datastore_client.transaction():
             for example in tqdm(examples_from_rep):
-                content = self._merge_content(example)
-                snp_id = self._generate_id(self._properties.get_salt(), content, self._properties.get_id_length())
                 sdk_key = self._get_key(constant.SDK_KIND, example.sdk)
-                self._to_snippet_entities(snp_id, sdk_key, now, actual_schema_version_key, snippets)
-                self._to_example_entities(example, snp_id, sdk_key, actual_schema_version_key, examples)
-                self._to_pc_object_entities(example, snp_id, pc_objects)
-                self._to_file_entities(files)
+                example_id = f"${example.name.strip()}_${example.sdk}"
+                self._to_example_entities(example, example_id, sdk_key, actual_schema_version_key, examples)
+                self._to_snippet_entities(example, example_id, sdk_key, now, actual_schema_version_key, snippets)
+                self._to_pc_object_entities(example, example_id, pc_objects)
+                self._to_file_entities(example, example_id, files)
 
             self._datastore_client.put_multi(snippets)
             self._datastore_client.put_multi(examples)
@@ -80,27 +79,15 @@ class DatastoreClient:
     def _get_key_name(self, key: datastore.key):
         return key["arg_1"]
 
-    def _merge_content(self, example: Example) -> string:
-        content = StringBuilder()
-        content.add(example.code.strip())
-        content.add(example.name.strip())
-        content.add(example.sdk)
-        content.add(example.tag.pipeline_options.strip())
-        return content
-
-    def _generate_id(self, salt, content: string, length: int) -> string:
-        hash_init = sha256()
-        hash_init.update(salt + content)
-        return urlsafe_b64encode(hash_init.digest())[:length]
-
     def _get_key(self, kind, identifier: str) -> datastore.key:
         return self._datastore_client.key(kind, identifier)
 
-    def _to_snippet_entities(self, snp_id: string, sdk_key: datastore.key, now: datetime, schema_key: datastore.key, snippets: list):
+    def _to_snippet_entities(self, example: Example, snp_id: string, sdk_key: datastore.key, now: datetime, schema_key: datastore.key, snippets: list):
         snippet_entity = datastore.Entity(self._get_key(constant.SNIPPET_KIND, snp_id))
         snippet_entity.update(
             {
                 "sdk": sdk_key,
+                "pipeOpts": example.tag.pipeline_options,
                 "created": now,
                 "lVisited": now,
                 "origin": constant.ORIGIN_PROPERTY_VALUE,
@@ -110,9 +97,8 @@ class DatastoreClient:
         )
         snippets.append(snippet_entity)
 
-    def _to_example_entities(self, example: Example, snp_id: string, sdk_key: datastore.key, schema_key: datastore.key, examples: list):
-        snp_key = self._get_key(constant.SNIPPET_KIND, snp_id)
-        example_entity = datastore.Entity(self._get_key(constant.EXAMPLE_KIND, f"${example.name.strip()}_${example.sdk}"))
+    def _to_example_entities(self, example: Example, example_id: str, sdk_key: datastore.key, schema_key: datastore.key, examples: list):
+        example_entity = datastore.Entity(self._get_key(constant.EXAMPLE_KIND, example_id))
         example_entity.update(
             {
                 "name": example.name,
@@ -121,7 +107,6 @@ class DatastoreClient:
                 "cats": example.tag.categories,
                 "path": example.link,
                 "origin": constant.ORIGIN_PROPERTY_VALUE,
-                "snpId": snp_key,
                 "schVer": schema_key
             }
         )
@@ -140,7 +125,7 @@ class DatastoreClient:
         pc_obj_entity.update({"content": content})
         pc_objects.append(pc_obj_entity)
 
-    def _to_file_entities(self, snp_id: str, example: Example, files: list):
+    def _to_file_entities(self, example: Example, snp_id: str, files: list):
         file_entity = datastore.Entity(self._get_key(constant.FILED_KIND, f"${snp_id}_${0}"), exclude_from_indexes=tuple('content'))
         file_entity.update(
             {
