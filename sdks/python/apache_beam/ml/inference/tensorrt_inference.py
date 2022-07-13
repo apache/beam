@@ -1,5 +1,6 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved. # pylint: disable=line-too-long
+# SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
+# Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,45 +18,48 @@
 
 # pytype: skip-file
 
+import logging
 import numpy as np
+import pycuda.autoinit
 import pycuda.driver as cuda
 import sys
 import tensorrt as trt
-from typing import Any, Dict, Iterable, Optional, Sequence
+from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler, PredictionResult
 
-LOGGER = trt.Logger(trt.Logger.INFO)
+TRT_LOGGER = trt.Logger(trt.Logger.INFO)
 
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("TensorRTEngineHandlerNumPy").setLevel(logging.INFO)
+log = logging.getLogger("TensorRTEngineHandlerNumPy")
 
 def _load_engine(engine_path):
   file = FileSystems.open(engine_path, 'rb')
-  runtime = trt.Runtime(LOGGER)
+  runtime = trt.Runtime(TRT_LOGGER)
   engine = runtime.deserialize_cuda_engine(file.read())
   assert engine
   return engine
 
 
 def _load_onnx(onnx_path):
-  builder = trt.Builder(LOGGER)
+  builder = trt.Builder(TRT_LOGGER)
   network = builder.create_network(
       flags=1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
-  parser = trt.OnnxParser(network, LOGGER)
+  parser = trt.OnnxParser(network, TRT_LOGGER)
   with FileSystems.open(onnx_path) as f:
     if not parser.parse(f.read()):
-      print("Failed to load ONNX file: {}".format(onnx_path))
+      log.error("Failed to load ONNX file: {}".format(onnx_path))
       for error in range(parser.num_errors):
-        print(parser.get_error(error))
+        log.error(parser.get_error(error))
       sys.exit(1)
-  builder.reset()
-  return network
+  return network, builder
 
 
-def _build_engine(network):
-  builder = trt.Builder(LOGGER)
+def _build_engine(network, builder):
   config = builder.create_builder_config()
-  runtime = trt.Runtime(LOGGER)
+  runtime = trt.Runtime(TRT_LOGGER)
   plan = builder.build_serialized_network(network, config)
   engine = runtime.deserialize_cuda_engine(plan)
   builder.reset()
@@ -82,8 +86,9 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
   def __init__(self, min_batch_size: int, max_batch_size: int, **kwargs):
     """Implementation of the ModelHandler interface for TensorRT.
 
-    Example Usage:
-      pcoll | RunInference(
+    Example Usage::
+
+    pcoll | RunInference(
         TensorRTEngineHandlerNumPy(
           min_batch_size=1,
           max_batch_size=1,
@@ -105,7 +110,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     elif 'onnx_path' in kwargs:
       self.onnx_path = kwargs.get('onnx_path')
 
-    trt.init_libnvinfer_plugins(LOGGER, namespace="")
+    trt.init_libnvinfer_plugins(TRT_LOGGER, namespace="")
 
   def batch_elements_kwargs(self):
     """Sets min_batch_size and max_batch_size of a TensorRT engine."""
@@ -118,14 +123,13 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     """Loads and initializes a TensorRT engine for processing."""
     return _load_engine(self.engine_path)
 
-  def load_onnx(self) -> trt.INetworkDefinition:
+  def load_onnx(self) -> Tuple[trt.INetworkDefinition, trt.Builder]:
     """Loads and parses an onnx model for processing."""
     return _load_onnx(self.onnx_path)
 
-  #
-  def build_engine(self, network: trt.INetworkDefinition) -> trt.ICudaEngine:
+  def build_engine(self, network: trt.INetworkDefinition, builder: trt.Builder) -> trt.ICudaEngine:
     """Build an engine according to parsed/created network."""
-    return _build_engine(network)
+    return _build_engine(network, builder)
 
   def run_inference(
       self,
@@ -148,6 +152,8 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       An Iterable of type PredictionResult.
     """
     _validate_inference_args(inference_args)
+    stream = cuda.Stream()
+
     context = engine.create_execution_context()
     assert context
     # Setup I/O bindings
@@ -189,10 +195,10 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     for output in outputs:
       predictions.append(np.zeros(output['shape'], output['dtype']))
     # Process I/O and execute the network
-    cuda.memcpy_htod(inputs[0]['allocation'], np.ascontiguousarray(batch))
-    context.execute_v2(allocations)
+    cuda.memcpy_htod_async(inputs[0]['allocation'], np.ascontiguousarray(batch), stream)
+    context.execute_async_v2(allocations, stream.handle)
     for output in range(len(predictions)):
-      cuda.memcpy_dtoh(predictions[output], outputs[output]['allocation'])
+      cuda.memcpy_dtoh_async(predictions[output], outputs[output]['allocation'], stream)
     return [
         PredictionResult(x, [prediction[idx] for prediction in predictions])
         for idx,

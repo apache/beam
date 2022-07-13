@@ -1,5 +1,6 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
+# Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -75,8 +76,8 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     """
     inference_runner = TensorRTEngineHandlerNumPy(min_batch_size=4, max_batch_size=4, 
         onnx_path="gs://apache-beam-ml/models/single_tensor_features_model.onnx")
-    network = inference_runner.load_onnx()
-    engine = inference_runner.build_engine(network)
+    network, builder = inference_runner.load_onnx()
+    engine = inference_runner.build_engine(network, builder)
     predictions = inference_runner.run_inference(SINGLE_FEATURE_EXAMPLES, engine)
     for actual, expected in zip(predictions, SINGLE_FEATURE_PREDICTIONS):
       self.assertEqual(actual, expected)
@@ -89,8 +90,8 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     """
     inference_runner = TensorRTEngineHandlerNumPy(min_batch_size=4, max_batch_size=4, 
         onnx_path='gs://apache-beam-ml/models/multiple_tensor_features_model.onnx')
-    network = inference_runner.load_onnx()
-    engine = inference_runner.build_engine(network)
+    network, builder = inference_runner.load_onnx()
+    engine = inference_runner.build_engine(network, builder)
     predictions = inference_runner.run_inference(TWO_FEATURES_EXAMPLES, engine)
     for actual, expected in zip(predictions, TWO_FEATURES_PREDICTIONS):
       self.assertTrue(_compare_prediction_result(actual, expected))
@@ -111,9 +112,8 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     bias_add = network.add_elementwise(mm.get_output(0), bias_const.get_output(0), trt.ElementWiseOperation.SUM)
     bias_add.get_output(0).name = "output"
     network.mark_output(tensor=bias_add.get_output(0))
-    builder.reset()
     
-    engine = inference_runner.build_engine(network)
+    engine = inference_runner.build_engine(network, builder)
     predictions = inference_runner.run_inference(SINGLE_FEATURE_EXAMPLES, engine)
     for actual, expected in zip(predictions, SINGLE_FEATURE_PREDICTIONS):
       self.assertEqual(actual, expected)
@@ -134,9 +134,8 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     bias_add = network.add_elementwise(mm.get_output(0), bias_const.get_output(0), trt.ElementWiseOperation.SUM)
     bias_add.get_output(0).name = "output"
     network.mark_output(tensor=bias_add.get_output(0))
-    builder.reset()
     
-    engine = inference_runner.build_engine(network)
+    engine = inference_runner.build_engine(network, builder)
     predictions = inference_runner.run_inference(TWO_FEATURES_EXAMPLES, engine)
     for actual, expected in zip(predictions, TWO_FEATURES_PREDICTIONS):
       self.assertTrue(_compare_prediction_result(actual, expected))   

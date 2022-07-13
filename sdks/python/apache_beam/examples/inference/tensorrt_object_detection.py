@@ -127,9 +127,10 @@ COCO_OBJ_DET_CLASSES = [
 ]
 
 
-def attach_im_size_to_key(x):
-    width, height = x[1].size
-    return ((x[0], width, height), x[1])
+def attach_im_size_to_key(data: Tuple[str, Image.Image]) -> Tuple[Tuple[str, int, int], Image.Image]:
+    filename, image = data 
+    width, height = image.size
+    return ((filename, width, height), image)
 
 
 def read_image(image_file_name: str,
@@ -150,15 +151,25 @@ def preprocess_image(image: Image.Image) -> np.ndarray:
 
 
 class PostProcessor(beam.DoFn):
+  """Processes the PredictionResult that consists of 
+  number of detections per image, box coordinates, scores and classes. 
+
+  We loop over all detections to organize attributes on a per
+  detection basis. Box coordinates are normalized, hence we have to scale them
+  according to original image dimensions. Score is a floating point number
+  that provides probability percentage of a particular object. Class is 
+  an integer that we can transform into actual string class using
+  COCO_OBJ_DET_CLASSES as reference. 
+  """
   def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
     key, prediction_result = element
     filename, im_width, im_height = key
-    nums = prediction_result.inference[0]
+    num_detections = prediction_result.inference[0]
     boxes = prediction_result.inference[1]
     scores = prediction_result.inference[2]
     classes = prediction_result.inference[3]
     detections = []
-    for i in range(int(nums[0])):
+    for i in range(int(num_detections[0])):
         detections.append({
                 'ymin': str(boxes[i][0] * im_height),
                 'xmin': str(boxes[i][1] * im_width),
@@ -227,11 +238,10 @@ def run(argv=None, save_main_session=True):
         | 'PyTorchRunInference' >> RunInference(engine_handler)
         | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 
-    if known_args.output:
-      predictions | "WriteOutputToGCS" >> beam.io.WriteToText(
-        known_args.output,
-        shard_name_template='',
-        append_trailing_newlines=True)
+    predictions | "WriteOutputToGCS" >> beam.io.WriteToText(
+      known_args.output,
+      shard_name_template='',
+      append_trailing_newlines=True)    
 
 
 if __name__ == '__main__':
