@@ -22,11 +22,11 @@ You can use Apache Beam with the RunInference API to use machine learning (ML) m
 
 ## Why use the RunInference API?
 
-RunInference leverages existing Apache Beam concepts, such as the the `BatchElements` transform and the `Shared` class, and it allows you to build multi-model pipelines. In addition, the RunInference API has built in capabilities for dealing with [keyed values](#use-the-prediction-results-object).
+RunInference takes advantage of existing Apache Beam concepts, such as the the `BatchElements` transform and the `Shared` class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines. In addition, the RunInference API has built in capabilities for dealing with [keyed values](#use-a-keyed-modelhandler).
 
 ### BatchElements PTransform
 
-To take advantage of the optimizations of vectorized inference that many models implement, we added the `BatchElements` transform as an intermediate step before making the prediction for the model. This transform batches elements together. The resulting batch is used to make the appropriate transformation for the particular framework of RunInference. For example, for numpy `ndarrays`, we call `numpy.stack()`,  and for torch `Tensor` elements, we call `torch.stack()`.
+To take advantage of the optimizations of vectorized inference that many models implement, we added the `BatchElements` transform as an intermediate step before making the prediction for the model. This transform batches elements together. The batched elements are then applied with a transformation for the particular framework of RunInference. For example, for numpy `ndarrays`, we call `numpy.stack()`,  and for torch `Tensor` elements, we call `torch.stack()`.
 
 To customize the settings for `beam.BatchElements`, in `ModelHandler`, override the `batch_elements_kwargs` function. For example, use `min_batch_size` to set the lowest number of elements per batch or `max_batch_size` to set the highest number of elements per batch.
 
@@ -39,17 +39,11 @@ Instead of loading a model for each thread in the process, we use the `Shared` c
 
 ### Multi-model pipelines
 
-The RunInference API can be composed into multi-model pipelines. Multi-model pipelines are useful for A/B testing and for building out ensembles for tokenization, sentence segmentation, part-of-speech tagging, named entity extraction, language detection, coreference resolution, and more.
-
-### Prediction results
-
-When doing a prediction in Apache Beam, the output `PCollection` includes both the keys of the input examples and the inferences. Including both these items in the output allows you to find the input that determined the predictions without returning the full input data.
-
-For more information, see the [`PredictionResult` documentation](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/base.py#L65). 
+The RunInference API can be composed into multi-model pipelines. Multi-model pipelines can be useful for A/B testing or for building out ensembles that are comprised of models that perform tokenization, sentence segmentation, part-of-speech tagging, named entity extraction, language detection, coreference resolution, and more.
 
 ## Modify a pipeline to use an ML model
 
-To use the RunInference transform, you add a single line of code in your pipeline:
+To use the RunInference transform, add the following code to your pipeline:
 
 ```
 from apache_beam.ml.inference.base import RunInference
@@ -59,7 +53,7 @@ with pipeline as p:
     | RunInference(configuration)))
 ```
 
-To import models, you need to wrap them around a `ModelHandler object`. Add one or more of the following lines of code, depending on the framework and type of data structure that holds the data:
+To import models, you need to wrap them around a `ModelHandler` object. Add one or more of the following lines of code, depending on the framework and type of data structure that contains the inputs:
 
 ```
 from apache_beam.ml.inference.pytorch_inference import SklearnModelHandlerNumpy
@@ -102,7 +96,7 @@ with pipeline as p:
    model_b_predictions = model_a_predictions | beam.Map(some_post_processing) | RunInference(ModelHandlerB)
 ```
 
-### Use a key handler
+### Use a keyed ModelHandler
 
 If a key is attached to the examples, use the `KeyedModelHandler`:
 
@@ -120,7 +114,9 @@ with pipeline as p:
    predictions = data | RunInference(keyed_model_handler)
 ```
 
-### Use the prediction results object
+### Use the PredictionResults object
+
+When doing a prediction in Apache Beam, the output `PCollection` includes both the keys of the input examples and the inferences. Including both these items in the output allows you to find the input that determined the predictions without returning the full input data.
 
 The `PredictionResult` is a `NamedTuple` object that contains both the input and the inferences, named  `example` and  `inference`, respectively. Your pipeline interacts with a `PredictionResult` object in steps after the RunInference transform.
 
@@ -148,6 +144,8 @@ If you need to use this object explicitly, include the following line in your pi
 ```
 from apache_beam.ml.inference.base import PredictionResult
 ```
+
+For more information, see the [`PredictionResult` documentation](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/base.py#L65). 
 
 ## Run a machine learning pipeline
 
