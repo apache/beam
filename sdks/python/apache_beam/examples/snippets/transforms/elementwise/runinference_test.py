@@ -25,11 +25,47 @@ import mock
 
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 from . import runinference
 
+def check_torch_keyed_model_handler(actual):
+  expected = '''[START torch_keyed_model_handler]
+('first_question', PredictionResult(example=tensor([105.]), inference=tensor([523.6982], grad_fn=<UnbindBackward0>)))
+('second_question', PredictionResult(example=tensor([108.]), inference=tensor([538.5867], grad_fn=<UnbindBackward0>)))
+('third_question', PredictionResult(example=tensor([1000.]), inference=tensor([4965.4019], grad_fn=<UnbindBackward0>)))
+('fourth_question', PredictionResult(example=tensor([1013.]), inference=tensor([5029.9180], grad_fn=<UnbindBackward0>)))
+[END torch_keyed_model_handler]'''.splitlines()[1:-1]
+  assert_matches_stdout(actual, expected)
+
+
+def check_sklearn_keyed_model_handler(actual):
+  expected = '''[START sklearn_keyed_model_handler]
+('first_question', PredictionResult(example=[105.0], inference=array([525.])))
+('second_question', PredictionResult(example=[108.0], inference=array([540.])))
+('third_question', PredictionResult(example=[1000.0], inference=array([5000.])))
+('fourth_question', PredictionResult(example=[1013.0], inference=array([5065.])))
+[END sklearn_keyed_model_handler] '''.splitlines()[1:-1]
+  assert_matches_stdout(actual, expected)
+
+
+def check_torch_unkeyed_model_handler(actual):
+  expected = '''[START torch_unkeyed_model_handler]
+PredictionResult(example=tensor([10.]), inference=tensor([52.2325], grad_fn=<UnbindBackward0>))
+PredictionResult(example=tensor([40.]), inference=tensor([201.1165], grad_fn=<UnbindBackward0>))
+PredictionResult(example=tensor([60.]), inference=tensor([300.3724], grad_fn=<UnbindBackward0>))
+PredictionResult(example=tensor([90.]), inference=tensor([449.2563], grad_fn=<UnbindBackward0>))
+[END torch_unkeyed_model_handler] '''.splitlines()[1:-1]
+  assert_matches_stdout(actual, expected)
+
+
+def check_sklearn_unkeyed_model_handler(actual):
+  expected = '''[START sklearn_unkeyed_model_handler]
+PredictionResult(example=array([20.], dtype=float32), inference=array([100.], dtype=float32))
+PredictionResult(example=array([40.], dtype=float32), inference=array([200.], dtype=float32))
+PredictionResult(example=array([60.], dtype=float32), inference=array([300.], dtype=float32))
+PredictionResult(example=array([90.], dtype=float32), inference=array([450.], dtype=float32))
+[END sklearn_unkeyed_model_handler]  '''.splitlines()[1:-1]
+  assert_matches_stdout(actual, expected)
 
 def check_images(actual):
   expected = '''[START images]
@@ -270,30 +306,23 @@ def check_digits(actual):
 @mock.patch(
     'apache_beam.examples.snippets.transforms.elementwise.runinference.print', str)
 class RunInferenceTest(unittest.TestCase):
+  def test_torch_unkeyed_model_handler(self):
+    runinference.torch_unkeyed_model_handler(check_torch_unkeyed_model_handler)
+
+  def test_torch_keyed_model_handler(self):
+    runinference.torch_keyed_model_handler(check_torch_keyed_model_handler)
+
+  def test_sklearn_unkeyed_model_handler(self):
+    runinference.sklearn_unkeyed_model_handler(check_sklearn_unkeyed_model_handler)
+
+  def test_sklearn_keyed_model_handler(self):
+    runinference.sklearn_keyed_model_handler(check_sklearn_keyed_model_handler)
+
   def test_images(self):
     runinference.images(check_images)
 
   def test_digits(self):
     runinference.digits(check_digits)
-
-
-@mock.patch('apache_beam.Pipeline', TestPipeline)
-@mock.patch('sys.stdout', new_callable=StringIO)
-class RunInferenceStdoutTest(unittest.TestCase):
-  def test_images_methods(self, mock_stdout):
-    expected = runinference.images_methods(check_images_methods)
-    actual = mock_stdout.getvalue().splitlines()
-
-    # For the stdout, check the ordering of the methods, not of the elements.
-    actual_stdout = [line.split(':')[0] for line in actual]
-    expected_stdout = [line.split(':')[0] for line in expected]
-    self.assertEqual(actual_stdout, expected_stdout)
-
-    # For the elements, ignore the stdout and just make sure all elements match.
-    actual_elements = {line for line in actual if line.startswith('*')}
-    expected_elements = {line for line in expected if line.startswith('*')}
-    self.assertEqual(actual_elements, expected_elements)
-
 
 if __name__ == '__main__':
   unittest.main()

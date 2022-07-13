@@ -27,55 +27,33 @@ You must have Apache Beam 2.40.0 or later installed to run these pipelines.
 
 See more [RunInference API pipeline examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference).
 
-## PyTorch dependencies
-
-The RunInference API supports the PyTorch framework. To use PyTorch locally, first install `torch`. To install `torch`, in your terminal, run the following command:
-
-`pip install torch==1.10.0`
-
-If you are using pretrained models from Pytorch's `torchvision.models` [subpackage](https://pytorch.org/vision/0.12/models.html#models-and-pre-trained-weights), you also need to install `torchvision`. To install `torchvision`, in your terminal, run the following command:
-
-`pip install torchvision`
-
-If you are using pretrained models from Hugging Face's [`transformers` package](https://huggingface.co/docs/transformers/index), you need to install `transformers`. To install `transformers`, in your terminal, run the following command:
-
-`pip install transformers`
-
-For information about installing the `torch` dependency on a distributed runner such as Dataflow, see the [PyPI dependency instructions](/documentation/sdks/python-pipeline-dependencies/#pypi-dependencies).
-
 ## Examples
 
 In the following examples, we explore how to create pipelines that use the Beam RunInference API to make predictions based on models.
 
-### Example 1: Image classification
+### Example 1: PyTorch unkeyed model
 
-In this example, we create a pipeline that performs image classification using the `mobilenet_v2` architecture.
-
-This pipeline reads your set of images, performs preprocessing, passes the images to the PyTorch implementation of RunInference, and then writes the predictions to a text file.
+In this example, we create a pipeline that uses a PyTorch RunInference transform on unkeyed data.
 
 {{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py"
   class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" images >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" torch_unkeyed_model_handler >}}
 {{</ highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
 Output:
 {{< /paragraph >}}
 {{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_test.py" images >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_test.py" torch_unkeyed_model_handler >}}
 {{< /highlight >}}
 
-### Example 2: Digit classification
+### Example 2: PyTorch keyed model
 
-In this example, we create a pipeline that performs image classification on handwritten digits from the
-[MNIST](https://en.wikipedia.org/wiki/MNIST_database) database.
-
-This pipeline reads a text file that contains data in comma separated integers. The first
-column contains the true label and the following integers in the row are pixel values. The transform processes the data and then uses a model trained on the MNIST data to perform the prediction. The pipeline writes the prediction to an output file.
+In this example, we create a pipeline that uses a PyTorch RunInference transform on keyed data.
 
 {{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py"
   class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" digits >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" torch_keyed_model_handler >}}
 {{</ highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -83,9 +61,42 @@ Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_test.py" digits >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_test.py" torch_keyed_model_handler >}}
 {{< /highlight >}}
 
+### Example 3: Sklearn unkeyed model
+
+In this example, we create a pipeline that uses an SKlearn RunInference transform on unkeyed data.
+
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py"
+  class="notebook-skip" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" sklearn_unkeyed_model_handler >}}
+{{</ highlight >}}
+
+{{< paragraph class="notebook-skip" >}}
+Output:
+{{< /paragraph >}}
+
+{{< highlight class="notebook-skip" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_test.py" sklearn_unkeyed_model_handler >}}
+{{< /highlight >}}
+
+### Example 4: Sklearn keyed model
+
+In this example, we create a pipeline that uses an SKlearn RunInference transform on keyed data.
+
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py"
+  class="notebook-skip" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" sklearn_keyed_model_handler >}}
+{{</ highlight >}}
+
+{{< paragraph class="notebook-skip" >}}
+Output:
+{{< /paragraph >}}
+
+{{< highlight class="notebook-skip" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_test.py" sklearn_keyed_model_handler >}}
+{{< /highlight >}}
 
 ## Related transforms
 
