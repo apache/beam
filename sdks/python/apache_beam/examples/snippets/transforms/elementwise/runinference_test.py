@@ -17,9 +17,8 @@
 #
 
 # pytype: skip-file
-
-import unittest
 import mock
+import unittest
 
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
