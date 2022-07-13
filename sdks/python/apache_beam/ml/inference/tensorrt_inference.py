@@ -20,7 +20,9 @@
 
 import logging
 import numpy as np
-import pycuda.autoinit
+<<<<<<< HEAD
+import pycuda.autoinit  # pylint: disable=unused-import
+>>>>>>> b6b179869e4b70b031c5ac6af2ba5390c9a42094
 import pycuda.driver as cuda
 import sys
 import tensorrt as trt
