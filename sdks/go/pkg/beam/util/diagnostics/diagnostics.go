@@ -13,6 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package diagnostics is a beam internal package that contains code for writing and uploading
+// diagnostic info (e.g. heap profiles) about the worker process.
+// This package is not intended for end user use and can change at any time.
 package diagnostics
 
 import (
@@ -39,7 +42,6 @@ const (
 // (2) it has been 60 seconds since the last heap profile was taken
 func SampleForHeapProfile(ctx context.Context) {
 	var maxAllocatedSoFar uint64
-	maxAllocatedSoFar = 0
 	samplesSkipped := 0
 	for {
 		var m runtime.MemStats
@@ -48,7 +50,9 @@ func SampleForHeapProfile(ctx context.Context) {
 			samplesSkipped = 0
 			maxAllocatedSoFar = m.Alloc
 			err := saveHeapProfile()
-			log.Warnf(ctx, "err - %v", err)
+			if err != nil {
+				log.Warnf(ctx, "Failed to save heap profile. This will not affect pipeline execution, but may make it harder to diagnose memory issues: %v", err)
+			}
 		} else {
 			samplesSkipped++
 		}
@@ -71,8 +75,7 @@ func saveHeapProfile() error {
 	defer fd.Close()
 	buf := bufio.NewWriterSize(fd, 1<<20) // use 1MB buffer
 
-	err = pprof.WriteHeapProfile(buf)
-	if err != nil {
+	if err := pprof.WriteHeapProfile(buf); err != nil {
 		return err
 	}
 
@@ -87,10 +90,11 @@ func saveHeapProfile() error {
 	return os.Rename(tempHProfLoc, hProfLoc)
 }
 
-// UploadHeapPrilfe checks if a heap profile is available and uploads it to dest
-// if one is. It will first check hProfLoc for the heap profile and then it will
+// UploadHeapProfile checks if a heap profile is available and, if so, uploads it to dest.
+// It will first check hProfLoc for the heap profile and then it will
 // check tempHProfLoc if no file exists at hProfLoc.
-// To use, download the file and run: `go too-http=:8082 path/to/profile`
+//
+// To examine, download the file and run: `go tool pprof -http=:8082 path/to/profile`
 func UploadHeapProfile(ctx context.Context, dest string) error {
 	hProf, err := os.Open(hProfLoc)
 	if err != nil {
