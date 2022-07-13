@@ -185,3 +185,13 @@ tasks.register("javaPostCommitSickbay") {
 	dependsOn(":runners:portability:java:validatesRunnerSickbay")
 }
 
+tasks.register("javaHadoopVersionsTest") {
+	dependsOn(":sdks:java:io:hadoop-common:hadoopVersionsTest")
+	dependsOn(":sdks:java:io:hadoop-file-system:hadoopVersionsTest")
+	dependsOn(":sdks:java:io:hadoop-format:hadoopVersionsTest")
+	dependsOn(":sdks:java:io:hcatalog:hadoopVersionsTest")
+	dependsOn(":sdks:java:io:parquet:hadoopVersionsTest")
+	dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
+	dependsOn(":runners:spark:2:hadoopVersionsTest")
+}
+
