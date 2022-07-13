@@ -59,9 +59,9 @@ public class FillGapsTest {
 
     abstract Instant getTimestamp();
 
-    static Message update(FillGaps.PropagateData<Message> propagateData) {
-      Message value = propagateData.getValue().getValue();
-      Instant nextWindowMax = propagateData.getNextWindow().maxTimestamp();
+    static Message update(FillGaps.InterpolateData<Message> interpolateData) {
+      Message value = interpolateData.getValue().getValue();
+      Instant nextWindowMax = interpolateData.getNextWindow().maxTimestamp();
       return value.toBuilder().setTimestamp(nextWindowMax).build();
     }
 
@@ -255,7 +255,7 @@ public class FillGapsTest {
         input
             .apply(
                 FillGaps.<Message>of(Duration.standardSeconds(1), "key")
-                    .withPropagateFunction(Message::update)
+                    .withInterpolateFunction(Message::update)
                     .withStopTime(Instant.ofEpochSecond(5)))
             .apply(Reify.timestamps());
 
@@ -304,7 +304,7 @@ public class FillGapsTest {
         input
             .apply(
                 FillGaps.<Message>of(Duration.standardSeconds(1), "key")
-                    .withPropagateFunction(Message::update)
+                    .withInterpolateFunction(Message::update)
                     .withMaxGapFillBuckets(maxGapSize)
                     .withStopTime(Instant.ofEpochSecond(numBuckets)))
             .apply(Reify.timestamps());
