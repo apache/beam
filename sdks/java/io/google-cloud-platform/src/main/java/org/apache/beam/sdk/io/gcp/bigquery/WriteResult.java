@@ -152,7 +152,7 @@ public final class WriteResult implements POutput {
     if (successfulInserts == null) {
       throw new IllegalStateException(
           "Retrieving successful inserts is only supported for streaming inserts. "
-              + "Make sure withSuccessfulInsertsPropagation is configured for "
+              + "Make sure withSuccessfulInsertsPropagation is correctly configured for "
               + "BigQueryIO.Write object.");
     }
     return successfulInserts;
