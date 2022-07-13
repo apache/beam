@@ -29,9 +29,6 @@ import numpy as np
 import apache_beam as beam
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.portability.api import schema_pb2
-import logging
-
-_LOGGER = logging.getLogger(__name__)
 
 # BigQuery types as listed in
 # https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
