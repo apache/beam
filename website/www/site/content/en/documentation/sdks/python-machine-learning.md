@@ -57,9 +57,9 @@ Where `model_handler` is the model handler setup code.
 To import models, you need to wrap them around a `ModelHandler` object. Which `ModelHandler` you import depends on the framework and type of data structure that contains the inputs. The following examples show some ModelHandlers that you might want to import.
 
 ```
-from apache_beam.ml.inference.pytorch_inference import SklearnModelHandlerNumpy
+from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
+from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerPandas
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
-from apache_beam.ml.inference.pytorch_inference import SklearnModelHandlerPandas
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 ```
 ### Use pre-trained models
