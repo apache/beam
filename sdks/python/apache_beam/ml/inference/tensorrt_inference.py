@@ -1,5 +1,6 @@
 #
-# SPDX-FileCopyrightText: Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved. # pylint: disable=line-too-long
+# SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
+# Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +19,7 @@
 # pytype: skip-file
 
 import numpy as np
+import pycuda.autoinit  # pylint: disable=unused-import
 import pycuda.driver as cuda
 import sys
 import tensorrt as trt
