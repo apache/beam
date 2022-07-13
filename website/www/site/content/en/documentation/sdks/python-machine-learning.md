@@ -181,10 +181,15 @@ To work with the current RunInference implementation, you can create a wrapper c
 
 RunInference uses dynamic batching. However, the RunInference API cannot batch tensor elements of different sizes, because `torch.stack()` expects tensors of the same length. If you provide images of different sizes or word embeddings of different lengths, errors might occur.
 
-To avoid this issue, use one of the following solutions:
+To avoid this issue, either use elements of the same size, or disable batching.
 
-1. Use elements of the same size or resize the inputs. For computer vision applications, resize image inputs so that they have the same dimensions. For natural language processing (NLP) applications that have text of varying length, resize the text or word embeddings to make them the same length. When working with texts of varying length, resizing might not be possible. In this scenario, you could disable batching.
-2. Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see
+#### Option 1: Use elements of the same size
+
+Use elements of the same size or resize the inputs. For computer vision applications, resize image inputs so that they have the same dimensions. For natural language processing (NLP) applications that have text of varying length, resize the text or word embeddings to make them the same length. When working with texts of varying length, resizing might not be possible. In this scenario, you could disable batching (see option 2).
+
+#### Option 2: Disable batching
+
+Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see
 [BatchElements PTransforms](/documentation/sdks/python-machine-learning/#batchelements-ptransform).
 
 ## Related links
