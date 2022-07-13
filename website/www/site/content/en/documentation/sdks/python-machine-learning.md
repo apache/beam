@@ -22,7 +22,7 @@ You can use Apache Beam with the RunInference API to use machine learning (ML) m
 
 ## Why use the RunInference API?
 
-RunInference takes advantage of existing Apache Beam concepts, such as the the `BatchElements` transform and the `Shared` class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines. In addition, the RunInference API has built in capabilities for dealing with [keyed values](#use-a-keyed-modelhandler).
+RunInference takes advantage of existing Apache Beam concepts, such as the the `BatchElements` transform and the `Shared` class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.
 
 ### BatchElements PTransform
 
