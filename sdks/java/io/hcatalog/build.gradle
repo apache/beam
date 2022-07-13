@@ -31,7 +31,7 @@ ext.summary = "IO to read and write for HCatalog source."
 
 def hadoopVersions = [
     "285": "2.8.5",
-    "292": "2.9.2",
+//    "292": "2.9.2",
     "2101": "2.10.1",
     "323": "3.2.3",
 ]
