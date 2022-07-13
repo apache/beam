@@ -90,6 +90,7 @@ func saveHeapProfile() error {
 // UploadHeapPrilfe checks if a heap profile is available and uploads it to dest
 // if one is. It will first check hProfLoc for the heap profile and then it will
 // check tempHProfLoc if no file exists at hProfLoc.
+// To use, download the file and run: `go too-http=:8082 path/to/profile`
 func UploadHeapProfile(ctx context.Context, dest string) error {
 	hProf, err := os.Open(hProfLoc)
 	if err != nil {
