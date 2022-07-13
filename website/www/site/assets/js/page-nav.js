@@ -82,7 +82,7 @@ $(document).ready(function() {
           offset: $("." + idMainContainer).offset()
         };
 
-        if($(window).width() > CONST.DESKTOP_BREAKPOINT) {
+        if(window.innerWidth > CONST.DESKTOP_BREAKPOINT) {
           $("." + idPageNav).css({
             left: mainContainerData.offset.left +  mainContainerData.width - CONST.PAGENAV_WIDTH
           });
