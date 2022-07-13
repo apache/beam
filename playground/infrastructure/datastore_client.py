@@ -27,11 +27,6 @@ from config import Config, PrecompiledExample
 from helper import Example
 
 import constant
-from hashlib import sha256
-from base64 import urlsafe_b64encode
-
-from property import Properties
-from util import StringBuilder
 
 
 # https://cloud.google.com/datastore/docs/concepts/entities
@@ -40,7 +35,6 @@ class DatastoreClient:
 
     def __init__(self):
         self._datastore_client = datastore.Client(namespace=constant.NAMESPACE, project=Config.GOOGLE_CLOUD_PROJECT)
-        self._properties = Properties()
 
     def save_to_cloud_datastore(self, examples_from_rep: List[Example]):
         """
@@ -67,8 +61,8 @@ class DatastoreClient:
                 self._to_pc_object_entities(example, example_id, pc_objects)
                 self._to_file_entities(example, example_id, files)
 
-            self._datastore_client.put_multi(snippets)
             self._datastore_client.put_multi(examples)
+            self._datastore_client.put_multi(snippets)
             self._datastore_client.put_multi(pc_objects)
             self._datastore_client.put_multi(files)
 
