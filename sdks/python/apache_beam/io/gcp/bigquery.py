@@ -2427,8 +2427,8 @@ class ReadFromBigQuery(PTransform):
       reading from a table rather than a query. To learn more about query
       priority, see: https://cloud.google.com/bigquery/docs/running-queries
     output_type (str): By default, the schema returned from this transform
-    would be of type PYTHON_DICT. Other schema types can be specified
-    ("BEAM_ROW").
+      would be of type PYTHON_DICT. Other schema types can be specified
+      ("BEAM_ROW").
    """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.

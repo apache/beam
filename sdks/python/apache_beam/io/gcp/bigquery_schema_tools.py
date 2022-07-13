@@ -52,7 +52,7 @@ def produce_pcoll_with_schema(the_table_schema):
       Args:
         the_table_schema: A BQ schema of type TableSchema
       Returns:
-        usertype: type that can be used to work with pCollections.
+        type: type that can be used to work with pCollections.
   """
 
   the_schema = beam.io.gcp.bigquery_tools.get_dict_table_schema(
