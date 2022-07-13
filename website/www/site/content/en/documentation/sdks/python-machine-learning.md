@@ -53,18 +53,12 @@ with pipeline as p:
                      | 'RunInference' >> RunInference(model_handler)
 ```
 
-To import models, you need to wrap them around a `ModelHandler` object. Add one or more of the following lines of code, depending on the framework and type of data structure that contains the inputs:
+To import models, you need to wrap them around a `ModelHandler` object. Which `ModelHandler` you import depends on the framework and type of data structure that contains the inputs. The following examples show some ModelHandlers that you might want to import.
 
 ```
 from apache_beam.ml.inference.pytorch_inference import SklearnModelHandlerNumpy
-```
-```
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
-```
-```
 from apache_beam.ml.inference.pytorch_inference import SklearnModelHandlerPandas
-```
-```
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 ```
 ### Use pre-trained models
@@ -183,11 +177,11 @@ RunInference uses dynamic batching. However, the RunInference API cannot batch t
 
 To avoid this issue, either use elements of the same size, or disable batching.
 
-#### Option 1: Use elements of the same size
+**Option 1: Use elements of the same size**
 
 Use elements of the same size or resize the inputs. For computer vision applications, resize image inputs so that they have the same dimensions. For natural language processing (NLP) applications that have text of varying length, resize the text or word embeddings to make them the same length. When working with texts of varying length, resizing might not be possible. In this scenario, you could disable batching (see option 2).
 
-#### Option 2: Disable batching
+**Option 2: Disable batching**
 
 Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see
 [BatchElements PTransforms](/documentation/sdks/python-machine-learning/#batchelements-ptransform).
