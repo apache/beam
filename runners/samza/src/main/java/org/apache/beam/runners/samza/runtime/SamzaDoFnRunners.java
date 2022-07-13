@@ -46,8 +46,6 @@ import org.apache.beam.runners.samza.metrics.DoFnRunnerWithMetrics;
 import org.apache.beam.runners.samza.util.StateUtils;
 import org.apache.beam.runners.samza.util.WindowUtils;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -187,6 +185,7 @@ public class SamzaDoFnRunners {
   @SuppressWarnings("unchecked")
   public static <InT, FnOutT> DoFnRunner<InT, FnOutT> createPortable(
       String transformId,
+      String stepName,
       String bundleStateId,
       Coder<WindowedValue<InT>> windowedValueCoder,
       ExecutableStage executableStage,
@@ -223,6 +222,7 @@ public class SamzaDoFnRunners {
         (SamzaExecutionContext) context.getApplicationContainerContext();
     final DoFnRunner<InT, FnOutT> underlyingRunner =
         new SdkHarnessDoFnRunner<>(
+            stepName,
             timerInternalsFactory,
             WindowUtils.getWindowStrategy(
                 executableStage.getInputPCollection().getId(), executableStage.getComponents()),
@@ -239,7 +239,6 @@ public class SamzaDoFnRunners {
   }
 
   private static class SdkHarnessDoFnRunner<InT, FnOutT> implements DoFnRunner<InT, FnOutT> {
-    private static final IdGenerator ID_GENERATOR = IdGenerators.incrementingLongs();
 
     private final SamzaTimerInternalsFactory timerInternalsFactory;
     private final WindowingStrategy windowingStrategy;
@@ -256,6 +255,7 @@ public class SamzaDoFnRunners {
     private final String metricName;
 
     private SdkHarnessDoFnRunner(
+        String stepName,
         SamzaTimerInternalsFactory<?> timerInternalsFactory,
         WindowingStrategy windowingStrategy,
         DoFnRunners.OutputManager outputManager,
@@ -272,7 +272,7 @@ public class SamzaDoFnRunners {
       this.bundledEventsBag = bundledEventsBag;
       this.stateRequestHandler = stateRequestHandler;
       this.samzaExecutionContext = samzaExecutionContext;
-      this.metricName = "ExecutableStage-" + ID_GENERATOR.getId() + "-process-ns";
+      this.metricName = "ExecutableStage-" + stepName + "-process-ns";
     }
 
     @SuppressWarnings("unchecked")
