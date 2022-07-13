@@ -95,6 +95,8 @@ with pipeline as p:
    model_b_predictions = data | RunInference(<model_handler_B>)
 ```
 
+Where `model_handler_A` and `model_handler_B` are the model handler setup code.
+
 #### Ensemble Pattern
 
 ```
@@ -103,6 +105,8 @@ with pipeline as p:
    model_a_predictions = data | RunInference(<model_handler_A>)
    model_b_predictions = model_a_predictions | beam.Map(some_post_processing) | RunInference(<model_handler_B>)
 ```
+
+Where `model_handler_A` and `model_handler_B` are the model handler setup code.
 
 ### Use a keyed ModelHandler
 
@@ -115,11 +119,11 @@ keyed_model_handler = KeyedModelHandler(PytorchModelHandlerTensor(...))
  
 with pipeline as p:
    data = p | beam.Create([
-      ('img1', np.array[[1,2,3],[4,5,6],...]),
-      ('img2', np.array[[1,2,3],[4,5,6],...]),
-      ('img3', np.array[[1,2,3],[4,5,6],...]),
+      ('img1', torch.tensor([[1,2,3],[4,5,6],...])),
+      ('img2', torch.tensor([[1,2,3],[4,5,6],...])),
+      ('img3', torch.tensor([[1,2,3],[4,5,6],...])),
    ])
-   predictions = data | RunInference(<keyed_model_handler>)
+   predictions = data | RunInference(KeyedModelHandler)
 ```
 
 ### Use the PredictionResults object
