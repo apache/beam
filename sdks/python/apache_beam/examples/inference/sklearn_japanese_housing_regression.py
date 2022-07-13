@@ -92,7 +92,7 @@ class LoadDataframe(beam.DoFn):
 def report_predictions(prediction_result):
   true_result = prediction_result.example['TradePrice'].values[0]
   inference = prediction_result.inference
-  return 'True Price %.1f, Predicted Price %f' % (true_result, inference)
+  return 'True Price %.0f, Predicted Price %.0f' % (true_result, inference)
 
 
 def parse_known_args(argv):
@@ -152,10 +152,10 @@ def run(argv=None, save_main_session=True):
 
     all_predictions = (prediction_1, prediction_2, prediction_3, prediction_4)
     flattened_predictions = all_predictions | 'Flatten' >> beam.Flatten()
-    predictions = (
+    prediction_report = (
         flattened_predictions
         | 'AllPredictions' >> beam.Map(report_predictions))
-    _ = predictions | "WriteOutput" >> beam.io.WriteToText(
+    _ = prediction_report | "WriteOutput" >> beam.io.WriteToText(
         known_args.output, append_trailing_newlines=True)
 
 
