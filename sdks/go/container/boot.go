@@ -32,7 +32,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	// Import gcs filesystem so that it can be used to upload heap dumps
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
-	// Import gcs filesystem so that it can be used to upload heap dumps
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
