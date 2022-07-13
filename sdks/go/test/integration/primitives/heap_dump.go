@@ -16,11 +16,27 @@
 package primitives
 
 import (
+	"context"
+	"time"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
-func oomFn(elm int, emit func(int)) {
-	_ = make([]int64, 1<<40)
+func oomFn(ctx context.Context, elm int, emit func(int)) {
+	size := 1 << 25
+	// Simulate a slow memory leak
+	for {
+		abc := make([]int64, size)
+		log.Debugf(ctx, "abc %v", abc)
+		time.Sleep(5 * time.Second)
+		log.Debugf(ctx, "abc %v", abc)
+		if size > 1<<40 {
+			break
+		}
+
+		size = int(float64(size) * 1.2)
+	}
 	emit(elm)
 }
 

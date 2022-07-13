@@ -29,8 +29,11 @@ import (
 
 	"runtime/debug"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/diagnostics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/syscallx"
 )
@@ -114,6 +117,9 @@ func hook() {
 	memLimit := memoryLimit()
 	if err := syscallx.SetProcessMemoryCeiling(memLimit, memLimit); err != nil && err != syscallx.ErrUnsupported {
 		fmt.Println("Error Setting Rlimit ", err)
+	}
+	if tempLocation := beam.PipelineOptions.Get("temp_location"); tempLocation != "" {
+		go diagnostics.SampleForHeapProfile(ctx)
 	}
 	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint); err != nil {
 		fmt.Fprintf(os.Stderr, "Worker failed: %v\n", err)

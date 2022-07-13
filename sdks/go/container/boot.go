@@ -32,6 +32,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	// Import gcs filesystem so that it can be used to upload heap dumps
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
+	// Import gcs filesystem so that it can be used to upload heap dumps
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
@@ -128,7 +129,7 @@ func main() {
 		err := json.Unmarshal([]byte(options), &opt)
 		if err == nil {
 			if tempLocation, ok := opt.Options.Options["temp_location"]; ok {
-				diagnostics.UploadHeapDump(ctx, fmt.Sprintf("%v/heapDumps/dump-%v-%d", strings.TrimSuffix(tempLocation, "/"), *id, time.Now().Unix()))
+				diagnostics.UploadHeapProfile(ctx, fmt.Sprintf("%v/heapProfiles/profile-%v-%d", strings.TrimSuffix(tempLocation, "/"), *id, time.Now().Unix()))
 			}
 		}
 	}

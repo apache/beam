@@ -18,28 +18,93 @@ package diagnostics
 import (
 	"bufio"
 	"context"
+	"errors"
 	"os"
-
-	"runtime/debug"
+	"runtime"
+	"runtime/pprof"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
-func UploadHeapDump(ctx context.Context, dest string) error {
-	heapDumpLoc := "heapDump"
+const (
+	hProfLoc     = "/tmp/hProf"
+	tempHProfLoc = "/tmp/hProf.tmp"
+)
 
-	f, err := os.Create(heapDumpLoc)
+// SampleForHeapProfile checks every second if it should take a heap profile, and if so
+// it takes one and saves it to hProfLoc. A profile will be taken if either:
+// (1) the amount of memory allocated has increased since the last heap profile was taken or
+// (2) it has been 60 seconds since the last heap profile was taken
+func SampleForHeapProfile(ctx context.Context) {
+	var maxAllocatedSoFar uint64
+	maxAllocatedSoFar = 0
+	samplesSkipped := 0
+	for {
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+		if m.Alloc > maxAllocatedSoFar || samplesSkipped >= 60 {
+			samplesSkipped = 0
+			maxAllocatedSoFar = m.Alloc
+			err := saveHeapProfile()
+			log.Warnf(ctx, "err - %v", err)
+		} else {
+			samplesSkipped++
+		}
+		// TODO(Issue #21797) - make this value and the samplesSkipped value configurable.
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func saveHeapProfile() error {
+	// Write to a .tmp file before moving to final location to ensure
+	// that OOM doesn't disrupt this flow.
+	// Try removing temp file in case we ran into an error previously
+	if err := os.Remove(tempHProfLoc); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	fd, err := os.Create(tempHProfLoc)
 	if err != nil {
 		return err
 	}
-	debug.WriteHeapDump(f.Fd())
+	defer fd.Close()
+	buf := bufio.NewWriterSize(fd, 1<<20) // use 1MB buffer
 
-	heapDump, err := os.Open(heapDumpLoc)
+	err = pprof.WriteHeapProfile(buf)
 	if err != nil {
 		return err
 	}
-	defer heapDump.Close()
-	heapDumpReader := bufio.NewReader(heapDump)
+
+	if err := buf.Flush(); err != nil {
+		return err
+	}
+
+	if err := os.Remove(hProfLoc); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+
+	return os.Rename(tempHProfLoc, hProfLoc)
+}
+
+// UploadHeapPrilfe checks if a heap profile is available and uploads it to dest
+// if one is. It will first check hProfLoc for the heap profile and then it will
+// check tempHProfLoc if no file exists at hProfLoc.
+func UploadHeapProfile(ctx context.Context, dest string) error {
+	hProf, err := os.Open(hProfLoc)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			hProf, err = os.Open(tempHProfLoc)
+			if err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					return nil
+				}
+				return err
+			}
+		}
+	}
+	defer hProf.Close()
+	hProfReader := bufio.NewReader(hProf)
 
 	fs, err := filesystem.New(ctx, dest)
 	if err != nil {
@@ -52,7 +117,7 @@ func UploadHeapDump(ctx context.Context, dest string) error {
 	}
 	buf := bufio.NewWriterSize(fd, 1<<20) // use 1MB buffer
 
-	_, err = heapDumpReader.WriteTo(buf)
+	_, err = hProfReader.WriteTo(buf)
 	if err != nil {
 		return err
 	}
