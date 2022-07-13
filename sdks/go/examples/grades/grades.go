@@ -45,7 +45,6 @@ func init() {
 	register.Function2x1(alphabetically)
 	register.Function1x2(keyGrade)
 	register.Function1x1(getGPA)
-	beam.RegisterType(reflect.TypeOf((*Grade)(nil)))
 }
 
 type Grade struct {
