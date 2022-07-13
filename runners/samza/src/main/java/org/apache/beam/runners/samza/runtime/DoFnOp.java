@@ -290,7 +290,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
                     transform
                         .getTransform()
                         .getInputsMap()
-                        .containsKey(executableStage.getInputPCollection().getId()))
+                        .containsValue(executableStage.getInputPCollection().getId()))
             .collect(Collectors.toSet());
 
     Set<String> outputIds =
@@ -303,7 +303,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
             .filter(
                 transform ->
                     CollectionUtils.containsAny(
-                        transform.getTransform().getOutputsMap().keySet(), outputIds))
+                        transform.getTransform().getOutputsMap().values(), outputIds))
             .collect(Collectors.toSet());
 
     return String.format("[%s-%s]", toStepName(inputs), toStepName(outputs));
