@@ -28,7 +28,6 @@ package main
 import (
 	"context"
 	"flag"
-	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
