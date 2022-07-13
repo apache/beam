@@ -50,8 +50,9 @@ from apache_beam.ml.inference.base import RunInference
  
 with pipeline as p:
    predictions = ( p |  'Read' >> beam.ReadFromSource('a_source')   
-                     | 'RunInference' >> RunInference(model_handler)
+                     | 'RunInference' >> RunInference(<model_handler>)
 ```
+Where `model_handler` is the model handler setup code.
 
 To import models, you need to wrap them around a `ModelHandler` object. Which `ModelHandler` you import depends on the framework and type of data structure that contains the inputs. The following examples show some ModelHandlers that you might want to import.
 
@@ -90,8 +91,8 @@ You can also use the RunInference transform to add multiple inference models to 
 ```
 with pipeline as p:
    data = p | 'Read' >> beam.ReadFromSource('a_source') 
-   model_a_predictions = data | RunInference(ModelHandlerA)
-   model_b_predictions = data | RunInference(ModelHandlerB)
+   model_a_predictions = data | RunInference(<model_handler_A>)
+   model_b_predictions = data | RunInference(<model_handler_B>)
 ```
 
 #### Ensemble Pattern
@@ -99,8 +100,8 @@ with pipeline as p:
 ```
 with pipeline as p:
    data = p | 'Read' >> beam.ReadFromSource('a_source') 
-   model_a_predictions = data | RunInference(ModelHandlerA)
-   model_b_predictions = model_a_predictions | beam.Map(some_post_processing) | RunInference(ModelHandlerB)
+   model_a_predictions = data | RunInference(<model_handler_A>)
+   model_b_predictions = model_a_predictions | beam.Map(some_post_processing) | RunInference(<model_handler_B>)
 ```
 
 ### Use a keyed ModelHandler
@@ -118,7 +119,7 @@ with pipeline as p:
       ('img2', np.array[[1,2,3],[4,5,6],...]),
       ('img3', np.array[[1,2,3],[4,5,6],...]),
    ])
-   predictions = data | RunInference(keyed_model_handler)
+   predictions = data | RunInference(<keyed_model_handler>)
 ```
 
 ### Use the PredictionResults object
@@ -142,7 +143,7 @@ class PostProcessor(beam.DoFn):
 with pipeline as p:
     output = (
         p | 'Read' >> beam.ReadFromSource('a_source') 
-                | 'PyTorchRunInference' >> RunInference(KeyedModelHandler)
+                | 'PyTorchRunInference' >> RunInference(<keyed_model_handler>)
                 | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 ```
 
