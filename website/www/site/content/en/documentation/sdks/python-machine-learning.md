@@ -49,8 +49,8 @@ To use the RunInference transform, add the following code to your pipeline:
 from apache_beam.ml.inference.base import RunInference
  
 with pipeline as p:
-   predictions = ( p | beam.ReadFromSource('a_source')   
-    | RunInference(configuration)))
+   predictions = ( p |  'Read' >> beam.ReadFromSource('a_source')   
+                     | 'RunInference' >> RunInference(model_handler)
 ```
 
 To import models, you need to wrap them around a `ModelHandler` object. Add one or more of the following lines of code, depending on the framework and type of data structure that contains the inputs:
@@ -69,12 +69,25 @@ from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedT
 ```
 ### Use pre-trained models
 
-You need to provide a path to the model weights that's accessible by the pipeline. To use pre-trained models with the RunInference API and the PyTorch framework, complete the following steps:
+The section provides requirements for using pre-trained models with PyTorch and Scikit-learn
+
+#### PyTorch
+
+You need to provide a path to a file that contains the model saved weights. This path must be accessible by the pipeline. To use pre-trained models with the RunInference API and the PyTorch framework, complete the following steps:
 
 1. Download the pre-trained weights and host them in a location that the pipeline can access.
-2. Pass the hosted path of the model to the PyTorch `model_handler` by using the following code: `state_dict_path=<path_to_weights>`.
+2. Pass the path of the model to the PyTorch `model_handler` by using the following code: `state_dict_path=<path_to_weights>`.
 
-### Use multiple inference models
+#### Scikit-learn
+
+You need to provide a path to a file that contains the pickled Scikit-learn model. This path must be accessible by the pipeline. To use pre-trained models with the RunInference API and the Scikit-learn framework, complete the following steps:
+
+1. Download the pickled model class and host it in a location that the pipeline can access.
+2. Pass the path of the model to the Sklearn `model_handler` by using the following code:
+   `model_uri=<path_to_pickled_file>` and `model_file_type: <ModelFileType>`, where you can specify
+   `ModelFileType.PICKLE` or `ModelFileType.JOBLIB`, depending on how the model was serialized.
+
+### Use multiple models
 
 You can also use the RunInference transform to add multiple inference models to your pipeline.
 
@@ -98,7 +111,7 @@ with pipeline as p:
 
 ### Use a keyed ModelHandler
 
-If a key is attached to the examples, use the `KeyedModelHandler`:
+If a key is attached to the examples, wrap the `KeyedModelHandler` around the `ModelHandler` object:
 
 ```
 from apache_beam.ml.inference.base import KeyedModelHandler
@@ -116,9 +129,9 @@ with pipeline as p:
 
 ### Use the PredictionResults object
 
-When doing a prediction in Apache Beam, the output `PCollection` includes both the keys of the input examples and the inferences. Including both these items in the output allows you to find the input that determined the predictions without returning the full input data.
+When doing a prediction in Apache Beam, the output `PCollection` includes both the keys of the input examples and the inferences. Including both these items in the output allows you to find the input that determined the predictions.
 
-The `PredictionResult` is a `NamedTuple` object that contains both the input and the inferences, named  `example` and  `inference`, respectively. Your pipeline interacts with a `PredictionResult` object in steps after the RunInference transform.
+The `PredictionResult` is a `NamedTuple` object that contains both the input and the inferences, named  `example` and  `inference`, respectively. When keys are passed with the input data to the RunInference transform, the output `PCollection` returns a `Tuple[str, PredictionResult]`, which is the key and the `PredictionResult` object. Your pipeline interacts with a `PredictionResult` object in steps after the RunInference transform.
 
 ```
 class PostProcessor(beam.DoFn):
@@ -156,24 +169,21 @@ For detailed instructions explaining how to build and run a pipeline that uses M
 
 If you run into problems with your pipeline or job, this section lists issues that you might encounter and provides suggestions for how to fix them.
 
-### Prediction results missing
+### Incorrect inferences in the PredictionResult object
 
-When you use a dictionary of tensors, the output might not include the prediction results. This issue occurs because the RunInference API supports tensors but not dictionaries of tensors. 
+In some cases, the `PredictionResults` output might not include the correct predictions in the `inferences` field. This issue occurs when you use a model whose inferences return a dictionary that maps keys to predictions and that includes additional metadata. An example return type is `Dict[str, Tensor]`.
 
-Many model inferences return a dictionary with the predictions and additional metadata, for example, `Dict[str, Tensor]`. The RunInference API currently expects outputs to be an `Iterable[Any]`, for example, `Iterable[Tensor]` or `Iterable[Dict[str, Tensor]]`.
+The RunInference API currently expects outputs to be an `Iterable[Any]`. Example types are `Iterable[Tensor]` or `Iterable[Dict[str, Tensor]]`. When RunInference zips the inputs with the predictions, the predictions iterate over the dictionary keys instead of the batch elements. The result is that the key name is preserved but the prediction tensors are discarded. For more information, see the [Pytorch RunInference PredictionResult is a Dict](https://github.com/apache/beam/issues/22240) issue in the Apache Beam GitHub project.
 
-When RunInference zips the inputs with the predictions, the predictions iterate over the dictionary keys instead of the batch elements. The result is that the key name is preserved but the prediction tensors are discarded. For more information, see the [Pytorch RunInference PredictionResult is a Dict](https://github.com/apache/beam/issues/22240) issue in the Apache Beam GitHub project.
-
-To work with current RunInference implementation, override the `forward()` function and convert the standard Hugging Face forward output into the appropriate format of `List[Dict[str, torch.Tensor]]`. For more information, see an [example with the batching flag added](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py#L49).
+To work with current RunInference implementation, override the `forward()` function and convert the standard Hugging Face forward output into the appropriate format of `List[Dict[str, torch.Tensor]]`. For more information, see our [HuggingFace language modeling example](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py#L49).
 
 ### Unable to batch tensor elements
 
 RunInference uses dynamic batching. However, the RunInference API cannot batch tensor elements of different sizes, because `torch.stack()` expects tensors of the same length. If you provide images of different sizes or word embeddings of different lengths, errors might occur.
 
-To avoid this issue:
+To avoid this issue, use one of the following solutions:
 
-1. Either use elements that have the same size, or resize image inputs and word embeddings to make them 
-the same size. Depending on the language model and encoding technique, this option might not be available. 
+1. Use elements of the same size or resize the inputs. For computer vision applications, resize image inputs so that they have the same dimensions. For natural language processing (NLP) applications that have text of varying length, resize the text or word embeddings to make them the same length. When working with texts of varying length, resizing might not be possible.
 2. Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see
 [BatchElements PTransforms](/documentation/sdks/python-machine-learning/#batchelements-ptransform).
 
