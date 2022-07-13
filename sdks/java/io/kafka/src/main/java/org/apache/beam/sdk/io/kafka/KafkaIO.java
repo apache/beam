@@ -1339,11 +1339,19 @@ public class KafkaIO {
       final KafkaIOReadImplementationCompatibilityResult compatibility =
           KafkaIOReadImplementationCompatibility.getCompatibility(this);
 
-      // For read from unbounded in a bounded manner, we actually are not going through Read or SDF.
+      // For a number of cases, we prefer using the UnboundedSource Kafka over the new SDF-based
+      // Kafka source, for example,
+      // * Experiments 'beam_fn_api_use_deprecated_read' and use_deprecated_read will result in
+      // legacy UnboundeSource being used.
+      // * Experiment 'use_unbounded_sdf_wrapper' will result in legacy UnboundeSource being used
+      // but will be wrapped by an SDF.
+      // * Some runners or selected features may not be compatible with SDF-based Kafka.
       if (ExperimentalOptions.hasExperiment(
               input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
           || ExperimentalOptions.hasExperiment(
               input.getPipeline().getOptions(), "use_deprecated_read")
+          || ExperimentalOptions.hasExperiment(
+              input.getPipeline().getOptions(), "use_unbounded_sdf_wrapper")
           || compatibility.supportsOnly(KafkaIOReadImplementation.LEGACY)
           || (compatibility.supports(KafkaIOReadImplementation.LEGACY)
               && runnerPrefersLegacyRead(input.getPipeline().getOptions()))) {
