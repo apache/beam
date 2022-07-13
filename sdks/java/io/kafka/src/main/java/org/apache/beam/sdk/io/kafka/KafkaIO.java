@@ -543,6 +543,11 @@ import org.slf4j.LoggerFactory;
  * For any significant significant updates to this I/O connector, please consider involving
  * corresponding code reviewers mentioned <a
  * href="https://github.com/apache/beam/blob/master/sdks/java/io/kafka/OWNERS">here</a>.
+ *
+ * <h1>Reading from Kafka SDF is currently broken, as re-starting the pipeline will cause the
+ * consumer to start from scratch. See <a
+ * href="https://github.com/apache/beam/issues/21730">this</a>. Current workaround is to use
+ * --experimental_option=use_deprecated_read to use the Unbounded implementation</h1>
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
@@ -1349,6 +1354,10 @@ public class KafkaIO {
               && runnerPrefersLegacyRead(input.getPipeline().getOptions()))) {
         return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
       }
+      LOG.warn(
+          "Reading from Kafka SDF is currently broken, as re-starting the pipeline will cause the consumer to start from scratch."
+              + " See https://github.com/apache/beam/issues/21730 . "
+              + "Current workaround is to use --experimental_option=use_deprecated_read to use the Unbounded implementation");
       return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
     }
 
