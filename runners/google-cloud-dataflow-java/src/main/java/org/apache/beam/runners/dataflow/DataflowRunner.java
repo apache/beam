@@ -872,7 +872,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   protected RunnerApi.Pipeline applySdkEnvironmentOverrides(
-      RunnerApi.Pipeline pipeline, DataflowPipelineDebugOptions options) {
+      RunnerApi.Pipeline pipeline, DataflowPipelineOptions options) {
     String sdkHarnessContainerImageOverrides = options.getSdkHarnessContainerImageOverrides();
     String[] overrides =
         Strings.isNullOrEmpty(sdkHarnessContainerImageOverrides)
@@ -907,7 +907,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         }
         if (containerImage.startsWith("apache/beam")
             && !updated
-            && !containerImage.equals(Environments.JAVA_SDK_HARNESS_CONTAINER_URL)) {
+            // don't update if the container image is already configured by DataflowRunner
+            && !containerImage.equals(getContainerImageForJob(options))) {
           containerImage =
               DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository()
                   + containerImage.substring(containerImage.lastIndexOf("/"));
