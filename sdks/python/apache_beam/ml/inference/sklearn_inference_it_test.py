@@ -36,6 +36,13 @@ def process_outputs(filepath):
   return lines
 
 
+def file_lines_sorted(filepath):
+  with FileSystems().open(filepath) as f:
+    lines = f.readlines()
+  lines = [l.decode('utf-8').strip('\n') for l in lines]
+  return sorted(lines)
+
+
 @pytest.mark.skip
 @pytest.mark.uses_sklearn
 @pytest.mark.it_postcommit
