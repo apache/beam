@@ -16,7 +16,7 @@
 """
 Module contains the client to communicate with Google Cloud Datastore
 """
-import string
+import os.path
 from datetime import datetime
 from typing import List
 
@@ -29,7 +29,7 @@ from helper import Example
 from api.v1.api_pb2 import Sdk
 
 
-# https://cloud.google.com/datastore/docs/concepts/entities
+# https://cloud.google.com/datastore/docs/concepts
 class DatastoreClient:
     """DatastoreClient is a datastore client for sending a request to the Google."""
 
@@ -70,7 +70,7 @@ class DatastoreClient:
             self._datastore_client.put_multi(files)
 
     def _get_actual_schema_version(self, schema_names: List[str]) -> datastore.Key:
-        schema_names.sort()
+        schema_names.sort(reverse=True)
         return self._get_key(DatastoreProps.SCHEMA_KIND, schema_names[0])
 
     def _get_key_name(self, key: datastore.Key):
@@ -79,7 +79,7 @@ class DatastoreClient:
     def _get_key(self, kind, identifier: str) -> datastore.Key:
         return self._datastore_client.key(kind, identifier)
 
-    def _to_snippet_entities(self, example: Example, snp_id: string, sdk_key: datastore.Key, now: datetime, schema_key: datastore.Key, snippets: list):
+    def _to_snippet_entities(self, example: Example, snp_id: str, sdk_key: datastore.Key, now: datetime, schema_key: datastore.Key, snippets: list):
         snippet_entity = datastore.Entity(self._get_key(DatastoreProps.SNIPPET_KIND, snp_id))
         snippet_entity.update(
             {
@@ -109,12 +109,12 @@ class DatastoreClient:
         )
         examples.append(example_entity)
 
-    def _to_pc_object_entities(self, example: Example, snp_id: string, pc_objects: list):
-        if example.graph != (None, ""):
+    def _to_pc_object_entities(self, example: Example, snp_id: str, pc_objects: list):
+        if len(example.graph) != 0:
             self._append_pc_obj_entity(snp_id, example.graph, PrecompiledExample.GRAPH_EXTENSION.upper(), pc_objects)
-        if example.output != (None, ""):
+        if len(example.output) != 0:
             self._append_pc_obj_entity(snp_id, example.output, PrecompiledExample.OUTPUT_EXTENSION.upper(), pc_objects)
-        if example.logs != (None, ""):
+        if len(example.logs) != 0:
             self._append_pc_obj_entity(snp_id, example.logs, PrecompiledExample.LOG_EXTENSION.upper(), pc_objects)
 
     def _append_pc_obj_entity(self, snp_id: str, content: str, pc_obj_type: str, pc_objects: list):
@@ -126,10 +126,17 @@ class DatastoreClient:
         file_entity = datastore.Entity(self._get_key(DatastoreProps.FILED_KIND, f"{snp_id}_{0}"), exclude_from_indexes=('content',))
         file_entity.update(
             {
-                "name": example.name,
+                "name": self._get_file_name_with_extension(example.name, example.sdk),
                 "content": example.code,
                 "cntxLine": example.tag.context_line,
                 "isMain": True
             }
         )
         files.append(file_entity)
+
+    def _get_file_name_with_extension(self, name: str, sdk: Sdk) -> str:
+        filename, file_extension = os.path.splitext(name)
+        if len(file_extension) == 0:
+            extension = Config.SDK_TO_EXTENSION[sdk]
+            return f"{filename}.{extension}"
+        return name
