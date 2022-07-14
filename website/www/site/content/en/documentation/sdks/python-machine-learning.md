@@ -78,7 +78,7 @@ You need to provide a path to a file that contains the model saved weights. This
 You need to provide a path to a file that contains the pickled Scikit-learn model. This path must be accessible by the pipeline. To use pre-trained models with the RunInference API and the Scikit-learn framework, complete the following steps:
 
 1. Download the pickled model class and host it in a location that the pipeline can access.
-2. Pass the path of the model to the Sklearn `model_handler` by using the following code:
+2. Pass the path of the model to the Sklearn `ModelHandler` by using the following code:
    `model_uri=<path_to_pickled_file>` and `model_file_type: <ModelFileType>`, where you can specify
    `ModelFileType.PICKLE` or `ModelFileType.JOBLIB`, depending on how the model was serialized.
 
