@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Benchmarks for the Java SDK schemas. */
+/** Benchmarks for schemas. */
 package org.apache.beam.sdk.schemas;
