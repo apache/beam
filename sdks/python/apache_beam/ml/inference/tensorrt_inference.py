@@ -20,8 +20,7 @@
 
 import logging
 import numpy as np
-import pycuda.autoinit  # pylint: disable=unused-import
-import pycuda.driver as cuda
+from cuda import cuda
 import sys
 import tensorrt as trt
 from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
@@ -80,9 +79,70 @@ def _validate_inference_args(inference_args):
         'engines do not need extra arguments in their execute_v2() call.')
 
 
+class TensorRTEngine:
+  def __init__(self, engine: trt.ICudaEngine):
+    """Implementation of the TensorRTEngine class which handles
+    allocations associated with TensorRT engine.
+
+    Example Usage::
+
+    TensorRTEngine(engine)
+
+    Args:
+      engine: trt.ICudaEngine object that contains TensorRT engine
+    """
+    self.engine = engine
+    self.context = engine.create_execution_context()
+    self.inputs = []
+    self.outputs = []
+    self.gpu_allocations = []
+    self.cpu_allocations = []
+
+    # Setup I/O bindings
+    for i in range(self.engine.num_bindings):
+      is_input = False
+      if self.engine.binding_is_input(i):
+        is_input = True
+      name = self.engine.get_binding_name(i)
+      dtype = self.engine.get_binding_dtype(i)
+      shape = self.engine.get_binding_shape(i)
+      if is_input:
+        batch_size = shape[0]
+      size = np.dtype(trt.nptype(dtype)).itemsize
+      for s in shape:
+        size *= s
+      err, allocation = cuda.cuMemAlloc(size)
+      binding = {
+          'index': i,
+          'name': name,
+          'dtype': np.dtype(trt.nptype(dtype)),
+          'shape': list(shape),
+          'allocation': allocation,
+          'size': size
+      }
+      self.gpu_allocations.append(allocation)
+      if self.engine.binding_is_input(i):
+        self.inputs.append(binding)
+      else:
+        self.outputs.append(binding)
+    
+    assert self.context
+    assert batch_size > 0
+    assert len(self.inputs) > 0
+    assert len(self.outputs) > 0
+    assert len(self.gpu_allocations) > 0
+
+    for output in self.outputs:
+      self.cpu_allocations.append(np.zeros(output['shape'], output['dtype']))
+
+  def get_engine_attrs(self):
+    """Returns TensorRT engine attributes."""
+    return self.engine, self.context, self.inputs, self.outputs, self.gpu_allocations, self.cpu_allocations
+
+
 class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
                                               PredictionResult,
-                                              trt.ICudaEngine]):
+                                              TensorRTEngine]):
   def __init__(self, min_batch_size: int, max_batch_size: int, **kwargs):
     """Implementation of the ModelHandler interface for TensorRT.
 
@@ -119,22 +179,24 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
         'max_batch_size': self.max_batch_size
     }
 
-  def load_model(self) -> trt.ICudaEngine:
+  def load_model(self) -> TensorRTEngine:
     """Loads and initializes a TensorRT engine for processing."""
-    return _load_engine(self.engine_path)
+    engine = _load_engine(self.engine_path)
+    return TensorRTEngine(engine)
 
   def load_onnx(self) -> Tuple[trt.INetworkDefinition, trt.Builder]:
     """Loads and parses an onnx model for processing."""
     return _load_onnx(self.onnx_path)
 
-  def build_engine(self, network: trt.INetworkDefinition, builder: trt.Builder) -> trt.ICudaEngine:
+  def build_engine(self, network: trt.INetworkDefinition, builder: trt.Builder) -> TensorRTEngine:
     """Build an engine according to parsed/created network."""
-    return _build_engine(network, builder)
+    engine = _build_engine(network, builder)
+    return TensorRTEngine(engine)
 
   def run_inference(
       self,
       batch: np.ndarray,
-      engine: trt.ICudaEngine,
+      engine: TensorRTEngine,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
@@ -152,55 +214,19 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       An Iterable of type PredictionResult.
     """
     _validate_inference_args(inference_args)
-    stream = cuda.Stream()
-
-    context = engine.create_execution_context()
-    assert context
-    # Setup I/O bindings
-    inputs = []
-    outputs = []
-    allocations = []
-    for i in range(engine.num_bindings):
-      is_input = False
-      if engine.binding_is_input(i):
-        is_input = True
-      name = engine.get_binding_name(i)
-      dtype = engine.get_binding_dtype(i)
-      shape = engine.get_binding_shape(i)
-      if is_input:
-        batch_size = shape[0]
-      size = np.dtype(trt.nptype(dtype)).itemsize
-      for s in shape:
-        size *= s
-      allocation = cuda.mem_alloc(size)
-      binding = {
-          'index': i,
-          'name': name,
-          'dtype': np.dtype(trt.nptype(dtype)),
-          'shape': list(shape),
-          'allocation': allocation,
-      }
-      allocations.append(allocation)
-      if engine.binding_is_input(i):
-        inputs.append(binding)
-      else:
-        outputs.append(binding)
-
-    assert batch_size > 0
-    assert len(inputs) > 0
-    assert len(outputs) > 0
-    assert len(allocations) > 0
-    # Prepare the output data
-    predictions = []
-    for output in outputs:
-      predictions.append(np.zeros(output['shape'], output['dtype']))
+    #Create CUDA Stream
+    err, stream = cuda.cuStreamCreate(0)
+    engine, context, inputs, outputs, gpu_allocations, cpu_allocations = engine.get_engine_attrs()
     # Process I/O and execute the network
-    cuda.memcpy_htod_async(inputs[0]['allocation'], np.ascontiguousarray(batch), stream)
-    context.execute_async_v2(allocations, stream.handle)
-    for output in range(len(predictions)):
-      cuda.memcpy_dtoh_async(predictions[output], outputs[output]['allocation'], stream)
+    err, = cuda.cuMemcpyHtoDAsync(inputs[0]['allocation'], np.ascontiguousarray(batch), inputs[0]['size'], stream)
+    context.execute_async_v2(gpu_allocations, stream)
+    for output in range(len(cpu_allocations)):
+      err, = cuda.cuMemcpyDtoHAsync(cpu_allocations[output], outputs[output]['allocation'], outputs[output]['size'], stream)
+    # Destroy CUDA Stream
+    err, = cuda.cuStreamDestroy(stream)
+
     return [
-        PredictionResult(x, [prediction[idx] for prediction in predictions])
+        PredictionResult(x, [prediction[idx] for prediction in cpu_allocations])
         for idx,
         x in enumerate(batch)
     ]
