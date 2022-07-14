@@ -114,7 +114,6 @@ If a key is attached to the examples, wrap the `KeyedModelHandler` around the `M
 ```
 from apache_beam.ml.inference.base import KeyedModelHandler
 keyed_model_handler = KeyedModelHandler(PytorchModelHandlerTensor(...))
- 
 with pipeline as p:
    data = p | beam.Create([
       ('img1', torch.tensor([[1,2,3],[4,5,6],...])),
