@@ -156,7 +156,9 @@ def run(argv=None, save_main_session=True):
         flattened_predictions
         | 'AllPredictions' >> beam.Map(report_predictions))
     _ = prediction_report | "WriteOutput" >> beam.io.WriteToText(
-        known_args.output, append_trailing_newlines=True)
+        known_args.output,
+        append_trailing_newlines=True,
+        shard_name_template='')
 
 
 if __name__ == '__main__':
