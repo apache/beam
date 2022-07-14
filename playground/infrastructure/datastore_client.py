@@ -58,7 +58,7 @@ class DatastoreClient:
         with self._datastore_client.transaction():
             for example in tqdm(examples_from_rep):
                 sdk_key = self._get_key(DatastoreProps.SDK_KIND, Sdk.Name(example.sdk))
-                example_id = f"{example.name.strip()}_{Sdk.Name(example.sdk)}"
+                example_id = f"{example.name}_{Sdk.Name(example.sdk)}"
                 self._to_example_entities(example, example_id, sdk_key, actual_schema_version_key, examples)
                 self._to_snippet_entities(example, example_id, sdk_key, now, actual_schema_version_key, snippets)
                 self._to_pc_object_entities(example, example_id, pc_objects)
@@ -84,15 +84,20 @@ class DatastoreClient:
         snippet_entity.update(
             {
                 "sdk": sdk_key,
-                "pipeOpts": example.tag.pipeline_options,
+                "pipeOpts": self._get_pipeline_options(example),
                 "created": now,
-                "lVisited": now,
                 "origin": DatastoreProps.ORIGIN_PROPERTY_VALUE,
                 "numberOfFiles": 1,
                 "schVer": schema_key
             }
         )
         snippets.append(snippet_entity)
+
+    def _get_pipeline_options(self, example: Example):
+        pip_opts = example.tag.pipeline_options
+        if pip_opts is not None:
+            return pip_opts
+        return ""
 
     def _to_example_entities(self, example: Example, example_id: str, sdk_key: datastore.Key, schema_key: datastore.Key, examples: list):
         example_entity = datastore.Entity(self._get_key(DatastoreProps.EXAMPLE_KIND, example_id))
