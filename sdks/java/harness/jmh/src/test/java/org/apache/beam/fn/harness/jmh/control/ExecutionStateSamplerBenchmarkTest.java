@@ -46,7 +46,7 @@ public class ExecutionStateSamplerBenchmarkTest {
     state.setup();
     threadState.setup(state);
     new ExecutionStateSamplerBenchmark()
-        .testTinyBundleRunnersCoreStateSampler(state, threadState, blackhole);
+        .testTinyBundleRunnersCoreStateSampler(threadState, blackhole);
     state.tearDown();
   }
 
@@ -57,7 +57,7 @@ public class ExecutionStateSamplerBenchmarkTest {
     state.setup();
     threadState.setup(state);
     new ExecutionStateSamplerBenchmark()
-        .testLargeBundleRunnersCoreStateSampler(state, threadState, blackhole);
+        .testLargeBundleRunnersCoreStateSampler(threadState, blackhole);
     state.tearDown();
   }
 
