@@ -48,7 +48,7 @@ To use the RunInference transform, add the following code to your pipeline:
 ```
 from apache_beam.ml.inference.base import RunInference
 with pipeline as p:
-   predictions = ( p |  'Read' >> beam.ReadFromSource('a_source')   
+   predictions = ( p |  'Read' >> beam.ReadFromSource('a_source')
                      | 'RunInference' >> RunInference(<model_handler>)
 ```
 Where `model_handler` is the model handler setup code.
