@@ -78,19 +78,19 @@
   - https://beam.apache.org/documentation/runners/flink/
 
   Reading via Kafka SDF is currently broken, and will cause the pipeline
-   to re-read all data on Kafka whenever restarted.
-   See https://github.com/apache/beam/issues/21730.
-   Current workaround is:
-        Start an expansion service with experiment "use_unbounded_sdf_wrapper"
-            #pylint: disable=line-too-long
-            java -jar sdks/java/io/expansion-service/build/libs/beam-sdks-java-io-expansion-service-2.41.0-SNAPSHOT.jar 12345 --experiments=use_unbounded_sdf_wrapper
-            #pylint: enable=line-too-long
+  to re-read all data on Kafka whenever restarted.
+  See https://github.com/apache/beam/issues/21730.
+  Current workaround is:
+  Start an expansion service with experiment "use_unbounded_sdf_wrapper"
+  #pylint: disable=line-too-long
+  java -jar sdks/java/io/expansion-service/build/libs/beam-sdks-java-io-expansion-service-2.41.0-SNAPSHOT.jar 12345 --experiments=use_unbounded_sdf_wrapper
+  #pylint: enable=line-too-long
 
-        Update transforms in kafka.py to use this expansion service.
-            https://github.com/apache/beam/blob/2c8e7eb7a39cbe3a1678a5c6b8b3f8700d4d8706/sdks/python/apache_beam/io/kafka.py#L189
+  Update transforms in kafka.py to use this expansion service.
+  https://github.com/apache/beam/blob/2c8e7eb7a39cbe3a1678a5c6b8b3f8700d4d8706/sdks/python/apache_beam/io/kafka.py#L189
 
-        Use instructions in Kafka example to run this from a Git clone.
-            https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/kafkataxi
+  Use instructions in Kafka example to run this from a Git clone.
+  https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/kafkataxi
 """
 
 # pytype: skip-file
