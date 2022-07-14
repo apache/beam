@@ -16,6 +16,7 @@
 """
 Module contains the client to communicate with Google Cloud Datastore
 """
+import logging
 import os.path
 from datetime import datetime
 from typing import List
@@ -29,11 +30,16 @@ from helper import Example
 from api.v1.api_pb2 import Sdk
 
 
-# https://cloud.google.com/datastore/docs/concepts
+# Google Datastore documentation link: https://cloud.google.com/datastore/docs/concepts
 class DatastoreClient:
     """DatastoreClient is a datastore client for sending a request to the Google."""
 
+    def _check_envs(self):
+        if Config.GOOGLE_CLOUD_PROJECT is None:
+            raise KeyError("GOOGLE_CLOUD_PROJECT environment variable should be specified in os")
+
     def __init__(self):
+        self._check_envs()
         self._datastore_client = datastore.Client(namespace=DatastoreProps.NAMESPACE, project=Config.GOOGLE_CLOUD_PROJECT)
 
     def save_to_cloud_datastore(self, examples_from_rep: List[Example]):
@@ -44,21 +50,37 @@ class DatastoreClient:
             :param examples_from_rep: examples from the repository for saving to the Cloud Datastore
         """
 
+        # initialise data
         snippets = []
         examples = []
         pc_objects = []
         files = []
-        now = datetime.today()
-        last_schema_version_query = self._datastore_client.query(kind=DatastoreProps.SCHEMA_KIND)
-        schema_iterator = last_schema_version_query.fetch()
+        updated_example_ids = []
         schema_names = []
+        examples_ids_before_updating = []
+        now = datetime.today()
+
+        # retrieve the last schema version
+        last_schema_version_query = self._datastore_client.query(kind=DatastoreProps.SCHEMA_KIND)
+        last_schema_version_query.keys_only()
+        schema_iterator = last_schema_version_query.fetch()
         for schema in schema_iterator:
             schema_names.append(schema.key.name)
         actual_schema_version_key = self._get_actual_schema_version(schema_names)
+
+        # retrieve all example keys before updating
+        all_examples_query = self._datastore_client.query(kind=DatastoreProps.EXAMPLE_KIND)
+        all_examples_query.keys_only()
+        examples_iterator = all_examples_query.fetch()
+        for example_item in examples_iterator:
+            examples_ids_before_updating.append(example_item.key.name)
+
+        # loop through every example to save them to the Cloud Datastore
         with self._datastore_client.transaction():
             for example in tqdm(examples_from_rep):
                 sdk_key = self._get_key(DatastoreProps.SDK_KIND, Sdk.Name(example.sdk))
                 example_id = f"{example.name}_{Sdk.Name(example.sdk)}"
+                updated_example_ids.append(example_id)
                 self._to_example_entities(example, example_id, sdk_key, actual_schema_version_key, examples)
                 self._to_snippet_entities(example, example_id, sdk_key, now, actual_schema_version_key, snippets)
                 self._to_pc_object_entities(example, example_id, pc_objects)
@@ -69,12 +91,26 @@ class DatastoreClient:
             self._datastore_client.put_multi(pc_objects)
             self._datastore_client.put_multi(files)
 
+            # delete extra examples
+            examples_ids_for_removing = list(filter(lambda key: key not in updated_example_ids, examples_ids_before_updating))
+            if len(examples_ids_for_removing) != 0:
+                logging.info("Start of deleting extra playground examples ...")
+                examples_keys_for_removing = list(map(lambda ex_id: self._get_key(DatastoreProps.EXAMPLE_KIND, ex_id), examples_ids_for_removing))
+                snippets_keys_for_removing = list(map(lambda ex_id: self._get_key(DatastoreProps.SNIPPET_KIND, ex_id), examples_ids_for_removing))
+                file_keys_for_removing = list(map(lambda ex_id: self._get_key(DatastoreProps.FILED_KIND, f"{ex_id}_{0}"), examples_ids_for_removing))
+                pc_objs_keys_for_removing = []
+                for example_id_item in examples_ids_for_removing:
+                    for example_type in [PrecompiledExample.GRAPH_EXTENSION.upper(), PrecompiledExample.OUTPUT_EXTENSION.upper(), PrecompiledExample.LOG_EXTENSION.upper()]:
+                        pc_objs_keys_for_removing.append(self._get_key(DatastoreProps.PRECOMPILED_OBJECT_KIND, f"{example_id_item}_{example_type}"))
+                self._datastore_client.delete_multi(examples_keys_for_removing)
+                self._datastore_client.delete_multi(snippets_keys_for_removing)
+                self._datastore_client.delete_multi(file_keys_for_removing)
+                self._datastore_client.delete_multi(pc_objs_keys_for_removing)
+                logging.info("Finish of deleting extra playground examples ...")
+
     def _get_actual_schema_version(self, schema_names: List[str]) -> datastore.Key:
         schema_names.sort(reverse=True)
         return self._get_key(DatastoreProps.SCHEMA_KIND, schema_names[0])
-
-    def _get_key_name(self, key: datastore.Key):
-        return key.name
 
     def _get_key(self, kind, identifier: str) -> datastore.Key:
         return self._datastore_client.key(kind, identifier)
