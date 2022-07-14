@@ -21,7 +21,7 @@ limitations under the License.
 
 {{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
 
-Uses models to do local and remote inference. A `RunInference` transform uses a `PCollection` of examples to create a machine learning (ML) model. The transform outputs a `PCollection` that contains the input examples and output predictions.
+Uses models to do local and remote inference. A `RunInference` transform performs inference on a `PCollection` of examples using a machine learning (ML) model. The transform outputs a `PCollection` that contains the input examples and output predictions.
 
 You must have Apache Beam 2.40.0 or later installed to run these pipelines.
 
