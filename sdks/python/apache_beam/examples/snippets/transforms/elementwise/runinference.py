@@ -17,6 +17,19 @@
 #
 
 # pytype: skip-file
+# pylint: disable=reimported
+
+import torch
+
+
+class LinearRegression(torch.nn.Module):
+  def __init__(self, input_dim=1, output_dim=1):
+    super().__init__()
+    self.linear = torch.nn.Linear(input_dim, output_dim)
+
+  def forward(self, x):
+    out = self.linear(x)
+    return out
 
 
 def torch_unkeyed_model_handler(test=None):
@@ -26,17 +39,6 @@ def torch_unkeyed_model_handler(test=None):
   import torch
   from apache_beam.ml.inference.base import RunInference
   from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
-
-  class LinearRegression(torch.nn.Module):
-    def __init__(self, input_dim=1, output_dim=1):
-      super().__init__()
-      self.linear = torch.nn.Linear(input_dim, output_dim)
-
-    def forward(self, x):
-      out = self.linear(x)
-      return out
-
-
 
   model_state_dict_path = 'gs://apache-beam-samples/run_inference/five_times_table_torch.pt'  # pylint: disable=line-too-long
   model_class = LinearRegression
@@ -68,17 +70,6 @@ def torch_keyed_model_handler(test=None):
   from apache_beam.ml.inference.base import KeyedModelHandler
   from apache_beam.ml.inference.base import RunInference
   from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
-
-  class LinearRegression(torch.nn.Module):
-    def __init__(self, input_dim=1, output_dim=1):
-      super().__init__()
-      self.linear = torch.nn.Linear(input_dim, output_dim)
-
-    def forward(self, x):
-      out = self.linear(x)
-      return out
-
-
 
   model_state_dict_path = 'gs://apache-beam-samples/run_inference/five_times_table_torch.pt'  # pylint: disable=line-too-long
   model_class = LinearRegression
