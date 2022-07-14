@@ -134,6 +134,17 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     """
     return {}
 
+  def validate_inference_args(self, inference_args):
+    """Validates inference_args passed in the inference call.
+
+    Most frameworks do not need extra arguments in their predict() call so the
+    default behavior is to error out if inference_args are present.
+    """
+    if inference_args:
+      raise ValueError(
+          'inference_args were provided, but should be None because this '
+          'framework does not expect extra arguments on inferences.')
+
 
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[Tuple[KeyT, ExampleT],
@@ -174,6 +185,9 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
   def batch_elements_kwargs(self):
     return self._unkeyed.batch_elements_kwargs()
+
+  def validate_inference_args(self, inference_args):
+    return self._unkeyed.validate_inference_args(inference_args)
 
 
 class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
@@ -240,6 +254,9 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
   def batch_elements_kwargs(self):
     return self._unkeyed.batch_elements_kwargs()
+
+  def validate_inference_args(self, inference_args):
+    return self._unkeyed.validate_inference_args(inference_args)
 
 
 class RunInference(beam.PTransform[beam.PCollection[ExampleT],
@@ -384,6 +401,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = self._load_model()
 
   def process(self, batch, inference_args):
+    self._model_handler.validate_inference_args(inference_args)
     start_time = _to_microseconds(self._clock.time_ns())
     result_generator = self._model_handler.run_inference(
         batch, self._model, inference_args)
