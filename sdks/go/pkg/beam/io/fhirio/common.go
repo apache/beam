@@ -134,21 +134,23 @@ func (c *fhirStoreClientImpl) deidentify(srcStorePath, dstStorePath string, deid
 
 func (c *fhirStoreClientImpl) pollTilCompleteAndCollectResults(operation *healthcare.Operation) (operationResults, error) {
 	operation, err := c.healthcareService.Projects.Locations.Datasets.Operations.Get(operation.Name).Do()
-	for i := 0; !operation.Done; {
+	for i := 0; err == nil && !operation.Done; {
 		time.Sleep(backoffDuration[i])
 		if i < len(backoffDuration)-1 {
 			i += 1
 		}
 
 		operation, err = c.healthcareService.Projects.Locations.Datasets.Operations.Get(operation.Name).Do()
-		if err != nil {
-			return operationResults{}, err
-		}
+	}
+
+	if err != nil {
+		return operationResults{}, err
 	}
 
 	if operation.Error != nil {
 		return operationResults{}, errors.New(operation.Error.Message)
 	}
+
 	return parseOperationCounterResultsFrom(operation.Metadata)
 }
 
