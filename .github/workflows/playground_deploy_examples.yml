@@ -19,7 +19,6 @@ on:
   push:
     tags: 'v*'
     branches: ['master', 'release-*']
-  pull_request:
   workflow_dispatch:
 env:
   BEAM_ROOT_DIR: ../../
