@@ -178,7 +178,8 @@ To work with the current RunInference implementation, you can create a wrapper c
 RunInference uses dynamic batching. However, the RunInference API cannot batch tensor elements of different sizes, so samples passed to the RunInferene transform must be the same dimension or length. If you provide images of different sizes or word embeddings of different lengths, the following error might occur:
 
 `
-File "/beam/sdks/python/apache_beam/ml/inference/pytorch_inference.py", line 232, in run_inference batched_tensors = torch.stack(key_to_tensor_list[key])
+File "/beam/sdks/python/apache_beam/ml/inference/pytorch_inference.py", line 232, in run_inference
+batched_tensors = torch.stack(key_to_tensor_list[key])
 RuntimeError: stack expects each tensor to be equal size, but got [12] at entry 0 and [10] at entry 1 [while running 'PyTorchRunInference/ParDo(_RunInferenceDoFn)']
 `
 
