@@ -85,7 +85,7 @@ var directFilters = []string{
 	// The direct runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
 }
 
 var portableFilters = []string{
@@ -103,7 +103,7 @@ var portableFilters = []string{
 	// The portable runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
 }
 
 var flinkFilters = []string{
@@ -119,7 +119,7 @@ var flinkFilters = []string{
 	// The flink runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
 }
 
 var samzaFilters = []string{
@@ -140,7 +140,7 @@ var samzaFilters = []string{
 	// The samza runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
 }
 
 var sparkFilters = []string{
@@ -162,7 +162,7 @@ var sparkFilters = []string{
 	// The spark runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
 }
 
 var dataflowFilters = []string{
