@@ -100,7 +100,7 @@ Where `model_handler_A` and `model_handler_B` are the model handler setup code.
 
 ```
 with pipeline as p:
-   data = p | 'Read' >> beam.ReadFromSource('a_source') 
+   data = p | 'Read' >> beam.ReadFromSource('a_source')
    model_a_predictions = data | RunInference(<model_handler_A>)
    model_b_predictions = model_a_predictions | beam.Map(some_post_processing) | RunInference(<model_handler_B>)
 ```
