@@ -23,10 +23,8 @@ from typing import List
 from google.cloud import datastore
 from tqdm import tqdm
 
-from config import Config, PrecompiledExample
+from config import Config, PrecompiledExample, DatastoreProps
 from helper import Example
-
-import constant
 
 
 # https://cloud.google.com/datastore/docs/concepts/entities
@@ -34,7 +32,7 @@ class DatastoreClient:
     """DatastoreClient is a datastore client for sending a request to the Google."""
 
     def __init__(self):
-        self._datastore_client = datastore.Client(namespace=constant.NAMESPACE, project=Config.GOOGLE_CLOUD_PROJECT)
+        self._datastore_client = datastore.Client(namespace=DatastoreProps.NAMESPACE, project=Config.GOOGLE_CLOUD_PROJECT)
 
     def save_to_cloud_datastore(self, examples_from_rep: List[Example]):
         """
@@ -49,12 +47,12 @@ class DatastoreClient:
         pc_objects = []
         files = []
         now = datetime.today()
-        last_schema_version_query = self._datastore_client.query(kind=constant.SCHEMA_KIND)
+        last_schema_version_query = self._datastore_client.query(kind=DatastoreProps.SCHEMA_KIND)
         schema_keys = last_schema_version_query.fetch()
         actual_schema_version_key = self._get_actual_schema_version(schema_keys)
         with self._datastore_client.transaction():
             for example in tqdm(examples_from_rep):
-                sdk_key = self._get_key(constant.SDK_KIND, example.sdk)
+                sdk_key = self._get_key(DatastoreProps.SDK_KIND, example.sdk)
                 example_id = f"${example.name.strip()}_${example.sdk}"
                 self._to_example_entities(example, example_id, sdk_key, actual_schema_version_key, examples)
                 self._to_snippet_entities(example, example_id, sdk_key, now, actual_schema_version_key, snippets)
@@ -66,33 +64,33 @@ class DatastoreClient:
             self._datastore_client.put_multi(pc_objects)
             self._datastore_client.put_multi(files)
 
-    def _get_actual_schema_version(self, schema_keys: List[datastore.key]) -> datastore.key:
+    def _get_actual_schema_version(self, schema_keys: List[datastore.Key]) -> datastore.Key:
         schema_keys.sort(key=self._get_key_name)
         return schema_keys[0]
 
-    def _get_key_name(self, key: datastore.key):
+    def _get_key_name(self, key: datastore.Key):
         return key["arg_1"]
 
-    def _get_key(self, kind, identifier: str) -> datastore.key:
+    def _get_key(self, kind, identifier: str) -> datastore.Key:
         return self._datastore_client.key(kind, identifier)
 
-    def _to_snippet_entities(self, example: Example, snp_id: string, sdk_key: datastore.key, now: datetime, schema_key: datastore.key, snippets: list):
-        snippet_entity = datastore.Entity(self._get_key(constant.SNIPPET_KIND, snp_id))
+    def _to_snippet_entities(self, example: Example, snp_id: string, sdk_key: datastore.Key, now: datetime, schema_key: datastore.Key, snippets: list):
+        snippet_entity = datastore.Entity(self._get_key(DatastoreProps.SNIPPET_KIND, snp_id))
         snippet_entity.update(
             {
                 "sdk": sdk_key,
                 "pipeOpts": example.tag.pipeline_options,
                 "created": now,
                 "lVisited": now,
-                "origin": constant.ORIGIN_PROPERTY_VALUE,
+                "origin": DatastoreProps.ORIGIN_PROPERTY_VALUE,
                 "numberOfFiles": 1,
                 "schVer": schema_key
             }
         )
         snippets.append(snippet_entity)
 
-    def _to_example_entities(self, example: Example, example_id: str, sdk_key: datastore.key, schema_key: datastore.key, examples: list):
-        example_entity = datastore.Entity(self._get_key(constant.EXAMPLE_KIND, example_id))
+    def _to_example_entities(self, example: Example, example_id: str, sdk_key: datastore.Key, schema_key: datastore.Key, examples: list):
+        example_entity = datastore.Entity(self._get_key(DatastoreProps.EXAMPLE_KIND, example_id))
         example_entity.update(
             {
                 "name": example.name,
@@ -100,27 +98,27 @@ class DatastoreClient:
                 "descr": example.tag.description,
                 "cats": example.tag.categories,
                 "path": example.link,
-                "origin": constant.ORIGIN_PROPERTY_VALUE,
+                "origin": DatastoreProps.ORIGIN_PROPERTY_VALUE,
                 "schVer": schema_key
             }
         )
         examples.append(example_entity)
 
     def _to_pc_object_entities(self, example: Example, snp_id: string, pc_objects: list):
-        if example.graph is not (None, ""):
+        if example.graph != (None, ""):
             self._append_pc_obj_entity(snp_id, example.graph, PrecompiledExample.GRAPH_EXTENSION.upper(), pc_objects)
-        if example.output is not (None, ""):
+        if example.output != (None, ""):
             self._append_pc_obj_entity(snp_id, example.output, PrecompiledExample.OUTPUT_EXTENSION.upper(), pc_objects)
-        if example.logs is not (None, ""):
+        if example.logs != (None, ""):
             self._append_pc_obj_entity(snp_id, example.logs, PrecompiledExample.LOG_EXTENSION.upper(), pc_objects)
 
     def _append_pc_obj_entity(self, snp_id: str, content: str, pc_obj_type: str, pc_objects: list):
-        pc_obj_entity = datastore.Entity(self._get_key(constant.PRECOMPILED_OBJECT_KIND, f"${snp_id}_${pc_obj_type}"), exclude_from_indexes=tuple('content'))
+        pc_obj_entity = datastore.Entity(self._get_key(DatastoreProps.PRECOMPILED_OBJECT_KIND, f"${snp_id}_${pc_obj_type}"), exclude_from_indexes=tuple('content'))
         pc_obj_entity.update({"content": content})
         pc_objects.append(pc_obj_entity)
 
     def _to_file_entities(self, example: Example, snp_id: str, files: list):
-        file_entity = datastore.Entity(self._get_key(constant.FILED_KIND, f"${snp_id}_${0}"), exclude_from_indexes=tuple('content'))
+        file_entity = datastore.Entity(self._get_key(DatastoreProps.FILED_KIND, f"${snp_id}_${0}"), exclude_from_indexes=tuple('content'))
         file_entity.update(
             {
                 "name": example.name,
