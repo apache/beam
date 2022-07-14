@@ -144,7 +144,7 @@ class PostProcessor(beam.DoFn):
 
 with pipeline as p:
     output = (
-        p | 'Read' >> beam.ReadFromSource('a_source') 
+        p | 'Read' >> beam.ReadFromSource('a_source')
                 | 'PyTorchRunInference' >> RunInference(<keyed_model_handler>)
                 | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 ```
