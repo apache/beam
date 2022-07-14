@@ -113,7 +113,6 @@ If a key is attached to the examples, wrap the `KeyedModelHandler` around the `M
 
 ```
 from apache_beam.ml.inference.base import KeyedModelHandler
- 
 keyed_model_handler = KeyedModelHandler(PytorchModelHandlerTensor(...))
  
 with pipeline as p:
