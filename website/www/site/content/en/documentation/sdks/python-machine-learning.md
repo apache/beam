@@ -89,7 +89,7 @@ You can also use the RunInference transform to add multiple inference models to 
 
 ```
 with pipeline as p:
-   data = p | 'Read' >> beam.ReadFromSource('a_source') 
+   data = p | 'Read' >> beam.ReadFromSource('a_source')
    model_a_predictions = data | RunInference(<model_handler_A>)
    model_b_predictions = data | RunInference(<model_handler_B>)
 ```
