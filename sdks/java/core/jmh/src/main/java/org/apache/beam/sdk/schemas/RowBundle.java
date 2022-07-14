@@ -89,7 +89,7 @@ public class RowBundle {
   @Param("100000")
   int bundleSize;
 
-  @Param({"READ_REPEATED", "WRITE"})
+  @Param({"READ_ONCE", "READ_REPEATED", "WRITE"})
   Action action;
 
   public RowBundle() {
