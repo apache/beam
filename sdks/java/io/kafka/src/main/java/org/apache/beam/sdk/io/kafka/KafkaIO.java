@@ -547,7 +547,7 @@ import org.slf4j.LoggerFactory;
  * <h1>Reading from Kafka SDF is currently broken, as re-starting the pipeline will cause the
  * consumer to start from scratch. See <a
  * href="https://github.com/apache/beam/issues/21730">this</a>. Current workaround is to use
- * --experimental_option=use_deprecated_read to use the Unbounded implementation</h1>
+ * --experimental_option=use_unbounded_sdf_wrapper to use the Unbounded implementation</h1>
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
@@ -1344,11 +1344,19 @@ public class KafkaIO {
       final KafkaIOReadImplementationCompatibilityResult compatibility =
           KafkaIOReadImplementationCompatibility.getCompatibility(this);
 
-      // For read from unbounded in a bounded manner, we actually are not going through Read or SDF.
+      // For a number of cases, we prefer using the UnboundedSource Kafka over the new SDF-based
+      // Kafka source, for example,
+      // * Experiments 'beam_fn_api_use_deprecated_read' and use_deprecated_read will result in
+      // legacy UnboundeSource being used.
+      // * Experiment 'use_unbounded_sdf_wrapper' will result in legacy UnboundeSource being used
+      // but will be wrapped by an SDF.
+      // * Some runners or selected features may not be compatible with SDF-based Kafka.
       if (ExperimentalOptions.hasExperiment(
               input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
           || ExperimentalOptions.hasExperiment(
               input.getPipeline().getOptions(), "use_deprecated_read")
+          || ExperimentalOptions.hasExperiment(
+              input.getPipeline().getOptions(), "use_unbounded_sdf_wrapper")
           || compatibility.supportsOnly(KafkaIOReadImplementation.LEGACY)
           || (compatibility.supports(KafkaIOReadImplementation.LEGACY)
               && runnerPrefersLegacyRead(input.getPipeline().getOptions()))) {
@@ -1357,7 +1365,7 @@ public class KafkaIO {
       LOG.warn(
           "Reading from Kafka SDF is currently broken, as re-starting the pipeline will cause the consumer to start from scratch."
               + " See https://github.com/apache/beam/issues/21730 . "
-              + "Current workaround is to use --experimental_option=use_deprecated_read to use the Unbounded implementation");
+              + "Current workaround is to use --experimental_option=use_unbounded_sdf_wrapper to use the Unbounded implementation");
       return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
     }
 
