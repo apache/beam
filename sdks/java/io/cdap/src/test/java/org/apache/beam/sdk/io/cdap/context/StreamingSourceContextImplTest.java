@@ -17,25 +17,26 @@
  */
 package org.apache.beam.sdk.io.cdap.context;
 
-import io.cdap.cdap.api.data.batch.Input;
-import io.cdap.cdap.etl.api.batch.BatchSourceContext;
+import static org.junit.Assert.assertTrue;
 
-/** Class for creating context object of different CDAP classes with batch source type. */
-public class BatchSourceContextImpl extends BatchContextImpl implements BatchSourceContext {
+import io.cdap.cdap.etl.api.streaming.StreamingSourceContext;
+import java.sql.Timestamp;
+import org.junit.Test;
 
-  /** Overrides the input configuration of this Batch job to the specified {@link Input}. */
-  @Override
-  public void setInput(Input input) {
-    this.inputFormatProvider = ((Input.InputFormatProviderInput) input).getInputFormatProvider();
-  }
+/** Test class for {@link StreamingSourceContextImpl}. */
+public class StreamingSourceContextImplTest {
 
-  @Override
-  public boolean isPreviewEnabled() {
-    return false;
-  }
+  /**
+   * TODO: Remove tests(getFailureCollector, getLogicalStartTime) if these methods weren't override
+   * and were implemented own methods of StreamingSourceContextImplTest class.
+   */
+  @Test
+  public void getLogicalStartTime() {
+    /** arrange */
+    StreamingSourceContext context = new StreamingSourceContextImpl();
+    Timestamp startTime = new Timestamp(System.currentTimeMillis());
 
-  @Override
-  public int getMaxPreviewRecords() {
-    return 0;
+    /** assert */
+    assertTrue(startTime.getTime() - context.getLogicalStartTime() <= 100);
   }
 }
