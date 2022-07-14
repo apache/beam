@@ -19,52 +19,44 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"google.golang.org/api/healthcare/v1"
 )
 
-func TestPollTilCompleteAndCollectResults(t *testing.T) {
+func TestParseOperationCounterResultsFrom(t *testing.T) {
 	testCases := []struct {
-		name           string
-		operation      *healthcare.Operation
-		expectedResult operationResults
-		expectedError  bool
+		name              string
+		operationMetadata string
+		expectedResult    operationResults
+		expectedError     bool
 	}{
 		{
-			name:           "Operation contains error",
-			operation:      &healthcare.Operation{Done: true, Error: &healthcare.Status{Message: "internal error"}},
-			expectedResult: operationResults{},
-			expectedError:  true,
+			name:              "Error bad json",
+			operationMetadata: "bad json",
+			expectedResult:    operationResults{},
+			expectedError:     true,
 		},
 		{
-			name:           "Error bad json",
-			operation:      &healthcare.Operation{Done: true, Metadata: []byte("bad json")},
-			expectedResult: operationResults{},
-			expectedError:  true,
+			name:              "Success with 1 counter set",
+			operationMetadata: `{"counter":{"success":"4"}}`,
+			expectedResult:    operationResults{Successes: 4, Failures: 0},
+			expectedError:     false,
 		},
 		{
-			name:           "Success with 1 counter set",
-			operation:      &healthcare.Operation{Done: true, Metadata: []byte(`{"counter":{"success":"4"}}`)},
-			expectedResult: operationResults{Successes: 4, Failures: 0},
-			expectedError:  false,
+			name:              "Success with both counters set",
+			operationMetadata: `{"counter":{"success":"1","failure": "3"}}`,
+			expectedResult:    operationResults{Successes: 1, Failures: 3},
+			expectedError:     false,
 		},
 		{
-			name:           "Success with both counters set",
-			operation:      &healthcare.Operation{Done: true, Metadata: []byte(`{"counter":{"success":"1","failure": "3"}}`)},
-			expectedResult: operationResults{Successes: 1, Failures: 3},
-			expectedError:  false,
-		},
-		{
-			name:           "Success with no counters set",
-			operation:      &healthcare.Operation{Done: true, Metadata: []byte(`{"counter":{}}`)},
-			expectedResult: operationResults{Successes: 0, Failures: 0},
-			expectedError:  false,
+			name:              "Success with no counters set",
+			operationMetadata: `{"counter":{}}`,
+			expectedResult:    operationResults{Successes: 0, Failures: 0},
+			expectedError:     false,
 		},
 	}
 
-	client := &fhirStoreClientImpl{}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			operationResult, err := client.pollTilCompleteAndCollectResults(testCase.operation)
+			operationResult, err := parseOperationCounterResultsFrom([]byte(testCase.operationMetadata))
 			if err != nil && !testCase.expectedError {
 				t.Fatalf("Got unexpected error [%v]", err)
 			}
