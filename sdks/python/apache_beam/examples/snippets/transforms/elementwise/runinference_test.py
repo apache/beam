@@ -21,6 +21,7 @@
 import unittest
 
 import mock
+import pytest
 
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
