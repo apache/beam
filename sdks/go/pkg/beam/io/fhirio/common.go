@@ -133,7 +133,7 @@ func (c *fhirStoreClientImpl) deidentify(srcStorePath, dstStorePath string, deid
 }
 
 func (c *fhirStoreClientImpl) pollTilCompleteAndCollectResults(operation *healthcare.Operation) (operationResults, error) {
-	var err error
+	operation, err := c.healthcareService.Projects.Locations.Datasets.Operations.Get(operation.Name).Do()
 	for i := 0; !operation.Done; {
 		time.Sleep(backoffDuration[i])
 		if i < len(backoffDuration)-1 {
