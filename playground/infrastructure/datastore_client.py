@@ -26,6 +26,8 @@ from tqdm import tqdm
 from config import Config, PrecompiledExample, DatastoreProps
 from helper import Example
 
+from api.v1.api_pb2 import Sdk
+
 
 # https://cloud.google.com/datastore/docs/concepts/entities
 class DatastoreClient:
@@ -48,12 +50,15 @@ class DatastoreClient:
         files = []
         now = datetime.today()
         last_schema_version_query = self._datastore_client.query(kind=DatastoreProps.SCHEMA_KIND)
-        schema_keys = last_schema_version_query.fetch()
-        actual_schema_version_key = self._get_actual_schema_version(schema_keys)
+        schema_iterator = last_schema_version_query.fetch()
+        schema_names = []
+        for schema in schema_iterator:
+            schema_names.append(schema.key.name)
+        actual_schema_version_key = self._get_actual_schema_version(schema_names)
         with self._datastore_client.transaction():
             for example in tqdm(examples_from_rep):
-                sdk_key = self._get_key(DatastoreProps.SDK_KIND, example.sdk)
-                example_id = f"${example.name.strip()}_${example.sdk}"
+                sdk_key = self._get_key(DatastoreProps.SDK_KIND, Sdk.Name(example.sdk))
+                example_id = f"{example.name.strip()}_{Sdk.Name(example.sdk)}"
                 self._to_example_entities(example, example_id, sdk_key, actual_schema_version_key, examples)
                 self._to_snippet_entities(example, example_id, sdk_key, now, actual_schema_version_key, snippets)
                 self._to_pc_object_entities(example, example_id, pc_objects)
@@ -64,12 +69,12 @@ class DatastoreClient:
             self._datastore_client.put_multi(pc_objects)
             self._datastore_client.put_multi(files)
 
-    def _get_actual_schema_version(self, schema_keys: List[datastore.Key]) -> datastore.Key:
-        schema_keys.sort(key=self._get_key_name)
-        return schema_keys[0]
+    def _get_actual_schema_version(self, schema_names: List[str]) -> datastore.Key:
+        schema_names.sort()
+        return self._get_key(DatastoreProps.SCHEMA_KIND, schema_names[0])
 
     def _get_key_name(self, key: datastore.Key):
-        return key["arg_1"]
+        return key.name
 
     def _get_key(self, kind, identifier: str) -> datastore.Key:
         return self._datastore_client.key(kind, identifier)
@@ -113,12 +118,12 @@ class DatastoreClient:
             self._append_pc_obj_entity(snp_id, example.logs, PrecompiledExample.LOG_EXTENSION.upper(), pc_objects)
 
     def _append_pc_obj_entity(self, snp_id: str, content: str, pc_obj_type: str, pc_objects: list):
-        pc_obj_entity = datastore.Entity(self._get_key(DatastoreProps.PRECOMPILED_OBJECT_KIND, f"${snp_id}_${pc_obj_type}"), exclude_from_indexes=tuple('content'))
+        pc_obj_entity = datastore.Entity(self._get_key(DatastoreProps.PRECOMPILED_OBJECT_KIND, f"{snp_id}_{pc_obj_type}"), exclude_from_indexes=('content',))
         pc_obj_entity.update({"content": content})
         pc_objects.append(pc_obj_entity)
 
     def _to_file_entities(self, example: Example, snp_id: str, files: list):
-        file_entity = datastore.Entity(self._get_key(DatastoreProps.FILED_KIND, f"${snp_id}_${0}"), exclude_from_indexes=tuple('content'))
+        file_entity = datastore.Entity(self._get_key(DatastoreProps.FILED_KIND, f"{snp_id}_{0}"), exclude_from_indexes=('content',))
         file_entity.update(
             {
                 "name": example.name,
