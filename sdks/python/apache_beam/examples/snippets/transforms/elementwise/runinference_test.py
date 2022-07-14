@@ -19,14 +19,20 @@
 # pytype: skip-file
 
 import unittest
-from io import StringIO
 
 import mock
 
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports, unused-import
+try:
+  import torch
+except ImportError:
+  raise unittest.SkipTest('PyTorch dependencies are not installed')
+
 from . import runinference
+
 
 def check_torch_keyed_model_handler(actual):
   expected = '''[START torch_keyed_model_handler]
@@ -67,9 +73,11 @@ PredictionResult(example=array([90.], dtype=float32), inference=array([450.], dt
 [END sklearn_unkeyed_model_handler]  '''.splitlines()[1:-1]
   assert_matches_stdout(actual, expected)
 
+
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.runinference.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.runinference.print',
+    str)
 class RunInferenceTest(unittest.TestCase):
   def test_torch_unkeyed_model_handler(self):
     runinference.torch_unkeyed_model_handler(check_torch_unkeyed_model_handler)
@@ -78,10 +86,12 @@ class RunInferenceTest(unittest.TestCase):
     runinference.torch_keyed_model_handler(check_torch_keyed_model_handler)
 
   def test_sklearn_unkeyed_model_handler(self):
-    runinference.sklearn_unkeyed_model_handler(check_sklearn_unkeyed_model_handler)
+    runinference.sklearn_unkeyed_model_handler(
+        check_sklearn_unkeyed_model_handler)
 
   def test_sklearn_keyed_model_handler(self):
     runinference.sklearn_keyed_model_handler(check_sklearn_keyed_model_handler)
+
 
 if __name__ == '__main__':
   unittest.main()
