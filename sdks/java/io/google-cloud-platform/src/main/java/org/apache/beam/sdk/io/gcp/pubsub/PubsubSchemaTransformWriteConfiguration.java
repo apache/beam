@@ -37,7 +37,15 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 public abstract class PubsubSchemaTransformWriteConfiguration {
 
   /** The expected schema of the Pub/Sub message. */
-  public abstract Schema getSchema();
+  public abstract Schema getDataSchema();
+
+  /**
+   * The topic to which to write Pub/Sub messages.
+   *
+   * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
+   * topic string.
+   */
+  public abstract String getTopic();
 
   /**
    * The expected format of the Pub/Sub message.
@@ -67,12 +75,27 @@ public abstract class PubsubSchemaTransformWriteConfiguration {
   @Nullable
   public abstract String getTimestampAttribute();
 
+  /**
+   * When writing to Cloud Pub/Sub where unique record identifiers are provided as Pub/Sub message
+   * attributes, specifies the name of the attribute containing the unique identifier.
+   */
+  @Nullable
+  public abstract String getIdAttribute();
+
   /** Builder for {@link PubsubSchemaTransformWriteConfiguration}. */
   @AutoValue.Builder
   public abstract static class Builder {
 
     /** The expected schema of the Pub/Sub message. */
-    public abstract Builder setSchema(Schema value);
+    public abstract Builder setDataSchema(Schema value);
+
+    /**
+     * The topic to which to write Pub/Sub messages.
+     *
+     * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
+     * topic string.
+     */
+    public abstract Builder setTopic(String value);
 
     /**
      * The expected format of the Pub/Sub message.
@@ -96,6 +119,12 @@ public abstract class PubsubSchemaTransformWriteConfiguration {
      * attributes, specifies the name of the attribute that contains the timestamp.
      */
     public abstract Builder setTimestampAttribute(String value);
+
+    /**
+     * When reading from Cloud Pub/Sub where unique record identifiers are provided as Pub/Sub
+     * message attributes, specifies the name of the attribute containing the unique identifier.
+     */
+    public abstract Builder setIdAttribute(String value);
 
     /** Builds a {@link PubsubSchemaTransformWriteConfiguration} instance. */
     public abstract PubsubSchemaTransformWriteConfiguration build();
