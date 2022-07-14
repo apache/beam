@@ -65,7 +65,12 @@ package, so its fully qualified name is
 The example pipeline,
 [PythonDataframeWordCount](https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/PythonDataframeWordCount.java),
 passes this fully qualified name to
-[PythonExternalTransform](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/python/PythonExternalTransform.html). Here, within the `runWordCount` method, is the complete pipeline definition:
+[PythonExternalTransform](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/python/PythonExternalTransform.html).
+There's also a higher-level cross-language [DataframeTransform](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/DataframeTransform.java)
+for Java, so you can use that instead of specifying the fully qualified name for
+the Python `DataframeTransform`.
+
+Here's the complete pipeline definition from the example pipeline:
 
 ```java
 static void runWordCount(WordCountOptions options) {
