@@ -34,7 +34,6 @@ dependencies {
     implementation project(path: ":sdks:java:harness", configuration: "shadow")
     implementation project(":runners:java-fn-execution")
     runtimeOnly library.java.slf4j_jdk14
-    runtimeOnly library.java.byte_buddy
     jammAgent library.java.jamm
 }
 
