@@ -71,7 +71,7 @@ The section provides requirements for using pre-trained models with PyTorch and 
 You need to provide a path to a file that contains the model saved weights. This path must be accessible by the pipeline. To use pre-trained models with the RunInference API and the PyTorch framework, complete the following steps:
 
 1. Download the pre-trained weights and host them in a location that the pipeline can access.
-2. Pass the path of the model to the PyTorch `model_handler` by using the following code: `state_dict_path=<path_to_weights>`.
+2. Pass the path of the model weights to the PyTorch `ModelHandler` by using the following code: `state_dict_path=<path_to_weights>`.
 
 #### Scikit-learn
 
