@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.hadoop.format.HDFSSynchronization;
 import org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -37,6 +38,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * An unbounded/bounded sources and sinks from <a
  * href="https://github.com/data-integrations">CDAP</a> plugins.
  */
+@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings("nullness")
 public class CdapIO {
 
