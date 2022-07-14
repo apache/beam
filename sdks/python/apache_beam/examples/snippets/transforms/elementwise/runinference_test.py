@@ -85,11 +85,12 @@ PredictionResult(example=array([90.], dtype=float32), inference=array([450.], dt
 @mock.patch(
     'apache_beam.examples.snippets.transforms.elementwise.runinference.print',
     str)
-@pytest.mark.uses_pytorch
 class RunInferenceTest(unittest.TestCase):
+  @pytest.mark.uses_pytorch
   def test_torch_unkeyed_model_handler(self):
     runinference.torch_unkeyed_model_handler(check_torch_unkeyed_model_handler)
 
+  @pytest.mark.uses_pytorch
   def test_torch_keyed_model_handler(self):
     runinference.torch_keyed_model_handler(check_torch_keyed_model_handler)
 
