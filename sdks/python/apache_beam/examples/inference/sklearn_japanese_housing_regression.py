@@ -32,6 +32,8 @@ In order to set this example up, you will need two things.
 import argparse
 from typing import Iterable
 
+import pandas
+
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import RunInference
@@ -39,7 +41,6 @@ from apache_beam.ml.inference.sklearn_inference import ModelFileType
 from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerPandas
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-import pandas
 
 MODELS = [{
     'name': 'all_features',
