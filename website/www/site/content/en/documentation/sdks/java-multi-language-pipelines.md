@@ -70,7 +70,7 @@ There's also a higher-level cross-language [DataframeTransform](https://github.c
 for Java, so you can use that instead of specifying the fully qualified name for
 the Python `DataframeTransform`.
 
-Here's the complete pipeline definition from the example pipeline:
+Here's the complete pipeline definition from the example:
 
 ```java
 static void runWordCount(WordCountOptions options) {
