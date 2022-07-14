@@ -23,6 +23,7 @@ import uuid
 
 import pytest
 
+from apache_beam.examples.inference import sklearn_japanese_housing_regression
 from apache_beam.examples.inference import sklearn_mnist_classification
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -69,6 +70,27 @@ class SklearnInference(unittest.TestCase):
     for i in range(len(expected_outputs)):
       true_label, expected_prediction = expected_outputs[i].split(',')
       self.assertEqual(predictions_dict[true_label], expected_prediction)
+
+  def test_sklearn_regression(self):
+    test_pipeline = TestPipeline(is_integration_test=False)
+    input_file = 'gs://apache-beam-ml/testing/inputs/japanese_housing_test_data.csv'  # pylint: disable=line-too-long
+    output_file_dir = 'gs://temp-storage-for-end-to-end-tests'
+    output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
+    model_path = 'gs://apache-beam-ml/models/japanese_housing/'
+    extra_opts = {
+        'input': input_file,
+        'output': output_file,
+        'model_path': model_path,
+    }
+    sklearn_japanese_housing_regression.run(
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
+    self.assertEqual(FileSystems().exists(output_file), True)
+
+    expected_output_filepath = 'gs://apache-beam-ml/testing/expected_outputs/japanese_housing_subset.txt'  # pylint: disable=line-too-long
+    expected = file_lines_sorted(expected_output_filepath)
+    actual = file_lines_sorted(output_file)
+    self.assertListEqual(expected, actual)
 
 
 if __name__ == '__main__':
