@@ -25,13 +25,14 @@ import mock
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
+from . import runinference
+
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports, unused-import
 try:
   import torch
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
 
-from . import runinference
 
 
 def check_torch_keyed_model_handler(actual):
