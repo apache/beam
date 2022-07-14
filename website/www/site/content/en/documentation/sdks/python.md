@@ -49,7 +49,7 @@ language-specific implementation guidance.
 ## Making machine learning inferences with Python
 
 To integrate machine learning models into your pipelines for making inferences, use the RunInference API for PyTorch and Scikit-learn models. If you are using TensorFlow models, you can make use of the
-[library from `tfx_bsl`](https://github.com/tensorflow/tfx-bsl/tree/master/tfx_bsl/beam). Further integrations for TensorFlow are planned. For more information, see [Beam issue #21442](https://github.com/apache/beam/issues/21442).
+[library from `tfx_bsl`](https://github.com/tensorflow/tfx-bsl/tree/master/tfx_bsl/beam).
 
 You can create multiple types of transforms using the RunInference API: the API takes multiple types of setup parameters from model handlers, and the parameter type determines the model implementation. For more information,
 see [Machine Learning](/documentation/sdks/python-machine-learning).

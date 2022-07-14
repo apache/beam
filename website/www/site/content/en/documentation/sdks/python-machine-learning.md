@@ -175,7 +175,7 @@ To work with the current RunInference implementation, you can create a wrapper c
 
 ### Unable to batch tensor elements
 
-RunInference uses dynamic batching. However, the RunInference API cannot batch tensor elements of different sizes, because `torch.stack()` expects tensors of the same length. If you provide images of different sizes or word embeddings of different lengths, errors might occur.
+RunInference uses dynamic batching. However, the RunInference API cannot batch tensor elements of different sizes, so samples passed to teh RunInferene transform must be the same dimension or length. If you provide images of different sizes or word embeddings of different lengths, errors might occur.
 
 To avoid this issue, either use elements of the same size, or disable batching.
 

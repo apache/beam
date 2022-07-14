@@ -83,11 +83,5 @@ class RunInferenceTest(unittest.TestCase):
   def test_sklearn_keyed_model_handler(self):
     runinference.sklearn_keyed_model_handler(check_sklearn_keyed_model_handler)
 
-  def test_images(self):
-    runinference.images(check_images)
-
-  def test_digits(self):
-    runinference.digits(check_digits)
-
 if __name__ == '__main__':
   unittest.main()
