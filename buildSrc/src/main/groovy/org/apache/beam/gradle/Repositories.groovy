@@ -39,12 +39,6 @@ class Repositories {
       mavenCentral()
       mavenLocal()
 
-      // For pentaho dependencies.
-      maven {
-        url "https://public.nexus.pentaho.org/repository/proxy-public-3rd-party-release"
-        content { includeGroup "org.pentaho" }
-      }
-
       // Release staging repository
       maven { url "https://oss.sonatype.org/content/repositories/staging/" }
 
@@ -59,6 +53,12 @@ class Repositories {
         url "https://packages.confluent.io/maven/"
         content { includeGroup "io.confluent" }
       }
+    }
+
+    // For pentaho dependencies.
+    maven {
+      url "https://public.nexus.pentaho.org/repository/omni"
+      content { includeGroup "org.pentaho" }
     }
 
     // plugin to support repository authentication via ~/.m2/settings.xml
@@ -81,6 +81,7 @@ class Repositories {
         maven { url "https://repo.spring.io/plugins-release" }
         maven { url "https://public.nexus.pentaho.org/repository/proxy-public-3rd-party-release" }
         maven { url "https://packages.confluent.io/maven/" }
+        maven { url "https://public.nexus.pentaho.org/repository/omni" }
         maven { url project.offlineRepositoryRoot }
       }
       includeSources = false
