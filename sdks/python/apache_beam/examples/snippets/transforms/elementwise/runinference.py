@@ -18,8 +18,9 @@
 
 # pytype: skip-file
 
+
 def torch_unkeyed_model_handler(test=None):
-    # [START torch_unkeyed_model_handler]
+  # [START torch_unkeyed_model_handler]
   import apache_beam as beam
   import numpy
   import torch
@@ -34,6 +35,8 @@ def torch_unkeyed_model_handler(test=None):
     def forward(self, x):
       out = self.linear(x)
       return out
+
+
 
   model_state_dict_path = 'gs://apache-beam-samples/run_inference/five_times_table_torch.pt'  # pylint: disable=line-too-long
   model_class = LinearRegression
@@ -59,7 +62,7 @@ def torch_unkeyed_model_handler(test=None):
 
 
 def torch_keyed_model_handler(test=None):
-    # [START torch_keyed_model_handler]
+  # [START torch_keyed_model_handler]
   import apache_beam as beam
   import torch
   from apache_beam.ml.inference.base import KeyedModelHandler
@@ -75,7 +78,9 @@ def torch_keyed_model_handler(test=None):
       out = self.linear(x)
       return out
 
-  model_state_dict_path = 'gs://apache-beam-samples/run_inference/five_times_table_torch.pt' # pylint: disable=line-too-long
+
+
+  model_state_dict_path = 'gs://apache-beam-samples/run_inference/five_times_table_torch.pt'  # pylint: disable=line-too-long
   model_class = LinearRegression
   model_params = {'input_dim': 1, 'output_dim': 1}
   keyed_model_handler = KeyedModelHandler(
@@ -102,14 +107,14 @@ def torch_keyed_model_handler(test=None):
 
 
 def sklearn_unkeyed_model_handler(test=None):
-    # [START sklearn_unkeyed_model_handler]
+  # [START sklearn_unkeyed_model_handler]
   import apache_beam as beam
   import numpy
   from apache_beam.ml.inference.base import RunInference
   from apache_beam.ml.inference.sklearn_inference import ModelFileType
   from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
 
-  sklearn_model_filename = 'gs://apache-beam-samples/run_inference/five_times_table_sklearn.pkl' # pylint: disable=line-too-long
+  sklearn_model_filename = 'gs://apache-beam-samples/run_inference/five_times_table_sklearn.pkl'  # pylint: disable=line-too-long
   sklearn_model_handler = SklearnModelHandlerNumpy(
       model_uri=sklearn_model_filename, model_file_type=ModelFileType.PICKLE)
 
@@ -128,14 +133,14 @@ def sklearn_unkeyed_model_handler(test=None):
 
 
 def sklearn_keyed_model_handler(test=None):
-    # [START sklearn_keyed_model_handler]
+  # [START sklearn_keyed_model_handler]
   import apache_beam as beam
   from apache_beam.ml.inference.base import KeyedModelHandler
   from apache_beam.ml.inference.base import RunInference
   from apache_beam.ml.inference.sklearn_inference import ModelFileType
   from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
 
-  sklearn_model_filename = 'gs://apache-beam-samples/run_inference/five_times_table_sklearn.pkl' # pylint: disable=line-too-long
+  sklearn_model_filename = 'gs://apache-beam-samples/run_inference/five_times_table_sklearn.pkl'  # pylint: disable=line-too-long
   sklearn_model_handler = KeyedModelHandler(
       SklearnModelHandlerNumpy(
           model_uri=sklearn_model_filename,
