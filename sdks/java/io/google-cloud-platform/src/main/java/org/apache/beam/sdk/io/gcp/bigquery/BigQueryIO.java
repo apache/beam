@@ -47,6 +47,7 @@ import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -2929,7 +2930,7 @@ public class BigQueryIO {
         if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
           JsonElement schema = JsonParser.parseString(getJsonSchema().get());
           if (!schema.getAsJsonObject().keySet().isEmpty()) {
-            validateNoJsonTypeInSchema(schema);
+            validateNoRepeatedJsonFieldInSchema(schema);
           }
         }
 
@@ -3013,7 +3014,7 @@ public class BigQueryIO {
       }
     }
 
-    private void validateNoJsonTypeInSchema(JsonElement schema) {
+    private void validateNoRepeatedJsonFieldInSchema(JsonElement schema) {
       JsonElement fields = schema.getAsJsonObject().get("fields");
       if (!fields.isJsonArray() || fields.getAsJsonArray().isEmpty()) {
         return;
@@ -3024,15 +3025,17 @@ public class BigQueryIO {
       for (int i = 0; i < fieldArray.size(); i++) {
         JsonObject field = fieldArray.get(i).getAsJsonObject();
         checkArgument(
-            !field.get("type").getAsString().equals("JSON"),
-            "Found JSON type in TableSchema. JSON data insertion is currently "
-                + "not supported with 'FILE_LOADS' write method. This is supported with the "
-                + "other write methods, however. For more information, visit: "
+            !(field.get("type").getAsString().equalsIgnoreCase("JSON") &&
+                field.get("mode") != null &&
+            field.get("mode").getAsString().equalsIgnoreCase("REPEATED")),
+            "Found repeated JSON field (type=JSON, mode=REPEATED) in TableSchema. This"
+                + "is currently not supported with 'FILE_LOADS' write method. JSON insertion is "
+                + "full supported with other write methods. For more information, visit: "
                 + "https://cloud.google.com/bigquery/docs/reference/standard-sql/"
                 + "json-data#ingest_json_data");
 
         if (field.get("type").getAsString().equals("STRUCT")) {
-          validateNoJsonTypeInSchema(field);
+          validateNoRepeatedJsonFieldInSchema(field);
         }
       }
     }
