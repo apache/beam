@@ -872,12 +872,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   protected RunnerApi.Pipeline applySdkEnvironmentOverrides(
-      RunnerApi.Pipeline pipeline, DataflowPipelineDebugOptions options) {
+      RunnerApi.Pipeline pipeline, DataflowPipelineOptions options) {
     String sdkHarnessContainerImageOverrides = options.getSdkHarnessContainerImageOverrides();
-    if (Strings.isNullOrEmpty(sdkHarnessContainerImageOverrides)) {
-      return pipeline;
-    }
-    String[] overrides = sdkHarnessContainerImageOverrides.split(",", -1);
+    String[] overrides =
+        Strings.isNullOrEmpty(sdkHarnessContainerImageOverrides)
+            ? new String[0]
+            : sdkHarnessContainerImageOverrides.split(",", -1);
     if (overrides.length % 2 != 0) {
       throw new RuntimeException(
           "invalid syntax for SdkHarnessContainerImageOverrides: "
@@ -898,8 +898,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           throw new RuntimeException("Error parsing environment docker payload.", e);
         }
         String containerImage = dockerPayload.getContainerImage();
+        boolean updated = false;
         for (int i = 0; i < overrides.length; i += 2) {
           containerImage = containerImage.replaceAll(overrides[i], overrides[i + 1]);
+          if (!containerImage.equals(dockerPayload.getContainerImage())) {
+            updated = true;
+          }
+        }
+        if (containerImage.startsWith("apache/beam")
+            && !updated
+            // don't update if the container image is already configured by DataflowRunner
+            && !containerImage.equals(getContainerImageForJob(options))) {
+          containerImage =
+              DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository()
+                  + containerImage.substring(containerImage.lastIndexOf("/"));
         }
         environmentBuilder.setPayload(
             RunnerApi.DockerPayload.newBuilder()
