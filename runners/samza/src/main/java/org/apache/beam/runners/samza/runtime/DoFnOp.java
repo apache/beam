@@ -283,6 +283,11 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   }
 
   private String toStepName(ExecutableStage executableStage) {
+    /*
+     * Look for the first/input ParDo/DoFn in this executable stage by
+     * matching ParDo/DoFn's input PCollection with executable stage's
+     * input PCollection
+     */
     Set<PipelineNode.PTransformNode> inputs =
         executableStage.getTransforms().stream()
             .filter(
@@ -298,6 +303,11 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
             .map(PipelineNode.PCollectionNode::getId)
             .collect(Collectors.toSet());
 
+    /*
+     * Look for the last/output ParDo/DoFn in this executable stage by
+     * matching ParDo/DoFn's output PCollection(s) with executable stage's
+     * out PCollection(s)
+     */
     Set<PipelineNode.PTransformNode> outputs =
         executableStage.getTransforms().stream()
             .filter(
@@ -310,6 +320,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   }
 
   private String toStepName(Set<PipelineNode.PTransformNode> nodes) {
+    //TODO: format name when there are multiple input and output PTransform in the ExecutableStage
     return Iterables.get(Splitter.on('/').split(nodes.iterator().next().getTransform().getUniqueName()), 0);
   }
 

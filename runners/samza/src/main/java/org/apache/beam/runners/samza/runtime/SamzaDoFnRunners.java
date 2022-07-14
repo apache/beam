@@ -63,7 +63,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.samza.context.Context;
-import org.apache.samza.util.SystemClock;
 import org.joda.time.Instant;
 
 /** A factory for Samza runner translator to create underlying DoFnRunner used in {@link DoFnOp}. */
@@ -289,7 +288,7 @@ public class SamzaDoFnRunners {
     @Override
     public void startBundle() {
       try {
-        startBundleTime = SystemClock.instance().currentTimeMillis();
+        startBundleTime = System.nanoTime();
         OutputReceiverFactory receiverFactory =
             new OutputReceiverFactory() {
               @Override
@@ -382,7 +381,7 @@ public class SamzaDoFnRunners {
       try {
         final long count = Iterables.size(bundledEventsBag.read());
         if (count > 0) {
-          final long finishBundleTime = SystemClock.instance().currentTimeMillis();
+          final long finishBundleTime = System.nanoTime();
           final long averageProcessTime = (finishBundleTime - startBundleTime) / count;
 
           samzaExecutionContext
