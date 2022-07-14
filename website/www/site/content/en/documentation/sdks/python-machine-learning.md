@@ -155,7 +155,7 @@ If you need to use this object explicitly, include the following line in your pi
 from apache_beam.ml.inference.base import PredictionResult
 ```
 
-For more information, see the [`PredictionResult` documentation](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/base.py#L65). 
+For more information, see the [`PredictionResult` documentation](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/base.py#L65).
 
 ## Run a machine learning pipeline
 
