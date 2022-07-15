@@ -13,21 +13,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !linux
-// +build !linux
+package primitives
 
-package syscallx
+import (
+	"context"
+	"time"
 
-// PhysicalMemorySize returns the total physical memory size.
-func PhysicalMemorySize() (uint64, error) {
-	return 0, ErrUnsupported
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+)
+
+func oomFn(ctx context.Context, elm int, emit func(int)) {
+	size := 1 << 25
+	// Simulate a slow memory leak
+	for {
+		abc := make([]int64, size)
+		log.Debugf(ctx, "abc %v", abc)
+		time.Sleep(5 * time.Second)
+		log.Debugf(ctx, "abc %v", abc)
+		if size > 1<<40 {
+			break
+		}
+
+		size = int(float64(size) * 1.2)
+	}
+	emit(elm)
 }
 
-// FreeDiskSpace returns the free disk space for a given path.
-func FreeDiskSpace(path string) (uint64, error) {
-	return 0, ErrUnsupported
-}
+// OomParDo tests a DoFn that OOMs.
+func OomParDo() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
 
-func SetProcessMemoryCeiling(softCeiling, hardCeiling uint64) error {
-	return ErrUnsupported
+	in := beam.Create(s, 1)
+	beam.ParDo(s, oomFn, in)
+
+	return p
 }
