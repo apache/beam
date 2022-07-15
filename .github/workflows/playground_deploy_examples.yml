@@ -16,10 +16,10 @@
 name: Collect And Deploy Playground Examples
 
 on:
-  push:
-    tags: 'v*'
-    branches: ['master', 'release-*']
-  workflow_dispatch:
+  pull_request:
+    types:
+      - closed
+    branches: ['master']
 env:
   BEAM_ROOT_DIR: ../../
   BEAM_EXAMPLE_CATEGORIES: ../categories.yaml
@@ -47,13 +47,9 @@ jobs:
         name: get Difference
         id: check_file_changed
         run: |
-          $diff = git diff --name-only origin/master
+          $diff = git diff --name-only ${{ github.event.before }} ${{ github.event.after }}
+          echo "$diff"
           Write-Host "::set-output name=example_diff::$diff"
-      - name: Setup GCP account
-        run: |
-             echo "${{ secrets.GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
-             which gcloud
-             gcloud auth activate-service-account --project=apache-beam-testing --key-file=/tmp/gcp_access.json
       - name: has Examples
         run: |
           output=$(python3 checker.py ${{ steps.check_file_changed.outputs.example_diff }})
@@ -99,7 +95,7 @@ jobs:
         run: |
              echo "${{ secrets.GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
              which gcloud
-             gcloud auth activate-service-account --project=apache-beam-testing --key-file=/tmp/gcp_access.json
+             gcloud auth activate-service-account --project=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }} --key-file=/tmp/gcp_access.json
       - name: Set Docker Tag
         run: echo "DOCKERTAG=${GITHUB_SHA}" >> $GITHUB_ENV
       - name: Set Docker Tag If Github Tag was trigger
