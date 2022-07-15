@@ -362,6 +362,10 @@ message StandardPTransforms {
     // Payload: PubSubWritePayload.
     PUBSUB_WRITE = 5 [(beam_urn) = "beam:transform:pubsub_write:v1"];
 
+    // Used for pubsub dynamic destinations.
+    // Payload: PubSubWritePayload.
+    PUBSUB_WRITE_V2 = 7 [(beam_urn) = "beam:transform:pubsub_write:v2"];
+
     // Represents the GroupIntoBatches.WithShardedKey operation.
     // Payload: GroupIntoBatchesPayload
     GROUP_INTO_BATCHES_WITH_SHARDED_KEY = 6 [(beam_urn) = "beam:transform:group_into_batches_with_sharded_key:v1"];

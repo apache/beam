@@ -33,12 +33,12 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
-	"reflect"
 	"sort"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
@@ -48,9 +48,9 @@ var (
 )
 
 func init() {
-	beam.RegisterFunction(incFn)
-	beam.RegisterFunction(evalFn)
-	beam.RegisterType(reflect.TypeOf((*minFn)(nil)).Elem())
+	register.Function1x1(incFn)
+	register.Function7x0(evalFn)
+	register.DoFn1x1[int, int](&minFn{})
 }
 
 // roll is a composite PTransform for a construction-time dice roll. The value

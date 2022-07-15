@@ -37,6 +37,7 @@ github:
   # Give some users issue triage permissions
   collaborators:
     - pcoet
+    - VladMatyunin
 
   enabled_merge_buttons:
     squash: true
