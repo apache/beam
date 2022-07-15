@@ -47,7 +47,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.io.PipedInputStream;
@@ -65,6 +67,7 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BulkIO.StatefulBatching;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Document;
@@ -78,14 +81,20 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
@@ -1241,5 +1250,82 @@ class ElasticsearchIOTestCommon implements Serializable {
 
     RestClient restClient = configWithSsl.createClient();
     Assert.assertNotNull("rest client should not be null", restClient);
+  }
+
+  void testWriteWindowPreservation() throws IOException {
+    List<String> data =
+        ElasticsearchIOTestUtils.createDocuments(
+            numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+
+    int step = 1;
+    int windowSize = 5;
+    long numExpectedWindows = numDocs / windowSize;
+    Duration windowDuration = Duration.standardSeconds(windowSize);
+    Duration stepDuration = Duration.standardSeconds(step);
+    Duration offset = Duration.ZERO;
+    TestStream.Builder<String> docsBuilder =
+        TestStream.create(StringUtf8Coder.of()).advanceWatermarkTo(new Instant(0));
+
+    for (String doc : data) {
+      docsBuilder = docsBuilder.addElements(TimestampedValue.of(doc, new Instant(0).plus(offset)));
+      offset = offset.plus(stepDuration);
+    }
+
+    TestStream<String> docs = docsBuilder.advanceWatermarkToInfinity();
+
+    Write write =
+        ElasticsearchIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withUseStatefulBatches(true)
+            // Ensure that max batch will be hit before all buffered elements from
+            // GroupIntoBatches are processed in a single bundle so that both ProcessContext and
+            // FinishBundleContext flush code paths are exercised
+            .withMaxBatchSize(numDocs / 2);
+
+    PCollection<Document> successfulWrites =
+        pipeline
+            .apply(docs)
+            .apply(Window.into(FixedWindows.of(windowDuration)))
+            .apply(write)
+            .get(Write.SUCCESSFUL_WRITES);
+
+    for (int i = 0; i < numExpectedWindows; i++) {
+      PAssert.that(successfulWrites)
+          .inWindow(
+              new IntervalWindow(
+                  new Instant(0).plus(windowDuration.multipliedBy(i)),
+                  new Instant(0).plus(windowDuration.multipliedBy(i + 1))))
+          .satisfies(
+              windowPreservationValidator(windowSize, i * windowSize, (i + 1) * windowSize - 1));
+    }
+
+    pipeline.run();
+
+    long currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+    assertEquals(numDocs, currentNumDocs);
+
+    int count = countByScientistName(connectionConfiguration, restClient, "Einstein", null);
+    assertEquals(numDocs / NUM_SCIENTISTS, count);
+  }
+
+  SerializableFunction<Iterable<Document>, Void> windowPreservationValidator(
+      int expectedNumDocs, int idRangeStart, int idRangeEnd) {
+    JsonMapper mapper = new JsonMapper();
+    Set<Integer> range =
+        IntStream.rangeClosed(idRangeStart, idRangeEnd).boxed().collect(Collectors.toSet());
+
+    return input -> {
+      assertEquals(expectedNumDocs, Iterables.size(input));
+
+      for (Document d : input) {
+        try {
+          ObjectNode doc = (ObjectNode) mapper.readTree(d.getInputDoc());
+          assertTrue(range.contains(doc.get("id").asInt()));
+        } catch (JsonProcessingException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      return null;
+    };
   }
 }
