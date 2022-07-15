@@ -48,9 +48,12 @@ class CDHelper:
         logging.info("Finish of executing single-file Playground examples")
 
         logging.info("Start of sending Playground examples to the datastore ...")
-        datastore_client = DatastoreClient()
-        datastore_client.save_to_cloud_datastore(single_file_examples)
+        self._save_to_datastore(single_file_examples)
         logging.info("Finish of sending Playground examples to the datastore")
+
+    def _save_to_datastore(self, examples: List[Example]):
+        datastore_client = DatastoreClient()
+        datastore_client.save_to_cloud_datastore(examples)
 
     async def _get_outputs(self, examples: List[Example]):
         """

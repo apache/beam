@@ -12,17 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import unittest
-from typing import List
 from unittest.mock import MagicMock, ANY
 
 import mock
 import pytest
 from mock.mock import call
 
-from api.v1.api_pb2 import SDK_JAVA, STATUS_UNSPECIFIED
+import test_utils
 from datastore_client import DatastoreClient, DatastoreException
-from helper import Example, Tag
 
 """
 Unit tests for the Cloud Datastore client
@@ -39,7 +38,7 @@ class TestDatastoreClient(unittest.TestCase):
         """
         mock_config_project.return_value = "MOCK_PROJECT_ID"
         with pytest.raises(DatastoreException, match="Schema versions not found. Schema versions must be downloaded during application startup"):
-            examples = self._get_examples(1)
+            examples = test_utils._get_examples(1)
             client = DatastoreClient()
             client.save_to_cloud_datastore(examples)
 
@@ -64,7 +63,7 @@ class TestDatastoreClient(unittest.TestCase):
         mock_get_examples.return_value = mock_examples
         mock_config_project.return_value = "MOCK_PROJECT_ID"
 
-        examples = self._get_examples(1)
+        examples = test_utils._get_examples(1)
         client = DatastoreClient()
         client.save_to_cloud_datastore(examples)
         mock_client.assert_called_once()
@@ -81,26 +80,3 @@ class TestDatastoreClient(unittest.TestCase):
                  call().put_multi(ANY)]
         mock_client.assert_has_calls(calls, any_order=False)
         mock_client.delete_multi.assert_not_called()
-
-    def _get_examples(self, number_of_examples: int) -> List[Example]:
-        examples = []
-        for number in range(number_of_examples):
-            object_meta = {
-                "name": f"MOCK_NAME_{number}",
-                "description": f"MOCK_DESCRIPTION_{number}",
-                "multifile": False,
-                "categories": ["MOCK_CATEGORY_1", "MOCK_CATEGORY_2"],
-                "pipeline_options": "--MOCK_OPTION MOCK_OPTION_VALUE"
-            }
-            example = Example(
-                name=f"MOCK_NAME_{number}",
-                pipeline_id=f"MOCK_PIPELINE_ID_{number}",
-                sdk=SDK_JAVA,
-                filepath=f"MOCK_FILEPATH_{number}",
-                code=f"MOCK_CODE_{number}",
-                output=f"MOCK_OUTPUT_{number}",
-                status=STATUS_UNSPECIFIED,
-                tag=Tag(**object_meta),
-                link=f"MOCK_LINK_{number}")
-            examples.append(example)
-        return examples
