@@ -116,7 +116,7 @@ The pipeline reads images, performs basic preprocessing, passes the images to th
 
 ### Dataset and model for image segmentation
 
-To use this transform, you need a dataset and model for image segmentation. 
+To use this transform, you need a dataset and model for image segmentation.
 
 1. Create a directory named `IMAGES_DIR`. Create or download images and put them in this directory. The directory is not required if image names in the input file `IMAGE_FILE_NAMES` have absolute paths.
 A popular dataset is from [Coco](https://cocodataset.org/#home). Follow their instructions to download the images.
