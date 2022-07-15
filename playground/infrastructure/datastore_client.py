@@ -30,6 +30,15 @@ from helper import Example
 from api.v1.api_pb2 import Sdk
 
 
+class DatastoreException(Exception):
+    def __init__(self, error: str):
+        super().__init__()
+        self.msg = error
+
+    def __str__(self):
+        return self.msg
+
+
 # Google Datastore documentation link: https://cloud.google.com/datastore/docs/concepts
 class DatastoreClient:
     """DatastoreClient is a datastore client for sending a request to the Google."""
@@ -64,7 +73,12 @@ class DatastoreClient:
         last_schema_version_query = self._datastore_client.query(kind=DatastoreProps.SCHEMA_KIND)
         last_schema_version_query.keys_only()
         schema_iterator = last_schema_version_query.fetch()
-        for schema in schema_iterator:
+        schemas = list(schema_iterator)
+        if len(schemas) == 0:
+            logging.error("Schema versions not found")
+            raise DatastoreException("Schema versions not found. Schema versions must be downloaded during application startup")
+
+        for schema in schemas:
             schema_names.append(schema.key.name)
         actual_schema_version_key = self._get_actual_schema_version(schema_names)
 
