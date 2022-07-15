@@ -229,7 +229,7 @@ The pipeline reads rows of pixels corresponding to a digit, performs basic prepr
 
 ### Dataset and model for language modeling
 
-To use this transform, you need a dataset and model for language modeling. 
+To use this transform, you need a dataset and model for language modeling.
 
 1. Create a file named `INPUT` that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The content of the file should be similar to the following example:
 ```
