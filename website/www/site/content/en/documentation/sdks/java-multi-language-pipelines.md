@@ -66,9 +66,13 @@ The example pipeline,
 [PythonDataframeWordCount](https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/PythonDataframeWordCount.java),
 passes this fully qualified name to
 [PythonExternalTransform](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/python/PythonExternalTransform.html).
-There's also a higher-level cross-language [DataframeTransform](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/DataframeTransform.java)
-for Java, so you can use that instead of specifying the fully qualified name for
-the Python `DataframeTransform`.
+
+> **Note:** The example pipeline is intended to demonstrate the development of
+> Java multi-language pipelines that use arbitrary Python cross-language
+> transforms. For production use cases of the Dataframe API in Java, you should
+> use the higher-level
+> [DataframeTransform](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/DataframeTransform.java)
+> instead.
 
 Here's the complete pipeline definition from the example:
 
@@ -92,17 +96,19 @@ static void runWordCount(WordCountOptions options) {
 }
 ```
 
-`PythonExternalTransform` is a wrapper for invoking external Python functions.
+`PythonExternalTransform` is a wrapper for invoking external Python transforms.
 The
 [`from`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/python/PythonExternalTransform.html#from-java.lang.String-java.lang.String-)
 method accepts two strings: 1) the fully qualified transform name; 2) an
 optional address and port number for the expansion service. The method returns
-the transform.
+a stub for the Python cross-language transform that can be used directly in a
+Java pipeline.
 [`withKwarg`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/python/PythonExternalTransform.html#withKwarg-java.lang.String-java.lang.Object-)
 specifies a keyword argument for instantiating the Python cross-language
 transform. In this case, `withKwarg` is invoked twice, to specify a `func`
 argument and an `include_indexes` argument, and these arguments are passed to
-`DataframeTransform`.
+`DataframeTransform`. `PythonExternalTransform` also provides other ways to
+specify args and kwargs for Python cross-language transforms.
 
 To understand how this pipeline works, it’s helpful to look more closely at the
 first `withKwarg` invocation:
@@ -125,7 +131,7 @@ default Beam SDK, you might need to run your own expansion service. In such
 cases, [start the expansion service](#advanced-start-an-expansion-service)
 before running your pipeline.
 
-For the general use case, you can simply run your multi-language pipeline using
+For this example, you can simply run your multi-language pipeline using
 Gradle, as shown below.
 
 ### Run with Dataflow runner
@@ -149,8 +155,6 @@ export PYTHON_VERSION=<version>
 
 The pipeline outputs a file with the results to
 **gs://$OUTPUT_BUCKET/count-00000-of-00001**.
-
-Note: For Beam 2.40.0, you also need to set `sdkHarnessContainerImageOverrides`.
 
 ## Advanced: Start an expansion service
 
@@ -179,21 +183,9 @@ follow these steps:
    ```
 
 The command runs
-[expansion_service_main.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/expansion_service_main.py), which starts the standard expansion service. You should see output similar to
-the following:
-
-```
-INFO:root:Default Python SDK image for environment is <IMAGE>
-INFO:root:No image given, using default Python SDK image
-INFO:root:Default Python SDK image for environment is <IMAGE>
-INFO:root:Python SDK container image set to "<IMAGE>" for Docker environment
-INFO:__main__:Listening for expansion requests at 18089
-```
-
-`<IMAGE>` should be the specific SDK image for your environment. The expansion
-service is now available to run your cross-language transform. When you use
-Gradle to run your Java pipeline, you can specify the expansion service with
-`--expansionService=localhost:18089`.
+[expansion_service_main.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/expansion_service_main.py), which starts the standard expansion service. When you use
+Gradle to run your Java pipeline, you can specify the expansion service with the
+`expansionService` option. For example: `--expansionService=localhost:18089`.
 
 ## Next steps
 
