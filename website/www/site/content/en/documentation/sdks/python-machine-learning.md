@@ -192,7 +192,7 @@ Use elements of the same size or resize the inputs. For computer vision applicat
 **Option 2: Disable batching**
 
 Disable batching by overriding the `batch_elements_kwargs` function in your ModelHandler and setting the maximum batch size (`max_batch_size`) to one: `max_batch_size=1`. For more information, see
-[BatchElements PTransforms](/documentation/sdks/python-machine-learning/#batchelements-ptransform). For an example, see our [language modeling example](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py)
+[BatchElements PTransforms](/documentation/sdks/python-machine-learning/#batchelements-ptransform). For an example, see our [language modeling example](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py).
 
 ## Related links
 
