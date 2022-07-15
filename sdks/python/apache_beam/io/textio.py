@@ -435,6 +435,9 @@ class _TextSink(filebasedsink.FileBasedSink):
                compression_type=CompressionTypes.AUTO,
                header=None,
                footer=None,
+               *,
+               max_records_per_shard=None,
+               max_bytes_per_shard=None,
                skip_if_empty=False):
     """Initialize a _TextSink.
 
@@ -469,6 +472,14 @@ class _TextSink(filebasedsink.FileBasedSink):
         append_trailing_newlines is set, '\n' will be added.
       footer: String to write at the end of file as a footer. If not None and
         append_trailing_newlines is set, '\n' will be added.
+      max_records_per_shard: Maximum number of records to write to any
+        individual shard.
+      max_bytes_per_shard: Target maximum number of bytes to write to any
+        individual shard. This may be exceeded slightly, as a new shard is
+        created once this limit is hit, but the remainder of a given record, a
+        subsequent newline, and a footer may cause the actual shard size
+        to exceed this value.  This also tracks the uncompressed,
+        not compressed, size of the shard.
       skip_if_empty: Don't write any shards if the PCollection is empty.
 
     Returns:
@@ -482,6 +493,8 @@ class _TextSink(filebasedsink.FileBasedSink):
         coder=coder,
         mime_type='text/plain',
         compression_type=compression_type,
+        max_records_per_shard=max_records_per_shard,
+        max_bytes_per_shard=max_bytes_per_shard,
         skip_if_empty=skip_if_empty)
     self._append_trailing_newlines = append_trailing_newlines
     self._header = header
@@ -791,6 +804,9 @@ class WriteToText(PTransform):
       compression_type=CompressionTypes.AUTO,
       header=None,
       footer=None,
+      *,
+      max_records_per_shard=None,
+      max_bytes_per_shard=None,
       skip_if_empty=False):
     r"""Initialize a :class:`WriteToText` transform.
 
@@ -830,6 +846,14 @@ class WriteToText(PTransform):
       footer (str): String to write at the end of file as a footer.
         If not :data:`None` and **append_trailing_newlines** is set, ``\n`` will
         be added.
+      max_records_per_shard: Maximum number of records to write to any
+        individual shard.
+      max_bytes_per_shard: Target maximum number of bytes to write to any
+        individual shard. This may be exceeded slightly, as a new shard is
+        created once this limit is hit, but the remainder of a given record, a
+        subsequent newline, and a footer may cause the actual shard size
+        to exceed this value.  This also tracks the uncompressed,
+        not compressed, size of the shard.
       skip_if_empty: Don't write any shards if the PCollection is empty.
     """
 
@@ -843,7 +867,9 @@ class WriteToText(PTransform):
         compression_type,
         header,
         footer,
-        skip_if_empty)
+        max_records_per_shard=max_records_per_shard,
+        max_bytes_per_shard=max_bytes_per_shard,
+        skip_if_empty=skip_if_empty)
 
   def expand(self, pcoll):
     return pcoll | Write(self._sink)

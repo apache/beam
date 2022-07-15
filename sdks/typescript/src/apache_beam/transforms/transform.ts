@@ -73,16 +73,16 @@ export class AsyncPTransformClass<
     this.beamName = name || this.constructor.name;
   }
 
-  async asyncExpand(input: InputT): Promise<OutputT> {
+  async expandAsync(input: InputT): Promise<OutputT> {
     throw new Error("Method expand has not been implemented.");
   }
 
-  async asyncExpandInternal(
+  async expandInternalAsync(
     input: InputT,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform
   ): Promise<OutputT> {
-    return this.asyncExpand(input);
+    return this.expandAsync(input);
   }
 }
 
@@ -94,7 +94,7 @@ export class PTransformClass<
     throw new Error("Method expand has not been implemented.");
   }
 
-  async asyncExpand(input: InputT): Promise<OutputT> {
+  async expandAsync(input: InputT): Promise<OutputT> {
     return this.expand(input);
   }
 
@@ -106,7 +106,7 @@ export class PTransformClass<
     return this.expand(input);
   }
 
-  async asyncExpandInternal(
+  async expandInternalAsync(
     input: InputT,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform
