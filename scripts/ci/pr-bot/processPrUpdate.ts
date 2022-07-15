@@ -134,19 +134,6 @@ async function processPrUpdate() {
   console.log(context);
   const payload = context.payload;
 
-  // TODO(damccorm) - remove this when we roll out to more than go
-  const existingLabels = payload.issue?.labels || payload.pull_request?.labels;
-  if (
-    !existingLabels.find(
-      (label) =>
-        label.name.toLowerCase() === "go" ||
-        label.name.toLowerCase() === "python"
-    )
-  ) {
-    console.log("Does not contain the go or python labels - skipping");
-    return;
-  }
-
   if (!payload.issue?.pull_request && !payload.pull_request) {
     console.log("Issue, not pull request - returning");
     return;
