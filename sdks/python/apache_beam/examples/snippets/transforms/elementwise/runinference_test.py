@@ -26,11 +26,10 @@ import pytest
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from . import runinference
-
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports, unused-import
 try:
   import torch
+  from . import runinference
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
 
