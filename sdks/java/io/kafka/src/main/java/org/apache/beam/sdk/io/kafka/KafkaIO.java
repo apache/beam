@@ -1341,6 +1341,8 @@ public class KafkaIO {
 
       // Reading from Kafka SDF is currently broken, as re-starting the pipeline will cause the
       // consumer to start from scratch. See https://github.com/apache/beam/issues/21730.
+      // https://github.com/apache/beam/issues/22303 is the task to try and fix Kafka SDF overall,
+      // as it appears to have other issues as well.
       ExperimentalOptions.addExperiment(
           input.getPipeline().getOptions().as(ExperimentalOptions.class),
           "use_unbounded_sdf_wrapper");
