@@ -123,10 +123,12 @@ public class KafkaIOReadImplementationCompatibilityTest {
     testReadTransformCreationWithImplementationBoundProperties(legacyDecoratorFunction());
   }
 
-  @Test
-  public void testReadTransformCreationWithSdfImplementationBoundProperty() {
-    testReadTransformCreationWithImplementationBoundProperties(sdfDecoratorFunction());
-  }
+  // TODO: fix Kafka SDF https://github.com/apache/beam/issues/22303
+
+  // @Test
+  // public void testReadTransformCreationWithSdfImplementationBoundProperty() {
+  //   testReadTransformCreationWithImplementationBoundProperties(sdfDecoratorFunction());
+  // }
 
   @Test
   public void testReadTransformCreationWithBothImplementationBoundProperties() {
