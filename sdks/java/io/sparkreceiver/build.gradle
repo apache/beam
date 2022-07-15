@@ -22,8 +22,8 @@ plugins {
 }
 
 applyJavaNature(
-        exportJavadoc: false,
-        automaticModuleName: 'org.apache.beam.sdk.io.sparkreceiver',
+    exportJavadoc: false,
+    automaticModuleName: 'org.apache.beam.sdk.io.sparkreceiver',
 )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
