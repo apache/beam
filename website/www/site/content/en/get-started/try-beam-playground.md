@@ -29,6 +29,8 @@ You can try the available Apache Beam examples at
 
 ## How To Add New Examples
 
+Test text
+
 To add an Apache Beam example/test/kata into Beam Playground catalog,
 add the `beam-playground` tag into the file to be added.
 `beam-playground` tag is a yaml format comment:
