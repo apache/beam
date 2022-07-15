@@ -58,12 +58,12 @@ def _ci_step(examples: List[Example]):
     asyncio.run(ci_helper.verify_examples(examples))
 
 
-def _cd_step(examples: List[Example]):
+def _cd_step(examples: List[Example], sdk: Sdk):
     """
     CD step to save all beam examples/tests/katas and their outputs on the Google Cloud Datastore
     """
     cd_helper = CDHelper()
-    cd_helper.save_examples(examples)
+    cd_helper.save_examples(examples, sdk)
 
 
 def _check_envs():
@@ -90,7 +90,7 @@ def _run_ci_cd(step: config.Config.CI_CD_LITERAL, sdk: Sdk):
         logging.info("Finish of verification single_file Playground examples")
     if step == config.Config.CD_STEP_NAME:
         logging.info("Start of storing Playground examples ...")
-        _cd_step(examples=examples)
+        _cd_step(examples=examples, sdk=sdk)
         logging.info("Finish of storing Playground examples")
 
 

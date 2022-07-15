@@ -22,7 +22,7 @@ import asyncio
 import logging
 from typing import List
 
-from api.v1.api_pb2 import SDK_PYTHON, SDK_JAVA
+from api.v1.api_pb2 import SDK_PYTHON, SDK_JAVA, Sdk
 from grpc_client import GRPCClient
 from datastore_client import DatastoreClient
 from helper import Example, get_statuses
@@ -35,7 +35,7 @@ class CDHelper:
     It is used to save beam examples/katas/tests and their output on the Google Cloud Datastore.
     """
 
-    def save_examples(self, examples: List[Example]):
+    def save_examples(self, examples: List[Example], sdk: Sdk):
         """
         Save beam examples and their output in the Google Cloud Datastore.
 
@@ -48,12 +48,12 @@ class CDHelper:
         logging.info("Finish of executing single-file Playground examples")
 
         logging.info("Start of sending Playground examples to the datastore ...")
-        self._save_to_datastore(single_file_examples)
+        self._save_to_datastore(single_file_examples, sdk)
         logging.info("Finish of sending Playground examples to the datastore")
 
-    def _save_to_datastore(self, examples: List[Example]):
+    def _save_to_datastore(self, examples: List[Example], sdk: Sdk):
         datastore_client = DatastoreClient()
-        datastore_client.save_to_cloud_datastore(examples)
+        datastore_client.save_to_cloud_datastore(examples, sdk)
 
     async def _get_outputs(self, examples: List[Example]):
         """

@@ -51,11 +51,12 @@ class DatastoreClient:
         self._check_envs()
         self._datastore_client = datastore.Client(namespace=DatastoreProps.NAMESPACE, project=Config.GOOGLE_CLOUD_PROJECT)
 
-    def save_to_cloud_datastore(self, examples_from_rep: List[Example]):
+    def save_to_cloud_datastore(self, examples_from_rep: List[Example], sdk: Sdk):
         """
         Save examples, output and meta to datastore
 
         Args:
+            :param sdk: sdk from parameters
             :param examples_from_rep: examples from the repository for saving to the Cloud Datastore
         """
 
@@ -71,7 +72,7 @@ class DatastoreClient:
         actual_schema_version_key = self._get_actual_schema_version_key()
 
         # retrieve all example keys before updating
-        examples_ids_before_updating = self._get_all_examples()
+        examples_ids_before_updating = self._get_all_examples(sdk)
 
         # loop through every example to save them to the Cloud Datastore
         with self._datastore_client.transaction():
@@ -120,9 +121,10 @@ class DatastoreClient:
         schema_names.sort(reverse=True)
         return self._get_key(DatastoreProps.SCHEMA_KIND, schema_names[0])
 
-    def _get_all_examples(self) -> List[str]:
+    def _get_all_examples(self, sdk: Sdk) -> List[str]:
         examples_ids_before_updating = []
         all_examples_query = self._datastore_client.query(kind=DatastoreProps.EXAMPLE_KIND)
+        all_examples_query.add_filter("sdk", "=", self._get_key(DatastoreProps.SDK_KIND, Sdk.Name(sdk)))
         all_examples_query.keys_only()
         examples_iterator = all_examples_query.fetch()
         for example_item in examples_iterator:
