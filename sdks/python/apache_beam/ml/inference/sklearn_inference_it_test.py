@@ -48,7 +48,7 @@ def file_lines_sorted(filepath):
 class SklearnInference(unittest.TestCase):
   @pytest.mark.skip
   def test_sklearn_mnist_classification(self):
-    test_pipeline = TestPipeline(is_integration_test=False)
+    test_pipeline = TestPipeline(is_integration_test=True)
     input_file = 'gs://apache-beam-ml/testing/inputs/it_mnist_data.csv'
     output_file_dir = 'gs://temp-storage-for-end-to-end-tests'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
