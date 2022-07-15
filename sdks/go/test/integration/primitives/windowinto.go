@@ -16,22 +16,26 @@
 package primitives
 
 import (
-	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
 func init() {
-	beam.RegisterFunction(sumPerKey)
-	beam.RegisterFunction(sumSideInputs)
-	beam.RegisterType(reflect.TypeOf((*createTimestampedData)(nil)).Elem())
+	register.Function4x2(sumPerKey)
+	register.Function3x0(sumSideInputs)
+	register.DoFn2x0[[]byte, func(beam.EventTime, string, int)](&createTimestampedData{})
+
+	register.Emitter3[beam.EventTime, string, int]()
+	register.Emitter1[int]()
+	register.Iter1[int]()
 }
 
 // createTimestampedData produces data timestamped with the ordinal.
