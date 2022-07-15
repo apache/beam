@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
+import unittest
 from typing import List
 from unittest.mock import MagicMock, ANY
 
@@ -30,7 +29,7 @@ Unit tests for the Cloud Datastore client
 """
 
 
-class TestDatastoreClient:
+class TestDatastoreClient(unittest.TestCase):
 
     @mock.patch("config.Config.GOOGLE_CLOUD_PROJECT")
     @mock.patch("google.cloud.datastore.Client")
