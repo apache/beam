@@ -132,7 +132,7 @@ from torchvision.models.detection import maskrcnn_resnet50_fpn
 model = maskrcnn_resnet50_fpn(pretrained=True)
 torch.save(model.state_dict(), 'maskrcnn_resnet50_fpn.pth')
 ```
-4. Create a path to a file named `MODEL_STATE_DICT` that contains the saved parameters of the `maskrcnn_resnet50_fpn` model. 
+4. Create a path to a file named `MODEL_STATE_DICT` that contains the saved parameters of the `maskrcnn_resnet50_fpn` model.
 5. Create a path to a file named `OUTPUT`. This file is used by the pipeline to write the predictions.
 
 ### Running `pytorch_image_segmentation.py`
