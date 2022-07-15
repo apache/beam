@@ -13,23 +13,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module beam.apache.org/playground/backend
+package utils
 
-go 1.16
+import "testing"
 
-require (
-	cloud.google.com/go/datastore v1.6.0
-	cloud.google.com/go/logging v1.4.2
-	cloud.google.com/go/storage v1.23.0
-	github.com/go-redis/redis/v8 v8.11.4
-	github.com/go-redis/redismock/v8 v8.0.6
-	github.com/google/uuid v1.3.0
-	github.com/improbable-eng/grpc-web v0.14.1
-	github.com/rs/cors v1.8.0
-	github.com/spf13/viper v1.12.0
-	go.uber.org/goleak v1.1.12
-	google.golang.org/api v0.85.0
-	google.golang.org/grpc v1.47.0
-	google.golang.org/protobuf v1.28.0
-	gopkg.in/yaml.v3 v3.0.1
-)
+func TestID(t *testing.T) {
+	type args struct {
+		salt    string
+		content string
+		length  int8
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "ID generation in the usual case",
+			args: args{
+				salt:    "MOCK_SALT",
+				content: "MOCK_CONTENT",
+				length:  11,
+			},
+			want:    "Zl_s-8seE6k",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		result, err := ID(tt.args.salt, tt.args.content, tt.args.length)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("ID() error = %v, wantErr %v", err, tt.wantErr)
+			return
+		}
+		if result != tt.want {
+			t.Errorf("ID() result = %v, want %v", result, tt.want)
+		}
+	}
+}
