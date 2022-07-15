@@ -148,10 +148,9 @@ class RunInferenceBaseTest(unittest.TestCase):
         examples = [1, 5, 3, 10]
         pcoll = pipeline | 'start' >> beam.Create(examples)
         inference_args = {'key': True}
-        actual = pcoll | base.RunInference(
+        _ = pcoll | base.RunInference(
             FakeModelHandlerFailsOnInferenceArgs(),
             inference_args=inference_args)
-        assert_that(actual, equal_to(examples), label='assert:inferences')
 
   def test_counted_metrics(self):
     pipeline = TestPipeline()
