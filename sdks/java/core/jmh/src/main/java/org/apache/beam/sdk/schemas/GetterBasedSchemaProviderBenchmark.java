@@ -17,19 +17,19 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static org.apache.beam.sdk.schemas.RowBundles.ByteBufferBundle;
-import static org.apache.beam.sdk.schemas.RowBundles.BytesBundle;
-import static org.apache.beam.sdk.schemas.RowBundles.DateTimeBundle;
-import static org.apache.beam.sdk.schemas.RowBundles.IntBundle;
-import static org.apache.beam.sdk.schemas.RowBundles.MapOfIntBundle;
-import static org.apache.beam.sdk.schemas.RowBundles.MapOfNestedIntBundle;
-import static org.apache.beam.sdk.schemas.RowBundles.NestedBytesBundle;
-import static org.apache.beam.sdk.schemas.RowBundles.NestedIntBundle;
-import static org.apache.beam.sdk.schemas.RowBundles.StringBuilderBundle;
-import static org.apache.beam.sdk.schemas.RowBundles.StringBundle;
-
 import org.apache.beam.sdk.schemas.RowBundles.ArrayOfNestedStringBundle;
 import org.apache.beam.sdk.schemas.RowBundles.ArrayOfStringBundle;
+import org.apache.beam.sdk.schemas.RowBundles.ByteBufferBundle;
+import org.apache.beam.sdk.schemas.RowBundles.BytesBundle;
+import org.apache.beam.sdk.schemas.RowBundles.DateTimeBundle;
+import org.apache.beam.sdk.schemas.RowBundles.IntBundle;
+import org.apache.beam.sdk.schemas.RowBundles.MapOfIntBundle;
+import org.apache.beam.sdk.schemas.RowBundles.MapOfNestedIntBundle;
+import org.apache.beam.sdk.schemas.RowBundles.NestedBytesBundle;
+import org.apache.beam.sdk.schemas.RowBundles.NestedIntBundle;
+import org.apache.beam.sdk.schemas.RowBundles.StringBuilderBundle;
+import org.apache.beam.sdk.schemas.RowBundles.StringBundle;
+import org.apache.beam.sdk.values.RowWithGetters;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.State;
@@ -40,9 +40,10 @@ import org.openjdk.jmh.infra.Blackhole;
  * GetterBasedSchemaProvider#toRowFunction(TypeDescriptor) toRowFunction} / {@link
  * GetterBasedSchemaProvider#fromRowFunction(TypeDescriptor) fromRowFunction}.
  *
- * <p>Each benchmark method invocation, depending on {@link RowBundle#action}, either reads a bundle
- * of {@link RowBundle#bundleSize n} rows to a {@link RowBundle.Sink Sink} using corresponding
- * getters or writes objects using corresponding setters.
+ * <p>Each benchmark method invocation, depending on {@link RowBundle#action}, either reads a single
+ * field of a bundle of {@link RowBundle#bundleSize n} rows using the corresponding getter via
+ * {@link RowWithGetters#getValue} or writes that field using the corresponding setter to a new
+ * object instance.
  *
  * <p>Rows are created upfront and provided as JMH {@link State} to exclude initialization costs
  * from the measurement.
