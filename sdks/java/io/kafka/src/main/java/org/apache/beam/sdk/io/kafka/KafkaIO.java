@@ -546,8 +546,9 @@ import org.slf4j.LoggerFactory;
  *
  * <h1>Reading from Kafka SDF is currently broken, as re-starting the pipeline will cause the
  * consumer to start from scratch. See <a
- * href="https://github.com/apache/beam/issues/21730">this</a>. Current workaround is to use
- * --experimental_option=use_unbounded_sdf_wrapper to use the Unbounded implementation</h1>
+ * href="https://github.com/apache/beam/issues/21730">this</a>. For runners that require SDF, the
+ * current workaround is to use --experimental_option=use_unbounded_sdf_wrapper to use the
+ * Unbounded implementation</h1>
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
