@@ -29,7 +29,7 @@ import org.openjdk.jmh.infra.Blackhole;
 
 public interface RowBundles {
   @State(Scope.Benchmark)
-  class IntBundle extends RowBundle {
+  class IntBundle extends RowBundle<IntBundle.Field> {
     public IntBundle() {
       super(Field.class);
     }
@@ -41,7 +41,7 @@ public interface RowBundles {
   }
 
   @State(Scope.Benchmark)
-  class NestedIntBundle extends RowBundle {
+  class NestedIntBundle extends RowBundle<NestedIntBundle.Field> {
     public NestedIntBundle() {
       super(Field.class);
     }
@@ -58,7 +58,7 @@ public interface RowBundles {
   }
 
   @State(Scope.Benchmark)
-  class StringBundle extends RowBundle {
+  class StringBundle extends RowBundle<StringBundle.Field> {
     public StringBundle() {
       super(Field.class);
     }
@@ -70,7 +70,7 @@ public interface RowBundles {
   }
 
   @State(Scope.Benchmark)
-  class StringBuilderBundle extends RowBundle {
+  class StringBuilderBundle extends RowBundle<StringBuilderBundle.Field> {
     public StringBuilderBundle() {
       super(Field.class);
     }
@@ -82,7 +82,7 @@ public interface RowBundles {
   }
 
   @State(Scope.Benchmark)
-  class DateTimeBundle extends RowBundle {
+  class DateTimeBundle extends RowBundle<DateTimeBundle.Field> {
     public DateTimeBundle() {
       super(Field.class);
     }
@@ -94,7 +94,7 @@ public interface RowBundles {
   }
 
   @State(Scope.Benchmark)
-  class BytesBundle extends RowBundle {
+  class BytesBundle extends RowBundle<BytesBundle.Field> {
     public BytesBundle() {
       super(Field.class);
     }
@@ -106,7 +106,7 @@ public interface RowBundles {
   }
 
   @State(Scope.Benchmark)
-  class NestedBytesBundle extends RowBundle {
+  class NestedBytesBundle extends RowBundle<NestedBytesBundle.Field> {
     public NestedBytesBundle() {
       super(Field.class);
     }
@@ -123,7 +123,7 @@ public interface RowBundles {
   }
 
   @State(Scope.Benchmark)
-  class ByteBufferBundle extends RowBundle {
+  class ByteBufferBundle extends RowBundle<ByteBufferBundle.Field> {
     public ByteBufferBundle() {
       super(Field.class);
     }
@@ -135,7 +135,7 @@ public interface RowBundles {
   }
 
   @State(Scope.Benchmark)
-  class ArrayOfStringBundle extends RowBundle {
+  class ArrayOfStringBundle extends RowBundle<ArrayOfStringBundle.Field> {
     public ArrayOfStringBundle() {
       super(Field.class);
     }
@@ -152,7 +152,7 @@ public interface RowBundles {
   }
 
   @State(Scope.Benchmark)
-  class ArrayOfNestedStringBundle extends RowBundle {
+  class ArrayOfNestedStringBundle extends RowBundle<ArrayOfNestedStringBundle.Field> {
     public ArrayOfNestedStringBundle() {
       super(Field.class);
     }
@@ -169,7 +169,7 @@ public interface RowBundles {
   }
 
   @State(Scope.Benchmark)
-  class MapOfIntBundle extends RowBundle {
+  class MapOfIntBundle extends RowBundle<MapOfIntBundle.Field> {
     public MapOfIntBundle() {
       super(Field.class);
     }
@@ -188,7 +188,7 @@ public interface RowBundles {
   }
 
   @State(Scope.Benchmark)
-  class MapOfNestedIntBundle extends RowBundle {
+  class MapOfNestedIntBundle extends RowBundle<MapOfNestedIntBundle.Field> {
     public MapOfNestedIntBundle() {
       super(Field.class);
     }

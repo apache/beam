@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.schemas;
 
 import java.nio.charset.StandardCharsets;
-import java.util.function.Function;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
@@ -39,8 +39,8 @@ import org.openjdk.jmh.infra.Blackhole;
 /**
  * Bundle of rows according to the configured {@link Factory} as input for benchmarks.
  *
- * <p>The rows are created during {@link #setup()} to exclude initialization costs from the
- * measurement. To prevent unintended cache hits in {@link RowWithGetters}, a new bundle of rows
+ * <p>When reading, rows are created during {@link #setup()} to exclude initialization costs from
+ * the measurement. To prevent unintended cache hits in {@link RowWithGetters}, a new bundle of rows
  * must be generated before every invocation.
  *
  * <p>Setup per {@link Level#Invocation} has considerable drawbacks. Though, given that processing
@@ -48,8 +48,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * adequately timestamped without risking generating wrong results.
  */
 @State(Scope.Benchmark)
-public class RowBundle {
-  @SuppressWarnings("ImmutableEnumChecker") // false positive
+public class RowBundle<T> {
   public enum Action {
     /**
      * Write field to object using {@link
@@ -57,36 +56,33 @@ public class RowBundle {
      *
      * <p>Use {@link RowWithStorage} to bypass optimizations in RowWithGetters for writes.
      */
-    WRITE(Factory::createWithStorage),
+    WRITE,
 
     /**
      * Read field from {@link RowWithGetters} provided by {@link
      * GetterBasedSchemaProvider#toRowFunction(TypeDescriptor)}.
      */
-    READ_ONCE(Factory::createWithGetter),
+    READ_ONCE,
 
     /**
      * Repeatedly (3x) read field from {@link RowWithGetters} provided by {@link
      * GetterBasedSchemaProvider#toRowFunction(TypeDescriptor)}.
      */
-    READ_REPEATED(Factory::createWithGetter);
-
-    final Function<SchemaCoder<?>, Factory<Row>> factoryProvider;
-
-    Action(Function<SchemaCoder<?>, Factory<Row>> factoryProvider) {
-      this.factoryProvider = factoryProvider;
-    }
+    READ_REPEATED
   }
 
   private static final SchemaRegistry REGISTRY = SchemaRegistry.createDefault();
 
-  private final SchemaCoder<?> coder;
-  private final SerializableFunction<Row, ?> fromRow;
-  private Factory<Row> factory;
+  private final SerializableFunction<Row, T> fromRow;
+  private final SerializableFunction<T, Row> toRow;
 
-  protected Row[] rows;
+  private final Row rowWithStorage;
 
-  @Param("100000")
+  private final T rowTarget;
+
+  private Row[] rows;
+
+  @Param("1000000")
   int bundleSize;
 
   @Param({"READ_ONCE", "READ_REPEATED", "WRITE"})
@@ -96,13 +92,16 @@ public class RowBundle {
     this(null); // unused, just to prevent warnings
   }
 
-  public RowBundle(Class<?> clazz) {
+  public RowBundle(Class<T> clazz) {
     try {
-      coder = REGISTRY.getSchemaCoder(clazz);
-      fromRow = coder.getFromRowFunction();
+      SchemaCoder<T> coder = REGISTRY.getSchemaCoder(clazz);
       if (coder.getSchema().getFieldCount() != 1) {
         throw new IllegalArgumentException("Expected class with a single field");
       }
+      fromRow = coder.getFromRowFunction();
+      toRow = coder.getToRowFunction();
+      rowWithStorage = createRowWithStorage(coder.getSchema());
+      rowTarget = fromRow.apply(rowWithStorage);
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(e);
     }
@@ -110,15 +109,20 @@ public class RowBundle {
 
   @Setup(Level.Invocation)
   public void setup() {
-    if (factory == null) {
-      factory = action.factoryProvider.apply(coder);
+    // no mutable state in case of writes, skip setup
+    if (action == Action.WRITE) {
+      return;
+    }
+    if (rows == null) {
       rows = new Row[bundleSize];
     }
+    // new rows (with getters) for each invocation to prevent accidental cache hits
     for (int i = 0; i < bundleSize; i++) {
-      rows[i] = factory.apply(i);
+      rows[i] = toRow.apply(rowTarget);
     }
   }
 
+  /** Runs benchmark iteration on a bundle of rows. */
   public void processRows(Blackhole blackhole) {
     if (action == Action.READ_ONCE) {
       readRowsOnce(blackhole);
@@ -127,6 +131,11 @@ public class RowBundle {
     } else {
       writeRows(blackhole);
     }
+  }
+
+  /** Reads single field from row (of type {@link RowWithGetters}). */
+  protected void readField(Row row, Blackhole blackhole) {
+    blackhole.consume(row.getValue(0));
   }
 
   private void readRowsOnce(Blackhole blackhole) {
@@ -143,67 +152,40 @@ public class RowBundle {
     }
   }
 
-  protected void readField(Row row, Blackhole blackhole) {
-    blackhole.consume(row.getValue(0));
-  }
-
   private void writeRows(Blackhole blackhole) {
-    for (Row row : rows) {
-      blackhole.consume(fromRow.apply(row));
+    for (int i = 0; i < bundleSize; i++) {
+      blackhole.consume(fromRow.apply(rowWithStorage));
     }
   }
 
-  public interface Factory<T> extends Function<Integer, T> {
-    Instant TODAY = DateTime.now().withTimeAtStartOfDay().toInstant();
+  private static final Instant TODAY = DateTime.now().withTimeAtStartOfDay().toInstant();
 
-    /** Create factory of rows of type {@link RowWithStorage}. */
-    static Factory<Row> createWithStorage(Schema schema) {
-      Factory<Object> fn = value(schema.getField(0).getType());
-      return i -> RowWithStorage.withSchema(schema).attachValues(fn.apply(i));
-    }
+  /** Creates row of type {@link RowWithStorage} with single field matching the provided schema. */
+  private static Row createRowWithStorage(Schema schema) {
+    return RowWithStorage.withSchema(schema)
+        .attachValues(createValue(42, schema.getField(0).getType()));
+  }
 
-    /** Create factory of rows of type {@link RowWithStorage}. */
-    static Factory<Row> createWithStorage(SchemaCoder<?> coder) {
-      return createWithStorage(coder.getSchema());
-    }
-
-    /** Create factory of rows of type {@link RowWithGetters} by means of a {@link SchemaCoder}. */
-    static <T> Factory<Row> createWithGetter(SchemaCoder<T> coder) {
-      SerializableFunction<Row, T> fromRow = coder.getFromRowFunction();
-      SerializableFunction<T, Row> toRow = coder.getToRowFunction();
-      Factory<Row> factory = createWithStorage(coder.getSchema());
-      // Factory creating Row -> Pojo -> RowWithGetters
-      return i -> toRow.apply(fromRow.apply(factory.apply(i)));
-    }
-
-    static Factory<Object> value(Schema.FieldType type) {
-      switch (type.getTypeName()) {
-        case STRING:
-          return i -> String.valueOf(i);
-        case INT32:
-          return i -> i;
-        case BYTES:
-          return i -> String.valueOf(i).getBytes(StandardCharsets.UTF_8);
-        case DATETIME:
-          return i -> TODAY.minus(Duration.standardHours(i));
-        case ROW:
-          return createWithStorage(type.getRowSchema())::apply;
-        case ARRAY:
-        case ITERABLE:
-          return list(value(type.getCollectionElementType()));
-        case MAP:
-          return map(value(type.getMapKeyType()), value(type.getMapValueType()));
-        default:
-          throw new RuntimeException("No value factory for type " + type);
-      }
-    }
-
-    static Factory<Object> list(Factory<Object> fn) {
-      return i -> ImmutableList.of(fn.apply(i));
-    }
-
-    static Factory<Object> map(Factory<Object> kFn, Factory<Object> vFn) {
-      return i -> ImmutableMap.of(kFn.apply(i), vFn.apply(i));
+  private static Object createValue(int val, FieldType type) {
+    switch (type.getTypeName()) {
+      case STRING:
+        return String.valueOf(val);
+      case INT32:
+        return val;
+      case BYTES:
+        return String.valueOf(val).getBytes(StandardCharsets.UTF_8);
+      case DATETIME:
+        return TODAY.minus(Duration.standardHours(val));
+      case ROW:
+        return createRowWithStorage(type.getRowSchema());
+      case ARRAY:
+      case ITERABLE:
+        return ImmutableList.of(createValue(val, type.getCollectionElementType()));
+      case MAP:
+        return ImmutableMap.of(
+            createValue(val, type.getMapKeyType()), createValue(val, type.getMapValueType()));
+      default:
+        throw new RuntimeException("No value factory for type " + type);
     }
   }
 }
