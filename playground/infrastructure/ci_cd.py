@@ -36,7 +36,7 @@ parser.add_argument(
     dest="step",
     required=True,
     help="CI step to verify all beam examples/tests/katas. CD step to save all "
-         "beam examples/tests/katas and their outputs on the GCS",
+         "beam examples/tests/katas and their outputs on the Google Cloud Datastore",
     choices=[config.Config.CI_STEP_NAME, config.Config.CD_STEP_NAME])
 parser.add_argument(
     "--sdk",
@@ -60,7 +60,7 @@ def _ci_step(examples: List[Example]):
 
 def _cd_step(examples: List[Example]):
     """
-    CD step to save all beam examples/tests/katas and their outputs on the GCS
+    CD step to save all beam examples/tests/katas and their outputs on the Google Cloud Datastore
     """
     cd_helper = CDHelper()
     cd_helper.store_examples(examples)

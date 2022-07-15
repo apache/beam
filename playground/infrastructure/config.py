@@ -41,13 +41,9 @@ class Config:
         Sdk.Name(SDK_GO),
         Sdk.Name(SDK_PYTHON),
         Sdk.Name(SDK_SCIO))
-    BUCKET_NAME = "playground-precompiled-objects"
-    TEMP_FOLDER = "temp"
-    DEFAULT_PRECOMPILED_OBJECT = "defaultPrecompiledObject.info"
     SDK_TO_EXTENSION = {
         SDK_JAVA: "java", SDK_GO: "go", SDK_PYTHON: "py", SDK_SCIO: "scala"
     }
-    NO_STORE = "no-store"
     ERROR_STATUSES = [
         STATUS_VALIDATION_ERROR,
         STATUS_ERROR,
