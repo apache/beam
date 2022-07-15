@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -73,8 +74,8 @@ type operationResults struct {
 }
 
 type fhirStoreClient interface {
-	readResource(resourcePath string) (*http.Response, error)
-	executeBundle(storePath string, bundle []byte) (*http.Response, error)
+	readResource(resourcePath []byte) (*http.Response, error)
+	executeBundle(storePath string, bundle string) (*http.Response, error)
 	search(storePath, resourceType string, queries map[string]string, pageToken string) (*http.Response, error)
 	deidentify(srcStorePath, dstStorePath string, deidConfig *healthcare.DeidentifyConfig) (operationResults, error)
 }
@@ -95,12 +96,12 @@ func (c *fhirStoreClientImpl) fhirService() *healthcare.ProjectsLocationsDataset
 	return c.healthcareService.Projects.Locations.Datasets.FhirStores.Fhir
 }
 
-func (c *fhirStoreClientImpl) readResource(resourcePath string) (*http.Response, error) {
-	return c.fhirService().Read(resourcePath).Do()
+func (c *fhirStoreClientImpl) readResource(resourcePath []byte) (*http.Response, error) {
+	return c.fhirService().Read(string(resourcePath)).Do()
 }
 
-func (c *fhirStoreClientImpl) executeBundle(storePath string, bundle []byte) (*http.Response, error) {
-	return c.fhirService().ExecuteBundle(storePath, bytes.NewReader(bundle)).Do()
+func (c *fhirStoreClientImpl) executeBundle(storePath, bundle string) (*http.Response, error) {
+	return c.fhirService().ExecuteBundle(storePath, strings.NewReader(bundle)).Do()
 }
 
 func (c *fhirStoreClientImpl) search(storePath, resourceType string, queries map[string]string, pageToken string) (*http.Response, error) {
