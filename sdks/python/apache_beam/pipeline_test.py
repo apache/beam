@@ -36,6 +36,7 @@ from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
@@ -1290,6 +1291,56 @@ class RunnerApiTest(unittest.TestCase):
             b'second_application', environment.resource_hints.get('foo_urn'))
         count += 1
     assert count == 2
+
+  def test_environments_are_deduplicated(self):
+    def file_artifact(path, hash, staged_name):
+      return beam_runner_api_pb2.ArtifactInformation(
+          type_urn=common_urns.artifact_types.FILE.urn,
+          type_payload=beam_runner_api_pb2.ArtifactFilePayload(
+              path=path, sha256=hash).SerializeToString(),
+          role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+          role_payload=beam_runner_api_pb2.ArtifactStagingToRolePayload(
+              staged_name=staged_name).SerializeToString(),
+      )
+
+    proto = beam_runner_api_pb2.Pipeline(
+        components=beam_runner_api_pb2.Components(
+            transforms={
+                'transform1': beam_runner_api_pb2.PTransform(
+                    environment_id='e1'),
+                'transform2': beam_runner_api_pb2.PTransform(
+                    environment_id='e2'),
+                'transform3': beam_runner_api_pb2.PTransform(
+                    environment_id='e3'),
+                'transform4': beam_runner_api_pb2.PTransform(
+                    environment_id='e4'),
+            },
+            environments={
+                'e1': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a1', 'x', 'a')]),
+                'e2': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a2', 'x', 'a')]),
+                'e3': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a3', 'y', 'a')]),
+                'e4': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a4', 'y', 'b')]),
+            }))
+    Pipeline.merge_compatible_environments(proto)
+
+    # These environments are equivalent.
+    self.assertEqual(
+        proto.components.transforms['transform1'].environment_id,
+        proto.components.transforms['transform2'].environment_id)
+
+    # These are not.
+    self.assertNotEqual(
+        proto.components.transforms['transform1'].environment_id,
+        proto.components.transforms['transform3'].environment_id)
+    self.assertNotEqual(
+        proto.components.transforms['transform4'].environment_id,
+        proto.components.transforms['transform3'].environment_id)
+
+    self.assertEqual(len(proto.components.environments), 3)
 
 
 if __name__ == '__main__':
