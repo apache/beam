@@ -82,7 +82,7 @@ model = mobilenet_v2(pretrained=True)
 torch.save(model.state_dict(), 'mobilenet_v2.pth')
 ```
 4. Create a file named `MODEL_STATE_DICT` that contains the saved parameters of the `mobilenet_v2` model.
-5. Create a file named `OUTPUT`. This file is used by the pipeline to write the predictions.
+5. Note the path to the `OUTPUT` file. This file is used by the pipeline to write the predictions.
 
 ### Running `pytorch_image_classification.py`
 
@@ -133,7 +133,7 @@ model = maskrcnn_resnet50_fpn(pretrained=True)
 torch.save(model.state_dict(), 'maskrcnn_resnet50_fpn.pth')
 ```
 4. Create a path to a file named `MODEL_STATE_DICT` that contains the saved parameters of the `maskrcnn_resnet50_fpn` model.
-5. Create a path to a file named `OUTPUT`. This file is used by the pipeline to write the predictions.
+5. Note the path to the `OUTPUT` file. This file is used by the pipeline to write the predictions.
 
 ### Running `pytorch_image_segmentation.py`
 
@@ -179,7 +179,7 @@ model = BertForMaskedLM.from_pretrained('bert-base-uncased', return_dict=True)
 torch.save(model.state_dict(), 'BertForMaskedLM.pth')
 ```
 2. Create a file named `MODEL_STATE_DICT` that contains the saved parameters of the `BertForMaskedLM` model.
-3. Create a file named `OUTPUT`. This file is used by the pipeline to write the predictions.
+3. Note the path to the `OUTPUT` file. This file is used by the pipeline to write the predictions.
 4. (Optional) Create a file named `SENTENCES` that contains sentences to feed into the model. The content of the file should be similar to the following example:
 ```
 The capital of France is Paris .
@@ -239,7 +239,7 @@ To use this transform, you need a dataset and model for language modeling.
 4,0,0,0...
 ...
 ```
-2. Create a file named `OUTPUT`. This file is used by the pipeline to write the predictions.
+2. Note the path to the `OUTPUT` file. This file is used by the pipeline to write the predictions.
 3. Create a file named `MODEL_PATH` that contains the pickled file of a scikit-learn model trained on MNIST data. Please refer to this scikit-learn [model persistence documentation](https://scikit-learn.org/stable/model_persistence.html) on how to serialize models.
 
 
