@@ -543,12 +543,6 @@ import org.slf4j.LoggerFactory;
  * For any significant significant updates to this I/O connector, please consider involving
  * corresponding code reviewers mentioned <a
  * href="https://github.com/apache/beam/blob/master/sdks/java/io/kafka/OWNERS">here</a>.
- *
- * <h1>Reading from Kafka SDF is currently broken, as re-starting the pipeline will cause the
- * consumer to start from scratch. See <a
- * href="https://github.com/apache/beam/issues/21730">this</a>. For runners that require SDF, the
- * current workaround is to use --experimental_option=use_unbounded_sdf_wrapper to use the
- * Unbounded implementation</h1>
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
@@ -1345,6 +1339,12 @@ public class KafkaIO {
       final KafkaIOReadImplementationCompatibilityResult compatibility =
           KafkaIOReadImplementationCompatibility.getCompatibility(this);
 
+      // Reading from Kafka SDF is currently broken, as re-starting the pipeline will cause the
+      // consumer to start from scratch. See https://github.com/apache/beam/issues/21730.
+      ExperimentalOptions.addExperiment(
+          input.getPipeline().getOptions().as(ExperimentalOptions.class),
+          "use_unbounded_sdf_wrapper");
+
       // For a number of cases, we prefer using the UnboundedSource Kafka over the new SDF-based
       // Kafka source, for example,
       // * Experiments 'beam_fn_api_use_deprecated_read' and use_deprecated_read will result in
@@ -1363,10 +1363,6 @@ public class KafkaIO {
               && runnerPrefersLegacyRead(input.getPipeline().getOptions()))) {
         return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
       }
-      LOG.warn(
-          "Reading from Kafka SDF is currently broken, as re-starting the pipeline will cause the consumer to start from scratch."
-              + " See https://github.com/apache/beam/issues/21730 . "
-              + "Current workaround is to use --experimental_option=use_unbounded_sdf_wrapper to use the Unbounded implementation");
       return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
     }
 
