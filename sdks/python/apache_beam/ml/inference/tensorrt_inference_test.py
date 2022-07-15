@@ -43,16 +43,22 @@ except ImportError:
 
 LOGGER = trt.Logger(trt.Logger.INFO)
 
-SINGLE_FEATURE_EXAMPLES = np.array([[1], [5], [-3], [10.0]], dtype=np.float32)
+SINGLE_FEATURE_EXAMPLES = [np.array(1, dtype=np.float32), 
+  np.array(5, dtype=np.float32), 
+  np.array(-3, dtype=np.float32), 
+  np.array(10.0, dtype=np.float32)]
 
 SINGLE_FEATURE_PREDICTIONS = [
     PredictionResult(ex, pred) for ex,
     pred in zip(
         SINGLE_FEATURE_EXAMPLES,
-        [[np.array(example * 2.0 + 0.5, dtype=np.float32)] for example in SINGLE_FEATURE_EXAMPLES])
+        [[np.array([example * 2.0 + 0.5], dtype=np.float32)] for example in SINGLE_FEATURE_EXAMPLES])
 ]
 
-TWO_FEATURES_EXAMPLES = np.array([[1, 5],[3, 10],[-14, 0],[0.5, 0.5]], dtype=np.float32)
+TWO_FEATURES_EXAMPLES = [np.array([1, 5], dtype=np.float32), 
+  np.array([3, 10], dtype=np.float32), 
+  np.array([-14, 0], dtype=np.float32), 
+  np.array([0.5, 0.5], dtype=np.float32)]
 
 TWO_FEATURES_PREDICTIONS = [
         PredictionResult(ex, pred) for ex,
@@ -178,9 +184,11 @@ class TensorRTRunInferenceTest(unittest.TestCase):
   
   def test_num_bytes(self):
     inference_runner = TensorRTEngineHandlerNumPy(min_batch_size=1, max_batch_size=1)
-    examples = np.array([[1, 5], [3, 10], [-14, 0], [0.5, 0.5]],
-                 dtype="float32")
-    self.assertEqual((examples[0].itemsize) * 8,
+    examples = [np.array([1, 5], dtype=np.float32), 
+      np.array([3, 10], dtype=np.float32), 
+      np.array([-14, 0], dtype=np.float32), 
+      np.array([0.5, 0.5], dtype=np.float32)]
+    self.assertEqual((examples[0].itemsize) * 4,
                      inference_runner.get_num_bytes(examples))
 
   def test_namespace(self):

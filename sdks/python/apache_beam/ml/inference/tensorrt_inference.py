@@ -79,6 +79,20 @@ def _validate_inference_args(inference_args):
         'engines do not need extra arguments in their execute_v2() call.')
 
 
+def ASSERT_DRV(args):
+  """CUDA error checking."""
+  err, ret = args[0], args[1:]
+  if isinstance(err, cuda.CUresult):
+    if err != cuda.CUresult.CUDA_SUCCESS:
+      raise RuntimeError("Cuda Error: {}".format(err))
+  else:
+      raise RuntimeError("Unknown error type: {}".format(err))
+  """Special case so that no unpacking is needed at call-site."""
+  if len(ret) == 1:
+      return ret[0]
+  return ret
+
+
 class TensorRTEngine:
   def __init__(self, engine: trt.ICudaEngine):
     """Implementation of the TensorRTEngine class which handles
@@ -98,20 +112,13 @@ class TensorRTEngine:
     self.gpu_allocations = []
     self.cpu_allocations = []
 
-    # Setup I/O bindings
+    """Setup I/O bindings."""
     for i in range(self.engine.num_bindings):
-      is_input = False
-      if self.engine.binding_is_input(i):
-        is_input = True
       name = self.engine.get_binding_name(i)
       dtype = self.engine.get_binding_dtype(i)
       shape = self.engine.get_binding_shape(i)
-      if is_input:
-        batch_size = shape[0]
-      size = np.dtype(trt.nptype(dtype)).itemsize
-      for s in shape:
-        size *= s
-      err, allocation = cuda.cuMemAlloc(size)
+      size = trt.volume(shape) * dtype.itemsize
+      allocation = ASSERT_DRV(cuda.cuMemAlloc(size))
       binding = {
           'index': i,
           'name': name,
@@ -127,7 +134,6 @@ class TensorRTEngine:
         self.outputs.append(binding)
     
     assert self.context
-    assert batch_size > 0
     assert len(self.inputs) > 0
     assert len(self.outputs) > 0
     assert len(self.gpu_allocations) > 0
@@ -135,9 +141,12 @@ class TensorRTEngine:
     for output in self.outputs:
       self.cpu_allocations.append(np.zeros(output['shape'], output['dtype']))
 
+    """Create CUDA Stream."""
+    self.stream = ASSERT_DRV(cuda.cuStreamCreate(0))
+
   def get_engine_attrs(self):
     """Returns TensorRT engine attributes."""
-    return self.engine, self.context, self.inputs, self.outputs, self.gpu_allocations, self.cpu_allocations
+    return self.engine, self.context, self.inputs, self.outputs, self.gpu_allocations, self.cpu_allocations, self.stream
 
 
 class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
@@ -195,7 +204,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
 
   def run_inference(
       self,
-      batch: np.ndarray,
+      batch: Sequence[np.ndarray],
       engine: TensorRTEngine,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
@@ -214,16 +223,12 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       An Iterable of type PredictionResult.
     """
     _validate_inference_args(inference_args)
-    #Create CUDA Stream
-    err, stream = cuda.cuStreamCreate(0)
-    engine, context, inputs, outputs, gpu_allocations, cpu_allocations = engine.get_engine_attrs()
-    # Process I/O and execute the network
-    err, = cuda.cuMemcpyHtoDAsync(inputs[0]['allocation'], np.ascontiguousarray(batch), inputs[0]['size'], stream)
+    engine, context, inputs, outputs, gpu_allocations, cpu_allocations, stream = engine.get_engine_attrs()
+    """Process I/O and execute the network"""
+    ASSERT_DRV(cuda.cuMemcpyHtoDAsync(inputs[0]['allocation'], np.ascontiguousarray(batch), inputs[0]['size'], stream))
     context.execute_async_v2(gpu_allocations, stream)
     for output in range(len(cpu_allocations)):
-      err, = cuda.cuMemcpyDtoHAsync(cpu_allocations[output], outputs[output]['allocation'], outputs[output]['size'], stream)
-    # Destroy CUDA Stream
-    err, = cuda.cuStreamDestroy(stream)
+      ASSERT_DRV(cuda.cuMemcpyDtoHAsync(cpu_allocations[output], outputs[output]['allocation'], outputs[output]['size'], stream))
 
     return [
         PredictionResult(x, [prediction[idx] for prediction in cpu_allocations])
@@ -236,7 +241,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     Returns:
       The number of bytes of data for a batch of Tensors.
     """
-    return sum((el.itemsize for np_array in batch for el in np_array))
+    return sum((np_array.itemsize for np_array in batch))
 
   def get_metrics_namespace(self) -> str:
     """
