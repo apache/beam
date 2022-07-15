@@ -81,7 +81,9 @@
 
 ## Bugfixes
 
+* Fixed a condition where retrying queries would yield an incorrect cursor in the Java SDK Firestore Connector ([#22089](https://github.com/apache/beam/issues/22089)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
