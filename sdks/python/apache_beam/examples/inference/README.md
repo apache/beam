@@ -49,7 +49,7 @@ If you are using pretrained models from Hugging Face's `transformers` [package](
 pip install transformers
 ```
 
-For installation of the `torch` dependency on a distributed runner such as Dataflow, refer to the 
+For installation of the `torch` dependency on a distributed runner such as Dataflow, refer to the
 [PyPI dependency instructions](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pypi-dependencies).
 
 For more information, see the
