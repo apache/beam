@@ -139,14 +139,17 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[Tuple[KeyT, ExampleT],
                                      Tuple[KeyT, PredictionT],
                                      ModelT]):
-  """A ModelHandler that takes keyed examples and returns keyed predictions.
-
-  For example, if the original model was used with RunInference to take a
-  PCollection[E] to a PCollection[P], this would take a
-  PCollection[Tuple[K, E]] to a PCollection[Tuple[K, P]], allowing one to
-  associate the outputs with the inputs based on the key.
-  """
   def __init__(self, unkeyed: ModelHandler[ExampleT, PredictionT, ModelT]):
+    """A ModelHandler that takes keyed examples and returns keyed predictions.
+
+    For example, if the original model was used with RunInference to take a
+    PCollection[E] to a PCollection[P], this would take a
+    PCollection[Tuple[K, E]] to a PCollection[Tuple[K, P]], allowing one to
+    associate the outputs with the inputs based on the key.
+
+    Args:
+      unkeyed: An implementation of ModelHandler that does not require keys.
+    """
     self._unkeyed = unkeyed
 
   def load_model(self) -> ModelT:
@@ -182,19 +185,23 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                                           Union[PredictionT,
                                                 Tuple[KeyT, PredictionT]],
                                           ModelT]):
-  """A ModelHandler that takes possibly keyed examples and returns possibly
-  keyed predictions.
-
-  For example, if the original model was used with RunInference to take a
-  PCollection[E] to a PCollection[P], this would take either PCollection[E] to a
-  PCollection[P] or PCollection[Tuple[K, E]] to a PCollection[Tuple[K, P]],
-  depending on the whether the elements happen to be tuples, allowing one to
-  associate the outputs with the inputs based on the key.
-
-  Note that this cannot be used if E happens to be a tuple type.  In addition,
-  either all examples should be keyed, or none of them.
-  """
   def __init__(self, unkeyed: ModelHandler[ExampleT, PredictionT, ModelT]):
+    """A ModelHandler that takes possibly keyed examples and returns possibly
+    keyed predictions.
+
+    For example, if the original model was used with RunInference to take a
+    PCollection[E] to a PCollection[P], this would take either PCollection[E]
+    to a PCollection[P] or PCollection[Tuple[K, E]] to a
+    PCollection[Tuple[K, P]], depending on the whether the elements happen to
+    be tuples, allowing one to associate the outputs with the inputs based on
+    the key.
+
+    Note that this cannot be used if E happens to be a tuple type.  In addition,
+    either all examples should be keyed, or none of them.
+
+    Args:
+      unkeyed: An implementation of ModelHandler that does not require keys.
+    """
     self._unkeyed = unkeyed
 
   def load_model(self) -> ModelT:
@@ -262,7 +269,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
     Args:
         model_handler: An implementation of ModelHandler.
-        clock: A clock implementing time_ns.
+        clock: A clock implementing time_ns. *Used for unit testing.*
         inference_args: Extra arguments for models whose inference call requires
           extra parameters.
     """
@@ -352,9 +359,14 @@ class _MetricsCollector:
 
 
 class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
-  """A DoFn implementation generic to frameworks."""
   def __init__(
       self, model_handler: ModelHandler[ExampleT, PredictionT, Any], clock):
+    """A DoFn implementation generic to frameworks.
+
+      Args:
+        model_handler: An implementation of ModelHandler.
+        clock: A clock implementing time_ns. *Used for unit testing.*
+    """
     self._model_handler = model_handler
     self._shared_model_handle = shared.Shared()
     self._clock = clock
