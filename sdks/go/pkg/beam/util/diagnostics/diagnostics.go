@@ -40,13 +40,13 @@ const (
 // it takes one and saves it to hProfLoc. A profile will be taken if either:
 // (1) the amount of memory allocated has increased since the last heap profile was taken or
 // (2) it has been 60 seconds since the last heap profile was taken
-func SampleForHeapProfile(ctx context.Context) {
+func SampleForHeapProfile(ctx context.Context, samplingFrequencySeconds, maxTimeBetweenDumpsSeconds int) {
 	var maxAllocatedSoFar uint64
 	samplesSkipped := 0
 	for {
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
-		if m.Alloc > maxAllocatedSoFar || samplesSkipped >= 60 {
+		if m.Alloc > maxAllocatedSoFar || (samplesSkipped+1)*samplingFrequencySeconds > maxTimeBetweenDumpsSeconds {
 			samplesSkipped = 0
 			maxAllocatedSoFar = m.Alloc
 			err := saveHeapProfile()
@@ -56,8 +56,7 @@ func SampleForHeapProfile(ctx context.Context) {
 		} else {
 			samplesSkipped++
 		}
-		// TODO(Issue #21797) - make this value and the samplesSkipped value configurable.
-		time.Sleep(1 * time.Second)
+		time.Sleep(time.Duration(samplingFrequencySeconds) * time.Second)
 	}
 }
 
