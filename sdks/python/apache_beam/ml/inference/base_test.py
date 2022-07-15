@@ -81,7 +81,9 @@ class FakeModelHandlerNeedsBigBatch(FakeModelHandler):
 
 class FakeModelHandlerFailsOnInferenceArgs(FakeModelHandler):
   def run_inference(self, batch, unused_model, inference_args=None):
-    raise ValueError('run_inference should not be called because error should already be thrown from the validate_inference_args check.')
+    raise ValueError(
+        'run_inference should not be called because error should already be '
+        'thrown from the validate_inference_args check.')
 
 
 class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
