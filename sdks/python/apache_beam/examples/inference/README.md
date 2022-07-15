@@ -178,7 +178,7 @@ from transformers import BertForMaskedLM
 model = BertForMaskedLM.from_pretrained('bert-base-uncased', return_dict=True)
 torch.save(model.state_dict(), 'BertForMaskedLM.pth')
 ```
-2. Create a file named `MODEL_STATE_DICT` that contains the saved parameters of the `BertForMaskedLM` model. 
+2. Create a file named `MODEL_STATE_DICT` that contains the saved parameters of the `BertForMaskedLM` model.
 3. Create a file named `OUTPUT`. This file is used by the pipeline to write the predictions.
 4. (Optional) Create a file named `SENTENCES` that contains sentences to feed into the model. The content of the file should be similar to the following example:
 ```
