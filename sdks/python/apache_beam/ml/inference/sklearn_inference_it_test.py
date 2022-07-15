@@ -79,7 +79,7 @@ class SklearnInference(unittest.TestCase):
       self.assertEqual(predictions_dict[true_label], expected_prediction)
 
   def test_sklearn_regression(self):
-    test_pipeline = TestPipeline(is_integration_test=False)
+    test_pipeline = TestPipeline(is_integration_test=True)
     input_file = 'gs://apache-beam-ml/testing/inputs/japanese_housing_test_data.csv'  # pylint: disable=line-too-long
     output_file_dir = 'gs://temp-storage-for-end-to-end-tests'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
