@@ -902,11 +902,9 @@ public class GcsUtil {
           && e.getErrors().size() == 1
           && e.getErrors().get(0).getReason().equals("retentionPolicyNotMet")) {
         List<StorageObjectOrIOException> srcAndDestObjects = getObjects(Arrays.asList(from, to));
-        if (srcAndDestObjects
-            .get(0)
-            .storageObject()
-            .getMd5Hash()
-            .equals(srcAndDestObjects.get(1).storageObject().getMd5Hash())) {
+        String srcHash = srcAndDestObjects.get(0).storageObject().getMd5Hash();
+        String destHash = srcAndDestObjects.get(1).storageObject().getMd5Hash();
+        if (srcHash != null && srcHash.equals(destHash)) {
           // Source and destination are identical. Treat this as a successful rewrite
           LOG.warn(
               "Caught retentionPolicyNotMet error while rewriting to a bucket with retention "
