@@ -307,6 +307,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
   # handled.
   def expand(
       self, pcoll: beam.PCollection[ExampleT]) -> beam.PCollection[PredictionT]:
+    self._model_handler.validate_inference_args(self._inference_args)
     resource_hints = self._model_handler.get_resource_hints()
     return (
         pcoll
@@ -401,7 +402,6 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = self._load_model()
 
   def process(self, batch, inference_args):
-    self._model_handler.validate_inference_args(inference_args)
     start_time = _to_microseconds(self._clock.time_ns())
     result_generator = self._model_handler.run_inference(
         batch, self._model, inference_args)
