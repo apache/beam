@@ -65,29 +65,13 @@ class DatastoreClient:
         pc_objects = []
         files = []
         updated_example_ids = []
-        schema_names = []
-        examples_ids_before_updating = []
         now = datetime.today()
 
         # retrieve the last schema version
-        last_schema_version_query = self._datastore_client.query(kind=DatastoreProps.SCHEMA_KIND)
-        last_schema_version_query.keys_only()
-        schema_iterator = last_schema_version_query.fetch()
-        schemas = list(schema_iterator)
-        if len(schemas) == 0:
-            logging.error("Schema versions not found")
-            raise DatastoreException("Schema versions not found. Schema versions must be downloaded during application startup")
-
-        for schema in schemas:
-            schema_names.append(schema.key.name)
-        actual_schema_version_key = self._get_actual_schema_version(schema_names)
+        actual_schema_version_key = self._get_actual_schema_version_key()
 
         # retrieve all example keys before updating
-        all_examples_query = self._datastore_client.query(kind=DatastoreProps.EXAMPLE_KIND)
-        all_examples_query.keys_only()
-        examples_iterator = all_examples_query.fetch()
-        for example_item in examples_iterator:
-            examples_ids_before_updating.append(example_item.key.name)
+        examples_ids_before_updating = self._get_all_examples()
 
         # loop through every example to save them to the Cloud Datastore
         with self._datastore_client.transaction():
@@ -122,9 +106,28 @@ class DatastoreClient:
                 self._datastore_client.delete_multi(pc_objs_keys_for_removing)
                 logging.info("Finish of deleting extra playground examples ...")
 
-    def _get_actual_schema_version(self, schema_names: List[str]) -> datastore.Key:
+    def _get_actual_schema_version_key(self) -> datastore.Key:
+        schema_names = []
+        last_schema_version_query = self._datastore_client.query(kind=DatastoreProps.SCHEMA_KIND)
+        last_schema_version_query.keys_only()
+        schema_iterator = last_schema_version_query.fetch()
+        schemas = list(schema_iterator)
+        if len(schemas) == 0:
+            logging.error("Schema versions not found")
+            raise DatastoreException("Schema versions not found. Schema versions must be downloaded during application startup")
+        for schema in schemas:
+            schema_names.append(schema.key.name)
         schema_names.sort(reverse=True)
         return self._get_key(DatastoreProps.SCHEMA_KIND, schema_names[0])
+
+    def _get_all_examples(self) -> List[str]:
+        examples_ids_before_updating = []
+        all_examples_query = self._datastore_client.query(kind=DatastoreProps.EXAMPLE_KIND)
+        all_examples_query.keys_only()
+        examples_iterator = all_examples_query.fetch()
+        for example_item in examples_iterator:
+            examples_ids_before_updating.append(example_item.key.name)
+        return examples_ids_before_updating
 
     def _get_key(self, kind, identifier: str) -> datastore.Key:
         return self._datastore_client.key(kind, identifier)
