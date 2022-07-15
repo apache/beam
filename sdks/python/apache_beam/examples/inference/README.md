@@ -77,7 +77,7 @@ One popular dataset is from [ImageNet](https://www.image-net.org/). Follow their
 3. Download the [mobilenet_v2](https://pytorch.org/vision/stable/_modules/torchvision/models/mobilenetv2.html) model from Pytorch's repository of pretrained models. This model requires the torchvision library. To download this model, run the following commands:
 ```
 import torch
-from torchvision.models.detection import mobilenet_v2
+from torchvision.models import mobilenet_v2
 model = mobilenet_v2(pretrained=True)
 torch.save(model.state_dict(), 'mobilenet_v2.pth')
 ```
