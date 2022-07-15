@@ -68,4 +68,4 @@ export const mean: CombineFn<number, [number, number], number> = {
 };
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.transforms.combiners", exports);
+requireForSerialization("apache-beam/transforms/combiners", exports);

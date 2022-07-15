@@ -1924,8 +1924,7 @@ class AggregationTest(_AbstractFrameTest):
   def test_series_agg(self, agg_method):
     s = pd.Series(list(range(16)))
 
-    nonparallel = agg_method in (
-        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
+    nonparallel = agg_method in ('quantile', 'describe', 'median', 'sem', 'mad')
 
     # TODO(https://github.com/apache/beam/issues/20926): max and min produce
     # the wrong proxy
@@ -1944,8 +1943,7 @@ class AggregationTest(_AbstractFrameTest):
   def test_series_agg_method(self, agg_method):
     s = pd.Series(list(range(16)))
 
-    nonparallel = agg_method in (
-        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
+    nonparallel = agg_method in ('quantile', 'describe', 'median', 'sem', 'mad')
 
     # TODO(https://github.com/apache/beam/issues/20926): max and min produce
     # the wrong proxy
@@ -1961,8 +1959,7 @@ class AggregationTest(_AbstractFrameTest):
   def test_dataframe_agg(self, agg_method):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
-    nonparallel = agg_method in (
-        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
+    nonparallel = agg_method in ('quantile', 'describe', 'median', 'sem', 'mad')
 
     # TODO(https://github.com/apache/beam/issues/20926): max and min produce
     # the wrong proxy
@@ -1979,8 +1976,7 @@ class AggregationTest(_AbstractFrameTest):
   def test_dataframe_agg_method(self, agg_method):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
-    nonparallel = agg_method in (
-        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
+    nonparallel = agg_method in ('quantile', 'describe', 'median', 'sem', 'mad')
 
     # TODO(https://github.com/apache/beam/issues/20926): max and min produce
     # the wrong proxy
@@ -1996,27 +1992,18 @@ class AggregationTest(_AbstractFrameTest):
     s = pd.Series(list(range(16)))
     self._run_test(lambda s: s.agg('sum'), s)
     self._run_test(lambda s: s.agg(['sum']), s)
-    self._run_test(lambda s: s.agg(['sum', 'mean']), s, nonparallel=True)
-    self._run_test(lambda s: s.agg(['mean']), s, nonparallel=True)
-    self._run_test(lambda s: s.agg('mean'), s, nonparallel=True)
+    self._run_test(lambda s: s.agg(['sum', 'mean']), s)
+    self._run_test(lambda s: s.agg(['mean']), s)
+    self._run_test(lambda s: s.agg('mean'), s)
 
   def test_dataframe_agg_modes(self):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.agg('sum'), df)
-    self._run_test(lambda df: df.agg(['sum', 'mean']), df, nonparallel=True)
+    self._run_test(lambda df: df.agg(['sum', 'mean']), df)
     self._run_test(lambda df: df.agg({'A': 'sum', 'B': 'sum'}), df)
-    self._run_test(
-        lambda df: df.agg({
-            'A': 'sum', 'B': 'mean'
-        }), df, nonparallel=True)
-    self._run_test(
-        lambda df: df.agg({'A': ['sum', 'mean']}), df, nonparallel=True)
-    self._run_test(
-        lambda df: df.agg({
-            'A': ['sum', 'mean'], 'B': 'min'
-        }),
-        df,
-        nonparallel=True)
+    self._run_test(lambda df: df.agg({'A': 'sum', 'B': 'mean'}), df)
+    self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
+    self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
 
   def test_series_agg_level(self):
     self._run_test(
@@ -2089,6 +2076,21 @@ class AggregationTest(_AbstractFrameTest):
         lambda df: df.set_index(['group', 'foo']).bar.agg(['min', 'max'],
                                                           level=0),
         GROUPBY_DF)
+
+  def test_series_mean_skipna(self):
+    df = pd.DataFrame({
+        'one': [i if i % 8 == 0 else np.nan for i in range(8)],
+        'two': [i if i % 4 == 0 else np.nan for i in range(8)],
+        'three': [i if i % 2 == 0 else np.nan for i in range(8)],
+    })
+
+    self._run_test(lambda df: df.one.mean(skipna=False), df)
+    self._run_test(lambda df: df.two.mean(skipna=False), df)
+    self._run_test(lambda df: df.three.mean(skipna=False), df)
+
+    self._run_test(lambda df: df.one.mean(skipna=True), df)
+    self._run_test(lambda df: df.two.mean(skipna=True), df)
+    self._run_test(lambda df: df.three.mean(skipna=True), df)
 
   def test_dataframe_agg_multifunc_level(self):
     # level= is ignored for multiple agg fns
