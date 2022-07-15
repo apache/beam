@@ -43,12 +43,12 @@ except ImportError:
 
 
 def check_torch_keyed_model_handler():
-  expected = '''[START torch_unkeyed_model_handler]
+  expected = '''[START torch_keyed_model_handler]
 ('first_question', PredictionResult(example=tensor([105.]), inference=tensor([523.6982], grad_fn=<UnbindBackward>)))
 ('second_question', PredictionResult(example=tensor([108.]), inference=tensor([538.5867], grad_fn=<UnbindBackward>)))
 ('third_question', PredictionResult(example=tensor([1000.]), inference=tensor([4965.4019], grad_fn=<UnbindBackward>)))
 ('fourth_question', PredictionResult(example=tensor([1013.]), inference=tensor([5029.9180], grad_fn=<UnbindBackward>)))
-# assert_matches_stdout(actual, expected)'''.splitlines()[1:-1]
+[END torch_keyed_model_handler] '''.splitlines()[1:-1]
   return expected
 
 
