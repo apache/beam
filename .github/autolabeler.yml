@@ -42,6 +42,7 @@ extensions: ["sdks/java/extensions/**/*", "runners/extensions-java/**/*"]
 "sketching": ["sdks/java/extensions/sketching/**/*"]
 "sorter": ["sdks/java/extensions/sorter/**/*"]
 "sql": ["sdks/java/extensions/sql/**/*"]
+"timeseries": ["sdks/java/extensions/timeseries/*"]
 "zetasketch": ["sdks/java/extensions/zetasketch/**/*"]
 
 # IO

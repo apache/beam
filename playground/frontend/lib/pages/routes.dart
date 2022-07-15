@@ -32,7 +32,7 @@ class Routes {
 
     switch (routePath) {
       case Routes.embedded:
-        final isEditable = Uri.base.queryParameters[kIsEditable] == 'true';
+        final isEditable = Uri.base.queryParameters[kIsEditableParam] == '1';
 
         return _renderRoute(
           EmbeddedPlaygroundPage(
