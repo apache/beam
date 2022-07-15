@@ -57,12 +57,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"reflect"
 	"regexp"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
@@ -81,11 +81,12 @@ var (
 // available at runtime.
 
 func init() {
-	beam.RegisterFunction(extractFn)
-	beam.RegisterFunction(formatFn)
+	register.Function2x0(extractFn)
+	register.Function2x1(formatFn)
 	// To be correctly serialized on non-direct runners, struct form DoFns must be
 	// registered during initialization.
-	beam.RegisterType(reflect.TypeOf((*filterFn)(nil)).Elem())
+	register.DoFn4x0[context.Context, string, int, func(string, int)](&filterFn{})
+	register.Emitter2[string, int]()
 }
 
 // filterFn is a DoFn for filtering out certain words.
