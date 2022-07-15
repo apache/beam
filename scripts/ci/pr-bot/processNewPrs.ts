@@ -45,7 +45,7 @@ import { CheckStatus } from "./shared/checks";
  */
 function needsProcessed(pull: any, prState: typeof Pr): boolean {
   const firstPythonPrToProcess = new Date(2022, 5, 16, 14); // June 16 2022, 14:00 UTC (note that JavaScript months are 0 indexed)
-  const firstPrToProcess = new Date(2022, 6, 15, 14); // July 15 2022, 14:00 UTC (note that JavaScript months are 0 indexed)
+  const firstPrToProcess = new Date(2022, 6, 15, 23); // July 15 2022, 23:00 UTC (note that JavaScript months are 0 indexed)
   const createdAt = new Date(pull.created_at);
   if (
     createdAt < firstPrToProcess &&
