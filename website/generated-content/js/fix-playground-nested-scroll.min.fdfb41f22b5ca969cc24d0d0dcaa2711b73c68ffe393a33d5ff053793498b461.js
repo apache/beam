@@ -1,1 +1,0 @@
-$('#playgroundIframeContainer').on('click',function(_){$('#playgroundIframe').css('pointer-events','auto');});$('#playgroundIframeContainer').mouseleave(function(_){$('#playgroundIframe').css('pointer-events','none');});
