@@ -134,7 +134,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     """
     return {}
 
-  def validate_inference_args(self, inference_args):
+  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     """Validates inference_args passed in the inference call.
 
     Most frameworks do not need extra arguments in their predict() call so the
@@ -189,7 +189,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def batch_elements_kwargs(self):
     return self._unkeyed.batch_elements_kwargs()
 
-  def validate_inference_args(self, inference_args):
+  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     return self._unkeyed.validate_inference_args(inference_args)
 
 
@@ -262,7 +262,7 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def batch_elements_kwargs(self):
     return self._unkeyed.batch_elements_kwargs()
 
-  def validate_inference_args(self, inference_args):
+  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     return self._unkeyed.validate_inference_args(inference_args)
 
 

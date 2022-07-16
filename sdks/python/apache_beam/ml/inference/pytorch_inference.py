@@ -144,7 +144,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     """
     return 'RunInferencePytorch'
 
-  def validate_inference_args(self, inference_args):
+  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
 
 
@@ -254,5 +254,5 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     """
     return 'RunInferencePytorch'
 
-  def validate_inference_args(self, inference_args):
+  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
