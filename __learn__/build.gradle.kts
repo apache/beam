@@ -195,3 +195,17 @@ tasks.register("javaHadoopVersionsTest") {
 	dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
 	dependsOn(":runners:spark:2:hadoopVersionsTest")
 }
+
+tasks.register("sqlPostCommit") {
+	dependsOn(":sdks:java:extensions:sql:postCommit")
+	dependsOn(":sdks:java:extensions:sql:jdbc:postCommit")
+	dependsOn(":sdks:java:extensions:sql:datacatalog:postCommit")
+	dependsOn(":sdks:java:extensions:sql:hadoopVersionsTest")
+}
+
+tasks.register("goPreCommit") {
+	// check that the Precommit builds run after the tests, to avoid to flake as per BEAM-11918
+	// We accomplish this by dividing them into two tasks and using "mustRunAfter" for forced sequencing
+	dependsOn(":goPrecommitTest")
+	dependsOn(":goPrecommitBuild")
+}
