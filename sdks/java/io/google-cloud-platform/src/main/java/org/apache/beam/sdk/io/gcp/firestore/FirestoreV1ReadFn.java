@@ -33,6 +33,7 @@ import com.google.cloud.firestore.v1.FirestoreClient.PartitionQueryPagedResponse
 import com.google.cloud.firestore.v1.stub.FirestoreStub;
 import com.google.firestore.v1.BatchGetDocumentsRequest;
 import com.google.firestore.v1.BatchGetDocumentsResponse;
+import com.google.firestore.v1.BatchGetDocumentsResponse.ResultCase;
 import com.google.firestore.v1.Cursor;
 import com.google.firestore.v1.ListCollectionIdsRequest;
 import com.google.firestore.v1.ListCollectionIdsResponse;
@@ -43,15 +44,11 @@ import com.google.firestore.v1.PartitionQueryResponse;
 import com.google.firestore.v1.RunQueryRequest;
 import com.google.firestore.v1.RunQueryResponse;
 import com.google.firestore.v1.StructuredQuery;
-import com.google.firestore.v1.StructuredQuery.Direction;
-import com.google.firestore.v1.StructuredQuery.FieldReference;
 import com.google.firestore.v1.StructuredQuery.Order;
 import com.google.firestore.v1.Value;
 import com.google.protobuf.Message;
 import com.google.protobuf.ProtocolStringList;
 import java.io.Serializable;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreDoFn.ImplicitlyWindowedFirestoreDoFn;
@@ -109,45 +106,30 @@ final class FirestoreV1ReadFn {
     protected RunQueryRequest setStartFrom(
         RunQueryRequest element, RunQueryResponse runQueryResponse) {
       StructuredQuery query = element.getStructuredQuery();
-      StructuredQuery.Builder builder;
-      List<Order> orderByList = query.getOrderByList();
-      // if the orderByList is empty that means the default sort of "__name__ ASC" will be used
-      // Before we can set the cursor to the last document name read, we need to explicitly add
-      // the order of "__name__ ASC" because a cursor value must map to an order by
-      if (orderByList.isEmpty()) {
-        builder =
-            query
-                .toBuilder()
-                .addOrderBy(
-                    Order.newBuilder()
-                        .setField(FieldReference.newBuilder().setFieldPath("__name__").build())
-                        .setDirection(Direction.ASCENDING)
-                        .build())
-                .setStartAt(
-                    Cursor.newBuilder()
-                        .setBefore(false)
-                        .addValues(
-                            Value.newBuilder()
-                                .setReferenceValue(runQueryResponse.getDocument().getName())
-                                .build()));
-      } else {
-        Cursor.Builder cursor = Cursor.newBuilder().setBefore(false);
-        Map<String, Value> fieldsMap = runQueryResponse.getDocument().getFieldsMap();
-        for (Order order : orderByList) {
-          String fieldPath = order.getField().getFieldPath();
-          Value value = fieldsMap.get(fieldPath);
-          if (value != null) {
-            cursor.addValues(value);
-          } else if ("__name__".equals(fieldPath)) {
-            cursor.addValues(
-                Value.newBuilder()
-                    .setReferenceValue(runQueryResponse.getDocument().getName())
-                    .build());
-          }
+      StructuredQuery.Builder builder = query.toBuilder();
+      builder.addAllOrderBy(QueryUtils.getImplicitOrderBy(query));
+      Cursor.Builder cursor = Cursor.newBuilder().setBefore(false);
+      for (Order order : builder.getOrderByList()) {
+        Value value =
+            QueryUtils.lookupDocumentValue(
+                runQueryResponse.getDocument(), order.getField().getFieldPath());
+        if (value == null) {
+          throw new IllegalStateException(
+              String.format(
+                  "Failed to build query resumption token, field '%s' not found in doc with __name__ '%s'",
+                  order.getField().getFieldPath(), runQueryResponse.getDocument().getName()));
         }
-        builder = query.toBuilder().setStartAt(cursor.build());
+        cursor.addValues(value);
       }
+      builder.setStartAt(cursor.build());
       return element.toBuilder().setStructuredQuery(builder.build()).build();
+    }
+
+    @Override
+    protected @Nullable RunQueryResponse resumptionValue(
+        @Nullable RunQueryResponse previousValue, RunQueryResponse nextValue) {
+      // We need a document to resume, may be null if reporting partial progress.
+      return nextValue.hasDocument() ? nextValue : previousValue;
     }
   }
 
@@ -380,6 +362,13 @@ final class FirestoreV1ReadFn {
               "Unable to determine BatchGet resumption point. Most recently received doc __name__ '%s'",
               foundName != null ? foundName : missing));
     }
+
+    @Override
+    protected @Nullable BatchGetDocumentsResponse resumptionValue(
+        @Nullable BatchGetDocumentsResponse previousValue, BatchGetDocumentsResponse newValue) {
+      // No sense in resuming from an empty result.
+      return newValue.getResultCase() == ResultCase.RESULT_NOT_SET ? previousValue : newValue;
+    }
   }
 
   /**
@@ -407,6 +396,8 @@ final class FirestoreV1ReadFn {
 
     protected abstract InT setStartFrom(InT element, OutT out);
 
+    protected abstract @Nullable OutT resumptionValue(@Nullable OutT previousValue, OutT newValue);
+
     @Override
     public final void processElement(ProcessContext c) throws Exception {
       @SuppressWarnings(
@@ -421,14 +412,14 @@ final class FirestoreV1ReadFn {
         }
 
         Instant start = clock.instant();
+        InT request =
+            lastReceivedValue == null ? element : setStartFrom(element, lastReceivedValue);
         try {
-          InT request =
-              lastReceivedValue == null ? element : setStartFrom(element, lastReceivedValue);
           attempt.recordRequestStart(start);
           ServerStream<OutT> serverStream = getCallable(firestoreStub).call(request);
           attempt.recordRequestSuccessful(clock.instant());
           for (OutT out : serverStream) {
-            lastReceivedValue = out;
+            lastReceivedValue = resumptionValue(lastReceivedValue, out);
             attempt.recordStreamValue(clock.instant());
             c.output(out);
           }

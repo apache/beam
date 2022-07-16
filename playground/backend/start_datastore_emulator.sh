@@ -20,7 +20,7 @@ DATASTORE_PORT="${DATASTORE_FULL_ADDRESS##*:}"
 TEST_PROJECT_ID="test"
 
 waitport() {
-  while ! nc -z localhost "$1"; do
+  while ! nc -z 127.0.0.1 "$1"; do
     echo "waiting for datastore emulator to start..."
     sleep 1
   done

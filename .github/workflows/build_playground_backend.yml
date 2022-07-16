@@ -51,6 +51,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v0
         with:
             install_components: 'beta,cloud-datastore-emulator'
+            version: '389.0.0'
 
       - name: Run PreCommit
         run: ./gradlew playground:backend:precommit
