@@ -66,7 +66,7 @@ func runServer() error {
 			return err
 		}
 
-		props, err := environment.NewProperties(envService.ApplicationEnvs.PropertyPath())
+		props, err = environment.NewProperties(envService.ApplicationEnvs.PropertyPath())
 		if err != nil {
 			return err
 		}
