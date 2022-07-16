@@ -28,10 +28,10 @@ package main
 import (
 	"context"
 	"flag"
-	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
@@ -39,12 +39,11 @@ import (
 )
 
 func init() {
-	beam.RegisterFunction(printTopFn)
-	beam.RegisterFunction(less)
-	beam.RegisterFunction(alphabetically)
-	beam.RegisterFunction(keyGrade)
-	beam.RegisterFunction(getGPA)
-	beam.RegisterType(reflect.TypeOf((*Grade)(nil)))
+	register.Function2x0(printTopFn)
+	register.Function2x1(less)
+	register.Function2x1(alphabetically)
+	register.Function1x2(keyGrade)
+	register.Function1x1(getGPA)
 }
 
 type Grade struct {

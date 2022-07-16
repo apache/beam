@@ -10,10 +10,12 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-$('#playgroundIframeContainer').on('click', function(_) {
-  $('#playgroundIframe').css('pointer-events', 'auto');
-});
+$(document).ready(function() {
+  $('.playground-iframe-overlay').on('click', function(_) {
+    $(this).hide();
+  });
 
-$('#playgroundIframeContainer').mouseleave(function(_) {
-  $('#playgroundIframe').css('pointer-events', 'none');
+  $('.playground-iframe-wrapper-no-scroll').mouseleave(function(_) {
+    $('.playground-iframe-overlay').show();
+  });
 });

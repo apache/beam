@@ -85,7 +85,9 @@ var directFilters = []string{
 	// The direct runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var portableFilters = []string{
@@ -103,7 +105,9 @@ var portableFilters = []string{
 	// The portable runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var flinkFilters = []string{
@@ -119,7 +123,9 @@ var flinkFilters = []string{
 	// The flink runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var samzaFilters = []string{
@@ -140,7 +146,9 @@ var samzaFilters = []string{
 	// The samza runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var sparkFilters = []string{
@@ -162,7 +170,9 @@ var sparkFilters = []string{
 	// The spark runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var dataflowFilters = []string{
