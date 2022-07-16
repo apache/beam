@@ -173,6 +173,7 @@ tasks.register("javaPostCommit") {
 	dependsOn(":sdks:java:extensions:ml:postCommit")
 }
 
+
 tasks.register("javaPostCommitSickbay") {
 	dependsOn(":runners:samza:validatesRunnerSickbay")
 	dependsOn(":runners:flink:1.12:validatesRunnerSickbay")
@@ -194,4 +195,3 @@ tasks.register("javaHadoopVersionsTest") {
 	dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
 	dependsOn(":runners:spark:2:hadoopVersionsTest")
 }
-
