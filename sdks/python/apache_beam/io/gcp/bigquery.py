@@ -693,7 +693,6 @@ class _CustomBigQuerySource(BoundedSource):
       step_name=None,
       unique_id=None,
       temp_dataset=None,
-      output_type=None,
       query_priority=BigQueryQueryPriority.BATCH):
     if table is not None and query is not None:
       raise ValueError(
@@ -731,7 +730,6 @@ class _CustomBigQuerySource(BoundedSource):
     self._job_name = job_name or 'BQ_EXPORT_JOB'
     self._step_name = step_name
     self._source_uuid = unique_id
-    self.output_type = output_type
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:
@@ -991,8 +989,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
       kms_key: Optional[str] = None,
       temp_dataset: Optional[DatasetReference] = None,
       temp_table: Optional[TableReference] = None,
-      use_native_datetime: Optional[bool] = False,
-      output_type: Optional[str] = None):
+      use_native_datetime: Optional[bool] = False):
 
     if table is not None and query is not None:
       raise ValueError(
@@ -1030,7 +1027,6 @@ class _CustomBigQueryStorageSource(BoundedSource):
     self._job_name = job_name or 'BQ_DIRECT_READ_JOB'
     self._step_name = step_name
     self._source_uuid = unique_id
-    self.output_type = output_type
 
   def _get_parent_project(self):
     """Returns the project that will be billed."""
