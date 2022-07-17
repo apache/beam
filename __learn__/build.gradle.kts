@@ -19,118 +19,118 @@ tasks.rat {
   inputDir.set(project.rootDir)
 
   val exclusions = mutableListOf(
-      // ignore files that we track but don't distribute
-      "**/.github/**/*",
-      "**/.gitkeep",
-      "gradlew",
-      "gradlew.bat",
-      "gradle/wrapper/gradle-wrapper.properties",
+    // ignore files that we track but don't distribute
+    "**/.github/**/*",
+    "**/.gitkeep",
+    "gradlew",
+    "gradlew.bat",
+    "gradle/wrapper/gradle-wrapper.properties",
 
-      "**/package-list",
-      "**/test.avsc",
-      "**/user.avsc",
-      "**/test/resources/**/*.txt",
-      "**/test/resources/**/*.csv",
-      "**/test/**/.placeholder",
+    "**/package-list",
+    "**/test.avsc",
+    "**/user.avsc",
+    "**/test/resources/**/*.txt",
+    "**/test/resources/**/*.csv",
+    "**/test/**/.placeholder",
 
-      // default eclipse excludes neglect subprojects
+    // default eclipse excludes neglect subprojects
 
-      // proto/grpc generated wrappers
-      "**/apache_beam/portability/api/**/*_pb2*.py",
-      "**/go/pkg/beam/**/*.pb.go",
+    // proto/grpc generated wrappers
+    "**/apache_beam/portability/api/**/*_pb2*.py",
+    "**/go/pkg/beam/**/*.pb.go",
 
-      // ignore go.sum files, which don't allow headers
-      "**/go.sum",
+    // ignore go.sum files, which don't allow headers
+    "**/go.sum",
 
-      // ignore Go test data
-      "**/go/data/**",
+    // ignore Go test data
+    "**/go/data/**",
 
-      // VCF test files
-      "**/apache_beam/testing/data/vcf/*",
+    // VCF test files
+    "**/apache_beam/testing/data/vcf/*",
 
-      // jdbc config files
-      "**/META-INF/services/java.sql.Driver",
+    // jdbc config files
+    "**/META-INF/services/java.sql.Driver",
 
-      // website build files
-      "**/Gemfile.lock",
-      "**/Rakefile",
-      "**/.htaccess",
-      "website/www/site/assets/scss/_bootstrap.scss",
-      "website/www/site/assets/scss/bootstrap/**/*",
-      "website/www/site/assets/js/**/*",
-      "website/www/site/static/images/mascot/*.ai",
-      "website/www/site/static/js/bootstrap*.js",
-      "website/www/site/static/js/bootstrap/**/*",
-      "website/www/site/themes",
-      "website/www/yarn.lock",
-      "website/www/package.json",
-      "website/www/site/static/js/hero/lottie-light.min.js",
-      "website/www/site/static/js/keen-slider.min.js",
-      "website/www/site/assets/scss/_keen-slider.scss",
+    // website build files
+    "**/Gemfile.lock",
+    "**/Rakefile",
+    "**/.htaccess",
+    "website/www/site/assets/scss/_bootstrap.scss",
+    "website/www/site/assets/scss/bootstrap/**/*",
+    "website/www/site/assets/js/**/*",
+    "website/www/site/static/images/mascot/*.ai",
+    "website/www/site/static/js/bootstrap*.js",
+    "website/www/site/static/js/bootstrap/**/*",
+    "website/www/site/themes",
+    "website/www/yarn.lock",
+    "website/www/package.json",
+    "website/www/site/static/js/hero/lottie-light.min.js",
+    "website/www/site/static/js/keen-slider.min.js",
+    "website/www/site/assets/scss/_keen-slider.scss",
 
-      // ignore ownership artifacts
-      "ownership/**/*",
-      "**/OWNERS",
+    // ignore ownership artifacts
+    "ownership/**/*",
+    "**/OWNERS",
 
-      // ignore CPython LICENCE
-      "LICENSE.python",
+    // ignore CPython LICENCE
+    "LICENSE.python",
 
-      // JSON doesn't support comments
-      "**/*.json",
+    // JSON doesn't support comments
+    "**/*.json",
 
-      // Katas files
-      "learning/katas/**/course-remote-info.yaml",
-      "learning/katas/**/section-remote-info.yaml",
-      "learning/katas/**/lesson-remote-info.yaml",
-      "learning/katas/**/task-remote-info.yaml",
-      "learning/katas/**/*.txt",
+    // Katas files
+    "learning/katas/**/course-remote-info.yaml",
+    "learning/katas/**/section-remote-info.yaml",
+    "learning/katas/**/lesson-remote-info.yaml",
+    "learning/katas/**/task-remote-info.yaml",
+    "learning/katas/**/*.txt",
 
-      // test p8 file for SnowflakeIO
-      "sdks/java/io/snowflake/src/test/resources/invalid_test_rsa_key.p8",
-      "sdks/java/io/snowflake/src/test/resources/valid_encrypted_test_rsa_key.p8",
-      "sdks/java/io/snowflake/src/test/resources/valid_unencrypted_test_rsa_key.p8",
+    // test p8 file for SnowflakeIO
+    "sdks/java/io/snowflake/src/test/resources/invalid_test_rsa_key.p8",
+    "sdks/java/io/snowflake/src/test/resources/valid_encrypted_test_rsa_key.p8",
+    "sdks/java/io/snowflake/src/test/resources/valid_unencrypted_test_rsa_key.p8",
 
-      // mockito extensions
-      "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
-      "sdks/java/io/azure/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
-      "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins/MockMaker",
+    // mockito extensions
+    "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
+    "sdks/java/io/azure/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
+    "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins/MockMaker",
 
-      // Jupyterlab extensions
-      "sdks/python/apache_beam/runners/interactive/extensions/apache-beam-jupyterlab-sidepanel/yarn.lock",
+    // Jupyterlab extensions
+    "sdks/python/apache_beam/runners/interactive/extensions/apache-beam-jupyterlab-sidepanel/yarn.lock",
 
-      // autogenerated apitools clients
-      "sdks/python/apache_beam/runners/dataflow/internal/clients/*/**/*.py",
+    // autogenerated apitools clients
+    "sdks/python/apache_beam/runners/dataflow/internal/clients/*/**/*.py",
 
-      // sample text file for Java quickstart
-      "sdks/java/maven-archetypes/examples/sample.txt",
+    // sample text file for Java quickstart
+    "sdks/java/maven-archetypes/examples/sample.txt",
 
-      // Flutter autogenerated playground artifacts
-      "playground/frontend/.metadata",
-      "playground/frontend/pubspec.lock",
+    // Flutter autogenerated playground artifacts
+    "playground/frontend/.metadata",
+    "playground/frontend/pubspec.lock",
 
-      // flutter localization files (no comment support)
-      "playground/frontend/lib/l10n/**/*.arb",
+    // flutter localization files (no comment support)
+    "playground/frontend/lib/l10n/**/*.arb",
 
-      // licences copied into containers
-      "sdks/java/container/licence_scripts/manual_licenses",
-      "sdks/python/container/licence_scripts/manual_licenses",
+    // licences copied into containers
+    "sdks/java/container/licence_scripts/manual_licenses",
+    "sdks/python/container/licence_scripts/manual_licenses",
 
-      // autogenerated protos
-      "sdks/typescript/src/apache_beam/proto/**/*.ts",
+    // autogenerated protos
+    "sdks/typescript/src/apache_beam/proto/**/*.ts",
 
-      // typescript artifacts
-      "sdks/typescript/package-lock.json",
-      "sdks/typescript/node_modules/**/*",
+    // typescript artifacts
+    "sdks/typescript/package-lock.json",
+    "sdks/typescript/node_modules/**/*",
   )
 
   // append .gitignore excludes to Rat exclusion list
   // we're recreating maven Rat plugin behaviour as Ant Rat plugin doesn't do this automatically
   val gitIgnore = project(":").file(".gitignore")
   if (gitIgnore.exists()) {
-      val gitIgnoreExcludes = gitIgnore.readLines().filter {
-          it.isNotEmpty() && !it.startsWith("#")
-      }
-      exclusions.addAll(gitIgnoreExcludes)
+    val gitIgnoreExcludes = gitIgnore.readLines().filter {
+        it.isNotEmpty() && !it.startsWith("#")
+    }
+    exclusions.addAll(gitIgnoreExcludes)
   }
 
   failOnError.set(true)
@@ -212,4 +212,17 @@ tasks.register("goPreCommit") {
 
 tasks.register("goPrecommitTest") {
   dependsOn(":sdks:go:goTest")
+}
+
+tasks.register("goPrecommitBuild") {
+  mustRunAfter(":goPrecommitTest")
+
+  dependsOn(":sdks:go:goBuild")
+  dependsOn(":sdks:go:examples:goBuild")
+  dependsOn(":sdks:go:test:goBuild")
+
+  // Check that the other SDKs' containers are also built by Go boot code too
+  dependsOn(":sdks:java:container:goBuild")
+  dependsOn(":sdks:python:container:goBuild")
+  dependsOn(":sdks:go:container:goBuild")
 }
