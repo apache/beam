@@ -1,0 +1,14 @@
+plugins { id "org.apache.beam.module"}
+applyPortabilityNature {
+  automaticModuleName: "org.apache.beam.model.fn.execution",
+  shadowJarValidationExcludes: ["org/apache/beam/model/fnexecution/v1/**"]
+}
+
+description = "Apache Beam :: Model :: Fn Execution"
+ext.summary = "Portable definitions for running UDFs"
+
+dependencies {
+  // specifically depend on unshaded classes for compiling protos and exporting the shaded artifact as the actual runtime dependency
+  implementation project(path: ":model:pipeline", configuration: "unshaded")
+  runtimeOnly project(path: ":model:pipeline", configuration: "shadow")
+}
