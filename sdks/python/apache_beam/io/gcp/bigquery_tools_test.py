@@ -1068,10 +1068,10 @@ class TestRowAsDictJsonCoder(unittest.TestCase):
   def test_ensure_ascii(self):
     coder = RowAsDictJsonCoder()
     test_value = {'s': '🎉'}
-    should_be = b'{"s": "\xf0\x9f\x8e\x89"}'
+    output_value = b'{"s": "\xf0\x9f\x8e\x89"}'
 
-    output_value = coder.encode(test_value)
-    self.assertEqual(output_value, should_be)
+    self.assertEqual(output_value, coder.encode(test_value))
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestJsonRowWriter(unittest.TestCase):
