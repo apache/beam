@@ -1,211 +1,215 @@
 plugins {
-    base
-    // check which dependencies need updating - including Gradle
-    // https://github.com/ben-manes/gradle-versions-plugin
-    id("com.github.ben-manes.versions") version "0.33.0"
-    // top level licence enforcement analysis
-    id("org.nosphere.apache.rat") version "0.7.0"
-    // release management via gradle
-    id("net.researchgate.release") version "2.8.1"
-    id("org.apache.beam.module")
-    id("org.sonarqube") version "3.0"
+  base
+  // check which dependencies need updating - including Gradle
+  // https://github.com/ben-manes/gradle-versions-plugin
+  id("com.github.ben-manes.versions") version "0.33.0"
+  // top level licence enforcement analysis
+  id("org.nosphere.apache.rat") version "0.7.0"
+  // release management via gradle
+  id("net.researchgate.release") version "2.8.1"
+  id("org.apache.beam.module")
+  id("org.sonarqube") version "3.0"
 }
 
 /*******/
 // configure root project
 
 tasks.rat {
-	// set input directory to root instead of CWD, helps with .gitignore functioning as expected
-	inputDir.set(project.rootDir)
+  // set input directory to root instead of CWD, helps with .gitignore functioning as expected
+  inputDir.set(project.rootDir)
 
-	val exclusions = mutableListOf(
-		// ignore files that we track but don't distribute
-		"**/.github/**/*",
-		"**/.gitkeep",
-		"gradlew",
-		"gradlew.bat",
-		"gradle/wrapper/gradle-wrapper.properties",
+  val exclusions = mutableListOf(
+      // ignore files that we track but don't distribute
+      "**/.github/**/*",
+      "**/.gitkeep",
+      "gradlew",
+      "gradlew.bat",
+      "gradle/wrapper/gradle-wrapper.properties",
 
-		"**/package-list",
-		"**/test.avsc",
-		"**/user.avsc",
-		"**/test/resources/**/*.txt",
-		"**/test/resources/**/*.csv",
-		"**/test/**/.placeholder",
+      "**/package-list",
+      "**/test.avsc",
+      "**/user.avsc",
+      "**/test/resources/**/*.txt",
+      "**/test/resources/**/*.csv",
+      "**/test/**/.placeholder",
 
-		// default eclipse excludes neglect subprojects
+      // default eclipse excludes neglect subprojects
 
-		// proto/grpc generated wrappers
-		"**/apache_beam/portability/api/**/*_pb2*.py",
-		"**/go/pkg/beam/**/*.pb.go",
+      // proto/grpc generated wrappers
+      "**/apache_beam/portability/api/**/*_pb2*.py",
+      "**/go/pkg/beam/**/*.pb.go",
 
-		// ignore go.sum files, which don't allow headers
-		"**/go.sum",
+      // ignore go.sum files, which don't allow headers
+      "**/go.sum",
 
-		// ignore Go test data
-		"**/go/data/**",
+      // ignore Go test data
+      "**/go/data/**",
 
-		// VCF test files
-		"**/apache_beam/testing/data/vcf/*",
+      // VCF test files
+      "**/apache_beam/testing/data/vcf/*",
 
-		// jdbc config files
-		"**/META-INF/services/java.sql.Driver",
+      // jdbc config files
+      "**/META-INF/services/java.sql.Driver",
 
-		// website build files
-		"**/Gemfile.lock",
-		"**/Rakefile",
-		"**/.htaccess",
-		"website/www/site/assets/scss/_bootstrap.scss",
-		"website/www/site/assets/scss/bootstrap/**/*",
-		"website/www/site/assets/js/**/*",
-		"website/www/site/static/images/mascot/*.ai",
-		"website/www/site/static/js/bootstrap*.js",
-		"website/www/site/static/js/bootstrap/**/*",
-		"website/www/site/themes",
-		"website/www/yarn.lock",
-		"website/www/package.json",
-		"website/www/site/static/js/hero/lottie-light.min.js",
-		"website/www/site/static/js/keen-slider.min.js",
-		"website/www/site/assets/scss/_keen-slider.scss",
+      // website build files
+      "**/Gemfile.lock",
+      "**/Rakefile",
+      "**/.htaccess",
+      "website/www/site/assets/scss/_bootstrap.scss",
+      "website/www/site/assets/scss/bootstrap/**/*",
+      "website/www/site/assets/js/**/*",
+      "website/www/site/static/images/mascot/*.ai",
+      "website/www/site/static/js/bootstrap*.js",
+      "website/www/site/static/js/bootstrap/**/*",
+      "website/www/site/themes",
+      "website/www/yarn.lock",
+      "website/www/package.json",
+      "website/www/site/static/js/hero/lottie-light.min.js",
+      "website/www/site/static/js/keen-slider.min.js",
+      "website/www/site/assets/scss/_keen-slider.scss",
 
-		// ignore ownership artifacts
-		"ownership/**/*",
-		"**/OWNERS",
+      // ignore ownership artifacts
+      "ownership/**/*",
+      "**/OWNERS",
 
-		// ignore CPython LICENCE
-		"LICENSE.python",
+      // ignore CPython LICENCE
+      "LICENSE.python",
 
-		// JSON doesn't support comments
-		"**/*.json",
+      // JSON doesn't support comments
+      "**/*.json",
 
-		// Katas files
-		"learning/katas/**/course-remote-info.yaml",
-		"learning/katas/**/section-remote-info.yaml",
-		"learning/katas/**/lesson-remote-info.yaml",
-		"learning/katas/**/task-remote-info.yaml",
-		"learning/katas/**/*.txt",
+      // Katas files
+      "learning/katas/**/course-remote-info.yaml",
+      "learning/katas/**/section-remote-info.yaml",
+      "learning/katas/**/lesson-remote-info.yaml",
+      "learning/katas/**/task-remote-info.yaml",
+      "learning/katas/**/*.txt",
 
-		// test p8 file for SnowflakeIO
-		"sdks/java/io/snowflake/src/test/resources/invalid_test_rsa_key.p8",
-		"sdks/java/io/snowflake/src/test/resources/valid_encrypted_test_rsa_key.p8",
-		"sdks/java/io/snowflake/src/test/resources/valid_unencrypted_test_rsa_key.p8",
+      // test p8 file for SnowflakeIO
+      "sdks/java/io/snowflake/src/test/resources/invalid_test_rsa_key.p8",
+      "sdks/java/io/snowflake/src/test/resources/valid_encrypted_test_rsa_key.p8",
+      "sdks/java/io/snowflake/src/test/resources/valid_unencrypted_test_rsa_key.p8",
 
-		// mockito extensions
-		"sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
-		"sdks/java/io/azure/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
-		"sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins/MockMaker",
+      // mockito extensions
+      "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
+      "sdks/java/io/azure/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
+      "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins/MockMaker",
 
-		// Jupyterlab extensions
-		"sdks/python/apache_beam/runners/interactive/extensions/apache-beam-jupyterlab-sidepanel/yarn.lock",
+      // Jupyterlab extensions
+      "sdks/python/apache_beam/runners/interactive/extensions/apache-beam-jupyterlab-sidepanel/yarn.lock",
 
-		// autogenerated apitools clients
-		"sdks/python/apache_beam/runners/dataflow/internal/clients/*/**/*.py",
+      // autogenerated apitools clients
+      "sdks/python/apache_beam/runners/dataflow/internal/clients/*/**/*.py",
 
-		// sample text file for Java quickstart
-		"sdks/java/maven-archetypes/examples/sample.txt",
+      // sample text file for Java quickstart
+      "sdks/java/maven-archetypes/examples/sample.txt",
 
-		// Flutter autogenerated playground artifacts
-		"playground/frontend/.metadata",
-		"playground/frontend/pubspec.lock",
+      // Flutter autogenerated playground artifacts
+      "playground/frontend/.metadata",
+      "playground/frontend/pubspec.lock",
 
-		// flutter localization files (no comment support)
-		"playground/frontend/lib/l10n/**/*.arb",
+      // flutter localization files (no comment support)
+      "playground/frontend/lib/l10n/**/*.arb",
 
-		// licences copied into containers
-		"sdks/java/container/licence_scripts/manual_licenses",
-		"sdks/python/container/licence_scripts/manual_licenses",
+      // licences copied into containers
+      "sdks/java/container/licence_scripts/manual_licenses",
+      "sdks/python/container/licence_scripts/manual_licenses",
 
-		// autogenerated protos
-		"sdks/typescript/src/apache_beam/proto/**/*.ts",
+      // autogenerated protos
+      "sdks/typescript/src/apache_beam/proto/**/*.ts",
 
-		// typescript artifacts
-		"sdks/typescript/package-lock.json",
-		"sdks/typescript/node_modules/**/*",
-	)
+      // typescript artifacts
+      "sdks/typescript/package-lock.json",
+      "sdks/typescript/node_modules/**/*",
+  )
 
-	// append .gitignore excludes to Rat exclusion list
-	// we're recreating maven Rat plugin behaviour as Ant Rat plugin doesn't do this automatically
-	val gitIgnore = project(":").file(".gitignore")
-	if (gitIgnore.exists()) {
-		val gitIgnoreExcludes = gitIgnore.readLines().filter {
-			it.isNotEmpty() && !it.startsWith("#")
-		}
-		exclusions.addAll(gitIgnoreExcludes)
-	}
+  // append .gitignore excludes to Rat exclusion list
+  // we're recreating maven Rat plugin behaviour as Ant Rat plugin doesn't do this automatically
+  val gitIgnore = project(":").file(".gitignore")
+  if (gitIgnore.exists()) {
+      val gitIgnoreExcludes = gitIgnore.readLines().filter {
+          it.isNotEmpty() && !it.startsWith("#")
+      }
+      exclusions.addAll(gitIgnoreExcludes)
+  }
 
-	failOnError.set(true)
-	setExcludes(exclusions)
+  failOnError.set(true)
+  setExcludes(exclusions)
 }
 tasks.check.get().dependsOn(tasks.rat)
 
 // specify root pre/post commit tasks simplifying local execution commandline requirements 
 // this indirection makes Jenkins use the PR branch for the test definitions
 tasks.register("javaPreCommit") {
-	// list the model/* builds as sdks/java/core doesn't depend on the model
-	dependsOn(":model:pipeline:build")
-	dependsOn(":model:job-management:build")
-	dependsOn(":model-fn-execution:build")
-	dependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker:build")
-	dependsOn(":sdks:java:core:buildNeeded")
-	dependsOn(":sdks:java:core:buildDependents")
-	dependsOn(":examples:java:preCommit")
-	dependsOn(":examples:java:twitter:preCommit")
-	dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
-	dependsOn(":sdks:java:javadoc:allJavadoc")
-	dependsOn(":runners:direct-java:needsRunnerTests")
-	dependsOn(":sdks:java:container:java8:docker")
+  // list the model/* builds as sdks/java/core doesn't depend on the model
+  dependsOn(":model:pipeline:build")
+  dependsOn(":model:job-management:build")
+  dependsOn(":model-fn-execution:build")
+  dependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker:build")
+  dependsOn(":sdks:java:core:buildNeeded")
+  dependsOn(":sdks:java:core:buildDependents")
+  dependsOn(":examples:java:preCommit")
+  dependsOn(":examples:java:twitter:preCommit")
+  dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
+  dependsOn(":sdks:java:javadoc:allJavadoc")
+  dependsOn(":runners:direct-java:needsRunnerTests")
+  dependsOn(":sdks:java:container:java8:docker")
 }
 
 tasks.register("sqlPreCommit") {
-	dependsOn(":sdks:java:extensions:sql:runBasicExample")
-	dependsOn(":sdks:java:extensions:sql:runPojoExample")
-	dependsOn(":sdks:java:extensions:sql:build")
-	dependsOn(":sdks:java:extensions:sql:buildDependents")
+  dependsOn(":sdks:java:extensions:sql:runBasicExample")
+  dependsOn(":sdks:java:extensions:sql:runPojoExample")
+  dependsOn(":sdks:java:extensions:sql:build")
+  dependsOn(":sdks:java:extensions:sql:buildDependents")
 }
 
 tasks.register("javaPreCommitPortabilityApi") {
-	dependsOn(":runners:google-cloud-dataflow-java:worker:build")
+  dependsOn(":runners:google-cloud-dataflow-java:worker:build")
 }
 
 tasks.register("javaPostCommit") {
-	dependsOn(":sdks:java:extensions:google-cloud-platform-core:postCommit")
-	dependsOn(":sdks:java:extensions:zetasketch:postCommit")
-	dependsOn(":sdks:java:extensions:ml:postCommit")
+  dependsOn(":sdks:java:extensions:google-cloud-platform-core:postCommit")
+  dependsOn(":sdks:java:extensions:zetasketch:postCommit")
+  dependsOn(":sdks:java:extensions:ml:postCommit")
 }
 
 
 tasks.register("javaPostCommitSickbay") {
-	dependsOn(":runners:samza:validatesRunnerSickbay")
-	dependsOn(":runners:flink:1.12:validatesRunnerSickbay")
-	dependsOn(":runners:flink:1.13:validatesRunnerSickbay")
-	dependsOn(":runners:flink:1.14:validatesdRunnerSickbay")
-	dependsOn(":runners:flink:1.15:validatesRunnerSickbay")
-	dependsOn(":runners:spark:2:job-server:validatesRunnerSickbay")
-	dependsOn(":runners:spark:3:job-server:validatesRunnerSickbay")
-	dependsOn(":runners:direct-java:validatesRunnerSickbay")
-	dependsOn(":runners:portability:java:validatesRunnerSickbay")
+  dependsOn(":runners:samza:validatesRunnerSickbay")
+  dependsOn(":runners:flink:1.12:validatesRunnerSickbay")
+  dependsOn(":runners:flink:1.13:validatesRunnerSickbay")
+  dependsOn(":runners:flink:1.14:validatesdRunnerSickbay")
+  dependsOn(":runners:flink:1.15:validatesRunnerSickbay")
+  dependsOn(":runners:spark:2:job-server:validatesRunnerSickbay")
+  dependsOn(":runners:spark:3:job-server:validatesRunnerSickbay")
+  dependsOn(":runners:direct-java:validatesRunnerSickbay")
+  dependsOn(":runners:portability:java:validatesRunnerSickbay")
 }
 
 tasks.register("javaHadoopVersionsTest") {
-	dependsOn(":sdks:java:io:hadoop-common:hadoopVersionsTest")
-	dependsOn(":sdks:java:io:hadoop-file-system:hadoopVersionsTest")
-	dependsOn(":sdks:java:io:hadoop-format:hadoopVersionsTest")
-	dependsOn(":sdks:java:io:hcatalog:hadoopVersionsTest")
-	dependsOn(":sdks:java:io:parquet:hadoopVersionsTest")
-	dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
-	dependsOn(":runners:spark:2:hadoopVersionsTest")
+  dependsOn(":sdks:java:io:hadoop-common:hadoopVersionsTest")
+  dependsOn(":sdks:java:io:hadoop-file-system:hadoopVersionsTest")
+  dependsOn(":sdks:java:io:hadoop-format:hadoopVersionsTest")
+  dependsOn(":sdks:java:io:hcatalog:hadoopVersionsTest")
+  dependsOn(":sdks:java:io:parquet:hadoopVersionsTest")
+  dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
+  dependsOn(":runners:spark:2:hadoopVersionsTest")
 }
 
 tasks.register("sqlPostCommit") {
-	dependsOn(":sdks:java:extensions:sql:postCommit")
-	dependsOn(":sdks:java:extensions:sql:jdbc:postCommit")
-	dependsOn(":sdks:java:extensions:sql:datacatalog:postCommit")
-	dependsOn(":sdks:java:extensions:sql:hadoopVersionsTest")
+  dependsOn(":sdks:java:extensions:sql:postCommit")
+  dependsOn(":sdks:java:extensions:sql:jdbc:postCommit")
+  dependsOn(":sdks:java:extensions:sql:datacatalog:postCommit")
+  dependsOn(":sdks:java:extensions:sql:hadoopVersionsTest")
 }
 
 tasks.register("goPreCommit") {
-	// check that the Precommit builds run after the tests, to avoid to flake as per BEAM-11918
-	// We accomplish this by dividing them into two tasks and using "mustRunAfter" for forced sequencing
-	dependsOn(":goPrecommitTest")
-	dependsOn(":goPrecommitBuild")
+  // check that the Precommit builds run after the tests, to avoid to flake as per BEAM-11918
+  // We accomplish this by dividing them into two tasks and using "mustRunAfter" for forced sequencing
+  dependsOn(":goPrecommitTest")
+  dependsOn(":goPrecommitBuild")
+}
+
+tasks.register("goPrecommitTest") {
+  dependsOn(":sdks:go:goTest")
 }
