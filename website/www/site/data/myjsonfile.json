@@ -531,6 +531,48 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "spark",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testSideInputBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testPairWithIndexWindowedTimestampedBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testAdditionalOutputBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testOutputAfterCheckpointBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testWindowedSideInputBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testWindowedSideInputWithCheckpointsBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testPairWithIndexBasicBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testLifecycleMethodsBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testBundleFinalizationOccursOnBoundedSplittableDoFn",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -722,6 +764,100 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "dataflow",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testValueStateCoderInferenceFailure",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testValueStateSimple",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testUnboundedSourceSplits",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testWindowedIsEqualTo",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testValueStateCoderInferenceFromInputCoder",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testBoundedSourceSplits",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testCombiningState",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testValueStateSameId",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testCombiningStateCoderInferenceFailure",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testCombiningStateCoderInference",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testEventTimeTimerLoop",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testCombiningStateParameterSuperclass",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testCoderInferenceOfList",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testValueStateDedup",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testValueStateCoderInference",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testBagState",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testStateSideInput",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testValueStateFixedWindows",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testValueStateTaggedOutput",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testBagStateCoderInference",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testBagStateSideInput",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testBagStateCoderInferenceFailure",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -877,6 +1013,100 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "dataflow",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testPipelineOptionsParameterOnTimer",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testEventTimeTimerAlignBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testEventTimeTimerBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testTimerReceivedInOriginalWindow",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testEventTimeTimerMultipleKeys",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testKeyInOnTimerWithoutKV",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testEventTimeTimerAbsolute",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testKeyInOnTimerWithWrongKeyType",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testKeyInOnTimerWithGenericKey",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testOutputTimestampDefaultBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testEventTimeTimerLoop",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testOutOfBoundsProcessingTimeTimerHold",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testGbkFollowedByUserTimers",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testKeyInOnTimer",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testOutOfBoundsEventTimeTimerHold",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testOnTimerTimestampSkew",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testTimerFamilyAndTimerBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testTimerWithMultipleTimerFamilyBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testTimerFamilyEventTimeBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testOutOfBoundsEventTimeTimer",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testNoOutputTimestampDefaultStreaming",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testNoOutputTimestampDefaultBounded",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -1147,6 +1377,50 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "dataflow",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testKeyInOnTimerWithoutKV",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testKeyInOnTimerWithWrongKeyType",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testKeyInOnTimerWithGenericKey",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testKeyInOnTimer",
+                                        "status": ""
+                                    }
+                                ]
+                            },
+                            {
+                                "class": "spark",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testKeyInOnTimerWithoutKV",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testKeyInOnTimerWithWrongKeyType",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testKeyInOnTimerWithGenericKey",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testKeyInOnTimer",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -1239,6 +1513,26 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "dataflow",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testEventTimeTimerLoop",
+                                        "status": ""
+                                    }
+                                ]
+                            },
+                            {
+                                "class": "spark",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testEventTimeTimerLoop",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -1255,6 +1549,26 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "dataflow",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testEventTimeTimerLoop",
+                                        "status": ""
+                                    }
+                                ]
+                            },
+                            {
+                                "class": "spark",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testEventTimeTimerLoop",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -1282,6 +1596,16 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "dataflow",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testOutOfBoundsProcessingTimeTimerHold",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -1309,6 +1633,16 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "dataflow",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "pushesSystemMetrics",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -1333,6 +1667,42 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "dataflow",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testTimerFamilyAndTimerBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testTimerWithMultipleTimerFamilyBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testTimerFamilyEventTimeBounded",
+                                        "status": ""
+                                    }
+                                ]
+                            },
+                            {
+                                "class": "spark",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testTimerFamilyAndTimerBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testTimerWithMultipleTimerFamilyBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testTimerFamilyEventTimeBounded",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -1399,6 +1769,50 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "flink",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testLifecycleMethodsBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testFnCallSequenceMulti",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testSetupParameter",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testFnCallSequence",
+                                        "status": ""
+                                    }
+                                ]
+                            },
+                            {
+                                "class": "spark",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testLifecycleMethodsBounded",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testFnCallSequenceMulti",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testSetupParameter",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testFnCallSequence",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -1415,6 +1829,26 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "flink",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testFlattenMultipleCoders",
+                                        "status": ""
+                                    }
+                                ]
+                            },
+                            {
+                                "class": "spark",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testFlattenMultipleCoders",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -1467,6 +1901,98 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "flink",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testAssertionSiteIsCapturedWithoutMessage",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testPAssertThatFlattenedFalse",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testPAssertThatListSatisfiesOneMatcherFalse",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testEmptyFalseDefaultReasonString",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testContainsInAnyOrderFalse",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testEmptyFalse",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testPAssertEqualsSingletonFalse",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testPAssertThatListSatisfiesMultipleMatchersFalse",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testPAssertEqualsSingletonFalseDefaultReasonString",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testAssertionSiteIsCapturedWithMessage",
+                                        "status": ""
+                                    }
+                                ]
+                            },
+                            {
+                                "class": "spark",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testAssertionSiteIsCapturedWithoutMessage",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testPAssertThatFlattenedFalse",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testPAssertThatListSatisfiesOneMatcherFalse",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testEmptyFalseDefaultReasonString",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testContainsInAnyOrderFalse",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testEmptyFalse",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testPAssertEqualsSingletonFalse",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testPAssertThatListSatisfiesMultipleMatchersFalse",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testPAssertEqualsSingletonFalseDefaultReasonString",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testAssertionSiteIsCapturedWithMessage",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -1487,6 +2013,34 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "flink",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testCommittedCounterMetrics",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testCommittedDistributionMetrics",
+                                        "status": ""
+                                    }
+                                ]
+                            },
+                            {
+                                "class": "spark",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testCommittedCounterMetrics",
+                                        "status": ""
+                                    },
+                                    {
+                                        "name": "testCommittedDistributionMetrics",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -1503,6 +2057,26 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "flink",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testBundleFinalizationOccursOnBoundedSplittableDoFn",
+                                        "status": ""
+                                    }
+                                ]
+                            },
+                            {
+                                "class": "spark",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testBundleFinalizationOccursOnBoundedSplittableDoFn",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -1530,6 +2104,16 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "flink",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testJammAgentAvailable",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -1546,6 +2130,26 @@
                                 ],
                                 "l1": "Yes",
                                 "l2": "fully supported"
+                            },
+                            {
+                                "class": "flink",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testLargeKeys10MB",
+                                        "status": ""
+                                    }
+                                ]
+                            },
+                            {
+                                "class": "dataflow",
+                                "l1": "Not supported",
+                                "l4": [
+                                    {
+                                        "name": "testLargeKeys10MB",
+                                        "status": ""
+                                    }
+                                ]
                             }
                         ]
                     }

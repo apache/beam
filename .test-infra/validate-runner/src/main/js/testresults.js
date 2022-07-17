@@ -9,11 +9,17 @@ const statusDescription = {
   partiallySupported: 'fully supported in batch mode',
   no: 'No',
   notImplemented: 'not implemeted',
+  notSupported: 'Not supported',
 };
 
 const validatesRunner = 'org.apache.beam.sdk.testing.ValidatesRunner';
-let categs = {};
+
+// shuffle and format into categories with values of tests and results
+let categoriesWithTests = {};
+let classes = [];
 Object.keys(data.batch).forEach((key, i) => {
+  classes.push(key);
+
   let curr = [];
   let dir = {};
   let counts = 0;
@@ -23,9 +29,9 @@ Object.keys(data.batch).forEach((key, i) => {
       .filter((item) => item !== validatesRunner)
       .forEach((cat, i) => {
         let passed = test.status === 'PASSED';
-        if (categs[cat] === undefined) {
+        if (categoriesWithTests[cat] === undefined) {
           let categoryName = cat.slice(cat.lastIndexOf('.') + 1);
-          categs[cat] = {
+          categoriesWithTests[cat] = {
             name: categoryName,
             values: [],
           };
@@ -33,6 +39,7 @@ Object.keys(data.batch).forEach((key, i) => {
         if (dir[cat] === undefined) {
           dir[cat] = counts;
           counts++;
+
           curr.push({
             name: cat,
             values: [
@@ -58,8 +65,6 @@ Object.keys(data.batch).forEach((key, i) => {
               name: test.name,
               status: test.status,
             });
-          /*               temp[passed ? 'L3' : 'L4'].push({name:test.name, status:test.status})
-           */
         }
       });
   });
@@ -73,7 +78,48 @@ Object.keys(data.batch).forEach((key, i) => {
       currentValues['l1'] = `${statusDescription.partially}`;
       currentValues['l2'] = `${statusDescription.partiallySupported}`;
     }
-    categs[result.name].values.push(currentValues);
+    categoriesWithTests[result.name].values.push(currentValues);
+  });
+});
+
+// if a category doent exist in class, add class to that category and all Not supported tests
+let updatedCategoriesWithClasses = categoriesWithTests;
+Object.values(updatedCategoriesWithClasses).forEach((cat) => {
+  classes.find((cl) => {
+    let temp = [];
+    cat.values.forEach((el) => {
+      temp.push(el.class);
+    });
+
+    if (temp.length !== classes.length) {
+      let difference = classes.filter((x) => !temp.includes(x));
+      console.log('difff', difference, cat.values);
+      let allTest = [];
+      cat.values.forEach((el) => {
+        el.l3.forEach((test) => allTest.push(test));
+        if (el.l4) {
+          el.l4.forEach((test) => allTest.push(test));
+        }
+      });
+
+      const notSupportedTests = allTest.map((t) => {
+        return { name: t.name, status: '' };
+      });
+
+      const uniqueNotSupportedTests = [
+        ...new Map(
+          notSupportedTests.map((item) => [item['name'], item])
+        ).values(),
+      ];
+
+      difference.forEach((diff) => {
+        cat.values.push({
+          class: diff,
+          l1: statusDescription.notSupported,
+          l4: uniqueNotSupportedTests,
+        });
+      });
+    }
   });
 });
 
@@ -83,6 +129,7 @@ const names = {
   spark: 'Apache Spark (RDD/DStream based)',
 };
 
+// join columns and categories with colors for styling
 let formattedData = {
   capability_matrix: {
     columns: [],
@@ -108,9 +155,9 @@ Object.keys(data.batch).forEach((key) => {
   });
 });
 
-formattedData.capability_matrix.categories[0]['rows'] = Object.keys(categs).map(
-  (key) => categs[key]
-);
+formattedData.capability_matrix.categories[0]['rows'] = Object.keys(
+  updatedCategoriesWithClasses
+).map((key) => updatedCategoriesWithClasses[key]);
 
 let jsonFormatted = JSON.stringify(formattedData);
 
@@ -122,5 +169,3 @@ fs.writeFile(
 );
 
 console.log('resultRows', jsonFormatted);
-// console.dir(formattedData, { depth: null });
-// console.log('data', formattedData)

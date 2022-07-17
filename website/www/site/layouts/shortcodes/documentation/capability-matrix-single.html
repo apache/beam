@@ -54,17 +54,17 @@
     </div>
 </div>
 
-{{ range $categ := $auto_data.capability_matrix.categories }}
-{{ $colcol := $auto_data.capability_matrix.columns}}
+{{ range $categories := $auto_data.capability_matrix.categories }}
+{{ $columns := $auto_data.capability_matrix.columns}}
 
-<h3>{{ $categ.description }} </h3>
+<h3>{{ $categories.description }} </h3>
 <div class="table-container">
     <div class="table-left">
         <table>
             <tr>
                 <th></th>
             </tr>
-                {{ range $categ.rows}}
+                {{ range $categories.rows}}
                     <tr>
                         <th>
                             {{.name}}
@@ -74,36 +74,33 @@
         </table>
     </div>
     <div class="table-right">
-        <div id="{{ $categ.description | urlize }}" class="table-headers">
+        <div id="{{ $categories.description | urlize }}" class="table-headers">
             <table>
                 <tr>
-                    {{ range $col := $colcol }}
-                        <th>{{ $col.name }}</th>
+                    {{ range $column := $columns }}
+                        <th>{{ $column.name }}</th>
                     {{ end }}
                 </tr>
             </table>
         </div>
-        <div id="{{ $categ.description | urlize }}" class="table-center">
+        <div id="{{ $categories.description | urlize }}" class="table-center">
             <table>
-                {{ range $row := $categ.rows }}
+                {{ range $row := $categories.rows }}
 
                 <tr>
-
+                   
                     {{ range $val := $row.values }}
-
-                    <td style='background-color:#{{ if eq $val.l1 "Yes" }}{{ index $categ "color-y" }}{{ else if eq $val.l1 "Partially" }}{{ index $categ "color-p" }}{{ else }}{{ index $categ "color-n" }}{{ end }};border-color:#{{ if eq $val.l1 "Yes" }}{{ index $categ "color-yb" }}{{ else if eq $val.l1 "Partially" }}{{ index $categ "color-pb" }}{{ else }}{{ index $categ "color-nb" }}{{ end }}'>
-                        {{ partial "documentation/capability-matrix-row" (dict "type" $cap_view "val" $val) }}
-                        
-                    </td>
-
-                    {{ end }}
+                        <td style='background-color:#{{ if eq $val.l1 "Yes" }}{{ index $categories "color-y" }}{{ else if eq $val.l1 "Partially" }}{{ index $categories "color-p" }}{{ else }}{{ index $categories "color-n" }}{{ end }};border-color:#{{ if eq $val.l1 "Yes" }}{{ index $categories "color-yb" }}{{ else if eq $val.l1 "Partially" }}{{ index $categories "color-pb" }}{{ else }}{{ index $categories "color-nb" }}{{ end }}'>
+                            {{ partial "documentation/capability-matrix-row" (dict "type" $cap_view "val" $val) }}
+                        </td>
+                    {{end}}
                 </tr>
                 {{ end }}
             </table>
         </div>
     </div>
 </div>
-<a id="table-link" href="/documentation/runners/capability-matrix/{{ $categ.description | urlize }}/">{{ T "capability-go-big" }}</a>
+<a id="table-link" href="/documentation/runners/capability-matrix/{{ $categories.description | urlize }}/">{{ T "capability-go-big" }}</a>
 {{ end }}
 
 {{ range $category := $cap_data.categories }}

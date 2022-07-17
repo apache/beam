@@ -28,10 +28,10 @@
     {{ T "capability-back" }}
 </a>
 
-{{ range $categ := $auto_data.capability_matrix.categories }}
-{{ $colcol := $auto_data.capability_matrix.columns}}
+{{ range $categories := $auto_data.capability_matrix.categories }}
+{{ $columns := $auto_data.capability_matrix.columns}}
 
-<h3>{{ $categ.description }}</h3>
+<h3>{{ $categories.description }}</h3>
 
     <div class="table-container">
         <div class="table-left big-left">
@@ -39,7 +39,7 @@
             <tr>
                 <th></th>
             </tr>
-            {{ range $row := $categ.rows }}
+            {{ range $row := $categories.rows }}
                 <tr>
                     <th>{{ $row.name }}</th>
                 </tr>
@@ -47,34 +47,39 @@
         </table>
         </div>
        <div class="table-right big-right">
-        <div id="{{ $categ.description | urlize }}" class="table-headers big-headers">
+        <div id="{{ $categories.description | urlize }}" class="table-headers big-headers">
             <table>
                 <tr>
-                    {{ range $col := $colcol }}
-                        <th>{{ $col.name }}</th>
+                    {{ range $column := $columns }}
+                        <th>{{ $column.name }}</th>
                     {{ end }}
                 </tr>
             </table>
         </div>
-        <div id="{{ $categ.description | urlize }}" class="table-center big-center">
+        <div id="{{ $categories.description | urlize }}" class="table-center big-center">
             <table>
-                {{ range $row := $categ.rows }}
+                {{ range $row := $categories.rows }}
                     <tr>
                         {{ range $val := $row.values }}
-                            <td style='height:0;word-wrap:break-word; background-color:#{{ if eq $val.l1 "Yes" }}{{ index $categ "color-y" }}{{ else if eq $val.l1 "Partially" }}{{ index $categ "color-p" }}{{ else }}{{ index $categ "color-n" }}{{ end }};border-color:#{{ if eq $val.l1 "Yes" }}{{ index $categ "color-yb" }}{{ else if eq $val.l1 "Partially" }}{{ index $categ "color-pb" }}{{ else }}{{ index $categ "color-nb" }}{{ end }}'>
+                            <td style='height:0;word-wrap:break-word; background-color:#{{ if eq $val.l1 "Yes" }}{{ index $categories "color-y" }}{{ else if eq $val.l1 "Partially" }}{{ index $categories "color-p" }}{{ else }}{{ index $categories "color-n" }}{{ end }};border-color:#{{ if eq $val.l1 "Yes" }}{{ index $categories "color-yb" }}{{ else if eq $val.l1 "Partially" }}{{ index $categories "color-pb" }}{{ else }}{{ index $categories "color-nb" }}{{ end }}'>
                                 <!-- {{ partial "documentation/capability-matrix-row" (dict "type" $cap_view "val" $val) }} -->
                               
                                 <div style="height: 338px; overflow-y: scroll">
-                                    <p style=" color: #ff6d00">
+                                    <p>
                                         {{$val.l1}}: {{$val.l2}}
                                     </p>
+                                    <br>
                                     {{range $l3 := $val.l3}}
-                                    <p>{{$l3.name}}</p>
-                                    <p>- {{$l3.status}}</p>
+                                        {{$l3.name}}
+                                            <br>
+                                        - {{$l3.status}}
+                                            <br>
                                     {{end}}
                                     {{range $l4 := $val.l4}}
-                                    <p style="color: red">{{$l4.name}}</p>
-                                    <p style="color: red">- {{$l4.status}}</p>
+                                        {{$l4.name}}
+                                            <br>
+                                        - {{$l4.status}}
+                                            <br>
                                     {{end}}
                                 </div>
                                
@@ -121,6 +126,7 @@
                 </div>
                 <div id="{{ $category.description | urlize }}" class="table-center big-center">
                     <table>
+                        
                         {{ range $row := $category.rows }}
                             <tr>
                                 {{ range $val := $row.values }}
