@@ -43,7 +43,8 @@ public class WriteToPulsarDoFn extends DoFn<byte[], Void> {
 
   @Setup
   public void setup() throws PulsarClientException {
-    client = PulsarClient.builder()
+    client =
+        PulsarClient.builder()
             .serviceUrl(clientUrl)
             .authentication(authPluginClassName, authParameters)
             .build();

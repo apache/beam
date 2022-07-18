@@ -186,9 +186,9 @@ public class PulsarIO {
 
       abstract Builder setClientUrl(String clientUrl);
 
-      abstract Read.Builder setAuthPluginClassName(String authPluginClassName);
+      abstract Builder setAuthPluginClassName(String authPluginClassName);
 
-      abstract Read.Builder setAuthParameters(String authParameters);
+      abstract Builder setAuthParameters(String authParameters);
 
       abstract Write build();
     }
@@ -201,11 +201,11 @@ public class PulsarIO {
       return builder().setClientUrl(clientUrl).build();
     }
 
-    public Read withAuthPluginClassName(String pluginClassName) {
+    public Write withAuthPluginClassName(String pluginClassName) {
       return builder().setAuthPluginClassName(pluginClassName).build();
     }
 
-    public Read withAuthParameters(String parameters) {
+    public Write withAuthParameters(String parameters) {
       return builder().setAuthParameters(parameters).build();
     }
 

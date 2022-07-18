@@ -81,7 +81,8 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
     if (this.client == null) {
       this.client = pulsarClientSerializableFunction.apply(this.clientUrl);
       if (this.client == null) {
-        this.client = PulsarClient.builder()
+        this.client =
+            PulsarClient.builder()
                 .serviceUrl(clientUrl)
                 .authentication(authPluginClassName, authParameters)
                 .build();

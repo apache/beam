@@ -68,7 +68,13 @@ public abstract class PulsarSourceDescriptor implements Serializable {
       String authPluginClassName,
       String authParams) {
     return new AutoValue_PulsarSourceDescriptor(
-        topic, startOffsetTimestamp, endOffsetTimestamp, endMessageId,
-            clientUrl, adminUrl, authPluginClassName, authParams);
+        topic,
+        startOffsetTimestamp,
+        endOffsetTimestamp,
+        endMessageId,
+        clientUrl,
+        adminUrl,
+        authPluginClassName,
+        authParams);
   }
 }
