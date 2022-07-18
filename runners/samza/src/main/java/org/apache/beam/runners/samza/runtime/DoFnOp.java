@@ -320,8 +320,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   }
 
   private String toStepName(Set<PipelineNode.PTransformNode> nodes) {
-    //TODO: format name when there are multiple input and output PTransform in the ExecutableStage
-    return Iterables.get(Splitter.on('/').split(nodes.iterator().next().getTransform().getUniqueName()), 0);
+    // TODO: format name when there are multiple input and output PTransform in the ExecutableStage
+    return Iterables.get(
+        Splitter.on('/').split(nodes.iterator().next().getTransform().getUniqueName()), 0);
   }
 
   FutureCollector<OutT> createFutureCollector() {

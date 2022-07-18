@@ -239,6 +239,8 @@ public class SamzaDoFnRunners {
 
   private static class SdkHarnessDoFnRunner<InT, FnOutT> implements DoFnRunner<InT, FnOutT> {
 
+    private static final long DEFAULT_METRIC_SAMPLE_RATE = 100;
+
     private final SamzaTimerInternalsFactory timerInternalsFactory;
     private final WindowingStrategy windowingStrategy;
     private final DoFnRunners.OutputManager outputManager;
@@ -288,7 +290,6 @@ public class SamzaDoFnRunners {
     @Override
     public void startBundle() {
       try {
-        startBundleTime = System.nanoTime();
         OutputReceiverFactory receiverFactory =
             new OutputReceiverFactory() {
               @Override
@@ -310,6 +311,12 @@ public class SamzaDoFnRunners {
                 timerReceiverFactory,
                 stateRequestHandler,
                 BundleProgressHandler.ignored());
+
+        if (Long.parseLong(remoteBundle.getId()) % DEFAULT_METRIC_SAMPLE_RATE == 0) {
+          startBundleTime = System.nanoTime();
+        } else {
+          startBundleTime = 0;
+        }
 
         inputReceiver = Iterables.getOnlyElement(remoteBundle.getInputReceivers().values());
         bundledEventsBag
@@ -380,7 +387,7 @@ public class SamzaDoFnRunners {
     public void finishBundle() {
       try {
         final long count = Iterables.size(bundledEventsBag.read());
-        if (count > 0) {
+        if (startBundleTime > 0 && count > 0) {
           final long finishBundleTime = System.nanoTime();
           final long averageProcessTime = (finishBundleTime - startBundleTime) / count;
 
