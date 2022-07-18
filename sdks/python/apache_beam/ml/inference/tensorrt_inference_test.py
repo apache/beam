@@ -24,7 +24,8 @@ import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 # Protect against environments where TensorRT python library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports

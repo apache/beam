@@ -19,7 +19,6 @@
 
 import logging
 import sys
-
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -27,11 +26,13 @@ from typing import Optional
 from typing import Sequence
 from typing import Tuple
 
-from cuda import cuda
 import numpy as np
+
 import tensorrt as trt
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference.base import ModelHandler, PredictionResult
+from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import PredictionResult
+from cuda import cuda
 
 TRT_LOGGER = trt.Logger(trt.Logger.INFO)
 

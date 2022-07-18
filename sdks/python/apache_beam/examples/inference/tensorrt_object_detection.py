@@ -21,21 +21,22 @@ TensorRT.
 
 import argparse
 import io
-import numpy as np
 import os
-from PIL import Image
 from typing import Iterable
 from typing import Optional
 from typing import Tuple
+
+import numpy as np
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.tensorrt_inference import \
-    TensorRTEngineHandlerNumPy
-from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
+from apache_beam.ml.inference.tensorrt_inference import TensorRTEngineHandlerNumPy  # pylint: disable=line-too-long
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from PIL import Image
 
 COCO_OBJ_DET_CLASSES = [
     'person',
