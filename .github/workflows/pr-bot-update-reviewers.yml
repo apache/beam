@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - run: npm install
+      - run: npm ci
         working-directory: 'scripts/ci/pr-bot'
 
       # Runs a set of commands using the runners shell
