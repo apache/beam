@@ -1022,7 +1022,6 @@ class RunnerApiTest(unittest.TestCase):
 
     p = beam.Pipeline()
     p | MyPTransform()  # pylint: disable=expression-not-assigned
-    from apache_beam.portability.api import beam_runner_api_pb2
 
     proto_pipeline = Pipeline.to_runner_api(p, use_fake_coders=True)
     my_transform, = [

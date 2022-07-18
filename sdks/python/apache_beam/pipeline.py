@@ -851,7 +851,6 @@ class Pipeline(object):
 
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
-    from apache_beam.portability.api import beam_runner_api_pb2
     if context is None:
       context = pipeline_context.PipelineContext(
           use_fake_coders=use_fake_coders,
@@ -1308,8 +1307,6 @@ class AppliedPTransform(object):
       # are properly propagated.
       return self.transform.to_runner_api_transform(context, self.full_label)
 
-    from apache_beam.portability.api import beam_runner_api_pb2
-
     def transform_to_runner_api(
         transform,  # type: Optional[ptransform.PTransform]
         context  # type: PipelineContext
@@ -1369,7 +1366,6 @@ class AppliedPTransform(object):
 
     if common_urns.primitives.PAR_DO.urn == proto.spec.urn:
       # Preserving side input tags.
-      from apache_beam.portability.api import beam_runner_api_pb2
       pardo_payload = (
           proto_utils.parse_Bytes(
               proto.spec.payload, beam_runner_api_pb2.ParDoPayload))
