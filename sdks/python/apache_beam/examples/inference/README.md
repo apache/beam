@@ -53,7 +53,7 @@ For installation of the `torch` dependency on a distributed runner, like Dataflo
 ### TensorRT dependencies
 
 The RunInference API supports TensorRT SDK for high-performance deep learning inference with NVIDIA GPUs.
-To use TensorRT locally, we suggest an environment with TensorRT >= 8.0.1. Install TensorRT as per the 
+To use TensorRT locally, we suggest an environment with TensorRT >= 8.0.1. Install TensorRT as per the
 [TensorRT Install Guide](https://docs.nvidia.com/deeplearning/tensorrt/install-guide/index.html). You
 will need to make sure the Python bindings for TensorRT are also installed correctly, these are available by installing the python3-libnvinfer and python3-libnvinfer-dev packages on your TensorRT download.
 
@@ -61,7 +61,7 @@ If you would like to use Docker, you can use an NGC image like:
 ```
 docker pull nvcr.io/nvidia/tensorrt:22.04-py3
 ```
-as an existing container base to [build custom Apache Beam container](https://beam.apache.org/documentation/runtime/environments/#modify-existing-base-image). 
+as an existing container base to [build custom Apache Beam container](https://beam.apache.org/documentation/runtime/environments/#modify-existing-base-image).
 
 
 <!---
@@ -178,13 +178,13 @@ The pipeline reads the images, performs basic preprocessing, passes them to the 
 
 ### Dataset and model for image classification
 
-You will need to create or download images, and place them into your `IMAGES_DIR` directory. Popular dataset for such task is [COCO dataset](https://cocodataset.org/#home). COCO validation dataset can be obtained [here](http://images.cocodataset.org/zips/val2017.zip). 
+You will need to create or download images, and place them into your `IMAGES_DIR` directory. Popular dataset for such task is [COCO dataset](https://cocodataset.org/#home). COCO validation dataset can be obtained [here](http://images.cocodataset.org/zips/val2017.zip).
 - **Required**: A path to a file called `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` on which you want to run image segmentation. Paths can be different types of URIs such as your local file system, a AWS S3 bucket or GCP Cloud Storage bucket. For example:
 ```
 /absolute/path/to/000000000139.jpg
 /absolute/path/to/000000289594.jpg
 ```
-- **Required**: A path to a file called `TRT_ENGINE` that contains the pre-built TensorRT engine from SSD MobileNet v2 320x320 model. You will need to [follow instructions](https://github.com/NVIDIA/TensorRT/tree/main/samples/python/tensorflow_object_detection_api) on how to download and convert this SSD model into TensorRT engine. At [Create ONNX Graph](https://github.com/NVIDIA/TensorRT/tree/main/samples/python/tensorflow_object_detection_api#create-onnx-graph) step, keep batch size at 1. As soon as you are done with [Build TensorRT Engine](https://github.com/NVIDIA/TensorRT/tree/main/samples/python/tensorflow_object_detection_api#build-tensorrt-engine) step. You can use resulted engine as `TRT_ENGINE` input. In addition, make sure that environment you use for TensorRT engine creation is the same environment you use to run TensorRT inference. It is related not only to TensorRT version, but also to a specific GPU used. Read more about it [here](https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#compatibility-serialized-engines). 
+- **Required**: A path to a file called `TRT_ENGINE` that contains the pre-built TensorRT engine from SSD MobileNet v2 320x320 model. You will need to [follow instructions](https://github.com/NVIDIA/TensorRT/tree/main/samples/python/tensorflow_object_detection_api) on how to download and convert this SSD model into TensorRT engine. At [Create ONNX Graph](https://github.com/NVIDIA/TensorRT/tree/main/samples/python/tensorflow_object_detection_api#create-onnx-graph) step, keep batch size at 1. As soon as you are done with [Build TensorRT Engine](https://github.com/NVIDIA/TensorRT/tree/main/samples/python/tensorflow_object_detection_api#build-tensorrt-engine) step. You can use resulted engine as `TRT_ENGINE` input. In addition, make sure that environment you use for TensorRT engine creation is the same environment you use to run TensorRT inference. It is related not only to TensorRT version, but also to a specific GPU used. Read more about it [here](https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#compatibility-serialized-engines).
 
 - **Required**: A path to a file called `OUTPUT`, to which the pipeline will write the predictions.
 - **Optional**: `IMAGES_DIR`, which is the path to the directory where images are stored. Not required if image names in the input file `IMAGE_FILE_NAMES` have absolute paths.

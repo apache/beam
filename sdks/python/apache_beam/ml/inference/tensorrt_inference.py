@@ -18,12 +18,18 @@
 # pytype: skip-file
 
 import logging
-import numpy as np
-from cuda import cuda
 import sys
-import tensorrt as trt
-from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
 
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import Optional
+from typing import Sequence
+from typing import Tuple
+
+from cuda import cuda
+import numpy as np
+import tensorrt as trt
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler, PredictionResult
 
@@ -32,6 +38,7 @@ TRT_LOGGER = trt.Logger(trt.Logger.INFO)
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("TensorRTEngineHandlerNumPy").setLevel(logging.INFO)
 log = logging.getLogger("TensorRTEngineHandlerNumPy")
+
 
 def _load_engine(engine_path):
   file = FileSystems.open(engine_path, 'rb')
@@ -48,7 +55,7 @@ def _load_onnx(onnx_path):
   parser = trt.OnnxParser(network, TRT_LOGGER)
   with FileSystems.open(onnx_path) as f:
     if not parser.parse(f.read()):
-      log.error("Failed to load ONNX file: {}".format(onnx_path))
+      log.error("Failed to load ONNX file: %s", onnx_path)
       for error in range(parser.num_errors):
         log.error(parser.get_error(error))
       sys.exit(1)
@@ -85,10 +92,10 @@ def ASSERT_DRV(args):
     if err != cuda.CUresult.CUDA_SUCCESS:
       raise RuntimeError("Cuda Error: {}".format(err))
   else:
-      raise RuntimeError("Unknown error type: {}".format(err))
-  """Special case so that no unpacking is needed at call-site."""
+    raise RuntimeError("Unknown error type: {}".format(err))
+  # Special case so that no unpacking is needed at call-site.
   if len(ret) == 1:
-      return ret[0]
+    return ret[0]
   return ret
 
 
@@ -110,7 +117,6 @@ class TensorRTEngine:
     self.outputs = []
     self.gpu_allocations = []
     self.cpu_allocations = []
-
     """Setup I/O bindings."""
     for i in range(self.engine.num_bindings):
       name = self.engine.get_binding_name(i)
@@ -131,7 +137,7 @@ class TensorRTEngine:
         self.inputs.append(binding)
       else:
         self.outputs.append(binding)
-    
+
     assert self.context
     assert len(self.inputs) > 0
     assert len(self.outputs) > 0
@@ -139,13 +145,19 @@ class TensorRTEngine:
 
     for output in self.outputs:
       self.cpu_allocations.append(np.zeros(output['shape'], output['dtype']))
-
-    """Create CUDA Stream."""
+    # Create CUDA Stream.
     self.stream = ASSERT_DRV(cuda.cuStreamCreate(0))
 
   def get_engine_attrs(self):
     """Returns TensorRT engine attributes."""
-    return self.engine, self.context, self.inputs, self.outputs, self.gpu_allocations, self.cpu_allocations, self.stream
+    return (
+        self.engine,
+        self.context,
+        self.inputs,
+        self.outputs,
+        self.gpu_allocations,
+        self.cpu_allocations,
+        self.stream)
 
 
 class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
@@ -196,7 +208,9 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     """Loads and parses an onnx model for processing."""
     return _load_onnx(self.onnx_path)
 
-  def build_engine(self, network: trt.INetworkDefinition, builder: trt.Builder) -> TensorRTEngine:
+  def build_engine(
+      self, network: trt.INetworkDefinition,
+      builder: trt.Builder) -> TensorRTEngine:
     """Build an engine according to parsed/created network."""
     engine = _build_engine(network, builder)
     return TensorRTEngine(engine)
@@ -222,16 +236,33 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       An Iterable of type PredictionResult.
     """
     _validate_inference_args(inference_args)
-    engine, context, inputs, outputs, gpu_allocations, cpu_allocations, stream = engine.get_engine_attrs()
-    """Process I/O and execute the network"""
-    ASSERT_DRV(cuda.cuMemcpyHtoDAsync(inputs[0]['allocation'], np.ascontiguousarray(batch), inputs[0]['size'], stream))
+    (
+        engine,
+        context,
+        inputs,
+        outputs,
+        gpu_allocations,
+        cpu_allocations,
+        stream) = engine.get_engine_attrs()
+    # Process I/O and execute the network
+    ASSERT_DRV(
+        cuda.cuMemcpyHtoDAsync(
+            inputs[0]['allocation'],
+            np.ascontiguousarray(batch),
+            inputs[0]['size'],
+            stream))
     context.execute_async_v2(gpu_allocations, stream)
     for output in range(len(cpu_allocations)):
-      ASSERT_DRV(cuda.cuMemcpyDtoHAsync(cpu_allocations[output], outputs[output]['allocation'], outputs[output]['size'], stream))
+      ASSERT_DRV(
+          cuda.cuMemcpyDtoHAsync(
+              cpu_allocations[output],
+              outputs[output]['allocation'],
+              outputs[output]['size'],
+              stream))
 
     return [
-        PredictionResult(x, [prediction[idx] for prediction in cpu_allocations])
-        for idx,
+        PredictionResult(
+            x, [prediction[idx] for prediction in cpu_allocations]) for idx,
         x in enumerate(batch)
     ]
 
