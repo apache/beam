@@ -175,6 +175,12 @@ Install node.js, and then from within `sdks/typescript`.
 npm install
 ```
 
+To install without rewriting **package-lock.json**, run:
+
+```
+npm ci
+```
+
 ### Running tests
 
 ```
