@@ -18,10 +18,10 @@
 package org.apache.beam.runners.spark.metrics.sink;
 
 import com.codahale.metrics.MetricRegistry;
-import java.lang.reflect.Constructor;
 import java.util.Properties;
 import org.apache.beam.runners.spark.metrics.AggregatorMetric;
 import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
+import org.apache.spark.SecurityManager;
 import org.apache.spark.metrics.sink.Sink;
 
 /**
@@ -42,17 +42,31 @@ public class CsvSink implements Sink {
   // Initialized reflectively as done by Spark's MetricsSystem
   private final org.apache.spark.metrics.sink.CsvSink delegate;
 
-  /** Constructor for Spark 3.1.x. */
+  /** Constructor for Spark 3.1.x and earlier. */
   public CsvSink(
       final Properties properties,
       final MetricRegistry metricRegistry,
       final org.apache.spark.SecurityManager securityMgr) {
-    delegate = newDelegate(properties, WithMetricsSupport.forRegistry(metricRegistry), securityMgr);
+    try {
+      delegate =
+          org.apache.spark.metrics.sink.CsvSink.class
+              .getConstructor(Properties.class, MetricRegistry.class, SecurityManager.class)
+              .newInstance(properties, WithMetricsSupport.forRegistry(metricRegistry), securityMgr);
+    } catch (ReflectiveOperationException ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
   /** Constructor for Spark 3.2.x and later. */
   public CsvSink(final Properties properties, final MetricRegistry metricRegistry) {
-    delegate = newDelegate(properties, WithMetricsSupport.forRegistry(metricRegistry));
+    try {
+      delegate =
+          org.apache.spark.metrics.sink.CsvSink.class
+              .getConstructor(Properties.class, MetricRegistry.class)
+              .newInstance(properties, WithMetricsSupport.forRegistry(metricRegistry));
+    } catch (ReflectiveOperationException ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
   @Override
@@ -68,14 +82,5 @@ public class CsvSink implements Sink {
   @Override
   public void report() {
     delegate.report();
-  }
-
-  private static org.apache.spark.metrics.sink.CsvSink newDelegate(Object... params) {
-    try {
-      Constructor<?> constructor = org.apache.spark.metrics.sink.CsvSink.class.getConstructors()[0];
-      return (org.apache.spark.metrics.sink.CsvSink) constructor.newInstance(params);
-    } catch (ReflectiveOperationException ex) {
-      throw new RuntimeException(ex);
-    }
   }
 }

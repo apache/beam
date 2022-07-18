@@ -22,7 +22,6 @@ import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke;
 import org.apache.spark.sql.types.DataType;
-import scala.collection.Seq;
 import scala.collection.immutable.List;
 import scala.collection.immutable.Nil$;
 import scala.collection.mutable.WrappedArray;
@@ -41,11 +40,11 @@ public class EncoderFactory {
         ClassTag$.MODULE$.apply(clazz));
   }
 
+  /**
+   * Invoke method {@code fun} on Class {@code cls}, immediately propagating {@code null} if any
+   * input arg is {@code null}.
+   */
   static Expression invokeIfNotNull(Class<?> cls, String fun, DataType type, Expression... args) {
-    return new StaticInvoke(cls, type, fun, seqOf(args), true, true);
-  }
-
-  private static Seq<Expression> seqOf(Expression... args) {
-    return new WrappedArray.ofRef<>(args);
+    return new StaticInvoke(cls, type, fun, new WrappedArray.ofRef<>(args), true, true);
   }
 }

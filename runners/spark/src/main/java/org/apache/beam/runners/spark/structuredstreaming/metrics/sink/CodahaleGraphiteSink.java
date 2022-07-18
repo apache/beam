@@ -18,10 +18,10 @@
 package org.apache.beam.runners.spark.structuredstreaming.metrics.sink;
 
 import com.codahale.metrics.MetricRegistry;
-import java.lang.reflect.Constructor;
 import java.util.Properties;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.AggregatorMetric;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.WithMetricsSupport;
+import org.apache.spark.SecurityManager;
 import org.apache.spark.metrics.sink.Sink;
 
 /**
@@ -45,17 +45,31 @@ public class CodahaleGraphiteSink implements Sink {
   // Initialized reflectively as done by Spark's MetricsSystem
   private final org.apache.spark.metrics.sink.GraphiteSink delegate;
 
-  /** Constructor for Spark 3.1.x. */
+  /** Constructor for Spark 3.1.x and earlier. */
   public CodahaleGraphiteSink(
       final Properties properties,
       final MetricRegistry metricRegistry,
       final org.apache.spark.SecurityManager securityMgr) {
-    delegate = newDelegate(properties, WithMetricsSupport.forRegistry(metricRegistry), securityMgr);
+    try {
+      delegate =
+          org.apache.spark.metrics.sink.GraphiteSink.class
+              .getConstructor(Properties.class, MetricRegistry.class, SecurityManager.class)
+              .newInstance(properties, WithMetricsSupport.forRegistry(metricRegistry), securityMgr);
+    } catch (ReflectiveOperationException ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
   /** Constructor for Spark 3.2.x and later. */
   public CodahaleGraphiteSink(final Properties properties, final MetricRegistry metricRegistry) {
-    delegate = newDelegate(properties, WithMetricsSupport.forRegistry(metricRegistry));
+    try {
+      delegate =
+          org.apache.spark.metrics.sink.GraphiteSink.class
+              .getConstructor(Properties.class, MetricRegistry.class)
+              .newInstance(properties, WithMetricsSupport.forRegistry(metricRegistry));
+    } catch (ReflectiveOperationException ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
   @Override
@@ -71,15 +85,5 @@ public class CodahaleGraphiteSink implements Sink {
   @Override
   public void report() {
     delegate.report();
-  }
-
-  private static org.apache.spark.metrics.sink.GraphiteSink newDelegate(Object... params) {
-    try {
-      Constructor<?> constructor =
-          org.apache.spark.metrics.sink.GraphiteSink.class.getConstructors()[0];
-      return (org.apache.spark.metrics.sink.GraphiteSink) constructor.newInstance(params);
-    } catch (ReflectiveOperationException ex) {
-      throw new RuntimeException(ex);
-    }
   }
 }

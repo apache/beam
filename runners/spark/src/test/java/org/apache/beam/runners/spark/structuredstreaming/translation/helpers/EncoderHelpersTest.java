@@ -60,13 +60,15 @@ public class EncoderHelpersTest {
 
   @Test
   public void testBeamEncoderOfPrivateType() {
+    // Verify concrete types are not used in coder generation.
+    // In case of private types this would cause an IllegalAccessError.
     List<PrivateString> data = asList(new PrivateString("1"), new PrivateString("2"));
-    Dataset<PrivateString> dataset = createDataset(data, fromBeamCoder(PrivateString.coder));
+    Dataset<PrivateString> dataset = createDataset(data, fromBeamCoder(PrivateString.CODER));
     assertThat(dataset.collect(), equalTo(data.toArray()));
   }
 
   private static class PrivateString {
-    private static Coder<PrivateString> coder =
+    private static final Coder<PrivateString> CODER =
         DelegateCoder.of(
             StringUtf8Coder.of(),
             str -> str.string,
