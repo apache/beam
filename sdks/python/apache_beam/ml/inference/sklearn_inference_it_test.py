@@ -27,6 +27,12 @@ from apache_beam.examples.inference import sklearn_mnist_classification
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports, unused-import
+try:
+  from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+except ImportError:
+  raise unittest.SkipTest('GCP dependencies are not installed')
+
 
 def process_outputs(filepath):
   with FileSystems().open(filepath) as f:
@@ -39,7 +45,7 @@ def process_outputs(filepath):
 @pytest.mark.it_postcommit
 class SklearnInference(unittest.TestCase):
   def test_sklearn_mnist_classification(self):
-    test_pipeline = TestPipeline(is_integration_test=False)
+    test_pipeline = TestPipeline(is_integration_test=True)
     input_file = 'gs://apache-beam-ml/testing/inputs/it_mnist_data.csv'
     output_file_dir = 'gs://temp-storage-for-end-to-end-tests'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
