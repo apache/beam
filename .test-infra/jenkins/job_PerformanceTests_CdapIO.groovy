@@ -23,50 +23,50 @@ import InfluxDBCredentialsHelper
 String jobName = "beam_PerformanceTests_Cdap"
 
 job(jobName) {
-    common.setTopLevelMainJobProperties(delegate)
-    common.setAutoJob(delegate, 'H H/6 * * *')
-    common.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Java CdapIO Performance Test',
-            'Run Java CdapIO Performance Test')
-    InfluxDBCredentialsHelper.useCredentials(delegate)
+  common.setTopLevelMainJobProperties(delegate)
+  common.setAutoJob(delegate, 'H H/6 * * *')
+  common.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Java CdapIO Performance Test',
+      'Run Java CdapIO Performance Test')
+  InfluxDBCredentialsHelper.useCredentials(delegate)
 
-    String namespace = common.getKubernetesNamespace(jobName)
-    String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
-    Kubernetes k8s = Kubernetes.create(delegate, kubeconfig, namespace)
+  String namespace = common.getKubernetesNamespace(jobName)
+  String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
+  Kubernetes k8s = Kubernetes.create(delegate, kubeconfig, namespace)
 
-    k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml"))
-    String postgresHostName = "LOAD_BALANCER_IP"
-    k8s.loadBalancerIP("postgres-for-dev", postgresHostName)
+  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml"))
+  String postgresHostName = "LOAD_BALANCER_IP"
+  k8s.loadBalancerIP("postgres-for-dev", postgresHostName)
 
-    Map pipelineOptions = [
-            tempRoot             : 'gs://temp-storage-for-perf-tests',
-            project              : 'apache-beam-testing',
-            runner               : 'DataflowRunner',
-            numberOfRecords      : '600000',
-            bigQueryDataset      : 'beam_performance',
-            bigQueryTable        : 'cdapioit_results',
-            influxMeasurement    : 'cdapioit_results',
-            influxDatabase       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-            influxHost           : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-            postgresUsername     : 'postgres',
-            postgresPassword     : 'uuinkks',
-            postgresDatabaseName : 'postgres',
-            postgresServerName   : "\$${postgresHostName}",
-            postgresSsl          : false,
-            postgresPort         : '5432',
-            numWorkers           : '5',
-            autoscalingAlgorithm : 'NONE'
-    ]
+  Map pipelineOptions = [
+    tempRoot             : 'gs://temp-storage-for-perf-tests',
+    project              : 'apache-beam-testing',
+    runner               : 'DataflowRunner',
+    numberOfRecords      : '600000',
+    bigQueryDataset      : 'beam_performance',
+    bigQueryTable        : 'cdapioit_results',
+    influxMeasurement    : 'cdapioit_results',
+    influxDatabase       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influxHost           : InfluxDBCredentialsHelper.InfluxDBHostUrl,
+    postgresUsername     : 'postgres',
+    postgresPassword     : 'uuinkks',
+    postgresDatabaseName : 'postgres',
+    postgresServerName   : "\$${postgresHostName}",
+    postgresSsl          : false,
+    postgresPort         : '5432',
+    numWorkers           : '5',
+    autoscalingAlgorithm : 'NONE'
+  ]
 
-    steps {
-        gradle {
-            rootBuildScriptDir(common.checkoutDir)
-            common.setGradleSwitches(delegate)
-            switches("--info")
-            switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
-            switches("-DintegrationTestRunner=dataflow")
-            tasks(":sdks:java:io:cdap:integrationTest --tests org.apache.beam.sdk.io.cdap.CdapIOIT")
-        }
+  steps {
+    gradle {
+      rootBuildScriptDir(common.checkoutDir)
+      common.setGradleSwitches(delegate)
+      switches("--info")
+      switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
+      switches("-DintegrationTestRunner=dataflow")
+      tasks(":sdks:java:io:cdap:integrationTest --tests org.apache.beam.sdk.io.cdap.CdapIOIT")
     }
+  }
 }
