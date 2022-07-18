@@ -35,7 +35,6 @@ def process_outputs(filepath):
   return lines
 
 
-@pytest.mark.skip
 @pytest.mark.uses_sklearn
 @pytest.mark.it_postcommit
 class SklearnInference(unittest.TestCase):
