@@ -33,7 +33,7 @@ on:
 jobs:
   java-debezium-io:
     name: Run Java Debezium IO Direct
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 60
     strategy:
       fail-fast: false
