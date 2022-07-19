@@ -31,4 +31,4 @@ runs:
       run: rm ~/.m2/settings.xml
     - name: Run :pythonLintPreCommit
       shell: bash
-      run: ./gradlew ${{ inputs.gradle-command }} ${{ gradle-switches }}
+      run: ./gradlew ${{ inputs.gradle-command }} ${{ inputs.gradle-switches }}
