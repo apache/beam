@@ -313,16 +313,7 @@ public class SamzaDoFnRunners {
                 stateRequestHandler,
                 BundleProgressHandler.ignored());
 
-        /*
-         * Use random number for sampling purpose instead of counting as
-         * SdkHarnessDoFnRunner is stateless and counters won't persist
-         * between invocations of DoFn(s).
-         */
-        if (ThreadLocalRandom.current().nextInt() % DEFAULT_METRIC_SAMPLE_RATE == 0) {
-          startBundleTime = System.nanoTime();
-        } else {
-          startBundleTime = 0;
-        }
+        startBundleTime = getStartBundleTime();
 
         inputReceiver = Iterables.getOnlyElement(remoteBundle.getInputReceivers().values());
         bundledEventsBag
@@ -338,6 +329,18 @@ public class SamzaDoFnRunners {
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
+    }
+
+    @SuppressWarnings("RandomModInteger")
+    private long getStartBundleTime() {
+      /*
+       * Use random number for sampling purpose instead of counting as
+       * SdkHarnessDoFnRunner is stateless and counters won't persist
+       * between invocations of DoFn(s).
+       */
+      return ThreadLocalRandom.current().nextInt() % DEFAULT_METRIC_SAMPLE_RATE == 0
+          ? System.nanoTime()
+          : 0;
     }
 
     @Override
