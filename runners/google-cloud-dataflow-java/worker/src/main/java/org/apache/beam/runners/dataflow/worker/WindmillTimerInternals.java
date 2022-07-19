@@ -50,9 +50,14 @@ import org.joda.time.Instant;
  * <p>Includes parsing / assembly of timer tags and some extra methods.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class WindmillTimerInternals implements TimerInternals {
+  private static final Instant OUTPUT_TIMESTAMP_MAX_WINDMILL_VALUE =
+      GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1));
+
+  private static final Instant OUTPUT_TIMESTAMP_MAX_VALUE =
+      BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.millis(1));
 
   private static final String TIMER_HOLD_PREFIX = "/h";
   // Map from timer id to its TimerData. If it is to be deleted, we still need
@@ -210,22 +215,31 @@ class WindmillTimerInternals implements TimerInternals {
         // Setting the timer. If it is a user timer, set a hold.
 
         // Only set a hold if it's needed and if the hold is before the end of the global window.
-        if (needsWatermarkHold(timerData)
-            && timerData
-                .getOutputTimestamp()
-                .isBefore(GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1)))) {
-          // Setting a timer, clear any prior hold and set to the new value
-          outputBuilder
-              .addWatermarkHoldsBuilder()
-              .setTag(timerHoldTag(prefix, timerData))
-              .setStateFamily(stateFamily)
-              .setReset(true)
-              .addTimestamps(
-                  WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getOutputTimestamp()));
+        if (needsWatermarkHold(timerData)) {
+          if (timerData
+              .getOutputTimestamp()
+              .isBefore(GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1)))) {
+            // Setting a timer, clear any prior hold and set to the new value
+            outputBuilder
+                .addWatermarkHoldsBuilder()
+                .setTag(timerHoldTag(prefix, timerData))
+                .setStateFamily(stateFamily)
+                .setReset(true)
+                .addTimestamps(
+                    WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getOutputTimestamp()));
+          } else {
+            // Clear the hold in case a previous iteration of this timer set one.
+            outputBuilder
+                .addWatermarkHoldsBuilder()
+                .setTag(timerHoldTag(prefix, timerData))
+                .setStateFamily(stateFamily)
+                .setReset(true);
+          }
         }
       } else {
         // Deleting a timer. If it is a user timer, clear the hold
         timer.clearTimestamp();
+        timer.clearMetadataTimestamp();
         // Clear the hold even if it's the end of the global window in order to maintain update
         // compatibility.
         if (needsWatermarkHold(timerData)) {
@@ -276,6 +290,15 @@ class WindmillTimerInternals implements TimerInternals {
 
     builder.setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getTimestamp()));
 
+    // Store the output timestamp in the metadata timestamp.
+    Instant outputTimestamp = timerData.getOutputTimestamp();
+    if (outputTimestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      // We can't encode any value larger than BoundedWindow.TIMESTAMP_MAX_VALUE, so use the end of
+      // the global window
+      // here instead.
+      outputTimestamp = OUTPUT_TIMESTAMP_MAX_WINDMILL_VALUE;
+    }
+    builder.setMetadataTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(outputTimestamp));
     return builder;
   }
 
@@ -287,7 +310,6 @@ class WindmillTimerInternals implements TimerInternals {
 
   public static TimerData windmillTimerToTimerData(
       WindmillNamespacePrefix prefix, Timer timer, Coder<? extends BoundedWindow> windowCoder) {
-    System.out.println("Start");
 
     // The tag is a path-structure string but cheaper to parse than a proper URI. It follows
     // this pattern, where no component but the ID can contain a slash
@@ -309,8 +331,6 @@ class WindmillTimerInternals implements TimerInternals {
     //  - the id is totally arbitrary; currently unescaped though that could change
 
     ByteString tag = timer.getTag();
-    System.out.println("tag: " + String.valueOf(tag));
-
     checkArgument(
         tag.startsWith(prefix.byteString()),
         "Expected timer tag %s to start with prefix %s",
@@ -318,8 +338,6 @@ class WindmillTimerInternals implements TimerInternals {
         prefix.byteString());
 
     Instant timestamp = WindmillTimeUtils.windmillToHarnessTimestamp(timer.getTimestamp());
-    System.out.println("input timestamp: " + String.valueOf(timer.getTimestamp()));
-    System.out.println("output outputTimestamp: " + String.valueOf(timestamp));
 
     // Parse the namespace.
     int namespaceStart = prefix.byteString().size(); // drop the prefix, leave the begin slash
@@ -349,34 +367,31 @@ class WindmillTimerInternals implements TimerInternals {
             ? tag.substring(timerFamilyStart, timerFamilyEnd).toStringUtf8()
             : "";
 
-    // Parse the output timestamp. Not using '+' as a terminator because the output timestamp is the
-    // last segment in the tag and the timestamp encoding itself may contain '+'.
+    // For backwards compatibility, parse the output timestamp from the tag. Not using '+' as a
+    // terminator because the
+    // output timestamp is the last segment in the tag and the timestamp encoding itself may contain
+    // '+'.
     int outputTimestampStart = timerFamilyEnd + 1;
     int outputTimestampEnd = tag.size();
 
     // For backwards compatibility, handle the case were the output timestamp isn't present.
     Instant outputTimestamp = timestamp;
-    System.out.println("coumputed timestamp: " + String.valueOf(timestamp));
-    System.out.println("coumputed outputTimestamp: " + String.valueOf(outputTimestamp));
-
     if ((outputTimestampStart < tag.size())) {
       try {
         outputTimestamp =
             new Instant(
                 VarInt.decodeLong(
                     tag.substring(outputTimestampStart, outputTimestampEnd).newInput()));
-        System.out.println(
-            "parsed string"
-                + String.valueOf(
-                    tag.substring(outputTimestampStart, outputTimestampEnd).newInput()));
-        if (outputTimestamp.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
-          System.out.println("bounding");
-          outputTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
-        }
-        System.out.println("coumputed outputTimestamp2: " + String.valueOf(outputTimestamp));
-
       } catch (IOException e) {
         throw new RuntimeException(e);
+      }
+    } else if (timer.hasMetadataTimestamp()) {
+      // We use BoundedWindow.TIMESTAMP_MAX_VALUE+1 to indicate "no output timestamp" so make sure
+      // to change the upper
+      // bound.
+      outputTimestamp = WindmillTimeUtils.windmillToHarnessTimestamp(timer.getMetadataTimestamp());
+      if (outputTimestamp.equals(OUTPUT_TIMESTAMP_MAX_WINDMILL_VALUE)) {
+        outputTimestamp = OUTPUT_TIMESTAMP_MAX_VALUE;
       }
     }
 
@@ -391,8 +406,7 @@ class WindmillTimerInternals implements TimerInternals {
   }
 
   private static boolean useNewTimerTagEncoding(TimerData timerData) {
-    return !timerData.getTimerFamilyId().isEmpty()
-        || !timerData.getOutputTimestamp().equals(timerData.getTimestamp());
+    return !timerData.getTimerFamilyId().isEmpty();
   }
 
   /**
@@ -417,14 +431,6 @@ class WindmillTimerInternals implements TimerInternals {
                 .append(timerData.getTimerFamilyId())
                 .toString();
         out.write(tagString.getBytes(StandardCharsets.UTF_8));
-        // Only encode the extra 9 bytes if the output timestamp is different than the timestamp.
-        // NOTE: If we are going to add more information after the output timestamp in the tag, we
-        // should avoid using '+' as a separator since the timestamp may contain '+' in the
-        // encoding.
-        if (!timerData.getOutputTimestamp().equals(timerData.getTimestamp())) {
-          out.write('+');
-          VarInt.encode(timerData.getOutputTimestamp().getMillis(), out);
-        }
       } else {
         // Timers without timerFamily would have timerFamily would be an empty string
         tagString =

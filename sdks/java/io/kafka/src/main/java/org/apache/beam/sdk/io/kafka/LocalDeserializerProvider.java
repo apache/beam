@@ -34,9 +34,6 @@ import org.apache.kafka.common.serialization.Deserializer;
  * CoderRegistry} configures a {@link Deserializer} instance and infers its corresponding {@link
  * Coder}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class LocalDeserializerProvider<T> implements DeserializerProvider<T> {
   private Class<? extends Deserializer<T>> deserializer;
 
@@ -68,7 +65,13 @@ class LocalDeserializerProvider<T> implements DeserializerProvider<T> {
    * deserializer argument using the {@link Coder} registry.
    */
   @Override
-  public NullableCoder<T> getCoder(CoderRegistry coderRegistry) {
+  public Coder<T> getCoder(CoderRegistry coderRegistry) {
+    // It is safe to treat a Coder<@Nullable T> as a Coder<T> for deserialization
+    // purposes
+    return (Coder<T>) getNullableCoder(coderRegistry);
+  }
+
+  public NullableCoder<T> getNullableCoder(CoderRegistry coderRegistry) {
     for (Type type : deserializer.getGenericInterfaces()) {
       if (!(type instanceof ParameterizedType)) {
         continue;

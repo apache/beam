@@ -72,8 +72,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Experimental(Kind.PORTABILITY)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class External {
   private static final String EXPANDED_TRANSFORM_BASE_NAME = "external";
@@ -98,8 +98,12 @@ public class External {
   }
 
   @VisibleForTesting
-  static <InputT extends PInput, OutputT> SingleOutputExpandableTransform<InputT, OutputT> of(
-      String urn, byte[] payload, String endpoint, ExpansionServiceClientFactory clientFactory) {
+  public static <InputT extends PInput, OutputT>
+      SingleOutputExpandableTransform<InputT, OutputT> of(
+          String urn,
+          byte[] payload,
+          String endpoint,
+          ExpansionServiceClientFactory clientFactory) {
     Endpoints.ApiServiceDescriptor apiDesc =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
     return new SingleOutputExpandableTransform<>(
@@ -239,7 +243,8 @@ public class External {
                     PValues.expandInput(PBegin.in(p)),
                     ImmutableMap.of(entry.getKey(), (PCollection<?>) entry.getValue()),
                     Impulse.create(),
-                    // TODO(BEAM-12082): Add proper support for Resource Hints with XLang.
+                    // TODO(https://github.com/apache/beam/issues/18371): Add proper support for
+                    // Resource Hints with XLang.
                     ResourceHints.create(),
                     p);
             // using fake Impulses to provide inputs

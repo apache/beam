@@ -54,7 +54,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "keyfor",
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class Schema implements Serializable {

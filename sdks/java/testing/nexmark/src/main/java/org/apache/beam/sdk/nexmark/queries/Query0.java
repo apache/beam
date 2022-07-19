@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.PCollection;
  * serialization so that we measure the impact of the choice of coders.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Query0 extends NexmarkQueryTransform<Event> {
   public Query0() {

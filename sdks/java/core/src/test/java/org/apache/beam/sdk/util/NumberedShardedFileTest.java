@@ -57,7 +57,7 @@ public class NumberedShardedFileTest {
 
   @Before
   public void setup() throws IOException {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10729
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20481
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     filePattern =
         LocalResources.fromFile(tmpFolder.getRoot(), true)

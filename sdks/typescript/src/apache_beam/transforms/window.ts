@@ -41,7 +41,7 @@ export function createWindowingStrategyProto(
   windowingStrategyBase: runnerApi.WindowingStrategy | undefined = undefined
 ): runnerApi.WindowingStrategy {
   let result: runnerApi.WindowingStrategy;
-  if (windowingStrategyBase == undefined) {
+  if (windowingStrategyBase === null || windowingStrategyBase === undefined) {
     result = {
       windowFn: undefined!,
       windowCoderId: undefined!,

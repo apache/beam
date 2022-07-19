@@ -87,7 +87,7 @@ import org.joda.time.ReadableInstant;
  */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public abstract class Row implements Serializable {
@@ -106,7 +106,8 @@ public abstract class Row implements Serializable {
   /** Return the size of data fields. */
   public abstract int getFieldCount();
 
-  /** Return the list of data values. */
+  /** Return the list of raw unmodified data values to enable 0-copy code. */
+  @Internal
   public abstract List<Object> getValues();
 
   /** Return a list of data values. Any LogicalType values are returned as base values. * */

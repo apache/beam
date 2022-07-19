@@ -29,8 +29,8 @@ import * as urns from "../internal/urns";
 import { PipelineContext } from "../internal/pipeline";
 import { deserializeFn } from "../internal/serialize";
 import { Coder, Context as CoderContext } from "../coders/coders";
-import { Window, Instant, PaneInfo, WindowedValue } from "../values";
-import { parDo, DoFn, ParDoParam, SplitOptions } from "../transforms/pardo";
+import { Window, Instant, WindowedValue } from "../values";
+import { parDo, DoFn, SplitOptions } from "../transforms/pardo";
 import { WindowFn } from "../transforms/window";
 
 import {
@@ -47,14 +47,14 @@ export type ProcessResult = null | Promise<void>;
 export class ProcessResultBuilder {
   promises: Promise<void>[] = [];
   add(result: ProcessResult) {
-    if (result != NonPromise) {
+    if (result !== NonPromise) {
       this.promises.push(result as Promise<void>);
     }
   }
   build(): ProcessResult {
-    if (this.promises.length == 0) {
+    if (this.promises.length === 0) {
       return NonPromise;
-    } else if (this.promises.length == 1) {
+    } else if (this.promises.length === 1) {
       return this.promises[0];
     } else {
       return Promise.all(this.promises).then(() => void null);
@@ -75,7 +75,7 @@ export class Receiver {
   constructor(private operators: IOperator[]) {}
 
   receive(wvalue: WindowedValue<unknown>): ProcessResult {
-    if (this.operators.length == 1) {
+    if (this.operators.length === 1) {
       return this.operators[0].process(wvalue);
     } else {
       const result = new ProcessResultBuilder();
@@ -108,7 +108,7 @@ export function createOperator(
   // Ensure receivers are eagerly created.
   Object.values(transform.outputs).map(context.getReceiver);
   let operatorConstructor = operatorsByUrn.get(transform.spec!.urn!);
-  if (operatorConstructor == undefined) {
+  if (operatorConstructor === null || operatorConstructor === undefined) {
     throw new Error("Unknown transform type:" + transform.spec!.urn);
   }
   return operatorConstructor(transformId, transform, context);
@@ -192,7 +192,7 @@ class DataSourceOperator implements IOperator {
             const maybePromise = this_.receiver.receive(
               this_.coder.decode(reader, CoderContext.needsDelimiters)
             );
-            if (maybePromise != NonPromise) {
+            if (maybePromise !== NonPromise) {
               await maybePromise;
             }
           }
@@ -349,7 +349,7 @@ class GenericParDoOperator implements IOperator {
   }
 
   process(wvalue: WindowedValue<unknown>) {
-    if (this.augmentedContext && wvalue.windows.length != 1) {
+    if (this.augmentedContext && wvalue.windows.length !== 1) {
       // We need to process each window separately.
       // TODO: (Perf) We could inspect the context more deeply and allow some
       // cases to go through.
@@ -396,7 +396,7 @@ class GenericParDoOperator implements IOperator {
 
     // If we were able to do so without any deferred actions, process the
     // element immediately.
-    if (updateContextResult == NonPromise) {
+    if (updateContextResult === NonPromise) {
       return reallyProcess();
     } else {
       // Otherwise return a promise that first waits for all the deferred
@@ -404,7 +404,7 @@ class GenericParDoOperator implements IOperator {
       return (async () => {
         await updateContextResult;
         const update2 = this.paramProvider.update(wvalue);
-        if (update2 != NonPromise) {
+        if (update2 !== NonPromise) {
           throw new Error("Expected all promises to be resolved: " + update2);
         }
         await reallyProcess();
@@ -423,7 +423,7 @@ class GenericParDoOperator implements IOperator {
       // elements from different windows, so each element must specify its window.
       for (const element of finishBundleOutput) {
         const maybePromise = this.receiver.receive(element);
-        if (maybePromise != NonPromise) {
+        if (maybePromise !== NonPromise) {
           await maybePromise;
         }
       }
@@ -454,16 +454,16 @@ class SplittingDoFnOperator implements IOperator {
   process(wvalue: WindowedValue<unknown>) {
     const result = new ProcessResultBuilder();
     const keys = Object.keys(wvalue.value as object);
-    if (this.options.exclusive && keys.length != 1) {
+    if (this.options.exclusive && keys.length !== 1) {
       throw new Error(
         "Multiple keys for exclusively split element: " + wvalue.value
       );
     }
     for (let tag of keys) {
       if (!this.options.knownTags!.includes(tag)) {
-        if (this.options.unknownTagBehavior == "rename") {
+        if (this.options.unknownTagBehavior === "rename") {
           tag = this.options.unknownTagName!;
-        } else if (this.options.unknownTagBehavior == "ignore") {
+        } else if (this.options.unknownTagBehavior === "ignore") {
           continue;
         } else {
           throw new Error(
@@ -550,7 +550,7 @@ registerOperatorConstructor(
     );
     const spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);
     // TODO: (Cleanup) Ideally we could branch on the urn itself, but some runners have a closed set of known URNs.
-    if (spec.doFn?.urn == urns.SERIALIZED_JS_DOFN_INFO) {
+    if (spec.doFn?.urn === urns.SERIALIZED_JS_DOFN_INFO) {
       return new GenericParDoOperator(
         transformId,
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
@@ -559,21 +559,21 @@ registerOperatorConstructor(
         transform,
         context
       );
-    } else if (spec.doFn?.urn == urns.IDENTITY_DOFN_URN) {
+    } else if (spec.doFn?.urn === urns.IDENTITY_DOFN_URN) {
       return new IdentityParDoOperator(
         context.getReceiver(onlyElement(Object.values(transform.outputs)))
       );
-    } else if (spec.doFn?.urn == urns.JS_WINDOW_INTO_DOFN_URN) {
+    } else if (spec.doFn?.urn === urns.JS_WINDOW_INTO_DOFN_URN) {
       return new AssignWindowsParDoOperator(
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
         deserializeFn(spec.doFn.payload!).windowFn
       );
-    } else if (spec.doFn?.urn == urns.JS_ASSIGN_TIMESTAMPS_DOFN_URN) {
+    } else if (spec.doFn?.urn === urns.JS_ASSIGN_TIMESTAMPS_DOFN_URN) {
       return new AssignTimestampsParDoOperator(
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
         deserializeFn(spec.doFn.payload!).func
       );
-    } else if (spec.doFn?.urn == urns.SPLITTING_JS_DOFN_URN) {
+    } else if (spec.doFn?.urn === urns.SPLITTING_JS_DOFN_URN) {
       return new SplittingDoFnOperator(
         Object.fromEntries(
           Object.entries(transform.outputs).map(([tag, pcId]) => [

@@ -83,8 +83,8 @@ import org.slf4j.LoggerFactory;
  * further processed by a {@link FlinkExecutableStagePruningFunction}.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     implements MapPartitionFunction<WindowedValue<InputT>, RawUnionValue>,
@@ -173,11 +173,12 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
             metricContainer.updateMetrics(stepName, response.getMonitoringInfosList());
           }
         };
-    // TODO(BEAM-11021): Support bundle finalization in portable batch.
+    // TODO(https://github.com/apache/beam/issues/19526): Support bundle finalization in portable
+    // batch.
     finalizationHandler =
         bundleId -> {
           throw new UnsupportedOperationException(
-              "Portable Flink runner doesn't support bundle finalization in batch mode. For more details, please refer to https://issues.apache.org/jira/browse/BEAM-11021.");
+              "Portable Flink runner doesn't support bundle finalization in batch mode. For more details, please refer to https://github.com/apache/beam/issues/19526.");
         };
     bundleCheckpointHandler = getBundleCheckpointHandler(executableStage);
   }

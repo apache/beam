@@ -18,8 +18,9 @@
 
 import { KV } from "../values";
 import { PTransform, PTransformClass, withName } from "./transform";
+import { flatten } from "./flatten";
 import { PCollection } from "../pvalue";
-import { PValue } from "../pvalue";
+import { PValue, P } from "../pvalue";
 import * as internal from "./internal";
 import { count } from "./combiners";
 
@@ -66,7 +67,8 @@ export class GroupBy<T, K> extends PTransformClass<
   ) {
     super();
     [this.keyFn, this.keyNames] = extractFnAndName(key, keyName || "key");
-    this.keyName = typeof this.keyNames == "string" ? this.keyNames : "key";
+    // XXX: Actually use this.
+    this.keyName = typeof this.keyNames === "string" ? this.keyNames : "key";
   }
 
   expand(input: PCollection<T>): PCollection<KV<K, Iterable<T>>> {
@@ -185,9 +187,9 @@ class GroupByAndCombine<T, O> extends PTransformClass<
       )
       .map(function constructResult(kv) {
         const result = {};
-        if (this_.keyNames == undefined) {
+        if (this_.keyNames === null || this_.keyNames === undefined) {
           // Don't populate a key at all.
-        } else if (typeof this_.keyNames == "string") {
+        } else if (typeof this_.keyNames === "string") {
           result[this_.keyNames] = kv.key;
         } else {
           for (let i = 0; i < this_.keyNames.length; i++) {
@@ -224,7 +226,7 @@ export function countGlobally<T>(): PTransform<
 }
 
 function toCombineFn<I>(combiner: Combiner<I>): CombineFn<I, any, any> {
-  if (typeof combiner == "function") {
+  if (typeof combiner === "function") {
     return binaryCombineFn<I>(combiner);
   } else {
     return combiner;
@@ -244,7 +246,9 @@ function binaryCombineFn<I>(
     createAccumulator: () => undefined,
     addInput: (a, b) => (a === undefined ? b : combiner(a, b)),
     mergeAccumulators: (accs) =>
-      [...accs].filter((a) => a != undefined).reduce(combiner, undefined),
+      [...accs]
+        .filter((a) => a !== null && a !== undefined)
+        .reduce(combiner, undefined),
     extractOutput: (a) => a,
   };
 }
@@ -295,6 +299,40 @@ function multiCombineFn(
   };
 }
 
+// TODO: Consider adding valueFn(s) rather than using the full value.
+export function coGroupBy<T, K>(
+  key: string | string[] | ((element: T) => K),
+  keyName: string | undefined = undefined
+): PTransform<
+  { [key: string]: PCollection<any> },
+  PCollection<{ key: K; values: { [key: string]: Iterable<any> } }>
+> {
+  return function coGroupBy(inputs: { [key: string]: PCollection<any> }) {
+    const [keyFn, keyNames] = extractFnAndName(key, keyName || "key");
+    keyName = typeof keyNames === "string" ? keyNames : "key";
+    const tags = [...Object.keys(inputs)];
+    const tagged = [...Object.entries(inputs)].map(([tag, pcoll]) =>
+      pcoll.map((element) => ({
+        key: keyFn(element),
+        tag,
+        element,
+      }))
+    );
+    return P(tagged)
+      .apply(flatten())
+      .apply(groupBy("key"))
+      .map(function groupValues({ key, value }) {
+        const groupedValues: { [key: string]: any[] } = Object.fromEntries(
+          tags.map((tag) => [tag, []])
+        );
+        for (const { tag, element } of value) {
+          groupedValues[tag].push(element);
+        }
+        return { key, values: groupedValues };
+      });
+  };
+}
+
 // TODO: (Typescript) Can I type T as "something that has this key" and/or,
 // even better, ensure it has the correct type?
 // Should be possible to get rid of the cast somehow.
@@ -327,7 +365,7 @@ function extractFn<T, K>(extractor: string | string[] | ((T) => K)) {
 }
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.transforms.pardo", exports);
-requireForSerialization("apache_beam.transforms.pardo", {
+requireForSerialization("apache-beam/transforms/pardo", exports);
+requireForSerialization("apache-beam/transforms/pardo", {
   GroupByAndCombine: GroupByAndCombine,
 });

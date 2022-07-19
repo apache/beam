@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground/constants/params.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
+import 'package:playground/modules/analytics/google_analytics_service.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/grpc_code_client.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
@@ -46,7 +47,7 @@ class PlaygroundPageProviders extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<AnalyticsService>(create: (context) => AnalyticsService()),
+        Provider<AnalyticsService>(create: (context) => GoogleAnalyticsService()),
         ChangeNotifierProvider<ExampleState>(
           create: (context) => ExampleState(kExampleRepository)..init(),
         ),
@@ -57,24 +58,7 @@ class PlaygroundPageProviders extends StatelessWidget {
               return PlaygroundState(codeRepository: kCodeRepository);
             }
 
-            if (playground.selectedExample == null) {
-              final newPlayground = PlaygroundState(
-                codeRepository: kCodeRepository,
-                sdk: playground.sdk,
-                selectedExample: null,
-              );
-              final example = _getExample(exampleState, newPlayground);
-              if (example != null) {
-                exampleState
-                    .loadExampleInfo(
-                      example,
-                      newPlayground.sdk,
-                    )
-                    .then((exampleWithInfo) =>
-                        newPlayground.setExample(exampleWithInfo));
-              }
-              return newPlayground;
-            }
+            _onExampleStateChanged(exampleState, playground);
             return playground;
           },
         ),
@@ -89,15 +73,92 @@ class PlaygroundPageProviders extends StatelessWidget {
     );
   }
 
-  ExampleModel? _getExample(
+  void _onExampleStateChanged(
     ExampleState exampleState,
-    PlaygroundState playground,
+    PlaygroundState playgroundState,
   ) {
+    // This property currently doubles as a flag of initialization
+    // because it is initialized when an example is ready
+    // and is filled with a null-object if not showing any example.
+    //
+    // TODO: Add a dedicated flag of initialization or make
+    //       PlaygroundState listen for examples and init itself.
+    if (playgroundState.selectedExample != null) {
+      return; // Already initialized.
+    }
+
+    if (_isEmbedded()) {
+      _initEmbedded(exampleState, playgroundState);
+    } else {
+      _initNonEmbedded(exampleState, playgroundState);
+    }
+  }
+
+  bool _isEmbedded() {
+    return Uri.base.toString().contains(kIsEmbedded);
+  }
+
+  Future<void> _initEmbedded(
+    ExampleState exampleState,
+    PlaygroundState playgroundState,
+  ) async {
+    final example = _getEmbeddedExample();
+
+    if (example.path.isEmpty) {
+      String source = Uri.base.queryParameters[kSourceCode] ?? '';
+      example.setSource(source);
+      playgroundState.setExample(example);
+    } else {
+      final loadedExample = await exampleState.getExample(
+        example.path,
+        playgroundState.sdk,
+      );
+
+      final exampleWithInfo = await exampleState.loadExampleInfo(
+        loadedExample,
+        playgroundState.sdk,
+      );
+
+      playgroundState.setExample(exampleWithInfo);
+    }
+  }
+
+  ExampleModel _getEmbeddedExample() {
     final examplePath = Uri.base.queryParameters[kExampleParam];
 
-    if (exampleState.defaultExamplesMap.isEmpty) {
-      exampleState.loadDefaultExamples();
+    return ExampleModel(
+      name: 'Embedded_Example',
+      path: examplePath ?? '',
+      description: '',
+      type: ExampleType.example,
+    );
+  }
+
+  Future<void> _initNonEmbedded(
+    ExampleState exampleState,
+    PlaygroundState playgroundState,
+  ) async {
+    await exampleState.loadDefaultExamplesIfNot();
+
+    final example = await _getExample(exampleState, playgroundState);
+
+    if (example == null) {
+      return;
     }
+
+    final exampleWithInfo = await exampleState.loadExampleInfo(
+      example,
+      playgroundState.sdk,
+    );
+
+    playgroundState.setExample(exampleWithInfo);
+  }
+
+  Future<ExampleModel?> _getExample(
+    ExampleState exampleState,
+    PlaygroundState playground,
+  ) async {
+    final examplePath = Uri.base.queryParameters[kExampleParam];
 
     if (examplePath?.isEmpty ?? true) {
       return exampleState.defaultExamplesMap[playground.sdk];

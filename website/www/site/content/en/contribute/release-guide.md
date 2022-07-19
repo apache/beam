@@ -674,32 +674,32 @@ all major features and bug fixes, and all known issues.
 
     ## Highlights
 
-      * New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-      * New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+      * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+      * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 
     {$TOPICS e.g.:}
     ### I/Os
-    * Support for X source added (Java) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+    * Support for X source added (Java) ([#X](https://github.com/apache/beam/issues/X)).
     {$TOPICS}
 
     ### New Features / Improvements
 
-    * X feature added (Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-    * Y feature added (Java) [BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y).
+    * X feature added (Python) ([#X](https://github.com/apache/beam/issues/X)).
+    * Y feature added (Java) [#Y](https://github.com/apache/beam/issues/Y).
 
     ### Breaking Changes
 
-    * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-    * Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+    * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+    * Y behavior was changed ([#Y](https://github.com/apache/beam/issues/Y)).
 
     ### Deprecations
 
-    * X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+    * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 
     ### Bugfixes
 
-    * Fixed X (Python) ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-X)).
-    * Fixed Y (Java) ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+    * Fixed X (Python) ([#X](https://github.com/apache/beam/issues/X)).
+    * Fixed Y (Java) ([#Y](https://github.com/apache/beam/issues/Y)).
 
     ### Known Issues
 

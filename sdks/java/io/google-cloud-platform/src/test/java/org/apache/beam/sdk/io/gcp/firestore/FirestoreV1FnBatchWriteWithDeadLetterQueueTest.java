@@ -56,7 +56,7 @@ import org.mockito.ArgumentCaptor;
 
 @SuppressWarnings({
   "initialization.fields.uninitialized", // mockito fields are initialized via the Mockito Runner
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class FirestoreV1FnBatchWriteWithDeadLetterQueueTest
     extends BaseFirestoreV1WriteFnTest<WriteFailure, BatchWriteFnWithDeadLetterQueue> {

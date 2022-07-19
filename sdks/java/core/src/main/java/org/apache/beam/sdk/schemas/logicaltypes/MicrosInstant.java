@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.Row;
  * NanosInstant}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class MicrosInstant implements Schema.LogicalType<Instant, Row> {
   public static final String IDENTIFIER =
@@ -43,7 +43,7 @@ public class MicrosInstant implements Schema.LogicalType<Instant, Row> {
           .getValueDescriptor()
           .getOptions()
           .getExtension(RunnerApi.beamUrn);
-  // TODO(BEAM-10878): This should be a constant
+  // TODO(https://github.com/apache/beam/issues/20540): This should be a constant
   private final Schema schema;
 
   public MicrosInstant() {

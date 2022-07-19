@@ -187,8 +187,15 @@ func FromTable(table string) readOption {
 // FromQuery is a Read option that specifies a query to use for reading from BigQuery. Uses the
 // BigQuery Standard SQL dialect.
 //
+// Important: When reading from a query, the schema of any source tables is not used and the read
+// transform cannot detect which elements are Required, therefore every field in the output type
+// will be a pointer (including fields within inner structs).
+//
 // For more details see in the Java SDK:
 // org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Read.fromQuery(java.lang.String)
+//
+// BUG(https://github.com/apache/beam/issues/21784): Query read outputs currently cannot be named
+// struct types. See link for workaround.
 func FromQuery(query string) readOption {
 	return func(rc *readConfig) {
 		rc.cfg.Query = &query

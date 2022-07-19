@@ -154,6 +154,12 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
+  /** Adds all the labels to the MonitoringInfo overwriting any duplicated keys. */
+  public SimpleMonitoringInfoBuilder setLabels(Map<String, String> labels) {
+    this.builder.putAllLabels(labels);
+    return this;
+  }
+
   public void clear() {
     this.builder = MonitoringInfo.newBuilder();
   }
