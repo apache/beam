@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -239,7 +240,7 @@ public class SamzaDoFnRunners {
 
   private static class SdkHarnessDoFnRunner<InT, FnOutT> implements DoFnRunner<InT, FnOutT> {
 
-    private static final long DEFAULT_METRIC_SAMPLE_RATE = 100;
+    private static final int DEFAULT_METRIC_SAMPLE_RATE = 100;
 
     private final SamzaTimerInternalsFactory timerInternalsFactory;
     private final WindowingStrategy windowingStrategy;
@@ -312,7 +313,12 @@ public class SamzaDoFnRunners {
                 stateRequestHandler,
                 BundleProgressHandler.ignored());
 
-        if (Long.parseLong(remoteBundle.getId()) % DEFAULT_METRIC_SAMPLE_RATE == 0) {
+        /*
+         * Use random number for sampling purpose instead of counting as
+         * SdkHarnessDoFnRunner is stateless and counters won't persist
+         * between invocations of DoFn(s).
+         */
+        if (ThreadLocalRandom.current().nextInt() % DEFAULT_METRIC_SAMPLE_RATE == 0) {
           startBundleTime = System.nanoTime();
         } else {
           startBundleTime = 0;
