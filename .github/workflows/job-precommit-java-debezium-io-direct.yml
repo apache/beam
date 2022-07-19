@@ -47,4 +47,4 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:debezium:integrationTest
-          gradle-switches: "-PdisableSpotlessCheck=true -PdisableCheckStyle=true --scan"
+          gradle-switches: "-PdisableSpotlessCheck=true -PdisableCheckStyle=true --scan --info"
