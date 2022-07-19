@@ -107,7 +107,7 @@ class TensorRTEngine:
 
     Example Usage::
 
-    TensorRTEngine(engine)
+      TensorRTEngine(engine)
 
     Args:
       engine: trt.ICudaEngine object that contains TensorRT engine
@@ -169,17 +169,17 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
 
     Example Usage::
 
-    pcoll | RunInference(
-        TensorRTEngineHandlerNumPy(
-          min_batch_size=1,
-          max_batch_size=1,
-          engine_path="my_uri"))
+      pcoll | RunInference(
+          TensorRTEngineHandlerNumPy(
+            min_batch_size=1,
+            max_batch_size=1,
+            engine_path="my_uri"))
 
     Args:
       min_batch_size: minimum accepted batch size.
       max_batch_size: maximum accepted batch size.
       kwargs: Additional arguments like 'engine_path' and 'onnx_path' are
-      currently supported.
+        currently supported.
 
     See https://docs.nvidia.com/deeplearning/tensorrt/api/python_api/
     for details
