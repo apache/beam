@@ -45,6 +45,8 @@ jobs:
           submodules: recursive
       - name: Run :sdks:java:io:debezium:integrationTest
         uses: ./.github/actions/gradle-command-self-hosted-action
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: true
         with:
           gradle-command: :sdks:java:io:debezium:integrationTest
           gradle-switches: "-PdisableSpotlessCheck=true -PdisableCheckStyle=true --scan --info"
