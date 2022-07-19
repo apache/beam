@@ -320,6 +320,9 @@ class PipelineOptions(HasDisplayData):
       while i < len(unknown_args):
         # Treat all unary flags as booleans, and all binary argument values as
         # strings.
+        if not unknown_args[i].startswith('-'):
+          i += 1
+          continue
         if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
           split = unknown_args[i].split('=', 1)
           if len(split) == 1:
@@ -330,7 +333,7 @@ class PipelineOptions(HasDisplayData):
         else:
           parser.add_argument(unknown_args[i], type=str)
           i += 2
-      parsed_args = parser.parse_args(self._flags)
+      parsed_args, _ = parser.parse_known_args(self._flags)
     else:
       if unknown_args:
         _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
@@ -348,12 +351,15 @@ class PipelineOptions(HasDisplayData):
         del result[k]
 
     if overrides:
-      _LOGGER.warning("Discarding invalid overrides: %s", overrides)
+      if retain_unknown_options:
+        result.update(overrides)
+      else:
+        _LOGGER.warning("Discarding invalid overrides: %s", overrides)
 
     return result
 
   def display_data(self):
-    return self.get_all_options(True)
+    return self.get_all_options(drop_default=True, retain_unknown_options=True)
 
   def view_as(self, cls):
     # type: (Type[PipelineOptionsT]) -> PipelineOptionsT

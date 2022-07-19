@@ -24,9 +24,7 @@ import 'package:playground/modules/editor/components/editor_textarea.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
 import 'package:playground/modules/examples/components/multifile_popover/multifile_popover_button.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/notifications/components/notification.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:playground/utils/analytics_utils.dart';
 import 'package:provider/provider.dart';
@@ -43,21 +41,16 @@ class CodeTextAreaWrapper extends StatelessWidget {
         });
       }
       return Column(
-        key: ValueKey(EditorKeyObject(
-          state.sdk,
-          state.selectedExample,
-          state.resetKey,
-        )),
         children: [
           Expanded(
             child: Stack(
               children: [
                 Positioned.fill(
                   child: EditorTextArea(
+                    codeController: state.codeController,
                     enabled: !(state.selectedExample?.isMultiFile ?? false),
                     example: state.selectedExample,
                     sdk: state.sdk,
-                    onSourceChange: state.setSource,
                     isEditable: true,
                   ),
                 ),
@@ -140,24 +133,4 @@ class CodeTextAreaWrapper extends StatelessWidget {
     );
     state.resetError();
   }
-}
-
-class EditorKeyObject {
-  final SDK sdk;
-  final ExampleModel? example;
-  final DateTime? resetKey;
-
-  const EditorKeyObject(this.sdk, this.example, this.resetKey);
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is EditorKeyObject &&
-          runtimeType == other.runtimeType &&
-          sdk == other.sdk &&
-          example == other.example &&
-          resetKey == other.resetKey;
-
-  @override
-  int get hashCode => hashValues(sdk, example, resetKey);
 }
