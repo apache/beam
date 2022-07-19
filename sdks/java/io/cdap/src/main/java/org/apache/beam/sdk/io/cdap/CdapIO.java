@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
@@ -33,13 +34,13 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.hadoop.conf.Configuration;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * An unbounded/bounded sources and sinks from <a
  * href="https://github.com/data-integrations">CDAP</a> plugins.
  */
 @Experimental(Kind.SOURCE_SINK)
-@SuppressWarnings("nullness")
 public class CdapIO {
 
   public static <K, V> Read<K, V> read() {
@@ -54,7 +55,6 @@ public class CdapIO {
   @AutoValue
   @AutoValue.CopyAnnotations
   public abstract static class Read<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
-
     abstract @Nullable PluginConfig getPluginConfig();
 
     abstract @Nullable Plugin getCdapPlugin();
@@ -108,29 +108,23 @@ public class CdapIO {
 
     @Override
     public PCollection<KV<K, V>> expand(PBegin input) {
-      validateTransform();
+      Plugin plugin = checkArgumentNotNull(getCdapPlugin(), "withCdapPluginClass() is required");
+      PluginConfig pluginConfig =
+          checkArgumentNotNull(getPluginConfig(), "withPluginConfig() is required");
+      Class<K> keyClass = checkArgumentNotNull(getKeyClass(), "withKeyClass() is required");
+      Class<V> valueClass = checkArgumentNotNull(getValueClass(), "withValueClass() is required");
 
-      getCdapPlugin()
-          .withConfig(getPluginConfig())
-          .withHadoopConfiguration(getKeyClass(), getValueClass())
-          .prepareRun();
+      plugin.withConfig(pluginConfig).withHadoopConfiguration(keyClass, valueClass).prepareRun();
 
-      if (getCdapPlugin().isUnbounded()) {
+      if (plugin.isUnbounded()) {
         // TODO: implement SparkReceiverIO.<~>read()
         throw new NotImplementedException("Support for unbounded plugins is not implemented!");
       } else {
-        Configuration hConf = getCdapPlugin().getHadoopConfiguration();
+        Configuration hConf = plugin.getHadoopConfiguration();
         HadoopFormatIO.Read<K, V> readFromHadoop =
             HadoopFormatIO.<K, V>read().withConfiguration(hConf);
         return input.apply(readFromHadoop);
       }
-    }
-
-    public void validateTransform() {
-      checkArgument(getCdapPlugin() != null, "withCdapPluginClass() is required");
-      checkArgument(getPluginConfig() != null, "withPluginConfig() is required");
-      checkArgument(getKeyClass() != null, "withKeyClass() is required");
-      checkArgument(getValueClass() != null, "withValueClass() is required");
     }
   }
 
@@ -138,17 +132,22 @@ public class CdapIO {
   @AutoValue
   @AutoValue.CopyAnnotations
   public abstract static class Write<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
-
+    @Pure
     abstract @Nullable PluginConfig getPluginConfig();
 
+    @Pure
     abstract @Nullable Plugin getCdapPlugin();
 
+    @Pure
     abstract @Nullable Class<K> getKeyClass();
 
+    @Pure
     abstract @Nullable Class<V> getValueClass();
 
+    @Pure
     abstract @Nullable String getLocksDirPath();
 
+    @Pure
     abstract Builder<K, V> toBuilder();
 
     @Experimental(Experimental.Kind.PORTABILITY)
@@ -201,32 +200,28 @@ public class CdapIO {
 
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
-      validateTransform();
-      getCdapPlugin()
-          .withConfig(getPluginConfig())
-          .withHadoopConfiguration(getKeyClass(), getValueClass())
-          .prepareRun();
+      Plugin plugin = checkArgumentNotNull(getCdapPlugin(), "withCdapPluginClass() is required");
+      PluginConfig pluginConfig =
+          checkArgumentNotNull(getPluginConfig(), "withPluginConfig() is required");
+      Class<K> keyClass = checkArgumentNotNull(getKeyClass(), "withKeyClass() is required");
+      Class<V> valueClass = checkArgumentNotNull(getValueClass(), "withValueClass() is required");
+      String locksDirPath =
+          checkArgumentNotNull(getLocksDirPath(), "withLocksDirPath() is required");
 
-      if (getCdapPlugin().isUnbounded()) {
+      plugin.withConfig(pluginConfig).withHadoopConfiguration(keyClass, valueClass).prepareRun();
+
+      if (plugin.isUnbounded()) {
         // TODO: implement SparkReceiverIO.<~>write()
         throw new NotImplementedException("Support for unbounded plugins is not implemented!");
       } else {
-        Configuration hConf = getCdapPlugin().getHadoopConfiguration();
+        Configuration hConf = plugin.getHadoopConfiguration();
         HadoopFormatIO.Write<K, V> writeHadoop =
             HadoopFormatIO.<K, V>write()
                 .withConfiguration(hConf)
                 .withPartitioning()
-                .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath()));
+                .withExternalSynchronization(new HDFSSynchronization(locksDirPath));
         return input.apply(writeHadoop);
       }
-    }
-
-    public void validateTransform() {
-      checkArgument(getCdapPlugin() != null, "withCdapPluginClass() is required");
-      checkArgument(getPluginConfig() != null, "withPluginConfig() is required");
-      checkArgument(getKeyClass() != null, "withKeyClass() is required");
-      checkArgument(getValueClass() != null, "withValueClass() is required");
-      checkArgument(getLocksDirPath() != null, "withLocksDirPath() is required");
     }
   }
 }
