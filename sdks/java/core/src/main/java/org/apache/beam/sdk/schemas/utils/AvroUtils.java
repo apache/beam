@@ -45,6 +45,8 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.reflect.AvroIgnore;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.ReflectData;
@@ -72,6 +74,8 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
+import org.apache.beam.sdk.schemas.utils.avro.RowDeserializer;
+import org.apache.beam.sdk.schemas.utils.avro.SerDesRegistry;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
@@ -439,25 +443,29 @@ public class AvroUtils {
 
   /** Returns a function mapping encoded AVRO {@link GenericRecord}s to Beam {@link Row}s. */
   public static SimpleFunction<byte[], Row> getAvroBytesToRowFunction(Schema beamSchema) {
-    return new AvroBytesToRowFn(beamSchema);
+    return new FastAvroBytesToRowFn(beamSchema);
   }
 
-  private static class AvroBytesToRowFn extends SimpleFunction<byte[], Row> {
-    private final AvroCoder<GenericRecord> coder;
-    private final Schema beamSchema;
+  private static class FastAvroBytesToRowFn extends SimpleFunction<byte[], Row> {
+    private final SerDesRegistry registry;
+    private final org.apache.avro.Schema avroSchema;
 
-    AvroBytesToRowFn(Schema beamSchema) {
-      org.apache.avro.Schema avroSchema = toAvroSchema(beamSchema);
-      coder = AvroCoder.of(avroSchema);
-      this.beamSchema = beamSchema;
+    FastAvroBytesToRowFn(Schema beamSchema) {
+      avroSchema = toAvroSchema(beamSchema);
+      //Create Registry in Setup
+      registry = SerDesRegistry.getDefaultInstance();
     }
 
     @Override
     public Row apply(byte[] bytes) {
       try {
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
-        GenericRecord record = coder.decode(inputStream);
-        return AvroUtils.toBeamRowStrict(record, beamSchema);
+        //Create Avro decoder
+        Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, null);
+        //Get Deserializer
+        RowDeserializer<Row> deserializer = registry.buildRowDeserializer(avroSchema, avroSchema);
+        //Deserialize Avro to Row
+        Row row = deserializer.deserialize(decoder);
+        return row;
       } catch (Exception e) {
         throw new AvroRuntimeException(
             "Could not decode avro record from given bytes "

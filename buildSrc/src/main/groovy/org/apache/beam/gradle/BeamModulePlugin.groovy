@@ -479,6 +479,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def httpcore_version = "4.4.14"
     def jackson_version = "2.13.0"
     def jaxb_api_version = "2.3.3"
+    def jaxb_codemodel_version = "3.0.0"
     def jsr305_version = "3.0.2"
     def kafka_version = "2.4.1"
     def nemo_version = "0.1"
@@ -657,6 +658,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jamm                                        : 'io.github.stephankoelle:jamm:0.4.1',
         jaxb_api                                    : "jakarta.xml.bind:jakarta.xml.bind-api:$jaxb_api_version",
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
+        jaxb_codemodel                              : "org.glassfish.jaxb:codemodel:$jaxb_codemodel_version",
         joda_time                                   : "joda-time:joda-time:2.10.10",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",

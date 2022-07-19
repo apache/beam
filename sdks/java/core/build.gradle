@@ -81,6 +81,7 @@ dependencies {
   implementation library.java.antlr_runtime
   implementation library.java.commons_compress
   implementation library.java.commons_lang3
+  implementation library.java.jaxb_codemodel
   testImplementation library.java.mockito_inline
   shadow library.java.jsr305
   shadow library.java.error_prone_annotations
