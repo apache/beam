@@ -119,12 +119,6 @@ public class CdapIOTest {
   }
 
   @Test
-  public void testReadValidationFailsMissingCdapPluginClass() {
-    CdapIO.Read<String, String> read = CdapIO.read();
-    assertThrows(IllegalArgumentException.class, read::validateTransform);
-  }
-
-  @Test
   public void testReadObjectCreationFailsIfCdapPluginClassIsNotSupported() {
     assertThrows(
         UnsupportedOperationException.class,
@@ -218,12 +212,6 @@ public class CdapIOTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> CdapIO.<String, String>write().withLocksDirPath(null));
-  }
-
-  @Test
-  public void testWriteValidationFailsMissingCdapPluginClass() {
-    CdapIO.Write<String, String> write = CdapIO.write();
-    assertThrows(IllegalArgumentException.class, write::validateTransform);
   }
 
   @Test
