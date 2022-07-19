@@ -30,6 +30,8 @@ the coders.*PickleCoder classes should be used instead.
 # pylint: skip-file
 import logging
 
+import dill
+
 from apache_beam.internal import cloudpickle_pickler
 from apache_beam.internal import dill_pickler
 
@@ -43,17 +45,21 @@ desired_pickle_lib = dill_pickler
 def dumps(o, enable_trace=True, use_zlib=False):
   # type: (...) -> bytes
 
-  # logging.info("*************************************************")
-  # serialized_fn = desired_pickle_lib.dumps(
-  #     o, enable_trace=enable_trace, use_zlib=use_zlib)
-  #
-  # deserialized_fn = desired_pickle_lib.loads(
-  #     serialized_fn, enable_trace=enable_trace, use_zlib=use_zlib)
-  #
-  # logging.info(f"serialized_fn: {serialized_fn}")
-  # logging.info(f"deserialized_fn: {deserialized_fn}")
-  #
-  # logging.info("*************************************************")
+  logging.info("****************dumps*****************************")
+  serialized_fn = desired_pickle_lib.dumps(
+      o, enable_trace=enable_trace, use_zlib=use_zlib)
+
+  deserialized_fn = desired_pickle_lib.loads(
+      serialized_fn, enable_trace=enable_trace, use_zlib=use_zlib)
+
+  logging.info(f"serialized_fn: {serialized_fn}")
+  logging.info(f"deserialized_fn: {deserialized_fn}")
+
+  logging.info("****************dumps*****************************")
+
+  # pylint: disable=line-too-long
+  if serialized_fn == b'QlpoOTFBWSZTWW2DOMwAAoP/0P//////////////8r///+ZjwQAAkABAAvZLMKAIaptKmgD1G1NHqPUGQ9QABoGRtQPUGgeiAyANPU9QaDxINDTT1BKIBAITI1M9U8p6ptPVPTSNGDIjQyGT1GamahoAGAaRoaZpPapk3qQanopooAMgAABoAAyGgAAA0AAA0AaADQEGAAAAAAAAAAATAAAAARgACYAM5MUrCptpkfPPVhjTXwKIU3oFiIJ/CmyKm2KIZ1A18ooB+j4G8x4RVknC4yKFH0rinqKEj8RACpHX3hkYJ5lTMPMdIKIjxIJLJEEKSWKSUBYhCIgBFQxHB/PDjH7GXX5+F4WG8bQ28I1HM8gN8O+MHn9DPGSnGjxh4zcN0oIQI7Yv1G4WNxjRhrCUDLResXxg0wWTJY0RkAs4YoXfYNHiK1PUibLpaDbVdM0lVFU2Ga4xG50HXL9B8IIJ3S3fGpfgZYIeoqgSmvHXY4pat1MZa7ks9yFCSDapYAMsDHfyzSb4zGUw5t70rhZZiNtIu4vMPDECfHMIUodUKP0j5TMfMfEdFQkidA+NLOQI6ArlUgx/Ue4ZtnU3xD5Nogb4vYoAjegh16U641+yaJJHXKN4if4ZnmkolBy1Kpzh29b6NzuvmJ8N0aBQ4vcGtWNS7paBLBRKKJpCPJn6GnMVjYmA1CFsd3GJM1XrYBOkXTQGV0NzA+shJZyobgOKghGWSFYnJQBArEUgOdM9kEYqk2a+e9ILaq+pPzb0YygDFo1mIMh62i3XGgjGQtNQx8cIZTMziESoLDIE9ZYgmTis3lmHF3LxVvmCsgIxROJHR7w4cgVCwvDSD7EMzkHTPIgpMKhMgrVRSByLk/JpwYRpMwGiYOWVIYb/2jyk0i6JqnoRqkVL5chLUoVeScA2PT6YNNPPqzszrZ23SdVGa9b+znUxbwnsfO/Lswr1n1TabWQXvNYuhcqVLvqYsPUxlCyVZPe565HNWiTIQvjZRL9gxDu+vOKUotqgY4SGilwxDlaK0XP0WobRwjhlpcfOTmhckNqGmsXXapFS8Y3MICo8xBAxSe07BsFi2ZUuDHJE49mqRUl7SP1yYtCiWApKQUpaPGR+xRVJBxjaedDdhykYHvA+J/0f8ofsOK9IoUZBk/7TeXorWosw1/i7kinChINsGcZg':
+    raise Exception("Pickling error happend here")
 
   return desired_pickle_lib.dumps(
       o, enable_trace=enable_trace, use_zlib=use_zlib)
@@ -61,12 +67,13 @@ def dumps(o, enable_trace=True, use_zlib=False):
 
 def loads(encoded, enable_trace=True, use_zlib=False):
   """For internal use only; no backwards-compatibility guarantees."""
-  import pytest
-  logging.info("*************************************************")
-  print(pytest.__version__)
-  logging.info(encoded)
-  logging.info("*************************************************")
+  logging.info("******************loads****************************")
+  logging.info(f"encoded: {encoded}")
 
+  decoded = desired_pickle_lib.loads(
+      encoded, enable_trace=enable_trace, use_zlib=use_zlib)
+  logging.info(f"decoded: {decoded}")
+  logging.info("******************loads****************************")
   return desired_pickle_lib.loads(
       encoded, enable_trace=enable_trace, use_zlib=use_zlib)
 
