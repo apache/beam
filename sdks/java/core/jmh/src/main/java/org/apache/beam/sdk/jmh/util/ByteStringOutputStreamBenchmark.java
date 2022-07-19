@@ -98,7 +98,7 @@ public class ByteStringOutputStreamBenchmark {
 
   @Benchmark
   public void testProtobufByteStringOutputStreamManyMixedWritesWithoutReuse() throws Exception {
-    ByteStringOutputStream output = new ByteStringOutputStream();
+    ByteString.Output output = ByteString.newOutput();
     for (int i = 0; i < MANY_WRITES; i++) {
       output.write(1);
       output.write(SMALL_BUFFER);
@@ -117,7 +117,7 @@ public class ByteStringOutputStreamBenchmark {
 
   @Benchmark
   public void testProtobufByteStringOutputStreamFewMixedWritesWithoutReuse() throws Exception {
-    ByteStringOutputStream output = new ByteStringOutputStream();
+    ByteString.Output output = ByteString.newOutput();
     for (int i = 0; i < FEW_WRITES; i++) {
       output.write(1);
       output.write(SMALL_BUFFER);
@@ -136,7 +136,7 @@ public class ByteStringOutputStreamBenchmark {
 
   @Benchmark
   public void testProtobufByteStringOutputStreamManyTinyWrites() throws Exception {
-    ByteStringOutputStream output = new ByteStringOutputStream();
+    ByteString.Output output = ByteString.newOutput();
     for (int i = 0; i < MANY_WRITES; ++i) {
       output.write(1);
     }
@@ -148,7 +148,7 @@ public class ByteStringOutputStreamBenchmark {
 
   @Benchmark
   public void testProtobufByteStringOutputStreamManySmallWrites() throws Exception {
-    ByteStringOutputStream output = new ByteStringOutputStream();
+    ByteString.Output output = ByteString.newOutput();
     for (int i = 0; i < MANY_WRITES; ++i) {
       output.write(SMALL_BUFFER);
     }
@@ -160,7 +160,7 @@ public class ByteStringOutputStreamBenchmark {
 
   @Benchmark
   public void testProtobufByteStringOutputStreamManyLargeWrites() throws Exception {
-    ByteStringOutputStream output = new ByteStringOutputStream();
+    ByteString.Output output = ByteString.newOutput();
     for (int i = 0; i < MANY_WRITES; ++i) {
       output.write(LARGE_BUFFER);
     }
@@ -172,7 +172,7 @@ public class ByteStringOutputStreamBenchmark {
 
   @Benchmark
   public void testProtobufByteStringOutputStreamFewTinyWrites() throws Exception {
-    ByteStringOutputStream output = new ByteStringOutputStream();
+    ByteString.Output output = ByteString.newOutput();
     for (int i = 0; i < FEW_WRITES; ++i) {
       output.write(1);
     }
@@ -184,7 +184,7 @@ public class ByteStringOutputStreamBenchmark {
 
   @Benchmark
   public void testProtobufByteStringOutputStreamFewSmallWrites() throws Exception {
-    ByteStringOutputStream output = new ByteStringOutputStream();
+    ByteString.Output output = ByteString.newOutput();
     for (int i = 0; i < FEW_WRITES; ++i) {
       output.write(SMALL_BUFFER);
     }
@@ -196,7 +196,7 @@ public class ByteStringOutputStreamBenchmark {
 
   @Benchmark
   public void testProtobufByteStringOutputStreamFewLargeWrites() throws Exception {
-    ByteStringOutputStream output = new ByteStringOutputStream();
+    ByteString.Output output = ByteString.newOutput();
     for (int i = 0; i < FEW_WRITES; ++i) {
       output.write(LARGE_BUFFER);
     }

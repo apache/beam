@@ -103,10 +103,15 @@ public final class ByteStringOutputStream extends OutputStream {
     bufferPos += length;
   }
 
-  /** Creates a byte string with the size and contents of this output stream. */
+  /**
+   * Creates a byte string with the size and contents of this output stream.
+   *
+   * <p>Note that the caller must not invoke {#link {@link #toByteStringAndReset} as the internal
+   * buffer maybe mutated by a future {@link #write} mutating {@link ByteString}s returned in the
+   * past.
+   */
   public ByteString toByteString() {
-    // The only benefit we get by copying here is that there will be a reduction in the amount
-    // of unused buffer space.
+    // We specifically choose to concatenate here since the user won't be re-using the buffer.
     return result.concat(UnsafeByteOperations.unsafeWrap(buffer, 0, bufferPos));
   }
 
