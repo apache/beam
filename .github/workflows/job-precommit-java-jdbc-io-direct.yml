@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This workflow will run Debezium IO Integration Tests in Java SDK with DirectRunner
+# This workflow will run JDBC IO Integration Tests in Java SDK with DirectRunner
 
-name: Java_Debezium_IO_Direct
+name: Java_JDBC_IO_Direct
 
 on:
   schedule:
@@ -28,11 +28,11 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['^sdks/java/io/debezium/.*$']
+#    paths: ['^sdks/java/io/jdbc/.*$']
 
 jobs:
-  java-debezium-io:
-    name: Run Java Debezium IO Direct
+  java-jdbc-io:
+    name: Run Java JDBC IO Direct
     runs-on: self-hosted
     timeout-minutes: 60
     strategy:
@@ -43,8 +43,8 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Run :sdks:java:io:debezium:integrationTest
+      - name: Run :sdks:java:io:jdbc:integrationTest
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:debezium:integrationTest
+          gradle-command: :sdks:java:io:jdbc:integrationTest
           gradle-switches: "-PdisableSpotlessCheck=true, -PdisableCheckStyle=true"
