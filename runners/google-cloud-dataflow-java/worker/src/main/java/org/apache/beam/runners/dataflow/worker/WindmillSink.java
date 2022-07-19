@@ -34,6 +34,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
@@ -69,7 +70,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       Collection<? extends BoundedWindow> windows,
       PaneInfo pane)
       throws IOException {
-    ByteString.Output stream = ByteString.newOutput();
+    ByteStringOutputStream stream = new ByteStringOutputStream();
     PaneInfoCoder.INSTANCE.encode(pane, stream);
     windowsCoder.encode(windows, stream, Coder.Context.OUTER);
     return stream.toByteString();
@@ -135,7 +136,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {
-      ByteString.Output stream = ByteString.newOutput();
+      ByteStringOutputStream stream = new ByteStringOutputStream();
       coder.encode(object, stream, Coder.Context.OUTER);
       return stream.toByteString();
     }
