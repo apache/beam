@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.hadoop.conf.Configuration;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * An unbounded/bounded sources and sinks from <a
@@ -131,17 +132,22 @@ public class CdapIO {
   @AutoValue
   @AutoValue.CopyAnnotations
   public abstract static class Write<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
-
+    @Pure
     abstract @Nullable PluginConfig getPluginConfig();
 
+    @Pure
     abstract @Nullable Plugin getCdapPlugin();
 
+    @Pure
     abstract @Nullable Class<K> getKeyClass();
 
+    @Pure
     abstract @Nullable Class<V> getValueClass();
 
+    @Pure
     abstract @Nullable String getLocksDirPath();
 
+    @Pure
     abstract Builder<K, V> toBuilder();
 
     @Experimental(Experimental.Kind.PORTABILITY)
@@ -194,9 +200,9 @@ public class CdapIO {
 
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
-      Plugin plugin = checkArgumentNotNull(getCdapPlugin(), "withKeyClass() is required");
+      Plugin plugin = checkArgumentNotNull(getCdapPlugin(), "withCdapPluginClass() is required");
       PluginConfig pluginConfig =
-          checkArgumentNotNull(getPluginConfig(), "withKeyClass() is required");
+          checkArgumentNotNull(getPluginConfig(), "withPluginConfig() is required");
       Class<K> keyClass = checkArgumentNotNull(getKeyClass(), "withKeyClass() is required");
       Class<V> valueClass = checkArgumentNotNull(getValueClass(), "withValueClass() is required");
       String locksDirPath =

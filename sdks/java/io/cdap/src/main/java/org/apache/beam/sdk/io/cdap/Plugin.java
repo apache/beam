@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 /** Class wrapper for a CDAP plugin. */
 @AutoValue
-@SuppressWarnings({"rawtypes", "unchecked"})
 public abstract class Plugin {
 
   private static final Logger LOG = LoggerFactory.getLogger(Plugin.class);
@@ -52,7 +51,7 @@ public abstract class Plugin {
 
   protected @Nullable PluginConfig pluginConfig;
   protected @Nullable Configuration hadoopConfiguration;
-  protected @Nullable SubmitterLifecycle cdapPluginObj;
+  protected @Nullable SubmitterLifecycle<BatchContextImpl> cdapPluginObj;
 
   /** Gets the context of a plugin. */
   public abstract BatchContextImpl getContext();
@@ -90,7 +89,8 @@ public abstract class Plugin {
         Constructor<?> constructor =
             getPluginClass().getDeclaredConstructor(pluginConfig.getClass());
         constructor.setAccessible(true);
-        cdapPluginObj = (SubmitterLifecycle) constructor.newInstance(pluginConfig);
+        cdapPluginObj =
+            (SubmitterLifecycle<BatchContextImpl>) constructor.newInstance(pluginConfig);
       } catch (Exception e) {
         LOG.error("Can not instantiate CDAP plugin class", e);
         throw new IllegalStateException("Can not call prepareRun");
