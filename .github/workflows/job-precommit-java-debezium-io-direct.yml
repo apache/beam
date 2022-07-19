@@ -43,10 +43,10 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+      - name: Overwrite default docker config
+        run: echo '{}' > ~/.docker/config.json
       - name: Run :sdks:java:io:debezium:integrationTest
         uses: ./.github/actions/gradle-command-self-hosted-action
-        env:
-          TESTCONTAINERS_RYUK_DISABLED: true
         with:
           gradle-command: :sdks:java:io:debezium:integrationTest
-          gradle-switches: "-PdisableSpotlessCheck=true -PdisableCheckStyle=true --scan --info"
+          gradle-switches: "-PdisableSpotlessCheck=true -PdisableCheckStyle=true --info"
