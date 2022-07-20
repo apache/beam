@@ -17,4 +17,4 @@
  */
 
 /** Benchmarks for schemas. */
-package org.apache.beam.sdk.schemas;
+package org.apache.beam.sdk.jmh.schemas;
