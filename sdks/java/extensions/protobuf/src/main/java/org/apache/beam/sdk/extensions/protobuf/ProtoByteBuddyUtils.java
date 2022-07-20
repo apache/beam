@@ -191,8 +191,8 @@ class ProtoByteBuddyUtils {
   private static final String DEFAULT_PROTO_GETTER_PREFIX = "get";
   private static final String DEFAULT_PROTO_SETTER_PREFIX = "set";
 
-  // BEAM-14525: there is a slight difference between 'protoc' and Guava CaseFormat regarding the
-  // camel case conversion
+  // https://github.com/apache/beam/issues/21626: there is a slight difference between 'protoc' and
+  // Guava CaseFormat regarding the camel case conversion
   // - guava keeps the first character after a number lower case
   // - protoc makes it upper case
   // based on
