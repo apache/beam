@@ -1309,6 +1309,7 @@ public class PubsubIO {
         validatePubsubMessage(message);
         payload = message.getPayload();
         Map<String, String> attributes = message.getAttributeMap();
+        String orderingKey = message.getOrderingKey();
 
         if (payload.length > maxPublishBatchByteSize) {
           String msg =
@@ -1324,13 +1325,18 @@ public class PubsubIO {
           publish();
         }
 
+        com.google.pubsub.v1.PubsubMessage.Builder msgBuilder =
+            com.google.pubsub.v1.PubsubMessage.newBuilder()
+            .setData(ByteString.copyFrom(payload))
+            .putAllAttributes(attributes);
+
+        if (orderingKey != null) {
+          msgBuilder.setOrderingKey(orderingKey);
+        }
+
         // NOTE: The record id is always null.
         output.add(
-            OutgoingMessage.of(
-                com.google.pubsub.v1.PubsubMessage.newBuilder()
-                    .setData(ByteString.copyFrom(payload))
-                    .putAllAttributes(attributes)
-                    .build(),
+            OutgoingMessage.of(msgBuilder.build(),
                 c.timestamp().getMillis(),
                 null));
         currentOutputBytes += payload.length;
