@@ -1400,21 +1400,21 @@ public class KafkaIO {
       void setCheckpointingInterval(Long interval);
     }
 
-    private boolean runnerPrefersLegacyRead(PipelineOptions options) {
-      // Only Dataflow runner requires sdf read at this moment. For other non-portable runners, if
-      // it doesn't specify use_sdf_read, it will use legacy read regarding to performance concern.
-      // TODO(https://github.com/apache/beam/issues/20530): Remove this special check when we
-      // address performance issue.
-      if (ExperimentalOptions.hasExperiment(options, "use_sdf_read")) {
-        return false;
-      }
-      if (options.getRunner().getName().startsWith("org.apache.beam.runners.dataflow.")) {
-        return false;
-      } else if (ExperimentalOptions.hasExperiment(options, "beam_fn_api")) {
-        return false;
-      }
-      return true;
-    }
+    // private boolean runnerPrefersLegacyRead(PipelineOptions options) {
+    //   // Only Dataflow runner requires sdf read at this moment. For other non-portable runners, if
+    //   // it doesn't specify use_sdf_read, it will use legacy read regarding to performance concern.
+    //   // TODO(https://github.com/apache/beam/issues/20530): Remove this special check when we
+    //   // address performance issue.
+    //   if (ExperimentalOptions.hasExperiment(options, "use_sdf_read")) {
+    //     return false;
+    //   }
+    //   if (options.getRunner().getName().startsWith("org.apache.beam.runners.dataflow.")) {
+    //     return false;
+    //   } else if (ExperimentalOptions.hasExperiment(options, "beam_fn_api")) {
+    //     return false;
+    //   }
+    //   return true;
+    // }
 
     /**
      * A {@link PTransformOverride} for runners to swap {@link ReadFromKafkaViaSDF} to legacy Kafka
