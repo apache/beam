@@ -28,7 +28,7 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['^sdks/java/io/jdbc/.*$']
+#    paths: ['^sdks/java/io/jdbc/.*$']
 
 jobs:
   java-jdbc-io:
@@ -45,6 +45,8 @@ jobs:
           submodules: recursive
       - name: Run :sdks:java:io:jdbc:integrationTest
         uses: ./.github/actions/gradle-command-self-hosted-action
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: true
         with:
           gradle-command: :sdks:java:io:jdbc:integrationTest
           gradle-switches: "-PdisableSpotlessCheck=true, -PdisableCheckStyle=true"
