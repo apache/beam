@@ -51,4 +51,5 @@ jobs:
           -v "$PWD:$PWD" \
           -w "$PWD" \
           gradle \
-           ./gradlew --no-daemon --continue --scan :sdks:java:io:jdbc:integrationTest -PdisableSpotlessCheck=true, -PdisableCheckStyle=true --info
+          chmod +x gradlew & \
+          ./gradlew --no-daemon --continue --scan :sdks:java:io:jdbc:integrationTest -PdisableSpotlessCheck=true, -PdisableCheckStyle=true --info
