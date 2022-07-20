@@ -28,7 +28,7 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-#    paths: ['^sdks/java/io/jdbc/.*$']
+    paths: ['^sdks/java/io/jdbc/.*$']
 
 jobs:
   java-jdbc-io:
@@ -40,15 +40,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-        # with:
-        #  persist-credentials: false
-        #  submodules: recursive
+        with:
+          persist-credentials: false
+          submodules: recursive
       - name: Run :sdks:java:io:jdbc:integrationTest
-        run: |
-          docker run -it --rm \
-          -v /var/run/docker.sock:/var/run/docker.sock \
-          -v "$PWD:$PWD" \
-          -w "$PWD" \
-          gradle \
-          pwd & ls -al & cd .. & ls -al & \
-          gradle --no-daemon --continue --scan :sdks:java:io:jdbc:integrationTest -PdisableSpotlessCheck=true, -PdisableCheckStyle=true --info
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:io:jdbc:integrationTest
+          gradle-switches: "-PdisableSpotlessCheck=true, -PdisableCheckStyle=true"
