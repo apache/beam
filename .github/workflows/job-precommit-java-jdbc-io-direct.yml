@@ -45,10 +45,10 @@ jobs:
         #  submodules: recursive
       - name: Run :sdks:java:io:jdbc:integrationTest
         run: |
-          docker run -i \
+          docker run -it --rm \
           -v /var/run/docker.sock:/var/run/docker.sock \
           -v "$PWD:$PWD" \
           -w "$PWD" \
-          openjdk:8-jdk-alpine \
-          chmod +x ./gradlew & \
-          ./gradlew --no-daemon --continue --scan :sdks:java:io:jdbc:integrationTest -PdisableSpotlessCheck=true, -PdisableCheckStyle=true --info
+          gradle \
+          pwd & ls -al & cd .. & ls -al & \
+          gradle --no-daemon --continue --scan :sdks:java:io:jdbc:integrationTest -PdisableSpotlessCheck=true, -PdisableCheckStyle=true --info
