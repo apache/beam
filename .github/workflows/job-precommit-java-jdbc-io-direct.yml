@@ -50,5 +50,5 @@ jobs:
           -v "$HOME:$HOME" \
           -v "$PWD:$PWD" \
           -w "$PWD" \
-          openjdk:8-jdk-alpine \
+          gradle \
           ./gradlew :sdks:java:io:jdbc:integrationTest -PdisableSpotlessCheck=true, -PdisableCheckStyle=true --info
