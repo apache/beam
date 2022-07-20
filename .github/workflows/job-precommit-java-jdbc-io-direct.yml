@@ -44,9 +44,11 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: Run :sdks:java:io:jdbc:integrationTest
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        env:
-          TESTCONTAINERS_HOST_OVERRIDE: "host.docker.internal"
-        with:
-          gradle-command: :sdks:java:io:jdbc:integrationTest
-          gradle-switches: "-PdisableSpotlessCheck=true, -PdisableCheckStyle=true --info"
+        run: |
+          docker run -i --rm \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -v "$HOME:$HOME" \
+          -v "$PWD:$PWD" \
+          -w "$PWD" \
+          openjdk:8-jdk-alpine \
+          ./gradlew :sdks:java:io:jdbc:integrationTest -PdisableSpotlessCheck=true, -PdisableCheckStyle=true --info
