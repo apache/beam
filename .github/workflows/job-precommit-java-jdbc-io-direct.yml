@@ -47,9 +47,8 @@ jobs:
         run: |
           docker run -i --rm \
           -v /var/run/docker.sock:/var/run/docker.sock \
-          -v "$HOME:$HOME" \
           -v "$PWD:$PWD" \
           -w "$PWD" \
-          gradle \
+          openjdk:8-jdk-alpine \
           chmod +x ./gradlew & \
           ./gradlew --no-daemon --continue --scan :sdks:java:io:jdbc:integrationTest -PdisableSpotlessCheck=true, -PdisableCheckStyle=true --info
