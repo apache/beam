@@ -40,9 +40,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-          submodules: recursive
+        # with:
+        #  persist-credentials: false
+        #  submodules: recursive
       - name: Run :sdks:java:io:jdbc:integrationTest
         run: |
           docker run -i --rm \
