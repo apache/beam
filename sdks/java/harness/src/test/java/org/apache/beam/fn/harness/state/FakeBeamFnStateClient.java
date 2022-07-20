@@ -37,6 +37,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -67,7 +68,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
                 initialData,
                 (KV<Coder<?>, List<?>> coderAndValues) -> {
                   List<ByteString> chunks = new ArrayList<>();
-                  ByteString.Output output = ByteString.newOutput();
+                  ByteStringOutputStream output = new ByteStringOutputStream();
                   for (Object value : coderAndValues.getValue()) {
                     try {
                       ((Coder<Object>) coderAndValues.getKey()).encode(value, output);
@@ -75,7 +76,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
                       throw new RuntimeException(e);
                     }
                     if (output.size() >= chunkSize) {
-                      ByteString chunk = output.toByteString();
+                      ByteString chunk = output.toByteStringAndReset();
                       int i = 0;
                       for (; i + chunkSize <= chunk.size(); i += chunkSize) {
                         // We specifically use a copy of the bytes instead of a proper substring
@@ -88,7 +89,6 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
                         chunks.add(
                             ByteString.copyFrom(chunk.substring(i, chunk.size()).toByteArray()));
                       }
-                      output.reset();
                     }
                   }
                   // Add the last chunk

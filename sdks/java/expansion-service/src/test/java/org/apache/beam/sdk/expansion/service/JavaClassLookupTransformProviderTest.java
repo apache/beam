@@ -59,6 +59,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -1144,7 +1145,7 @@ public class JavaClassLookupTransformProviderTest {
   }
 
   private ByteString getProtoPayloadFromRow(Row row) {
-    ByteString.Output outputStream = ByteString.newOutput();
+    ByteStringOutputStream outputStream = new ByteStringOutputStream();
     try {
       SchemaCoder.of(row.getSchema()).encode(row, outputStream);
     } catch (IOException e) {

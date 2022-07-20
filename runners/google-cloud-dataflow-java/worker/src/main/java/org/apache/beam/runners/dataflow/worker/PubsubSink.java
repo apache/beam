@@ -32,6 +32,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
@@ -160,11 +161,11 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
         if (formatted.getAttributeMap() != null) {
           pubsubMessageBuilder.putAllAttributes(formatted.getAttributeMap());
         }
-        ByteString.Output output = ByteString.newOutput();
+        ByteStringOutputStream output = new ByteStringOutputStream();
         pubsubMessageBuilder.build().writeTo(output);
         byteString = output.toByteString();
       } else {
-        ByteString.Output stream = ByteString.newOutput();
+        ByteStringOutputStream stream = new ByteStringOutputStream();
         coder.encode(data.getValue(), stream, Coder.Context.OUTER);
         byteString = stream.toByteString();
       }

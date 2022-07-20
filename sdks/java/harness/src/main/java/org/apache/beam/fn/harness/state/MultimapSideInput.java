@@ -26,6 +26,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 
 /**
@@ -70,7 +71,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
 
   @Override
   public Iterable<V> get(K k) {
-    ByteString.Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     try {
       keyCoder.encode(k, output);
     } catch (IOException e) {
