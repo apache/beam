@@ -318,6 +318,9 @@ public abstract class PubsubClient implements Closeable {
       if (message.getAttributeMap() != null) {
         builder.putAllAttributes(message.getAttributeMap());
       }
+      if (message.getOrderingKey() != null) {
+        builder.setOrderingKey(message.getOrderingKey());
+      }
       return of(builder.build(), timestampMsSinceEpoch, recordId);
     }
   }
