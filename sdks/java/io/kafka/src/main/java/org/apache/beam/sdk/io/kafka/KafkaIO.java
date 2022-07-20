@@ -59,7 +59,6 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementation;
 import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementationCompatibilityException;
-import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementationCompatibilityResult;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -1401,8 +1400,10 @@ public class KafkaIO {
     }
 
     // private boolean runnerPrefersLegacyRead(PipelineOptions options) {
-    //   // Only Dataflow runner requires sdf read at this moment. For other non-portable runners, if
-    //   // it doesn't specify use_sdf_read, it will use legacy read regarding to performance concern.
+    //   // Only Dataflow runner requires sdf read at this moment. For other non-portable runners,
+    // if
+    //   // it doesn't specify use_sdf_read, it will use legacy read regarding to performance
+    // concern.
     //   // TODO(https://github.com/apache/beam/issues/20530): Remove this special check when we
     //   // address performance issue.
     //   if (ExperimentalOptions.hasExperiment(options, "use_sdf_read")) {
