@@ -48,3 +48,8 @@ jobs:
         with:
           gradle-command: :sdks:java:io:jdbc:integrationTest
           gradle-switches: "-PdisableSpotlessCheck=true, -PdisableCheckStyle=true"
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        if: always()
+        with:
+          files: "**/build/test-results/**/*.xml"
