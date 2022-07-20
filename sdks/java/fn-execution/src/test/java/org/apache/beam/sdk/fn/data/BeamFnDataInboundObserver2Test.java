@@ -35,8 +35,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -203,7 +203,7 @@ public class BeamFnDataInboundObserver2Test {
   }
 
   private BeamFnApi.Elements dataWith(String... values) throws Exception {
-    ByteString.Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     for (String value : values) {
       CODER.encode(valueInGlobalWindow(value), output);
     }
@@ -222,7 +222,7 @@ public class BeamFnDataInboundObserver2Test {
   }
 
   private BeamFnApi.Elements timerWith(String... values) throws Exception {
-    ByteString.Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     for (String value : values) {
       CODER.encode(valueInGlobalWindow(value), output);
     }

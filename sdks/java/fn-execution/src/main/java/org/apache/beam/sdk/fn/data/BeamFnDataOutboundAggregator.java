@@ -35,6 +35,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -236,29 +237,27 @@ public class BeamFnDataOutboundAggregator {
   private Elements.Builder convertBufferForTransmission() {
     Elements.Builder bufferedElements = Elements.newBuilder();
     for (Map.Entry<String, Receiver<?>> entry : outputDataReceivers.entrySet()) {
-      if (entry.getValue().getOutput().size() == 0) {
+      if (entry.getValue().bufferedSize() == 0) {
         continue;
       }
-      ByteString bytes = entry.getValue().getOutput().toByteString();
+      ByteString bytes = entry.getValue().toByteStringAndResetBuffer();
       bufferedElements
           .addDataBuilder()
           .setInstructionId(processBundleRequestIdSupplier.get())
           .setTransformId(entry.getKey())
           .setData(bytes);
-      entry.getValue().resetOutput();
     }
     for (Map.Entry<TimerEndpoint, Receiver<?>> entry : outputTimersReceivers.entrySet()) {
-      if (entry.getValue().getOutput().size() == 0) {
+      if (entry.getValue().bufferedSize() == 0) {
         continue;
       }
-      ByteString bytes = entry.getValue().getOutput().toByteString();
+      ByteString bytes = entry.getValue().toByteStringAndResetBuffer();
       bufferedElements
           .addTimersBuilder()
           .setInstructionId(processBundleRequestIdSupplier.get())
           .setTransformId(entry.getKey().pTransformId)
           .setTimerFamilyId(entry.getKey().timerFamilyId)
           .setTimers(bytes);
-      entry.getValue().resetOutput();
     }
     bytesWrittenSinceFlush = 0L;
     return bufferedElements;
@@ -323,13 +322,13 @@ public class BeamFnDataOutboundAggregator {
 
   @VisibleForTesting
   class Receiver<T> implements FnDataReceiver<T> {
-    private final ByteString.Output output;
+    private final ByteStringOutputStream output;
     private final Coder<T> coder;
     private long perBundleByteCount;
     private long perBundleElementCount;
 
     public Receiver(Coder<T> coder) {
-      this.output = ByteString.newOutput();
+      this.output = new ByteStringOutputStream();
       this.coder = coder;
       this.perBundleByteCount = 0L;
       this.perBundleElementCount = 0L;
@@ -351,10 +350,6 @@ public class BeamFnDataOutboundAggregator {
       }
     }
 
-    public ByteString.Output getOutput() {
-      return output;
-    }
-
     public long getByteCount() {
       return perBundleByteCount;
     }
@@ -363,8 +358,12 @@ public class BeamFnDataOutboundAggregator {
       return perBundleElementCount;
     }
 
-    public void resetOutput() {
-      this.output.reset();
+    public int bufferedSize() {
+      return output.size();
+    }
+
+    public ByteString toByteStringAndResetBuffer() {
+      return this.output.toByteStringAndReset();
     }
 
     public void resetStats() {

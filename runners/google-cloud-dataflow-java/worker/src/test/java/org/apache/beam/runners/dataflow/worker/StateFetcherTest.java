@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
@@ -73,7 +74,7 @@ public class StateFetcherTest {
   public void testFetchGlobalDataBasic() throws Exception {
     StateFetcher fetcher = new StateFetcher(server);
 
-    ByteString.Output stream = ByteString.newOutput();
+    ByteStringOutputStream stream = new ByteStringOutputStream();
     ListCoder.of(StringUtf8Coder.of()).encode(Arrays.asList("data"), stream, Coder.Context.OUTER);
     ByteString encodedIterable = stream.toByteString();
 
@@ -126,7 +127,7 @@ public class StateFetcherTest {
   public void testFetchGlobalDataNull() throws Exception {
     StateFetcher fetcher = new StateFetcher(server);
 
-    ByteString.Output stream = ByteString.newOutput();
+    ByteStringOutputStream stream = new ByteStringOutputStream();
     ListCoder.of(VoidCoder.of()).encode(Arrays.asList((Void) null), stream, Coder.Context.OUTER);
     ByteString encodedIterable = stream.toByteString();
 
@@ -179,10 +180,9 @@ public class StateFetcherTest {
   public void testFetchGlobalDataCacheOverflow() throws Exception {
     Coder<List<String>> coder = ListCoder.of(StringUtf8Coder.of());
 
-    ByteString.Output stream = ByteString.newOutput();
+    ByteStringOutputStream stream = new ByteStringOutputStream();
     coder.encode(Arrays.asList("data1"), stream, Coder.Context.OUTER);
-    ByteString encodedIterable1 = stream.toByteString();
-    stream = ByteString.newOutput();
+    ByteString encodedIterable1 = stream.toByteStringAndReset();
     coder.encode(Arrays.asList("data2"), stream, Coder.Context.OUTER);
     ByteString encodedIterable2 = stream.toByteString();
 
