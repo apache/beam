@@ -1305,24 +1305,43 @@ class RunnerApiTest(unittest.TestCase):
     proto = beam_runner_api_pb2.Pipeline(
         components=beam_runner_api_pb2.Components(
             transforms={
-                'transform1': beam_runner_api_pb2.PTransform(
-                    environment_id='e1'),
-                'transform2': beam_runner_api_pb2.PTransform(
-                    environment_id='e2'),
-                'transform3': beam_runner_api_pb2.PTransform(
-                    environment_id='e3'),
-                'transform4': beam_runner_api_pb2.PTransform(
-                    environment_id='e4'),
+                f'transform{ix}': beam_runner_api_pb2.PTransform(
+                    environment_id=f'e{ix}')
+                for ix in range(8)
             },
             environments={
+                # Same hash and destination.
                 'e1': beam_runner_api_pb2.Environment(
-                    dependencies=[file_artifact('a1', 'x', 'a')]),
+                    dependencies=[file_artifact('a1', 'x', 'dest')]),
                 'e2': beam_runner_api_pb2.Environment(
-                    dependencies=[file_artifact('a2', 'x', 'a')]),
+                    dependencies=[file_artifact('a2', 'x', 'dest')]),
+                # Different hash.
                 'e3': beam_runner_api_pb2.Environment(
-                    dependencies=[file_artifact('a3', 'y', 'a')]),
+                    dependencies=[file_artifact('a3', 'y', 'dest')]),
+                # Different destination.
                 'e4': beam_runner_api_pb2.Environment(
-                    dependencies=[file_artifact('a4', 'y', 'b')]),
+                    dependencies=[file_artifact('a4', 'y', 'dest2')]),
+                # Multiple files with same hash and destinations.
+                'e5': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        file_artifact('a1', 'x', 'dest'),
+                        file_artifact('b1', 'xb', 'destB')
+                    ]),
+                'e6': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        file_artifact('a2', 'x', 'dest'),
+                        file_artifact('b2', 'xb', 'destB')
+                    ]),
+                # Overlapping, but not identical, files.
+                'e7': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        file_artifact('a1', 'x', 'dest'),
+                        file_artifact('b2', 'y', 'destB')
+                    ]),
+                # Same files as first, but differing other properties.
+                'e0': beam_runner_api_pb2.Environment(
+                    resource_hints={'hint': b'value'},
+                    dependencies=[file_artifact('a1', 'x', 'dest')]),
             }))
     Pipeline.merge_compatible_environments(proto)
 
@@ -1331,6 +1350,10 @@ class RunnerApiTest(unittest.TestCase):
         proto.components.transforms['transform1'].environment_id,
         proto.components.transforms['transform2'].environment_id)
 
+    self.assertEqual(
+        proto.components.transforms['transform5'].environment_id,
+        proto.components.transforms['transform6'].environment_id)
+
     # These are not.
     self.assertNotEqual(
         proto.components.transforms['transform1'].environment_id,
@@ -1338,8 +1361,14 @@ class RunnerApiTest(unittest.TestCase):
     self.assertNotEqual(
         proto.components.transforms['transform4'].environment_id,
         proto.components.transforms['transform3'].environment_id)
+    self.assertNotEqual(
+        proto.components.transforms['transform6'].environment_id,
+        proto.components.transforms['transform7'].environment_id)
+    self.assertNotEqual(
+        proto.components.transforms['transform1'].environment_id,
+        proto.components.transforms['transform0'].environment_id)
 
-    self.assertEqual(len(proto.components.environments), 3)
+    self.assertEqual(len(proto.components.environments), 6)
 
 
 if __name__ == '__main__':
