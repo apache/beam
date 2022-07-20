@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# pylint: skip-file
-
 """End-to-End test for Pytorch Inference"""
 
 import logging
@@ -29,6 +27,7 @@ import pytest
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
+# pylint: disable=ungrouped-imports
 try:
   import torch
   from apache_beam.examples.inference import pytorch_image_classification
@@ -37,6 +36,7 @@ try:
 except ImportError as e:
   torch = None
 
+# pylint: disable=line-too-long
 _EXPECTED_OUTPUTS = {
     'gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005001.JPEG': '681',
     'gs://apache-beam-ml/datasets/imagenet/raw-data/validation/ILSVRC2012_val_00005002.JPEG': '333',
@@ -64,19 +64,17 @@ def process_outputs(filepath):
     os.getenv('FORCE_TORCH_IT') is None and torch is None,
     'Missing dependencies. '
     'Test depends on torch, torchvision, pillow, and transformers')
-# TODO: https://github.com/apache/beam/issues/21859
-@pytest.mark.skip
 class PyTorchInference(unittest.TestCase):
   @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
   def test_torch_run_inference_imagenet_mobilenetv2(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # text files containing absolute path to the imagenet validation data on GCS
-    file_of_image_names = 'gs://apache-beam-ml/testing/inputs/it_mobilenetv2_imagenet_validation_inputs.txt'  # disable: line-too-long
+    file_of_image_names = 'gs://apache-beam-ml/testing/inputs/it_mobilenetv2_imagenet_validation_inputs.txt'  # pylint: disable=line-too-long
     output_file_dir = 'gs://apache-beam-ml/testing/predictions'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
-    model_state_dict_path = 'gs://apache-beam-ml/models/imagenet_classification_mobilenet_v2.pt'
+    model_state_dict_path = 'gs://apache-beam-ml/models/imagenet_classification_mobilenet_v2.pt'  # pylint: disable=line-too-long
     extra_opts = {
         'input': file_of_image_names,
         'output': output_file,
@@ -98,11 +96,11 @@ class PyTorchInference(unittest.TestCase):
   def test_torch_run_inference_coco_maskrcnn_resnet50_fpn(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # text files containing absolute path to the coco validation data on GCS
-    file_of_image_names = 'gs://apache-beam-ml/testing/inputs/it_coco_validation_inputs.txt'  # disable: line-too-long
+    file_of_image_names = 'gs://apache-beam-ml/testing/inputs/it_coco_validation_inputs.txt'  # pylint: disable=line-too-long
     output_file_dir = 'gs://apache-beam-ml/testing/predictions'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
-    model_state_dict_path = 'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn.pth'
+    model_state_dict_path = 'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn.pth'  # pylint: disable=line-too-long
     images_dir = 'gs://apache-beam-ml/datasets/coco/raw-data/val2017'
     extra_opts = {
         'input': file_of_image_names,
@@ -116,7 +114,7 @@ class PyTorchInference(unittest.TestCase):
 
     self.assertEqual(FileSystems().exists(output_file), True)
     predictions = process_outputs(filepath=output_file)
-    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_torch_run_inference_coco_maskrcnn_resnet50_fpn_actuals.txt'
+    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_torch_run_inference_coco_maskrcnn_resnet50_fpn_actuals.txt'  # pylint: disable=line-too-long
     actuals = process_outputs(filepath=actuals_file)
 
     predictions_dict = {}
@@ -134,11 +132,11 @@ class PyTorchInference(unittest.TestCase):
   def test_torch_run_inference_bert_for_masked_lm(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # Path to text file containing some sentences
-    file_of_sentences = 'gs://apache-beam-ml/datasets/custom/sentences.txt'  # disable: line-too-long
+    file_of_sentences = 'gs://apache-beam-ml/datasets/custom/sentences.txt'  # pylint: disable=line-too-long
     output_file_dir = 'gs://apache-beam-ml/testing/predictions'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
-    model_state_dict_path = 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-base-uncased.pth'
+    model_state_dict_path = 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-base-uncased.pth'  # pylint: disable=line-too-long
     extra_opts = {
         'input': file_of_sentences,
         'output': output_file,
@@ -150,7 +148,7 @@ class PyTorchInference(unittest.TestCase):
 
     self.assertEqual(FileSystems().exists(output_file), True)
     predictions = process_outputs(filepath=output_file)
-    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_torch_run_inference_bert_for_masked_lm_actuals.txt'
+    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_torch_run_inference_bert_for_masked_lm_actuals.txt'  # pylint: disable=line-too-long
     actuals = process_outputs(filepath=actuals_file)
 
     predictions_dict = {}
