@@ -389,6 +389,8 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
       );
     }
     if (this.groups.size > this.maxKeys) {
+      // Flush a random 10% of the map to make more room.
+      // TODO: Tune this, or better use LRU or ARC for this cache.
       return this.flush(this.maxKeys * 0.9);
     } else {
       return NonPromise;
