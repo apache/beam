@@ -31,8 +31,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -50,16 +48,13 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
   private static final Logger LOG = LoggerFactory.getLogger(ReadFromPulsarDoFn.class);
   private SerializableFunction<String, PulsarClient> pulsarClientSerializableFunction;
   private PulsarClient client;
-  private PulsarAdmin admin;
   private String clientUrl;
-  private String adminUrl;
 
   private final SerializableFunction<Message<byte[]>, Instant> extractOutputTimestampFn;
 
   public ReadFromPulsarDoFn(PulsarIO.Read transform) {
     this.extractOutputTimestampFn = transform.getExtractOutputTimestampFn();
     this.clientUrl = transform.getClientUrl();
-    this.adminUrl = transform.getAdminUrl();
     this.pulsarClientSerializableFunction = transform.getPulsarClient();
   }
 
@@ -69,9 +64,6 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
     if (this.clientUrl == null) {
       this.clientUrl = PulsarIOUtils.SERVICE_URL;
     }
-    if (this.adminUrl == null) {
-      this.adminUrl = PulsarIOUtils.SERVICE_HTTP_URL;
-    }
 
     if (this.client == null) {
       this.client = pulsarClientSerializableFunction.apply(this.clientUrl);
@@ -79,22 +71,12 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
         this.client = PulsarClient.builder().serviceUrl(clientUrl).build();
       }
     }
-
-    if (this.admin == null) {
-      this.admin =
-          PulsarAdmin.builder()
-              .serviceHttpUrl(adminUrl)
-              .tlsTrustCertsFilePath(null)
-              .allowTlsInsecureConnection(false)
-              .build();
-    }
   }
 
   // Close connection to Pulsar clients
   @Teardown
   public void teardown() throws Exception {
     this.client.close();
-    this.admin.close();
   }
 
   @GetInitialRestriction
@@ -207,7 +189,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
     }
 
     PulsarLatestOffsetEstimator offsetEstimator =
-        new PulsarLatestOffsetEstimator(this.admin, pulsarSource.getTopic());
+        new PulsarLatestOffsetEstimator(null /*this.admin*/, pulsarSource.getTopic());
     return new GrowableOffsetRangeTracker(restriction.getFrom(), offsetEstimator);
   }
 
@@ -216,14 +198,20 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
 
     private final Supplier<Message> memoizedBacklog;
 
-    private PulsarLatestOffsetEstimator(PulsarAdmin admin, String topic) {
+    private PulsarLatestOffsetEstimator(PulsarClient client, String topic) {
       this.memoizedBacklog =
           Suppliers.memoizeWithExpiration(
               () -> {
-                try {
-                  Message<byte[]> lastMsg = admin.topics().examineMessage(topic, "latest", 1);
+                try (Reader reader =
+                    client
+                        .newReader()
+                        .topic(topic)
+                        .startMessageIdInclusive()
+                        .startMessageId(MessageId.latest)
+                        .create()) {
+                  Message<byte[]> lastMsg = reader.readNext();
                   return lastMsg;
-                } catch (PulsarAdminException e) {
+                } catch (IOException e) {
                   LOG.error(e.getMessage());
                   throw new RuntimeException(e);
                 }

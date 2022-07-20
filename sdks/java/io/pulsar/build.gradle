@@ -22,7 +22,7 @@ applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.pulsar')
 description = "Apache Beam :: SDKs :: Java :: IO :: Pulsar"
 ext.summary = "IO to read and write to Pulsar"
 
-def pulsar_version = '2.8.2'
+def pulsar_version = '2.8.3'
 
 
 dependencies {

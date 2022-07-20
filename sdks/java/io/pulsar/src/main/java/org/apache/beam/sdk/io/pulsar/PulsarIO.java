@@ -49,8 +49,6 @@ public class PulsarIO {
 
     abstract @Nullable String getClientUrl();
 
-    abstract @Nullable String getAdminUrl();
-
     abstract @Nullable String getTopic();
 
     abstract @Nullable Long getStartTimestamp();
@@ -69,8 +67,6 @@ public class PulsarIO {
     abstract static class Builder {
       abstract Builder setClientUrl(String url);
 
-      abstract Builder setAdminUrl(String url);
-
       abstract Builder setTopic(String topic);
 
       abstract Builder setStartTimestamp(Long timestamp);
@@ -85,10 +81,6 @@ public class PulsarIO {
       abstract Builder setPulsarClient(SerializableFunction<String, PulsarClient> fn);
 
       abstract Read build();
-    }
-
-    public Read withAdminUrl(String url) {
-      return builder().setAdminUrl(url).build();
     }
 
     public Read withClientUrl(String url) {
@@ -137,8 +129,7 @@ public class PulsarIO {
                       getStartTimestamp(),
                       getEndTimestamp(),
                       getEndMessageId(),
-                      getClientUrl(),
-                      getAdminUrl())))
+                      getClientUrl())))
           .apply(ParDo.of(new ReadFromPulsarDoFn(this)))
           .setCoder(PulsarMessageCoder.of());
     }

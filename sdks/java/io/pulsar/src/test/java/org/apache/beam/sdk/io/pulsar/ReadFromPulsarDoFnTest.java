@@ -42,7 +42,6 @@ import org.junit.runners.JUnit4;
 public class ReadFromPulsarDoFnTest {
 
   public static final String SERVICE_URL = "pulsar://localhost:6650";
-  public static final String ADMIN_URL = "http://localhost:8080";
   public static final String TOPIC = "PULSARIO_READFROMPULSAR_TEST";
   public static final int NUMBEROFMESSAGES = 100;
 
@@ -54,7 +53,6 @@ public class ReadFromPulsarDoFnTest {
     return PulsarIO.read()
         .withClientUrl(SERVICE_URL)
         .withTopic(TOPIC)
-        .withAdminUrl(ADMIN_URL)
         .withPublishTime()
         .withPulsarClient(
             new SerializableFunction<String, PulsarClient>() {
@@ -76,8 +74,7 @@ public class ReadFromPulsarDoFnTest {
     long expectedStartOffset = 0;
     OffsetRange result =
         dofnInstance.getInitialRestriction(
-            PulsarSourceDescriptor.of(
-                TOPIC, expectedStartOffset, null, null, SERVICE_URL, ADMIN_URL));
+            PulsarSourceDescriptor.of(TOPIC, expectedStartOffset, null, null, SERVICE_URL));
     assertEquals(new OffsetRange(expectedStartOffset, Long.MAX_VALUE), result);
   }
 
@@ -86,8 +83,7 @@ public class ReadFromPulsarDoFnTest {
     long expectedStartOffset = Instant.now().getMillis();
     OffsetRange result =
         dofnInstance.getInitialRestriction(
-            PulsarSourceDescriptor.of(
-                TOPIC, expectedStartOffset, null, null, SERVICE_URL, ADMIN_URL));
+            PulsarSourceDescriptor.of(TOPIC, expectedStartOffset, null, null, SERVICE_URL));
     assertEquals(new OffsetRange(expectedStartOffset, Long.MAX_VALUE), result);
   }
 
@@ -97,7 +93,7 @@ public class ReadFromPulsarDoFnTest {
     long endOffset = fakePulsarReader.getEndTimestamp();
     OffsetRange result =
         dofnInstance.getInitialRestriction(
-            PulsarSourceDescriptor.of(TOPIC, startOffset, endOffset, null, SERVICE_URL, ADMIN_URL));
+            PulsarSourceDescriptor.of(TOPIC, startOffset, endOffset, null, SERVICE_URL));
     assertEquals(new OffsetRange(startOffset, endOffset), result);
   }
 
@@ -108,7 +104,7 @@ public class ReadFromPulsarDoFnTest {
     long endOffset = fakePulsarReader.getEndTimestamp();
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(startOffset, endOffset));
     PulsarSourceDescriptor descriptor =
-        PulsarSourceDescriptor.of(TOPIC, startOffset, endOffset, null, SERVICE_URL, ADMIN_URL);
+        PulsarSourceDescriptor.of(TOPIC, startOffset, endOffset, null, SERVICE_URL);
     DoFn.ProcessContinuation result =
         dofnInstance.processElement(descriptor, tracker, null, (DoFn.OutputReceiver) receiver);
     int expectedResultWithoutCountingLastOffset = NUMBEROFMESSAGES - 1;
@@ -123,7 +119,7 @@ public class ReadFromPulsarDoFnTest {
     MessageId endMessageId = DefaultImplementation.newMessageId(50L, 50L, 50);
     DoFn.ProcessContinuation result =
         dofnInstance.processElement(
-            PulsarSourceDescriptor.of(TOPIC, null, null, endMessageId, SERVICE_URL, ADMIN_URL),
+            PulsarSourceDescriptor.of(TOPIC, null, null, endMessageId, SERVICE_URL),
             tracker,
             null,
             (DoFn.OutputReceiver) receiver);
@@ -138,7 +134,7 @@ public class ReadFromPulsarDoFnTest {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     DoFn.ProcessContinuation result =
         dofnInstance.processElement(
-            PulsarSourceDescriptor.of(TOPIC, null, null, null, SERVICE_URL, ADMIN_URL),
+            PulsarSourceDescriptor.of(TOPIC, null, null, null, SERVICE_URL),
             tracker,
             null,
             (DoFn.OutputReceiver) receiver);
@@ -153,7 +149,7 @@ public class ReadFromPulsarDoFnTest {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     DoFn.ProcessContinuation result =
         dofnInstance.processElement(
-            PulsarSourceDescriptor.of(TOPIC, null, null, null, SERVICE_URL, ADMIN_URL),
+            PulsarSourceDescriptor.of(TOPIC, null, null, null, SERVICE_URL),
             tracker,
             null,
             (DoFn.OutputReceiver) receiver);

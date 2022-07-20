@@ -168,7 +168,6 @@ public class PulsarIOTest {
       PulsarIO.Read reader =
           PulsarIO.read()
               .withClientUrl(pulsarContainer.getPulsarBrokerUrl())
-              .withAdminUrl(pulsarContainer.getHttpServiceUrl())
               .withTopic(TOPIC)
               .withStartTimestamp(startTime)
               .withEndTimestamp(endExpectedTime)
