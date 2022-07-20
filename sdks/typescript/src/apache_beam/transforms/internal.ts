@@ -226,7 +226,7 @@ export function combinePerKey<K, InputT, AccT, OutputT>(
       .map(
         withName("applyCombine", (kv) => {
           // Artificially use multiple accumulators to emulate what would
-          // happen in a distributed combine.
+          // happen in a distributed combine for better testing.
           const accumulators = [
             combineFn.createAccumulator(),
             combineFn.createAccumulator(),
