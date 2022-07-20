@@ -1457,6 +1457,8 @@ class BeamModulePlugin implements Plugin<Project> {
           args '-f=0'
           args '-wf=0'
           args '-foe=true'
+          // Allow jmhTest to run concurrently with other jmhTest instances
+          systemProperties(['jmh.ignoreLock' : 'true'])
         }
         project.check.dependsOn jmhTest
       }
