@@ -1336,36 +1336,34 @@ public class KafkaIO {
       Coder<K> keyCoder = getKeyCoder(coderRegistry);
       Coder<V> valueCoder = getValueCoder(coderRegistry);
 
-      final KafkaIOReadImplementationCompatibilityResult compatibility =
-          KafkaIOReadImplementationCompatibility.getCompatibility(this);
-
       // Reading from Kafka SDF is currently broken, as re-starting the pipeline will cause the
       // consumer to start from scratch. See https://github.com/apache/beam/issues/21730.
       // https://github.com/apache/beam/issues/22303 is the task to try and fix Kafka SDF overall,
       // as it appears to have other issues as well.
-      ExperimentalOptions.addExperiment(
-          input.getPipeline().getOptions().as(ExperimentalOptions.class),
-          "use_unbounded_sdf_wrapper");
+      return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
 
-      // For a number of cases, we prefer using the UnboundedSource Kafka over the new SDF-based
-      // Kafka source, for example,
-      // * Experiments 'beam_fn_api_use_deprecated_read' and use_deprecated_read will result in
-      // legacy UnboundeSource being used.
-      // * Experiment 'use_unbounded_sdf_wrapper' will result in legacy UnboundeSource being used
-      // but will be wrapped by an SDF.
-      // * Some runners or selected features may not be compatible with SDF-based Kafka.
-      if (ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
-          || ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "use_deprecated_read")
-          || ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "use_unbounded_sdf_wrapper")
-          || compatibility.supportsOnly(KafkaIOReadImplementation.LEGACY)
-          || (compatibility.supports(KafkaIOReadImplementation.LEGACY)
-              && runnerPrefersLegacyRead(input.getPipeline().getOptions()))) {
-        return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
-      }
-      return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
+      // final KafkaIOReadImplementationCompatibilityResult compatibility =
+      //     KafkaIOReadImplementationCompatibility.getCompatibility(this);
+
+      // // For a number of cases, we prefer using the UnboundedSource Kafka over the new SDF-based
+      // // Kafka source, for example,
+      // // * Experiments 'beam_fn_api_use_deprecated_read' and use_deprecated_read will result in
+      // // legacy UnboundeSource being used.
+      // // * Experiment 'use_unbounded_sdf_wrapper' will result in legacy UnboundeSource being used
+      // // but will be wrapped by an SDF.
+      // // * Some runners or selected features may not be compatible with SDF-based Kafka.
+      // if (ExperimentalOptions.hasExperiment(
+      //         input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
+      //     || ExperimentalOptions.hasExperiment(
+      //         input.getPipeline().getOptions(), "use_deprecated_read")
+      //     || ExperimentalOptions.hasExperiment(
+      //         input.getPipeline().getOptions(), "use_unbounded_sdf_wrapper")
+      //     || compatibility.supportsOnly(KafkaIOReadImplementation.LEGACY)
+      //     || (compatibility.supports(KafkaIOReadImplementation.LEGACY)
+      //         && runnerPrefersLegacyRead(input.getPipeline().getOptions()))) {
+      //   return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
+      // }
+      // return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
     }
 
     private void warnAboutUnsafeConfigurations(PBegin input) {
