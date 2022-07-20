@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This workflow will run JDBC IO Integration Tests in Java SDK with DirectRunner
+# This workflow will run Kafka IO Integration Tests in Java SDK with DirectRunner
 
-name: Java_JDBC_IO_Direct
+name: Java_Kafka_IO_Direct
 
 on:
   schedule:
@@ -28,13 +28,13 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['^sdks/java/io/jdbc/.*$']
+#    paths: ['^sdks/java/io/kafka/.*$']
 
 jobs:
-  java-jdbc-io:
-    name: Run Java JDBC IO Direct
-    runs-on: self-hosted
-    timeout-minutes: 60
+  java-kafka-io:
+    name: Run Java Kafka IO Direct
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
     strategy:
       fail-fast: false
     steps:
@@ -43,8 +43,8 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Run :sdks:java:io:jdbc:integrationTest
+      - name: Run :sdks:java:io:kafka:kafkaVersionsCompatibilityTest
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:jdbc:integrationTest
+          gradle-command: :sdks:java:io:kafka:kafkaVersionsCompatibilityTest
           gradle-switches: "-PdisableSpotlessCheck=true, -PdisableCheckStyle=true"
