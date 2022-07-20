@@ -45,7 +45,7 @@ jobs:
         #  submodules: recursive
       - name: Run :sdks:java:io:jdbc:integrationTest
         run: |
-          docker run -i --rm \
+          docker run -i \
           -v /var/run/docker.sock:/var/run/docker.sock \
           -v "$PWD:$PWD" \
           -w "$PWD" \
