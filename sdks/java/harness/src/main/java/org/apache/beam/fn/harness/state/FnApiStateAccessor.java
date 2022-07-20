@@ -56,6 +56,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -118,7 +119,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
               checkState(
                   keyCoder != null, "Accessing state in unkeyed context, no key coder available");
 
-              ByteString.Output encodedKeyOut = ByteString.newOutput();
+              ByteStringOutputStream encodedKeyOut = new ByteStringOutputStream();
               try {
                 ((Coder) keyCoder).encode(key, encodedKeyOut, Coder.Context.NESTED);
               } catch (IOException e) {
@@ -131,7 +132,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
         memoizeFunction(
             currentWindowSupplier,
             window -> {
-              ByteString.Output encodedWindowOut = ByteString.newOutput();
+              ByteStringOutputStream encodedWindowOut = new ByteStringOutputStream();
               try {
                 windowCoder.encode(window, encodedWindowOut);
               } catch (IOException e) {
@@ -167,7 +168,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     SideInputSpec sideInputSpec = sideInputSpecMap.get(tag);
     checkArgument(sideInputSpec != null, "Attempting to access unknown side input %s.", view);
 
-    ByteString.Output encodedWindowOut = ByteString.newOutput();
+    ByteStringOutputStream encodedWindowOut = new ByteStringOutputStream();
     try {
       sideInputSpec
           .getWindowCoder()

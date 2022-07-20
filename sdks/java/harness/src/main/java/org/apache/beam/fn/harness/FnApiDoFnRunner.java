@@ -106,6 +106,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
@@ -728,7 +729,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               public void reset() {}
 
               private ByteString encodeProgress(double value) throws IOException {
-                ByteString.Output output = ByteString.newOutput();
+                ByteStringOutputStream output = new ByteStringOutputStream();
                 IterableCoder.of(DoubleCoder.of()).encode(Arrays.asList(value), output);
                 return output.toByteString();
               }
@@ -1514,7 +1515,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     // Encode window splits.
     if (windowedSplitResult != null
         && windowedSplitResult.getPrimaryInFullyProcessedWindowsRoot() != null) {
-      ByteString.Output primaryInOtherWindowsBytes = ByteString.newOutput();
+      ByteStringOutputStream primaryInOtherWindowsBytes = new ByteStringOutputStream();
       try {
         fullInputCoder.encode(
             windowedSplitResult.getPrimaryInFullyProcessedWindowsRoot(),
@@ -1531,7 +1532,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
     if (windowedSplitResult != null
         && windowedSplitResult.getResidualInUnprocessedWindowsRoot() != null) {
-      ByteString.Output bytesOut = ByteString.newOutput();
+      ByteStringOutputStream bytesOut = new ByteStringOutputStream();
       try {
         fullInputCoder.encode(windowedSplitResult.getResidualInUnprocessedWindowsRoot(), bytesOut);
       } catch (IOException e) {
@@ -1564,8 +1565,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .build());
     }
 
-    ByteString.Output primaryBytes = ByteString.newOutput();
-    ByteString.Output residualBytes = ByteString.newOutput();
+    ByteStringOutputStream primaryBytes = new ByteStringOutputStream();
+    ByteStringOutputStream residualBytes = new ByteStringOutputStream();
     // Encode element split from windowedSplitResult or from downstream element split. It's possible
     // that there is no element split.
     if (windowedSplitResult != null && windowedSplitResult.getResidualSplitRoot() != null) {
