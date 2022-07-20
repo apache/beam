@@ -59,7 +59,7 @@ import org.slf4j.LoggerFactory;
 
 /** A {@link PipelineRunner} a {@link Pipeline} against a {@code JobService}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PortableRunner extends PipelineRunner<PipelineResult> {
 

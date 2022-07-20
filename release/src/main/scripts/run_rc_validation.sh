@@ -98,7 +98,7 @@ echo "All environment and workflow configurations from RC_VALIDATE_CONFIGS:"
 for i in "${RC_VALIDATE_CONFIGS[@]}"; do
   echo "$i = ${!i}"
 done
-echo "TODO(BEAM-13054): parts of this script launch background processes with gnome-terminal,"
+echo "TODO(https://github.com/apache/beam/issues/21237): parts of this script launch background processes with gnome-terminal,"
 echo "It may not work well over ssh or within a tmux session. Using 'ssh -Y' may help."
 echo "[Confirmation Required] Would you like to proceed with current settings? [y|N]"
 read confirmation
@@ -229,7 +229,7 @@ else
   echo "* Skipping Python Quickstart and MobileGame. Hub is required."
 fi
 
-# TODO(BEAM-13220) Run the remaining tests on Jenkins.
+# TODO(https://github.com/apache/beam/issues/21193) Run the remaining tests on Jenkins.
 echo ""
 echo "====================Starting Python Leaderboard & GameStates Validations==============="
 if [[ ("$python_leaderboard_direct" = true \

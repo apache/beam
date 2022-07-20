@@ -24,12 +24,13 @@ import java.io.IOException;
 import java.util.Base64;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 
 /** A Uuid storable in a Pub/Sub Lite attribute. */
 @DefaultCoder(UuidCoder.class)
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class Uuid {
   public static final String DEFAULT_ATTRIBUTE = "x-goog-pubsublite-dataflow-uuid";
@@ -42,7 +43,7 @@ public abstract class Uuid {
 
   public static Uuid random() {
     UUID uuid = UUID.randomUUID();
-    ByteString.Output output = ByteString.newOutput(16);
+    ByteStringOutputStream output = new ByteStringOutputStream(16);
     DataOutputStream stream = new DataOutputStream(output);
     try {
       stream.writeLong(uuid.getMostSignificantBits());

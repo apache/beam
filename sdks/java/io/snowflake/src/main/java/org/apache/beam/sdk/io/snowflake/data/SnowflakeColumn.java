@@ -21,7 +21,7 @@ import java.io.Serializable;
 
 /** POJO describing single Column within Snowflake Table. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SnowflakeColumn implements Serializable {
   private SnowflakeDataType dataType;

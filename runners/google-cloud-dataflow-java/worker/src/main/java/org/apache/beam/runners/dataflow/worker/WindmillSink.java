@@ -34,6 +34,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
@@ -44,8 +45,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class WindmillSink<T> extends Sink<WindowedValue<T>> {
   private WindmillStreamWriter writer;
@@ -69,7 +70,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       Collection<? extends BoundedWindow> windows,
       PaneInfo pane)
       throws IOException {
-    ByteString.Output stream = ByteString.newOutput();
+    ByteStringOutputStream stream = new ByteStringOutputStream();
     PaneInfoCoder.INSTANCE.encode(pane, stream);
     windowsCoder.encode(windows, stream, Coder.Context.OUTER);
     return stream.toByteString();
@@ -135,7 +136,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {
-      ByteString.Output stream = ByteString.newOutput();
+      ByteStringOutputStream stream = new ByteStringOutputStream();
       coder.encode(object, stream, Coder.Context.OUTER);
       return stream.toByteString();
     }

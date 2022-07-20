@@ -66,7 +66,7 @@ type FixedReStream struct {
 	Buf []FullValue
 }
 
-// Open returns the a Stream from the start of the in-memory ReStream.
+// Open returns the Stream from the start of the in-memory ReStream.
 func (n *FixedReStream) Open() (Stream, error) {
 	return &FixedStream{Buf: n.Buf}, nil
 }

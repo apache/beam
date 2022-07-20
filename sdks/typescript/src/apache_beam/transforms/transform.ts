@@ -27,13 +27,13 @@ export function withName<T>(name: string | (() => string), arg: T): T {
 
 export function extractName<T>(withName: T): string {
   const untyped = withName as any;
-  if (untyped.beamName != undefined) {
-    if (typeof untyped.beamName == "string") {
+  if (untyped.beamName !== null && untyped.beamName !== undefined) {
+    if (typeof untyped.beamName === "string") {
       return untyped.beamName;
     } else {
       return untyped.beamName();
     }
-  } else if (untyped.name && untyped.name != "anonymous") {
+  } else if (untyped.name && untyped.name !== "anonymous") {
     return untyped.name;
   } else {
     const stringified = ("" + withName)
@@ -73,16 +73,16 @@ export class AsyncPTransformClass<
     this.beamName = name || this.constructor.name;
   }
 
-  async asyncExpand(input: InputT): Promise<OutputT> {
+  async expandAsync(input: InputT): Promise<OutputT> {
     throw new Error("Method expand has not been implemented.");
   }
 
-  async asyncExpandInternal(
+  async expandInternalAsync(
     input: InputT,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform
   ): Promise<OutputT> {
-    return this.asyncExpand(input);
+    return this.expandAsync(input);
   }
 }
 
@@ -94,7 +94,7 @@ export class PTransformClass<
     throw new Error("Method expand has not been implemented.");
   }
 
-  async asyncExpand(input: InputT): Promise<OutputT> {
+  async expandAsync(input: InputT): Promise<OutputT> {
     return this.expand(input);
   }
 
@@ -106,7 +106,7 @@ export class PTransformClass<
     return this.expand(input);
   }
 
-  async asyncExpandInternal(
+  async expandInternalAsync(
     input: InputT,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform

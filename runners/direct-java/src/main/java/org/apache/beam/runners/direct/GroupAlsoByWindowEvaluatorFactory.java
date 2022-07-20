@@ -59,10 +59,10 @@ import org.joda.time.Instant;
  * DirectGroupAlsoByWindow} {@link PTransform}.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "keyfor",
   "nullness"
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+}) // TODO(https://github.com/apache/beam/issues/20497)
 class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
   private final PipelineOptions options;

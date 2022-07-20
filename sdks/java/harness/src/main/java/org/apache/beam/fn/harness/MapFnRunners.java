@@ -20,15 +20,10 @@ package org.apache.beam.fn.harness;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
 
 import java.io.IOException;
-import java.util.Map;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
@@ -41,7 +36,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  * using the {@link FnApiDoFnRunner} instance.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public abstract class MapFnRunners {
 
@@ -93,43 +88,17 @@ public abstract class MapFnRunners {
 
     @Override
     public Mapper<InputT, OutputT> createRunnerForPTransform(Context context) throws IOException {
-
       FnDataReceiver<WindowedValue<InputT>> consumer =
-          (FnDataReceiver)
-              context.getPCollectionConsumer(
-                  getOnlyElement(context.getPTransform().getOutputsMap().values()));
+          context.getPCollectionConsumer(
+              getOnlyElement(context.getPTransform().getOutputsMap().values()));
 
       Mapper<InputT, OutputT> mapper =
           mapperFactory.create(context.getPTransformId(), context.getPTransform(), consumer);
 
-      RehydratedComponents components =
-          RehydratedComponents.forComponents(
-              Components.newBuilder().putAllCoders(context.getCoders()).build());
       String pCollectionId =
           Iterables.getOnlyElement(context.getPTransform().getInputsMap().values());
-      context.addPCollectionConsumer(
-          pCollectionId,
-          (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) mapper::map,
-          getValueCoder(components, context.getPCollections(), pCollectionId));
+      context.addPCollectionConsumer(pCollectionId, mapper::map);
       return mapper;
-    }
-
-    private org.apache.beam.sdk.coders.Coder<?> getValueCoder(
-        RehydratedComponents components,
-        Map<String, PCollection> pCollections,
-        String pCollectionId)
-        throws IOException {
-      if (!pCollections.containsKey(pCollectionId)) {
-        throw new IllegalArgumentException(
-            String.format("Missing PCollection for id: %s", pCollectionId));
-      }
-
-      org.apache.beam.sdk.coders.Coder<?> coder =
-          components.getCoder(pCollections.get(pCollectionId).getCoderId());
-      if (coder instanceof WindowedValueCoder) {
-        coder = ((WindowedValueCoder<InputT>) coder).getValueCoder();
-      }
-      return coder;
     }
   }
 

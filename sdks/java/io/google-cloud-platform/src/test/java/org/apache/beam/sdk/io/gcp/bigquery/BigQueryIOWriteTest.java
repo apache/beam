@@ -155,7 +155,7 @@ import org.junit.runners.model.Statement;
 /** Tests for {@link BigQueryIO#write}. */
 @RunWith(Parameterized.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BigQueryIOWriteTest implements Serializable {
   private transient PipelineOptions options;

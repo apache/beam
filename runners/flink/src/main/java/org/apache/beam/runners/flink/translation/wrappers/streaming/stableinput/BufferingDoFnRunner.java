@@ -47,8 +47,8 @@ import org.joda.time.Instant;
  * results on failures.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 

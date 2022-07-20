@@ -123,7 +123,7 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.FILESYSTEM)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     implements Serializable, HasDisplayData {
@@ -1196,7 +1196,12 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
-      return Arrays.asList(windowCoder);
+      return Collections.singletonList(destinationCoder);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Arrays.asList(windowCoder, destinationCoder);
     }
 
     @Override

@@ -36,9 +36,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing reading the results of a query. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
 
   public static <T> BigQueryStorageQuerySource<T> create(
@@ -100,11 +97,11 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
   private final Boolean flattenResults;
   private final Boolean useLegacySql;
   private final QueryPriority priority;
-  private final String location;
-  private final String queryTempDataset;
-  private final String kmsKey;
+  private final @Nullable String location;
+  private final @Nullable String queryTempDataset;
+  private final @Nullable String kmsKey;
 
-  private transient AtomicReference<JobStatistics> dryRunJobStats;
+  private transient AtomicReference<@Nullable JobStatistics> dryRunJobStats;
 
   private BigQueryStorageQuerySource(
       String stepUuid,
@@ -115,7 +112,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
       @Nullable String location,
       @Nullable String queryTempDataset,
       @Nullable String kmsKey,
-      DataFormat format,
+      @Nullable DataFormat format,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
@@ -160,7 +157,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
   }
 
   @Override
-  protected Table getTargetTable(BigQueryOptions options) throws Exception {
+  protected @Nullable Table getTargetTable(BigQueryOptions options) throws Exception {
     TableReference queryResultTable =
         BigQueryQueryHelper.executeQuery(
             bqServices,

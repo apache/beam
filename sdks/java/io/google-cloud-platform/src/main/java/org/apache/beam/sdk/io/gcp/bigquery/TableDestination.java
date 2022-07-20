@@ -25,9 +25,6 @@ import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Encapsulates a BigQuery table destination. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TableDestination implements Serializable {
   private static final long serialVersionUID = 1L;
   private final String tableSpec;
@@ -136,11 +133,11 @@ public class TableDestination implements Serializable {
     return BigQueryHelpers.parseTableSpec(tableSpec);
   }
 
-  public String getJsonTimePartitioning() {
+  public @Nullable String getJsonTimePartitioning() {
     return jsonTimePartitioning;
   }
 
-  public TimePartitioning getTimePartitioning() {
+  public @Nullable TimePartitioning getTimePartitioning() {
     if (jsonTimePartitioning == null) {
       return null;
     } else {
@@ -148,11 +145,11 @@ public class TableDestination implements Serializable {
     }
   }
 
-  public String getJsonClustering() {
+  public @Nullable String getJsonClustering() {
     return jsonClustering;
   }
 
-  public Clustering getClustering() {
+  public @Nullable Clustering getClustering() {
     if (jsonClustering == null) {
       return null;
     } else {

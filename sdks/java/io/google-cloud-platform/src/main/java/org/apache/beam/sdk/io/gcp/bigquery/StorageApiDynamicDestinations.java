@@ -67,7 +67,7 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
       DestinationT destination, DatasetService datasetService) throws Exception;
 
   @Override
-  public DestinationT getDestination(ValueInSingleWindow<T> element) {
+  public DestinationT getDestination(@Nullable ValueInSingleWindow<T> element) {
     return inner.getDestination(element);
   }
 
@@ -82,7 +82,7 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
   }
 
   @Override
-  public TableSchema getSchema(DestinationT destination) {
+  public @Nullable TableSchema getSchema(DestinationT destination) {
     return inner.getSchema(destination);
   }
 

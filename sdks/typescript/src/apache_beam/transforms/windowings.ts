@@ -90,7 +90,7 @@ export function sessions(gapSeconds: number | Long): WindowFn<IntervalWindow> {
 }
 
 function secsToMillisLong(secs: number | Long): Long {
-  if (typeof secs == "number") {
+  if (typeof secs === "number") {
     return Long.fromValue(secs * 1000);
   } else {
     return secs.mul(1000);
@@ -102,13 +102,13 @@ function millisToProto(t: Long) {
 }
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.transforms.windowings", exports);
-requireForSerialization("apache_beam.transforms.windowings", millisToProto);
+requireForSerialization("apache-beam/transforms/windowings", exports);
+requireForSerialization("apache-beam/transforms/windowings", { millisToProto });
 requireForSerialization(
-  "apache_beam.transforms.windowings",
+  "apache-beam/transforms/windowings",
   FixedWindowsPayload
 );
 requireForSerialization(
-  "apache_beam.transforms.windowings",
+  "apache-beam/transforms/windowings",
   SessionWindowsPayload
 );

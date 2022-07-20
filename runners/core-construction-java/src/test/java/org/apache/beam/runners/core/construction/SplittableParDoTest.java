@@ -219,12 +219,38 @@ public class SplittableParDoTest {
   }
 
   @Test
-  public void testConvertIsSkippedWhenUsingDeprecatedRead() {
-    Pipeline sdfRead = Pipeline.create();
+  public void testConvertIsSkippedWhenUsingUseSDFRead() {
+    PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+    pipelineOptions.setRunner(CrashingRunner.class);
+    ExperimentalOptions.addExperiment(
+        pipelineOptions.as(ExperimentalOptions.class), "use_sdf_read");
+    Pipeline sdfRead = Pipeline.create(pipelineOptions);
     sdfRead.apply(Read.from(new FakeBoundedSource()));
     sdfRead.apply(Read.from(new BoundedToUnboundedSourceAdapter<>(new FakeBoundedSource())));
     SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(sdfRead);
-    pipeline.traverseTopologically(
+    sdfRead.traverseTopologically(
+        new Defaults() {
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            assertThat(
+                node.getTransform(), not(instanceOf(SplittableParDo.PrimitiveBoundedRead.class)));
+            assertThat(
+                node.getTransform(), not(instanceOf(SplittableParDo.PrimitiveUnboundedRead.class)));
+          }
+        });
+  }
+
+  @Test
+  public void testConvertIsSkippedWhenUsingUseUnboundedSDFWrapper() {
+    PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+    pipelineOptions.setRunner(CrashingRunner.class);
+    ExperimentalOptions.addExperiment(
+        pipelineOptions.as(ExperimentalOptions.class), "use_unbounded_sdf_wrapper");
+    Pipeline sdfRead = Pipeline.create(pipelineOptions);
+    sdfRead.apply(Read.from(new FakeBoundedSource()));
+    sdfRead.apply(Read.from(new BoundedToUnboundedSourceAdapter<>(new FakeBoundedSource())));
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(sdfRead);
+    sdfRead.traverseTopologically(
         new Defaults() {
           @Override
           public void visitPrimitiveTransform(Node node) {

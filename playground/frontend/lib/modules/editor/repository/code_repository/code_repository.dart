@@ -30,7 +30,7 @@ const kTimeoutErrorText =
     'https://beam.apache.org/get-started/downloads/ '
     'to try examples without timeout limitation.';
 const kUnknownErrorText =
-    'Something went wrong. Please try again later or create a jira ticket';
+    'Something went wrong. Please try again later or create a GitHub issue';
 const kProcessingStartedText = 'The processing has started\n';
 
 class CodeRepository {

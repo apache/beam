@@ -32,7 +32,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
@@ -46,8 +46,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  * pressure and its need to flush.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BagUserState<T> {
   private final Cache<?, ?> cache;
@@ -128,7 +128,7 @@ public class BagUserState<T> {
           request.toBuilder().setClear(StateClearRequest.getDefaultInstance()));
     }
     if (!newValues.isEmpty()) {
-      ByteString.Output out = ByteString.newOutput();
+      ByteStringOutputStream out = new ByteStringOutputStream();
       for (T newValue : newValues) {
         // TODO: Replace with chunking output stream
         valueCoder.encode(newValue, out);
