@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.cdap;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.hadoop.conf.Configuration;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 
@@ -114,7 +116,10 @@ public class CdapIO {
       Class<K> keyClass = checkArgumentNotNull(getKeyClass(), "withKeyClass() is required");
       Class<V> valueClass = checkArgumentNotNull(getValueClass(), "withValueClass() is required");
 
-      plugin.withConfig(pluginConfig).withHadoopConfiguration(keyClass, valueClass).prepareRun();
+      plugin
+              .withConfig(pluginConfig)
+              .withHadoopConfiguration(keyClass, valueClass)
+              .prepareRun();
 
       if (plugin.isUnbounded()) {
         // TODO: implement SparkReceiverIO.<~>read()
@@ -132,22 +137,17 @@ public class CdapIO {
   @AutoValue
   @AutoValue.CopyAnnotations
   public abstract static class Write<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
-    @Pure
+
     abstract @Nullable PluginConfig getPluginConfig();
 
-    @Pure
     abstract @Nullable Plugin getCdapPlugin();
 
-    @Pure
     abstract @Nullable Class<K> getKeyClass();
 
-    @Pure
     abstract @Nullable Class<V> getValueClass();
 
-    @Pure
     abstract @Nullable String getLocksDirPath();
 
-    @Pure
     abstract Builder<K, V> toBuilder();
 
     @Experimental(Experimental.Kind.PORTABILITY)
@@ -200,15 +200,16 @@ public class CdapIO {
 
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
-      Plugin plugin = checkArgumentNotNull(getCdapPlugin(), "withCdapPluginClass() is required");
-      PluginConfig pluginConfig =
-          checkArgumentNotNull(getPluginConfig(), "withPluginConfig() is required");
+      Plugin plugin = checkArgumentNotNull(getCdapPlugin(), "withKeyClass() is required");
+      PluginConfig pluginConfig = checkArgumentNotNull(getPluginConfig(), "withKeyClass() is required");
       Class<K> keyClass = checkArgumentNotNull(getKeyClass(), "withKeyClass() is required");
       Class<V> valueClass = checkArgumentNotNull(getValueClass(), "withValueClass() is required");
       String locksDirPath =
           checkArgumentNotNull(getLocksDirPath(), "withLocksDirPath() is required");
 
-      plugin.withConfig(pluginConfig).withHadoopConfiguration(keyClass, valueClass).prepareRun();
+      plugin
+              .withConfig(pluginConfig)
+              .withHadoopConfiguration(keyClass, valueClass).prepareRun();
 
       if (plugin.isUnbounded()) {
         // TODO: implement SparkReceiverIO.<~>write()
