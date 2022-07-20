@@ -51,4 +51,4 @@ jobs:
           -v "$PWD:$PWD" \
           -w "$PWD" \
           gradle \
-          pwd & ls
+          gradle :sdks:java:io:jdbc:integrationTest -PdisableSpotlessCheck=true, -PdisableCheckStyle=true --info
