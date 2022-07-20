@@ -27,9 +27,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -40,6 +42,7 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
@@ -60,7 +63,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.Context;
 import org.apache.samza.operators.Scheduler;
@@ -224,6 +230,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       this.fnRunner =
           SamzaDoFnRunners.createPortable(
               transformId,
+              toStepName(executableStage),
               bundleStateId,
               windowedValueCoder,
               executableStage,
@@ -234,6 +241,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               samzaPipelineOptions,
               outputManagerFactory.create(emitter, outputFutureCollector),
               stageBundleFactory,
+              samzaExecutionContext,
               mainOutputTag,
               idToTupleTagMap,
               context,
@@ -272,6 +280,49 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       doFnInvoker =
           Iterators.getOnlyElement(invokerReg).invokerSetupFor(doFn, samzaPipelineOptions, context);
     }
+  }
+
+  private String toStepName(ExecutableStage executableStage) {
+    /*
+     * Look for the first/input ParDo/DoFn in this executable stage by
+     * matching ParDo/DoFn's input PCollection with executable stage's
+     * input PCollection
+     */
+    Set<PipelineNode.PTransformNode> inputs =
+        executableStage.getTransforms().stream()
+            .filter(
+                transform ->
+                    transform
+                        .getTransform()
+                        .getInputsMap()
+                        .containsValue(executableStage.getInputPCollection().getId()))
+            .collect(Collectors.toSet());
+
+    Set<String> outputIds =
+        executableStage.getOutputPCollections().stream()
+            .map(PipelineNode.PCollectionNode::getId)
+            .collect(Collectors.toSet());
+
+    /*
+     * Look for the last/output ParDo/DoFn in this executable stage by
+     * matching ParDo/DoFn's output PCollection(s) with executable stage's
+     * out PCollection(s)
+     */
+    Set<PipelineNode.PTransformNode> outputs =
+        executableStage.getTransforms().stream()
+            .filter(
+                transform ->
+                    CollectionUtils.containsAny(
+                        transform.getTransform().getOutputsMap().values(), outputIds))
+            .collect(Collectors.toSet());
+
+    return String.format("[%s-%s]", toStepName(inputs), toStepName(outputs));
+  }
+
+  private String toStepName(Set<PipelineNode.PTransformNode> nodes) {
+    // TODO: format name when there are multiple input and output PTransform in the ExecutableStage
+    return Iterables.get(
+        Splitter.on('/').split(nodes.iterator().next().getTransform().getUniqueName()), 0);
   }
 
   FutureCollector<OutT> createFutureCollector() {
