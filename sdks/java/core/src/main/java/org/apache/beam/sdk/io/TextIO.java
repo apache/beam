@@ -180,7 +180,7 @@ import org.joda.time.Duration;
  * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TextIO {
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
@@ -350,15 +350,27 @@ public class TextIO {
     }
 
     /**
-     * See {@link MatchConfiguration#continuously}.
+     * See {@link MatchConfiguration#continuously(Duration, TerminationCondition, boolean)}.
      *
      * <p>This works only in runners supporting splittable {@link
      * org.apache.beam.sdk.transforms.DoFn}.
      */
     public Read watchForNewFiles(
-        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
       return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
+          getMatchConfiguration()
+              .continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
+    /**
+     * Same as {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)} with {@code
+     * matchUpdatedFiles=false}.
+     */
+    public Read watchForNewFiles(
+        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+      return watchForNewFiles(pollInterval, terminationCondition, false);
     }
 
     /**
@@ -496,11 +508,20 @@ public class TextIO {
       return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
+    /** Same as {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)}. */
+    public ReadAll watchForNewFiles(
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
+      return withMatchConfiguration(
+          getMatchConfiguration()
+              .continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
     /** Same as {@link Read#watchForNewFiles(Duration, TerminationCondition)}. */
     public ReadAll watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
+      return watchForNewFiles(pollInterval, terminationCondition, false);
     }
 
     ReadAll withDelimiter(byte[] delimiter) {

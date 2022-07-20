@@ -36,11 +36,6 @@ class ReportGeneratorConfig:
   PYPI_URL = "https://pypi.org/project/"
   MAVEN_CENTRAL_URL = "https://mvnrepository.com/artifact"
 
-  # Constants for JIRA automation
-  BEAM_JIRA_HOST        = 'https://issues.apache.org/jira/'
-  BEAM_JIRA_BOT_USRENAME= os.environ['BEAM_JIRA_BOT_USERNAME']
-  BEAM_JIRA_BOT_PASSWORD= os.environ['BEAM_JIRA_BOT_PASSWORD']
-
   # Dependency Owners
   JAVA_DEP_OWNERS       = WORKING_SPACE + '/src/ownership/JAVA_DEPENDENCY_OWNERS.yaml'
   PYTHON_DEP_OWNERS     = WORKING_SPACE + '/src/ownership/PYTHON_DEPENDENCY_OWNERS.yaml'

@@ -22,7 +22,7 @@ import org.apache.beam.sdk.values.Row;
 
 /** A duration represented in nanoseconds. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class NanosDuration extends NanosType<Duration> {
   public static final String IDENTIFIER = "beam:logical_type:nanos_duration:v1";

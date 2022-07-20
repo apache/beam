@@ -27,6 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 
 /**
@@ -35,8 +36,8 @@ import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
  * OutputStream} as multiple {@link ByteString}s.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DataStreams {
   public static final int DEFAULT_OUTBOUND_BUFFER_LIMIT_BYTES = 1_000_000;
@@ -80,7 +81,7 @@ public class DataStreams {
    */
   public static final class ElementDelimitedOutputStream extends OutputStream {
     private final OutputChunkConsumer<ByteString> consumer;
-    private final ByteString.Output output;
+    private final ByteStringOutputStream output;
     private final int maximumChunkSize;
     int previousPosition;
 
@@ -88,7 +89,7 @@ public class DataStreams {
         OutputChunkConsumer<ByteString> consumer, int maximumChunkSize) {
       this.consumer = consumer;
       this.maximumChunkSize = maximumChunkSize;
-      this.output = ByteString.newOutput(maximumChunkSize);
+      this.output = new ByteStringOutputStream(maximumChunkSize);
     }
 
     public void delimitElement() throws IOException {
@@ -139,8 +140,7 @@ public class DataStreams {
 
     /** Can only be called if at least one byte has been written. */
     private void internalFlush() throws IOException {
-      consumer.read(output.toByteString());
-      output.reset();
+      consumer.read(output.toByteStringAndReset());
       // Set the previous position to an invalid position representing that a previous buffer
       // was written to.
       previousPosition = -1;

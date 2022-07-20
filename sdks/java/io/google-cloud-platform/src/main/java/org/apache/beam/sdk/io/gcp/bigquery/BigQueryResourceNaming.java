@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BIGQUERY_JOB_TEMPLA
 import com.google.api.services.bigquery.model.TableReference;
 import java.util.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * This class contains utilities to standardize how resources are named by BigQueryIO.
@@ -37,9 +38,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
  *
  * <p>This class has no backwards compatibility guaantees. It is considered internal.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class BigQueryResourceNaming {
 
   /**
@@ -86,7 +84,8 @@ class BigQueryResourceNaming {
    *     the parameter will be ignored.
    * @return
    */
-  static String createJobIdPrefix(String jobName, String stepUuid, JobType type, String random) {
+  static String createJobIdPrefix(
+      String jobName, String stepUuid, JobType type, @Nullable String random) {
     jobName = jobName.replaceAll("-", "");
     String result =
         BIGQUERY_JOB_TEMPLATE

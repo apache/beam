@@ -19,12 +19,14 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:playground/modules/editor/parsers/run_options_parser.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/examples/models/outputs_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 const kTitleLength = 15;
@@ -38,26 +40,32 @@ const kCachedResultsLog =
     'The results of this example are taken from the Apache Beam Playground cache.\n';
 
 class PlaygroundState with ChangeNotifier {
-  late SDK _sdk;
+  final CodeController codeController;
+  SDK _sdk;
   CodeRepository? _codeRepository;
   ExampleModel? _selectedExample;
-  String _source = '';
   RunCodeResult? _result;
   StreamSubscription<RunCodeResult>? _runSubscription;
   String _pipelineOptions = '';
-  DateTime? resetKey;
   StreamController<int>? _executionTime;
+  OutputType? selectedOutputFilterType;
+  String? outputResult;
 
   PlaygroundState({
     SDK sdk = SDK.java,
     ExampleModel? selectedExample,
     CodeRepository? codeRepository,
-  }) {
+  })  : _sdk = sdk,
+        codeController = CodeController(
+          language: sdk.highlightMode,
+          webSpaceFix: false,
+        ) {
     _selectedExample = selectedExample;
     _pipelineOptions = selectedExample?.pipelineOptions ?? '';
-    _sdk = sdk;
-    _source = _selectedExample?.source ?? '';
+    codeController.text = _selectedExample?.source ?? '';
     _codeRepository = codeRepository;
+    selectedOutputFilterType = OutputType.all;
+    outputResult = '';
   }
 
   String get examplesTitle {
@@ -69,7 +77,7 @@ class PlaygroundState with ChangeNotifier {
 
   SDK get sdk => _sdk;
 
-  String get source => _source;
+  String get source => codeController.rawText;
 
   bool get isCodeRunning => !(result?.isFinished ?? true);
 
@@ -91,38 +99,50 @@ class PlaygroundState with ChangeNotifier {
       selectedExample?.type != ExampleType.test &&
       [SDK.java, SDK.python].contains(sdk);
 
-  setExample(ExampleModel example) {
+  void setExample(ExampleModel example) {
     _selectedExample = example;
     _pipelineOptions = example.pipelineOptions ?? '';
-    _source = example.source ?? '';
+    codeController.text = example.source ?? '';
     _result = null;
     _executionTime = null;
+    setOutputResult('');
     notifyListeners();
   }
 
-  setSdk(SDK sdk) {
+  void setSdk(SDK sdk) {
     _sdk = sdk;
+    codeController.language = sdk.highlightMode;
     notifyListeners();
   }
 
-  setSource(String source) {
-    _source = source;
+  void setSource(String source) {
+    codeController.text = source;
   }
 
-  clearOutput() {
+  void setSelectedOutputFilterType(OutputType type) {
+    selectedOutputFilterType = type;
+    notifyListeners();
+  }
+
+  void setOutputResult(String outputs) {
+    outputResult = outputs;
+    notifyListeners();
+  }
+
+  void clearOutput() {
     _result = null;
     notifyListeners();
   }
 
-  reset() {
-    _source = _selectedExample?.source ?? '';
+  void reset() {
+    codeController.text = _selectedExample?.source ?? '';
     _pipelineOptions = selectedExample?.pipelineOptions ?? '';
-    resetKey = DateTime.now();
     _executionTime = null;
+    setOutputResult('');
     notifyListeners();
   }
 
-  resetError() {
+  void resetError() {
     if (result == null) {
       return;
     }
@@ -130,12 +150,12 @@ class PlaygroundState with ChangeNotifier {
     notifyListeners();
   }
 
-  setPipelineOptions(String options) {
+  void setPipelineOptions(String options) {
     _pipelineOptions = options;
     notifyListeners();
   }
 
-  void runCode({Function? onFinish}) {
+  void runCode({void Function()? onFinish}) {
     final parsedPipelineOptions = parsePipelineOptions(pipelineOptions);
     if (parsedPipelineOptions == null) {
       _result = RunCodeResult(
@@ -157,6 +177,10 @@ class PlaygroundState with ChangeNotifier {
       );
       _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;
+        String log = event.log ?? '';
+        String output = event.output ?? '';
+        setOutputResult(log + output);
+
         if (event.isFinished && onFinish != null) {
           onFinish();
           _executionTime?.close();
@@ -179,11 +203,14 @@ class PlaygroundState with ChangeNotifier {
       log: (_result?.log ?? '') + kExecutionCancelledText,
       graph: _result?.graph,
     );
+    String log = _result?.log ?? '';
+    String output = _result?.output ?? '';
+    setOutputResult(log + output);
     _executionTime?.close();
     notifyListeners();
   }
 
-  _showPrecompiledResult() async {
+  Future<void> _showPrecompiledResult() async {
     _result = RunCodeResult(
       status: RunCodeStatus.preparation,
     );
@@ -197,6 +224,7 @@ class PlaygroundState with ChangeNotifier {
       log: kCachedResultsLog + logs,
       graph: _selectedExample!.graph,
     );
+    setOutputResult(_result!.log! + _result!.output!);
     _executionTime?.close();
     notifyListeners();
   }
@@ -227,5 +255,25 @@ class PlaygroundState with ChangeNotifier {
     );
 
     return streamController;
+  }
+
+  void filterOutput(OutputType type) {
+    var output = result?.output ?? '';
+    var log = result?.log ?? '';
+
+    switch (type) {
+      case OutputType.all:
+        setOutputResult(log + output);
+        break;
+      case OutputType.log:
+        setOutputResult(log);
+        break;
+      case OutputType.output:
+        setOutputResult(output);
+        break;
+      default:
+        setOutputResult(log + output);
+        break;
+    }
   }
 }

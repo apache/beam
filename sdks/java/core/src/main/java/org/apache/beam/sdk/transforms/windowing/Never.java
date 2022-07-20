@@ -29,7 +29,7 @@ import org.joda.time.Instant;
  * BoundedWindow window} plus the {@link Window#withAllowedLateness allowed lateness}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class Never {
   /**

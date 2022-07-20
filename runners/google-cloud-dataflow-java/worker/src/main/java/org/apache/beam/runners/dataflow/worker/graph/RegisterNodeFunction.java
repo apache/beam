@@ -72,6 +72,7 @@ import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -93,7 +94,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Testing of all the layers of translation are performed via local service runner tests.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>, Node> {
   /** Must match declared fields within {@code ProcessBundleHandler}. */
@@ -234,7 +235,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
 
       String coderId = "generatedCoder" + idGenerator.getId();
       instructionOutputNodeToCoderIdBuilder.put(node, coderId);
-      try (ByteString.Output output = ByteString.newOutput()) {
+      try (ByteStringOutputStream output = new ByteStringOutputStream()) {
         try {
           Coder<?> javaCoder =
               CloudObjects.coderFromCloudObject(CloudObject.fromSpec(instructionOutput.getCodec()));

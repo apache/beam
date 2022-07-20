@@ -31,7 +31,7 @@ const kTextFieldHeight = 50.0;
 
 class PipelineOptionsForm extends StatelessWidget {
   final List<PipelineOptionController> options;
-  final Function(int) onDelete;
+  final void Function(int) onDelete;
 
   const PipelineOptionsForm({
     Key? key,

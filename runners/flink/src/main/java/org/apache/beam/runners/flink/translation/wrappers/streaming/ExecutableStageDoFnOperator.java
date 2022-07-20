@@ -132,8 +132,8 @@ import org.slf4j.LoggerFactory;
 // We use Flink's lifecycle methods to initialize transient fields
 @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
 
@@ -708,9 +708,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         // Manually drain processing time timers since Flink will ignore pending
         // processing-time timers when upstream operators have shut down and will also
         // shut down this operator with pending processing-time timers.
-        // TODO(BEAM-11210, FLINK-18647): It doesn't work efficiently when the watermark of upstream
-        // advances
-        // to MAX_TIMESTAMP immediately.
+        // TODO(https://github.com/apache/beam/issues/20600, FLINK-18647): It doesn't work
+        // efficiently when the watermark of upstream advances to MAX_TIMESTAMP
+        // immediately.
         if (numProcessingTimeTimers() > 0) {
           timerInternals.processPendingProcessingTimeTimers();
         }

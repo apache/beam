@@ -53,7 +53,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 /** Converts aggregate calls. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
   private static final String AVG_ILLEGAL_LONG_INPUT_TYPE =

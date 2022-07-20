@@ -24,10 +24,10 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
-@SuppressWarnings({"nullness"})
 /** Storage API DynamicDestinations used when the input is a Beam Row. */
-class StorageApiDynamicDestinationsBeamRow<T, DestinationT>
+class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
   private final Schema schema;
   private final SerializableFunction<T, Row> toRow;

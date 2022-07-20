@@ -20,4 +20,7 @@ const fs = require("fs");
 const path = require("path");
 
 // TODO: (Typescript) Is there a more standard way to do this?
-export const { version } = require("../../../package.json");
+// The require below doesn't work when installed outside the source tree
+// (e.g. in the docker container).
+//export const { version } = require("../../../package.json");
+export const version = "0.38.0";

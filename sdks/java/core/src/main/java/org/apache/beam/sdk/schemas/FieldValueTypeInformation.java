@@ -40,7 +40,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Represents type information for a Java type that will be used to infer a Schema type. */
 @AutoValue
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public abstract class FieldValueTypeInformation implements Serializable {

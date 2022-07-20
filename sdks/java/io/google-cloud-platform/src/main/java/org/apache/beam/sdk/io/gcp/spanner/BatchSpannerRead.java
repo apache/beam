@@ -20,19 +20,16 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.Options;
-import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
-import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
-import java.util.HashMap;
+import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.ReadAll;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -40,6 +37,10 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +51,7 @@ import org.slf4j.LoggerFactory;
  */
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 abstract class BatchSpannerRead
     extends PTransform<PCollection<ReadOperation>, PCollection<Struct>> {
@@ -69,6 +70,21 @@ abstract class BatchSpannerRead
 
   abstract TimestampBound getTimestampBound();
 
+  /**
+   * Container class to combine a ReadOperation with a Partition so that Metrics are implemented
+   * properly.
+   */
+  @AutoValue
+  protected abstract static class PartitionedReadOperation implements Serializable {
+    abstract ReadOperation getReadOperation();
+
+    abstract Partition getPartition();
+
+    static PartitionedReadOperation create(ReadOperation readOperation, Partition partition) {
+      return new AutoValue_BatchSpannerRead_PartitionedReadOperation(readOperation, partition);
+    }
+  }
+
   @Override
   public PCollection<Struct> expand(PCollection<ReadOperation> input) {
     PCollectionView<Transaction> txView = getTxView();
@@ -84,14 +100,14 @@ abstract class BatchSpannerRead
         .apply(
             "Generate Partitions",
             ParDo.of(new GeneratePartitionsFn(getSpannerConfig(), txView)).withSideInputs(txView))
-        .apply("Shuffle partitions", Reshuffle.<Partition>viaRandomKey())
+        .apply("Shuffle partitions", Reshuffle.viaRandomKey())
         .apply(
             "Read from Partitions",
             ParDo.of(new ReadFromPartitionFn(getSpannerConfig(), txView)).withSideInputs(txView));
   }
 
   @VisibleForTesting
-  static class GeneratePartitionsFn extends DoFn<ReadOperation, Partition> {
+  static class GeneratePartitionsFn extends DoFn<ReadOperation, PartitionedReadOperation> {
 
     private final SpannerConfig config;
     private final PCollectionView<? extends Transaction> txView;
@@ -102,6 +118,8 @@ abstract class BatchSpannerRead
         SpannerConfig config, PCollectionView<? extends Transaction> txView) {
       this.config = config;
       this.txView = txView;
+      Preconditions.checkNotNull(config.getRpcPriority());
+      Preconditions.checkNotNull(config.getRpcPriority().get());
     }
 
     @Setup
@@ -117,75 +135,62 @@ abstract class BatchSpannerRead
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       Transaction tx = c.sideInput(txView);
-      BatchReadOnlyTransaction context =
+      BatchReadOnlyTransaction batchTx =
           spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
-      for (Partition p : execute(c.element(), context)) {
-        c.output(p);
-      }
-    }
+      ReadOperation op = c.element();
 
-    private List<Partition> execute(ReadOperation op, BatchReadOnlyTransaction tx) {
-      if (config.getRpcPriority() != null && config.getRpcPriority().get() != null) {
-        return executeWithPriority(op, tx, config.getRpcPriority().get());
-      } else {
-        return executeWithoutPriority(op, tx);
-      }
-    }
+      // While this creates a ServiceCallMetric for every input element, in reality, the number
+      // of input elements will either be very few (normally 1!), or they will differ and
+      // need different metrics.
+      ServiceCallMetric metric = ReadAll.buildServiceCallMetricForReadOp(config, op);
 
-    private List<Partition> executeWithoutPriority(ReadOperation op, BatchReadOnlyTransaction tx) {
-      // Query was selected.
-      if (op.getQuery() != null) {
-        return tx.partitionQuery(op.getPartitionOptions(), op.getQuery());
+      List<Partition> partitions;
+      try {
+        if (op.getQuery() != null) {
+          // Query was selected.
+          partitions =
+              batchTx.partitionQuery(
+                  op.getPartitionOptions(),
+                  op.getQuery(),
+                  Options.priority(config.getRpcPriority().get()));
+        } else if (op.getIndex() != null) {
+          // Read with index was selected.
+          partitions =
+              batchTx.partitionReadUsingIndex(
+                  op.getPartitionOptions(),
+                  op.getTable(),
+                  op.getIndex(),
+                  op.getKeySet(),
+                  op.getColumns(),
+                  Options.priority(config.getRpcPriority().get()));
+        } else {
+          // Read from table was selected.
+          partitions =
+              batchTx.partitionRead(
+                  op.getPartitionOptions(),
+                  op.getTable(),
+                  op.getKeySet(),
+                  op.getColumns(),
+                  Options.priority(config.getRpcPriority().get()));
+        }
+        metric.call("ok");
+      } catch (SpannerException e) {
+        metric.call(e.getErrorCode().getGrpcStatusCode().toString());
+        throw e;
       }
-      // Read with index was selected.
-      if (op.getIndex() != null) {
-        return tx.partitionReadUsingIndex(
-            op.getPartitionOptions(),
-            op.getTable(),
-            op.getIndex(),
-            op.getKeySet(),
-            op.getColumns());
+      for (Partition p : partitions) {
+        c.output(PartitionedReadOperation.create(op, p));
       }
-      // Read from table was selected.
-      return tx.partitionRead(
-          op.getPartitionOptions(), op.getTable(), op.getKeySet(), op.getColumns());
-    }
-
-    private List<Partition> executeWithPriority(
-        ReadOperation op, BatchReadOnlyTransaction tx, RpcPriority rpcPriority) {
-      // Query was selected.
-      if (op.getQuery() != null) {
-        return tx.partitionQuery(
-            op.getPartitionOptions(), op.getQuery(), Options.priority(rpcPriority));
-      }
-      // Read with index was selected.
-      if (op.getIndex() != null) {
-        return tx.partitionReadUsingIndex(
-            op.getPartitionOptions(),
-            op.getTable(),
-            op.getIndex(),
-            op.getKeySet(),
-            op.getColumns(),
-            Options.priority(rpcPriority));
-      }
-      // Read from table was selected.
-      return tx.partitionRead(
-          op.getPartitionOptions(),
-          op.getTable(),
-          op.getKeySet(),
-          op.getColumns(),
-          Options.priority(rpcPriority));
     }
   }
 
-  private static class ReadFromPartitionFn extends DoFn<Partition, Struct> {
+  private static class ReadFromPartitionFn extends DoFn<PartitionedReadOperation, Struct> {
 
     private final SpannerConfig config;
     private final PCollectionView<? extends Transaction> txView;
 
     private transient SpannerAccessor spannerAccessor;
-    private transient String projectId;
-    private transient ServiceCallMetric serviceCallMetric;
+    private transient LoadingCache<ReadOperation, ServiceCallMetric> metricsForReadOperation;
 
     public ReadFromPartitionFn(
         SpannerConfig config, PCollectionView<? extends Transaction> txView) {
@@ -196,24 +201,28 @@ abstract class BatchSpannerRead
     @Setup
     public void setup() throws Exception {
       spannerAccessor = SpannerAccessor.getOrCreate(config);
-      projectId =
-          this.config.getProjectId() == null
-                  || this.config.getProjectId().get() == null
-                  || this.config.getProjectId().get().isEmpty()
-              ? SpannerOptions.getDefaultProjectId()
-              : this.config.getProjectId().get();
+
+      // Use a LoadingCache for metrics as there can be different read operations which result in
+      // different service call metrics labels. ServiceCallMetric items are created on-demand and
+      // added to the cache.
+      metricsForReadOperation =
+          CacheBuilder.newBuilder()
+              .maximumSize(SpannerIO.METRICS_CACHE_SIZE)
+              // worker.
+              .build(
+                  new CacheLoader<ReadOperation, ServiceCallMetric>() {
+                    @Override
+                    public ServiceCallMetric load(ReadOperation op) {
+                      return ReadAll.buildServiceCallMetricForReadOp(config, op);
+                    }
+                  });
     }
 
     @Teardown
     public void teardown() throws Exception {
       spannerAccessor.close();
-    }
-
-    @StartBundle
-    public void startBundle() throws Exception {
-      serviceCallMetric =
-          createServiceCallMetric(
-              projectId, this.config.getDatabaseId().get(), this.config.getInstanceId().get());
+      metricsForReadOperation.invalidateAll();
+      metricsForReadOperation.cleanUp();
     }
 
     @ProcessElement
@@ -223,8 +232,9 @@ abstract class BatchSpannerRead
       BatchReadOnlyTransaction batchTx =
           spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
 
-      Partition p = c.element();
-      try (ResultSet resultSet = batchTx.execute(p)) {
+      PartitionedReadOperation op = c.element();
+      ServiceCallMetric serviceCallMetric = metricsForReadOperation.get(op.getReadOperation());
+      try (ResultSet resultSet = batchTx.execute(op.getPartition())) {
         while (resultSet.next()) {
           Struct s = resultSet.getCurrentRowAsStruct();
           c.output(s);
@@ -235,23 +245,6 @@ abstract class BatchSpannerRead
         throw (e);
       }
       serviceCallMetric.call("ok");
-    }
-
-    private ServiceCallMetric createServiceCallMetric(
-        String projectId, String databaseId, String tableId) {
-      HashMap<String, String> baseLabels = new HashMap<>();
-      baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
-      baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Spanner");
-      baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "Read");
-      baseLabels.put(
-          MonitoringInfoConstants.Labels.RESOURCE,
-          GcpResourceIdentifiers.spannerTable(projectId, databaseId, tableId));
-      baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID, projectId);
-      baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_DATABASE_ID, databaseId);
-      baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_INSTANCE_ID, tableId);
-      ServiceCallMetric serviceCallMetric =
-          new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
-      return serviceCallMetric;
     }
   }
 }

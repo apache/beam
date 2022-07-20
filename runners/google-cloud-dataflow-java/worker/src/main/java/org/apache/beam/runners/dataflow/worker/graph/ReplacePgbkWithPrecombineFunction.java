@@ -37,7 +37,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNet
  * {@link RegisterNodeFunction} into a Pre-combine executed by the SDK harness.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ReplacePgbkWithPrecombineFunction
     implements Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> {

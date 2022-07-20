@@ -32,11 +32,14 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 
 /**
  * This transform takes in key-value pairs of {@link TableRow} entries and the {@link
@@ -46,9 +49,6 @@ import org.apache.beam.sdk.values.TupleTag;
  * <p>This transform assumes that all destination tables already exist by the time it sees a write
  * for that table.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class StreamingWriteTables<ElementT>
     extends PTransform<PCollection<KV<TableDestination, ElementT>>, WriteResult> {
   private BigQueryServices bigQueryServices;
@@ -59,10 +59,10 @@ public class StreamingWriteTables<ElementT>
   private final boolean ignoreUnknownValues;
   private final boolean ignoreInsertIds;
   private final boolean autoSharding;
-  private final Coder<ElementT> elementCoder;
-  private final SerializableFunction<ElementT, TableRow> toTableRow;
-  private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
-  private final SerializableFunction<ElementT, String> deterministicRecordIdFn;
+  private final @Nullable Coder<ElementT> elementCoder;
+  private final @Nullable SerializableFunction<ElementT, TableRow> toTableRow;
+  private final @Nullable SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
+  private final @Nullable SerializableFunction<ElementT, String> deterministicRecordIdFn;
 
   public StreamingWriteTables() {
     this(
@@ -87,10 +87,10 @@ public class StreamingWriteTables<ElementT>
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
       boolean autoSharding,
-      Coder<ElementT> elementCoder,
-      SerializableFunction<ElementT, TableRow> toTableRow,
-      SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
-      SerializableFunction<ElementT, String> deterministicRecordIdFn) {
+      @Nullable Coder<ElementT> elementCoder,
+      @Nullable SerializableFunction<ElementT, TableRow> toTableRow,
+      @Nullable SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
+      @Nullable SerializableFunction<ElementT, String> deterministicRecordIdFn) {
     this.bigQueryServices = bigQueryServices;
     this.retryPolicy = retryPolicy;
     this.extendedErrorInfo = extendedErrorInfo;
@@ -257,7 +257,7 @@ public class StreamingWriteTables<ElementT>
   }
 
   StreamingWriteTables<ElementT> withDeterministicRecordIdFn(
-      SerializableFunction<ElementT, String> deterministicRecordIdFn) {
+      @Nullable SerializableFunction<ElementT, String> deterministicRecordIdFn) {
     return new StreamingWriteTables<>(
         bigQueryServices,
         retryPolicy,
@@ -274,6 +274,7 @@ public class StreamingWriteTables<ElementT>
 
   @Override
   public WriteResult expand(PCollection<KV<TableDestination, ElementT>> input) {
+    Preconditions.checkStateNotNull(elementCoder);
     if (extendedErrorInfo) {
       TupleTag<BigQueryInsertError> failedInsertsTag = new TupleTag<>(FAILED_INSERTS_TAG_ID);
       PCollectionTuple result =
@@ -309,6 +310,7 @@ public class StreamingWriteTables<ElementT>
     }
   }
 
+  @RequiresNonNull({"elementCoder"})
   private <T> PCollectionTuple writeAndGetErrors(
       PCollection<KV<TableDestination, ElementT>> input,
       TupleTag<T> failedInsertsTag,

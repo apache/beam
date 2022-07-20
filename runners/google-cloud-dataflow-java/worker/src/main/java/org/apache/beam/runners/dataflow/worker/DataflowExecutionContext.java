@@ -50,7 +50,7 @@ import org.joda.time.Instant;
 
 /** Execution context for the Dataflow worker. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
@@ -282,9 +282,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     }
 
     @Override
-    protected void takeSample(long millisSinceLastSample) {
+    protected void takeSampleOnce(long millisSinceLastSample) {
       elementExecutionTracker.takeSample(millisSinceLastSample);
-      super.takeSample(millisSinceLastSample);
+      super.takeSampleOnce(millisSinceLastSample);
     }
 
     @Override

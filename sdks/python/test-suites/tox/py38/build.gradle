@@ -31,7 +31,7 @@ check.dependsOn formatter
 
 apply from: "../common.gradle"
 
-// TODO(BEAM-8954): Remove this once tox uses isolated builds.
+// TODO(https://github.com/apache/beam/issues/20051): Remove this once tox uses isolated builds.
 testPy38Cython.mustRunAfter testPython38, testPy38CloudCoverage
 
 // Create a test task for each major version of pyarrow
