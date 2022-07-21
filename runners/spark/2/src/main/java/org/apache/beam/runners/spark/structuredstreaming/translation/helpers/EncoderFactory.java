@@ -31,6 +31,7 @@ public class EncoderFactory {
 
   static <T> Encoder<T> create(
       Expression serializer, Expression deserializer, Class<? super T> clazz) {
+    // TODO Isolate usage of Scala APIs in utility https://github.com/apache/beam/issues/22382
     List<Expression> serializers = Nil$.MODULE$.$colon$colon(serializer);
     return new ExpressionEncoder<>(
         SchemaHelpers.binarySchema(),
