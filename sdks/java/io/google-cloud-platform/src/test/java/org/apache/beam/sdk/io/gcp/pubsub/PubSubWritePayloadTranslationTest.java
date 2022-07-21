@@ -67,7 +67,8 @@ public class PubSubWritePayloadTranslationTest {
             0,
             0,
             Duration.ZERO,
-            null);
+            null,
+            pubsubRootUrl);
     PubsubUnboundedSink.PubsubSink pubsubSink = new PubsubSink(pubsubUnboundedSink);
     PCollection<byte[]> input = pipeline.apply(Create.of(new byte[0]));
     PDone output = input.apply(pubsubSink);
@@ -96,7 +97,16 @@ public class PubSubWritePayloadTranslationTest {
     ValueProvider<TopicPath> runtimeProvider = pipeline.newProvider(TOPIC);
     PubsubUnboundedSink pubsubUnboundedSinkSink =
         new PubsubUnboundedSink(
-            null, runtimeProvider, TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, 0, 0, 0, Duration.ZERO, null);
+            null,
+            runtimeProvider,
+            TIMESTAMP_ATTRIBUTE,
+            ID_ATTRIBUTE,
+            0,
+            0,
+            0,
+            Duration.ZERO,
+            null,
+            pubsubRootUrl);
     PubsubSink pubsubSink = new PubsubSink(pubsubUnboundedSinkSink);
     PCollection<byte[]> input = pipeline.apply(Create.of(new byte[0]));
     PDone output = input.apply(pubsubSink);

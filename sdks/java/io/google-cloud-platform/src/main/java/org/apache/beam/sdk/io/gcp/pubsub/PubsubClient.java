@@ -50,6 +50,13 @@ public abstract class PubsubClient implements Closeable {
      * message metadata.
      */
     PubsubClient newClient(
+        @Nullable String timestampAttribute,
+        @Nullable String idAttribute,
+        PubsubOptions options,
+        @Nullable String rootUrlOverride)
+        throws IOException;
+
+    PubsubClient newClient(
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException;
 

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import avro.shaded.com.google.common.base.Objects;
 import com.google.auth.Credentials;
 import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.AcknowledgeRequest;
@@ -84,11 +85,22 @@ public class PubsubGrpcClient extends PubsubClient {
     public PubsubClient newClient(
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException {
+
+      return newClient(timestampAttribute, idAttribute, options, null);
+    }
+
+    @Override
+    public PubsubClient newClient(
+        @Nullable String timestampAttribute,
+        @Nullable String idAttribute,
+        PubsubOptions options,
+        String rootUrlOverride)
+        throws IOException {
       return new PubsubGrpcClient(
           timestampAttribute,
           idAttribute,
           DEFAULT_TIMEOUT_S,
-          channelForRootUrl(options.getPubsubRootUrl()),
+          channelForRootUrl(Objects.firstNonNull(rootUrlOverride, options.getPubsubRootUrl())),
           options.getGcpCredential());
     }
 
