@@ -62,32 +62,33 @@ def pull_from_url(file_name, url, dep, no_list):
             'Successfully pulled {file_name} from {url} for {dep}'.format(
                 url=url, file_name=file_name, dep=dep))
     except URLError as e:
-        traceback.print_exc()
-        if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
-            logging.error('Invalid url for {dep}: {url}. Retrying...'.format(
-                url=url, dep=dep))
-            raise
-        else:
-            logging.error(
-                'Invalid url for {dep}: {url} after {n} retries.'.format(
-                    url=url, dep=dep, n=RETRY_NUM))
-            with thread_lock:
-                no_list.append(dep)
-            return
+        # traceback.print_exc()
+        # if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
+        #     logging.error('Invalid url for {dep}: {url}. Retrying...'.format(
+        #         url=url, dep=dep))
+        #     raise
+        # else:
+        #     logging.error(
+        #         'Invalid url for {dep}: {url} after {n} retries.'.format(
+        #             url=url, dep=dep, n=RETRY_NUM))
+        #     with thread_lock:
+        #         no_list.append(dep)
+        return
     except HTTPError as e:
-        traceback.print_exc()
-        if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
-            logging.info(
-                'Received {code} from {url} for {dep}. Retrying...'.format(
-                    code=e.code, url=url, dep=dep))
-            raise
-        else:
-            logging.error(
-                'Received {code} from {url} for {dep} after {n} retries.'.
-                format(code=e.code, url=url, dep=dep, n=RETRY_NUM))
-            with thread_lock:
-                no_list.append(dep)
-            return
+        # traceback.print_exc()
+        # if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
+        #     logging.info(
+        #         'Received {code} from {url} for {dep}. Retrying...'.format(
+        #             code=e.code, url=url, dep=dep))
+        #     raise
+        logging.info("By pass HTTP error")
+        # else:
+        #     logging.error(
+        #         'Received {code} from {url} for {dep} after {n} retries.'.
+        #         format(code=e.code, url=url, dep=dep, n=RETRY_NUM))
+        #     with thread_lock:
+        #         no_list.append(dep)
+        return
     except Exception as e:
         traceback.print_exc()
         if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
@@ -318,5 +319,6 @@ if __name__ == "__main__":
                 threads=THREADS))
 
     if error_msg:
-        raise RuntimeError('{n} error(s) occurred.'.format(n=len(error_msg)),
-                           error_msg)
+        # raise RuntimeError('{n} error(s) occurred.'.format(n=len(error_msg)),
+        #                    error_msg)
+        pass

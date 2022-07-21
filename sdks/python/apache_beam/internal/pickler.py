@@ -54,12 +54,11 @@ def dumps(o, enable_trace=True, use_zlib=False):
 
   logging.info(f"serialized_fn: {serialized_fn}")
   logging.info(f"deserialized_fn: {deserialized_fn}")
-
+  import sys
+  logging.info("Python version: {}".format(sys.version))
+  import pytest
+  logging.info("Pytest version: {}".format(pytest.__version__))
   logging.info("****************dumps*****************************")
-
-  # pylint: disable=line-too-long
-  if serialized_fn == b'QlpoOTFBWSZTWW2DOMwAAoP/0P//////////////8r///+ZjwQAAkABAAvZLMKAIaptKmgD1G1NHqPUGQ9QABoGRtQPUGgeiAyANPU9QaDxINDTT1BKIBAITI1M9U8p6ptPVPTSNGDIjQyGT1GamahoAGAaRoaZpPapk3qQanopooAMgAABoAAyGgAAA0AAA0AaADQEGAAAAAAAAAAATAAAAARgACYAM5MUrCptpkfPPVhjTXwKIU3oFiIJ/CmyKm2KIZ1A18ooB+j4G8x4RVknC4yKFH0rinqKEj8RACpHX3hkYJ5lTMPMdIKIjxIJLJEEKSWKSUBYhCIgBFQxHB/PDjH7GXX5+F4WG8bQ28I1HM8gN8O+MHn9DPGSnGjxh4zcN0oIQI7Yv1G4WNxjRhrCUDLResXxg0wWTJY0RkAs4YoXfYNHiK1PUibLpaDbVdM0lVFU2Ga4xG50HXL9B8IIJ3S3fGpfgZYIeoqgSmvHXY4pat1MZa7ks9yFCSDapYAMsDHfyzSb4zGUw5t70rhZZiNtIu4vMPDECfHMIUodUKP0j5TMfMfEdFQkidA+NLOQI6ArlUgx/Ue4ZtnU3xD5Nogb4vYoAjegh16U641+yaJJHXKN4if4ZnmkolBy1Kpzh29b6NzuvmJ8N0aBQ4vcGtWNS7paBLBRKKJpCPJn6GnMVjYmA1CFsd3GJM1XrYBOkXTQGV0NzA+shJZyobgOKghGWSFYnJQBArEUgOdM9kEYqk2a+e9ILaq+pPzb0YygDFo1mIMh62i3XGgjGQtNQx8cIZTMziESoLDIE9ZYgmTis3lmHF3LxVvmCsgIxROJHR7w4cgVCwvDSD7EMzkHTPIgpMKhMgrVRSByLk/JpwYRpMwGiYOWVIYb/2jyk0i6JqnoRqkVL5chLUoVeScA2PT6YNNPPqzszrZ23SdVGa9b+znUxbwnsfO/Lswr1n1TabWQXvNYuhcqVLvqYsPUxlCyVZPe565HNWiTIQvjZRL9gxDu+vOKUotqgY4SGilwxDlaK0XP0WobRwjhlpcfOTmhckNqGmsXXapFS8Y3MICo8xBAxSe07BsFi2ZUuDHJE49mqRUl7SP1yYtCiWApKQUpaPGR+xRVJBxjaedDdhykYHvA+J/0f8ofsOK9IoUZBk/7TeXorWosw1/i7kinChINsGcZg':
-    raise Exception("Pickling error happend here")
 
   return desired_pickle_lib.dumps(
       o, enable_trace=enable_trace, use_zlib=use_zlib)
@@ -73,7 +72,13 @@ def loads(encoded, enable_trace=True, use_zlib=False):
   decoded = desired_pickle_lib.loads(
       encoded, enable_trace=enable_trace, use_zlib=use_zlib)
   logging.info(f"decoded: {decoded}")
+
+  import sys
+  logging.info("Python version: {}".format(sys.version))
+  import pytest
+  logging.info("Pytest version: {}".format(pytest.__version__))
   logging.info("******************loads****************************")
+
   return desired_pickle_lib.loads(
       encoded, enable_trace=enable_trace, use_zlib=use_zlib)
 
