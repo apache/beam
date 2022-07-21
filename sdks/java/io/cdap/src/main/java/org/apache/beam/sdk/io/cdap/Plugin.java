@@ -90,8 +90,7 @@ public abstract class Plugin {
         Constructor<?> constructor =
             getPluginClass().getDeclaredConstructor(pluginConfig.getClass());
         constructor.setAccessible(true);
-        cdapPluginObj =
-            (SubmitterLifecycle) constructor.newInstance(pluginConfig);
+        cdapPluginObj = (SubmitterLifecycle) constructor.newInstance(pluginConfig);
       } catch (Exception e) {
         LOG.error("Can not instantiate CDAP plugin class", e);
         throw new IllegalStateException("Can not call prepareRun");
