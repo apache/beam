@@ -43,6 +43,7 @@ ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_PYTHON"
 ENV BUCKET_NAME="playground-precompiled-objects"
+ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
 
 # Copy build result
 COPY --from=build /go/bin/server_python_backend /opt/playground/backend/
@@ -63,6 +64,7 @@ COPY allow_list.py /opt/mitmproxy/
 ENV HTTP_PROXY="http://127.0.0.1:8081"
 ENV HTTPS_PROXY="http://127.0.0.1:8081"
 
+COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
 
 # Create a user group `appgroup` and a user `appuser`
