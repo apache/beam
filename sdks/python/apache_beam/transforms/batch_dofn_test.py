@@ -175,7 +175,8 @@ class BatchDoFnNoInputAnnotation(beam.DoFn):
 
 class MismatchedBatchProducingDoFn(beam.DoFn):
   """A DoFn that produces batches from both process and process_batch, with
-  mismatched types. Should yield a construction time error when applied."""
+  mismatched return types (one yields floats, the other ints). Should yield
+  a construction time error when applied."""
   @beam.DoFn.yields_batches
   def process(self, element: int, *args, **kwargs) -> Iterator[List[int]]:
     yield [element]
@@ -187,7 +188,8 @@ class MismatchedBatchProducingDoFn(beam.DoFn):
 
 class MismatchedElementProducingDoFn(beam.DoFn):
   """A DoFn that produces elements from both process and process_batch, with
-  mismatched types. Should yield a construction time error when applied."""
+  mismatched return types (one yields floats, the other ints). Should yield
+  a construction time error when applied."""
   def process(self, element: int, *args, **kwargs) -> Iterator[float]:
     yield element / 2
 
