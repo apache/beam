@@ -155,11 +155,11 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
         reader.seek(startTimestamp);
       }
       while (true) {
-        if (reader.hasReachedEndOfTopic()) {
+        if (!reader.hasMessageAvailable()) {
           reader.close();
           return ProcessContinuation.stop();
         }
-        Message<byte[]> message = reader.readNext();
+        Message<byte[]> message = reader.readNext(5, TimeUnit.SECONDS);
         if (message == null) {
           return ProcessContinuation.resume();
         }
