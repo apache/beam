@@ -26,6 +26,7 @@ import {
 import { flatten } from "./flatten";
 import { PCollection } from "../pvalue";
 import { PValue, P } from "../pvalue";
+import { Coder } from "../coders/coders";
 import * as internal from "./internal";
 import { count } from "./combiners";
 
@@ -41,6 +42,7 @@ export interface CombineFn<I, A, O> {
   addInput: (A, I) => A;
   mergeAccumulators: (accumulators: Iterable<A>) => A;
   extractOutput: (A) => O;
+  accumulatorCoder?(inputCoder: Coder<I>): Coder<A>;
 }
 
 // TODO: (Typescript) When typing this as ((a: I, b: I) => I), types are not inferred well.
@@ -263,9 +265,7 @@ function binaryCombineFn<I>(
     createAccumulator: () => undefined,
     addInput: (a, b) => (a === undefined ? b : combiner(a, b)),
     mergeAccumulators: (accs) =>
-      [...accs]
-        .filter((a) => a !== null && a !== undefined)
-        .reduce(combiner, undefined),
+      [...accs].filter((a) => a !== null && a !== undefined).reduce(combiner),
     extractOutput: (a) => a,
   };
 }
