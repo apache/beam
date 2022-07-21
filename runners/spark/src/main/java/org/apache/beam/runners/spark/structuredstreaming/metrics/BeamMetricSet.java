@@ -20,15 +20,19 @@ package org.apache.beam.runners.spark.structuredstreaming.metrics;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricFilter;
 import java.util.Map;
+import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
 
 /**
- * Map of Beam metrics available from {@link Gauge#getValue()}.
+ * {@link BeamMetricSet} is a {@link Gauge} that returns a map of multiple metrics which get
+ * flattened in {@link WithMetricsSupport#getGauges()} for usage in {@link
+ * org.apache.spark.metrics.sink.Sink Spark metric sinks}.
  *
  * <p>Note: Recent versions of Dropwizard {@link com.codahale.metrics.MetricRegistry MetricRegistry}
- * do not allow registering arbitrary implementations of {@link com.codahale.metrics.Metric
- * Metrics}.
+ * do not allow registering arbitrary implementations of {@link com.codahale.metrics.Metric Metrics}
+ * and require usage of {@link Gauge} here.
  */
-public abstract class BeamMetricSet implements Gauge<Map<String, Gauge<Double>>> {
+// TODO: turn into MetricRegistry https://github.com/apache/beam/issues/22384
+abstract class BeamMetricSet implements Gauge<Map<String, Gauge<Double>>> {
 
   @Override
   public final Map<String, Gauge<Double>> getValue() {
@@ -38,13 +42,13 @@ public abstract class BeamMetricSet implements Gauge<Map<String, Gauge<Double>>>
   protected abstract Map<String, Gauge<Double>> getValue(String prefix, MetricFilter filter);
 
   protected Gauge<Double> staticGauge(Number number) {
-    return new StaticGauge(number.doubleValue());
+    return new ConstantGauge(number.doubleValue());
   }
 
-  private static class StaticGauge implements Gauge<Double> {
-    double value;
+  private static class ConstantGauge implements Gauge<Double> {
+    private final double value;
 
-    StaticGauge(double value) {
+    ConstantGauge(double value) {
       this.value = value;
     }
 

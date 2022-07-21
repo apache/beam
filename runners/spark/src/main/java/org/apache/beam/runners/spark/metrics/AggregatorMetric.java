@@ -47,20 +47,19 @@ public class AggregatorMetric extends BeamMetricSet {
     for (Map.Entry<String, ?> entry : namedAggregators.renderAll().entrySet()) {
       String name = prefix + "." + entry.getKey();
       Object rawValue = entry.getValue();
-      if (rawValue == null) {
-        continue;
-      }
-      try {
-        Gauge<Double> gauge = staticGauge(rawValue);
-        if (filter.matches(name, gauge)) {
-          metrics.put(name, gauge);
+      if (rawValue != null) {
+        try {
+          Gauge<Double> gauge = staticGauge(rawValue);
+          if (filter.matches(name, gauge)) {
+            metrics.put(name, gauge);
+          }
+        } catch (NumberFormatException e) {
+          LOG.warn(
+              "Metric `{}` of type {} can't be reported, conversion to double failed.",
+              name,
+              rawValue.getClass().getSimpleName(),
+              e);
         }
-      } catch (NumberFormatException e) {
-        LOG.warn(
-            "Metric `{}` of type {} can't be reported, conversion to double failed.",
-            name,
-            rawValue.getClass().getSimpleName(),
-            e);
       }
     }
     return metrics;

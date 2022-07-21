@@ -44,7 +44,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
  * An adapter between the {@link MetricsContainerStepMap} and the Dropwizard {@link Metric}
  * interface.
  */
-public class SparkBeamMetric extends BeamMetricSet {
+class SparkBeamMetric extends BeamMetricSet {
 
   private static final String ILLEGAL_CHARACTERS = "[^A-Za-z0-9-]";
 
