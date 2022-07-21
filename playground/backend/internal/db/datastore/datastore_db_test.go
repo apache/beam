@@ -16,15 +16,17 @@
 package datastore
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/db/entity"
-	"beam.apache.org/playground/backend/internal/utils"
-	"cloud.google.com/go/datastore"
 	"context"
 	"fmt"
 	"os"
 	"testing"
 	"time"
+
+	"cloud.google.com/go/datastore"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/utils"
 )
 
 const (
@@ -411,6 +413,10 @@ func TestDatastore_DeleteUnusedSnippets(t *testing.T) {
 				putSnippet("MOCK_ID6", "PG_USER", now.Add(-time.Hour*24*18), 3)
 				//last visit date is now - 18 days and origin != PG_USER
 				putSnippet("MOCK_ID7", "PG_EXAMPLES", now.Add(-time.Hour*24*18), 2)
+				//last visit date is now - 9 days
+				putSnippet("MOCK_ID8", "PG_USER", now.Add(-time.Hour*24*9), 2)
+				//last visit date is now - 11 days
+				putSnippet("MOCK_ID9", "PG_USER", now.Add(-time.Hour*24*11), 2)
 			},
 			wantErr: false,
 		},
@@ -464,6 +470,16 @@ func TestDatastore_DeleteUnusedSnippets(t *testing.T) {
 				_, err = datastoreDb.GetFiles(tt.args.ctx, "MOCK_ID7", 2)
 				if err != nil {
 					t.Errorf("DeleteUnusedSnippets() this snippet shouldn't be deleted, err: %s", err)
+				}
+				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID8")
+				_, err = datastoreDb.GetFiles(tt.args.ctx, "MOCK_ID8", 2)
+				if err != nil {
+					t.Errorf("DeleteUnusedSnippets() this snippet shouldn't be deleted, err: %s", err)
+				}
+				_, err = datastoreDb.GetSnippet(tt.args.ctx, "MOCK_ID9")
+				_, err = datastoreDb.GetFiles(tt.args.ctx, "MOCK_ID9", 2)
+				if err == nil {
+					t.Errorf("DeleteUnusedSnippets() this snippet should be deleted, err: %s", err)
 				}
 			}
 
@@ -541,4 +557,3 @@ func putSnippet(id, origin string, lVisited time.Time, numberOfFiles int) {
 		Files: files,
 	})
 }
-

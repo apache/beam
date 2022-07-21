@@ -74,7 +74,7 @@ cd beam
 ./gradlew playground:backend:containers:router:dockerComposeLocalDown
 ```
 
-## Run the method to remove unused code snippets, where dayDiff is the number of days after which a snippet becomes unused and projectId is the Google Cloud Project ID
+## Run the method to remove unused code snippets from the Cloud Datastore. Unused snippets are snippets that are out of date. If the last visited date property less or equals the than the current date minus dayDiff parameter then a snippet is out of date
 
 ```
 cd beam
