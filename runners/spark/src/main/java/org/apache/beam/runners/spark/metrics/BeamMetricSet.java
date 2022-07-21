@@ -22,11 +22,9 @@ import com.codahale.metrics.MetricFilter;
 import java.util.Map;
 
 /**
- * Map of Beam metrics available from {@link Gauge#getValue()}.
- *
- * <p>Note: Recent versions of Dropwizard {@link com.codahale.metrics.MetricRegistry MetricRegistry}
+ * Recent versions of Dropwizard {@link com.codahale.metrics.MetricRegistry MetricRegistry}
  * do not allow registering arbitrary implementations of {@link com.codahale.metrics.Metric
- * Metrics}.
+ * Metrics}. So this class is a Beam metrics registry implemented as a Dropwizard {@link Gauge} for use by spark engine.
  */
 public abstract class BeamMetricSet implements Gauge<Map<String, Gauge<Double>>> {
 
