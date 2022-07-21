@@ -16,6 +16,13 @@
 package main
 
 import (
+	"context"
+	"fmt"
+
+	"beam.apache.org/playground/backend/internal/tasks"
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"google.golang.org/grpc"
+
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
@@ -29,10 +36,6 @@ import (
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/utils"
-	"context"
-	"fmt"
-	"github.com/improbable-eng/grpc-web/go/grpcweb"
-	"google.golang.org/grpc"
 )
 
 // runServer is starting http server wrapped on grpc
@@ -81,6 +84,12 @@ func runServer() error {
 		}
 
 		entityMapper = mapper.New(&envService.ApplicationEnvs, props)
+
+		// Since only router server has the scheduled task, the task creation is here
+		scheduledTasks := tasks.New(ctx)
+		if err = scheduledTasks.StartRemovingExtraSnippets(props.RemovingUnusedSnptsCron, props.RemovingUnusedSnptsDays, dbClient); err != nil {
+			return err
+		}
 	}
 
 	pb.RegisterPlaygroundServiceServer(grpcServer, &playgroundController{
