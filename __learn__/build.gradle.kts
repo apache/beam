@@ -260,3 +260,13 @@ tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT")
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT_V2")
 }
+
+tasks.register("pythonDocsPreCommit") {
+  dependsOn(":sdks:python:test-suites:tox:pycommon:docs")
+}
+
+tasks.register("pythonDockerBuildPreCommit") {
+  dependsOn(":sdks:python:container:py37:docker")
+  dependsOn(":sdks:python:container:py38:docker")
+  dependsOn(":sdks:python:container:py39:docker")
+}
