@@ -45,10 +45,10 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Parser;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -305,7 +305,7 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
     SideWindowT sideInputWindow =
         (SideWindowT) view.getWindowMappingFn().getSideInputWindow(mainWindow);
 
-    ByteString.Output windowStream = ByteString.newOutput();
+    ByteStringOutputStream windowStream = new ByteStringOutputStream();
     try {
       sideInputWindowCoder.encode(sideInputWindow, windowStream, Coder.Context.OUTER);
     } catch (IOException e) {

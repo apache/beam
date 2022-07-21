@@ -22,6 +22,7 @@ import java.io.InputStream;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 
@@ -32,7 +33,7 @@ public class MonitoringInfoEncodings {
 
   /** Encodes to {@link MonitoringInfoConstants.TypeUrns#DISTRIBUTION_INT64_TYPE}. */
   public static ByteString encodeInt64Distribution(DistributionData data) {
-    ByteString.Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     try {
       VARINT_CODER.encode(data.count(), output);
       VARINT_CODER.encode(data.sum(), output);
@@ -62,7 +63,7 @@ public class MonitoringInfoEncodings {
   // TODO(BEAM-4374): Implement decodeDoubleDistribution(...)
   public static ByteString encodeDoubleDistribution(
       long count, double sum, double min, double max) {
-    ByteString.Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     try {
       VARINT_CODER.encode(count, output);
       DOUBLE_CODER.encode(sum, output);
@@ -76,7 +77,7 @@ public class MonitoringInfoEncodings {
 
   /** Encodes to {@link MonitoringInfoConstants.TypeUrns#LATEST_INT64_TYPE}. */
   public static ByteString encodeInt64Gauge(GaugeData data) {
-    ByteString.Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     try {
       VARINT_CODER.encode(data.timestamp().getMillis(), output);
       VARINT_CODER.encode(data.value(), output);
@@ -99,7 +100,7 @@ public class MonitoringInfoEncodings {
 
   /** Encodes to {@link MonitoringInfoConstants.TypeUrns#SUM_INT64_TYPE}. */
   public static ByteString encodeInt64Counter(long value) {
-    ByteString.Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     try {
       VARINT_CODER.encode(value, output);
     } catch (IOException e) {
@@ -119,7 +120,7 @@ public class MonitoringInfoEncodings {
 
   /** Encodes to {@link MonitoringInfoConstants.TypeUrns#SUM_DOUBLE_TYPE}. */
   public static ByteString encodeDoubleCounter(double value) {
-    ByteString.Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     try {
       DOUBLE_CODER.encode(value, output);
     } catch (IOException e) {
