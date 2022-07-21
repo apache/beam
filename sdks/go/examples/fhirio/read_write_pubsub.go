@@ -135,7 +135,8 @@ func main() {
 	resourceBundles := beam.ParDo(s, WrapInBundle, resourcesInGcs)
 
 	// Write resources to store.
-	fhirio.ExecuteBundles(s, *fhirStore, resourceBundles)
+	_, failedWritesErrorMessage := fhirio.ExecuteBundles(s, *fhirStore, resourceBundles)
+	beam.ParDo0(s, &LoggerFn{"Failed Write"}, failedWritesErrorMessage)
 
 	if *pubsubTopic != "" {
 		// PubSub notifications will be emitted containing the path of the resource once
