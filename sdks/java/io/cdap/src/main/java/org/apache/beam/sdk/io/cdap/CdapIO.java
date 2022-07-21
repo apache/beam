@@ -108,14 +108,12 @@ public class CdapIO {
     @Override
     public PCollection<KV<K, V>> expand(PBegin input) {
       Plugin plugin = checkArgumentNotNull(getCdapPlugin(), "withCdapPluginClass() is required");
-      PluginConfig pluginConfig = checkArgumentNotNull(getPluginConfig(), "withPluginConfig() is required");
+      PluginConfig pluginConfig =
+          checkArgumentNotNull(getPluginConfig(), "withPluginConfig() is required");
       Class<K> keyClass = checkArgumentNotNull(getKeyClass(), "withKeyClass() is required");
       Class<V> valueClass = checkArgumentNotNull(getValueClass(), "withValueClass() is required");
 
-      plugin
-              .withConfig(pluginConfig)
-              .withHadoopConfiguration(keyClass, valueClass)
-              .prepareRun();
+      plugin.withConfig(pluginConfig).withHadoopConfiguration(keyClass, valueClass).prepareRun();
 
       if (plugin.isUnbounded()) {
         // TODO: implement SparkReceiverIO.<~>read()
@@ -197,14 +195,14 @@ public class CdapIO {
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
       Plugin plugin = checkArgumentNotNull(getCdapPlugin(), "withKeyClass() is required");
-      PluginConfig pluginConfig = checkArgumentNotNull(getPluginConfig(), "withKeyClass() is required");
+      PluginConfig pluginConfig =
+          checkArgumentNotNull(getPluginConfig(), "withKeyClass() is required");
       Class<K> keyClass = checkArgumentNotNull(getKeyClass(), "withKeyClass() is required");
       Class<V> valueClass = checkArgumentNotNull(getValueClass(), "withValueClass() is required");
-      String locksDirPath = checkArgumentNotNull(getLocksDirPath(), "withLocksDirPath() is required");
+      String locksDirPath =
+          checkArgumentNotNull(getLocksDirPath(), "withLocksDirPath() is required");
 
-      plugin
-              .withConfig(pluginConfig)
-              .withHadoopConfiguration(keyClass, valueClass).prepareRun();
+      plugin.withConfig(pluginConfig).withHadoopConfiguration(keyClass, valueClass).prepareRun();
 
       if (plugin.isUnbounded()) {
         // TODO: implement SparkReceiverIO.<~>write()
