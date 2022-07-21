@@ -33,11 +33,11 @@ public class AggregatorMetric extends BeamMetricSet {
 
   private final NamedAggregators namedAggregators;
 
-  private AggregatorMetric(final NamedAggregators namedAggregators) {
+  private AggregatorMetric(NamedAggregators namedAggregators) {
     this.namedAggregators = namedAggregators;
   }
 
-  public static AggregatorMetric of(final NamedAggregators namedAggregators) {
+  public static AggregatorMetric of(NamedAggregators namedAggregators) {
     return new AggregatorMetric(namedAggregators);
   }
 
