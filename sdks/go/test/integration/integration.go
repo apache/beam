@@ -86,6 +86,8 @@ var directFilters = []string{
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
 	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var portableFilters = []string{
@@ -104,6 +106,8 @@ var portableFilters = []string{
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
 	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var flinkFilters = []string{
@@ -120,6 +124,8 @@ var flinkFilters = []string{
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
 	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var samzaFilters = []string{
@@ -141,6 +147,8 @@ var samzaFilters = []string{
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
 	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var sparkFilters = []string{
@@ -163,6 +171,8 @@ var sparkFilters = []string{
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
 	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var dataflowFilters = []string{

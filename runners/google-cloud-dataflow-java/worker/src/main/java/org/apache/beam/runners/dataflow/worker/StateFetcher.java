@@ -35,10 +35,10 @@ import org.apache.beam.sdk.transforms.Materializations.IterableView;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
@@ -124,7 +124,7 @@ class StateFetcher {
 
           Coder<SideWindowT> windowCoder = sideWindowStrategy.getWindowFn().windowCoder();
 
-          ByteString.Output windowStream = ByteString.newOutput();
+          ByteStringOutputStream windowStream = new ByteStringOutputStream();
           windowCoder.encode(sideWindow, windowStream, Coder.Context.OUTER);
 
           @SuppressWarnings("unchecked")

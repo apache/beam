@@ -38,6 +38,7 @@ github:
   collaborators:
     - pcoet
     - VladMatyunin
+    - olehborysevych
 
   enabled_merge_buttons:
     squash: true

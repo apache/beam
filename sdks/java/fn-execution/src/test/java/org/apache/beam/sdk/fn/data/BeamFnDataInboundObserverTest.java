@@ -31,6 +31,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.junit.Rule;
@@ -98,7 +99,7 @@ public class BeamFnDataInboundObserverTest {
   }
 
   private ByteString dataWith(String... values) throws Exception {
-    ByteString.Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     for (String value : values) {
       CODER.encode(valueInGlobalWindow(value), output);
     }
