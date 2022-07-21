@@ -81,15 +81,16 @@ class SparkBeamMetric extends BeamMetricSet {
   static String renderName(String prefix, MetricResult<?> metricResult) {
     MetricKey key = metricResult.getKey();
     MetricName name = key.metricName();
+    String step = key.stepName();
     return Streams.concat(
-            Stream.of(prefix), // prefix is not cleaned, should it be?
-            Stream.of(stripSuffix(cleanPart(key.stepName()))),
-            Stream.of(name.getNamespace(), name.getName()).map(SparkBeamMetric::cleanPart))
+            Stream.of(prefix),
+            Stream.of(stripSuffix(normalizePart(step))),
+            Stream.of(name.getNamespace(), name.getName()).map(SparkBeamMetric::normalizePart))
         .filter(not(Strings::isNullOrEmpty))
         .collect(Collectors.joining("."));
   }
 
-  private static @Nullable String cleanPart(@Nullable String str) {
+  private static @Nullable String normalizePart(@Nullable String str) {
     return str != null ? str.replaceAll(ILLEGAL_CHARACTERS, "_") : null;
   }
 
