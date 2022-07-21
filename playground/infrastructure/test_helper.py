@@ -27,7 +27,7 @@ from grpc_client import GRPCClient
 from helper import find_examples, Example, _get_example, _get_name, get_tag, \
     _validate, Tag, get_statuses, \
     _update_example_status, get_supported_categories, _check_file, \
-    _get_object_type, ExampleTag
+    _get_object_type, ExampleTag, validate_examples_for_duplicates_by_name, ValidationException
 
 
 @mock.patch("helper._check_file")
@@ -300,3 +300,40 @@ def test__get_object_type():
     assert result_example == PRECOMPILED_OBJECT_TYPE_EXAMPLE
     assert result_kata == PRECOMPILED_OBJECT_TYPE_KATA
     assert result_test == PRECOMPILED_OBJECT_TYPE_UNIT_TEST
+
+
+def test_validate_examples_for_duplicates_by_name_in_the_usual_case():
+    examples_names = ["MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3"]
+    examples = list(map(lambda name: _create_example(name), examples_names))
+    try:
+        validate_examples_for_duplicates_by_name(examples)
+    except ValidationException:
+        pytest.fail("Unexpected ValidationException")
+
+
+def test_validate_examples_for_duplicates_by_name_when_examples_have_duplicates():
+    examples_names = ["MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_1", "MOCK_NAME_3"]
+    examples = list(map(lambda name: _create_example(name), examples_names))
+    with pytest.raises(ValidationException, match="Examples have duplicate names, duplicates: MOCK_NAME_1"):
+        validate_examples_for_duplicates_by_name(examples)
+
+
+def _create_example(name: str) -> Example:
+    object_meta = {
+        "name": "MOCK_NAME",
+        "description": "MOCK_DESCRIPTION",
+        "multifile": False,
+        "categories": ["MOCK_CATEGORY_1", "MOCK_CATEGORY_2"],
+        "pipeline_options": "--MOCK_OPTION MOCK_OPTION_VALUE"
+    }
+    example = Example(
+        name=name,
+        pipeline_id="MOCK_PIPELINE_ID",
+        sdk=SDK_JAVA,
+        filepath="MOCK_FILEPATH",
+        code="MOCK_CODE",
+        output="MOCK_OUTPUT",
+        status=STATUS_UNSPECIFIED,
+        tag=Tag(**object_meta),
+        link="MOCK_LINK")
+    return example
