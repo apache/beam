@@ -36,11 +36,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** A test that verifies Beam metrics are reported to Spark's metrics sink in batch mode. */
-@RunWith(JUnit4.class)
 public class SparkMetricsSinkTest {
 
   @ClassRule
