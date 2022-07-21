@@ -44,14 +44,14 @@ import org.junit.runners.JUnit4;
 public class SparkMetricsSinkTest {
 
   @ClassRule
-  public static SparkSessionRule sessionRule =
+  public static final SparkSessionRule SESSION =
       new SparkSessionRule(
           KV.of("spark.metrics.conf.*.sink.memory.class", InMemoryMetrics.class.getName()));
 
-  @Rule public ExternalResource inMemoryMetricsSink = new InMemoryMetricsSinkRule();
+  @Rule public final ExternalResource inMemoryMetricsSink = new InMemoryMetricsSinkRule();
 
   @Rule
-  public TestPipeline pipeline = TestPipeline.fromOptions(sessionRule.createPipelineOptions());
+  public final TestPipeline pipeline = TestPipeline.fromOptions(SESSION.createPipelineOptions());
 
   private static final ImmutableList<String> WORDS =
       ImmutableList.of("hi there", "hi", "hi sue bob", "hi sue", "", "bob hi");
@@ -69,7 +69,7 @@ public class SparkMetricsSinkTest {
             .apply(MapElements.via(new WordCount.FormatAsTextFn()));
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNTS);
-    pipeline.run().waitUntilFinish();
+    pipeline.run();
 
     assertThat(InMemoryMetrics.valueOf("emptyLines"), is(1d));
   }
