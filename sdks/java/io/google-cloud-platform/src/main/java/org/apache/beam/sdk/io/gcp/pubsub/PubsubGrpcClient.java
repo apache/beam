@@ -190,7 +190,8 @@ public class PubsubGrpcClient extends PubsubClient {
   public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
     PublishRequest.Builder request = PublishRequest.newBuilder().setTopic(topic.getPath());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
-      PubsubMessage.Builder message = outgoingMessage.message().toBuilder();
+      PubsubMessage.Builder message =
+          outgoingMessage.message().toBuilder().clearMessageId().clearPublishTime();
 
       if (timestampAttribute != null) {
         message.putAttributes(

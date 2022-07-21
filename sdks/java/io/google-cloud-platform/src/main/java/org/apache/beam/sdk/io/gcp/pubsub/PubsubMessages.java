@@ -40,6 +40,7 @@ public final class PubsubMessages {
     if (messageId != null) {
       message.setMessageId(messageId);
     }
+
     String orderingKey = input.getOrderingKey();
     if (orderingKey != null) {
       message.setOrderingKey(orderingKey);

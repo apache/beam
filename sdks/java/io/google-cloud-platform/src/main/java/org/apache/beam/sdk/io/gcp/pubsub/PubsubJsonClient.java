@@ -133,6 +133,8 @@ public class PubsubJsonClient extends PubsubClient {
       if (!outgoingMessage.message().getOrderingKey().isEmpty()) {
         pubsubMessage.setOrderingKey(outgoingMessage.message().getOrderingKey());
       }
+
+      // N.B. publishTime and messageId are intentionally not set on the message that is published
       pubsubMessages.add(pubsubMessage);
     }
     PublishRequest request = new PublishRequest().setMessages(pubsubMessages);
