@@ -132,6 +132,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -1337,7 +1338,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     private ByteString encode(String... values) throws IOException {
-      ByteString.Output out = ByteString.newOutput();
+      ByteStringOutputStream out = new ByteStringOutputStream();
       for (String value : values) {
         StringUtf8Coder.of().encode(value, out);
       }
@@ -2997,8 +2998,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     private static SplitResult createSplitResult(double fractionOfRemainder) {
-      ByteString.Output primaryBytes = ByteString.newOutput();
-      ByteString.Output residualBytes = ByteString.newOutput();
+      ByteStringOutputStream primaryBytes = new ByteStringOutputStream();
+      ByteStringOutputStream residualBytes = new ByteStringOutputStream();
       try {
         DoubleCoder.of().encode(fractionOfRemainder, primaryBytes);
         DoubleCoder.of().encode(1 - fractionOfRemainder, residualBytes);
@@ -3181,7 +3182,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       SplitResult expectedElementSplit = createSplitResult(0);
       BundleApplication expectedElementSplitPrimary =
           Iterables.getOnlyElement(expectedElementSplit.getPrimaryRoots());
-      ByteString.Output primaryBytes = ByteString.newOutput();
+      ByteStringOutputStream primaryBytes = new ByteStringOutputStream();
       inputCoder.encode(
           WindowedValue.of(
               KV.of(
@@ -3198,7 +3199,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               .build();
       DelayedBundleApplication expectedElementSplitResidual =
           Iterables.getOnlyElement(expectedElementSplit.getResidualRoots());
-      ByteString.Output residualBytes = ByteString.newOutput();
+      ByteStringOutputStream residualBytes = new ByteStringOutputStream();
       inputCoder.encode(
           WindowedValue.of(
               KV.of(

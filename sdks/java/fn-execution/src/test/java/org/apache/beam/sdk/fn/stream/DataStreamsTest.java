@@ -38,6 +38,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.stream.DataStreams.DataStreamDecoder;
 import org.apache.beam.sdk.fn.stream.DataStreams.ElementDelimitedOutputStream;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
@@ -145,7 +146,7 @@ public class DataStreamsTest {
     }
 
     private ByteString encode(String... values) throws IOException {
-      ByteString.Output out = ByteString.newOutput();
+      ByteStringOutputStream out = new ByteStringOutputStream();
       for (String value : values) {
         StringUtf8Coder.of().encode(value, out);
       }
@@ -153,7 +154,7 @@ public class DataStreamsTest {
     }
 
     private <T> void testDecoderWith(Coder<T> coder, T... expected) throws IOException {
-      ByteString.Output output = ByteString.newOutput();
+      ByteStringOutputStream output = new ByteStringOutputStream();
       for (T value : expected) {
         int size = output.size();
         coder.encode(value, output);

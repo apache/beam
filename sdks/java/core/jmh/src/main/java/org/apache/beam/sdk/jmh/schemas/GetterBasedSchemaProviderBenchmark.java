@@ -15,20 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas;
+package org.apache.beam.sdk.jmh.schemas;
 
-import org.apache.beam.sdk.schemas.RowBundles.ArrayOfNestedStringBundle;
-import org.apache.beam.sdk.schemas.RowBundles.ArrayOfStringBundle;
-import org.apache.beam.sdk.schemas.RowBundles.ByteBufferBundle;
-import org.apache.beam.sdk.schemas.RowBundles.BytesBundle;
-import org.apache.beam.sdk.schemas.RowBundles.DateTimeBundle;
-import org.apache.beam.sdk.schemas.RowBundles.IntBundle;
-import org.apache.beam.sdk.schemas.RowBundles.MapOfIntBundle;
-import org.apache.beam.sdk.schemas.RowBundles.MapOfNestedIntBundle;
-import org.apache.beam.sdk.schemas.RowBundles.NestedBytesBundle;
-import org.apache.beam.sdk.schemas.RowBundles.NestedIntBundle;
-import org.apache.beam.sdk.schemas.RowBundles.StringBuilderBundle;
-import org.apache.beam.sdk.schemas.RowBundles.StringBundle;
+import org.apache.beam.sdk.jmh.schemas.RowBundles.ArrayOfNestedStringBundle;
+import org.apache.beam.sdk.jmh.schemas.RowBundles.ArrayOfStringBundle;
+import org.apache.beam.sdk.jmh.schemas.RowBundles.ByteBufferBundle;
+import org.apache.beam.sdk.jmh.schemas.RowBundles.BytesBundle;
+import org.apache.beam.sdk.jmh.schemas.RowBundles.DateTimeBundle;
+import org.apache.beam.sdk.jmh.schemas.RowBundles.IntBundle;
+import org.apache.beam.sdk.jmh.schemas.RowBundles.MapOfIntBundle;
+import org.apache.beam.sdk.jmh.schemas.RowBundles.MapOfNestedIntBundle;
+import org.apache.beam.sdk.jmh.schemas.RowBundles.NestedBytesBundle;
+import org.apache.beam.sdk.jmh.schemas.RowBundles.NestedIntBundle;
+import org.apache.beam.sdk.jmh.schemas.RowBundles.StringBuilderBundle;
+import org.apache.beam.sdk.jmh.schemas.RowBundles.StringBundle;
+import org.apache.beam.sdk.schemas.GetterBasedSchemaProvider;
 import org.apache.beam.sdk.values.RowWithGetters;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.openjdk.jmh.annotations.Benchmark;
