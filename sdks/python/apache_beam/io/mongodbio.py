@@ -680,6 +680,7 @@ class WriteToMongoDB(PTransform):
       coll=None,
       batch_size=100,
       extra_client_params=None,
+      writeFn=None,
   ):
     """
 
@@ -692,6 +693,10 @@ class WriteToMongoDB(PTransform):
       extra_client_params(dict): Optional `MongoClient
        <https://api.mongodb.com/python/current/api/pymongo/mongo_client.html>`_
        parameters as keyword arguments
+      writeFn(optional_func): writeFn(client:MongoClient obj, db:str, coll:str, documents:[dict], logger:logging.Logger obj)
+        A custom function that user could implement to 
+        gain more control over the write process. For example, 
+        using UpdateOne or InsertOne instead of ReplaceOne bulk_write 
 
     Returns:
       :class:`~apache_beam.transforms.ptransform.PTransform`
@@ -709,6 +714,36 @@ class WriteToMongoDB(PTransform):
     self._coll = coll
     self._batch_size = batch_size
     self._spec = extra_client_params
+    self._writeFn = writeFn
+    if writeFn is None:
+        self._writeFn = self._defaultWriteFn
+
+
+  """to gain control over the write process, 
+  a user could for example, change ReplaceOne into UpdateOne
+  a user could implement their own WriteFn, using this as a template,
+  notice that the 'self' argument should be ommited 
+  """
+  def _defaultWriteFn(self, client, db, coll, documents, logger):
+      requests = []
+      for doc in documents:
+          request = ReplaceOne(
+              filter={"_id": doc.get("_id", None)},
+              replacement=doc,
+              upsert=True)
+          requests.append(request)
+          resp = client[db][coll].bulk_write(requests)
+          # set logger to debug level to log the response
+          
+          logger.debug(
+          "BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, "
+          "nMatched:%d, Errors:%s" % (
+              resp.modified_count,
+              resp.upserted_count,
+              resp.matched_count,
+              resp.bulk_api_result.get("writeErrors"),
+          ))
+      return resp
 
   def expand(self, pcoll):
     return (
@@ -717,7 +752,7 @@ class WriteToMongoDB(PTransform):
         | Reshuffle()
         | beam.ParDo(
             _WriteMongoFn(
-                self._uri, self._db, self._coll, self._batch_size, self._spec)))
+                self._uri, self._db, self._coll, self._batch_size, self._spec, self._writeFn)))
 
 
 class _GenerateObjectIdFn(DoFn):
@@ -738,7 +773,7 @@ class _GenerateObjectIdFn(DoFn):
 
 class _WriteMongoFn(DoFn):
   def __init__(
-      self, uri=None, db=None, coll=None, batch_size=100, extra_params=None):
+      self, uri=None, db=None, coll=None, batch_size=100, extra_params=None, writeFn=None):
     if extra_params is None:
       extra_params = {}
     self.uri = uri
@@ -747,6 +782,7 @@ class _WriteMongoFn(DoFn):
     self.spec = extra_params
     self.batch_size = batch_size
     self.batch = []
+    self.writeFn = writeFn
 
   def finish_bundle(self):
     self._flush()
@@ -772,7 +808,7 @@ class _WriteMongoFn(DoFn):
 
 
 class _MongoSink:
-  def __init__(self, uri=None, db=None, coll=None, extra_params=None):
+  def __init__(self, uri=None, db=None, coll=None, extra_params=None, writeFn=None):
     if extra_params is None:
       extra_params = {}
     self.uri = uri
@@ -780,28 +816,12 @@ class _MongoSink:
     self.coll = coll
     self.spec = extra_params
     self.client = None
+    self.writeFn = writeFn
 
   def write(self, documents):
     if self.client is None:
       self.client = MongoClient(host=self.uri, **self.spec)
-    requests = []
-    for doc in documents:
-      # match document based on _id field, if not found in current collection,
-      # insert new one, otherwise overwrite it.
-      requests.append(
-          ReplaceOne(
-              filter={"_id": doc.get("_id", None)},
-              replacement=doc,
-              upsert=True))
-    resp = self.client[self.db][self.coll].bulk_write(requests)
-    _LOGGER.debug(
-        "BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, "
-        "nMatched:%d, Errors:%s" % (
-            resp.modified_count,
-            resp.upserted_count,
-            resp.matched_count,
-            resp.bulk_api_result.get("writeErrors"),
-        ))
+    self.writeFn(self.client, self.db, self.coll, documents, _LOGGER)
 
   def __enter__(self):
     if self.client is None:
