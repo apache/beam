@@ -270,7 +270,7 @@ if __name__ == '__main__':
             'google-cloud-pubsub>=2.1.0,<3',
             'google-cloud-pubsublite>=1.2.0,<2',
             # GCP packages required by tests
-            'google-cloud-bigquery>=1.6.0,<3',
+            'google-cloud-bigquery>=1.6.0,<4',
             'google-cloud-bigquery-storage>=2.6.3,<2.14',
             'google-cloud-core>=0.28.1,<3',
             'google-cloud-bigtable>=0.31.1,<2',
