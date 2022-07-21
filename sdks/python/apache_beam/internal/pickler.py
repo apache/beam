@@ -27,6 +27,7 @@ description.
 The pickler module should be used to pickle functions and modules; for values,
 the coders.*PickleCoder classes should be used instead.
 """
+import pickle
 
 from apache_beam.internal import cloudpickle_pickler
 from apache_beam.internal import dill_pickler
@@ -42,7 +43,10 @@ def dumps(o, enable_trace=True, use_zlib=False):
   # type: (...) -> bytes
 
   return desired_pickle_lib.dumps(
-      o, enable_trace=enable_trace, use_zlib=use_zlib)
+      o,
+      enable_trace=enable_trace,
+      use_zlib=use_zlib,
+      protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def loads(encoded, enable_trace=True, use_zlib=False):
