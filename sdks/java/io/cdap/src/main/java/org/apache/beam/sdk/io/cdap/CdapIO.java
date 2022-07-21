@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.cdap;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
@@ -34,9 +33,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.hadoop.conf.Configuration;
-import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * An unbounded/bounded sources and sinks from <a
@@ -111,8 +108,7 @@ public class CdapIO {
     @Override
     public PCollection<KV<K, V>> expand(PBegin input) {
       Plugin plugin = checkArgumentNotNull(getCdapPlugin(), "withCdapPluginClass() is required");
-      PluginConfig pluginConfig =
-          checkArgumentNotNull(getPluginConfig(), "withPluginConfig() is required");
+      PluginConfig pluginConfig = checkArgumentNotNull(getPluginConfig(), "withPluginConfig() is required");
       Class<K> keyClass = checkArgumentNotNull(getKeyClass(), "withKeyClass() is required");
       Class<V> valueClass = checkArgumentNotNull(getValueClass(), "withValueClass() is required");
 
@@ -204,8 +200,7 @@ public class CdapIO {
       PluginConfig pluginConfig = checkArgumentNotNull(getPluginConfig(), "withKeyClass() is required");
       Class<K> keyClass = checkArgumentNotNull(getKeyClass(), "withKeyClass() is required");
       Class<V> valueClass = checkArgumentNotNull(getValueClass(), "withValueClass() is required");
-      String locksDirPath =
-          checkArgumentNotNull(getLocksDirPath(), "withLocksDirPath() is required");
+      String locksDirPath = checkArgumentNotNull(getLocksDirPath(), "withLocksDirPath() is required");
 
       plugin
               .withConfig(pluginConfig)
