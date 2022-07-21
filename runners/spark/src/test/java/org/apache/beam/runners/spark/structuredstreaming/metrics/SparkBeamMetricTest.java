@@ -28,8 +28,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Test BeamMetric. */
-@RunWith(JUnit4.class)
-public class BeamMetricTest {
+public class SparkBeamMetricTest {
   @Test
   public void testRenderName() {
     MetricResult<Object> metricResult =
