@@ -331,7 +331,9 @@ public class SamzaDoFnRunners {
       }
     }
 
-    @SuppressWarnings("RandomModInteger")
+    @SuppressWarnings({
+      "RandomModInteger" // https://errorprone.info/bugpattern/RandomModInteger
+    })
     private long getStartBundleTime() {
       /*
        * Use random number for sampling purpose instead of counting as
@@ -360,6 +362,25 @@ public class SamzaDoFnRunners {
         outputManager.output(
             idToTupleTagMap.get(result.getKey()), (WindowedValue) result.getValue());
       }
+    }
+
+    private void emitMetrics() {
+      if (startBundleTime <= 0) {
+        return;
+      }
+
+      final long count = Iterables.size(bundledEventsBag.read());
+
+      if (count <= 0) {
+        return;
+      }
+
+      final long finishBundleTime = System.nanoTime();
+      final long averageProcessTime = (finishBundleTime - startBundleTime) / count;
+
+      samzaExecutionContext
+          .getMetricsContainer()
+          .updateExecutableStageBundleMetric(metricName, averageProcessTime);
     }
 
     @Override
@@ -395,19 +416,10 @@ public class SamzaDoFnRunners {
     @Override
     public void finishBundle() {
       try {
-        final long count = Iterables.size(bundledEventsBag.read());
-        if (startBundleTime > 0 && count > 0) {
-          final long finishBundleTime = System.nanoTime();
-          final long averageProcessTime = (finishBundleTime - startBundleTime) / count;
-
-          samzaExecutionContext
-              .getMetricsContainer()
-              .updateExecutableStageBundleMetric(metricName, averageProcessTime);
-        }
-
         // RemoteBundle close blocks until all results are received
         remoteBundle.close();
         emitResults();
+        emitMetrics();
         bundledEventsBag.clear();
       } catch (Exception e) {
         throw new RuntimeException("Failed to finish remote bundle", e);
