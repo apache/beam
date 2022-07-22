@@ -49,6 +49,7 @@ from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.portability.fn_api_runner import worker_handlers
+from apache_beam.runners.worker.log_handler import LOGENTRY_TO_LOG_LEVEL_MAP
 from apache_beam.utils import thread_pool_executor
 
 if TYPE_CHECKING:
@@ -365,7 +366,10 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
   def Logging(self, log_bundles, context=None):
     for log_bundle in log_bundles:
       for log_entry in log_bundle.log_entries:
-        _LOGGER.info('Worker: %s', str(log_entry).replace('\n', ' '))
+        _LOGGER.log(
+            LOGENTRY_TO_LOG_LEVEL_MAP[log_entry.severity],
+            'Worker: %s',
+            str(log_entry).replace('\n', ' '))
     return iter([])
 
 
