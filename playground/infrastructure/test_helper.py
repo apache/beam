@@ -169,9 +169,7 @@ def test_get_supported_categories():
 
 
 @mock.patch("builtins.open", mock_open(read_data="data"))
-@mock.patch("helper._get_name")
-def test__get_example(mock_get_name):
-    mock_get_name.return_value = "filepath"
+def test__get_example():
     tag = ExampleTag({
         "name": "Name",
         "description": "Description",
@@ -185,7 +183,7 @@ def test__get_example(mock_get_name):
     result = _get_example("/root/filepath.java", "filepath.java", tag)
 
     assert result == Example(
-        name="filepath",
+        name="Name",
         sdk=SDK_JAVA,
         filepath="/root/filepath.java",
         code="data",
@@ -193,7 +191,6 @@ def test__get_example(mock_get_name):
         tag=Tag(
             "Name", "Description", "False", [""], "--option option", False, 1),
         link="https://github.com/apache/beam/blob/master/root/filepath.java")
-    mock_get_name.assert_called_once_with("filepath.java")
 
 
 def test__validate_without_name_field():
@@ -314,7 +311,7 @@ def test_validate_examples_for_duplicates_by_name_in_the_usual_case():
 def test_validate_examples_for_duplicates_by_name_when_examples_have_duplicates():
     examples_names = ["MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_1", "MOCK_NAME_3"]
     examples = list(map(lambda name: _create_example(name), examples_names))
-    with pytest.raises(ValidationException, match="Examples have duplicate names, duplicates: MOCK_NAME_1"):
+    with pytest.raises(ValidationException, match="Examples have duplicate names.\nDuplicates: \n - path #1: MOCK_FILEPATH \n - path #2: MOCK_FILEPATH"):
         validate_examples_for_duplicates_by_name(examples)
 
 
