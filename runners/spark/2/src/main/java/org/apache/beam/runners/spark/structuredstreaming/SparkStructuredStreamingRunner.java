@@ -131,6 +131,10 @@ public final class SparkStructuredStreamingRunner
             + " https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html\n"
             + " It is still experimental, its coverage of the Beam model is partial. ***");
 
+    LOG.warn(
+        "Support for Spark 2 is deprecated, this runner will be removed in a few releases.\n"
+            + "Spark 2 is reaching its EOL, consider migrating to Spark 3.");
+
     // clear state of Aggregators, Metrics and Watermarks if exists.
     AggregatorsAccumulator.clear();
     MetricsAccumulator.clear();
