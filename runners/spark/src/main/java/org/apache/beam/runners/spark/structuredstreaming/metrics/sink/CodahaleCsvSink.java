@@ -21,16 +21,66 @@ import com.codahale.metrics.MetricRegistry;
 import java.util.Properties;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.AggregatorMetric;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.WithMetricsSupport;
+import org.apache.spark.SecurityManager;
 import org.apache.spark.metrics.sink.Sink;
 
 /**
- * A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics to a CSV file.
+ * A {@link Sink} for <a href="https://spark.apache.org/docs/latest/monitoring.html#metrics">Spark's
+ * metric system</a> that is tailored to report {@link AggregatorMetric}s to a CSV file.
+ *
+ * <p>The sink is configured using Spark configuration parameters, for example:
+ *
+ * <pre>{@code
+ * "spark.metrics.conf.*.sink.csv.class"="org.apache.beam.runners.spark.structuredstreaming.metrics.sink.CodahaleCsvSink"
+ * "spark.metrics.conf.*.sink.csv.directory"="<output_directory>"
+ * "spark.metrics.conf.*.sink.csv.period"=10
+ * "spark.metrics.conf.*.sink.csv.unit"=seconds
+ * }</pre>
  */
-public class CodahaleCsvSink extends org.apache.spark.metrics.sink.CsvSink {
+public class CodahaleCsvSink implements Sink {
+
+  // Initialized reflectively as done by Spark's MetricsSystem
+  private final org.apache.spark.metrics.sink.CsvSink delegate;
+
+  /** Constructor for Spark 3.1.x and earlier. */
   public CodahaleCsvSink(
       final Properties properties,
       final MetricRegistry metricRegistry,
-      final org.apache.spark.SecurityManager securityMgr) {
-    super(properties, WithMetricsSupport.forRegistry(metricRegistry), securityMgr);
+      final SecurityManager securityMgr) {
+    try {
+      delegate =
+          org.apache.spark.metrics.sink.CsvSink.class
+              .getConstructor(Properties.class, MetricRegistry.class, SecurityManager.class)
+              .newInstance(properties, WithMetricsSupport.forRegistry(metricRegistry), securityMgr);
+    } catch (ReflectiveOperationException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
+  /** Constructor for Spark 3.2.x and later. */
+  public CodahaleCsvSink(final Properties properties, final MetricRegistry metricRegistry) {
+    try {
+      delegate =
+          org.apache.spark.metrics.sink.CsvSink.class
+              .getConstructor(Properties.class, MetricRegistry.class)
+              .newInstance(properties, WithMetricsSupport.forRegistry(metricRegistry));
+    } catch (ReflectiveOperationException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
+  @Override
+  public void start() {
+    delegate.start();
+  }
+
+  @Override
+  public void stop() {
+    delegate.stop();
+  }
+
+  @Override
+  public void report() {
+    delegate.report();
   }
 }

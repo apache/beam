@@ -20,7 +20,6 @@ package org.apache.beam.runners.spark.structuredstreaming;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
 import java.io.IOException;
-import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -31,8 +30,6 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.spark.SparkException;
-import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.streaming.StreamingQuery;
 import org.joda.time.Duration;
 
 /** Represents a Spark pipeline execution result. */
@@ -43,19 +40,16 @@ import org.joda.time.Duration;
 public class SparkStructuredStreamingPipelineResult implements PipelineResult {
 
   final Future pipelineExecution;
-  final SparkSession sparkSession;
+  final Runnable onTerminalState;
+
   PipelineResult.State state;
 
-  boolean isStreaming;
-
   SparkStructuredStreamingPipelineResult(
-      final Future<?> pipelineExecution, final SparkSession sparkSession) {
+      final Future<?> pipelineExecution, final Runnable onTerminalState) {
     this.pipelineExecution = pipelineExecution;
-    this.sparkSession = sparkSession;
+    this.onTerminalState = onTerminalState;
     // pipelineExecution is expected to have started executing eagerly.
     this.state = State.RUNNING;
-    // TODO: Implement results on a streaming pipeline. Currently does not stream.
-    this.isStreaming = false;
   }
 
   private static RuntimeException runtimeExceptionFrom(final Throwable e) {
@@ -79,29 +73,10 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
     return runtimeExceptionFrom(e);
   }
 
-  protected void stop() {
-    try {
-      // TODO: await any outstanding queries on the session if this is streaming.
-      if (isStreaming) {
-        for (StreamingQuery query : sparkSession.streams().active()) {
-          query.stop();
-        }
-      }
-    } catch (Exception e) {
-      throw beamExceptionFrom(e);
-    } finally {
-      sparkSession.stop();
-      if (Objects.equals(state, State.RUNNING)) {
-        this.state = State.STOPPED;
-      }
-    }
-  }
-
   private State awaitTermination(Duration duration)
       throws TimeoutException, ExecutionException, InterruptedException {
     pipelineExecution.get(duration.getMillis(), TimeUnit.MILLISECONDS);
     // Throws an exception if the job is not finished successfully in the given time.
-    // TODO: all streaming functionality
     return PipelineResult.State.DONE;
   }
 
@@ -149,7 +124,11 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
     State oldState = this.state;
     this.state = newState;
     if (!oldState.isTerminal() && newState.isTerminal()) {
-      stop();
+      try {
+        onTerminalState.run();
+      } catch (Exception e) {
+        throw beamExceptionFrom(e);
+      }
     }
   }
 }

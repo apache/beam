@@ -220,6 +220,7 @@ tasks.register("javaHadoopVersionsTest") {
   dependsOn(":sdks:java:io:parquet:hadoopVersionsTest")
   dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
   dependsOn(":runners:spark:2:hadoopVersionsTest")
+  dependsOn(":runners:spark:3:hadoopVersionsTest")
 }
 
 tasks.register("sqlPostCommit") {

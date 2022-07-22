@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.structuredstreaming;
 
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
@@ -32,4 +33,10 @@ public interface SparkStructuredStreamingPipelineOptions extends SparkCommonPipe
   boolean getTestMode();
 
   void setTestMode(boolean testMode);
+
+  @Description("Enable if the runner should use the currently active Spark session.")
+  @Default.Boolean(false)
+  boolean getUseActiveSparkSession();
+
+  void setUseActiveSparkSession(boolean value);
 }
