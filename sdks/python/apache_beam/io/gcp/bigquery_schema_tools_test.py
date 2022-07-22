@@ -25,10 +25,6 @@ import apache_beam.io.gcp.bigquery
 from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
-from apache_beam.io.gcp.internal.clients.bigquery.bigquery_v2_messages import Table
-
-# Protect against environments where bigquery library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
 
 try:
   from apitools.base.py.exceptions import HttpError
@@ -95,7 +91,9 @@ class TestBigQueryToSchema(unittest.TestCase):
         bigquery.TableFieldSchema(name='count', type='INTEGER', mode=None)
     ]
     schema = bigquery.TableSchema(fields=fields)
-    table = Table(schema=schema)
+    table = apache_beam.io.gcp.internal.clients.bigquery.\
+        bigquery_v2_messages.Table(
+        schema=schema)
     get_table.return_value = table
 
     with self.assertRaisesRegex(ValueError,

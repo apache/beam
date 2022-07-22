@@ -2423,13 +2423,11 @@ class ReadFromBigQuery(PTransform):
       reading from a table rather than a query. To learn more about query
       priority, see: https://cloud.google.com/bigquery/docs/running-queries
     output_type (str): By default, this source yields Python dictionaries
-        (`PYTHON_DICT`). There is experimental support for producing a
-        PCollection with a schema and yielding Beam Rows via the option
-        `BEAM_ROW`.
-        See
-        https://beam.apache.org/documentation/programming-guide/\
-            #what-is-a-schema
-        for more information on schemas.
+      (`PYTHON_DICT`). There is experimental support for producing a
+      PCollection with a schema and yielding Beam Rows via the option
+      `BEAM_ROW`. For more information on schemas, see
+      https://beam.apache.org/documentation/programming-guide/\
+      #what-is-a-schema)
    """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.
@@ -2477,18 +2475,15 @@ class ReadFromBigQuery(PTransform):
       output_pcollection = self._expand_export(pcoll)
     elif self.method is ReadFromBigQuery.Method.DIRECT_READ:
       output_pcollection = self._expand_direct_read(pcoll)
-
     if self.output_type == 'BEAM_ROWS':
-      return output_pcollection | beam.io.gcp.bigquery_schema_tools\
-          .convert_to_usertype(
+      return output_pcollection | beam.io.gcp.bigquery_schema_tools.\
+          convert_to_usertype(
           beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
               project_id=output_pcollection.pipeline.options.view_as(
                   GoogleCloudOptions).project,
               dataset_id=str(self._kwargs['table']).split('.', maxsplit=1)[0],
               table_id=str(self._kwargs['table']).rsplit(
                   '.', maxsplit=1)[-1]).schema)
-    elif self.output_type == 'PYTHON_DICT' or self.output_type == '':
-      return output_pcollection
     else:
       raise ValueError(
           'The method to read from BigQuery must be either EXPORT'
