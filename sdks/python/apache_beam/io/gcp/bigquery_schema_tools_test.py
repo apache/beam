@@ -23,10 +23,16 @@ import numpy as np
 
 import apache_beam.io.gcp.bigquery
 from apache_beam.io.gcp import bigquery_schema_tools
-from apache_beam.io.gcp.bigquery_test import HttpError
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
-from apache_beam.io.gcp.internal.clients.bigquery import Table
+
+# Protect against environments where bigquery library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

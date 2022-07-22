@@ -2422,9 +2422,14 @@ class ReadFromBigQuery(PTransform):
       to run queries with INTERACTIVE priority. This option is ignored when
       reading from a table rather than a query. To learn more about query
       priority, see: https://cloud.google.com/bigquery/docs/running-queries
-    output_type (str): By default, the schema returned from this transform
-      would be of type PYTHON_DICT. Other schema types can be specified
-      ("BEAM_ROW").
+    output_type (str): By default, this source yields Python dictionaries
+        (`PYTHON_DICT`). There is experimental support for producing a
+        PCollection with a schema and yielding Beam Rows via the option
+        `BEAM_ROW`.
+        See
+        https://beam.apache.org/documentation/programming-guide/\
+            #what-is-a-schema
+        for more information on schemas.
    """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.
@@ -2470,28 +2475,20 @@ class ReadFromBigQuery(PTransform):
   def expand(self, pcoll):
     if self.method is ReadFromBigQuery.Method.EXPORT:
       output_pcollection = self._expand_export(pcoll)
-      if self.output_type == 'BEAM_ROWS':
-        return output_pcollection | ReadFromBigQuery._convert_to_usertype(
-            beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
-                project_id=output_pcollection.pipeline.options.view_as(
-                    GoogleCloudOptions).project,
-                dataset_id=str(self._kwargs['table']).split('.', maxsplit=1)[0],
-                table_id=str(self._kwargs['table']).rsplit(
-                    '.', maxsplit=1)[-1]).schema)
-      else:
-        return output_pcollection
     elif self.method is ReadFromBigQuery.Method.DIRECT_READ:
       output_pcollection = self._expand_direct_read(pcoll)
-      if self.output_type == 'BEAM_ROWS':
-        return output_pcollection | ReadFromBigQuery._convert_to_usertype(
-            beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
-                project_id=output_pcollection.pipeline.options.view_as(
-                    GoogleCloudOptions).project,
-                dataset_id=str(self._kwargs['table']).split('.', maxsplit=1)[0],
-                table_id=str(self._kwargs['table']).rsplit(
-                    '.', maxsplit=1)[-1]).schema)
-      else:
-        return output_pcollection
+
+    if self.output_type == 'BEAM_ROWS':
+      return output_pcollection | beam.io.gcp.bigquery_schema_tools\
+          .convert_to_usertype(
+          beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
+              project_id=output_pcollection.pipeline.options.view_as(
+                  GoogleCloudOptions).project,
+              dataset_id=str(self._kwargs['table']).split('.', maxsplit=1)[0],
+              table_id=str(self._kwargs['table']).rsplit(
+                  '.', maxsplit=1)[-1]).schema)
+    elif self.output_type == 'PYTHON_DICT' or self.output_type == '':
+      return output_pcollection
     else:
       raise ValueError(
           'The method to read from BigQuery must be either EXPORT'
@@ -2572,12 +2569,6 @@ class ReadFromBigQuery(PTransform):
                   *self._args,
                   **self._kwargs))
           | _PassThroughThenCleanupTempDatasets(project_to_cleanup_pcoll))
-
-  def _convert_to_usertype(table_schema):
-    usertype = beam.io.gcp.bigquery_schema_tools. \
-          produce_pcoll_with_schema(table_schema)
-    return beam.ParDo(
-        beam.io.gcp.bigquery_schema_tools.BeamSchemaConversionDoFn(usertype))
 
 
 class ReadFromBigQueryRequest:

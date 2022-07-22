@@ -41,7 +41,8 @@ BIG_QUERY_TO_PYTHON_TYPES = {
     "BOOLEAN": bool,
     "BYTES": bytes,
     "TIMESTAMP": beam.utils.timestamp.Timestamp,
-    #TODO svetaksundhar@: Finish mappings for all BQ types
+    #TODO(https://github.com/apache/beam/issues/20810):
+    # Finish mappings for all BQ types
 }
 
 
@@ -84,6 +85,13 @@ def bq_field_to_type(field, mode):
     return BIG_QUERY_TO_PYTHON_TYPES[field]
   else:
     raise ValueError(f"Encountered an unsupported mode: {mode!r}")
+
+
+def convert_to_usertype(table_schema):
+  usertype = beam.io.gcp.bigquery_schema_tools. \
+        produce_pcoll_with_schema(table_schema)
+  return beam.ParDo(
+      beam.io.gcp.bigquery_schema_tools.BeamSchemaConversionDoFn(usertype))
 
 
 class BeamSchemaConversionDoFn(beam.DoFn):
