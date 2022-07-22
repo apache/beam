@@ -24,10 +24,11 @@ from typing import List
 from google.cloud import datastore
 from tqdm import tqdm
 
+import config
 from config import Config, PrecompiledExample, DatastoreProps
 from helper import Example
 
-from api.v1.api_pb2 import Sdk
+from api.v1.api_pb2 import Sdk, PrecompiledObjectType
 
 
 class DatastoreException(Exception):
@@ -76,7 +77,7 @@ class DatastoreClient:
         with self._datastore_client.transaction():
             for example in tqdm(examples_from_rep):
                 sdk_key = self._get_key(DatastoreProps.SDK_KIND, Sdk.Name(example.sdk))
-                example_id = f"{example.name}_{Sdk.Name(example.sdk)}"
+                example_id = f"{Sdk.Name(example.sdk)}{config.DatastoreProps.KEY_NAME_DELIMITER}{example.name}"
                 updated_example_ids.append(example_id)
                 self._to_example_entities(example, example_id, sdk_key, actual_schema_version_key, examples)
                 self._to_snippet_entities(example, example_id, sdk_key, now, actual_schema_version_key, snippets)
@@ -94,11 +95,11 @@ class DatastoreClient:
                 logging.info("Start of deleting extra playground examples ...")
                 examples_keys_for_removing = list(map(lambda ex_id: self._get_key(DatastoreProps.EXAMPLE_KIND, ex_id), examples_ids_for_removing))
                 snippets_keys_for_removing = list(map(lambda ex_id: self._get_key(DatastoreProps.SNIPPET_KIND, ex_id), examples_ids_for_removing))
-                file_keys_for_removing = list(map(lambda ex_id: self._get_key(DatastoreProps.FILED_KIND, f"{ex_id}_{0}"), examples_ids_for_removing))
+                file_keys_for_removing = list(map(lambda ex_id: self._get_key(DatastoreProps.FILED_KIND, f"{ex_id}{config.DatastoreProps.KEY_NAME_DELIMITER}{0}"), examples_ids_for_removing))
                 pc_objs_keys_for_removing = []
                 for example_id_item in examples_ids_for_removing:
                     for example_type in [PrecompiledExample.GRAPH_EXTENSION.upper(), PrecompiledExample.OUTPUT_EXTENSION.upper(), PrecompiledExample.LOG_EXTENSION.upper()]:
-                        pc_objs_keys_for_removing.append(self._get_key(DatastoreProps.PRECOMPILED_OBJECT_KIND, f"{example_id_item}_{example_type}"))
+                        pc_objs_keys_for_removing.append(self._get_key(DatastoreProps.PRECOMPILED_OBJECT_KIND, f"{example_id_item}{config.DatastoreProps.KEY_NAME_DELIMITER}{example_type}"))
                 self._datastore_client.delete_multi(examples_keys_for_removing)
                 self._datastore_client.delete_multi(snippets_keys_for_removing)
                 self._datastore_client.delete_multi(file_keys_for_removing)
@@ -161,6 +162,7 @@ class DatastoreClient:
                 "descr": example.tag.description,
                 "cats": example.tag.categories,
                 "path": example.link,
+                "type": PrecompiledObjectType.Name(example.type),
                 "origin": DatastoreProps.ORIGIN_PROPERTY_VALUE,
                 "schVer": schema_key
             }
@@ -176,12 +178,12 @@ class DatastoreClient:
             self._append_pc_obj_entity(snp_id, example.logs, PrecompiledExample.LOG_EXTENSION.upper(), pc_objects)
 
     def _append_pc_obj_entity(self, snp_id: str, content: str, pc_obj_type: str, pc_objects: list):
-        pc_obj_entity = datastore.Entity(self._get_key(DatastoreProps.PRECOMPILED_OBJECT_KIND, f"{snp_id}_{pc_obj_type}"), exclude_from_indexes=('content',))
+        pc_obj_entity = datastore.Entity(self._get_key(DatastoreProps.PRECOMPILED_OBJECT_KIND, f"{snp_id}{config.DatastoreProps.KEY_NAME_DELIMITER}{pc_obj_type}"), exclude_from_indexes=('content',))
         pc_obj_entity.update({"content": content})
         pc_objects.append(pc_obj_entity)
 
     def _to_file_entities(self, example: Example, snp_id: str, files: list):
-        file_entity = datastore.Entity(self._get_key(DatastoreProps.FILED_KIND, f"{snp_id}_{0}"), exclude_from_indexes=('content',))
+        file_entity = datastore.Entity(self._get_key(DatastoreProps.FILED_KIND, f"{snp_id}{config.DatastoreProps.KEY_NAME_DELIMITER}{0}"), exclude_from_indexes=('content',))
         file_entity.update(
             {
                 "name": self._get_file_name_with_extension(example.name, example.sdk),
