@@ -1175,8 +1175,8 @@ def create_trigger_driver(
     windowing, is_batch=False, phased_combine_fn=None, clock=None):
   """Create the TriggerDriver for the given windowing and options."""
 
-  # TODO(BEAM-10149): Respect closing and on-time behaviors.
-  # For batch, we should always fire once, no matter what.
+  # TODO(https://github.com/apache/beam/issues/20165): Respect closing and
+  # on-time behaviors. For batch, we should always fire once, no matter what.
   if is_batch and windowing.triggerfn == _Never():
     windowing = copy.copy(windowing)
     windowing.triggerfn = Always()
@@ -1636,11 +1636,11 @@ class InMemoryUnmergedState(UnmergedState):
   def get_earliest_hold(self):
     earliest_hold = MAX_TIMESTAMP
     for unused_window, tagged_states in self.state.items():
-      # TODO(BEAM-2519): currently, this assumes that the watermark hold tag is
-      # named "watermark".  This is currently only true because the only place
-      # watermark holds are set is in the GeneralTriggerDriver, where we use
-      # this name.  We should fix this by allowing enumeration of the tag types
-      # used in adding state.
+      # TODO(https://github.com/apache/beam/issues/18441): currently, this
+      # assumes that the watermark hold tag is named "watermark".  This is
+      # currently only true because the only place watermark holds are set is
+      # in the GeneralTriggerDriver, where we use this name.  We should fix
+      # this by allowing enumeration of the tag types used in adding state.
       if 'watermark' in tagged_states and tagged_states['watermark']:
         hold = min(tagged_states['watermark']) - TIME_GRANULARITY
         earliest_hold = min(earliest_hold, hold)

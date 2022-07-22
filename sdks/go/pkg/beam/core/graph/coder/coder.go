@@ -169,6 +169,7 @@ const (
 	VarInt             Kind = "varint"
 	Double             Kind = "double"
 	Row                Kind = "R"
+	Nullable           Kind = "N"
 	Timer              Kind = "T"
 	PaneInfo           Kind = "PI"
 	WindowedValue      Kind = "W"
@@ -187,7 +188,7 @@ const (
 	// It requires special handling in translation to the model pipeline in the latter case
 	// to add the incoming index for each input.
 	//
-	// TODO(BEAM-490): once this JIRA is done, this coder should become the new thing.
+	// TODO(https://github.com/apache/beam/issues/18032): once this JIRA is done, this coder should become the new thing.
 	CoGBK Kind = "CoGBK"
 )
 
@@ -198,7 +199,7 @@ type Coder struct {
 	Kind Kind
 	T    typex.FullType
 
-	Components []*Coder     // WindowedValue, KV, CoGBK
+	Components []*Coder     // WindowedValue, KV, CoGBK, Nullable
 	Custom     *CustomCoder // Custom
 	Window     *WindowCoder // WindowedValue
 
@@ -260,7 +261,7 @@ func (c *Coder) String() string {
 	switch c.Kind {
 	case WindowedValue, ParamWindowedValue, Window, Timer:
 		ret += fmt.Sprintf("!%v", c.Window)
-	case KV, CoGBK, Bytes, Bool, VarInt, Double, String, LP: // No additional info.
+	case KV, CoGBK, Bytes, Bool, VarInt, Double, String, LP, Nullable: // No additional info.
 	default:
 		ret += fmt.Sprintf("[%v]", c.T)
 	}
@@ -346,7 +347,7 @@ func NewT(c *Coder, w *WindowCoder) *Coder {
 		panic("window must not be nil")
 	}
 
-	// TODO(BEAM-10660): Implement proper timer support.
+	// TODO(https://github.com/apache/beam/issues/20510): Implement proper timer support.
 	return &Coder{
 		Kind: Timer,
 		T: typex.New(reflect.TypeOf((*struct {
@@ -392,6 +393,22 @@ func NewKV(components []*Coder) *Coder {
 		T:          typex.New(typex.KVType, Types(components)...),
 		Components: components,
 	}
+}
+
+// NewN returns a coder for Nullable.
+func NewN(component *Coder) *Coder {
+	coders := []*Coder{component}
+	checkCodersNotNil(coders)
+	return &Coder{
+		Kind:       Nullable,
+		T:          typex.New(typex.NullableType, component.T),
+		Components: coders,
+	}
+}
+
+// IsNullable returns true iff the coder is for Nullable.
+func IsNullable(c *Coder) bool {
+	return c.Kind == Nullable
 }
 
 // IsCoGBK returns true iff the coder is for a CoGBK type.

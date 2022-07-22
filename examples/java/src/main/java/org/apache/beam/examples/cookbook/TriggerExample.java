@@ -100,7 +100,7 @@ import org.joda.time.Instant;
  * <enter_table_name> WHERE trigger_type = "withAllowedLateness" and (timing = "LATE" or timing =
  * "ON_TIME") and freeway = "5" ORDER BY window DESC, processing_time}
  *
- * <p>To see the the difference between accumulation mode and discarding mode, {@code SELECT * FROM
+ * <p>To see the difference between accumulation mode and discarding mode, {@code SELECT * FROM
  * <enter_table_name> WHERE (timing = "LATE" or timing = "ON_TIME") AND (trigger_type =
  * "withAllowedLateness" or trigger_type = "sequential") and freeway = "5" ORDER BY window DESC,
  * processing_time}
@@ -123,7 +123,7 @@ import org.joda.time.Instant;
  * and then exits.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TriggerExample {
   // Numeric value of fixed window duration, in minutes

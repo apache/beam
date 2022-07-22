@@ -33,3 +33,21 @@ final ExampleModel exampleMock2 = ExampleModel(
   description: 'description',
   path: 'SDK/Category/Name',
 );
+
+final ExampleModel exampleWithoutSourceMock = ExampleModel(
+  name: 'Test example',
+  type: ExampleType.example,
+  description: 'description',
+  path: 'SDK/Category/Name',
+);
+
+final ExampleModel exampleWithAllAdditionsMock = ExampleModel(
+  name: 'Test example',
+  type: ExampleType.example,
+  description: 'description',
+  path: 'SDK/Category/Name',
+  source: 'test outputs',
+  outputs: 'test outputs',
+  logs: 'test outputs',
+  graph: 'test outputs',
+);

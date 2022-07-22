@@ -116,7 +116,7 @@ class DataframeTransform(transforms.PTransform):
     input_frames = {
         k: convert.to_dataframe(pc, proxies[k])
         for k, pc in input_dict.items()
-    }  # type: Dict[Any, DeferredFrame]
+    }  # type: Dict[Any, DeferredFrame] # noqa: F821
 
     # Apply the function.
     frames_input = _substitute(input_pcolls, input_frames)
@@ -186,7 +186,8 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         ]
 
         if len(tabular_inputs) == 0:
-          partitioned_pcoll = next(pcolls.values()).pipeline | beam.Create([{}])
+          partitioned_pcoll = next(iter(
+              pcolls.values())).pipeline | beam.Create([{}])
 
         elif self.stage.partitioning != partitionings.Arbitrary():
           # Partitioning required for these operations.

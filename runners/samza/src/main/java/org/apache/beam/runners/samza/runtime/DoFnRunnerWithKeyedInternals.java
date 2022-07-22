@@ -28,8 +28,8 @@ import org.joda.time.Instant;
 
 /** This class wraps a DoFnRunner with keyed StateInternals and TimerInternals access. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> underlying;

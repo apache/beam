@@ -38,8 +38,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 
 /** Twister2TranslationContext. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class Twister2TranslationContext {
   private final Twister2PipelineOptions options;

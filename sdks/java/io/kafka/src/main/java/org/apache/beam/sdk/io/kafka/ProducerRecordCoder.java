@@ -36,11 +36,11 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link Coder} for {@link ProducerRecord}. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ProducerRecordCoder<K, V> extends StructuredCoder<ProducerRecord<K, V>> {
   private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
@@ -71,25 +71,29 @@ public class ProducerRecordCoder<K, V> extends StructuredCoder<ProducerRecord<K,
   @Override
   public ProducerRecord<K, V> decode(InputStream inStream) throws IOException {
     String topic = stringCoder.decode(inStream);
-    Integer partition = intCoder.decode(inStream);
+    @Nullable Integer partition = intCoder.decode(inStream);
     if (partition == -1) {
       partition = null;
     }
 
-    Long timestamp = longCoder.decode(inStream);
+    @Nullable Long timestamp = longCoder.decode(inStream);
     if (timestamp == Long.MAX_VALUE) {
       timestamp = null;
     }
 
     Headers headers = (Headers) toHeaders(headerCoder.decode(inStream));
     KV<K, V> kv = kvCoder.decode(inStream);
-    if (ConsumerSpEL.hasHeaders()) {
-      return new ProducerRecord<>(topic, partition, timestamp, kv.getKey(), kv.getValue(), headers);
-    }
-    return new ProducerRecord<>(topic, partition, timestamp, kv.getKey(), kv.getValue());
+
+    @SuppressWarnings("nullness") // kakfa library not annotated
+    ProducerRecord<K, V> result =
+        ConsumerSpEL.hasHeaders()
+            ? new ProducerRecord<>(topic, partition, timestamp, kv.getKey(), kv.getValue(), headers)
+            : new ProducerRecord<>(topic, partition, timestamp, kv.getKey(), kv.getValue());
+
+    return result;
   }
 
-  private Object toHeaders(Iterable<KV<String, byte[]>> records) {
+  private @Nullable Object toHeaders(Iterable<KV<String, byte[]>> records) {
     if (!ConsumerSpEL.hasHeaders()) {
       return null;
     }

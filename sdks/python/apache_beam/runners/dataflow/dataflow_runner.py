@@ -261,7 +261,7 @@ class DataflowRunner(PipelineRunner):
 
   @staticmethod
   def _only_element(iterable):
-    # type: (Iterable[T]) -> T
+    # type: (Iterable[T]) -> T # noqa: F821
     element, = iterable
     return element
 
@@ -288,11 +288,11 @@ class DataflowRunner(PipelineRunner):
             access_pattern = side_input._side_input_data().access_pattern
             if access_pattern == common_urns.side_inputs.ITERABLE.urn:
               if use_unified_worker or not use_fn_api:
-                # TODO(BEAM-9173): Stop patching up the access pattern to
-                # appease Dataflow when using the UW and hardcode the output
-                # type to be Any since the Dataflow JSON and pipeline proto
-                # can differ in coders which leads to encoding/decoding issues
-                # within the runner.
+                # TODO(https://github.com/apache/beam/issues/20043): Stop
+                # patching up the access pattern to appease Dataflow when
+                # using the UW and hardcode the output type to be Any since
+                # the Dataflow JSON and pipeline proto can differ in coders
+                # which leads to encoding/decoding issues within the runner.
                 side_input.pvalue.element_type = typehints.Any
                 new_side_input = _DataflowIterableSideInput(side_input)
               else:
@@ -377,7 +377,8 @@ class DataflowRunner(PipelineRunner):
 
       @staticmethod
       def _overrides_setup_or_teardown(combinefn):
-        # TODO(BEAM-3736): provide an implementation for this method
+        # TODO(https://github.com/apache/beam/issues/18716): provide an
+        # implementation for this method
         return False
 
     return CombineFnVisitor()
@@ -457,26 +458,36 @@ class DataflowRunner(PipelineRunner):
       if use_fnapi and not apiclient._use_unified_worker(options):
         pipeline.replace_all(DataflowRunner._JRH_PTRANSFORM_OVERRIDES)
 
-    from apache_beam.transforms import environments
-    if options.view_as(SetupOptions).prebuild_sdk_container_engine:
-      # if prebuild_sdk_container_engine is specified we will build a new sdk
-      # container image with dependencies pre-installed and use that image,
-      # instead of using the inferred default container image.
-      self._default_environment = (
-          environments.DockerEnvironment.from_options(options))
-      options.view_as(WorkerOptions).sdk_container_image = (
-          self._default_environment.container_image)
-    else:
-      self._default_environment = (
-          environments.DockerEnvironment.from_container_image(
-              apiclient.get_container_image_from_options(options),
-              artifacts=environments.python_sdk_dependencies(options),
-              resource_hints=environments.resource_hints_from_options(options)))
-
     if pipeline_proto:
       self.proto_pipeline = pipeline_proto
 
     else:
+      from apache_beam.transforms import environments
+      if options.view_as(SetupOptions).prebuild_sdk_container_engine:
+        # if prebuild_sdk_container_engine is specified we will build a new sdk
+        # container image with dependencies pre-installed and use that image,
+        # instead of using the inferred default container image.
+        self._default_environment = (
+            environments.DockerEnvironment.from_options(options))
+        options.view_as(WorkerOptions).sdk_container_image = (
+            self._default_environment.container_image)
+      else:
+        artifacts = environments.python_sdk_dependencies(options)
+        if artifacts and apiclient._use_fnapi(options):
+          _LOGGER.info(
+              "Pipeline has additional dependencies to be installed "
+              "in SDK worker container, consider using the SDK "
+              "container image pre-building workflow to avoid "
+              "repetitive installations. Learn more on "
+              "https://cloud.google.com/dataflow/docs/guides/"
+              "using-custom-containers#prebuild")
+        self._default_environment = (
+            environments.DockerEnvironment.from_container_image(
+                apiclient.get_container_image_from_options(options),
+                artifacts=artifacts,
+                resource_hints=environments.resource_hints_from_options(
+                    options)))
+
       # This has to be performed before pipeline proto is constructed to make
       # sure that the changes are reflected in the portable job submission path.
       self._adjust_pipeline_for_dataflow_v2(pipeline)
@@ -1630,7 +1641,10 @@ class DataflowPipelineResult(PipelineResult):
     if not self.is_in_terminal_state():
       if not self.has_job:
         raise IOError('Failed to get the Dataflow job id.')
-
+      consoleUrl = (
+          "Console URL: https://console.cloud.google.com/"
+          f"dataflow/jobs/<RegionId>/{self.job_id()}"
+          "?project=<ProjectId>")
       thread = threading.Thread(
           target=DataflowRunner.poll_for_job_completion,
           args=(self._runner, self, duration))
@@ -1647,15 +1661,20 @@ class DataflowPipelineResult(PipelineResult):
       # is_in_terminal_state.
       terminated = self.is_in_terminal_state()
       assert duration or terminated, (
-          'Job did not reach to a terminal state after waiting indefinitely.')
+          'Job did not reach to a terminal state after waiting indefinitely. '
+          '{}'.format(consoleUrl))
 
+      # TODO(https://github.com/apache/beam/issues/21695): Also run this check
+      # if wait_until_finish was called after the pipeline completed.
       if terminated and self.state != PipelineState.DONE:
         # TODO(BEAM-1290): Consider converting this to an error log based on
         # theresolution of the issue.
+        _LOGGER.error(consoleUrl)
         raise DataflowRuntimeException(
             'Dataflow pipeline failed. State: %s, Error:\n%s' %
             (self.state, getattr(self._runner, 'last_error_msg', None)),
             self)
+
     return self.state
 
   def cancel(self):

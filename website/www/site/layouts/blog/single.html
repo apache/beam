@@ -25,13 +25,13 @@ limitations under the License. See accompanying LICENSE file.
         <h2 itemprop="name headline">{{ .Title }}</h1>
         <div class="post-info">
           <span>
-          {{ with $authors }}
+            {{ with $authors }}
                 {{ $count := len . }}
                 {{ range $index, $authorId := . }}
-                    {{ if and (ne $index 0) (gt $count 2) }},{{ end }}
+                    {{ if and (ne $index 0) (gt $count 2) (lt $index (sub $count 1))}},{{ end }}
                     {{ if and (eq $index (sub $count 1)) (gt $count 1) }} &amp;{{ end }}
                     {{ with index $.Site.Data.authors $authorId }}
-                      {{ .name }} {{ with .twitter }}[<a href="https://twitter.com/{{ . }}">@{{ . }}</a>]{{ end }}
+                      {{ .name }}{{ with .twitter }} [<a href="https://twitter.com/{{ . }}">@{{ . }}</a>]{{ end }}
                     {{ else }}
                       {{ $authorId }}
                     {{ end }}

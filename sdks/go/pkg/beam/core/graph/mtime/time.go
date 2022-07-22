@@ -37,7 +37,7 @@ const (
 
 	// EndOfGlobalWindowTime is the timestamp at the end of the global window. It
 	// is a day before the max timestamp.
-	// TODO(BEAM-4179) Use GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS from the Runner API constants
+	// TODO(https://github.com/apache/beam/issues/18951) Use GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS from the Runner API constants
 	EndOfGlobalWindowTime = MaxTimestamp - 24*60*60*1000
 
 	// ZeroTimestamp is the default zero value time. It corresponds to the unix epoch.
@@ -65,13 +65,17 @@ func FromDuration(d time.Duration) Time {
 
 // FromTime returns a milli-second precision timestamp from a time.Time.
 func FromTime(t time.Time) Time {
-	// TODO(BEAM-13988): Replace t.UnixNano() with t.UnixMilli() for Go 1.17 or higher.
-	return Normalize(Time(t.UnixNano() / 1e6))
+	return Normalize(Time(t.UnixMilli()))
 }
 
 // Milliseconds returns the number of milli-seconds since the Unix epoch.
 func (t Time) Milliseconds() int64 {
 	return int64(t)
+}
+
+// ToTime returns the Time represented as a time.Time
+func (t Time) ToTime() time.Time {
+	return time.UnixMilli(int64(t)).UTC()
 }
 
 // Add returns the time plus the duration. Input Durations of less than one

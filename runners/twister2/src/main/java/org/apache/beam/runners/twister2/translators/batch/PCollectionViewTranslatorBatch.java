@@ -39,7 +39,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** PCollectionView translator. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class PCollectionViewTranslatorBatch<ElemT, ViewT>
     implements BatchTransformTranslator<View.CreatePCollectionView<ElemT, ViewT>> {

@@ -263,7 +263,7 @@ class ApproximateUniqueCombineFn(CombineFn):
     except Exception as e:
       raise RuntimeError("Runtime exception: %s" % e)
 
-  # created an issue https://issues.apache.org/jira/browse/BEAM-7285 to speed up
+  # created an issue https://github.com/apache/beam/issues/19459 to speed up
   # merge process.
   def merge_accumulators(self, accumulators, *args, **kwargs):
     merged_accumulator = self.create_accumulator()
@@ -919,7 +919,8 @@ class ApproximateQuantilesCombineFn(CombineFn):
       self._offset_jitter = 2 - self._offset_jitter
       return (new_weight + self._offset_jitter) / 2
 
-  # TODO(BEAM-7746): Signature incompatible with supertype
+  # TODO(https://github.com/apache/beam/issues/19737): Signature incompatible
+  # with supertype
   def create_accumulator(self):  # type: ignore[override]
     # type: () -> _QuantileState
     self._qs = _QuantileState(

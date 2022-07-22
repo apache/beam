@@ -33,15 +33,12 @@ import (
 var capture io.WriteCloser
 
 var (
-	selectedOptions = make(map[string]bool)
-	sessionLock     sync.Mutex
-	bufPool         = sync.Pool{
+	sessionLock sync.Mutex
+	bufPool     = sync.Pool{
 		New: func() interface{} {
 			return proto.NewBuffer(nil)
 		},
 	}
-
-	storagePath string
 )
 
 func isEnabled(option string) bool {

@@ -38,10 +38,10 @@ import org.joda.time.Instant;
  * @param <T> type of element being windowed
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness",
   "keyfor"
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class AssignWindowP<T> extends AbstractProcessor {
 
   @SuppressWarnings({"FieldCanBeLocal", "unused"})

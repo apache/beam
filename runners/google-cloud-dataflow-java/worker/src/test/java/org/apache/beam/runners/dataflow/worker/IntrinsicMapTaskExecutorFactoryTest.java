@@ -116,7 +116,7 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link IntrinsicMapTaskExecutorFactory}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class IntrinsicMapTaskExecutorFactoryTest {
   private static final String STAGE = "test";
@@ -193,7 +193,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
             idGenerator)) {
       // Safe covariant cast not expressible without rawtypes.
       @SuppressWarnings({
-        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
         "unchecked"
       })
       List<Object> operations = (List) executor.operations;

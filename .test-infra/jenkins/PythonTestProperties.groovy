@@ -20,7 +20,6 @@ class PythonTestProperties {
   // Indicates all supported Python versions.
   // This must be sorted in ascending order.
   final static List<String> ALL_SUPPORTED_VERSIONS = [
-    '3.6',
     '3.7',
     '3.8',
     '3.9'

@@ -79,6 +79,7 @@ import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -99,7 +100,7 @@ import org.joda.time.Duration;
  * org.apache.beam.runners.core.construction.graph.ExecutableStage}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {
@@ -216,7 +217,7 @@ public class CreateExecutableStageNodeFunction
 
       String coderId = "generatedCoder" + idGenerator.getId();
       String windowingStrategyId;
-      try (ByteString.Output output = ByteString.newOutput()) {
+      try (ByteStringOutputStream output = new ByteStringOutputStream()) {
         try {
           Coder<?> javaCoder =
               CloudObjects.coderFromCloudObject(CloudObject.fromSpec(instructionOutput.getCodec()));
@@ -257,7 +258,8 @@ public class CreateExecutableStageNodeFunction
                   .setSpec(RunnerApi.FunctionSpec.newBuilder().setPayload(output.toByteString()))
                   .build());
           // For non-java coder, hope it's GlobalWindows by default.
-          // TODO(BEAM-6231): Actually discover the right windowing strategy.
+          // TODO(https://github.com/apache/beam/issues/19363): Actually discover the right
+          // windowing strategy.
           windowingStrategyId = globalWindowingStrategyId;
         }
       } catch (IOException e) {
@@ -268,7 +270,8 @@ public class CreateExecutableStageNodeFunction
             e);
       }
 
-      // TODO(BEAM-6275): Set correct IsBounded on generated PCollections
+      // TODO(https://github.com/apache/beam/issues/19297): Set correct IsBounded on generated
+      // PCollections
       String pcollectionId = node.getPcollectionId();
       RunnerApi.PCollection pCollection =
           RunnerApi.PCollection.newBuilder()

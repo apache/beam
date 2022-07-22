@@ -28,7 +28,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
  * Base class for iterators that decode messages from bundles inside a {@link Windmill.WorkItem}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class WindmillReaderIteratorBase<T>
     extends NativeReader.NativeReaderIterator<WindowedValue<T>> {

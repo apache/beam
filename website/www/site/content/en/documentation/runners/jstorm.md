@@ -16,7 +16,7 @@ limitations under the License.
 -->
 # Using the JStorm Runner
 
-The JStorm Runner can be used to execute Beam pipelines using [JStorm](http://jstorm.io/), while providing:
+The JStorm Runner can be used to execute Beam pipelines using [JStorm](https://github.com/alibaba/jstorm), while providing:
 
 * High throughput and low latency.
 * At-least-once and exactly-once fault tolerance.
@@ -51,8 +51,6 @@ When you submit a topology with argument `"--external-libs beam"`, JStorm will l
 ```
 jstorm jar WordCount.jar org.apache.beam.examples.WordCount --external-libs beam  --runner=org.apache.beam.runners.jstorm.JStormRunner
 ```
-
-To learn about deploying a JStorm cluster, please refer to [JStorm cluster deploy](http://jstorm.io/QuickStart/Deploy/index.html)
 
 ## Pipeline options for the JStorm Runner
 

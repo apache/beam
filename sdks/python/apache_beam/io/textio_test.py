@@ -30,13 +30,15 @@ import zlib
 
 import apache_beam as beam
 from apache_beam import coders
-from apache_beam.io import ReadAllFromText
 from apache_beam.io import iobase
 from apache_beam.io import source_test_utils
 from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.textio import _TextSink as TextSink
 from apache_beam.io.textio import _TextSource as TextSource
 # Importing following private classes for testing.
+from apache_beam.io.textio import ReadAllFromText
+from apache_beam.io.textio import ReadAllFromTextContinuously
 from apache_beam.io.textio import ReadFromText
 from apache_beam.io.textio import ReadFromTextWithFilename
 from apache_beam.io.textio import WriteToText
@@ -45,6 +47,8 @@ from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import Create
+from apache_beam.transforms.userstate import CombiningValueStateSpec
+from apache_beam.utils.timestamp import Timestamp
 
 
 class DummyCoder(coders.Coder):
@@ -53,6 +57,9 @@ class DummyCoder(coders.Coder):
 
   def decode(self, x):
     return (x * 2).decode('utf-8')
+
+  def to_type_hint(self):
+    return str
 
 
 class EOL(object):
@@ -551,8 +558,80 @@ class TextSourceTest(unittest.TestCase):
           | 'ReadAll' >> ReadAllFromText())
       assert_that(pcoll, equal_to(expected_data))
 
-  def test_read_from_text_single_file_with_coder(self):
+  class _WriteFilesFn(beam.DoFn):
+    """writes a couple of files with deferral."""
+    COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
 
+    def __init__(self, temp_path):
+      self.temp_path = temp_path
+
+    def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
+      counter = count_state.read()
+      if counter == 0:
+        count_state.add(1)
+        with open(FileSystems.join(self.temp_path, 'file1'), 'w') as f:
+          f.write('second A\nsecond B')
+        with open(FileSystems.join(self.temp_path, 'file2'), 'w') as f:
+          f.write('first')
+      # convert dumb key to basename in output
+      basename = FileSystems.split(element[1][0])[1]
+      content = element[1][1]
+      yield basename, content
+
+  def test_read_all_continuously_new(self):
+    with TempDir() as tempdir, TestPipeline() as pipeline:
+      temp_path = tempdir.get_path()
+      # create a temp file at the beginning
+      with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
+        f.write('first')
+      match_pattern = FileSystems.join(temp_path, '*')
+      interval = 0.5
+      last = 2
+      p_read_once = (
+          pipeline
+          | 'Continuously read new files' >> ReadAllFromTextContinuously(
+              match_pattern,
+              with_filename=True,
+              start_timestamp=Timestamp.now(),
+              interval=interval,
+              stop_timestamp=Timestamp.now() + last,
+              match_updated_files=False)
+          | 'add dumb key' >> beam.Map(lambda x: (0, x))
+          |
+          'Write files on-the-fly' >> beam.ParDo(self._WriteFilesFn(temp_path)))
+      assert_that(
+          p_read_once,
+          equal_to([('file1', 'first'), ('file2', 'first')]),
+          label='assert read new files results')
+
+  def test_read_all_continuously_update(self):
+    with TempDir() as tempdir, TestPipeline() as pipeline:
+      temp_path = tempdir.get_path()
+      # create a temp file at the beginning
+      with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
+        f.write('first')
+      match_pattern = FileSystems.join(temp_path, '*')
+      interval = 0.5
+      last = 2
+      p_read_upd = (
+          pipeline
+          | 'Continuously read updated files' >> ReadAllFromTextContinuously(
+              match_pattern,
+              with_filename=True,
+              start_timestamp=Timestamp.now(),
+              interval=interval,
+              stop_timestamp=Timestamp.now() + last,
+              match_updated_files=True)
+          | 'add dumb key' >> beam.Map(lambda x: (0, x))
+          |
+          'Write files on-the-fly' >> beam.ParDo(self._WriteFilesFn(temp_path)))
+      assert_that(
+          p_read_upd,
+          equal_to([('file1', 'first'), ('file1', 'second A'),
+                    ('file1', 'second B'), ('file2', 'first')]),
+          label='assert read updated files results')
+
+  def test_read_from_text_single_file_with_coder(self):
     file_name, expected_data = write_data(5)
     assert len(expected_data) == 5
     with TestPipeline() as pipeline:
@@ -1379,7 +1458,7 @@ class TextSinkTest(unittest.TestCase):
     if not name:
       name = tempfile.template
     file_name = tempfile.NamedTemporaryFile(
-        delete=False, prefix=name, dir=self.tempdir, suffix=suffix).name
+        delete=True, prefix=name, dir=self.tempdir, suffix=suffix).name
     return file_name
 
   def _write_lines(self, sink, lines):
@@ -1570,6 +1649,66 @@ class TextSinkTest(unittest.TestCase):
 
     self.assertEqual(sorted(read_result[:-1]), sorted(self.lines))
     self.assertEqual(read_result[-1], footer_text.encode('utf-8'))
+
+  def test_write_empty(self):
+    with TestPipeline() as p:
+      # pylint: disable=expression-not-assigned
+      p | beam.core.Create([]) | WriteToText(self.path)
+
+    outputs = glob.glob(self.path + '*')
+    self.assertEqual(len(outputs), 1)
+    with open(outputs[0], 'rb') as f:
+      self.assertEqual(list(f.read().splitlines()), [])
+
+  def test_write_empty_skipped(self):
+    with TestPipeline() as p:
+      # pylint: disable=expression-not-assigned
+      p | beam.core.Create([]) | WriteToText(self.path, skip_if_empty=True)
+
+    outputs = list(glob.glob(self.path + '*'))
+    self.assertEqual(outputs, [])
+
+  def test_write_max_records_per_shard(self):
+    records_per_shard = 13
+    lines = [str(i).encode('utf-8') for i in range(100)]
+    with TestPipeline() as p:
+      # pylint: disable=expression-not-assigned
+      p | beam.core.Create(lines) | WriteToText(
+          self.path, max_records_per_shard=records_per_shard)
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with open(file_name, 'rb') as f:
+        shard_lines = list(f.read().splitlines())
+        self.assertLessEqual(len(shard_lines), records_per_shard)
+        read_result.extend(shard_lines)
+    self.assertEqual(sorted(read_result), sorted(lines))
+
+  def test_write_max_bytes_per_shard(self):
+    bytes_per_shard = 300
+    max_len = 100
+    lines = [b'x' * i for i in range(max_len)]
+    header = b'a' * 20
+    footer = b'b' * 30
+    with TestPipeline() as p:
+      # pylint: disable=expression-not-assigned
+      p | beam.core.Create(lines) | WriteToText(
+          self.path,
+          header=header,
+          footer=footer,
+          max_bytes_per_shard=bytes_per_shard)
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with open(file_name, 'rb') as f:
+        contents = f.read()
+        self.assertLessEqual(
+            len(contents), bytes_per_shard + max_len + len(footer) + 2)
+        shard_lines = list(contents.splitlines())
+        self.assertEqual(shard_lines[0], header)
+        self.assertEqual(shard_lines[-1], footer)
+        read_result.extend(shard_lines[1:-1])
+    self.assertEqual(sorted(read_result), sorted(lines))
 
 
 if __name__ == '__main__':

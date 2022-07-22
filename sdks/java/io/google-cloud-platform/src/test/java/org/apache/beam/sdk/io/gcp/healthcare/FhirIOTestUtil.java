@@ -95,7 +95,7 @@ class FhirIOTestUtil {
     for (String bundle : bundles) {
       HttpBody resp = client.executeFhirBundle(fhirStore, bundle);
 
-      JsonObject jsonResponse = JsonParser.parseString(resp.getData()).getAsJsonObject();
+      JsonObject jsonResponse = JsonParser.parseString(resp.toString()).getAsJsonObject();
       for (JsonElement entry : jsonResponse.getAsJsonArray("entry")) {
         String location =
             entry

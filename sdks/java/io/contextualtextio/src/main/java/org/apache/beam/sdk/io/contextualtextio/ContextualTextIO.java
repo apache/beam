@@ -209,7 +209,7 @@ import org.slf4j.LoggerFactory;
  * only a small number of files.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ContextualTextIO {
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;

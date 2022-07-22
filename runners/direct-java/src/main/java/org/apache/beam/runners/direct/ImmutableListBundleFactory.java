@@ -34,7 +34,7 @@ import org.joda.time.Instant;
 
 /** A factory that produces bundles that perform no additional validation. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class ImmutableListBundleFactory implements BundleFactory {
   private static final ImmutableListBundleFactory FACTORY = new ImmutableListBundleFactory();

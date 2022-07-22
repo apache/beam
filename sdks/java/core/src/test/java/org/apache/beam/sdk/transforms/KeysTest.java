@@ -36,7 +36,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class KeysTest {
   @SuppressWarnings({
-    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
     "unchecked"
   })
   static final KV<String, Integer>[] TABLE =
@@ -45,7 +45,7 @@ public class KeysTest {
       };
 
   @SuppressWarnings({
-    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
     "unchecked"
   })
   static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {};

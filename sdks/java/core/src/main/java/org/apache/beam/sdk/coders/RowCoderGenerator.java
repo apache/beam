@@ -29,6 +29,26 @@ import java.util.BitSet;
 import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nullable;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.description.modifier.FieldManifestation;
+import net.bytebuddy.description.modifier.Ownership;
+import net.bytebuddy.description.modifier.Visibility;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import net.bytebuddy.implementation.FixedValue;
+import net.bytebuddy.implementation.Implementation;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
+import net.bytebuddy.implementation.bytecode.Duplication;
+import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.member.FieldAccess;
+import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
@@ -36,26 +56,6 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.ByteBuddy;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.modifier.FieldManifestation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.modifier.Ownership;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.modifier.Visibility;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.type.TypeDescription;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.DynamicType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.FixedValue;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.Implementation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.Duplication;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.StackManipulation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.FieldAccess;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
@@ -97,7 +97,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
  */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public abstract class RowCoderGenerator {

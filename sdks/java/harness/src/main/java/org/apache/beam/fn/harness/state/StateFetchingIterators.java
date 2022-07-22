@@ -47,11 +47,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 
 /**
- * Adapters which convert a a logical series of chunks using continuation tokens over the Beam Fn
+ * Adapters which convert a logical series of chunks using continuation tokens over the Beam Fn
  * State API into an {@link Iterator} of {@link ByteString}s.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class StateFetchingIterators {
 

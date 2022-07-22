@@ -39,6 +39,7 @@ job(jobName) {
   Map pipelineOptions = [
     temp_location: 'gs://temp-storage-for-perf-tests/loadtests',
     project      : 'apache-beam-testing',
+    region       : 'us-central1',
     mongo_uri    : "mongodb://\$${mongoHostName}:27017",
     num_documents: '1000000',
     batch_size   : '10000',

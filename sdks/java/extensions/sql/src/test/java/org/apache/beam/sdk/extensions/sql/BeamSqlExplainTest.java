@@ -61,7 +61,7 @@ public class BeamSqlExplainTest {
             + "COMMENT '' ");
   }
 
-  // TODO: (BEAM-4561) 5/30/2017 The test here is too fragile.
+  // TODO: (https://github.com/apache/beam/issues/19059) 5/30/2017 The test here is too fragile.
   @Ignore
   public void testExplainCommaJoin() {
     String plan = cli.explainQuery("SELECT A.c1, B.c2 FROM A, B WHERE A.c1 = B.c2 AND A.c1 > 0");

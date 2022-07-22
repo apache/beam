@@ -37,6 +37,7 @@ import 'package:playground/modules/examples/repositories/models/get_list_of_exam
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_response.dart'
     as _i2;
 
+// ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
 // ignore_for_file: avoid_setters_without_getters
 // ignore_for_file: comment_references
@@ -114,6 +115,4 @@ class MockExampleClient extends _i1.Mock implements _i6.ExampleClient {
               returnValue:
                   Future<_i5.OutputResponse>.value(_FakeOutputResponse_3()))
           as _i7.Future<_i5.OutputResponse>);
-  @override
-  String toString() => super.toString();
 }

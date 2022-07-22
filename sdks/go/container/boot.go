@@ -17,6 +17,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -25,11 +26,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	// Import gcs filesystem so that it can be used to upload heap dumps
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/diagnostics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 )
@@ -108,10 +114,26 @@ func main() {
 		"--options=" + options,
 	}
 	if info.GetStatusEndpoint() != nil {
-		args = append(args, "--status_endpoint="+info.GetStatusEndpoint().GetUrl())
+		os.Setenv("STATUS_ENDPOINT", info.GetStatusEndpoint().GetUrl())
 	}
 
-	log.Fatalf("User program exited: %v", execx.Execute(prog, args...))
+	if len(info.GetRunnerCapabilities()) > 0 {
+		os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
+	}
+
+	err = execx.Execute(prog, args...)
+
+	if err != nil {
+		var opt runtime.RawOptionsWrapper
+		err := json.Unmarshal([]byte(options), &opt)
+		if err == nil {
+			if tempLocation, ok := opt.Options.Options["temp_location"]; ok {
+				diagnostics.UploadHeapProfile(ctx, fmt.Sprintf("%v/heapProfiles/profile-%v-%d", strings.TrimSuffix(tempLocation, "/"), *id, time.Now().Unix()))
+			}
+		}
+	}
+
+	log.Fatalf("User program exited: %v", err)
 }
 
 func getGoWorkerArtifactName(artifacts []*pipepb.ArtifactInformation) (string, error) {
@@ -120,7 +142,7 @@ func getGoWorkerArtifactName(artifacts []*pipepb.ArtifactInformation) (string, e
 
 	switch len(artifacts) {
 	case 0:
-		return "", errors.New(fmt.Sprintf("No artifacts staged"))
+		return "", errors.New("no artifacts staged")
 	case 1:
 		name, _ = artifact.MustExtractFilePayload(artifacts[0])
 		return name, nil
@@ -131,7 +153,7 @@ func getGoWorkerArtifactName(artifacts []*pipepb.ArtifactInformation) (string, e
 				return name, nil
 			}
 		}
-		// TODO(BEAM-13647): Remove legacy hack once aged out.
+		// TODO(https://github.com/apache/beam/issues/21459): Remove legacy hack once aged out.
 		for _, a := range artifacts {
 			n, _ := artifact.MustExtractFilePayload(a)
 			if n == worker {
@@ -139,7 +161,7 @@ func getGoWorkerArtifactName(artifacts []*pipepb.ArtifactInformation) (string, e
 				return n, nil
 			}
 		}
-		return "", errors.New(fmt.Sprintf("No artifact named '%v' found", worker))
+		return "", fmt.Errorf("no artifact named '%v' found", worker)
 	}
 }
 
@@ -156,13 +178,13 @@ func ensureEndpointsSet(info *fnpb.ProvisionInfo) error {
 	}
 
 	if *loggingEndpoint == "" {
-		return errors.New("No logging endpoint provided.")
+		return errors.New("no logging endpoint provided")
 	}
 	if *artifactEndpoint == "" {
-		return errors.New("No artifact endpoint provided.")
+		return errors.New("no artifact endpoint provided")
 	}
 	if *controlEndpoint == "" {
-		return errors.New("No control endpoint provided.")
+		return errors.New("no control endpoint provided")
 	}
 
 	return nil

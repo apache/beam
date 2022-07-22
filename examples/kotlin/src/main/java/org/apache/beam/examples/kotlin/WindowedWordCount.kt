@@ -76,7 +76,7 @@ import java.util.concurrent.ThreadLocalRandom
 `</pre> *
  *
  *
- * The input file defaults to a public data set containing the text of of King Lear, by William
+ * The input file defaults to a public data set containing the text of King Lear, by William
  * Shakespeare. You can override it and choose your own input with `--inputFile`.
  *
  *

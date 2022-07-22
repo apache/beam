@@ -33,9 +33,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListRange
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString.Output;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Range;
 import org.hamcrest.Matchers;
@@ -93,7 +93,7 @@ public class WindmillStateReaderTest {
   }
 
   private ByteString intData(int value) throws IOException {
-    Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     INT_CODER.encode(value, output, Coder.Context.OUTER);
     return output.toByteString();
   }

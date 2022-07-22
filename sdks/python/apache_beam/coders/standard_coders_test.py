@@ -193,7 +193,9 @@ class StandardCodersTest(unittest.TestCase):
       value_parser: ShardedKey(
           key=value_parser(x['key']), shard_id=x['shardId'].encode('utf-8')),
       'beam:coder:custom_window:v1': lambda x,
-      window_parser: window_parser(x['window'])
+      window_parser: window_parser(x['window']),
+      'beam:coder:nullable:v1': lambda x,
+      value_parser: x.encode('utf-8') if x else None
   }
 
   def test_standard_coders(self):

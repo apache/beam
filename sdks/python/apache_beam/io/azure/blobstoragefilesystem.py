@@ -118,9 +118,9 @@ class BlobStorageFileSystem(FileSystem):
       ``BeamIOError``: if listing fails, but not if no files were found.
     """
     try:
-      for path, size in \
-          blobstorageio.BlobStorageIO().list_prefix(dir_or_prefix).items():
-        yield FileMetadata(path, size)
+      for path, (size, updated) in blobstorageio.BlobStorageIO() \
+        .list_prefix(dir_or_prefix, with_metadata=True).items():
+        yield FileMetadata(path, size, updated)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
@@ -145,7 +145,7 @@ class BlobStorageFileSystem(FileSystem):
       path,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO
+    # type: (...) -> BinaryIO # noqa: F821
 
     """Returns a write channel for the given file path.
 
@@ -163,7 +163,7 @@ class BlobStorageFileSystem(FileSystem):
       path,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO
+    # type: (...) -> BinaryIO # noqa: F821
 
     """Returns a read channel for the given file path.
 
@@ -275,6 +275,25 @@ class BlobStorageFileSystem(FileSystem):
       return blobstorageio.BlobStorageIO().checksum(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Checksum operation failed", {path, e})
+
+  def metadata(self, path):
+    """Fetch metadata fields of a file on the FileSystem.
+
+    Args:
+      path: string path of a file.
+
+    Returns:
+      :class:`~apache_beam.io.filesystem.FileMetadata`.
+
+    Raises:
+      ``BeamIOError``: if path isn't a file or doesn't exist.
+    """
+    try:
+      file_metadata = blobstorageio.BlobStorageIO()._status(path)
+      return FileMetadata(
+          path, file_metadata['size'], file_metadata['last_updated'])
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("Metadata operation failed", {path: e})
 
   def delete(self, paths):
     """Deletes files or directories at the provided paths.

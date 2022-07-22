@@ -1,0 +1,16 @@
+{
+  "name": "low",
+  "enabled": true,
+  "priority": 0,
+  "options": {
+    "java_arguments": [
+      "java_args=low"
+    ],
+    "classpath": [
+      "classpath_low"
+    ],
+    "properties": {
+      "priority": "low"
+    }
+  }
+}

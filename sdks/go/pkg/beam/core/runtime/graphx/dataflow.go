@@ -48,6 +48,7 @@ const (
 	doubleType        = "kind:double"
 	streamType        = "kind:stream"
 	pairType          = "kind:pair"
+	nullableType      = "kind:nullable"
 	lengthPrefixType  = "kind:length_prefix"
 	rowType           = "kind:row"
 
@@ -117,6 +118,16 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		}
 		return &CoderRef{Type: pairType, Components: []*CoderRef{key, value}, IsPairLike: true}, nil
 
+	case coder.Nullable:
+		if len(c.Components) != 1 {
+			return nil, errors.Errorf("bad N: %v", c)
+		}
+		innerref, err := EncodeCoderRef(c.Components[0])
+		if err != nil {
+			return nil, err
+		}
+		return &CoderRef{Type: nullableType, Components: []*CoderRef{innerref}}, nil
+
 	case coder.CoGBK:
 		if len(c.Components) < 2 {
 			return nil, errors.Errorf("bad CoGBK: %v", c)
@@ -129,7 +140,7 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 
 		value := refs[1]
 		if len(c.Components) > 2 {
-			// TODO(BEAM-490): don't inject union coder for CoGBK.
+			// TODO(https://github.com/apache/beam/issues/18032): don't inject union coder for CoGBK.
 
 			union := &CoderRef{Type: cogbklistType, Components: refs[1:]}
 			value = &CoderRef{Type: lengthPrefixType, Components: []*CoderRef{union}}
@@ -241,7 +252,7 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 			kind = coder.CoGBK
 			root = typex.CoGBKType
 
-			// TODO(BEAM-490): If CoGBK with > 1 input, handle as special GBK. We expect
+			// TODO(https://github.com/apache/beam/issues/18032): If CoGBK with > 1 input, handle as special GBK. We expect
 			// it to be encoded as CoGBK<K,LP<Union<V,W,..>>. Remove this handling once
 			// CoGBK has a first-class representation.
 
@@ -263,6 +274,19 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 
 		t := typex.New(root, key.T, value.T)
 		return &coder.Coder{Kind: kind, T: t, Components: []*coder.Coder{key, value}}, nil
+
+	case nullableType:
+		if len(c.Components) != 1 {
+			return nil, errors.Errorf("bad nullable: %+v", c)
+		}
+
+		inner, err := DecodeCoderRef(c.Components[0])
+		if err != nil {
+			return nil, err
+		}
+
+		t := typex.New(typex.NullableType, inner.T)
+		return &coder.Coder{Kind: coder.Nullable, T: t, Components: []*coder.Coder{inner}}, nil
 
 	case lengthPrefixType:
 		if len(c.Components) != 1 {

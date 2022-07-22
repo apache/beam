@@ -31,7 +31,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.Lists;
 
 /** Utility functions for mock classes. */
 @Experimental
-@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class TestTableUtils {
 
   /**

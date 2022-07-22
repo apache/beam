@@ -47,6 +47,7 @@ import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingHand
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitResult;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -59,13 +60,12 @@ import org.slf4j.LoggerFactory;
  * Wrapper around {@link WorkUnitClient} with methods for creating and sending work item status
  * updates.
  */
-// Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6565
+// Very likely real potential for bugs - https://github.com/apache/beam/issues/19270
 @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class WorkItemStatusClient {
-
   private static final Logger LOG = LoggerFactory.getLogger(WorkItemStatusClient.class);
 
   private final WorkItem workItem;
@@ -132,6 +132,8 @@ public class WorkItemStatusClient {
               + "instances in PipelineOptions.\n";
       LOG.error("{}: {}", logPrefix, message);
       error.setMessage(message + DataflowWorkerLoggingHandler.formatException(t));
+    } else if (isReadLoopAbortedError(t)) {
+      LOG.debug("Read loop aborted error occurred during work unit execution", t);
     } else {
       LOG.error(
           "{}: Uncaught exception occurred during work unit execution. This will be retried.",
@@ -184,6 +186,16 @@ public class WorkItemStatusClient {
   private static boolean isOutOfMemoryError(Throwable t) {
     while (t != null) {
       if (t instanceof OutOfMemoryError) {
+        return true;
+      }
+      t = t.getCause();
+    }
+    return false;
+  }
+
+  private static boolean isReadLoopAbortedError(Throwable t) {
+    while (t != null) {
+      if (t instanceof ReadOperation.ReadLoopAbortedException) {
         return true;
       }
       t = t.getCause();

@@ -60,7 +60,9 @@ import java.util.TimeZone;
 import java.util.UUID;
 import java.util.logging.LogRecord;
 import javax.sql.DataSource;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -335,6 +337,29 @@ public class JdbcIOTest implements Serializable {
                 Row.withSchema(expectedSchema).addValues(BigDecimal.valueOf(1)).build()));
 
     pipeline.run();
+  }
+
+  @Test
+  @SuppressWarnings({"UnusedVariable", "AssertThrowsMultipleStatements"})
+  public void testReadRowsFailedToGetSchema() {
+    Exception exc =
+        assertThrows(
+            BeamSchemaInferenceException.class,
+            () -> {
+              // Using a new pipeline object to avoid the various checks made by TestPipeline in
+              // this pipeline which is
+              // expected to throw an exception.
+              Pipeline pipeline = Pipeline.create();
+              pipeline.apply(
+                  JdbcIO.readRows()
+                      .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                      .withQuery(
+                          String.format(
+                              "SELECT CAST(1 AS NUMERIC(1, 0)) AS T1 FROM %s", "unknown_table")));
+              pipeline.run();
+            });
+
+    assertThat(exc.getMessage(), containsString("Failed to infer Beam schema"));
   }
 
   @Test
@@ -633,7 +658,7 @@ public class JdbcIOTest implements Serializable {
     DatabaseTestHelper.createTable(DATA_SOURCE, tableName);
 
     // lock table
-    Connection connection = DATA_SOURCE.getConnection();
+    final Connection connection = DATA_SOURCE.getConnection();
     Statement lockStatement = connection.createStatement();
     lockStatement.execute("ALTER TABLE " + tableName + " LOCKSIZE TABLE");
     lockStatement.execute("LOCK TABLE " + tableName + " IN EXCLUSIVE MODE");
@@ -666,19 +691,29 @@ public class JdbcIOTest implements Serializable {
                     }));
 
     // starting a thread to perform the commit later, while the pipeline is running into the backoff
-    Thread commitThread =
+    final Thread commitThread =
         new Thread(
             () -> {
+              while (true) {
+                try {
+                  Thread.sleep(500);
+                  expectedLogs.verifyWarn("Deadlock detected, retrying");
+                  break;
+                } catch (AssertionError | java.lang.InterruptedException e) {
+                  // nothing to do
+                }
+              }
               try {
-                Thread.sleep(10000);
                 connection.commit();
               } catch (Exception e) {
-                // nothing to do
+                // nothing to do.
               }
             });
+
     commitThread.start();
-    pipeline.run();
+    PipelineResult result = pipeline.run();
     commitThread.join();
+    result.waitUntilFinish();
 
     // we verify that the backoff has been called thanks to the log message
     expectedLogs.verifyWarn("Deadlock detected, retrying");
@@ -810,6 +845,7 @@ public class JdbcIOTest implements Serializable {
     } finally {
       DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
       thrown.expect(RuntimeException.class);
+      thrown.expectMessage("Non nullable fields are not allowed without a matching schema.");
     }
   }
 

@@ -52,8 +52,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
 
@@ -79,7 +79,7 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
               })
           // \b, \n, \t, \f, \r
           .with(new LookupTranslator(EntityArrays.JAVA_CTRL_CHARS_ESCAPE()))
-          // TODO(BEAM-9180): Add support for \Uhhhhhhhh
+          // TODO(https://github.com/apache/beam/issues/19981): Add support for \Uhhhhhhhh
           // Unicode (only 4 hex digits)
           .with(JavaUnicodeEscaper.outsideOf(32, 0x7f));
 

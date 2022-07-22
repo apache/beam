@@ -55,7 +55,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Table;
  * org.apache.beam.sdk.options.PipelineOptions)} to avoid loading all available table providers.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class BeamCalciteSchemaFactory {
 

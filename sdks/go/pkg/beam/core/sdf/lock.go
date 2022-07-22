@@ -80,3 +80,15 @@ func (rt *LockRTracker) GetRestriction() interface{} {
 	defer rt.Mu.Unlock()
 	return rt.Rt.GetRestriction()
 }
+
+// IsBounded locks a mutex for thread safety, and then delegates to the
+// underlying tracker's IsBounded(). If BoundableRTracker is not implemented
+// then the RTracker is considered to be bounded by default.
+func (rt *LockRTracker) IsBounded() bool {
+	rt.Mu.Lock()
+	defer rt.Mu.Unlock()
+	if tracker, ok := rt.Rt.(BoundableRTracker); ok {
+		return tracker.IsBounded()
+	}
+	return true
+}

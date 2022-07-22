@@ -17,10 +17,13 @@ package jdbc
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
@@ -32,15 +35,19 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"gopkg.in/retry.v1"
 )
 
+var expansionAddr string // Populate with expansion address labelled "schemaio".
+const maxRetryCount = 5
+
 func checkFlags(t *testing.T) {
-	if *integration.SchemaIoExpansionAddr == "" {
+	if expansionAddr == "" {
 		t.Skip("No Schema IO expansion address provided.")
 	}
 }
 
-func setupTestContainer(t *testing.T, dbname, username, password string) int {
+func setupTestContainer(t *testing.T, ctx context.Context, dbname, username, password string) (testcontainers.Container, int) {
 	t.Helper()
 
 	var env = map[string]string{
@@ -63,10 +70,23 @@ func setupTestContainer(t *testing.T, dbname, username, password string) int {
 		},
 		Started: true,
 	}
-	ctx := context.Background()
-	container, err := testcontainers.GenericContainer(ctx, req)
-	if err != nil {
-		t.Fatalf("failed to start container: %s", err)
+
+	strategy := retry.LimitCount(maxRetryCount,
+		retry.Exponential{
+			Initial: time.Second,
+			Factor:  2,
+		},
+	)
+	var container testcontainers.Container
+	var err error
+	for r := retry.Start(strategy, nil); r.Next(); {
+		container, err = testcontainers.GenericContainer(ctx, req)
+		if err == nil {
+			break
+		}
+		if r.Count() == maxRetryCount {
+			t.Fatalf("failed to start container with %v retries: %v", maxRetryCount, err)
+		}
 	}
 
 	mappedPort, err := container.MappedPort(ctx, nat.Port(port))
@@ -85,7 +105,7 @@ func setupTestContainer(t *testing.T, dbname, username, password string) int {
 	if err != nil {
 		t.Fatalf("can't create table, check command and access level")
 	}
-	return mappedPort.Int()
+	return container, mappedPort.Int()
 }
 
 // TestJDBCIO_BasicReadWrite tests basic read and write transform from JDBC.
@@ -93,18 +113,21 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
 
+	ctx := context.Background()
 	dbname := "postjdbc"
 	username := "newuser"
 	password := "password"
-	port := setupTestContainer(t, dbname, username, password)
+
+	cont, port := setupTestContainer(t, ctx, dbname, username, password)
+	defer cont.Terminate(ctx)
 	tableName := "roles"
 	host := "localhost"
 	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, port, dbname)
 
-	write := WritePipeline(*integration.SchemaIoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
+	write := WritePipeline(expansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
 
-	read := ReadPipeline(*integration.SchemaIoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
+	read := ReadPipeline(expansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, read)
 }
 
@@ -116,18 +139,32 @@ func TestJDBCIO_PostgresReadWrite(t *testing.T) {
 	dbname := "postjdbc"
 	username := "newuser"
 	password := "password"
-	port := setupTestContainer(t, dbname, username, password)
+	ctx := context.Background()
+	cont, port := setupTestContainer(t, ctx, dbname, username, password)
+	defer cont.Terminate(ctx)
 	tableName := "roles"
 	host := "localhost"
 	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, port, dbname)
 
-	write := WriteToPostgres(*integration.SchemaIoExpansionAddr, tableName, jdbcUrl, username, password)
+	write := WriteToPostgres(expansionAddr, tableName, jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
 
-	read := ReadFromPostgres(*integration.SchemaIoExpansionAddr, tableName, jdbcUrl, username, password)
+	read := ReadFromPostgres(expansionAddr, tableName, jdbcUrl, username, password)
 	ptest.RunAndValidate(t, read)
 }
 
 func TestMain(m *testing.M) {
-	ptest.Main(m)
+	flag.Parse()
+	beam.Init()
+
+	services := integration.NewExpansionServices()
+	defer func() { services.Shutdown() }()
+	addr, err := services.GetAddr("schemaio")
+	if err != nil {
+		log.Printf("skipping missing expansion service: %v", err)
+	} else {
+		expansionAddr = addr
+	}
+
+	ptest.MainRet(m)
 }

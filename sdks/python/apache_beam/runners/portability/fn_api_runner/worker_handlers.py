@@ -23,6 +23,7 @@ import collections
 import contextlib
 import copy
 import logging
+import os
 import queue
 import subprocess
 import sys
@@ -439,7 +440,7 @@ class BasicProvisionService(beam_provision_api_pb2_grpc.ProvisionServiceServicer
       worker_id = dict(context.invocation_metadata())['worker_id']
       worker = self._worker_manager.get_worker(worker_id)
       info = copy.copy(worker.provision_info.provision_info)
-      info.logging_endpoint.CopyFrom(worker.logging_api_service_descriptor())
+      info.logging_endpoint.CopyFrom(worker.logging_api_service_descriptor())  # type: ignore
       info.artifact_endpoint.CopyFrom(worker.artifact_api_service_descriptor())
       info.control_endpoint.CopyFrom(worker.control_api_service_descriptor())
     else:
@@ -642,7 +643,8 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
 
   def host_from_worker(self):
     # type: () -> str
-    # TODO(BEAM-8646): Reconcile across platforms.
+    # TODO(https://github.com/apache/beam/issues/19947): Reconcile across
+    # platforms.
     if sys.platform in ['win32', 'darwin']:
       return 'localhost'
     import socket
@@ -745,6 +747,29 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
 
   def start_worker(self):
     # type: () -> None
+    credential_options = []
+    try:
+      # This is the public facing API, skip if it is not available.
+      # (If this succeeds but the imports below fail, better to actually raise
+      # an error below rather than silently fail.)
+      # pylint: disable=unused-import
+      import google.auth
+    except ImportError:
+      pass
+    else:
+      from google.auth import environment_vars
+      from google.auth import _cloud_sdk
+      gcloud_cred_file = os.environ.get(
+          environment_vars.CREDENTIALS,
+          _cloud_sdk.get_application_default_credentials_path())
+      if os.path.exists(gcloud_cred_file):
+        docker_cred_file = '/docker_cred_file.json'
+        credential_options.extend([
+            '--mount',
+            f'type=bind,source={gcloud_cred_file},target={docker_cred_file}',
+            '--env',
+            f'{environment_vars.CREDENTIALS}={docker_cred_file}'
+        ])
     with SUBPROCESS_LOCK:
       try:
         _LOGGER.info('Attempting to pull image %s', self._container_image)
@@ -757,8 +782,8 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
           'docker',
           'run',
           '-d',
-          # TODO:  credentials
           '--network=host',
+      ] + credential_options + [
           self._container_image,
           '--id=%s' % self.worker_id,
           '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,

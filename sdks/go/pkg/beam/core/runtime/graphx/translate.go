@@ -30,7 +30,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // Model constants for interfacing with a Beam runner.
@@ -63,11 +63,14 @@ const (
 	URNWindowMappingFixed   = "beam:go:windowmapping:fixed:v1"
 	URNWindowMappingSliding = "beam:go:windowmapping:sliding:v1"
 
-	URNLegacyProgressReporting = "beam:protocol:progress_reporting:v0"
-	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
+	URNProgressReporting     = "beam:protocol:progress_reporting:v1"
+	URNMultiCore             = "beam:protocol:multi_core_bundle_processing:v1"
+	URNWorkerStatus          = "beam:protocol:worker_status:v1"
+	URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
 
 	URNRequiresSplittableDoFn     = "beam:requirement:pardo:splittable_dofn:v1"
 	URNRequiresBundleFinalization = "beam:requirement:pardo:finalization:v1"
+	URNTruncate                   = "beam:transform:sdf_truncate_sized_restrictions:v1"
 
 	// Deprecated: Determine worker binary based on GoWorkerBinary Role instead.
 	URNArtifactGoWorker = "beam:artifact:type:go_worker_binary:v1"
@@ -84,9 +87,12 @@ const (
 
 func goCapabilities() []string {
 	capabilities := []string{
-		URNLegacyProgressReporting,
+		URNProgressReporting,
 		URNMultiCore,
-		// TOOD(BEAM-9614): Make this versioned.
+		URNTruncate,
+		URNWorkerStatus,
+		URNMonitoringInfoShortID,
+		// TOOD(https://github.com/apache/beam/issues/20287): Make this versioned.
 		"beam:version:sdk_base:go",
 	}
 	return append(capabilities, knownStandardCoders()...)
@@ -589,7 +595,7 @@ func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) (string, error) {
 }
 
 func (m *marshaller) expandCoGBK(edge NamedEdge) (string, error) {
-	// TODO(BEAM-490): replace once CoGBK is a primitive. For now, we have to translate
+	// TODO(https://github.com/apache/beam/issues/18032): replace once CoGBK is a primitive. For now, we have to translate
 	// CoGBK with multiple PCollections as described in cogbk.go.
 	handleErr := func(err error) (string, error) {
 		return "", errors.Wrapf(err, "failed to expand CoGBK transform for edge: %v", edge)
@@ -1166,6 +1172,23 @@ func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
 				AfterSynchronizedProcessingTime: &pipepb.Trigger_AfterSynchronizedProcessingTime{},
 			},
 		}
+	case *trigger.OrFinallyTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_OrFinally_{
+				OrFinally: &pipepb.Trigger_OrFinally{
+					Main:    makeTrigger(t.Main()),
+					Finally: makeTrigger(t.Finally()),
+				},
+			},
+		}
+	case *trigger.AfterEachTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterEach_{
+				AfterEach: &pipepb.Trigger_AfterEach{
+					Subtriggers: extractSubtriggers(t.Subtriggers()),
+				},
+			},
+		}
 	default:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Default_{
@@ -1198,7 +1221,7 @@ func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 			Urn: URNFixedWindowsWindowFn,
 			Payload: protox.MustEncode(
 				&pipepb.FixedWindowsPayload{
-					Size: ptypes.DurationProto(w.Size),
+					Size: durationpb.New(w.Size),
 				},
 			),
 		}, nil
@@ -1207,8 +1230,8 @@ func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 			Urn: URNSlidingWindowsWindowFn,
 			Payload: protox.MustEncode(
 				&pipepb.SlidingWindowsPayload{
-					Size:   ptypes.DurationProto(w.Size),
-					Period: ptypes.DurationProto(w.Period),
+					Size:   durationpb.New(w.Size),
+					Period: durationpb.New(w.Period),
 				},
 			),
 		}, nil
@@ -1217,7 +1240,7 @@ func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 			Urn: URNSessionsWindowFn,
 			Payload: protox.MustEncode(
 				&pipepb.SessionWindowsPayload{
-					GapSize: ptypes.DurationProto(w.Gap),
+					GapSize: durationpb.New(w.Gap),
 				},
 			),
 		}, nil
@@ -1246,12 +1269,6 @@ func mustEncodeMultiEdgeBase64(edge *graph.MultiEdge) (string, error) {
 		Urn:  URNDoFn,
 		Edge: ref,
 	}), nil
-}
-
-// makeBytesKeyedCoder returns KV<[]byte,A,> for any coder,
-// even if the coder is already a KV coder.
-func makeBytesKeyedCoder(c *coder.Coder) *coder.Coder {
-	return coder.NewKV([]*coder.Coder{coder.NewBytes(), c})
 }
 
 func edgeID(edge *graph.MultiEdge) string {

@@ -35,14 +35,14 @@ type JdbcTestRow struct {
 
 func writeRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string, input beam.PCollection) {
 	s = s.Scope("jdbc_test.WriteToJdbc")
-	jdbcio.Write(s, tableName, driverClassName, jdbcUrl, username, password, input, jdbcio.ExpansionAddrWrite(expansionAddr))
+	jdbcio.Write(s, tableName, driverClassName, jdbcUrl, username, password, input, jdbcio.ExpansionAddrWrite(expansionAddr),
+		jdbcio.WriteClasspaths([]string{"org.postgresql:postgresql:42.3.3", "mysql:mysql-connector-java:8.0.28"}))
 }
 
 // WritePipeline creates a pipeline for JDBC IO Write transform.
 func WritePipeline(expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) *beam.Pipeline {
 	beam.Init()
 	p, s := beam.NewPipelineWithRoot()
-
 	rows := []JdbcTestRow{{1}, {2}}
 	input := beam.CreateList(s, rows)
 	writeRows(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, input)
@@ -52,7 +52,8 @@ func WritePipeline(expansionAddr, tableName, driverClassName, jdbcUrl, username,
 func readRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) beam.PCollection {
 	s = s.Scope("jdbc_test.ReadFromJdbc")
 	outT := reflect.TypeOf((*JdbcTestRow)(nil)).Elem()
-	res := jdbcio.Read(s, tableName, driverClassName, jdbcUrl, username, password, outT, jdbcio.ExpansionAddrRead(expansionAddr))
+	res := jdbcio.Read(s, tableName, driverClassName, jdbcUrl, username, password, outT, jdbcio.ExpansionAddrRead(expansionAddr),
+		jdbcio.ReadClasspaths([]string{"org.postgresql:postgresql:42.3.3", "mysql:mysql-connector-java:8.0.28"}))
 	return res
 }
 

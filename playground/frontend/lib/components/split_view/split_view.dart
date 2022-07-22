@@ -47,7 +47,7 @@ class SplitView extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _SplitViewState createState() => _SplitViewState();
+  State<SplitView> createState() => _SplitViewState();
 }
 
 class _SplitViewState extends State<SplitView> {

@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 
 /** BeamBuiltinFunctionClass interface. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class BeamBuiltinFunctionProvider {
   public Map<String, List<Method>> getBuiltinMethods() {

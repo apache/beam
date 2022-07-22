@@ -156,8 +156,8 @@ class DataOutputOperation(RunnerIOOperation):
 
   def finish(self):
     # type: () -> None
-    self.output_stream.close()
     super().finish()
+    self.output_stream.close()
 
 
 class DataInputOperation(RunnerIOOperation):
@@ -183,20 +183,26 @@ class DataInputOperation(RunnerIOOperation):
         windowed_coder,
         transform_id=transform_id,
         data_channel=data_channel)
+
+    self.consumer = next(iter(consumers.values()))
+    self.splitting_lock = threading.Lock()
+    self.index = -1
+    self.stop = float('inf')
+    self.started = False
+
+  def setup(self):
+    super().setup()
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet.create(
             self.counter_factory,
             self.name_context.step_name,
             0,
-            next(iter(consumers.values())),
+            self.consumer,
             self.windowed_coder,
+            self.get_output_batch_converter(),
             self._get_runtime_performance_hints())
     ]
-    self.splitting_lock = threading.Lock()
-    self.index = -1
-    self.stop = float('inf')
-    self.started = False
 
   def start(self):
     # type: () -> None
@@ -232,7 +238,8 @@ class DataInputOperation(RunnerIOOperation):
         read_progress_info)] = read_progress_info
     return all_monitoring_infos
 
-  # TODO(BEAM-7746): typing not compatible with super type
+  # TODO(https://github.com/apache/beam/issues/19737): typing not compatible
+  # with super type
   def try_split(  # type: ignore[override]
       self, fraction_of_remainder, total_buffer_size, allowed_split_points):
     # type: (...) -> Optional[Tuple[int, Iterable[operations.SdfSplitResultsPrimary], Iterable[operations.SdfSplitResultsResidual], int]]
@@ -320,6 +327,7 @@ class DataInputOperation(RunnerIOOperation):
 
   def finish(self):
     # type: () -> None
+    super().finish()
     with self.splitting_lock:
       self.index += 1
       self.started = False
@@ -861,7 +869,7 @@ class BundleProcessor(object):
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
-    for op in self.ops.values():
+    for op in reversed(self.ops.values()):
       op.setup()
     self.splitting_lock = threading.Lock()
 
@@ -1881,7 +1889,7 @@ def create_merge_windows(
       original_windows = set(windows)  # type: Set[window.BoundedWindow]
       merged_windows = collections.defaultdict(
           set
-      )  # type: MutableMapping[window.BoundedWindow, Set[window.BoundedWindow]]
+      )  # type: MutableMapping[window.BoundedWindow, Set[window.BoundedWindow]] # noqa: F821
 
       class RecordingMergeContext(window.WindowFn.MergeContext):
         def merge(

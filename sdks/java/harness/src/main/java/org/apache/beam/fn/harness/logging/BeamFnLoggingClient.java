@@ -86,7 +86,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
           .put(SdkHarnessOptions.LogLevel.TRACE, Level.FINEST)
           .build();
 
-  private static final Formatter FORMATTER = new SimpleFormatter();
+  private static final Formatter DEFAULT_FORMATTER = new SimpleFormatter();
 
   /**
    * The number of log messages that will be buffered. Assuming log messages are at most 1 KiB, this
@@ -145,6 +145,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     inboundObserver = new LogControlObserver();
     logRecordHandler = new LogRecordHandler();
     logRecordHandler.setLevel(Level.ALL);
+    logRecordHandler.setFormatter(DEFAULT_FORMATTER);
     logRecordHandler.executeOn(options.as(GcsOptions.class).getExecutorService());
     outboundObserver = (CallStreamObserver<BeamFnApi.LogEntry.List>) stub.logging(inboundObserver);
     rootLogger.addHandler(logRecordHandler);
@@ -205,7 +206,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
       BeamFnApi.LogEntry.Builder builder =
           BeamFnApi.LogEntry.newBuilder()
               .setSeverity(severity)
-              .setMessage(FORMATTER.formatMessage(record))
+              .setMessage(getFormatter().formatMessage(record))
               .setThread(Integer.toString(record.getThreadID()))
               .setTimestamp(
                   Timestamp.newBuilder()

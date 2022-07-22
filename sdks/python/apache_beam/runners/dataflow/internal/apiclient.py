@@ -149,8 +149,7 @@ class Environment(object):
       options,
       environment_version,
       proto_pipeline_staged_url,
-      proto_pipeline=None,
-      _sdk_image_overrides=None):
+      proto_pipeline=None):
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self.worker_options = options.view_as(WorkerOptions)
@@ -171,7 +170,6 @@ class Environment(object):
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
     self._proto_pipeline = proto_pipeline
-    self._sdk_image_overrides = _sdk_image_overrides or {}
 
     if self.google_cloud_options.service_account_email:
       self.proto.serviceAccountEmail = (
@@ -281,33 +279,39 @@ class Environment(object):
       pool.network = self.worker_options.network
     if self.worker_options.subnetwork:
       pool.subnetwork = self.worker_options.subnetwork
-    pool.workerHarnessContainerImage = (
-        get_container_image_from_options(options))
 
     # Setting worker pool sdk_harness_container_images option for supported
     # Dataflow workers.
     environments_to_use = self._get_environments_from_tranforms()
-    if _use_unified_worker(options):
-      # Adding container images for other SDKs that may be needed for
-      # cross-language pipelines.
-      for id, environment in environments_to_use:
-        if environment.urn != common_urns.environments.DOCKER.urn:
-          raise Exception(
-              'Dataflow can only execute pipeline steps in Docker environments.'
-              ' Received %r.' % environment)
-        environment_payload = proto_utils.parse_Bytes(
-            environment.payload, beam_runner_api_pb2.DockerPayload)
-        container_image_url = environment_payload.container_image
 
-        container_image = dataflow.SdkHarnessContainerImage()
-        container_image.containerImage = container_image_url
-        container_image.useSingleCorePerContainer = (
-            common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING not in
-            environment.capabilities)
-        container_image.environmentId = id
-        for capability in environment.capabilities:
-          container_image.capabilities.append(capability)
-        pool.sdkHarnessContainerImages.append(container_image)
+    # Adding container images for other SDKs that may be needed for
+    # cross-language pipelines.
+    for id, environment in environments_to_use:
+      if environment.urn != common_urns.environments.DOCKER.urn:
+        raise Exception(
+            'Dataflow can only execute pipeline steps in Docker environments.'
+            ' Received %r.' % environment)
+      environment_payload = proto_utils.parse_Bytes(
+          environment.payload, beam_runner_api_pb2.DockerPayload)
+      container_image_url = environment_payload.container_image
+
+      container_image = dataflow.SdkHarnessContainerImage()
+      container_image.containerImage = container_image_url
+      container_image.useSingleCorePerContainer = (
+          common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING.urn not in
+          environment.capabilities)
+      container_image.environmentId = id
+      for capability in environment.capabilities:
+        container_image.capabilities.append(capability)
+      pool.sdkHarnessContainerImages.append(container_image)
+
+    if not _use_fnapi(options) or not pool.sdkHarnessContainerImages:
+      pool.workerHarnessContainerImage = (
+          get_container_image_from_options(options))
+    elif len(pool.sdkHarnessContainerImages) == 1:
+      # Dataflow expects a value here when there is only one environment.
+      pool.workerHarnessContainerImage = (
+          pool.sdkHarnessContainerImages[0].containerImage)
 
     if self.debug_options.number_of_worker_harness_threads:
       pool.numThreadsPerWorker = (
@@ -331,7 +335,7 @@ class Environment(object):
       pool.dataDisks.append(disk)
     self.proto.workerPools.append(pool)
 
-    sdk_pipeline_options = options.get_all_options()
+    sdk_pipeline_options = options.get_all_options(retain_unknown_options=True)
     if sdk_pipeline_options:
       self.proto.sdkPipelineOptions = (
           dataflow.Environment.SdkPipelineOptionsValue())
@@ -341,6 +345,10 @@ class Environment(object):
           for k, v in sdk_pipeline_options.items() if v is not None
       }
       options_dict["pipelineUrl"] = proto_pipeline_staged_url
+      # Don't pass impersonate_service_account through to the harness.
+      # Though impersonation should start a job, the workers should
+      # not try to modify their credentials.
+      options_dict.pop('impersonate_service_account', None)
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='options', value=to_json_value(options_dict)))
@@ -553,7 +561,7 @@ class DataflowApplicationClient(object):
     if self.google_cloud_options.no_auth:
       credentials = None
     else:
-      credentials = get_service_credentials()
+      credentials = get_service_credentials(options)
 
     http_client = get_new_http()
     self._client = dataflow.DataflowV1b3(
@@ -637,13 +645,18 @@ class DataflowApplicationClient(object):
       for dep in env.dependencies:
         if dep.type_urn != common_urns.artifact_types.FILE.urn:
           raise RuntimeError('unsupported artifact type %s' % dep.type_urn)
-        if dep.role_urn != common_urns.artifact_roles.STAGING_TO.urn:
-          raise RuntimeError('unsupported role type %s' % dep.role_urn)
         type_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
             dep.type_payload)
-        role_payload = (
-            beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
-                dep.role_payload))
+
+        if dep.role_urn == common_urns.artifact_roles.STAGING_TO.urn:
+          remote_name = (
+              beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
+                  dep.role_payload)).staged_name
+          is_staged_role = True
+        else:
+          remote_name = os.path.basename(type_payload.path)
+          is_staged_role = False
+
         if self._enable_caching and not type_payload.sha256:
           type_payload.sha256 = self._compute_sha256(type_payload.path)
 
@@ -652,35 +665,44 @@ class DataflowApplicationClient(object):
               'Found duplicated artifact sha256: %s (%s)',
               type_payload.path,
               type_payload.sha256)
-          staged_name = staged_hashes[type_payload.sha256]
-          dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
-              staged_name=staged_name).SerializeToString()
+          remote_name = staged_hashes[type_payload.sha256]
+          if is_staged_role:
+            # We should not be overriding this, as dep.role_payload.staged_name
+            # refers to the desired name on the worker, whereas staged_name
+            # refers to its placement in a distributed filesystem.
+            # TODO(heejong): Clean this up.
+            dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
+                staged_name=remote_name).SerializeToString()
         elif type_payload.path and type_payload.path in staged_paths:
           _LOGGER.info(
               'Found duplicated artifact path: %s (%s)',
               type_payload.path,
               type_payload.sha256)
-          staged_name = staged_paths[type_payload.path]
-          dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
-              staged_name=staged_name).SerializeToString()
+          remote_name = staged_paths[type_payload.path]
+          if is_staged_role:
+            # We should not be overriding this, as dep.role_payload.staged_name
+            # refers to the desired name on the worker, whereas staged_name
+            # refers to its placement in a distributed filesystem.
+            # TODO(heejong): Clean this up.
+            dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
+                staged_name=remote_name).SerializeToString()
         else:
-          staged_name = role_payload.staged_name
           resources.append(
-              (type_payload.path, staged_name, type_payload.sha256))
-          staged_paths[type_payload.path] = staged_name
-          staged_hashes[type_payload.sha256] = staged_name
+              (type_payload.path, remote_name, type_payload.sha256))
+          staged_paths[type_payload.path] = remote_name
+          staged_hashes[type_payload.sha256] = remote_name
 
         if FileSystems.get_scheme(
             google_cloud_options.staging_location) == GCSFileSystem.scheme():
           dep.type_urn = common_urns.artifact_types.URL.urn
           dep.type_payload = beam_runner_api_pb2.ArtifactUrlPayload(
               url=FileSystems.join(
-                  google_cloud_options.staging_location, staged_name),
+                  google_cloud_options.staging_location, remote_name),
               sha256=type_payload.sha256).SerializeToString()
         else:
           dep.type_payload = beam_runner_api_pb2.ArtifactFilePayload(
               path=FileSystems.join(
-                  google_cloud_options.staging_location, staged_name),
+                  google_cloud_options.staging_location, remote_name),
               sha256=type_payload.sha256).SerializeToString()
 
     resource_stager = _LegacyDataflowStager(self)
@@ -837,8 +859,7 @@ class DataflowApplicationClient(object):
         packages=resources,
         options=job.options,
         environment_version=self.environment_version,
-        proto_pipeline=job.proto_pipeline,
-        _sdk_image_overrides=self._sdk_image_overrides).proto
+        proto_pipeline=job.proto_pipeline).proto
     _LOGGER.debug('JOB: %s', job)
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
@@ -938,7 +959,7 @@ class DataflowApplicationClient(object):
 
     Args:
       job_id: A string representing the job_id for the workflow as returned
-        by the a create_job() request.
+        by the create_job() request.
 
     Returns:
       A Job proto. See below for interesting fields.
@@ -974,7 +995,7 @@ class DataflowApplicationClient(object):
 
     Args:
       job_id: A string representing the job_id for the workflow as returned
-        by the a create_job() request.
+        by the create_job() request.
       start_time: If specified, only messages generated after the start time
         will be returned, otherwise all messages since job started will be
         returned. The value is a string representing UTC time
@@ -1174,10 +1195,21 @@ def _use_unified_worker(pipeline_options):
   debug_options = pipeline_options.view_as(DebugOptions)
   use_unified_worker_flag = 'use_unified_worker'
   use_runner_v2_flag = 'use_runner_v2'
+  enable_prime_flag = 'enable_prime'
 
   if (debug_options.lookup_experiment(use_runner_v2_flag) and
       not debug_options.lookup_experiment(use_unified_worker_flag)):
     debug_options.add_experiment(use_unified_worker_flag)
+
+  dataflow_service_options = pipeline_options.view_as(
+      GoogleCloudOptions).dataflow_service_options or []
+  if ((debug_options.lookup_experiment(enable_prime_flag) or
+       enable_prime_flag in dataflow_service_options) and
+      not any([debug_options.lookup_experiment('disable_prime_runner_v2'),
+               debug_options.lookup_experiment('disable_runner_v2')])):
+    debug_options.add_experiment(use_runner_v2_flag)
+    debug_options.add_experiment(use_unified_worker_flag)
+    debug_options.add_experiment(enable_prime_flag)
 
   return debug_options.lookup_experiment(use_unified_worker_flag)
 
@@ -1292,8 +1324,9 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 # This is required for the legacy python dataflow runner, as portability
 # does not communicate to the service via python code, but instead via a
 # a runner harness (in C++ or Java).
-# TODO(BEAM-7050) : Remove this antipattern, legacy dataflow python
-# pipelines will break whenever a new cy_combiner type is used.
+# TODO(https://github.com/apache/beam/issues/19433) : Remove this antipattern,
+# legacy dataflow python pipelines will break whenever a new cy_combiner type
+# is used.
 structured_counter_translations = {
     cy_combiners.CountCombineFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.SUM,

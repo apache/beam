@@ -16,20 +16,24 @@
  * limitations under the License.
  */
 
+import 'package:aligned_dialog/aligned_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/output/components/output_header/result_filter_popover.dart';
 
 class OutputTab extends StatefulWidget {
   final String name;
   final bool isSelected;
   final String value;
+  final bool hasFilter;
 
   const OutputTab({
     Key? key,
     required this.name,
     required this.isSelected,
     required this.value,
+    this.hasFilter = false,
   }) : super(key: key);
 
   @override
@@ -61,9 +65,27 @@ class _OutputTabState extends State<OutputTab> {
       child: Wrap(
         direction: Axis.horizontal,
         alignment: WrapAlignment.center,
-        spacing: 8.0,
+        spacing: kMdSpacing,
         children: [
           Text(widget.name),
+          widget.hasFilter
+              ? GestureDetector(
+                  onTap: () {
+                    showAlignedDialog(
+                      context: context,
+                      builder: (dialogContext) => const ResultFilterPopover(),
+                      followerAnchor: Alignment.topLeft,
+                      targetAnchor: Alignment.topLeft,
+                      barrierColor: Colors.transparent,
+                    );
+                  },
+                  child: Icon(
+                    Icons.filter_alt_outlined,
+                    size: kIconSizeSm,
+                    color: ThemeColors.of(context).primary,
+                  ),
+                )
+              : const SizedBox(),
           if (hasNewContent)
             Container(
               width: kIconSizeXs,

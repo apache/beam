@@ -18,9 +18,11 @@
 @import "media"
 
 .playground-section
-  padding: $pad
+  padding: 15px 30px 15px
   h1
     text-align: center
+    margin-top: 0
+    margin-bottom: 30px
 
 .playground
   width: 100%
@@ -39,3 +41,12 @@
 .center
   display: flex
   justify-content: center
+
+.playground-iframe-wrapper-no-scroll
+  position: relative
+  .playground-iframe-overlay
+    position: absolute
+    top: 58px
+    left: 0
+    height: calc(100% - 58px)
+    width: 100%

@@ -55,10 +55,8 @@ down to a specific test suite by clicking on it.
 ## Triage Process
 
 1. [Search for existing
-   issues](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Open%2C%20%22In%20Progress%22%2C%20Reopened)%20AND%20labels%20%3D%20precommit%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC)
-1. Create a new issue if needed: [Apache
-   JIRA](https://issues.apache.org/jira/issues)
-  - Project: Beam
+   issues](https://github.com/apache/tag-beam-it/issues)
+1. Create a new issue if needed: [GitHub Issues](https://github.com/apache/tag-beam-it/issues/new/choose)
   - Components: testing, anything else relevant
   - Label: precommit
   - Reference this page in the description.

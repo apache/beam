@@ -57,12 +57,11 @@ public class PythonService {
     try (FileOutputStream fout = new FileOutputStream(bootstrapScript.getAbsolutePath())) {
       ByteStreams.copy(getClass().getResourceAsStream("bootstrap_beam_venv.py"), fout);
     }
-    List<String> bootstrapCommand = ImmutableList.of("python", bootstrapScript.getAbsolutePath());
+    List<String> bootstrapCommand =
+        ImmutableList.of(whichPython(), bootstrapScript.getAbsolutePath());
     LOG.info("Running bootstrap command " + bootstrapCommand);
     Process bootstrap =
-        new ProcessBuilder("python", bootstrapScript.getAbsolutePath())
-            .redirectError(ProcessBuilder.Redirect.INHERIT)
-            .start();
+        new ProcessBuilder(bootstrapCommand).redirectError(ProcessBuilder.Redirect.INHERIT).start();
     bootstrap.getOutputStream().close();
     BufferedReader reader =
         new BufferedReader(new InputStreamReader(bootstrap.getInputStream(), Charsets.UTF_8));
@@ -96,6 +95,18 @@ public class PythonService {
     return p::destroy;
   }
 
+  private String whichPython() {
+    for (String executable : ImmutableList.of("python3", "python")) {
+      try {
+        new ProcessBuilder(executable, "--version").start().waitFor();
+        return executable;
+      } catch (IOException | InterruptedException exn) {
+        // Ignore.
+      }
+    }
+    throw new RuntimeException("Unable to find a suitable Python executable.");
+  }
+
   public static int findAvailablePort() throws IOException {
     ServerSocket s = new ServerSocket(0);
     try {
@@ -127,6 +138,6 @@ public class PythonService {
     throw new TimeoutException(
         "Timeout waiting for Python service startup after "
             + (System.currentTimeMillis() - start)
-            + " seconds.");
+            + " milliseconds.");
   }
 }

@@ -38,7 +38,7 @@ import org.apache.samza.system.descriptors.GenericSystemDescriptor;
  * org.apache.beam.runners.samza.translation.SamzaImpulseSystemFactory.SamzaImpulseSystemConsumer}.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ImpulseTranslator
     implements TransformTranslator<PTransform<PBegin, PCollection<byte[]>>> {

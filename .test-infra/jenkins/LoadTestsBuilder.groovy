@@ -25,6 +25,8 @@ import static PythonTestProperties.LOAD_TEST_PYTHON_VERSION
 
 class LoadTestsBuilder {
   final static String DOCKER_CONTAINER_REGISTRY = 'gcr.io/apache-beam-testing/beam_portability'
+  final static String DOCKER_CONTAINER_REGISTRY_SNAPSHOTS = 'gcr.io/apache-beam-testing/beam-sdk'
+  final static String GO_SDK_CONTAINER = "${DOCKER_CONTAINER_REGISTRY_SNAPSHOTS}/beam_go_sdk:latest"
   final static String DOCKER_BEAM_SDK_IMAGE = "beam_python${LOAD_TEST_PYTHON_VERSION}_sdk:latest"
 
   static void loadTests(scope, CommonTestProperties.SDK sdk, List testConfigurations, String test, String mode,

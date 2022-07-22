@@ -32,12 +32,6 @@ public class ChangeStreamMetrics implements Serializable {
 
   private static final long serialVersionUID = 8187140831756972470L;
 
-  // ----
-  // Tracing Labels
-
-  /** Cloud Tracing label for Partition Tokens. */
-  public static final String PARTITION_ID_ATTRIBUTE_LABEL = "PartitionID";
-
   // ------------------------
   // Partition record metrics
 
@@ -124,8 +118,16 @@ public class ChangeStreamMetrics implements Serializable {
   private final Set<MetricName> enabledMetrics;
 
   /**
-   * Constructs a ChangeStreamMetrics instance with the following metrics enabled by default: {@link
-   * ChangeStreamMetrics#PARTITION_RECORD_COUNT} and {@link ChangeStreamMetrics#DATA_RECORD_COUNT}.
+   * Constructs a ChangeStreamMetrics instance with the following metrics enabled by default.
+   *
+   * <ul>
+   *   <li>{@link ChangeStreamMetrics#DATA_RECORD_COUNT}
+   *   <li>{@link ChangeStreamMetrics#ACTIVE_PARTITION_READ_COUNT}
+   *   <li>{@link ChangeStreamMetrics#QUERY_COUNT}
+   *   <li>{@link ChangeStreamMetrics#DATA_RECORD_COMMITTED_TO_EMITTED_0MS_TO_1000MS_COUNT}
+   *   <li>{@link ChangeStreamMetrics#DATA_RECORD_COMMITTED_TO_EMITTED_1000MS_TO_3000MS_COUNT}
+   *   <li>{@link ChangeStreamMetrics#DATA_RECORD_COMMITTED_TO_EMITTED_3000MS_TO_INF_COUNT}
+   * </ul>
    */
   public ChangeStreamMetrics() {
     enabledMetrics = new HashSet<>();

@@ -18,15 +18,23 @@
 package org.apache.beam.runners.dataflow.worker.util;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeThat;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.runners.core.construction.Environments;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -69,7 +77,18 @@ public class MemoryMonitorTest {
     provider = new FakeGCStatsProvider();
     localDumpFolder = tempFolder.newFolder();
     // Update every 10ms, never shutdown VM.
-    monitor = MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder);
+    monitor =
+        MemoryMonitor.forTest(
+            provider,
+            10,
+            0,
+            false,
+            50.0,
+            null,
+            localDumpFolder,
+            "test-worker",
+            null,
+            Clock.systemUTC());
     thread = new Thread(monitor);
     thread.start();
   }
@@ -123,7 +142,17 @@ public class MemoryMonitorTest {
   public void uploadToGcs() throws Exception {
     File remoteFolder = tempFolder.newFolder();
     monitor =
-        MemoryMonitor.forTest(provider, 10, 0, true, 50.0, remoteFolder.getPath(), localDumpFolder);
+        MemoryMonitor.forTest(
+            provider,
+            10,
+            0,
+            true,
+            50.0,
+            remoteFolder.getPath(),
+            localDumpFolder,
+            "test-worker",
+            null,
+            Clock.systemUTC());
 
     // Force the monitor to generate a local heap dump
     monitor.dumpHeap();
@@ -138,8 +167,45 @@ public class MemoryMonitorTest {
   }
 
   @Test
+  public void uploadJfrProfilesOnThrashing() throws Exception {
+    assumeThat(Environments.getJavaVersion(), is(not(Environments.JavaVersion.java8)));
+
+    File remoteFolder = tempFolder.newFolder();
+    monitor =
+        MemoryMonitor.forTest(
+            provider,
+            10,
+            0,
+            true,
+            50.0,
+            remoteFolder.getPath(),
+            localDumpFolder,
+            "test-worker",
+            Duration.ofMillis(100),
+            Clock.fixed(Instant.parse("2022-01-01T01:02:03.000Z"), ZoneOffset.UTC));
+
+    monitor.runJfrProfileOnHeapThrashing().get();
+
+    File[] files = remoteFolder.listFiles();
+    assertThat(files, Matchers.arrayWithSize(1));
+    assertThat(files[0].getName(), Matchers.startsWith("20220101010203-jfr_profile-test-worker-"));
+    assertThat(files[0].getAbsolutePath(), Matchers.endsWith(".jfr"));
+  }
+
+  @Test
   public void uploadToGcsDisabled() throws Exception {
-    monitor = MemoryMonitor.forTest(provider, 10, 0, true, 50.0, null, localDumpFolder);
+    monitor =
+        MemoryMonitor.forTest(
+            provider,
+            10,
+            0,
+            true,
+            50.0,
+            null,
+            localDumpFolder,
+            "test-worker",
+            null,
+            Clock.systemUTC());
 
     // Force the monitor to generate a local heap dump
     monitor.dumpHeap();
@@ -151,7 +217,17 @@ public class MemoryMonitorTest {
   @Test
   public void disableMemoryMonitor() throws Exception {
     MemoryMonitor disabledMonitor =
-        MemoryMonitor.forTest(provider, 10, 0, true, 100.0, null, localDumpFolder);
+        MemoryMonitor.forTest(
+            provider,
+            10,
+            0,
+            true,
+            100.0,
+            null,
+            localDumpFolder,
+            "test-worker",
+            null,
+            Clock.systemUTC());
     Thread disabledMonitorThread = new Thread(disabledMonitor);
     disabledMonitorThread.start();
 

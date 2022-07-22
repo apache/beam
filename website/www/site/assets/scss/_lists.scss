@@ -104,6 +104,9 @@
    margin-top: 32px;
    max-width: 640px;
  }
+ .list--about {
+   margin-bottom: 32px;
+ }
  .icon-list {
    .list-item {
      display: flex;
@@ -139,6 +142,16 @@
        height: 44px;
        display: block;
        margin-right: 25px;
+     }
+     .list-item-icon--about {
+       width: 96px;
+       @media (max-width: $mobile) {
+         width: 64px;
+         svg {
+           width: 64px;
+           height: 64px;
+         }
+       }
      }
      .list-item-header {
        font-size: 22px;

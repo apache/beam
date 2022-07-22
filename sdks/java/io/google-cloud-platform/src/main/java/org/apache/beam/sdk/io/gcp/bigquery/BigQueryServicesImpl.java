@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
+import com.google.api.client.http.AbstractInputStreamContent;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
@@ -33,6 +34,7 @@ import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.api.gax.rpc.ServerStream;
+import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Tables;
@@ -91,22 +93,21 @@ import io.grpc.Status.Code;
 import io.grpc.protobuf.ProtoUtils;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
@@ -130,6 +131,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -139,9 +144,10 @@ import org.slf4j.LoggerFactory;
  * An implementation of {@link BigQueryServices} that actually communicates with the cloud BigQuery
  * service.
  */
-@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-
-// TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20506)
+  "keyfor"
+})
 class BigQueryServicesImpl implements BigQueryServices {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
 
@@ -231,6 +237,28 @@ class BigQueryServicesImpl implements BigQueryServices {
                       .setLoad(loadConfig)
                       .setLabels(this.bqIOMetadata.addAdditionalJobLabels(labelMap)));
       startJob(job, errorExtractor, client);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
+     *
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
+     */
+    @Override
+    public void startLoadJob(
+        JobReference jobRef, JobConfigurationLoad loadConfig, AbstractInputStreamContent stream)
+        throws InterruptedException, IOException {
+      Map<String, String> labelMap = new HashMap<>();
+      Job job =
+          new Job()
+              .setJobReference(jobRef)
+              .setConfiguration(
+                  new JobConfiguration()
+                      .setLoad(loadConfig)
+                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(labelMap)));
+      startJobStream(job, stream, errorExtractor, client, Sleeper.DEFAULT, createDefaultBackoff());
     }
 
     /**
@@ -335,6 +363,47 @@ class BigQueryServicesImpl implements BigQueryServices {
           lastException);
     }
 
+    static void startJobStream(
+        Job job,
+        AbstractInputStreamContent streamContent,
+        ApiErrorExtractor errorExtractor,
+        Bigquery client,
+        Sleeper sleeper,
+        BackOff backOff)
+        throws IOException, InterruptedException {
+      JobReference jobReference = job.getJobReference();
+      Exception exception;
+      do {
+        try {
+          client
+              .jobs()
+              .insert(jobReference.getProjectId(), job, streamContent)
+              .setPrettyPrint(false)
+              .execute();
+          LOG.info(
+              "Started BigQuery job: {}.\n{}",
+              jobReference,
+              formatBqStatusCommand(jobReference.getProjectId(), jobReference.getJobId()));
+          return;
+        } catch (IOException e) {
+          if (errorExtractor.itemAlreadyExists(e)) {
+            LOG.info(
+                "BigQuery job " + jobReference + " already exists, will not retry inserting it:",
+                e);
+            return; // SUCCEEDED
+          }
+          // ignore and retry
+          LOG.info("Failed to insert job " + jobReference + ", will retry:", e);
+          exception = e;
+        }
+      } while (nextBackOff(sleeper, backOff));
+      throw new IOException(
+          String.format(
+              "Unable to insert job: %s, aborting after %d .",
+              jobReference.getJobId(), MAX_RPC_RETRIES),
+          exception);
+    }
+
     @Override
     public Job pollJob(JobReference jobRef, int maxAttempts) throws InterruptedException {
       BackOff backoff =
@@ -348,6 +417,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @VisibleForTesting
+    @Nullable
     Job pollJob(JobReference jobRef, Sleeper sleeper, BackOff backoff) throws InterruptedException {
       do {
         try {
@@ -392,7 +462,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public JobStatistics dryRunQuery(
-        String projectId, JobConfigurationQuery queryConfig, String location)
+        String projectId, JobConfigurationQuery queryConfig, @Nullable String location)
         throws InterruptedException, IOException {
       JobReference jobRef = new JobReference().setLocation(location).setProjectId(projectId);
       Job job =
@@ -423,7 +493,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @VisibleForTesting
-    public Job getJob(JobReference jobRef, Sleeper sleeper, BackOff backoff)
+    public @Nullable Job getJob(JobReference jobRef, Sleeper sleeper, BackOff backoff)
         throws IOException, InterruptedException {
       String jobId = jobRef.getJobId();
       Exception lastException;
@@ -477,7 +547,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     private final ApiErrorExtractor errorExtractor;
     private final Bigquery client;
-    @Nullable private final BigQueryWriteClient newWriteClient;
+    private final @Nullable BigQueryWriteClient newWriteClient;
     private final PipelineOptions options;
     private final long maxRowsPerBatch;
     private final long maxRowBatchSize;
@@ -485,7 +555,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     private final Counter throttlingMsecs =
         Metrics.counter(DatasetServiceImpl.class, "throttling-msecs");
 
-    private ExecutorService executor;
+    private @Nullable BoundedExecutorService executor;
+    private final BigQueryIOMetadata bqIOMetadata;
 
     @VisibleForTesting
     DatasetServiceImpl(
@@ -497,6 +568,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
@@ -513,6 +585,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.maxRowsPerBatch = maxRowsPerBatch;
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
@@ -523,6 +596,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = bqOptions;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
@@ -536,27 +610,41 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public @Nullable Table getTable(TableReference tableRef)
         throws IOException, InterruptedException {
-      return getTable(tableRef, null);
+      return getTable(tableRef, Collections.emptyList());
     }
 
     @Override
     public @Nullable Table getTable(TableReference tableRef, List<String> selectedFields)
         throws IOException, InterruptedException {
-      return getTable(tableRef, selectedFields, createDefaultBackoff(), Sleeper.DEFAULT);
+      return getTable(tableRef, selectedFields, TableMetadataView.STORAGE_STATS);
+    }
+
+    @Override
+    public @Nullable Table getTable(
+        TableReference tableRef, List<String> selectedFields, TableMetadataView view)
+        throws IOException, InterruptedException {
+      return getTable(tableRef, selectedFields, view, createDefaultBackoff(), Sleeper.DEFAULT);
     }
 
     @VisibleForTesting
     @Nullable
     Table getTable(
-        TableReference ref, @Nullable List<String> selectedFields, BackOff backoff, Sleeper sleeper)
+        TableReference ref,
+        List<String> selectedFields,
+        TableMetadataView view,
+        BackOff backoff,
+        Sleeper sleeper)
         throws IOException, InterruptedException {
       Tables.Get get =
           client
               .tables()
               .get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId())
               .setPrettyPrint(false);
-      if (selectedFields != null && !selectedFields.isEmpty()) {
+      if (!selectedFields.isEmpty()) {
         get.setSelectedFields(String.join(",", selectedFields));
+      }
+      if (view != null) {
+        get.set("view", view.name());
       }
       try {
         return executeWithRetries(
@@ -940,7 +1028,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       if (executor == null) {
         this.executor =
             new BoundedExecutorService(
-                options.as(GcsOptions.class).getExecutorService(),
+                MoreExecutors.listeningDecorator(options.as(GcsOptions.class).getExecutorService()),
                 options.as(BigQueryOptions.class).getInsertBundleParallelism());
       }
       if (insertIdList != null && rowList.size() != insertIdList.size()) {
@@ -1081,9 +1169,9 @@ class BigQueryServicesImpl implements BigQueryServices {
               if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
                 allErrors.add(error);
                 retryRows.add(rowsToPublish.get(errorIndex));
-                // TODO (BEAM-12139): Select the retry rows(using errorIndex) from the batch of rows
-                // which attempted insertion in this call. Not the entire set of rows in
-                // rowsToPublish.
+                // TODO (https://github.com/apache/beam/issues/20891): Select the retry rows(using
+                // errorIndex) from the batch of rows which attempted insertion in this call.
+                // Not the entire set of rows in rowsToPublish.
                 if (retryIds != null) {
                   retryIds.add(idsToPublish.get(errorIndex));
                 }
@@ -1167,13 +1255,14 @@ class BigQueryServicesImpl implements BigQueryServices {
           successfulRows);
     }
 
-    protected static GoogleJsonError.ErrorInfo getErrorInfo(IOException e) {
+    protected static GoogleJsonError.@Nullable ErrorInfo getErrorInfo(IOException e) {
       if (!(e instanceof GoogleJsonResponseException)) {
         return null;
       }
-      GoogleJsonError jsonError = ((GoogleJsonResponseException) e).getDetails();
-      GoogleJsonError.ErrorInfo errorInfo = Iterables.getFirst(jsonError.getErrors(), null);
-      return errorInfo;
+      return Optional.ofNullable(((GoogleJsonResponseException) e).getDetails())
+          .flatMap(error -> Optional.ofNullable(error.getErrors()))
+          .flatMap(infos -> Optional.ofNullable(Iterables.getFirst(infos, null)))
+          .orElse(null);
     }
 
     @Override
@@ -1215,10 +1304,24 @@ class BigQueryServicesImpl implements BigQueryServices {
         throws Exception {
       ProtoSchema protoSchema =
           ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build();
+
+      TransportChannelProvider transportChannelProvider =
+          BigQueryWriteSettings.defaultGrpcTransportProviderBuilder()
+              .setKeepAliveTime(org.threeten.bp.Duration.ofMinutes(1))
+              .setKeepAliveTimeout(org.threeten.bp.Duration.ofMinutes(1))
+              .setKeepAliveWithoutCalls(true)
+              .setChannelsPerCpu(2)
+              .build();
+
       StreamWriter streamWriter =
           StreamWriter.newBuilder(streamName)
               .setWriterSchema(protoSchema)
-              .setTraceId("Dataflow:" + options.getJobName())
+              .setChannelProvider(transportChannelProvider)
+              .setTraceId(
+                  "Dataflow:"
+                      + (bqIOMetadata.getBeamJobId() != null
+                          ? bqIOMetadata.getBeamJobId()
+                          : options.getJobName()))
               .build();
       return new StreamAppendClient() {
         private int pins = 0;
@@ -1262,6 +1365,11 @@ class BigQueryServicesImpl implements BigQueryServices {
         public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows)
             throws Exception {
           return streamWriter.append(rows, offset);
+        }
+
+        @Override
+        public long getInflightWaitSeconds() {
+          return streamWriter.getInflightWaitSeconds();
         }
       };
     }
@@ -1565,140 +1673,27 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
   }
 
-  private static class BoundedExecutorService implements ExecutorService {
-    private final ExecutorService executor;
+  private static class BoundedExecutorService {
+    private final ListeningExecutorService taskExecutor;
+    private final ListeningExecutorService taskSubmitExecutor;
     private final Semaphore semaphore;
-    private final int parallelism;
 
-    BoundedExecutorService(ExecutorService executor, int parallelism) {
-      this.executor = executor;
-      this.parallelism = parallelism;
+    BoundedExecutorService(ListeningExecutorService taskExecutor, int parallelism) {
+      this.taskExecutor = taskExecutor;
+      this.taskSubmitExecutor =
+          MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
       this.semaphore = new Semaphore(parallelism);
     }
 
-    @Override
-    public void shutdown() {
-      executor.shutdown();
-    }
-
-    @Override
-    public List<Runnable> shutdownNow() {
-      List<Runnable> runnables = executor.shutdownNow();
-      // try to release permits as many as possible before returning semaphored runnables.
-      synchronized (this) {
-        if (semaphore.availablePermits() <= parallelism) {
-          semaphore.release(Integer.MAX_VALUE - parallelism);
-        }
-      }
-      return runnables;
-    }
-
-    @Override
-    public boolean isShutdown() {
-      return executor.isShutdown();
-    }
-
-    @Override
-    public boolean isTerminated() {
-      return executor.isTerminated();
-    }
-
-    @Override
-    public boolean awaitTermination(long l, TimeUnit timeUnit) throws InterruptedException {
-      return executor.awaitTermination(l, timeUnit);
-    }
-
-    @Override
     public <T> Future<T> submit(Callable<T> callable) {
-      return executor.submit(new SemaphoreCallable<>(callable));
-    }
-
-    @Override
-    public <T> Future<T> submit(Runnable runnable, T t) {
-      return executor.submit(new SemaphoreRunnable(runnable), t);
-    }
-
-    @Override
-    public Future<?> submit(Runnable runnable) {
-      return executor.submit(new SemaphoreRunnable(runnable));
-    }
-
-    @Override
-    public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> collection)
-        throws InterruptedException {
-      return executor.invokeAll(
-          collection.stream().map(SemaphoreCallable::new).collect(Collectors.toList()));
-    }
-
-    @Override
-    public <T> List<Future<T>> invokeAll(
-        Collection<? extends Callable<T>> collection, long l, TimeUnit timeUnit)
-        throws InterruptedException {
-      return executor.invokeAll(
-          collection.stream().map(SemaphoreCallable::new).collect(Collectors.toList()),
-          l,
-          timeUnit);
-    }
-
-    @Override
-    public <T> T invokeAny(Collection<? extends Callable<T>> collection)
-        throws InterruptedException, ExecutionException {
-      return executor.invokeAny(
-          collection.stream().map(SemaphoreCallable::new).collect(Collectors.toList()));
-    }
-
-    @Override
-    public <T> T invokeAny(Collection<? extends Callable<T>> collection, long l, TimeUnit timeUnit)
-        throws InterruptedException, ExecutionException, TimeoutException {
-      return executor.invokeAny(
-          collection.stream().map(SemaphoreCallable::new).collect(Collectors.toList()),
-          l,
-          timeUnit);
-    }
-
-    @Override
-    public void execute(Runnable runnable) {
-      executor.execute(new SemaphoreRunnable(runnable));
-    }
-
-    private class SemaphoreRunnable implements Runnable {
-      private final Runnable runnable;
-
-      SemaphoreRunnable(Runnable runnable) {
-        this.runnable = runnable;
-      }
-
-      @Override
-      public void run() {
-        try {
-          semaphore.acquire();
-        } catch (InterruptedException e) {
-          throw new RuntimeException("semaphore acquisition interrupted. task canceled.");
-        }
-        try {
-          runnable.run();
-        } finally {
-          semaphore.release();
-        }
-      }
-    }
-
-    private class SemaphoreCallable<V> implements Callable<V> {
-      private final Callable<V> callable;
-
-      SemaphoreCallable(Callable<V> callable) {
-        this.callable = callable;
-      }
-
-      @Override
-      public V call() throws Exception {
-        semaphore.acquire();
-        try {
-          return callable.call();
-        } finally {
-          semaphore.release();
-        }
-      }
+      return Futures.submitAsync(
+          () -> {
+            semaphore.acquire();
+            ListenableFuture<T> listenableFuture = taskExecutor.submit(callable);
+            listenableFuture.addListener(semaphore::release, MoreExecutors.directExecutor());
+            return listenableFuture;
+          },
+          taskSubmitExecutor);
     }
   }
 }

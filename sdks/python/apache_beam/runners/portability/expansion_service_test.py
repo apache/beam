@@ -18,6 +18,7 @@
 
 import argparse
 import logging
+import pickle
 import signal
 import sys
 import typing
@@ -30,9 +31,11 @@ from apache_beam.coders import RowCoder
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
-from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
+from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import expansion_service
+from apache_beam.runners.portability.stager import Stager
+from apache_beam.transforms import fully_qualified_named_transform
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.environments import PyPIArtifactRegistry
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
@@ -270,6 +273,29 @@ class PayloadTransform(ptransform.PTransform):
     return PayloadTransform(payload.decode('ascii'))
 
 
+@ptransform.PTransform.register_urn('map_to_union_types', None)
+class MapToUnionTypesTransform(ptransform.PTransform):
+  class CustomDoFn(beam.DoFn):
+    def process(self, element):
+      if element == 1:
+        return ['1']
+      elif element == 2:
+        return [2]
+      else:
+        return [3.0]
+
+  def expand(self, pcoll):
+    return pcoll | beam.ParDo(self.CustomDoFn())
+
+  def to_runner_api_parameter(self, unused_context):
+    return b'map_to_union_types', None
+
+  @staticmethod
+  def from_runner_api_parameter(
+      unused_ptransform, unused_payload, unused_context):
+    return MapToUnionTypesTransform()
+
+
 @ptransform.PTransform.register_urn('fib', bytes)
 class FibTransform(ptransform.PTransform):
   def __init__(self, level):
@@ -317,10 +343,28 @@ class NoOutputTransform(ptransform.PTransform):
 
 
 def parse_string_payload(input_byte):
-  payload = ExternalConfigurationPayload()
+  payload = external_transforms_pb2.ExternalConfigurationPayload()
   payload.ParseFromString(input_byte)
 
   return RowCoder(payload.schema).decode(payload.payload)._asdict()
+
+
+def create_test_sklearn_model(file_name):
+  from sklearn import svm
+  x = [[0, 0], [1, 1]]
+  y = [0, 1]
+  model = svm.SVC()
+  model.fit(x, y)
+  with open(file_name, 'wb') as file:
+    pickle.dump(model, file)
+
+
+def update_sklearn_model_dependency(env):
+  model_file = "/tmp/sklearn_test_model"
+  staged_name = "sklearn_model"
+  create_test_sklearn_model(model_file)
+  env._artifacts.append(
+      Stager._create_file_stage_to_artifact(model_file, staged_name))
 
 
 server = None
@@ -336,26 +380,31 @@ def main(unused_argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '-p', '--port', type=int, help='port on which to serve the job api')
+  parser.add_argument('--fully_qualified_name_glob', default=None)
   options = parser.parse_args()
-  global server
-  server = grpc.server(thread_pool_executor.shared_unbounded_instance())
-  beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
-      expansion_service.ExpansionServiceServicer(
-          PipelineOptions(
-              ["--experiments", "beam_fn_api", "--sdk_location", "container"])),
-      server)
-  beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
-      artifact_service.ArtifactRetrievalService(
-          artifact_service.BeamFilesystemHandler(None).file_reader),
-      server)
-  server.add_insecure_port('localhost:{}'.format(options.port))
-  server.start()
-  _LOGGER.info('Listening for expansion requests at %d', options.port)
 
-  signal.signal(signal.SIGTERM, cleanup)
-  signal.signal(signal.SIGINT, cleanup)
-  # blocking main thread forever.
-  signal.pause()
+  global server
+  with fully_qualified_named_transform.FullyQualifiedNamedTransform.with_filter(
+      options.fully_qualified_name_glob):
+    server = grpc.server(thread_pool_executor.shared_unbounded_instance())
+    expansion_servicer = expansion_service.ExpansionServiceServicer(
+        PipelineOptions(
+            ["--experiments", "beam_fn_api", "--sdk_location", "container"]))
+    update_sklearn_model_dependency(expansion_servicer._default_environment)
+    beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
+        expansion_servicer, server)
+    beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
+        artifact_service.ArtifactRetrievalService(
+            artifact_service.BeamFilesystemHandler(None).file_reader),
+        server)
+    server.add_insecure_port('localhost:{}'.format(options.port))
+    server.start()
+    _LOGGER.info('Listening for expansion requests at %d', options.port)
+
+    signal.signal(signal.SIGTERM, cleanup)
+    signal.signal(signal.SIGINT, cleanup)
+    # blocking main thread forever.
+    signal.pause()
 
 
 if __name__ == '__main__':

@@ -111,15 +111,16 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Code snippets used in webdocs. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 public class Snippets {
 
@@ -598,6 +599,7 @@ public class Snippets {
   private static final Logger LOG = LoggerFactory.getLogger(Snippets.class);
 
   // [START SideInputPatternSlowUpdateGlobalWindowSnip1]
+
   public static void sideInputPatterns() {
     // This pipeline uses View.asSingleton for a placeholder external service.
     // Run in debug mode to see the output.
@@ -606,22 +608,26 @@ public class Snippets {
     // Create a side input that updates each second.
     PCollectionView<Map<String, String>> map =
         p.apply(GenerateSequence.from(0).withRate(1, Duration.standardSeconds(5L)))
-            .apply(
-                Window.<Long>into(new GlobalWindows())
-                    .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()))
-                    .discardingFiredPanes())
+            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(5))))
+            .apply(Sum.longsGlobally().withoutDefaults())
             .apply(
                 ParDo.of(
                     new DoFn<Long, Map<String, String>>() {
 
                       @ProcessElement
                       public void process(
-                          @Element Long input, OutputReceiver<Map<String, String>> o) {
+                          @Element Long input,
+                          @Timestamp Instant timestamp,
+                          OutputReceiver<Map<String, String>> o) {
                         // Replace map with test data from the placeholder external service.
                         // Add external reads here.
-                        o.output(PlaceholderExternalService.readTestData());
+                        o.output(PlaceholderExternalService.readTestData(timestamp));
                       }
                     }))
+            .apply(
+                Window.<Map<String, String>>into(new GlobalWindows())
+                    .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()))
+                    .discardingFiredPanes())
             .apply(View.asSingleton());
 
     // Consume side input. GenerateSequence generates test data.
@@ -634,32 +640,30 @@ public class Snippets {
                     new DoFn<Long, KV<Long, Long>>() {
 
                       @ProcessElement
-                      public void process(ProcessContext c) {
+                      public void process(ProcessContext c, @Timestamp Instant timestamp) {
                         Map<String, String> keyMap = c.sideInput(map);
                         c.outputWithTimestamp(KV.of(1L, c.element()), Instant.now());
 
-                        LOG.debug(
-                            "Value is {}, key A is {}, and key B is {}.",
+                        LOG.info(
+                            "Value is {} with timestamp {}, using key A from side input with time {}.",
                             c.element(),
-                            keyMap.get("Key_A"),
-                            keyMap.get("Key_B"));
+                            timestamp.toString(DateTimeFormat.forPattern("HH:mm:ss")),
+                            keyMap.get("Key_A"));
                       }
                     })
                 .withSideInputs(map));
+
+    p.run();
   }
 
   /** Placeholder class that represents an external service generating test data. */
   public static class PlaceholderExternalService {
 
-    public static Map<String, String> readTestData() {
+    public static Map<String, String> readTestData(Instant timestamp) {
 
       Map<String, String> map = new HashMap<>();
-      Instant now = Instant.now();
 
-      DateTimeFormatter dtf = DateTimeFormat.forPattern("HH:MM:SS");
-
-      map.put("Key_A", now.minus(Duration.standardSeconds(30)).toString(dtf));
-      map.put("Key_B", now.minus(Duration.standardSeconds(30)).toString());
+      map.put("Key_A", timestamp.toString(DateTimeFormat.forPattern("HH:mm:ss")));
 
       return map;
     }

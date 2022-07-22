@@ -19,8 +19,12 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.function.Function;
+import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.DescriptorWrapper;
 
 /**
  * Takes in an iterable and batches the results into multiple ProtoRows objects. The splitSize
@@ -28,18 +32,26 @@ import java.util.NoSuchElementException;
  * the next one.
  */
 class SplittingIterable implements Iterable<ProtoRows> {
-  private final Iterable<byte[]> underlying;
+  private final Iterable<StorageApiWritePayload> underlying;
   private final long splitSize;
+  private final Function<Long, DescriptorWrapper> updateSchema;
+  private DescriptorWrapper currentDescriptor;
 
-  public SplittingIterable(Iterable<byte[]> underlying, long splitSize) {
+  public SplittingIterable(
+      Iterable<StorageApiWritePayload> underlying,
+      long splitSize,
+      DescriptorWrapper currentDescriptor,
+      Function<Long, DescriptorWrapper> updateSchema) {
     this.underlying = underlying;
     this.splitSize = splitSize;
+    this.updateSchema = updateSchema;
+    this.currentDescriptor = currentDescriptor;
   }
 
   @Override
   public Iterator<ProtoRows> iterator() {
     return new Iterator<ProtoRows>() {
-      final Iterator<byte[]> underlyingIterator = underlying.iterator();
+      final Iterator<StorageApiWritePayload> underlyingIterator = underlying.iterator();
 
       @Override
       public boolean hasNext() {
@@ -55,7 +67,24 @@ class SplittingIterable implements Iterable<ProtoRows> {
         ProtoRows.Builder inserts = ProtoRows.newBuilder();
         long bytesSize = 0;
         while (underlyingIterator.hasNext()) {
-          ByteString byteString = ByteString.copyFrom(underlyingIterator.next());
+          StorageApiWritePayload payload = underlyingIterator.next();
+          if (payload.getSchemaHash() != currentDescriptor.hash) {
+            // Schema doesn't match. Try and get an updated schema hash (from the base table).
+            currentDescriptor = updateSchema.apply(payload.getSchemaHash());
+            // Validate that the record can now be parsed.
+            try {
+              DynamicMessage msg =
+                  DynamicMessage.parseFrom(currentDescriptor.descriptor, payload.getPayload());
+              if (msg.getUnknownFields() != null && !msg.getUnknownFields().asMap().isEmpty()) {
+                throw new RuntimeException(
+                    "Record schema does not match table. Unknown fields: "
+                        + msg.getUnknownFields());
+              }
+            } catch (InvalidProtocolBufferException e) {
+              throw new RuntimeException(e);
+            }
+          }
+          ByteString byteString = ByteString.copyFrom(payload.getPayload());
           inserts.addSerializedRows(byteString);
           bytesSize += byteString.size();
           if (bytesSize > splitSize) {

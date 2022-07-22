@@ -83,7 +83,8 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
       TestPipeline().get_option('aws_kinesis_stream'),
       'Cannot test on real aws without pipeline options provided')
   def test_kinesis_io_roundtrip(self):
-    # TODO: enable this test for localstack once BEAM-10664 is resolved
+    # TODO: enable this test for localstack once
+    # https://github.com/apache/beam/issues/20416 is resolved
     self.run_kinesis_write()
     self.run_kinesis_read()
 
@@ -91,7 +92,8 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
       TestPipeline().get_option('aws_kinesis_stream'),
       'Do not test on localstack when pipeline options were provided')
   def test_kinesis_write(self):
-    # TODO: remove this test once BEAM-10664 is resolved
+    # TODO: remove this test once
+    # https://github.com/apache/beam/issues/20416 is resolved
     self.run_kinesis_write()
     records = self.kinesis_helper.read_from_stream(self.aws_kinesis_stream)
     self.assertEqual(

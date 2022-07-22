@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 
 /** Creates a job invocation to manage the Spark runner's execution of a portable pipeline. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SparkJobInvoker extends JobInvoker {
 

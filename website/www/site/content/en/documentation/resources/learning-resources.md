@@ -66,6 +66,7 @@ If you have additional material that you would like to see here, please let us k
 
 ### Machine Learning
 
+*   **[Machine Learning with Python using the RunInference API](/documentation/sdks/python-machine-learning/)** - Use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Follow the [RunInference API pipeline examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference) to do image classification, image segmentation, language modeling, and MNIST digit classification. See examples of [RunInference transforms](/documentation/transforms/python/elementwise/runinference/).
 *   **[Machine Learning Preprocessing and Prediction](https://cloud.google.com/dataflow/examples/molecules-walkthrough)** - Predict the molecular energy from data stored in the [Spatial Data File](https://en.wikipedia.org/wiki/Spatial_Data_File) (SDF) format. Train a [TensorFlow](https://www.tensorflow.org/) model with [tf.Transform](https://github.com/tensorflow/transform) for preprocessing in Python. This also shows how to create batch and streaming prediction pipelines in Apache Beam.
 *   **[Machine Learning Preprocessing](https://cloud.google.com/blog/products/ai-machine-learning/pre-processing-tensorflow-pipelines-tftransform-google-cloud)** - Find the optimal parameter settings for simulated physical machines like a bottle filler or cookie machine. The goal of each simulated machine is to have the same input/output of the actual machine, making it a "digital twin". This uses [tf.Transform](https://github.com/tensorflow/transform) for preprocessing.
 
@@ -97,8 +98,7 @@ If you have additional material that you would like to see here, please let us k
 
 ### Python
 
-*   **[Python Qwik Start](https://qwiklabs.com/focuses/1100?locale=en&parent=catalog)** (30m) - Run a word count pipeline on the Dataflow runner.
-*   **[NDVI from Landsat Images](https://qwiklabs.com/focuses/1849?locale=en&parent=catalog)** (45m) - Process Landsat satellite data in a distributed environment to compute the [Normalized Difference Vegetation Index](https://en.wikipedia.org/wiki/Normalized_difference_vegetation_index) (NDVI).
+*   **[Python Qwik Start](https://www.qwiklabs.com/focuses/1098?parent=catalog)** (30m) - Run a word count pipeline on the Dataflow runner.
 *   **[Simulate historic flights](https://qwiklabs.com/focuses/1159?locale=en&parent=catalog)** (60m) - Simulate real-time historic internal flights in the United States and store the resulting simulated data in BigQuery.
 
 ## Beam Katas {#beam-katas}
@@ -157,7 +157,7 @@ complexity. Beam Katas are available for both Java and Python SDKs.
 
 We are open for feedback and suggestions, you can find different ways to reach out to the community in the [Contact Us](https://beam.apache.org/community/contact-us/) page.
 
-If you have a bug report or want to suggest a new feature, you can let us know by [submitting a new issue](https://issues.apache.org/jira/secure/CreateIssue!default.jspa).
+If you have a bug report or want to suggest a new feature, you can let us know by [submitting a new issue](https://github.com/apache/beam/issues/new/choose).
 
 ## How to Contribute {#how-to-contribute}
 

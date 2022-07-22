@@ -34,7 +34,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -73,8 +72,10 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
 
     @GetInitialWatermarkEstimatorState
     public Instant getInitialWatermarkEstimatorState(@Timestamp Instant initial) {
-      checkArgument(initial.equals(BoundedWindow.TIMESTAMP_MIN_VALUE));
-      return initial;
+      // TODO: Add back when dataflow is fixed.
+      // checkArgument(initial.equals(BoundedWindow.TIMESTAMP_MIN_VALUE));
+      // return initial;
+      return Instant.EPOCH;
     }
 
     @GetInitialRestriction

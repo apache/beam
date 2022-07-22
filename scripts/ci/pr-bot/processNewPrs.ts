@@ -39,25 +39,27 @@ import { CheckStatus } from "./shared/checks";
  * 4) Are closed
  * 5) Have already been processed
  * 6) Have notifications stopped
- * 7) The pr doesn't contain the go label (temporary). TODO(damccorm) - remove this when we're ready to roll this out to everyone.
  * 8) The pr happens after the date we turn on the automation. TODO(damccorm) - remove this once this has been rolled out for a while.
  * unless we're supposed to remind the user after tests pass
  * (in which case that's all we need to do).
  */
 function needsProcessed(pull: any, prState: typeof Pr): boolean {
-  if (!pull.labels.find((label) => label.name.toLowerCase() === "go")) {
-    console.log(
-      `Skipping PR ${pull.number} because it doesn't contain the go label`
-    );
-    return false;
-  }
-  const firstPrToProcess = new Date(2022, 2, 2, 20);
+  const firstPythonPrToProcess = new Date(2022, 5, 16, 14); // June 16 2022, 14:00 UTC (note that JavaScript months are 0 indexed)
+  const firstPrToProcess = new Date(2022, 6, 15, 23); // July 15 2022, 23:00 UTC (note that JavaScript months are 0 indexed)
   const createdAt = new Date(pull.created_at);
-  if (createdAt < firstPrToProcess) {
-    console.log(
-      `Skipping PR ${pull.number} because it was created at ${createdAt}, before the first pr to process date of ${firstPrToProcess}`
-    );
-    return false;
+  if (
+    createdAt < firstPrToProcess &&
+    !pull.labels.find((label) => label.name.toLowerCase() === "go")
+  ) {
+    if (
+      createdAt < firstPythonPrToProcess ||
+      !pull.labels.find((label) => label.name.toLowerCase() === "python")
+    ) {
+      console.log(
+        `Skipping PR ${pull.number} because it was created at ${createdAt}, before the first pr to process date of ${firstPrToProcess}`
+      );
+      return false;
+    }
   }
   if (prState.remindAfterTestsPass && prState.remindAfterTestsPass.length > 0) {
     return true;
@@ -149,7 +151,9 @@ async function approvedBy(pull: any): Promise<string[]> {
     pull_number: pull.number,
   });
 
-  return reviews.data.map((review) => review.user.login);
+  return reviews.data
+    .filter((review) => review.state == "APPROVED")
+    .map((review) => review.user.login);
 }
 
 /*
@@ -189,10 +193,24 @@ async function processPull(
       return;
     }
 
-    // TODO(BEAM-13925) - also check if the author is a committer, if they are don't auto-assign a committer
+    // TODO(https://github.com/apache/beam/issues/21417) - also check if the author is a committer, if they are don't auto-assign a committer
     for (const approver of approvers) {
       const labelOfReviewer = prState.getLabelForReviewer(approver);
       if (labelOfReviewer) {
+        if (
+          (await github.checkIfCommitter(pull.user.login)) ||
+          (await prState.isAnyAssignedReviewerCommitter()) ||
+          (await github.checkIfCommitter(approver))
+        ) {
+          console.log(
+            "Author or reviewer is committer, not forwarding to another committer"
+          );
+          // Cache this result so we don't need to keep looking it up.
+          prState.committerAssigned = true;
+          await stateClient.writePrState(pull.number, prState);
+          return;
+        }
+
         console.log(`Assigning a committer for label ${labelOfReviewer}`);
         let reviewersState = await stateClient.getReviewersForLabelState(
           labelOfReviewer
@@ -223,6 +241,8 @@ async function processPull(
         return;
       }
     }
+    // If none of the approvers were assigned to the pr, no-op.
+    return;
   }
 
   let checkState = await getChecksStatus(REPO_OWNER, REPO, pull.head.sha);
