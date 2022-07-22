@@ -72,6 +72,7 @@ task aggregateJavadoc(type: Javadoc) {
   exclude "org/apache/beam/runners/flink/translation/*"
   exclude "org/apache/beam/runners/spark/examples/*"
   exclude "org/apache/beam/runners/spark/translation/*"
+  exclude "org/apache/beam/runners/spark/structuredstreaming/*"
   exclude "org/apache/beam/sdk/transforms/reflect/*"
   exclude "org/apache/beam/sdk/runners/*"
   exclude "org/apache/beam/sdk/util/*"
