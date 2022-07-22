@@ -485,6 +485,16 @@ public class GcsUtilTest {
             + error.toString()
             + "\n"
             + "\n"
+            + contentBoundaryLine
+            + "\n"
+            + "Content-Type: application/http\n"
+            + "\n"
+            + "HTTP/1.1 404 Not Found\n"
+            + "Content-Length: -1\n"
+            + "\n"
+            + error.toString()
+            + "\n"
+            + "\n"
             + endOfContentBoundaryLine
             + "\n";
     thrown.expect(FileNotFoundException.class);
@@ -493,6 +503,27 @@ public class GcsUtilTest {
             .setContentType("multipart/mixed; boundary=" + contentBoundary)
             .setContent(content)
             .setStatusCode(HttpStatusCodes.STATUS_CODE_OK);
+
+    MockHttpTransport mockTransport =
+        new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
+
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    gcsUtil.setStorageClient(new Storage(mockTransport, Transport.getJsonFactory(), null));
+    gcsUtil.fileSizes(
+        ImmutableList.of(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            GcsPath.fromComponents("testbucket", "testobject2")));
+  }
+
+  @Test
+  public void testGetSizeBytesWhenFileNotFoundNoBatch() throws Exception {
+    thrown.expect(FileNotFoundException.class);
+    MockLowLevelHttpResponse notFoundResponse =
+        new MockLowLevelHttpResponse()
+            .setContentType("text/plain")
+            .setContent("error")
+            .setStatusCode(HttpStatusCodes.STATUS_CODE_NOT_FOUND);
 
     MockHttpTransport mockTransport =
         new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
@@ -525,8 +556,18 @@ public class GcsUtilTest {
             + error.toString()
             + "\n"
             + "\n"
-            + endOfContentBoundaryLine
-            + "\n";
+            + contentBoundaryLine
+            + "\n"
+            + "Content-Type: application/http\n"
+            + "\n"
+            + "HTTP/1.1 404 Not Found\n"
+            + "Content-Length: -1\n"
+            + "\n"
+            + error.toString()
+            + "\n"
+            + "\n"
+            + endOfContentBoundaryLine;
+
     thrown.expect(FileNotFoundException.class);
 
     final LowLevelHttpResponse[] mockResponses =
@@ -542,6 +583,47 @@ public class GcsUtilTest {
     when(mockResponses[1].getStatusCode()).thenReturn(200);
     when(mockResponses[0].getContent()).thenReturn(toStream("error"));
     when(mockResponses[1].getContent()).thenReturn(toStream(content));
+
+    // A mock transport that lets us mock the API responses.
+    MockHttpTransport mockTransport =
+        new MockHttpTransport.Builder()
+            .setLowLevelHttpRequest(
+                new MockLowLevelHttpRequest() {
+                  int index = 0;
+
+                  @Override
+                  public LowLevelHttpResponse execute() throws IOException {
+                    return mockResponses[index++];
+                  }
+                })
+            .build();
+
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    gcsUtil.setStorageClient(
+        new Storage(mockTransport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()));
+    gcsUtil.fileSizes(
+        ImmutableList.of(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            GcsPath.fromComponents("testbucket", "testobject2")));
+  }
+
+  @Test
+  public void testGetSizeBytesWhenFileNotFoundNoBatchRetry() throws Exception {
+    thrown.expect(FileNotFoundException.class);
+
+    final LowLevelHttpResponse[] mockResponses =
+        new LowLevelHttpResponse[] {
+          Mockito.mock(LowLevelHttpResponse.class), Mockito.mock(LowLevelHttpResponse.class),
+        };
+    when(mockResponses[0].getContentType()).thenReturn("text/plain");
+    when(mockResponses[1].getContentType()).thenReturn("text/plain");
+
+    // 429: Too many requests, then 200: OK.
+    when(mockResponses[0].getStatusCode()).thenReturn(429);
+    when(mockResponses[1].getStatusCode()).thenReturn(404);
+    when(mockResponses[0].getContent()).thenReturn(toStream("error"));
+    when(mockResponses[1].getContent()).thenReturn(toStream("error"));
 
     // A mock transport that lets us mock the API responses.
     MockHttpTransport mockTransport =
