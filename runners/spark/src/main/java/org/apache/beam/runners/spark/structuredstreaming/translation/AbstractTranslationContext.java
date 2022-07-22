@@ -38,7 +38,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.function.ForeachFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.ForeachWriter;
@@ -75,29 +74,7 @@ public abstract class AbstractTranslationContext {
   private final Map<PCollectionView<?>, Dataset<?>> broadcastDataSets;
 
   public AbstractTranslationContext(SparkStructuredStreamingPipelineOptions options) {
-    SparkConf sparkConf = new SparkConf();
-    sparkConf.setMaster(options.getSparkMaster());
-    sparkConf.setAppName(options.getAppName());
-    if (options.getFilesToStage() != null && !options.getFilesToStage().isEmpty()) {
-      sparkConf.setJars(options.getFilesToStage().toArray(new String[0]));
-    }
-
-    // By default, Spark defines 200 as a number of sql partitions. This seems too much for local
-    // mode, so try to align with value of "sparkMaster" option in this case.
-    // We should not overwrite this value (or any user-defined spark configuration value) if the
-    // user has already configured it.
-    String sparkMaster = options.getSparkMaster();
-    if (sparkMaster != null
-        && sparkMaster.startsWith("local[")
-        && System.getProperty("spark.sql.shuffle.partitions") == null) {
-      int numPartitions =
-          Integer.parseInt(sparkMaster.substring("local[".length(), sparkMaster.length() - 1));
-      if (numPartitions > 0) {
-        sparkConf.set("spark.sql.shuffle.partitions", String.valueOf(numPartitions));
-      }
-    }
-
-    this.sparkSession = SparkSession.builder().config(sparkConf).getOrCreate();
+    this.sparkSession = SparkSessionFactory.getOrCreateSession(options);
     this.serializablePipelineOptions = new SerializablePipelineOptions(options);
     this.datasets = new HashMap<>();
     this.leaves = new HashSet<>();
