@@ -71,10 +71,10 @@ class TestDatastoreClient(unittest.TestCase):
         mock_get_schema.assert_called_once()
         mock_get_examples.assert_called_once()
         calls = [call().key('pg_sdks', 'SDK_JAVA'),
-                 call().key('pg_examples', 'MOCK_NAME_0_SDK_JAVA'),
-                 call().key('pg_snippets', 'MOCK_NAME_0_SDK_JAVA'),
-                 call().key('pg_pc_objects', 'MOCK_NAME_0_SDK_JAVA_OUTPUT'),
-                 call().key('pg_files', 'MOCK_NAME_0_SDK_JAVA_0'),
+                 call().key('pg_examples', 'SDK_JAVA_MOCK_NAME_0'),
+                 call().key('pg_snippets', 'SDK_JAVA_MOCK_NAME_0'),
+                 call().key('pg_pc_objects', 'SDK_JAVA_MOCK_NAME_0_OUTPUT'),
+                 call().key('pg_files', 'SDK_JAVA_MOCK_NAME_0_0'),
                  call().put_multi(ANY),
                  call().put_multi(ANY),
                  call().put_multi(ANY),
