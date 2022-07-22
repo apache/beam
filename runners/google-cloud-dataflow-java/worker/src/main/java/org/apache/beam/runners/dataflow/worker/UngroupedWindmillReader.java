@@ -43,8 +43,8 @@ import org.joda.time.Instant;
  * A Reader that receives input data from a Windmill server, and returns it as individual elements.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
   private final Coder<T> valueCoder;

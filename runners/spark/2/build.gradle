@@ -22,13 +22,11 @@ project.ext {
   // Set the version of all Spark-related dependencies here.
   spark_version = '2.4.8'
   spark_scala_version = '2.11'
-
-  // Version specific code overrides.
-  main_source_overrides = ['./src/main/java']
-  test_source_overrides = ['./src/test/java']
-  main_resources_overrides = []
-  test_resources_overrides = []
+  // Copy shared sources for Spark 2 to use Spark 3 as primary version in place
+  copySourceBase = true
   archives_base_name = 'beam-runners-spark'
+  // Only export Javadocs for Spark 3
+  exportJavadoc = false
 }
 
 // Load the main build script which contains all build logic.

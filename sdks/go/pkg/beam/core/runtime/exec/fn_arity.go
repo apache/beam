@@ -248,12 +248,63 @@ func (n *invoker) initCall() {
 			return n.ret3(pn, ws, ts, r0, r1, r2)
 		}
 
+	case reflectx.Func0x4:
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+			r0, r1, r2, r3 := fn.Call0x4()
+			return n.ret4(pn, ws, ts, r0, r1, r2, r3)
+		}
+
+	case reflectx.Func1x4:
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+			r0, r1, r2, r3 := fn.Call1x4(n.args[0])
+			return n.ret4(pn, ws, ts, r0, r1, r2, r3)
+		}
+
+	case reflectx.Func2x4:
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+			r0, r1, r2, r3 := fn.Call2x4(n.args[0], n.args[1])
+			return n.ret4(pn, ws, ts, r0, r1, r2, r3)
+		}
+
+	case reflectx.Func3x4:
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+			r0, r1, r2, r3 := fn.Call3x4(n.args[0], n.args[1], n.args[2])
+			return n.ret4(pn, ws, ts, r0, r1, r2, r3)
+		}
+
+	case reflectx.Func4x4:
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+			r0, r1, r2, r3 := fn.Call4x4(n.args[0], n.args[1], n.args[2], n.args[3])
+			return n.ret4(pn, ws, ts, r0, r1, r2, r3)
+		}
+
+	case reflectx.Func5x4:
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+			r0, r1, r2, r3 := fn.Call5x4(n.args[0], n.args[1], n.args[2], n.args[3], n.args[4])
+			return n.ret4(pn, ws, ts, r0, r1, r2, r3)
+		}
+
+	case reflectx.Func6x4:
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+			r0, r1, r2, r3 := fn.Call6x4(n.args[0], n.args[1], n.args[2], n.args[3], n.args[4], n.args[5])
+			return n.ret4(pn, ws, ts, r0, r1, r2, r3)
+		}
+
+	case reflectx.Func7x4:
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+			r0, r1, r2, r3 := fn.Call7x4(n.args[0], n.args[1], n.args[2], n.args[3], n.args[4], n.args[5], n.args[6])
+			return n.ret4(pn, ws, ts, r0, r1, r2, r3)
+		}
+
+	case reflectx.Func8x4:
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+			r0, r1, r2, r3 := fn.Call8x4(n.args[0], n.args[1], n.args[2], n.args[3], n.args[4], n.args[5], n.args[6], n.args[7])
+			return n.ret4(pn, ws, ts, r0, r1, r2, r3)
+		}
+
 	default:
 		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
 			ret := n.fn.Fn.Call(n.args)
-			if n.outErrIdx >= 0 && ret[n.outErrIdx] != nil {
-				return nil, ret[n.outErrIdx].(error)
-			}
 
 			// (5) Return direct output, if any. Input timestamp and windows are implicitly
 			// propagated.
@@ -268,8 +319,10 @@ func (n *invoker) initCall() {
 				return n.ret3(pn, ws, ts, ret[0], ret[1], ret[2])
 			case 4:
 				return n.ret4(pn, ws, ts, ret[0], ret[1], ret[2], ret[3])
+			case 5:
+				return n.ret5(pn, ws, ts, ret[0], ret[1], ret[2], ret[3], ret[4])
 			}
-			panic(fmt.Sprintf("invoker: %v has > 4 return values, which is not permitted", n.fn.Fn.Name()))
+			panic(fmt.Sprintf("invoker: %v has > 5 return values, which is not permitted", n.fn.Fn.Name()))
 		}
 	}
 }

@@ -38,17 +38,6 @@ type Tweet struct {
 	User  string `json:"username"`
 }
 
-const schema = `{
-	"type": "record",
-	"name": "tweet",
-	"namespace": "twitter",
-	"fields": [
-		{ "name": "timestamp", "type": "double" },
-		{ "name": "tweet", "type": "string" },
-		{ "name": "username", "type": "string" }
-	]
-}`
-
 func TestRead(t *testing.T) {
 	avroFile := "../../../../data/tweet.avro"
 
@@ -110,6 +99,9 @@ func TestWrite(t *testing.T) {
 		t.Fatalf("Failed to read avro file: %v", err)
 	}
 	ocf, err := goavro.NewOCFReader(bytes.NewReader(avroBytes))
+	if err != nil {
+		t.Fatalf("Failed to make OCF Reader: %v", err)
+	}
 	var nativeData []interface{}
 	for ocf.Scan() {
 		datum, err := ocf.Read()

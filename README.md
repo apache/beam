@@ -44,7 +44,7 @@ Beam provides a general approach to expressing [embarrassingly parallel](https:/
 
 ### The Beam Model
 
-The model behind Beam evolved from a number of internal Google data processing projects, including [MapReduce](http://research.google.com/archive/mapreduce.html), [FlumeJava](http://research.google.com/pubs/pub35650.html), and [Millwheel](http://research.google.com/pubs/pub41378.html). This model was originally known as the “[Dataflow Model](http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf)”.
+The model behind Beam evolved from several internal Google data processing projects, including [MapReduce](http://research.google.com/archive/mapreduce.html), [FlumeJava](http://research.google.com/pubs/pub35650.html), and [Millwheel](http://research.google.com/pubs/pub41378.html). This model was originally known as the “[Dataflow Model](http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf)”.
 
 To learn more about the Beam Model (though still under the original name of Dataflow), see the World Beyond Batch: [Streaming 101](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101) and [Streaming 102](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102) posts on O’Reilly’s Radar site, and the [VLDB 2015 paper](http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf).
 
@@ -57,11 +57,11 @@ The key concepts in the Beam programming model are:
 
 ### SDKs
 
-Beam supports multiple language specific SDKs for writing pipelines against the Beam Model.
+Beam supports multiple language-specific SDKs for writing pipelines against the Beam Model.
 
 Currently, this repository contains SDKs for Java, Python and Go.
 
-Have ideas for new SDKs or DSLs? See the [JIRA](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-ideas).
+Have ideas for new SDKs or DSLs? See the [sdk-ideas label](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Asdk-ideas).
 
 ### Runners
 
@@ -74,7 +74,7 @@ Beam supports executing programs on multiple distributed processing backends thr
 - The `JetRunner` runs the pipeline on a Hazelcast Jet cluster. The code has been donated from [hazelcast/hazelcast-jet](https://github.com/hazelcast/hazelcast-jet) and is now part of Beam.
 - The `Twister2Runner` runs the pipeline on a Twister2 cluster. The code has been donated from [DSC-SPIDAL/twister2](https://github.com/DSC-SPIDAL/twister2) and is now part of Beam.
 
-Have ideas for new Runners? See the [JIRA](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-ideas).
+Have ideas for new Runners? See the [runner-ideas label](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-ideas).
 
 ## Getting Started
 
@@ -88,7 +88,7 @@ To get involved in Apache Beam:
 * [Subscribe](mailto:user-subscribe@beam.apache.org) or [mail](mailto:user@beam.apache.org) the [user@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-user/) list.
 * [Subscribe](mailto:dev-subscribe@beam.apache.org) or [mail](mailto:dev@beam.apache.org) the [dev@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-dev/) list.
 * [Join ASF Slack](https://s.apache.org/slack-invite) on [#beam channel](https://s.apache.org/beam-slack-channel)
-* Report issues on [JIRA](https://issues.apache.org/jira/browse/BEAM).
+* [Report an issue](https://github.com/apache/beam/issues/new/choose).
 
 Instructions for building and testing Beam itself
 are in the [contribution guide](https://beam.apache.org/contribute/).

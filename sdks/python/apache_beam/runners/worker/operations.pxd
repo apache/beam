@@ -21,6 +21,7 @@ from apache_beam.runners.common cimport DoFnRunner
 from apache_beam.runners.common cimport Receiver
 from apache_beam.runners.worker cimport opcounters
 from apache_beam.utils.windowed_value cimport WindowedValue
+from apache_beam.utils.windowed_value cimport WindowedBatch
 #from libcpp.string cimport string
 
 cdef WindowedValue _globally_windowed_value
@@ -34,14 +35,28 @@ cdef class ConsumerSet(Receiver):
   cdef public output_index
   cdef public coder
 
-  cpdef receive(self, WindowedValue windowed_value)
   cpdef update_counters_start(self, WindowedValue windowed_value)
   cpdef update_counters_finish(self)
+  cpdef update_counters_batch(self, WindowedBatch windowed_batch)
 
-
-cdef class SingletonConsumerSet(ConsumerSet):
+cdef class SingletonElementConsumerSet(ConsumerSet):
   cdef Operation consumer
 
+  cpdef receive(self, WindowedValue windowed_value)
+  cpdef receive_batch(self, WindowedBatch windowed_batch)
+  cpdef flush(self)
+
+cdef class GeneralPurposeConsumerSet(ConsumerSet):
+  cdef list element_consumers
+  cdef list passthrough_batch_consumers
+  cdef dict other_batch_consumers
+  cdef bint has_batch_consumers
+  cdef list _batched_elements
+  cdef object producer_batch_converter
+
+  cpdef receive(self, WindowedValue windowed_value)
+  cpdef receive_batch(self, WindowedBatch windowed_batch)
+  cpdef flush(self)
 
 cdef class Operation(object):
   cdef readonly name_context
@@ -96,6 +111,7 @@ cdef class DoOperation(Operation):
   cdef public dict timer_inputs
   cdef dict timer_specs
   cdef public object input_info
+  cdef object fn
 
 
 cdef class SdfProcessSizedElements(DoOperation):

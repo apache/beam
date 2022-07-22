@@ -64,7 +64,7 @@ import org.slf4j.LoggerFactory;
 
 /** Utilities for interacting with portability {@link Environment environments}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Environments {
 

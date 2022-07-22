@@ -70,7 +70,8 @@ public class BeamSqlHiveSchemaTest implements Serializable {
 
   @BeforeClass
   public static void setupEmbeddedMetastoreService() throws IOException {
-    // TODO(BEAM-13506): Remove this when hive version 4 is released and includes
+    // TODO(https://github.com/apache/beam/issues/21299): Remove this when hive version 4 is
+    // released and includes
     // https://github.com/apache/hive/commit/a234475faa2cab2606f2a74eb9ca071f006998e2
     assumeFalse(SystemUtils.isJavaVersionAtLeast(1.9f));
     service = new EmbeddedMetastoreService(TMP_FOLDER.getRoot().getAbsolutePath());
@@ -235,7 +236,7 @@ public class BeamSqlHiveSchemaTest implements Serializable {
     pipeline.run();
   }
 
-  private void reCreateTestTable() throws Exception {
+  private void reCreateTestTable() {
     service.executeQuery("drop table " + TEST_TABLE);
     service.executeQuery("create table " + TEST_TABLE + "(f_str string, f_int int)");
   }

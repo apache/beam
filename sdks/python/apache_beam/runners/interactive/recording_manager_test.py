@@ -23,7 +23,7 @@ from unittest.mock import patch
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
+from apache_beam.portability.api import beam_interactive_api_pb2
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
@@ -159,7 +159,8 @@ class ElementStreamTest(unittest.TestCase):
               .build()) # yapf: disable
 
     values = [
-        v.recorded_event for v in values if isinstance(v, TestStreamFileRecord)
+        v.recorded_event for v in values
+        if isinstance(v, beam_interactive_api_pb2.TestStreamFileRecord)
     ]
 
     self.mock_result.set_state(PipelineState.DONE)

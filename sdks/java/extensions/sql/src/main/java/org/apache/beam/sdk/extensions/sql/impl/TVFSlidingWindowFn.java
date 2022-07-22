@@ -35,7 +35,7 @@ import org.joda.time.Duration;
  */
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class TVFSlidingWindowFn extends NonMergingWindowFn<Object, IntervalWindow> {
   /** Size of the generated windows. */

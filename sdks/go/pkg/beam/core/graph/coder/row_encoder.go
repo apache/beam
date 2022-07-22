@@ -262,7 +262,7 @@ func (b *RowEncoderBuilder) containerEncoderForType(t reflect.Type) (typeEncoder
 		return typeEncoderFieldReflect{}, err
 	}
 	if t.Kind() == reflect.Ptr {
-		return typeEncoderFieldReflect{encode: containerNilEncoder(encf.encode), addr: encf.addr}, nil
+		return typeEncoderFieldReflect{encode: NullableEncoder(encf.encode), addr: encf.addr}, nil
 	}
 	return encf, nil
 }

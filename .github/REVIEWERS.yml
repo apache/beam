@@ -23,7 +23,38 @@ labels:
       - damccorm
       - lostluck
       - jrmccluskey
-      - youngoli
       - riteshghorse
+    exclusionList:
+      - youngoli
+  - name: Python
+    reviewers:
+      - AnandInguva
+      - yeandy
+      - TheNeuralBit
+      - ryanthompson591
+      - tvalentyn
+      - pabloem
+      - y1chi
+    exclusionList: []
+  - name: Java
+    reviewers:
+      - lukecwik
+      - kennknowles
+      - robertwb
+      - kileys
+      - apilloud
+    exclusionList: []
+  - name: IO
+    reviewers:
+      - chamikaramj
+      - johnjcasey
+      - pabloem
+      - Abacn
+      - ahmedabu98
+    exclusionList: []
+  - name: Build
+    reviewers:
+      - damccorm
+      - Abacn
     exclusionList: []
 fallbackReviewers: []

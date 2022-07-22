@@ -39,7 +39,7 @@ class NewExampleAction extends StatelessWidget {
         ),
         label: AppLocalizations.of(context)!.newExample,
         onPressed: () {
-          launch('/');
+          launchUrl(Uri.parse('/'));
           AnalyticsService.get(context).trackClickNewExample();
         },
       ),

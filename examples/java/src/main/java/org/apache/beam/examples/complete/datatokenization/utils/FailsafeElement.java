@@ -18,9 +18,9 @@
 package org.apache.beam.examples.complete.datatokenization.utils;
 
 import java.util.Objects;
-import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The {@link FailsafeElement} class holds the current value and original value of a record within a
@@ -34,8 +34,10 @@ public class FailsafeElement<OriginalT, CurrentT> {
 
   private final OriginalT originalPayload;
   private final CurrentT payload;
-  @Nullable private String errorMessage = "";
-  @Nullable private String stacktrace = "";
+
+  @org.apache.avro.reflect.Nullable private @Nullable String errorMessage = null;
+
+  @org.apache.avro.reflect.Nullable private @Nullable String stacktrace = null;
 
   private FailsafeElement(OriginalT originalPayload, CurrentT payload) {
     this.originalPayload = originalPayload;
@@ -62,20 +64,20 @@ public class FailsafeElement<OriginalT, CurrentT> {
     return payload;
   }
 
-  public String getErrorMessage() {
+  public @Nullable String getErrorMessage() {
     return errorMessage;
   }
 
-  public FailsafeElement<OriginalT, CurrentT> setErrorMessage(String errorMessage) {
+  public FailsafeElement<OriginalT, CurrentT> setErrorMessage(@Nullable String errorMessage) {
     this.errorMessage = errorMessage;
     return this;
   }
 
-  public String getStacktrace() {
+  public @Nullable String getStacktrace() {
     return stacktrace;
   }
 
-  public FailsafeElement<OriginalT, CurrentT> setStacktrace(String stacktrace) {
+  public FailsafeElement<OriginalT, CurrentT> setStacktrace(@Nullable String stacktrace) {
     this.stacktrace = stacktrace;
     return this;
   }

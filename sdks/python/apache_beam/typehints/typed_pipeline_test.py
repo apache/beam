@@ -751,9 +751,10 @@ class SideInputTest(unittest.TestCase):
   def test_var_positional_only_side_input_hint(self):
     # Test that a lambda that accepts only a VAR_POSITIONAL can accept
     # side-inputs.
-    # TODO(BEAM-8247): There's a bug with trivial_inference inferring the output
-    #   type when side-inputs are used (their type hints are not passed). Remove
-    #   with_output_types(...) when this bug is fixed.
+    # TODO(https://github.com/apache/beam/issues/19824): There's a bug with
+    #   trivial_inference inferring the output type when side-inputs are used
+    #   (their type hints are not passed). Remove with_output_types(...) when
+    #   this bug is fixed.
     result = (['a', 'b', 'c']
               | beam.Map(lambda *args: args, 5).with_input_types(
                   str, int).with_output_types(typehints.Tuple[str, int]))
@@ -960,9 +961,12 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int, ), {}))
     self.assertEqual(th.output_types, ((int, ), {}))
 
-  @unittest.skip('BEAM-8662: Py3 annotations not yet supported for MapTuple')
+  @unittest.skip(
+      'https://github.com/apache/beam/issues/19961: Py3 annotations not yet '
+      'supported for MapTuple')
   def test_flat_map_tuple_wrapper(self):
-    # TODO(BEAM-8662): Also test with a fn that accepts default arguments.
+    # TODO(https://github.com/apache/beam/issues/19961): Also test with a fn
+    # that accepts default arguments.
     def tuple_map_fn(a: str, b: str, c: str) -> typehints.Iterable[str]:
       return [a, b, c]
 
@@ -987,9 +991,12 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int, ), {}))
     self.assertEqual(th.output_types, ((typehints.Optional[int], ), {}))
 
-  @unittest.skip('BEAM-8662: Py3 annotations not yet supported for MapTuple')
+  @unittest.skip(
+      'https://github.com/apache/beam/issues/19961: Py3 annotations not yet '
+      'supported for MapTuple')
   def test_map_tuple(self):
-    # TODO(BEAM-8662): Also test with a fn that accepts default arguments.
+    # TODO(https://github.com/apache/beam/issues/19961): Also test with a fn
+    # that accepts default arguments.
     def tuple_map_fn(a: str, b: str, c: str) -> str:
       return a + b + c
 

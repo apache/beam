@@ -203,7 +203,7 @@ public class UnboundedSourceSystemTest {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-10521")
+  @Ignore("https://github.com/apache/beam/issues/20376")
   public void testMultipleAdvanceWatermark() throws IOException, InterruptedException {
     final Instant now = Instant.now();
     final Instant nowPlusOne = now.plus(Duration.millis(1L));

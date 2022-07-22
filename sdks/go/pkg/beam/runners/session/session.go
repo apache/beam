@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Deprecated: the session runner is no longer maintained and will be removed
+// in a later release.
 package session
 
 import (
@@ -135,6 +137,9 @@ func (c *controlServer) readSession(filename string) {
 
 		// Read out the entry header message.
 		b, err = br.Peek(int(l))
+		if err != nil {
+			panic(errors.Wrap(err, "Problem peeking entry header value"))
+		}
 		var hMsg session.EntryHeader
 		if err := proto.Unmarshal(b, &hMsg); err != nil {
 			panic(errors.Wrap(err, "Error decoding entry header"))

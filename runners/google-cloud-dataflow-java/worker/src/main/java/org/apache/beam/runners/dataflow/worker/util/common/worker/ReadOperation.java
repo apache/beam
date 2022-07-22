@@ -43,10 +43,16 @@ import org.slf4j.LoggerFactory;
  * <p>Its start() method iterates through all elements of the source and emits them on its output.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ReadOperation extends Operation {
+  public static class ReadLoopAbortedException extends InterruptedException {
+    public ReadLoopAbortedException() {
+      super("Read loop was aborted.");
+    }
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(ReadOperation.class);
 
   // This is the rate at which the local, threadsafe progress variable is updated from the iterator,
@@ -178,7 +184,7 @@ public class ReadOperation extends Operation {
       }
 
       if (abortRead.get()) {
-        throw new InterruptedException("Read loop was aborted.");
+        throw new ReadLoopAbortedException();
       }
 
       // Call reader.iterator() outside the lock, because it can take an
@@ -204,7 +210,7 @@ public class ReadOperation extends Operation {
         readerIterator.setProgressFromIterator();
         for (boolean more = readerIterator.start(); more; more = readerIterator.advance()) {
           if (abortRead.get()) {
-            throw new InterruptedException("Read loop was aborted.");
+            throw new ReadLoopAbortedException();
           }
           if (progressUpdatePeriodMs == UPDATE_ON_EACH_ITERATION) {
             readerIterator.setProgressFromIterator();

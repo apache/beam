@@ -62,17 +62,11 @@
     - purpose: Report bugs, request features, follow known issues
       contact:
         {
-          email: Apache Beam Jira Tracker,
-          link: "https://issues.apache.org/jira/browse/BEAM",
+          email: Apache Beam Issues,
+          link: "https://github.com/apache/beam/issues/new",
         }
       icon: icons/community/contact-us/bug.svg
-      actions:
-        [
-          {
-            action: To create an issue you need a Jira account. Open one here.,
-            link: "https://issues.apache.org/jira/secure/Signup!default.jspa",
-          },
-        ]
+      actions: [{ action: "&#8208;" }]
     - purpose: Ask and answer community questions
       contact:
         {

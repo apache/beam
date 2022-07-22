@@ -21,6 +21,7 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.Value;
+import com.google.protobuf.util.Timestamps;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -37,7 +38,7 @@ import org.slf4j.LoggerFactory;
 
 /** A {@code PTransform} to perform a conversion of {@link Entity} to {@link Row}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class EntityToRow extends PTransform<PCollection<Entity>, PCollection<Row>> {
   private final Schema schema;
@@ -111,7 +112,7 @@ public class EntityToRow extends PTransform<PCollection<Entity>, PCollection<Row
           return val.getDoubleValue();
         case TIMESTAMP_VALUE:
           com.google.protobuf.Timestamp time = val.getTimestampValue();
-          long millis = time.getSeconds() * 1000 + time.getNanos() / 1000;
+          long millis = Timestamps.toMillis(time);
           return Instant.ofEpochMilli(millis).toDateTime();
         case STRING_VALUE:
           return val.getStringValue();

@@ -759,8 +759,8 @@ class SnippetsTest(unittest.TestCase):
     result_path = temp_path + '.result'
     test_argv = [
         "unused_argv[0]",
-        f"--input-file={temp_path}*",
-        f"--output-path={result_path}",
+        f"--input={temp_path}*",
+        f"--output={result_path}",
     ]
     with mock.patch.object(sys, 'argv', test_argv):
       fn()

@@ -23,6 +23,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.joda.time.Duration;
 
 /**
@@ -108,6 +109,7 @@ public class ActionFactory implements Serializable {
    * @param childPartitionsRecordAction action class to process {@link
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord}s
    * @param metrics metrics gathering class
+   * @param throughputEstimator an estimator to calculate local throughput.
    * @return single instance of the {@link QueryChangeStreamAction}
    */
   public synchronized QueryChangeStreamAction queryChangeStreamAction(
@@ -118,7 +120,8 @@ public class ActionFactory implements Serializable {
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
       ChildPartitionsRecordAction childPartitionsRecordAction,
-      ChangeStreamMetrics metrics) {
+      ChangeStreamMetrics metrics,
+      ThroughputEstimator throughputEstimator) {
     if (queryChangeStreamActionInstance == null) {
       queryChangeStreamActionInstance =
           new QueryChangeStreamAction(
@@ -129,7 +132,8 @@ public class ActionFactory implements Serializable {
               dataChangeRecordAction,
               heartbeatRecordAction,
               childPartitionsRecordAction,
-              metrics);
+              metrics,
+              throughputEstimator);
     }
     return queryChangeStreamActionInstance;
   }

@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+evaluationDependsOn(':runners:google-cloud-dataflow-java:worker')
 enablePythonPerformanceTest()
 
 String pythonVersionSuffix = project.ext.pythonVersion
@@ -124,6 +125,26 @@ task postCommitIT {
   }
 }
 
+task postCommitSickbay {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+
+  doLast {
+    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
+    def argMap = [
+        "test_opts": testOpts,
+        "sdk_location": files(configurations.distTarBall.files).singleFile,
+        "suite": "postCommitIT-df${pythonVersionSuffix}",
+        "collect": "it_postcommit_sickbay"
+    ]
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
 task spannerioIT {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
@@ -222,7 +243,7 @@ task validatesRunnerStreamingTests {
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
-  // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
+  // TODO(BEAM-3544,https://github.com/apache/beam/issues/19012): Disable tests with 'sickbay-streaming' tag.
   // Execute tests with xdists
   doFirst {
     def argMap = [

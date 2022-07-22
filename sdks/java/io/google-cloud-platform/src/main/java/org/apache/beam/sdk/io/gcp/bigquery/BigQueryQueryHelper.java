@@ -47,9 +47,6 @@ import org.slf4j.LoggerFactory;
  * <p>This object is not serializable, and its state can be safely discarded across serialization
  * boundaries for any associated source objects.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class BigQueryQueryHelper {
 
   private static final Integer JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
@@ -59,13 +56,17 @@ class BigQueryQueryHelper {
   public static JobStatistics dryRunQueryIfNeeded(
       BigQueryServices bqServices,
       BigQueryOptions options,
-      AtomicReference<JobStatistics> dryRunJobStats,
+      AtomicReference<@Nullable JobStatistics> dryRunJobStats,
       String query,
       Boolean flattenResults,
       Boolean useLegacySql,
       @Nullable String location)
       throws InterruptedException, IOException {
-    if (dryRunJobStats.get() == null) {
+    @Nullable JobStatistics maybeJobStatistics = dryRunJobStats.get();
+
+    if (maybeJobStatistics != null) {
+      return maybeJobStatistics;
+    } else {
       JobStatistics jobStatistics =
           bqServices
               .getJobService(options)
@@ -76,15 +77,14 @@ class BigQueryQueryHelper {
                   createBasicQueryConfig(query, flattenResults, useLegacySql),
                   location);
       dryRunJobStats.compareAndSet(null, jobStatistics);
+      return jobStatistics;
     }
-
-    return dryRunJobStats.get();
   }
 
   public static TableReference executeQuery(
       BigQueryServices bqServices,
       BigQueryOptions options,
-      AtomicReference<JobStatistics> dryRunJobStats,
+      AtomicReference<@Nullable JobStatistics> dryRunJobStats,
       String stepUuid,
       String query,
       Boolean flattenResults,
@@ -95,106 +95,114 @@ class BigQueryQueryHelper {
       @Nullable String kmsKey)
       throws InterruptedException, IOException {
     // Step 1: Find the effective location of the query.
-    String effectiveLocation = location;
-    DatasetService tableService = bqServices.getDatasetService(options);
-    if (effectiveLocation == null) {
-      List<TableReference> referencedTables =
-          dryRunQueryIfNeeded(
-                  bqServices,
-                  options,
-                  dryRunJobStats,
-                  query,
-                  flattenResults,
-                  useLegacySql,
-                  location)
-              .getQuery()
-              .getReferencedTables();
-      if (referencedTables != null && !referencedTables.isEmpty()) {
-        TableReference referencedTable = referencedTables.get(0);
-        effectiveLocation =
-            tableService
-                .getDataset(referencedTable.getProjectId(), referencedTable.getDatasetId())
-                .getLocation();
+    @Nullable String effectiveLocation = location;
+    try (DatasetService tableService = bqServices.getDatasetService(options)) {
+      if (effectiveLocation == null) {
+        List<TableReference> referencedTables =
+            dryRunQueryIfNeeded(
+                    bqServices,
+                    options,
+                    dryRunJobStats,
+                    query,
+                    flattenResults,
+                    useLegacySql,
+                    location)
+                .getQuery()
+                .getReferencedTables();
+        if (referencedTables != null && !referencedTables.isEmpty()) {
+          TableReference referencedTable = referencedTables.get(0);
+          effectiveLocation =
+              tableService
+                  .getDataset(referencedTable.getProjectId(), referencedTable.getDatasetId())
+                  .getLocation();
+        }
       }
+
+      // Step 2: Create a temporary dataset in the query location only if the user has not specified
+      // a temp dataset.
+      String queryJobId =
+          BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY);
+      Optional<String> queryTempDatasetOpt = Optional.ofNullable(queryTempDatasetId);
+      TableReference queryResultTable =
+          createTempTableReference(
+              options.getBigQueryProject() == null
+                  ? options.getProject()
+                  : options.getBigQueryProject(),
+              queryJobId,
+              queryTempDatasetOpt);
+
+      boolean beamToCreateTempDataset = !queryTempDatasetOpt.isPresent();
+      // Create dataset only if it has not been set by the user
+      if (beamToCreateTempDataset) {
+        LOG.info(
+            "Creating temporary dataset {} for query results", queryResultTable.getDatasetId());
+
+        tableService.createDataset(
+            queryResultTable.getProjectId(),
+            queryResultTable.getDatasetId(),
+            effectiveLocation,
+            "Temporary tables for query results of job " + options.getJobName(),
+            TimeUnit.DAYS.toMillis(1));
+      } else { // If the user specified a temp dataset, check that the destination table does not
+        // exist
+        Table destTable = tableService.getTable(queryResultTable);
+        checkArgument(
+            destTable == null,
+            "Refusing to write on existing table {} in the specified temp dataset {}",
+            queryResultTable.getTableId(),
+            queryResultTable.getDatasetId());
+      }
+
+      // Step 3: Execute the query. Generate a transient (random) query job ID, because this code
+      // may be retried after the temporary dataset and table have been deleted by a previous
+      // attempt -- in that case, we want to regenerate the temporary dataset and table, and we'll
+      // need a fresh query ID to do that.
+      LOG.info(
+          "Exporting query results into temporary table {} using job {}",
+          queryResultTable,
+          queryJobId);
+
+      @SuppressWarnings("nullness") // setLocation is not annotated, but does accept nulls
+      JobReference jobReference =
+          new JobReference()
+              .setProjectId(
+                  options.getBigQueryProject() == null
+                      ? options.getProject()
+                      : options.getBigQueryProject())
+              .setLocation(effectiveLocation)
+              .setJobId(queryJobId);
+
+      JobConfigurationQuery queryConfiguration =
+          createBasicQueryConfig(query, flattenResults, useLegacySql)
+              .setAllowLargeResults(true)
+              .setDestinationTable(queryResultTable)
+              .setCreateDisposition("CREATE_IF_NEEDED")
+              .setWriteDisposition("WRITE_TRUNCATE")
+              .setPriority(priority.name());
+
+      if (kmsKey != null) {
+        queryConfiguration.setDestinationEncryptionConfiguration(
+            new EncryptionConfiguration().setKmsKeyName(kmsKey));
+      }
+
+      JobService jobService = bqServices.getJobService(options);
+      jobService.startQueryJob(jobReference, queryConfiguration);
+      Job job = jobService.pollJob(jobReference, JOB_POLL_MAX_RETRIES);
+      if (BigQueryHelpers.parseStatus(job) != Status.SUCCEEDED) {
+        throw new IOException(
+            String.format(
+                "Query job %s failed, status: %s",
+                queryJobId, BigQueryHelpers.statusToPrettyString(job.getStatus())));
+      }
+
+      LOG.info("Query job {} completed", queryJobId);
+      return queryResultTable;
+
+    } catch (RuntimeException | IOException | InterruptedException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
-
-    // Step 2: Create a temporary dataset in the query location only if the user has not specified a
-    // temp dataset.
-    String queryJobId =
-        BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY);
-    Optional<String> queryTempDatasetOpt = Optional.ofNullable(queryTempDatasetId);
-    TableReference queryResultTable =
-        createTempTableReference(
-            options.getBigQueryProject() == null
-                ? options.getProject()
-                : options.getBigQueryProject(),
-            queryJobId,
-            queryTempDatasetOpt);
-
-    boolean beamToCreateTempDataset = !queryTempDatasetOpt.isPresent();
-    // Create dataset only if it has not been set by the user
-    if (beamToCreateTempDataset) {
-      LOG.info("Creating temporary dataset {} for query results", queryResultTable.getDatasetId());
-
-      tableService.createDataset(
-          queryResultTable.getProjectId(),
-          queryResultTable.getDatasetId(),
-          effectiveLocation,
-          "Temporary tables for query results of job " + options.getJobName(),
-          TimeUnit.DAYS.toMillis(1));
-    } else { // If the user specified a temp dataset, check that the destination table does not
-      // exist
-      Table destTable = tableService.getTable(queryResultTable);
-      checkArgument(
-          destTable == null,
-          "Refusing to write on existing table {} in the specified temp dataset {}",
-          queryResultTable.getTableId(),
-          queryResultTable.getDatasetId());
-    }
-
-    // Step 3: Execute the query. Generate a transient (random) query job ID, because this code may
-    // be retried after the temporary dataset and table have been deleted by a previous attempt --
-    // in that case, we want to regenerate the temporary dataset and table, and we'll need a fresh
-    // query ID to do that.
-    LOG.info(
-        "Exporting query results into temporary table {} using job {}",
-        queryResultTable,
-        queryJobId);
-
-    JobReference jobReference =
-        new JobReference()
-            .setProjectId(
-                options.getBigQueryProject() == null
-                    ? options.getProject()
-                    : options.getBigQueryProject())
-            .setLocation(effectiveLocation)
-            .setJobId(queryJobId);
-
-    JobConfigurationQuery queryConfiguration =
-        createBasicQueryConfig(query, flattenResults, useLegacySql)
-            .setAllowLargeResults(true)
-            .setDestinationTable(queryResultTable)
-            .setCreateDisposition("CREATE_IF_NEEDED")
-            .setWriteDisposition("WRITE_TRUNCATE")
-            .setPriority(priority.name());
-
-    if (kmsKey != null) {
-      queryConfiguration.setDestinationEncryptionConfiguration(
-          new EncryptionConfiguration().setKmsKeyName(kmsKey));
-    }
-
-    JobService jobService = bqServices.getJobService(options);
-    jobService.startQueryJob(jobReference, queryConfiguration);
-    Job job = jobService.pollJob(jobReference, JOB_POLL_MAX_RETRIES);
-    if (BigQueryHelpers.parseStatus(job) != Status.SUCCEEDED) {
-      throw new IOException(
-          String.format(
-              "Query job %s failed, status: %s",
-              queryJobId, BigQueryHelpers.statusToPrettyString(job.getStatus())));
-    }
-
-    LOG.info("Query job {} completed", queryJobId);
-    return queryResultTable;
   }
 
   private static JobConfigurationQuery createBasicQueryConfig(

@@ -67,7 +67,7 @@ import org.joda.time.Instant;
  * the {@link Pipeline} before advancing the state of the {@link TestStream}.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
   private final List<Event<T>> events;

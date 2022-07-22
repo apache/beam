@@ -50,7 +50,7 @@ var unimplementedCoders = map[string]bool{
 
 var filteredCases = []struct{ filter, reason string }{
 	{"logical", "BEAM-9615: Support logical types"},
-	{"30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9", "BEAM-13043: Support encoding position."},
+	{"30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9", "https://github.com/apache/beam/issues/21206: Support encoding position."},
 }
 
 // Coder is a representation a serialized beam coder.
@@ -89,7 +89,7 @@ func (s *Spec) testStandardCoder() (err error) {
 		return nil
 	}
 	if s.Coder.Urn == "beam:coder:state_backed_iterable:v1" {
-		log.Printf("skipping unimplemented test coverage for beam:coder:state_backed_iterable:v1. BEAM-13801")
+		log.Printf("skipping unimplemented test coverage for beam:coder:state_backed_iterable:v1. https://github.com/apache/beam/issues/21324")
 		return nil
 	}
 	for _, c := range filteredCases {
@@ -217,6 +217,19 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 			pass = false
 		}
 		return pass
+
+	case "beam:coder:nullable:v1":
+		if elem.Elm == nil || eg.Value == nil {
+			got, want = elem.Elm, eg.Value
+		} else {
+			got = string(elem.Elm.([]byte))
+			switch egv := eg.Value.(type) {
+			case string:
+				want = egv
+			case []byte:
+				want = string(egv)
+			}
+		}
 
 	case "beam:coder:iterable:v1":
 		pass := true

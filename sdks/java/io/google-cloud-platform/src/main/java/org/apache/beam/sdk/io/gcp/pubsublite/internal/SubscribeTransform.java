@@ -39,7 +39,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.Duration;
 
 public class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage>> {
   private static final long MEBIBYTE = 1L << 20;
@@ -144,8 +143,6 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
     return subscriptionPartitions.apply(
         ParDo.of(
             new PerSubscriptionPartitionSdf(
-                // Ensure we read for at least 5 seconds more than the bundle timeout.
-                options.minBundleTimeout().plus(Duration.standardSeconds(5)),
                 new ManagedBacklogReaderFactoryImpl(this::newBacklogReader),
                 this::newInitialOffsetReader,
                 this::newRestrictionTracker,

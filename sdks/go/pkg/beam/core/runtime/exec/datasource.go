@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
@@ -62,7 +63,7 @@ func (n *DataSource) InitSplittable() {
 	if n.Out == nil {
 		return
 	}
-	if u, ok := n.Out.(*ProcessSizedElementsAndRestrictions); ok == true {
+	if u, ok := n.Out.(*ProcessSizedElementsAndRestrictions); ok {
 		n.su = u.SU
 	}
 }
@@ -133,7 +134,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 	case coder.IsCoGBK(c):
 		cp = MakeElementDecoder(c.Components[0])
 
-		// TODO(BEAM-490): Support multiple value streams (coder components) with
+		// TODO(https://github.com/apache/beam/issues/18032): Support multiple value streams (coder components) with
 		// with CoGBK.
 		cvs = []ElementDecoder{MakeElementDecoder(c.Components[1])}
 	default:
@@ -320,6 +321,76 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c, pcol: pcol}
 }
 
+// getProcessContinuation retrieves a ProcessContinuation that may be returned by
+// a self-checkpointing SDF. Current support for self-checkpointing requires that the
+// SDF is immediately after the DataSource.
+func (n *DataSource) getProcessContinuation() sdf.ProcessContinuation {
+	if u, ok := n.Out.(*ProcessSizedElementsAndRestrictions); ok {
+		return u.continuation
+	}
+	return nil
+}
+
+func (n *DataSource) makeEncodeElms() func([]*FullValue) ([][]byte, error) {
+	wc := MakeWindowEncoder(n.Coder.Window)
+	ec := MakeElementEncoder(coder.SkipW(n.Coder))
+	encodeElms := func(fvs []*FullValue) ([][]byte, error) {
+		encElms := make([][]byte, len(fvs))
+		for i, fv := range fvs {
+			enc, err := encodeElm(fv, wc, ec)
+			if err != nil {
+				return nil, err
+			}
+			encElms[i] = enc
+		}
+		return encElms, nil
+	}
+	return encodeElms
+}
+
+// Checkpoint attempts to split an SDF that has self-checkpointed (e.g. returned a
+// ProcessContinuation) and needs to be resumed later. If the underlying DoFn is not
+// splittable or has not returned a resuming continuation, the function returns an empty
+// SplitResult, a negative resumption time, and a false boolean to indicate that no split
+// occurred.
+func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	pc := n.getProcessContinuation()
+	if pc == nil || !pc.ShouldResume() {
+		return SplitResult{}, -1 * time.Minute, false, nil
+	}
+
+	su := SplittableUnit(n.Out.(*ProcessSizedElementsAndRestrictions))
+
+	ow := su.GetOutputWatermark()
+
+	// Checkpointing is functionally a split at fraction 0.0
+	rs, err := su.Checkpoint()
+	if err != nil {
+		return SplitResult{}, -1 * time.Minute, false, err
+	}
+	if len(rs) == 0 {
+		return SplitResult{}, -1 * time.Minute, false, nil
+	}
+
+	encodeElms := n.makeEncodeElms()
+
+	rsEnc, err := encodeElms(rs)
+	if err != nil {
+		return SplitResult{}, -1 * time.Minute, false, err
+	}
+
+	res := SplitResult{
+		RS:   rsEnc,
+		TId:  su.GetTransformId(),
+		InId: su.GetInputId(),
+		OW:   ow,
+	}
+	return res, pc.ResumeDelay(), true, nil
+}
+
 // Split takes a sorted set of potential split indices and a fraction of the
 // remainder to split at, selects and actuates a split on an appropriate split
 // index, and returns the selected split index in a SplitResult if successful or
@@ -387,6 +458,8 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 		n.splitIdx = s
 		return SplitResult{PI: s - 1, RI: s}, nil
 	}
+	// Get the output watermark before splitting to avoid accidentally overestimating
+	ow := su.GetOutputWatermark()
 	// Otherwise, perform a sub-element split.
 	ps, rs, err := su.Split(fr)
 	if err != nil {
@@ -399,21 +472,9 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 		return SplitResult{PI: s, RI: s + 1}, nil
 	}
 
-	// TODO(BEAM-10579) Eventually encode elements with the splittable
+	// TODO(https://github.com/apache/beam/issues/20343) Eventually encode elements with the splittable
 	// unit's input coder instead of the DataSource's coder.
-	wc := MakeWindowEncoder(n.Coder.Window)
-	ec := MakeElementEncoder(coder.SkipW(n.Coder))
-	encodeElms := func(fvs []*FullValue) ([][]byte, error) {
-		encElms := make([][]byte, len(fvs))
-		for i, fv := range fvs {
-			enc, err := encodeElm(fv, wc, ec)
-			if err != nil {
-				return nil, err
-			}
-			encElms[i] = enc
-		}
-		return encElms, nil
-	}
+	encodeElms := n.makeEncodeElms()
 
 	psEnc, err := encodeElms(ps)
 	if err != nil {
@@ -431,6 +492,7 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 		RS:   rsEnc,
 		TId:  su.GetTransformId(),
 		InId: su.GetInputId(),
+		OW:   ow,
 	}
 	return res, nil
 }
@@ -534,8 +596,12 @@ func splitHelper(
 	if bestS != -1 {
 		return bestS, -1.0, nil
 	}
-
-	return -1, -1.0, fmt.Errorf("failed to split DataSource (at index: %v) at requested splits: {%v}", currIdx, splits)
+	// Printing all splits is expensive. Instead, return the current start and
+	// end indices, and fraction along with the range of the indices and how
+	// many there are. This branch requires at least one split index, so we don't
+	// need to bounds check the slice.
+	return -1, -1.0, fmt.Errorf("failed to split DataSource (at index: %v, last index: %v) at fraction %.4f with requested splits (%v indices from %v to %v)",
+		currIdx, endIdx, frac, len(splits), splits[0], splits[len(splits)-1])
 }
 
 func encodeElm(elm *FullValue, wc WindowEncoder, ec ElementEncoder) ([]byte, error) {

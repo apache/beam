@@ -41,7 +41,7 @@ import org.apache.beam.sdk.values.Row;
 @Internal
 @AutoService(SchemaIOProvider.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DataStoreV1SchemaIOProvider implements SchemaIOProvider {
   public static final String KEY_FIELD_PROPERTY = "keyField";

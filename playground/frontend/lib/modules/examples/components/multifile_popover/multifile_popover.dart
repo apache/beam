@@ -54,7 +54,7 @@ class MultifilePopover extends StatelessWidget {
               TextButton.icon(
                 icon: SvgPicture.asset(kGithubIconAsset),
                 onPressed: () {
-                  launch(example.link ?? '');
+                  launchUrl(Uri.parse(example.link ?? ''));
                 },
                 label: Text(appLocale.viewOnGithub),
               ),

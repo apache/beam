@@ -46,7 +46,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * objects in the original {@link PCollection} using Jackson.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection<String>> {
   private static final ObjectMapper DEFAULT_MAPPER = new ObjectMapper();

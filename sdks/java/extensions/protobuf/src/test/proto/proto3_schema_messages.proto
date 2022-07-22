@@ -195,3 +195,18 @@ message OptionMessage {
             single_int64: 88
         }];
 }
+
+message SelfNested {
+  SelfNested nested = 1;
+}
+
+message FirstCircularNested {
+  SecondCircularNested nested = 1;
+}
+
+message SecondCircularNested {
+  FirstCircularNested nested = 1;
+}
+
+message Empty {
+}

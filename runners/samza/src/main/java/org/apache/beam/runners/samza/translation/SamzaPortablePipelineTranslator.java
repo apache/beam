@@ -38,8 +38,8 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({
   "keyfor",
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SamzaPortablePipelineTranslator {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaPortablePipelineTranslator.class);
@@ -103,7 +103,7 @@ public class SamzaPortablePipelineTranslator {
     @Override
     public Map<String, TransformTranslator<?>> getTransformTranslators() {
       return ImmutableMap.<String, TransformTranslator<?>>builder()
-          // Re-enable after BEAM-12999 is completed
+          // Re-enable after https://github.com/apache/beam/issues/21188 is completed
           //          .put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslator<>())
           .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator<>())
           .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator<>())

@@ -30,7 +30,7 @@ Logically divides up or groups the elements of a collection into finite
 windows according to a function.
 
 ## Examples
-See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates.
+See [Issue 19498](https://github.com/apache/beam/issues/19498) for updates.
 
 ## Related transforms
 * [GroupByKey](/documentation/transforms/python/aggregation/groupbykey)

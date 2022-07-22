@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
  * Samza plan.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaRunner.class);
@@ -114,8 +114,8 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
   @Override
   public SamzaPipelineResult run(Pipeline pipeline) {
-    // TODO(BEAM-10670): Use SDF read as default for non-portable execution when we address
-    // performance issue.
+    // TODO(https://github.com/apache/beam/issues/20530): Use SDF read as default for non-portable
+    // execution when we address performance issue.
     if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }

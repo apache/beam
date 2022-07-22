@@ -34,6 +34,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -67,7 +68,6 @@ import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
@@ -85,7 +85,6 @@ import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.SpannerChangeStreamOptions;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -141,7 +140,7 @@ import org.mockito.ArgumentMatcher;
 /** Tests for DataflowPipelineTranslator. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class DataflowPipelineTranslatorTest implements Serializable {
 
@@ -211,7 +210,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.expand(any(GcsPath.class)))
         .then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
-    when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(true);
+    doNothing().when(mockGcsUtil).verifyBucketAccessible(any(GcsPath.class));
 
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
@@ -426,71 +425,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .getAutoscalingSettings()
             .getMaxNumWorkers()
             .intValue());
-  }
-
-  @Test
-  public void testSuccessWhenSpannerChangeStreamsAndAutoscalingEqualToNone() throws IOException {
-    final DataflowPipelineOptions options = buildPipelineOptions();
-    options.setAutoscalingAlgorithm(AutoscalingAlgorithmType.NONE);
-    options.as(SpannerChangeStreamOptions.class).setMetadataTable("MyMetadataTable");
-    final Pipeline p = buildPipeline(options);
-    final SdkComponents sdkComponents = createSdkComponents(options);
-    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
-
-    final JobSpecification jobSpecification =
-        DataflowPipelineTranslator.fromOptions(options)
-            .translate(
-                p,
-                pipelineProto,
-                sdkComponents,
-                DataflowRunner.fromOptions(options),
-                Collections.emptyList());
-    assertNotNull(jobSpecification);
-  }
-
-  @Test
-  public void testExceptionIsThrownWhenSpannerChangeStreamsAndAutoscalingDifferentThanNone()
-      throws IOException {
-    final DataflowPipelineOptions options = buildPipelineOptions();
-    options.setAutoscalingAlgorithm(AutoscalingAlgorithmType.THROUGHPUT_BASED);
-    options.as(SpannerChangeStreamOptions.class).setMetadataTable("MyMetadataTable");
-    final Pipeline p = buildPipeline(options);
-    final SdkComponents sdkComponents = createSdkComponents(options);
-    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Autoscaling is not supported for SpannerIO.readChangeStreams. Please disable it by specifying the autoscaling algorithm as NONE");
-    DataflowPipelineTranslator.fromOptions(options)
-        .translate(
-            p,
-            pipelineProto,
-            sdkComponents,
-            DataflowRunner.fromOptions(options),
-            Collections.emptyList());
-  }
-
-  @Test
-  public void testExceptionIsThrownWhenSpannerChangeStreamsAndNoAutoscalingSpecified()
-      throws IOException {
-    final DataflowPipelineOptions options = buildPipelineOptions();
-    options.as(SpannerChangeStreamOptions.class).setMetadataTable("MyMetadataTable");
-    final Pipeline p = buildPipeline(options);
-    final SdkComponents sdkComponents = createSdkComponents(options);
-    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Autoscaling is not supported for SpannerIO.readChangeStreams. Please disable it by specifying the autoscaling algorithm as NONE");
-    final JobSpecification jobSpecification =
-        DataflowPipelineTranslator.fromOptions(options)
-            .translate(
-                p,
-                pipelineProto,
-                sdkComponents,
-                DataflowRunner.fromOptions(options),
-                Collections.emptyList());
-    assertNotNull(jobSpecification);
   }
 
   @Test

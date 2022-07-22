@@ -24,7 +24,6 @@ import java.io.ByteArrayOutputStream;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.Test;
 
-@SuppressWarnings({"nullness"})
 public class TopicPartitionCoderTest {
 
   @Test

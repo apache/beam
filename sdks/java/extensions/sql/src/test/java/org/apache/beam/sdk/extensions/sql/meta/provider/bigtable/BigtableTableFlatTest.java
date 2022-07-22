@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.extensions.sql.meta.provider.bigtable.Bigtable
 import static org.apache.beam.sdk.extensions.sql.meta.provider.bigtable.BigtableTableTestUtils.KEY2;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.bigtable.BigtableTableTestUtils.TEST_FLAT_SCHEMA;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.bigtable.BigtableTableTestUtils.bigTableRow;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.bigtable.BigtableTableTestUtils.bigTableSegmentedRows;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.bigtable.BigtableTableTestUtils.columnsMappingString;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.bigtable.BigtableTableTestUtils.createFlatTableString;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.bigtable.BigtableTableTestUtils.createReadTable;
@@ -138,6 +139,33 @@ public class BigtableTableFlatTest {
   }
 
   @Test
+  public void testSegementedInsert() {
+    final String tableId = "beamWriteTableWithSegmentedRead";
+    emulatorWrapper.createTable(tableId, FAMILY_TEST);
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigtableTableProvider());
+    sqlEnv.executeDdl(createFlatTableString(tableId, location(tableId)));
+
+    String query =
+        "INSERT INTO beamWriteTableWithSegmentedRead(key, boolColumn, longColumn, stringColumn, doubleColumn) "
+            + "VALUES ('key0', TRUE, CAST(10 AS bigint), 'stringValue', 5.5), "
+            + "('key1', TRUE, CAST(10 AS bigint), 'stringValue', 5.5), "
+            + "('key2', TRUE, CAST(10 AS bigint), 'stringValue', 5.5), "
+            + "('key3', TRUE, CAST(10 AS bigint), 'stringValue', 5.5), "
+            + "('key4', TRUE, CAST(10 AS bigint), 'stringValue', 5.5)";
+
+    BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(query));
+    writePipeline.run().waitUntilFinish();
+
+    PCollection<com.google.bigtable.v2.Row> bigTableRows =
+        readPipeline
+            .apply(readTransformWithSegment(tableId))
+            .apply(MapElements.via(new ReplaceCellTimestamp()));
+
+    PAssert.that(bigTableRows).containsInAnyOrder(bigTableSegmentedRows());
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testSimpleInsert() {
     final String tableId = "beamWriteTable";
     emulatorWrapper.createTable(tableId, FAMILY_TEST);
@@ -185,6 +213,15 @@ public class BigtableTableFlatTest {
         .withProjectId("fakeProject")
         .withInstanceId("fakeInstance")
         .withTableId(table)
+        .withEmulator("localhost:" + BIGTABLE_EMULATOR.getPort());
+  }
+
+  private BigtableIO.Read readTransformWithSegment(String table) {
+    return BigtableIO.read()
+        .withProjectId("fakeProject")
+        .withInstanceId("fakeInstance")
+        .withTableId(table)
+        .withMaxBufferElementCount(2)
         .withEmulator("localhost:" + BIGTABLE_EMULATOR.getPort());
   }
 }

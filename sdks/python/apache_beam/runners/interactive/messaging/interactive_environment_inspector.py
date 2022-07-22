@@ -146,28 +146,24 @@ class InteractiveEnvironmentInspector(object):
     and pipelines. Furthermore, copies the mapping to self._clusters.
     """
     from apache_beam.runners.interactive import interactive_environment as ie
+
     clusters = ie.current_env().clusters
     all_cluster_data = {}
-    for master_url in clusters.master_urls:
-      cluster_metadata = clusters.master_urls[master_url]
-      project = cluster_metadata.project_id
-      region = cluster_metadata.region
-      name = cluster_metadata.cluster_name
-
-      all_cluster_data[obfuscate(project, region, name)] = {
-          'cluster_name': name,
-          'project': project,
-          'region': region,
-          'master_url': master_url,
-          'dashboard': clusters.master_urls_to_dashboards[master_url],
-          'pipelines': clusters.master_urls_to_pipelines[master_url]
+    for meta, dcm in clusters.dataproc_cluster_managers.items():
+      all_cluster_data[obfuscate(meta)] = {
+          'cluster_name': meta.cluster_name,
+          'project': meta.project_id,
+          'region': meta.region,
+          'master_url': meta.master_url,
+          'dashboard': meta.dashboard,
+          'pipelines': [str(id(p)) for p in dcm.pipelines]
       }
     self._clusters = all_cluster_data
     return all_cluster_data
 
-  def get_cluster_master_url(self, id: str) -> str:
-    """Returns the master_url corresponding to the provided cluster id."""
-    return self._clusters[id]['master_url']  # The id is guaranteed to exist.
+  def get_cluster_master_url(self, identifier: str) -> str:
+    """Returns the master_url corresponding to the obfuscated identifier."""
+    return self._clusters[identifier]['master_url']  # Guaranteed to exist.
 
 
 def inspect(ignore_synthetic=True):

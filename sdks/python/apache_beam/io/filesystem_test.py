@@ -103,6 +103,9 @@ class TestingFileSystem(FileSystem):
   def checksum(self, path):
     raise NotImplementedError
 
+  def metadata(self, path):
+    raise NotImplementedError
+
   def delete(self, paths):
     raise NotImplementedError
 

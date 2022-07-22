@@ -97,8 +97,8 @@ import org.joda.time.Duration;
     state = StateComplexity.CONSTANT_IF_COMBINABLE,
     repartitions = 1)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ReduceByKey<InputT, KeyT, ValueT, AccT, OutputT>
     extends ShuffleOperator<InputT, KeyT, KV<KeyT, OutputT>> implements TypeAware.Value<ValueT> {

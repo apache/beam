@@ -23,7 +23,6 @@ import logging
 import unittest
 
 import mock
-import pytest
 from hamcrest import assert_that as hc_assert_that
 
 from apache_beam.io.gcp import bigquery_tools
@@ -158,16 +157,16 @@ class BigqueryTableMatcherTest(unittest.TestCase):
     self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.call_count)
 
 
-@pytest.mark.no_xdist  # xdist somehow makes the test do real requests.
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
-@mock.patch.object(
-    bq_verifier.BigqueryFullResultStreamingMatcher, '_query_with_retry')
-class BigqueryFullResultStreamingMatcher(unittest.TestCase):
+@mock.patch.object(bigquery, 'Client')
+class BigqueryFullResultStreamingMatcherTest(unittest.TestCase):
   def setUp(self):
     self.timeout = 0.01
 
-  def test__get_query_result_timeout(self, mock__query_with_retry):
-    mock__query_with_retry.side_effect = lambda: []
+  def test__get_query_result_timeout(self, mock_bigquery):
+    mock_query = mock_bigquery.return_value.query
+    mock_query.return_value.result.return_value = []
+
     matcher = bq_verifier.BigqueryFullResultStreamingMatcher(
         'some-project', 'some-query', [1, 2, 3], timeout=self.timeout)
     with self.assertRaises(TimeoutError):  # noqa: F821

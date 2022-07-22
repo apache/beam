@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
@@ -34,8 +36,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Queues;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
@@ -111,7 +113,7 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
     private final Function<ResultT, Boolean> hasSucceeded;
     @Nullable private ApiFuture<ResultT> future = null;
     @Nullable private Callback<ResultT> callback = null;
-    @Nullable ContextT context = null;
+    ContextT context;
 
     public Operation(
         Function<ContextT, ApiFuture<ResultT>> runOperation,
@@ -126,15 +128,14 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
       this.context = context;
     }
 
-    @SuppressWarnings({"nullness"})
     void run(Executor executor) {
       this.future = runOperation.apply(context);
       this.callback = new Callback<>(hasSucceeded);
       ApiFutures.addCallback(future, callback, executor);
     }
 
-    @SuppressWarnings({"nullness"})
     boolean await() throws Exception {
+      Preconditions.checkStateNotNull(callback);
       callback.await();
       return callback.getFailed();
     }
@@ -251,13 +252,12 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
     }
   }
 
-  @SuppressWarnings({"nullness"})
   void await() throws Exception {
     while (!this.operations.isEmpty()) {
       Operation<ResultT, ContextT> operation = this.operations.element();
       boolean failed = operation.await();
       if (failed) {
-        Throwable failure = operation.callback.getFailure();
+        Throwable failure = Preconditions.checkStateNotNull(operation.callback).getFailure();
         operation.context.setError(failure);
         RetryType retryType =
             operation.onError.apply(
@@ -265,7 +265,7 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
         if (retryType == RetryType.DONT_RETRY) {
           operations.clear();
         } else {
-          Preconditions.checkState(RetryType.RETRY_ALL_OPERATIONS == retryType);
+          checkState(RetryType.RETRY_ALL_OPERATIONS == retryType);
           if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
             throw new RuntimeException(failure);
           }
@@ -276,7 +276,7 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
           run(false);
         }
       } else {
-        operation.context.setResult(operation.future.get());
+        operation.context.setResult(Preconditions.checkStateNotNull(operation.future).get());
         operation.onSuccess.accept(operation.context);
         operations.remove();
       }

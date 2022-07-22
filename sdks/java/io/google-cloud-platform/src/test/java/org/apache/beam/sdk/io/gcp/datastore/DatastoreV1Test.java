@@ -814,6 +814,22 @@ public class DatastoreV1Test {
     verify(mockDatastore, times(1)).runQuery(gqlRequestWithZeroLimit);
   }
 
+  @Test
+  public void testTranslateGqlQueryWithException() throws Exception {
+    String gql = "SELECT * from DummyKind";
+    String gqlWithZeroLimit = gql + " LIMIT 0";
+    GqlQuery gqlQueryWithZeroLimit =
+        GqlQuery.newBuilder().setQueryString(gqlWithZeroLimit).setAllowLiterals(true).build();
+    RunQueryRequest gqlRequestWithZeroLimit =
+        makeRequest(gqlQueryWithZeroLimit, V_1_OPTIONS.getNamespace());
+    when(mockDatastore.runQuery(gqlRequestWithZeroLimit))
+        .thenThrow(new RuntimeException("TestException"));
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("TestException");
+    translateGqlQueryWithLimitCheck(gql, mockDatastore, V_1_OPTIONS.getNamespace());
+  }
+
   /** Test options. * */
   public interface RuntimeTestOptions extends PipelineOptions {
     ValueProvider<String> getDatastoreProject();

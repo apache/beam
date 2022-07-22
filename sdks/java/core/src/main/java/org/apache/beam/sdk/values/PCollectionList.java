@@ -60,7 +60,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <T> the type of the elements of all the {@link PCollection PCollections} in this list
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class PCollectionList<T> implements PInput, POutput {
   /**

@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ComparisonChain;
@@ -42,7 +43,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table.Ce
 public class FnApiTimerBundleTracker<K> {
   private final Supplier<ByteString> encodedCurrentKeySupplier;
   private final Supplier<ByteString> encodedCurrentWindowSupplier;
-  private Table<ByteString, ByteString, Modifications<K>> timerModifications;
+  private final Table<ByteString, ByteString, Modifications<K>> timerModifications;
 
   @AutoValue
   public abstract static class TimerInfo<K> {
@@ -116,7 +117,7 @@ public class FnApiTimerBundleTracker<K> {
           Sets.newTreeSet(comparator),
           HashBasedTable.create());
     }
-  };
+  }
 
   public FnApiTimerBundleTracker(
       Coder<K> keyCoder,
@@ -131,9 +132,9 @@ public class FnApiTimerBundleTracker<K> {
               checkState(
                   keyCoder != null, "Accessing state in unkeyed context, no key coder available");
 
-              ByteString.Output encodedKeyOut = ByteString.newOutput();
+              ByteStringOutputStream encodedKeyOut = new ByteStringOutputStream();
               try {
-                ((Coder) keyCoder).encode(key, encodedKeyOut, Coder.Context.NESTED);
+                keyCoder.encode(key, encodedKeyOut, Coder.Context.NESTED);
               } catch (IOException e) {
                 throw new IllegalStateException(e);
               }
@@ -143,7 +144,7 @@ public class FnApiTimerBundleTracker<K> {
         memoizeFunction(
             currentWindowSupplier,
             window -> {
-              ByteString.Output encodedWindowOut = ByteString.newOutput();
+              ByteStringOutputStream encodedWindowOut = new ByteStringOutputStream();
               try {
                 windowCoder.encode(window, encodedWindowOut);
               } catch (IOException e) {

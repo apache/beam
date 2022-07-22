@@ -24,6 +24,7 @@ import abc
 import collections
 import contextlib
 import functools
+import json
 import logging
 import queue
 import sys
@@ -84,6 +85,22 @@ MAX_KNOWN_NOT_RUNNING_INSTRUCTIONS = 1000
 # The number of ProcessBundleRequest instruction ids that BundleProcessorCache
 # will remember for failed instructions.
 MAX_FAILED_INSTRUCTIONS = 10000
+
+# retry on transient UNAVAILABLE grpc error from state channels.
+_GRPC_SERVICE_CONFIG = json.dumps({
+    "methodConfig": [{
+        "name": [{
+            "service": "org.apache.beam.model.fn_execution.v1.BeamFnState"
+        }],
+        "retryPolicy": {
+            "maxAttempts": 5,
+            "initialBackoff": "0.1s",
+            "maxBackoff": "5s",
+            "backoffMultiplier": 2,
+            "retryableStatusCodes": ["UNAVAILABLE"],
+        },
+    }]
+})
 
 
 class ShortIdCache(object):
@@ -835,7 +852,8 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
           # received or sent over the data plane. The actual buffer size is
           # controlled in a layer above.
           options = [('grpc.max_receive_message_length', -1),
-                     ('grpc.max_send_message_length', -1)]
+                     ('grpc.max_send_message_length', -1),
+                     ('grpc.service_config', _GRPC_SERVICE_CONFIG)]
           if self._credentials is None:
             _LOGGER.info('Creating insecure state channel for %s.', url)
             grpc_channel = GRPCChannelFactory.insecure_channel(

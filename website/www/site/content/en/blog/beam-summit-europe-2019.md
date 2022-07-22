@@ -56,7 +56,7 @@ Keep an eye out for a meetup in [Paris](https://www.meetup.com/Paris-Apache-Beam
 
 If you are interested in starting your own meetup, feel free [to reach out](https://beam.apache.org/community/contact-us)! Good places to start include our Slack channel, the dev and user mailing lists, or the Apache Beam Twitter.
 
-Even if you can’t travel to these meetups, you can stay informed on the happenings of the community.  The talks and sessions from previous conferences and meetups are archived on the [Apache Beam YouTube channel](https://www.youtube.com/c/ApacheBeamYT). If you want your session added to the channel, don’t hesitate to get in touch! And in case you want to attend the next Beam event in style, you can also order your swag on the [Beam swag store](https://store-beam.myshopify.com)
+Even if you can’t travel to these meetups, you can stay informed on the happenings of the community.  The talks and sessions from previous conferences and meetups are archived on the [Apache Beam YouTube channel](https://www.youtube.com/c/ApacheBeamYT). If you want your session added to the channel, don’t hesitate to get in touch!
 
 ## Summits
 The first summit of the year will be held in Berlin:

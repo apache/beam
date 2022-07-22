@@ -48,7 +48,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 @Experimental(Kind.SCHEMAS)
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row>> {
 
@@ -298,7 +298,7 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
                 new DoFn<T, Row>() {
                   // TODO: This should be the same as resolved so that Beam knows which fields
                   // are being accessed. Currently Beam only supports wildcard descriptors.
-                  // Once BEAM-4457 is fixed, fix this.
+                  // Once https://github.com/apache/beam/issues/18903 is fixed, fix this.
                   @FieldAccess("filterFields")
                   final FieldAccessDescriptor fieldAccessDescriptor =
                       FieldAccessDescriptor.withAllFields();

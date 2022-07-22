@@ -35,9 +35,9 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
@@ -205,7 +205,7 @@ public class PubsubIOExternalTest {
   }
 
   private static ExternalTransforms.ExternalConfigurationPayload encodeRow(Row row) {
-    ByteString.Output outputStream = ByteString.newOutput();
+    ByteStringOutputStream outputStream = new ByteStringOutputStream();
     try {
       SchemaCoder.of(row.getSchema()).encode(row, outputStream);
     } catch (IOException e) {

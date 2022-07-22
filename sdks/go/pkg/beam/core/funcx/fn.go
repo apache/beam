@@ -80,6 +80,8 @@ const (
 	FnPane FnParamKind = 0x400
 	// FnBundleFinalization indicates a function input parameter that implements typex.BundleFinalization.
 	FnBundleFinalization FnParamKind = 0x800
+	// FnWatermarkEstimator indicates a function input parameter that implements sdf.WatermarkEstimator
+	FnWatermarkEstimator FnParamKind = 0x1000
 )
 
 func (k FnParamKind) String() string {
@@ -108,6 +110,8 @@ func (k FnParamKind) String() string {
 		return "Pane"
 	case FnBundleFinalization:
 		return "BundleFinalization"
+	case FnWatermarkEstimator:
+		return "WatermarkEstimator"
 	default:
 		return fmt.Sprintf("%v", int(k))
 	}
@@ -124,11 +128,12 @@ type ReturnKind int
 
 // The supported types of ReturnKind.
 const (
-	RetIllegal   ReturnKind = 0x0
-	RetEventTime ReturnKind = 0x1
-	RetValue     ReturnKind = 0x2
-	RetError     ReturnKind = 0x4
-	RetRTracker  ReturnKind = 0x8
+	RetIllegal             ReturnKind = 0x0
+	RetEventTime           ReturnKind = 0x1
+	RetValue               ReturnKind = 0x2
+	RetError               ReturnKind = 0x4
+	RetRTracker            ReturnKind = 0x8
+	RetProcessContinuation ReturnKind = 0x10
 )
 
 func (k ReturnKind) String() string {
@@ -141,6 +146,8 @@ func (k ReturnKind) String() string {
 		return "EventTime"
 	case RetValue:
 		return "Value"
+	case RetProcessContinuation:
+		return "ProcessContinuation"
 	default:
 		return fmt.Sprintf("%v", int(k))
 	}
@@ -282,6 +289,17 @@ func (u *Fn) BundleFinalization() (pos int, exists bool) {
 	return -1, false
 }
 
+// WatermarkEstimator returns (index, true) iff the function expects a
+// parameter that implements sdf.WatermarkEstimator.
+func (u *Fn) WatermarkEstimator() (pos int, exists bool) {
+	for i, p := range u.Param {
+		if p.Kind == FnWatermarkEstimator {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
 // Error returns (index, true) iff the function returns an error.
 func (u *Fn) Error() (pos int, exists bool) {
 	for i, p := range u.Ret {
@@ -296,6 +314,16 @@ func (u *Fn) Error() (pos int, exists bool) {
 func (u *Fn) OutEventTime() (pos int, exists bool) {
 	for i, p := range u.Ret {
 		if p.Kind == RetEventTime {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+// ProcessContinuation returns (index, true) iff the function returns a process continuation.
+func (u *Fn) ProcessContinuation() (pos int, exists bool) {
+	for i, p := range u.Ret {
+		if p.Kind == RetProcessContinuation {
 			return i, true
 		}
 	}
@@ -350,6 +378,8 @@ func New(fn reflectx.Func) (*Fn, error) {
 			kind = FnType
 		case t.Implements(reflect.TypeOf((*sdf.RTracker)(nil)).Elem()):
 			kind = FnRTracker
+		case t.Implements(reflect.TypeOf((*sdf.WatermarkEstimator)(nil)).Elem()):
+			kind = FnWatermarkEstimator
 		case typex.IsContainer(t), typex.IsConcrete(t), typex.IsUniversal(t):
 			kind = FnValue
 		case IsEmit(t):
@@ -392,6 +422,8 @@ func New(fn reflectx.Func) (*Fn, error) {
 			kind = RetError
 		case t.Implements(reflect.TypeOf((*sdf.RTracker)(nil)).Elem()):
 			kind = RetRTracker
+		case t.Implements(reflect.TypeOf((*sdf.ProcessContinuation)(nil)).Elem()):
+			kind = RetProcessContinuation
 		case t == typex.EventTimeType:
 			kind = RetEventTime
 		case typex.IsContainer(t), typex.IsConcrete(t), typex.IsUniversal(t):
@@ -432,7 +464,7 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 }
 
 // The order of present parameters and return values must be as follows:
-// func(FnContext?, FnPane?, FnWindow?, FnEventTime?, FnType?, FnBundleFinalization?, FnRTracker?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
+// func(FnContext?, FnPane?, FnWindow?, FnEventTime?, FnWatermarkEstimator?, FnType?, FnBundleFinalization?, FnRTracker?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
 //     where ? indicates 0 or 1, and * indicates any number.
 //     and  a SideInput is one of FnValue or FnIter or FnReIter
 // Note: Fns with inputs must have at least one FnValue as the main input.
@@ -456,14 +488,15 @@ func validateOrder(u *Fn) error {
 }
 
 var (
-	errContextParam                 = errors.New("may only have a single context.Context parameter and it must be the first parameter")
-	errPaneParamPrecedence          = errors.New("may only have a single PaneInfo parameter and it must precede the WindowParam, EventTime and main input parameter")
-	errWindowParamPrecedence        = errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
-	errEventTimeParamPrecedence     = errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
-	errReflectTypePrecedence        = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
-	errRTrackerPrecedence           = errors.New("may only have a single sdf.RTracker parameter and it must precede the main input parameter")
-	errBundleFinalizationPrecedence = errors.New("may only have a single BundleFinalization parameter and it must precede the main input parameter")
-	errInputPrecedence              = errors.New("inputs parameters must precede emit function parameters")
+	errContextParam                      = errors.New("may only have a single context.Context parameter and it must be the first parameter")
+	errPaneParamPrecedence               = errors.New("may only have a single PaneInfo parameter and it must precede the WindowParam, EventTime and main input parameter")
+	errWindowParamPrecedence             = errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
+	errEventTimeParamPrecedence          = errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
+	errWatermarkEstimatorParamPrecedence = errors.New("may only have a single sdf.WatermarkEstimator parameter and it must precede the main input parameter")
+	errReflectTypePrecedence             = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
+	errRTrackerPrecedence                = errors.New("may only have a single sdf.RTracker parameter and it must precede the main input parameter")
+	errBundleFinalizationPrecedence      = errors.New("may only have a single BundleFinalization parameter and it must precede the main input parameter")
+	errInputPrecedence                   = errors.New("inputs parameters must precede emit function parameters")
 )
 
 type paramState int
@@ -474,6 +507,7 @@ const (
 	psPane
 	psWindow
 	psEventTime
+	psWatermarkEstimator
 	psType
 	psInput
 	psOutput
@@ -493,6 +527,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psWindow, nil
 		case FnEventTime:
 			return psEventTime, nil
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
 		case FnType:
 			return psType, nil
 		case FnBundleFinalization:
@@ -508,6 +544,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psWindow, nil
 		case FnEventTime:
 			return psEventTime, nil
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
 		case FnType:
 			return psType, nil
 		case FnBundleFinalization:
@@ -521,6 +559,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psWindow, nil
 		case FnEventTime:
 			return psEventTime, nil
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
 		case FnType:
 			return psType, nil
 		case FnBundleFinalization:
@@ -532,6 +572,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		switch transition {
 		case FnEventTime:
 			return psEventTime, nil
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
 		case FnType:
 			return psType, nil
 		case FnBundleFinalization:
@@ -540,6 +582,17 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psRTracker, nil
 		}
 	case psEventTime:
+		switch transition {
+		case FnWatermarkEstimator:
+			return psWatermarkEstimator, nil
+		case FnType:
+			return psType, nil
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
+		}
+	case psWatermarkEstimator:
 		switch transition {
 		case FnType:
 			return psType, nil
@@ -583,6 +636,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		return -1, errWindowParamPrecedence
 	case FnEventTime:
 		return -1, errEventTimeParamPrecedence
+	case FnWatermarkEstimator:
+		return -1, errWatermarkEstimatorParamPrecedence
 	case FnType:
 		return -1, errReflectTypePrecedence
 	case FnBundleFinalization:
@@ -599,8 +654,9 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 }
 
 var (
-	errEventTimeRetPrecedence = errors.New("beam.EventTime must be first return parameter")
-	errErrorPrecedence        = errors.New("error must be the final return parameter")
+	errEventTimeRetPrecedence        = errors.New("beam.EventTime must be first return parameter")
+	errErrorPrecedence               = errors.New("error must be the final return parameter")
+	errProcessContinuationPrecedence = errors.New("ProcessContinuation must be the final non-error return parameter")
 )
 
 type retState int
@@ -610,6 +666,7 @@ const (
 	rsEventTime
 	rsOutput
 	rsError
+	rsProcessContinuation
 )
 
 func nextRetState(cur retState, transition ReturnKind) (retState, error) {
@@ -621,6 +678,13 @@ func nextRetState(cur retState, transition ReturnKind) (retState, error) {
 		}
 	case rsEventTime, rsOutput:
 		// Identical to the default cases.
+	case rsProcessContinuation:
+		switch transition {
+		case RetError:
+			return rsError, nil
+		default:
+			return -1, errProcessContinuationPrecedence
+		}
 	case rsError:
 		// This is a terminal state. No valid transitions. error must be the final return value.
 		return -1, errErrorPrecedence
@@ -631,6 +695,8 @@ func nextRetState(cur retState, transition ReturnKind) (retState, error) {
 		return -1, errEventTimeRetPrecedence
 	case RetValue, RetRTracker:
 		return rsOutput, nil
+	case RetProcessContinuation:
+		return rsProcessContinuation, nil
 	case RetError:
 		return rsError, nil
 	default:

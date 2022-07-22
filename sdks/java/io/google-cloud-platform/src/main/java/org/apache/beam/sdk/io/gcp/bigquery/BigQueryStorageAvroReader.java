@@ -27,14 +27,15 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.beam.sdk.util.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-@SuppressWarnings({"nullness"})
 class BigQueryStorageAvroReader implements BigQueryStorageReader {
 
   private final Schema avroSchema;
   private final DatumReader<GenericRecord> datumReader;
-  private BinaryDecoder decoder;
-  private GenericRecord record;
+  private @Nullable BinaryDecoder decoder;
+  private @Nullable GenericRecord record;
   private long rowCount;
 
   BigQueryStorageAvroReader(ReadSession readSession) {
@@ -49,9 +50,13 @@ class BigQueryStorageAvroReader implements BigQueryStorageReader {
   public void processReadRowsResponse(ReadRowsResponse readRowsResponse) {
     AvroRows avroRows = readRowsResponse.getAvroRows();
     rowCount = avroRows.getRowCount();
-    decoder =
+    @SuppressWarnings({
+      "nullness" // reused decoder can be null but avro not annotated
+    })
+    BinaryDecoder newDecoder =
         DecoderFactory.get()
             .binaryDecoder(avroRows.getSerializedBinaryRows().toByteArray(), decoder);
+    decoder = newDecoder;
   }
 
   @Override
@@ -61,7 +66,12 @@ class BigQueryStorageAvroReader implements BigQueryStorageReader {
 
   @Override
   public GenericRecord readSingleRecord() throws IOException {
-    record = datumReader.read(record, decoder);
+    Preconditions.checkStateNotNull(decoder);
+    @SuppressWarnings({
+      "nullness" // reused record can be null but avro not annotated
+    })
+    GenericRecord newRecord = datumReader.read(record, decoder);
+    record = newRecord;
     return record;
   }
 

@@ -38,7 +38,7 @@ import org.junit.runners.JUnit4;
 public class ApiSurfaceTest {
 
   @SuppressWarnings({
-    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
     "unchecked"
   })
   private void assertExposed(final Class classToExamine, final Class... exposedClasses) {

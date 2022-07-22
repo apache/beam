@@ -63,7 +63,7 @@ import org.junit.runners.Parameterized.Parameters;
 /** Unit tests for {@link WindowingStrategy}. */
 @RunWith(Enclosed.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class WindowingStrategyTranslationTest {
   // Each spec activates tests of all subsets of its fields

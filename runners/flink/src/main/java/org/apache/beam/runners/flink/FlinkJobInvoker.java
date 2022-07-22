@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 
 /** Job Invoker for the {@link FlinkRunner}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FlinkJobInvoker extends JobInvoker {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvoker.class);

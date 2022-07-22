@@ -48,6 +48,7 @@ from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.typehints import is_consistent_with
+from apache_beam.typehints.typehints import visit_inner_types
 
 
 def check_or_interleave(hint, value, var):
@@ -307,6 +308,21 @@ class UnionHintTestCase(TypeHintTestCase):
         }), typehints.Union[str, int])
     self.assertEqual(hint.bind_type_variables({A: int, B: int}), int)
 
+  def test_visit_inner_types(self):
+    A = typehints.TypeVariable('A')  # pylint: disable=invalid-name
+    B = typehints.TypeVariable('B')  # pylint: disable=invalid-name
+    hint = typehints.Tuple[Tuple[A, A], B, int]
+
+    user_data = object()
+    nodes = []
+
+    def visitor(hint, arg):
+      self.assertIs(arg, user_data)
+      nodes.append(hint)
+
+    visit_inner_types(hint, visitor, user_data)
+    self.assertEqual(nodes, [hint, Tuple[A, A], A, A, B, int])
+
 
 class OptionalHintTestCase(TypeHintTestCase):
   def test_getitem_sequence_not_allowed(self):
@@ -319,6 +335,14 @@ class OptionalHintTestCase(TypeHintTestCase):
   def test_getitem_proxy_to_union(self):
     hint = typehints.Optional[int]
     self.assertTrue(isinstance(hint, typehints.UnionHint.UnionConstraint))
+
+  def test_is_optional(self):
+    hint1 = typehints.Optional[int]
+    self.assertTrue(typehints.is_nullable(hint1))
+    hint2 = typehints.UnionConstraint({int, bytes})
+    self.assertFalse(typehints.is_nullable(hint2))
+    hint3 = typehints.UnionConstraint({int, bytes, type(None)})
+    self.assertFalse(typehints.is_nullable(hint3))
 
 
 class TupleHintTestCase(TypeHintTestCase):

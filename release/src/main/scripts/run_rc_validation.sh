@@ -83,7 +83,7 @@ HUB_VERSION=2.12.0
 HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
 BACKUP_BASHRC=.bashrc_backup_$(date +"%Y%m%d%H%M%S")
 BACKUP_M2=settings_backup_$(date +"%Y%m%d%H%M%S").xml
-declare -a PYTHON_VERSIONS_TO_VALIDATE=("python3.6" "python3.8")
+declare -a PYTHON_VERSIONS_TO_VALIDATE=("python3.8")
 
 echo ""
 echo "====================Checking Environment & Variables================="
@@ -98,7 +98,7 @@ echo "All environment and workflow configurations from RC_VALIDATE_CONFIGS:"
 for i in "${RC_VALIDATE_CONFIGS[@]}"; do
   echo "$i = ${!i}"
 done
-echo "TODO(BEAM-13054): parts of this script launch background processes with gnome-terminal,"
+echo "TODO(https://github.com/apache/beam/issues/21237): parts of this script launch background processes with gnome-terminal,"
 echo "It may not work well over ssh or within a tmux session. Using 'ssh -Y' may help."
 echo "[Confirmation Required] Would you like to proceed with current settings? [y|N]"
 read confirmation
@@ -229,7 +229,7 @@ else
   echo "* Skipping Python Quickstart and MobileGame. Hub is required."
 fi
 
-# TODO(BEAM-13220) Run the remaining tests on Jenkins.
+# TODO(https://github.com/apache/beam/issues/21193) Run the remaining tests on Jenkins.
 echo ""
 echo "====================Starting Python Leaderboard & GameStates Validations==============="
 if [[ ("$python_leaderboard_direct" = true \

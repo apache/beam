@@ -12,16 +12,19 @@
 
 - title: Flink
   image_url: /images/logo_flink.png
-  url: https://flink.apache.org
+  url: /documentation/runners/flink/
 - title: Spark
   image_url: /images/logo_spark.png
-  url: https://spark.apache.org/
+  url: /documentation/runners/spark/
 - title: Google Cloud Dataflow
   image_url: /images/logo_google_cloud.png
-  url: https://cloud.google.com/dataflow/
+  url: /documentation/runners/dataflow/
 - title: Samza
   image_url: /images/logo_samza.png
-  url: https://samza.apache.org/
+  url: /documentation/runners/samza/
 - title: Twister2
   image_url: /images/logo_twister2.png
-  url: https://twister2.org//
+  url: /documentation/runners/twister2/
+- title: Amazon Kinesis Data Analytics
+  image_url: /images/logo_amazon-kinesis.png
+  url: https://docs.aws.amazon.com/kinesisanalytics/latest/java/examples-beam.html

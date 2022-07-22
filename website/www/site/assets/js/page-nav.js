@@ -82,7 +82,7 @@ $(document).ready(function() {
           offset: $("." + idMainContainer).offset()
         };
 
-        if($(window).width() > CONST.DESKTOP_BREAKPOINT) {
+        if(window.innerWidth > CONST.DESKTOP_BREAKPOINT) {
           $("." + idPageNav).css({
             left: mainContainerData.offset.left +  mainContainerData.width - CONST.PAGENAV_WIDTH
           });
@@ -111,11 +111,24 @@ $(document).ready(function() {
           $(itemTags).prepend(img);
       },
 
+      "refreshScrollSpy": function() {
+        $('[data-spy="scroll"]').each(function () {
+          $(this).scrollspy('refresh');
+        });
+      },
+
+      "isContainerPresent": function () {
+        return $("." + idMainContainer).length > 0
+      },
+
       "init": function() {
-        this.bindEvents();
-        this.setPageNav();
-        this.prependArrows();
-        this.setNavEvents();
+        if (this.isContainerPresent()) {
+          this.bindEvents();
+          this.setPageNav();
+          this.prependArrows();
+          this.setNavEvents();
+          this.refreshScrollSpy();
+        }
       }
     }
   }

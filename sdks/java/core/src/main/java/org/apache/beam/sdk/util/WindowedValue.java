@@ -738,9 +738,7 @@ public abstract class WindowedValue<T> {
 
     private static final long serialVersionUID = 1L;
 
-    private transient Instant timestamp;
-    private transient Collection<? extends BoundedWindow> windows;
-    private transient PaneInfo pane;
+    private transient WindowedValue<byte[]> windowedValuePrototype;
 
     private static final byte[] EMPTY_BYTES = new byte[0];
 
@@ -789,14 +787,13 @@ public abstract class WindowedValue<T> {
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
       super(valueCoder, windowCoder);
-      this.timestamp = timestamp;
-      this.windows = windows;
-      this.pane = pane;
+      this.windowedValuePrototype = WindowedValue.of(EMPTY_BYTES, timestamp, windows, pane);
     }
 
     @Override
     public <NewT> WindowedValueCoder<NewT> withValueCoder(Coder<NewT> valueCoder) {
-      return new ParamWindowedValueCoder<>(valueCoder, getWindowCoder(), timestamp, windows, pane);
+      return new ParamWindowedValueCoder<>(
+          valueCoder, getWindowCoder(), getTimestamp(), getWindows(), getPane());
     }
 
     @Override
@@ -819,8 +816,7 @@ public abstract class WindowedValue<T> {
     @Override
     public WindowedValue<T> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
-      T value = valueCoder.decode(inStream, context);
-      return WindowedValue.of(value, this.timestamp, this.windows, this.pane);
+      return windowedValuePrototype.withValue(valueCoder.decode(inStream, context));
     }
 
     @Override
@@ -836,15 +832,15 @@ public abstract class WindowedValue<T> {
     }
 
     public Instant getTimestamp() {
-      return timestamp;
+      return windowedValuePrototype.getTimestamp();
     }
 
     public Collection<? extends BoundedWindow> getWindows() {
-      return windows;
+      return windowedValuePrototype.getWindows();
     }
 
     public PaneInfo getPane() {
-      return pane;
+      return windowedValuePrototype.getPane();
     }
 
     /** Returns the serialized payload that will be provided when deserializing this coder. */
@@ -898,9 +894,7 @@ public abstract class WindowedValue<T> {
       byte[] payload = (byte[]) in.readObject();
       ParamWindowedValueCoder<?> paramWindowedValueCoder =
           fromComponents(Arrays.asList(valueCoder, getWindowCoder()), payload);
-      this.timestamp = paramWindowedValueCoder.timestamp;
-      this.windows = paramWindowedValueCoder.windows;
-      this.pane = paramWindowedValueCoder.pane;
+      this.windowedValuePrototype = paramWindowedValueCoder.windowedValuePrototype;
     }
   }
 }

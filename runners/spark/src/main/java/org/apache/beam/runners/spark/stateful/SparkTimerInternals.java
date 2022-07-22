@@ -38,7 +38,7 @@ import org.joda.time.Instant;
 
 /** An implementation of {@link TimerInternals} for the SparkRunner. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SparkTimerInternals implements TimerInternals {
   private final Instant highWatermark;
@@ -120,7 +120,8 @@ public class SparkTimerInternals implements TimerInternals {
   }
 
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
+  public void deleteTimer(
+      StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
     throw new UnsupportedOperationException("Deleting a timer by ID is not yet supported.");
   }
 

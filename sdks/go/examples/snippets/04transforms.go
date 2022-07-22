@@ -21,9 +21,13 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
@@ -40,6 +44,11 @@ func (fn *ComputeWordLengthFn) ProcessElement(word string, emit func(int)) {
 // DoFns must be registered with beam.
 func init() {
 	beam.RegisterType(reflect.TypeOf((*ComputeWordLengthFn)(nil)))
+	// 2 inputs and 0 outputs => DoFn2x0
+	// 1 input => Emitter1
+	// Input/output types are included in order in the brackets
+	register.DoFn2x0[string, func(int)](&ComputeWordLengthFn{})
+	register.Emitter1[int]()
 }
 
 // [END model_pardo_pardo]
@@ -64,6 +73,16 @@ func applyWordLenAnon(s beam.Scope, words beam.PCollection) beam.PCollection {
 	return wordLengths
 }
 
+func applyGbk(s beam.Scope, input []stringPair) beam.PCollection {
+	// [START groupbykey]
+	// CreateAndSplit creates and returns a PCollection with <K,V>
+	// from an input slice of stringPair (struct with K, V string fields).
+	pairs := CreateAndSplit(s, input)
+	keyed := beam.GroupByKey(s, pairs)
+	// [END groupbykey]
+	return keyed
+}
+
 // [START cogroupbykey_input_helpers]
 
 type stringPair struct {
@@ -75,9 +94,8 @@ func splitStringPair(e stringPair) (string, string) {
 }
 
 func init() {
-	// Register element types and DoFns.
-	beam.RegisterType(reflect.TypeOf((*stringPair)(nil)).Elem())
-	beam.RegisterFunction(splitStringPair)
+	// Register DoFn.
+	register.Function1x2(splitStringPair)
 }
 
 // CreateAndSplit is a helper function that creates
@@ -87,6 +105,99 @@ func CreateAndSplit(s beam.Scope, input []stringPair) beam.PCollection {
 }
 
 // [END cogroupbykey_input_helpers]
+
+type splittableDoFn struct{}
+
+type weDoFn struct{}
+
+// [START bundlefinalization_simplecallback]
+
+func (fn *splittableDoFn) ProcessElement(bf beam.BundleFinalization, rt *sdf.LockRTracker, element string) {
+	// ... produce output ...
+
+	bf.RegisterCallback(5*time.Minute, func() error {
+		// ... perform a side effect ...
+
+		return nil
+	})
+}
+
+// [END bundlefinalization_simplecallback]
+
+// [START watermarkestimation_customestimator]
+
+// WatermarkState is a custom type.`
+//
+// It is optional to write your own state type when making a custom estimator.
+type WatermarkState struct {
+	Watermark time.Time
+}
+
+// CustomWatermarkEstimator is a custom watermark estimator.
+// You may use any type here, including some of Beam's built in watermark estimator types,
+// e.g. sdf.WallTimeWatermarkEstimator, sdf.TimestampObservingWatermarkEstimator, and sdf.ManualWatermarkEstimator
+type CustomWatermarkEstimator struct {
+	state WatermarkState
+}
+
+// CurrentWatermark returns the current watermark and is invoked on DoFn splits and self-checkpoints.
+// Watermark estimators must implement CurrentWatermark() time.Time
+func (e *CustomWatermarkEstimator) CurrentWatermark() time.Time {
+	return e.state.Watermark
+}
+
+// ObserveTimestamp is called on the output timestamps of all
+// emitted elements to update the watermark. It is optional
+func (e *CustomWatermarkEstimator) ObserveTimestamp(ts time.Time) {
+	e.state.Watermark = ts
+}
+
+// InitialWatermarkEstimatorState defines an initial state used to initialize the watermark
+// estimator. It is optional. If this is not defined, WatermarkEstimatorState may not be
+// defined and CreateWatermarkEstimator must not take in parameters.
+func (fn *weDoFn) InitialWatermarkEstimatorState(et beam.EventTime, rest offsetrange.Restriction, element string) WatermarkState {
+	// Return some watermark state
+	return WatermarkState{Watermark: time.Now()}
+}
+
+// CreateWatermarkEstimator creates the watermark estimator used by this Splittable DoFn.
+// Must take in a state parameter if InitialWatermarkEstimatorState is defined, otherwise takes no parameters.
+func (fn *weDoFn) CreateWatermarkEstimator(initialState WatermarkState) *CustomWatermarkEstimator {
+	return &CustomWatermarkEstimator{state: initialState}
+}
+
+// WatermarkEstimatorState returns the state used to resume future watermark estimation
+// after a checkpoint/split. It is required if InitialWatermarkEstimatorState is defined,
+// otherwise it must not be defined.
+func (fn *weDoFn) WatermarkEstimatorState(e *CustomWatermarkEstimator) WatermarkState {
+	return e.state
+}
+
+// ProcessElement is the method to execute for each element.
+// It can optionally take in a watermark estimator.
+func (fn *weDoFn) ProcessElement(e *CustomWatermarkEstimator, element string) {
+	// ...
+	e.state.Watermark = time.Now()
+}
+
+// [END watermarkestimation_customestimator]
+
+// [START sdf_truncate]
+
+// TruncateRestriction is a transform that is triggered when pipeline starts to drain. It helps to finish a
+// pipeline quicker by truncating the restriction.
+func (fn *splittableDoFn) TruncateRestriction(rt *sdf.LockRTracker, element string) offsetrange.Restriction {
+	start := rt.GetRestriction().(offsetrange.Restriction).Start
+	prevEnd := rt.GetRestriction().(offsetrange.Restriction).End
+	// truncate the restriction by half.
+	newEnd := prevEnd / 2
+	return offsetrange.Restriction{
+		Start: start,
+		End:   newEnd,
+	}
+}
+
+// [END sdf_truncate]
 
 // [START cogroupbykey_output_helpers]
 
@@ -106,7 +217,9 @@ func formatCoGBKResults(key string, emailIter, phoneIter func(*string) bool) str
 }
 
 func init() {
-	beam.RegisterFunction(formatCoGBKResults)
+	register.Function3x1(formatCoGBKResults)
+	// 1 input of type string => Iter1[string]
+	register.Iter1[string]()
 }
 
 // [END cogroupbykey_output_helpers]
@@ -160,7 +273,7 @@ func sumInts(a, v int) int {
 }
 
 func init() {
-	beam.RegisterFunction(sumInts)
+	register.Function2x1(sumInts)
 }
 
 func globallySumInts(s beam.Scope, ints beam.PCollection) beam.PCollection {
@@ -180,7 +293,7 @@ func (fn *boundedSum) MergeAccumulators(a, v int) int {
 }
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*boundedSum)(nil)))
+	register.Combiner1[int](&boundedSum{})
 }
 
 func globallyBoundedSumInts(s beam.Scope, bound int, ints beam.PCollection) beam.PCollection {
@@ -217,7 +330,7 @@ func (fn *averageFn) ExtractOutput(a averageAccum) float64 {
 }
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*averageFn)(nil)))
+	register.Combiner3[averageAccum, int, float64](&averageFn{})
 }
 
 // [END combine_custom_average]
@@ -274,7 +387,7 @@ func decileFn(student Student) int {
 }
 
 func init() {
-	beam.RegisterFunction(decileFn)
+	register.Function1x1(decileFn)
 }
 
 // [END model_multiple_pcollections_partition_fn]
@@ -321,8 +434,12 @@ func filterWordsBelow(word string, lengthCutOff float64, emitBelowCutoff func(st
 }
 
 func init() {
-	beam.RegisterFunction(filterWordsAbove)
-	beam.RegisterFunction(filterWordsBelow)
+	register.Function3x1(filterWordsAbove)
+	register.Function3x0(filterWordsBelow)
+	// 1 input of type string => Emitter1[string]
+	register.Emitter1[string]()
+	// 1 input of type float64 => Iter1[float64]
+	register.Iter1[float64]()
 }
 
 // [END model_pardo_side_input_dofn]
@@ -374,8 +491,10 @@ func processWordsMixed(word string, emitMarked func(string)) int {
 }
 
 func init() {
-	beam.RegisterFunction(processWords)
-	beam.RegisterFunction(processWordsMixed)
+	register.Function4x0(processWords)
+	register.Function2x1(processWordsMixed)
+	// 1 input of type string => Emitter1[string]
+	register.Emitter1[string]()
 }
 
 // [END model_multiple_output_dofn]
@@ -419,7 +538,9 @@ func extractWordsFn(pn beam.PaneInfo, line string, emitWords func(string)) {
 // [END model_paneinfo]
 
 func init() {
-	beam.RegisterFunction(extractWordsFn)
+	register.Function3x0(extractWordsFn)
+	// 1 input of type string => Emitter1[string]
+	register.Emitter1[string]()
 }
 
 // [START countwords_composite]

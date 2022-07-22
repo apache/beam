@@ -16,8 +16,11 @@
 # limitations under the License.
 ###############################################################################
 
-FROM golang:1.16-bullseye
-RUN go get github.com/google/go-licenses
+FROM golang:1.18-bullseye
+
+WORKDIR /usr/src/app
+COPY go.mod ./
+RUN go install github.com/google/go-licenses@latest
 COPY get-licenses.sh /opt/apache/beam/
 ARG sdk_location
 ENV sdk_location=$sdk_location

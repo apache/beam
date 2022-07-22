@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * inner factory, so the schema comparison only need happen on the first lookup.
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class CachingFactory<CreatedT> implements Factory<CreatedT> {

@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
  * materialized, and its consumers execute in independent stages.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GreedyStageFuser {
   // TODO: Provide a way to merge in a compatible subgraph (e.g. one where all of the siblings

@@ -514,7 +514,7 @@ func NewResults(
 
 // AllMetrics returns all metrics from a Results instance.
 func (mr Results) AllMetrics() QueryResults {
-	return QueryResults{mr.counters, mr.distributions, mr.gauges, mr.msecs, mr.pCols}
+	return QueryResults(mr)
 }
 
 // SingleResult interface facilitates metrics query filtering methods.

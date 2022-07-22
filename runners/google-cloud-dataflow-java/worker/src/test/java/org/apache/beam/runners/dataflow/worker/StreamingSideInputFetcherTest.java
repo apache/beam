@@ -79,7 +79,7 @@ public class StreamingSideInputFetcherTest {
   // to become a contravariant ?, it is not possible to cast state to an appropriate type
   // without rawtypes.
   @SuppressWarnings({
-    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
     "unchecked"
   })
   @Before

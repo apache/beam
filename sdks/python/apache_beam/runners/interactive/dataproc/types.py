@@ -17,25 +17,71 @@
 
 # pytype: skip-file
 
+import uuid
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Optional
+from typing import Union
+
+from apache_beam.pipeline import Pipeline
+
+
+def _generate_unique_cluster_name():
+  return f'interactive-beam-{uuid.uuid4().hex}'
 
 
 @dataclass
-class MasterURLIdentifier:
+class ClusterMetadata:
+  """Metadata of a provisioned worker cluster that executes Beam pipelines.
+
+  Apache Beam supports running Beam pipelines on different runners provisioned
+  in different setups based on the runner and pipeline options associated with
+  each pipeline. To provide similar portability features, Interactive Beam
+  automatically extracts such ClusterMetadata information from pipeline options
+  of a pipeline in the REPL context and provision suitable clusters to execute
+  the pipeline. The lifecyle of the clusters is managed by Interactive Beam
+  and the user doesn not need to interact with it.
+
+  It's not recommended to build this ClusterMetadata from raw values nor use it
+  to interact with the cluster management logic directly.
+
+  Interactive Beam now supports::
+
+    1. Runner: FlinkRunner; Setup: on Google Cloud with Flink on Dataproc.
+
+  """
   project_id: Optional[str] = None
   region: Optional[str] = None
-  cluster_name: Optional[str] = None
+  cluster_name: Optional[str] = field(
+      default_factory=_generate_unique_cluster_name)
+  # From WorkerOptions.
+  subnetwork: Optional[str] = None
+  num_workers: Optional[int] = None
+  machine_type: Optional[int] = None
+
+  # Derivative fields do not affect hash or comparison.
+  master_url: Optional[str] = None
+  dashboard: Optional[str] = None
 
   def __key(self):
-    return (self.project_id, self.region, self.cluster_name)
+    return (
+        self.project_id,
+        self.region,
+        self.cluster_name,
+        self.subnetwork,
+        self.num_workers,
+        self.machine_type)
 
   def __hash__(self):
     return hash(self.__key())
 
   def __eq__(self, other):
-    if isinstance(other, MasterURLIdentifier):
+    if isinstance(other, ClusterMetadata):
       return self.__key() == other.__key()
-    raise NotImplementedError(
-        'Comparisons are only supported between '
-        'instances of MasterURLIdentifier.')
+    return False
+
+  def reset_name(self):
+    self.cluster_name = _generate_unique_cluster_name()
+
+
+ClusterIdentifier = Union[str, Pipeline, ClusterMetadata]

@@ -54,6 +54,9 @@
            </div>
          </li>
         <li>
+          <a class="navbar-link" href={{ "/about" | relLangURL }}>{{ T "nav-about" }}</a>
+        </li>
+        <li>
          <a class="navbar-link" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "nav-get-started" }}</a>
         </li>
         <li>
@@ -62,6 +65,7 @@
            <li><a href={{ "/documentation/" | relLangURL }}>{{ T "nav-documentation-general" }}</a></li>
            <li><a href={{ "/documentation/sdks/java/" | relLangURL }}>{{ T "nav-languages" }}</a></li>
            <li><a href={{ "/documentation/runners/capability-matrix/" | relLangURL }}>{{ T "nav-runners" }}</a></li>
+           <li><a href={{ "/documentation/io/connectors/" | relLangURL }}>{{ T "nav-connectors" }}</a></li>
          </ul>
         </li>
         <li>
@@ -120,6 +124,7 @@
   </a>
   <div class="navbar-bar-left">
    <div class="navbar-links">
+     <a class="navbar-link" href={{ "/about" | relLangURL }}>{{ T "nav-about" }}</a>
      <a class="navbar-link" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "nav-get-started" }}</a>
      <li class="dropdown navbar-dropdown navbar-dropdown-documentation">
        <a href="#" class="dropdown-toggle navbar-link" role="button" aria-haspopup="true" aria-expanded="false">
@@ -134,6 +139,7 @@
          <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/" | relLangURL }}>{{ T "nav-documentation-general" }}</a></li>
          <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/sdks/java/" | relLangURL }}>{{ T "nav-languages" }}</a></li>
          <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/runners/capability-matrix/" | relLangURL }}>{{ T "nav-runners" }}</a></li>
+         <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/io/connectors/" | relLangURL }}>{{ T "nav-connectors" }}</a></li>
        </ul>
      </li>
      <a class="navbar-link" href={{ "/roadmap/" | relLangURL }}>{{ T "nav-roadmap" }}</a>
@@ -196,6 +202,12 @@
 </div>
 </div>
 </nav>
+<div class="banner-container">
+  <a href="https://2022.beamsummit.org/">
+    <img class="banner-img-desktop" src="/images/banner_desktop.png" alt="banner-desktop">
+    <img class="banner-img-mobile" src="/images/banner_mobile.png" alt="banner-mobile">
+  </a>
+</div>
 <script>
  function showSearch() {
    addPlaceholder();

@@ -18,8 +18,6 @@ package coder
 import (
 	"reflect"
 	"testing"
-
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 func clearRegistry() {
@@ -74,10 +72,6 @@ func bDec([]byte) myB { return nil }
 
 func cEnc(myC) []byte { return nil }
 func cDec([]byte) myC { return nil }
-
-// General interface coder.
-func tEnc(typex.T) []byte { return nil }
-func tDec([]byte) typex.T { return nil }
 
 // TestRegisterCoder checks that RegisterCoder panics ag the panic behavior when validation fails.
 // All the examples below are negative examples, and are intended to fail.

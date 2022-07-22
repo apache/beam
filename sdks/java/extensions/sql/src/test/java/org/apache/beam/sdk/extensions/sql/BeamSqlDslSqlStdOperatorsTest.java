@@ -1129,7 +1129,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  // https://issues.apache.org/jira/browse/BEAM-5128
+  // https://github.com/apache/beam/issues/19001
   // @SqlOperatorTest(name = "FLOOR", kind = "FLOOR")
   public void testFloor() {
     ExpressionChecker checker =
@@ -1146,7 +1146,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  // https://issues.apache.org/jira/browse/BEAM-5128
+  // https://github.com/apache/beam/issues/19001
   // @SqlOperatorTest(name = "CEIL", kind = "CEIL")
   public void testCeil() {
     ExpressionChecker checker =

@@ -29,6 +29,7 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
 import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
@@ -71,7 +72,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
 @Internal
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FakeDatasetService implements DatasetService, Serializable {
   // Table information must be static, as each ParDo will get a separate instance of
@@ -79,7 +80,6 @@ public class FakeDatasetService implements DatasetService, Serializable {
   static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table<
           String, String, Map<String, TableContainer>>
       tables;
-
   static Map<String, Stream> writeStreams;
 
   @Override
@@ -154,10 +154,12 @@ public class FakeDatasetService implements DatasetService, Serializable {
   static AtomicInteger insertCount;
 
   public static void setUp() {
-    tables = HashBasedTable.create();
-    insertCount = new AtomicInteger(0);
-    writeStreams = Maps.newHashMap();
-    FakeJobService.setUp();
+    synchronized (FakeDatasetService.class) {
+      tables = HashBasedTable.create();
+      insertCount = new AtomicInteger(0);
+      writeStreams = Maps.newHashMap();
+      FakeJobService.setUp();
+    }
   }
 
   @Override
@@ -171,7 +173,24 @@ public class FakeDatasetService implements DatasetService, Serializable {
   @Override
   public Table getTable(TableReference tableRef, @Nullable List<String> selectedFields)
       throws InterruptedException, IOException {
-    synchronized (tables) {
+    return getTable(tableRef, selectedFields, null);
+  }
+
+  @Override
+  public Table getTable(
+      TableReference tableRef,
+      @Nullable List<String> selectedFields,
+      @Nullable TableMetadataView view)
+      throws InterruptedException, IOException {
+    return getTableImpl(tableRef, selectedFields, view);
+  }
+
+  public Table getTableImpl(
+      TableReference tableRef,
+      @Nullable List<String> selectedFields,
+      @Nullable TableMetadataView view)
+      throws InterruptedException, IOException {
+    synchronized (FakeDatasetService.class) {
       Map<String, TableContainer> dataset =
           tables.get(tableRef.getProjectId(), tableRef.getDatasetId());
       if (dataset == null) {
@@ -187,21 +206,21 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   public List<TableRow> getAllRows(String projectId, String datasetId, String tableId)
       throws InterruptedException, IOException {
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       return getTableContainer(projectId, datasetId, tableId).getRows();
     }
   }
 
   public List<String> getAllIds(String projectId, String datasetId, String tableId)
       throws InterruptedException, IOException {
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       return getTableContainer(projectId, datasetId, tableId).getIds();
     }
   }
 
   private TableContainer getTableContainer(String projectId, String datasetId, String tableId)
       throws InterruptedException, IOException {
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       Map<String, TableContainer> dataset = tables.get(projectId, datasetId);
       if (dataset == null) {
         throwNotFound(
@@ -220,7 +239,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
   @Override
   public void deleteTable(TableReference tableRef) throws IOException, InterruptedException {
     validateWholeTableReference(tableRef);
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       Map<String, TableContainer> dataset =
           tables.get(tableRef.getProjectId(), tableRef.getDatasetId());
       if (dataset == null) {
@@ -253,7 +272,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
   public void createTable(Table table) throws IOException {
     TableReference tableReference = table.getTableReference();
     validateWholeTableReference(tableReference);
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       Map<String, TableContainer> dataset =
           tables.get(tableReference.getProjectId(), tableReference.getDatasetId());
       if (dataset == null) {
@@ -279,6 +298,26 @@ public class FakeDatasetService implements DatasetService, Serializable {
     }
   }
 
+  public void updateTableSchema(TableReference tableReference, TableSchema tableSchema)
+      throws IOException {
+    validateWholeTableReference(tableReference);
+    synchronized (FakeDatasetService.class) {
+      Map<String, TableContainer> dataset =
+          tables.get(tableReference.getProjectId(), tableReference.getDatasetId());
+      if (dataset == null) {
+        throwNotFound(
+            "Tried to get a dataset %s:%s, but no such table was set",
+            tableReference.getProjectId(), tableReference.getDatasetId());
+      }
+      @Nullable TableContainer tableContainer = dataset.get(tableReference.getTableId());
+      if (tableContainer == null) {
+        throwNotFound("Tried to get a table %s, but no such table existed", tableReference);
+      }
+      // TODO: Only allow "legal" schema changes.
+      tableContainer.table.setSchema(tableSchema);
+    }
+  }
+
   @Override
   public boolean isTableEmpty(TableReference tableRef) throws IOException, InterruptedException {
     Long numBytes = getTable(tableRef).getNumBytes();
@@ -288,7 +327,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
   @Override
   public Dataset getDataset(String projectId, String datasetId)
       throws IOException, InterruptedException {
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       Map<String, TableContainer> dataset = tables.get(projectId, datasetId);
       if (dataset == null) {
         throwNotFound(
@@ -308,7 +347,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
       String description,
       Long defaultTableExpirationMs /* ignored */)
       throws IOException, InterruptedException {
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       Map<String, TableContainer> dataset = tables.get(projectId, datasetId);
       if (dataset == null) {
         dataset = new HashMap<>();
@@ -320,7 +359,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
   @Override
   public void deleteDataset(String projectId, String datasetId)
       throws IOException, InterruptedException {
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       tables.remove(projectId, datasetId);
     }
   }
@@ -369,7 +408,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
       List<ValueInSingleWindow<TableRow>> successfulRows)
       throws IOException, InterruptedException {
     Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors = getInsertErrors();
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       if (ignoreInsertIds) {
         insertIdList = null;
       }
@@ -424,7 +463,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
       TableReference tableReference, @Nullable String tableDescription)
       throws IOException, InterruptedException {
     validateWholeTableReference(tableReference);
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       TableContainer tableContainer =
           getTableContainer(
               tableReference.getProjectId(),
@@ -440,7 +479,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
       throws IOException, InterruptedException {
     TableReference tableReference =
         BigQueryHelpers.parseTableUrn(BigQueryHelpers.stripPartitionDecorator(tableUrn));
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       TableContainer tableContainer =
           getTableContainer(
               tableReference.getProjectId(),
@@ -455,10 +494,16 @@ public class FakeDatasetService implements DatasetService, Serializable {
   @Override
   public StreamAppendClient getStreamAppendClient(String streamName, Descriptor descriptor) {
     return new StreamAppendClient() {
+      private Descriptor protoDescriptor;
+
+      {
+        this.protoDescriptor = descriptor;
+      }
+
       @Override
       public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows)
           throws Exception {
-        synchronized (tables) {
+        synchronized (FakeDatasetService.class) {
           Stream stream = writeStreams.get(streamName);
           if (stream == null) {
             throw new RuntimeException("No such stream: " + streamName);
@@ -466,9 +511,13 @@ public class FakeDatasetService implements DatasetService, Serializable {
           List<TableRow> tableRows =
               Lists.newArrayListWithExpectedSize(rows.getSerializedRowsCount());
           for (ByteString bytes : rows.getSerializedRowsList()) {
+            DynamicMessage msg = DynamicMessage.parseFrom(protoDescriptor, bytes);
+            if (msg.getUnknownFields() != null && !msg.getUnknownFields().asMap().isEmpty()) {
+              throw new RuntimeException("Unknown fields set in append! " + msg.getUnknownFields());
+            }
             tableRows.add(
                 TableRowToStorageApiProto.tableRowFromMessage(
-                    DynamicMessage.parseFrom(descriptor, bytes)));
+                    DynamicMessage.parseFrom(protoDescriptor, bytes)));
           }
           stream.appendRows(offset, tableRows);
         }
@@ -488,7 +537,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public ApiFuture<FlushRowsResponse> flush(String streamName, long offset) {
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       Stream stream = writeStreams.get(streamName);
       if (stream == null) {
         throw new RuntimeException("No such stream: " + streamName);
@@ -500,7 +549,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public ApiFuture<FinalizeWriteStreamResponse> finalizeWriteStream(String streamName) {
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       Stream stream = writeStreams.get(streamName);
       if (stream == null) {
         throw new RuntimeException("No such stream: " + streamName);
@@ -514,7 +563,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
   @Override
   public ApiFuture<BatchCommitWriteStreamsResponse> commitWriteStreams(
       String tableUrn, Iterable<String> writeStreamNames) {
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       for (String streamName : writeStreamNames) {
         Stream stream = writeStreams.get(streamName);
         if (stream == null) {
@@ -535,7 +584,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
    */
   public void failOnInsert(
       Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors) {
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       for (Map.Entry<TableRow, List<TableDataInsertAllResponse.InsertErrors>> entry :
           insertErrors.entrySet()) {
         List<String> errorStrings = Lists.newArrayList();
@@ -550,7 +599,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
   Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> getInsertErrors() {
     Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> parsedInsertErrors =
         Maps.newHashMap();
-    synchronized (tables) {
+    synchronized (FakeDatasetService.class) {
       for (Map.Entry<String, List<String>> entry : this.insertErrors.entrySet()) {
         TableRow tableRow = BigQueryHelpers.fromJsonString(entry.getKey(), TableRow.class);
         List<TableDataInsertAllResponse.InsertErrors> allErrors = Lists.newArrayList();

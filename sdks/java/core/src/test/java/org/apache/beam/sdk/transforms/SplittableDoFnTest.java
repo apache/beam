@@ -91,7 +91,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class SplittableDoFnTest implements Serializable {
 
@@ -784,7 +784,7 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test(timeout = 15000L)
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6354")
+  @Ignore("https://github.com/apache/beam/issues/19344")
   @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesTestStream.class})
   public void testLateData() {
 
@@ -1031,7 +1031,7 @@ public class SplittableDoFnTest implements Serializable {
     p.run();
   }
 
-  // TODO (https://issues.apache.org/jira/browse/BEAM-988): Test that Splittable DoFn
+  // TODO (https://github.com/apache/beam/issues/18091): Test that Splittable DoFn
   // emits output immediately (i.e. has a pass-through trigger) regardless of input's
   // windowing/triggering strategy.
 }

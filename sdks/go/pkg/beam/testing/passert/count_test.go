@@ -22,24 +22,62 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
-func TestCount_Good(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-	col := beam.Create(s, "a", "b", "c", "d", "e")
-	count := 5
+func TestCount(t *testing.T) {
+	var tests = []struct {
+		name     string
+		elements []string
+		count    int
+	}{
+		{
+			"full",
+			[]string{"a", "b", "c", "d", "e"},
+			5,
+		},
+		{
+			"empty",
+			[]string{},
+			0,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			p, s := beam.NewPipelineWithRoot()
+			col := beam.CreateList(s, test.elements)
 
-	Count(s, col, "TestCount_Good", count)
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("Pipeline failed: %v", err)
+			Count(s, col, test.name, test.count)
+			if err := ptest.Run(p); err != nil {
+				t.Errorf("Pipeline failed: %v", err)
+			}
+		})
 	}
 }
 
 func TestCount_Bad(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-	col := beam.Create(s, "a", "b", "c", "d", "e")
-	count := 10
+	var tests = []struct {
+		name     string
+		elements []string
+		count    int
+	}{
+		{
+			"mismatch",
+			[]string{"a", "b", "c", "d", "e"},
+			10,
+		},
+		{
+			"empty pcollection",
+			[]string{},
+			5,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			p, s := beam.NewPipelineWithRoot()
+			col := beam.CreateList(s, test.elements)
 
-	Count(s, col, "TestCount_Bad", count)
-	if err := ptest.Run(p); err == nil {
-		t.Errorf("pipeline SUCCEEDED but should have failed")
+			Count(s, col, test.name, test.count)
+			if err := ptest.Run(p); err == nil {
+				t.Errorf("pipeline SUCCEEDED but should have failed")
+			}
+		})
 	}
 }

@@ -8,6 +8,7 @@ cardDescription: "Ricardo, the largest online marketplace in Switzerland, uses A
 authorName: "Tobias Kaymak"
 authorPosition: Senior Data Engineer @ Ricardo
 authorImg: /images/tobias_kaymak_photo.png
+publishDate: 2021-12-01T01:36:00+00:00
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

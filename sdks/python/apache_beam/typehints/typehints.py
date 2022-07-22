@@ -175,6 +175,35 @@ class TypeConstraint(object):
         visitor(t, visitor_arg)
 
 
+def visit_inner_types(type_constraint, visitor, visitor_arg):
+  """Visitor pattern to visit all inner types of a type constraint.
+
+  Args:
+    type_constraint: A type constraint or a type.
+    visitor: A callable invoked for all nodes in the type tree comprising a
+      composite type. The visitor will be called with the node visited and the
+      visitor argument specified here.
+    visitor_arg: Visitor callback second argument.
+
+  Note:
+    Raise and capture a StopIteration to terminate the visit, e.g.
+
+    ```
+    def visitor(type_constraint, visitor_arg):
+      if ...:
+        raise StopIteration
+
+    try:
+      visit_inner_types(type_constraint, visitor, visitor_arg)
+    except StopIteration:
+      pass
+    ```
+  """
+  if isinstance(type_constraint, TypeConstraint):
+    return type_constraint.visit(visitor, visitor_arg)
+  return visitor(type_constraint, visitor_arg)
+
+
 def match_type_variables(type_constraint, concrete_type):
   if isinstance(type_constraint, TypeConstraint):
     return type_constraint.match_type_variables(concrete_type)
@@ -365,7 +394,8 @@ def validate_composite_type_param(type_param, error_msg_prefix):
         (error_msg_prefix, type_param, type_param.__class__.__name__))
 
 
-# TODO(BEAM-12469): Remove this function and use plain repr() instead.
+# TODO(https://github.com/apache/beam/issues/20982): Remove this function and
+# use plain repr() instead.
 def _unified_repr(o):
   """Given an object return a qualified name for the object.
 
@@ -430,7 +460,8 @@ class AnyTypeConstraint(TypeConstraint):
     return 'Any'
 
   def __hash__(self):
-    # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
+    # TODO(https://github.com/apache/beam/issues/18633): Fix
+    # typehints.TypeVariable issues with __hash__.
     return hash(id(self))
 
   def type_check(self, instance):
@@ -452,7 +483,8 @@ class TypeVariable(AnyTypeConstraint):
     return type(self) == type(other)
 
   def __hash__(self):
-    # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
+    # TODO(https://github.com/apache/beam/issues/18633): Fix
+    # typehints.TypeVariable issues with __hash__.
     return hash(id(self))
 
   def __repr__(self):
@@ -503,9 +535,12 @@ class UnionHint(CompositeTypeHint):
       return 'Union[%s]' % (
           ', '.join(sorted(_unified_repr(t) for t in self.union_types)))
 
-    def _inner_types(self):
+    def inner_types(self):
       for t in self.union_types:
         yield t
+
+    def contains_type(self, maybe_type):
+      return maybe_type in self.union_types
 
     def _consistent_with_check_(self, sub):
       if isinstance(sub, UnionConstraint):
@@ -599,6 +634,22 @@ class OptionalHint(UnionHint):
           'parameter.')
 
     return Union[py_type, type(None)]
+
+
+def is_nullable(typehint):
+  return (
+      isinstance(typehint, UnionConstraint) and
+      typehint.contains_type(type(None)) and
+      len(list(typehint.inner_types())) == 2)
+
+
+def get_concrete_type_from_nullable(typehint):
+  if is_nullable(typehint):
+    for inner_type in typehint.inner_types():
+      if not type(None) == inner_type:
+        return inner_type
+  else:
+    raise TypeError('Typehint is not of nullable type', typehint)
 
 
 class TupleHint(CompositeTypeHint):

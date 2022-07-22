@@ -37,7 +37,7 @@ import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 
 /** An {@link ArtifactRetrievalService} that uses {@link FileSystems} as its backing storage. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ArtifactRetrievalService
     extends ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceImplBase implements FnService {

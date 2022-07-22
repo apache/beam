@@ -39,10 +39,6 @@ configurations.all {
   }
 }
 
-test {
-  maxParallelForks = 1
-}
-
 dependencies {
   testImplementation project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntimeMigration")
   testImplementation library.java.testcontainers_elasticsearch

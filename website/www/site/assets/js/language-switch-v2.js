@@ -10,10 +10,26 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+function getElementData(element) {
+    const clickedLangSwitchEl = element.target;
+    const elPreviousOffsetFromViewPort = clickedLangSwitchEl.getBoundingClientRect().top;
+    return {
+        elPreviousOffsetFromViewPort,
+        clickedLangSwitchEl,
+    }
+}
+
+function setScrollToNewPosition(clickedElementData) {
+    const { elPreviousOffsetFromViewPort, clickedLangSwitchEl } = clickedElementData;
+    const elCurrentHeight = window.pageYOffset + clickedLangSwitchEl.getBoundingClientRect().top;
+    $('html, body').scrollTop(elCurrentHeight - elPreviousOffsetFromViewPort);
+}
+
 $(document).ready(function() {
     function Switcher(conf) {
         var id = conf["class-prefix"],
-            def = conf["default"];
+            def = conf["default"],
+            langs = [];
         var prefix = id + "-";
         return {
             "id": id,
@@ -37,8 +53,8 @@ $(document).ready(function() {
                     name = (name === "py")? "python": name;
                     name = name.charAt(0).toUpperCase() + name.slice(1);
                     selectors += " " + type;
-                    lists += "<li data-type=\"" + type + "\"><a>";
-                    lists += name + "</a></li>";
+                    lists += "<li class=\"langSwitch-content\" data-type=\"" + type + "\">";
+                    lists += name + "</li>";
                 });
                 return "<div class=\"" + this.wrapper + selectors + "\"> \
                         <ul class=\"nav nav-tabs\">" + lists + "</ul> </div>";
@@ -76,6 +92,7 @@ $(document).ready(function() {
             */
             "lookup": function(el, lang) {
                 if (!el.is("div"+this.selector)) {
+                    langs = lang;
                     return lang;
                 }
 
@@ -87,7 +104,13 @@ $(document).ready(function() {
                 $("." + _self.wrapper + " ul li").click(function(el) {
                     // Making type preferences presistance, for user.
                     localStorage.setItem(_self.dbKey, $(this).data("type"));
+
+                    // Set scroll to new position because Safari and Firefox
+                    // can't do it automatically, only Chrome under the hood
+                    // detects the correct position of viewport
+                    const clickedLangSwitchData = getElementData(el);
                     _self.toggle();
+                    setScrollToNewPosition(clickedLangSwitchData);
                 });
             },
             "toggle": function() {
@@ -102,8 +125,16 @@ $(document).ready(function() {
                     }
                 });
 
-                if(!isPrefSelected) {
-                  pref = this.default;
+                if (!isPrefSelected) {
+                  // if there's a code block for the default language,
+                  // set the preferred language to the default language
+                  if (langs.includes(this.default)) {
+                    pref = this.default;
+                  // otherwise set the preferred language to the first available
+                  // language, so we don't have a page with no code blocks
+                  } else {
+                    pref = langs[0];
+                  }
 
                   $("." + this.wrapper + " li").each(function() {
                       if ($(this).data("type") === pref) {
@@ -111,13 +142,17 @@ $(document).ready(function() {
                       }
                   });
                }
-
                 // Swapping visibility of code blocks.
                 $(this.selector).hide();
                 $("nav"+this.selector).show();
                 // make sure that runner and shell snippets are still visible after changing language
                 $("code"+this.selector).show();
                 $("." + pref).show();
+
+                //add refresh method because html elements are added/deleted after changing language
+                $('[data-spy="scroll"]').each(function () {
+                    $(this).scrollspy('refresh');
+                });
             },
             "render": function(wrapper) {
                 this.addTabs();

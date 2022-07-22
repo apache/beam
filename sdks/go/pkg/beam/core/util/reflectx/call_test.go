@@ -102,7 +102,7 @@ func TestValue(t *testing.T) {
 	if len(got) != len(want) {
 		t.Fatalf("ValueOf(interfaces) got slice %v, expected slice of length %v", got, len(want))
 	}
-	for idx, _ := range got {
+	for idx := range got {
 		if got[idx].Kind() != want[idx] {
 			t.Errorf("ValueOf(interfaces)[%v], got %v of kind %v, want %v", idx, got[idx], got[idx].Kind(), want[idx])
 		}
@@ -117,7 +117,7 @@ func TestInterface(t *testing.T) {
 	if len(got) != len(interfaces) {
 		t.Fatalf("Interface(values) got slice %v, expected slice of length %v", got, len(interfaces))
 	}
-	for idx, _ := range got {
+	for idx := range got {
 		if got[idx] != interfaces[idx] {
 			t.Errorf("Interface(values)[%v]=%v, want %v", idx, got[idx], interfaces[idx])
 		}

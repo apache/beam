@@ -22,14 +22,43 @@ project.ext {
   // Set the version of all Spark-related dependencies here.
   spark_version = '3.1.2'
   spark_scala_version = '2.12'
-
-  // Version specific code overrides.
-  main_source_overrides = ['./src/main/java']
-  test_source_overrides = ['./src/test/java']
-  main_resources_overrides = []
-  test_resources_overrides = []
+  copySourceBase = false // disabled to use Spark 3 as primary dev version
   archives_base_name = 'beam-runners-spark-3'
 }
 
 // Load the main build script which contains all build logic.
 apply from: "$basePath/spark_runner.gradle"
+
+
+def sparkVersions = [
+    "330": "3.3.0",
+    "321": "3.2.1"
+]
+
+sparkVersions.each { kv ->
+  configurations.create("sparkVersion$kv.key")
+  configurations."sparkVersion$kv.key" {
+    resolutionStrategy {
+      spark.components.each { component -> force "$component:$kv.value" }
+    }
+  }
+
+  dependencies {
+    spark.components.each { component -> "sparkVersion$kv.key" "$component:$kv.value" }
+  }
+
+  tasks.register("sparkVersion${kv.key}Test", Test) {
+    group = "Verification"
+    description = "Verifies code compatibility with Spark $kv.value"
+    classpath = configurations."sparkVersion$kv.key" + sourceSets.test.runtimeClasspath
+    systemProperties test.systemProperties
+
+    include "**/*.class"
+    maxParallelForks 4
+  }
+}
+
+tasks.register("sparkVersionsTest") {
+  group = "Verification"
+  dependsOn sparkVersions.collect{k,v -> "sparkVersion${k}Test"}
+}

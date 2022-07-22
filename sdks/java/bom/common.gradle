@@ -57,8 +57,8 @@ publishing {
                     url = "https://gitbox.apache.org/repos/asf?p=beam.git;a=summary"
                 }
                 issueManagement {
-                    system = "jira"
-                    url = "https://issues.apache.org/jira/browse/BEAM"
+                    system = "github"
+                    url = "https://github.com/apache/beam/issues"
                 }
                 mailingLists {
                     mailingList {

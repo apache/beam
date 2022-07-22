@@ -27,7 +27,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 
 /** Static utility methods that provide {@link GroupingTable} implementations. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GroupingTables {
   /** Returns a {@link GroupingTable} that groups inputs into a {@link List}. */
@@ -420,7 +420,7 @@ public class GroupingTables {
      * The degree of confidence required in our expected value predictions before we allow
      * under-sampling.
      *
-     * <p>The value of 3.0 is a confidence interval of about 99.7% for a a high-degree-of-freedom
+     * <p>The value of 3.0 is a confidence interval of about 99.7% for a high-degree-of-freedom
      * t-distribution.
      */
     public static final double CONFIDENCE_INTERVAL_SIGMA = 3;

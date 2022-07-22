@@ -31,7 +31,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
  */
 @AutoValue
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public abstract class SideInputSpec<W extends BoundedWindow> {
   public static <W extends BoundedWindow> SideInputSpec create(

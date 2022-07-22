@@ -21,6 +21,7 @@
 # mypy: check-untyped-defs
 
 import collections
+import copy
 import functools
 import itertools
 import logging
@@ -286,7 +287,9 @@ class Stage(object):
     # type: (...) -> beam_runner_api_pb2.PTransform
     if (len(self.transforms) == 1 and
         self.transforms[0].spec.urn in known_runner_urns):
-      return self.transforms[0]
+      result = copy.copy(self.transforms[0])
+      del result.subtransforms[:]
+      return result
 
     else:
       all_inputs = set(
@@ -704,7 +707,7 @@ def create_and_optimize_stages(
       leaf_transform_stages(
           pipeline_proto.root_transform_ids,
           pipeline_proto.components,
-          union(known_runner_urns, KNOWN_COMPOSITES)))
+          known_composites=union(known_runner_urns, KNOWN_COMPOSITES)))
 
   # Apply each phase in order.
   for phase in phases:
@@ -1108,9 +1111,9 @@ def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
             is_bounded=input_pcoll.is_bounded))
 
     # Set up Pack stage.
-    # TODO(BEAM-7746): classes that inherit from RunnerApiFn are expected to
-    #  accept a PipelineContext for from_runner_api/to_runner_api.  Determine
-    #  how to accomodate this.
+    # TODO(https://github.com/apache/beam/issues/19737): classes that inherit
+    #  from RunnerApiFn are expected to accept a PipelineContext for
+    #  from_runner_api/to_runner_api.  Determine how to accomodate this.
     pack_combine_fn = combiners.SingleInputTupleCombineFn(
         *[
             core.CombineFn.from_runner_api(combine_payload.combine_fn, context)  # type: ignore[arg-type]
