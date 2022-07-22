@@ -98,6 +98,7 @@ class OptionalTagFields:
 @dataclass(frozen=True)
 class DatastoreProps:
     NAMESPACE = "Playground"
+    KEY_NAME_DELIMITER = "_"
     ORIGIN_PROPERTY_VALUE = "PG_EXAMPLES"
     EXAMPLE_KIND = "pg_examples"
     SNIPPET_KIND = "pg_snippets"
