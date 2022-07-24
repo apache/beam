@@ -2473,34 +2473,27 @@ class ReadFromBigQuery(PTransform):
   def expand(self, pcoll):
     if self.method is ReadFromBigQuery.Method.EXPORT:
       output_pcollection = self._expand_export(pcoll)
-      if self.output_type == 'BEAM_ROWS':
-        return output_pcollection | beam.io.gcp.bigquery_schema_tools.\
-            convert_to_usertype(
-            beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
-                project_id=output_pcollection.pipeline.options.view_as(
-                    GoogleCloudOptions).project,
-                dataset_id=str(self._kwargs['table']).split('.', maxsplit=1)[0],
-                table_id=str(self._kwargs['table']).rsplit(
-                    '.', maxsplit=1)[-1]).schema)
-      else:
-        return output_pcollection
+      return ReadFromBigQuery._expand_output_type(self, output_pcollection)
     elif self.method is ReadFromBigQuery.Method.DIRECT_READ:
       output_pcollection = self._expand_direct_read(pcoll)
-      if self.output_type == 'BEAM_ROWS':
-        return output_pcollection | beam.io.gcp.bigquery_schema_tools.\
-            convert_to_usertype(
-            beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
-                project_id=output_pcollection.pipeline.options.view_as(
-                    GoogleCloudOptions).project,
-                dataset_id=str(self._kwargs['table']).split('.', maxsplit=1)[0],
-                table_id=str(self._kwargs['table']).rsplit(
-                    '.', maxsplit=1)[-1]).schema)
-      else:
-        return output_pcollection
+      return ReadFromBigQuery._expand_output_type(self, output_pcollection)
     else:
       raise ValueError(
           'The method to read from BigQuery must be either EXPORT'
           'or DIRECT_READ.')
+
+  def _expand_output_type(self, output_pcollection):
+    if self.output_type == 'BEAM_ROWS':
+      return output_pcollection | beam.io.gcp.bigquery_schema_tools.\
+            convert_to_usertype(
+            beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
+                project_id=output_pcollection.pipeline.options.view_as(
+                    GoogleCloudOptions).project,
+                dataset_id=str(self._kwargs['table']).split('.', maxsplit=1)[0],
+                table_id=str(self._kwargs['table']).rsplit(
+                    '.', maxsplit=1)[-1]).schema)
+    elif self.output_type == 'PYTHON_DICT' or self.output_type is None:
+      return output_pcollection
 
   def _expand_export(self, pcoll):
     # TODO(BEAM-11115): Make ReadFromBQ rely on ReadAllFromBQ implementation.
