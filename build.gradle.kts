@@ -195,7 +195,6 @@ tasks.register("javaPreCommitPortabilityApi") {
 
 tasks.register("javaPostCommit") {
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:postCommit")
-  dependsOn(":sdks:java:extensions:timeseries:postCommit")
   dependsOn(":sdks:java:extensions:zetasketch:postCommit")
   dependsOn(":sdks:java:extensions:ml:postCommit")
 }
@@ -220,6 +219,7 @@ tasks.register("javaHadoopVersionsTest") {
   dependsOn(":sdks:java:io:parquet:hadoopVersionsTest")
   dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
   dependsOn(":runners:spark:2:hadoopVersionsTest")
+  dependsOn(":runners:spark:3:hadoopVersionsTest")
 }
 
 tasks.register("sqlPostCommit") {
