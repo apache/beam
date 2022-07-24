@@ -308,3 +308,15 @@ tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
   dependsOn(":sdks:python:test-suite:direct:py39:inferencePostCommitIT")
 }
+
+task("python37SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitSickbay")
+}
+
+task("python38SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitSickbay")
+}
+
+task("python39SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitSickbay")
+}
