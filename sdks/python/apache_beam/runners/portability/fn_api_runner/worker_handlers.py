@@ -65,6 +65,7 @@ from apache_beam.runners.portability.fn_api_runner.execution import Buffer
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.log_handler import LOGENTRY_TO_LOG_LEVEL_MAP
 from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.utils import proto_utils
@@ -407,24 +408,12 @@ class EmbeddedWorkerHandler(WorkerHandler):
 
 
 class BasicLoggingService(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
-
-  LOG_LEVEL_MAP = {
-      beam_fn_api_pb2.LogEntry.Severity.CRITICAL: logging.CRITICAL,
-      beam_fn_api_pb2.LogEntry.Severity.ERROR: logging.ERROR,
-      beam_fn_api_pb2.LogEntry.Severity.WARN: logging.WARNING,
-      beam_fn_api_pb2.LogEntry.Severity.NOTICE: logging.INFO + 1,
-      beam_fn_api_pb2.LogEntry.Severity.INFO: logging.INFO,
-      beam_fn_api_pb2.LogEntry.Severity.DEBUG: logging.DEBUG,
-      beam_fn_api_pb2.LogEntry.Severity.TRACE: logging.DEBUG - 1,
-      beam_fn_api_pb2.LogEntry.Severity.UNSPECIFIED: logging.NOTSET,
-  }
-
   def Logging(self, log_messages, context=None):
     # type: (Iterable[beam_fn_api_pb2.LogEntry.List], Any) -> Iterator[beam_fn_api_pb2.LogControl]
     yield beam_fn_api_pb2.LogControl()
     for log_message in log_messages:
       for log in log_message.log_entries:
-        logging.log(self.LOG_LEVEL_MAP[log.severity], str(log))
+        logging.log(LOGENTRY_TO_LOG_LEVEL_MAP[log.severity], str(log))
 
 
 class BasicProvisionService(beam_provision_api_pb2_grpc.ProvisionServiceServicer

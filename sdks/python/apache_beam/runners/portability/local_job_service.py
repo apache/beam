@@ -35,6 +35,7 @@ import grpc
 from google.protobuf import json_format
 from google.protobuf import text_format  # type: ignore # not in typeshed
 
+from apache_beam import pipeline
 from apache_beam.metrics import monitoring_infos
 from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
@@ -49,6 +50,7 @@ from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.portability.fn_api_runner import worker_handlers
+from apache_beam.runners.worker.log_handler import LOGENTRY_TO_LOG_LEVEL_MAP
 from apache_beam.utils import thread_pool_executor
 
 if TYPE_CHECKING:
@@ -285,6 +287,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
   def _run_job(self):
     with JobLogHandler(self._log_queues) as log_handler:
       self._update_dependencies()
+      pipeline.Pipeline.merge_compatible_environments(self._pipeline_proto)
       try:
         start = time.time()
         self.result = self._invoke_runner()
@@ -365,7 +368,10 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
   def Logging(self, log_bundles, context=None):
     for log_bundle in log_bundles:
       for log_entry in log_bundle.log_entries:
-        _LOGGER.info('Worker: %s', str(log_entry).replace('\n', ' '))
+        _LOGGER.log(
+            LOGENTRY_TO_LOG_LEVEL_MAP[log_entry.severity],
+            'Worker: %s',
+            str(log_entry).replace('\n', ' '))
     return iter([])
 
 
