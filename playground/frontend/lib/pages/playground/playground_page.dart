@@ -84,7 +84,7 @@ class PlaygroundPage extends StatelessWidget {
                 );
               },
             ),
-            actions: const [SummitBanner(), ToggleThemeButton(), MoreActions()],
+            actions: const [ToggleThemeButton(), MoreActions()],
           ),
           body: Column(
             children: [
