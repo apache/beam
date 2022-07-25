@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import avro.shaded.com.google.common.base.Objects;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.Pubsub.Projects.Subscriptions;
@@ -49,6 +48,7 @@ import java.util.TreeMap;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -94,7 +94,7 @@ public class PubsubJsonClient extends PubsubClient {
                       // Do not log 404. It clutters the output and is possibly even required by the
                       // caller.
                       new RetryHttpRequestInitializer(ImmutableList.of(404))))
-              .setRootUrl(Objects.firstNonNull(rootUrlOverride, options.getPubsubRootUrl()))
+              .setRootUrl(MoreObjects.firstNonNull(rootUrlOverride, options.getPubsubRootUrl()))
               .setApplicationName(options.getAppName())
               .setGoogleClientRequestInitializer(options.getGoogleApiTrace())
               .build();
