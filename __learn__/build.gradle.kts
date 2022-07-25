@@ -320,3 +320,38 @@ task("python38SickbayPostCommit") {
 task("python39SickbayPostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitSickbay")
 }
+
+tasks.register("pythonSparkPostCommit") {
+  dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
+}
+
+tasks.register("websitePreCommit") {
+  dependsOn(":website:preCommit")
+}
+
+tasks.register("communityMetricsPreCommit") {
+  dependsOn(":beam-test-infra-metrics:preCommit")
+}
+
+tasks.register("communityMetricsProber") {
+  dependsOn(":beam-test-infra-metrics:checkProber")
+}
+
+tasks.register("javaExamplesDataflowPrecommit") {
+  dependsOn(":runners:google-cloud-dataflow-java:examples:preCommit")
+  dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:preCommit")
+}
+
+tasks.register("runBeamDependencyCheck") {
+  dependsOn(":dependencyUpdates")
+  dependsOn(":sdks:python:dependencyUpdates")
+}
+
+tasks.register("whitespacePreCommit") {
+  // @TODO https://github/apache/beam/issues/20209
+  dependsOn(":sdks:python:test-suites:tox:py38:archiveFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py38:unpackFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py38:whitespaceLint")
+}
