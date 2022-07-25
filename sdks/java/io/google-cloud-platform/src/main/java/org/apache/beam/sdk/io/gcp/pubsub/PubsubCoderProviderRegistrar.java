@@ -31,13 +31,13 @@ public class PubsubCoderProviderRegistrar implements CoderProviderRegistrar {
   @Override
   public List<CoderProvider> getCoderProviders() {
     return ImmutableList.of(
-        CoderProviders.forCoder(TypeDescriptor.of(PubsubMessage.class), PubsubMessageCoder.of()),
         CoderProviders.forCoder(
             TypeDescriptor.of(PubsubMessage.class), PubsubMessageWithAttributesCoder.of()),
         CoderProviders.forCoder(
             TypeDescriptor.of(PubsubMessage.class), PubsubMessageWithMessageIdCoder.of()),
         CoderProviders.forCoder(
             TypeDescriptor.of(PubsubMessage.class),
-            PubsubMessageWithAttributesAndMessageIdCoder.of()));
+            PubsubMessageWithAttributesAndMessageIdCoder.of()),
+        CoderProviders.forCoder(TypeDescriptor.of(PubsubMessage.class), PubsubMessageCoder.of()));
   }
 }
