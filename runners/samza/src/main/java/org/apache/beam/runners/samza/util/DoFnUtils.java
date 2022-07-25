@@ -25,7 +25,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.commons.collections.CollectionUtils;
 
-/** Utils for {@link org.apache.beam.runners.samza.runtime.DoFnOp} */
+/** Utils for {@link org.apache.beam.runners.samza.runtime.DoFnOp}. */
 public class DoFnUtils {
 
   public static String toStepName(ExecutableStage executableStage) {
