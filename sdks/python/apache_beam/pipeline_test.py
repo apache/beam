@@ -36,6 +36,7 @@ from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
@@ -1021,7 +1022,6 @@ class RunnerApiTest(unittest.TestCase):
 
     p = beam.Pipeline()
     p | MyPTransform()  # pylint: disable=expression-not-assigned
-    from apache_beam.portability.api import beam_runner_api_pb2
 
     proto_pipeline = Pipeline.to_runner_api(p, use_fake_coders=True)
     my_transform, = [
@@ -1290,6 +1290,85 @@ class RunnerApiTest(unittest.TestCase):
             b'second_application', environment.resource_hints.get('foo_urn'))
         count += 1
     assert count == 2
+
+  def test_environments_are_deduplicated(self):
+    def file_artifact(path, hash, staged_name):
+      return beam_runner_api_pb2.ArtifactInformation(
+          type_urn=common_urns.artifact_types.FILE.urn,
+          type_payload=beam_runner_api_pb2.ArtifactFilePayload(
+              path=path, sha256=hash).SerializeToString(),
+          role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+          role_payload=beam_runner_api_pb2.ArtifactStagingToRolePayload(
+              staged_name=staged_name).SerializeToString(),
+      )
+
+    proto = beam_runner_api_pb2.Pipeline(
+        components=beam_runner_api_pb2.Components(
+            transforms={
+                f'transform{ix}': beam_runner_api_pb2.PTransform(
+                    environment_id=f'e{ix}')
+                for ix in range(8)
+            },
+            environments={
+                # Same hash and destination.
+                'e1': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a1', 'x', 'dest')]),
+                'e2': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a2', 'x', 'dest')]),
+                # Different hash.
+                'e3': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a3', 'y', 'dest')]),
+                # Different destination.
+                'e4': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a4', 'y', 'dest2')]),
+                # Multiple files with same hash and destinations.
+                'e5': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        file_artifact('a1', 'x', 'dest'),
+                        file_artifact('b1', 'xb', 'destB')
+                    ]),
+                'e6': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        file_artifact('a2', 'x', 'dest'),
+                        file_artifact('b2', 'xb', 'destB')
+                    ]),
+                # Overlapping, but not identical, files.
+                'e7': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        file_artifact('a1', 'x', 'dest'),
+                        file_artifact('b2', 'y', 'destB')
+                    ]),
+                # Same files as first, but differing other properties.
+                'e0': beam_runner_api_pb2.Environment(
+                    resource_hints={'hint': b'value'},
+                    dependencies=[file_artifact('a1', 'x', 'dest')]),
+            }))
+    Pipeline.merge_compatible_environments(proto)
+
+    # These environments are equivalent.
+    self.assertEqual(
+        proto.components.transforms['transform1'].environment_id,
+        proto.components.transforms['transform2'].environment_id)
+
+    self.assertEqual(
+        proto.components.transforms['transform5'].environment_id,
+        proto.components.transforms['transform6'].environment_id)
+
+    # These are not.
+    self.assertNotEqual(
+        proto.components.transforms['transform1'].environment_id,
+        proto.components.transforms['transform3'].environment_id)
+    self.assertNotEqual(
+        proto.components.transforms['transform4'].environment_id,
+        proto.components.transforms['transform3'].environment_id)
+    self.assertNotEqual(
+        proto.components.transforms['transform6'].environment_id,
+        proto.components.transforms['transform7'].environment_id)
+    self.assertNotEqual(
+        proto.components.transforms['transform1'].environment_id,
+        proto.components.transforms['transform0'].environment_id)
+
+    self.assertEqual(len(proto.components.environments), 6)
 
 
 if __name__ == '__main__':

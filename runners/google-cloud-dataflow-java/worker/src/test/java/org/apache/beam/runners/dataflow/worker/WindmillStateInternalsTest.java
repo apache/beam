@@ -67,6 +67,7 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
@@ -198,7 +199,7 @@ public class WindmillStateInternalsTest {
 
   private <K> ByteString protoKeyFromUserKey(@Nullable K tag, Coder<K> keyCoder)
       throws IOException {
-    ByteString.Output keyStream = ByteString.newOutput();
+    ByteStringOutputStream keyStream = new ByteStringOutputStream();
     key(NAMESPACE, "map").writeTo(keyStream);
     if (tag != null) {
       keyCoder.encode(tag, keyStream, Context.OUTER);

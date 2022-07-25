@@ -96,6 +96,9 @@ export class DirectRunner extends Runner {
       ) {
         yield "MergeStatus=" + windowing.mergeStatus;
       }
+      if (windowing.outputTime !== runnerApi.OutputTime_Enum.END_OF_WINDOW) {
+        yield "OutputTime=" + windowing.outputTime;
+      }
     }
   }
 
@@ -194,11 +197,17 @@ class DirectGbkOperator implements operators.IOperator {
     );
     const windowingStrategy =
       context.descriptor.windowingStrategies[inputPc.windowingStrategyId];
-    // TODO: (Cleanup) Check or implement triggers, etc.
     if (
       windowingStrategy.mergeStatus !== runnerApi.MergeStatus_Enum.NON_MERGING
     ) {
-      throw new Error("Non-merging WindowFn: " + windowingStrategy);
+      throw new Error("Unsupported non-merging WindowFn: " + windowingStrategy);
+    }
+    if (
+      windowingStrategy.outputTime !== runnerApi.OutputTime_Enum.END_OF_WINDOW
+    ) {
+      throw new Error(
+        "Unsupported windowing output time: " + windowingStrategy
+      );
     }
     this.windowCoder = context.pipelineContext.getCoder(
       windowingStrategy.windowCoderId
@@ -206,12 +215,11 @@ class DirectGbkOperator implements operators.IOperator {
   }
 
   process(wvalue: WindowedValue<any>) {
-    // TODO: (Cleanup) Assert non-merging, EOW timestamp, etc.
     for (const window of wvalue.windows) {
       const wkey =
-        encodeToBase64(window, this.windowCoder) +
+        operators.encodeToBase64(window, this.windowCoder) +
         " " +
-        encodeToBase64(wvalue.value.key, this.keyCoder);
+        operators.encodeToBase64(wvalue.value.key, this.keyCoder);
       if (!this.groups.has(wkey)) {
         this.groups.set(wkey, []);
       }
@@ -226,14 +234,16 @@ class DirectGbkOperator implements operators.IOperator {
 
   async finishBundle() {
     for (const [wkey, values] of this.groups) {
-      // const [encodedWindow, encodedKey] = wkey.split(" ");
       const parts = wkey.split(" ");
       const encodedWindow = parts[0];
       const encodedKey = parts[1];
-      const window = decodeFromBase64(encodedWindow, this.windowCoder);
+      const window = operators.decodeFromBase64(
+        encodedWindow,
+        this.windowCoder
+      );
       const maybePromise = this.receiver.receive({
         value: {
-          key: decodeFromBase64(encodedKey, this.keyCoder),
+          key: operators.decodeFromBase64(encodedKey, this.keyCoder),
           value: values,
         },
         windows: [window],
@@ -506,19 +516,6 @@ class InMemoryStateProvider implements state.StateProvider {
 }
 
 /////
-
-export function encodeToBase64<T>(element: T, coder: Coder<T>): string {
-  const writer = new protobufjs.Writer();
-  coder.encode(element, writer, CoderContext.wholeStream);
-  return Buffer.from(writer.finish()).toString("base64");
-}
-
-export function decodeFromBase64<T>(s: string, coder: Coder<T>): T {
-  return coder.decode(
-    new protobufjs.Reader(Buffer.from(s, "base64")),
-    CoderContext.wholeStream
-  );
-}
 
 function onlyElement<T>(arg: T[]): T {
   if (arg.length > 1) {

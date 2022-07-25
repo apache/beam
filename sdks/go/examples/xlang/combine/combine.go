@@ -27,10 +27,10 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/examples/xlang"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 
@@ -68,10 +68,12 @@ func sumCounts(key string, iter func(*int64) bool) (string, int64) {
 }
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*KV)(nil)).Elem())
-	beam.RegisterFunction(formatFn)
-	beam.RegisterFunction(getKV)
-	beam.RegisterFunction(sumCounts)
+	register.Function2x1(formatFn)
+	register.Function2x0(getKV)
+	register.Function2x2(sumCounts)
+
+	register.Emitter2[string, int64]()
+	register.Iter1[int64]()
 }
 
 func main() {

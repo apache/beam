@@ -54,6 +54,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
@@ -429,7 +430,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
           ((UnboundedSource<?, UnboundedSource.CheckpointMark>) activeReader.getCurrentSource())
               .getCheckpointMarkCoder();
       if (checkpointCoder != null) {
-        ByteString.Output stream = ByteString.newOutput();
+        ByteStringOutputStream stream = new ByteStringOutputStream();
         try {
           checkpointCoder.encode(checkpointMark, stream, Coder.Context.OUTER);
         } catch (IOException e) {
@@ -738,10 +739,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         throw new IllegalStateException("writePCollectionViewData must follow a Combine.globally");
       }
 
-      ByteString.Output dataStream = ByteString.newOutput();
+      ByteStringOutputStream dataStream = new ByteStringOutputStream();
       dataCoder.encode(data, dataStream, Coder.Context.OUTER);
 
-      ByteString.Output windowStream = ByteString.newOutput();
+      ByteStringOutputStream windowStream = new ByteStringOutputStream();
       windowCoder.encode(window, windowStream, Coder.Context.OUTER);
 
       ensureStateful("Tried to write view data");

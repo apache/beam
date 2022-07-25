@@ -86,7 +86,11 @@ import org.slf4j.LoggerFactory;
  * {@link FileSystem} implementation for storage systems that use the S3 protocol.
  *
  * @see S3FileSystemSchemeRegistrar
+ * @deprecated Module <code>beam-sdks-java-io-amazon-web-services</code> is deprecated and will be
+ *     eventually removed. Please migrate to module <code>beam-sdks-java-io-amazon-web-services2
+ *     </code>.
  */
+@Deprecated
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -120,6 +124,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         MoreExecutors.listeningDecorator(
             Executors.newFixedThreadPool(
                 config.getS3ThreadPoolSize(), new ThreadFactoryBuilder().setDaemon(true).build()));
+
+    LOG.warn(
+        "You are using a deprecated file system for S3. Please migrate to module "
+            + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
   }
 
   S3FileSystem(S3Options options) {

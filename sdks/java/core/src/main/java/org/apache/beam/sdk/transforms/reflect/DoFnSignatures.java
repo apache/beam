@@ -33,10 +33,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
@@ -114,7 +114,13 @@ public class DoFnSignatures {
 
   private DoFnSignatures() {}
 
-  private static final Map<Class<?>, DoFnSignature> signatureCache = new LinkedHashMap<>();
+  /**
+   * Note that special care must be taken to enumerate this object as concurrent hash maps are <a
+   * href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/package-summary.html#Weakly>weakly
+   * consistent</a>.
+   */
+  private static final Map<Class<? extends DoFn<?, ?>>, DoFnSignature> signatureCache =
+      new ConcurrentHashMap<>();
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_NON_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
@@ -290,8 +296,8 @@ public class DoFnSignatures {
   }
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} subclass. */
-  public static synchronized <FnT extends DoFn<?, ?>> DoFnSignature getSignature(Class<FnT> fn) {
-    return signatureCache.computeIfAbsent(fn, k -> parseSignature(fn));
+  public static <FnT extends DoFn<?, ?>> DoFnSignature getSignature(Class<FnT> fn) {
+    return signatureCache.computeIfAbsent(fn, DoFnSignatures::parseSignature);
   }
 
   /**

@@ -27,3 +27,7 @@ func PhysicalMemorySize() (uint64, error) {
 func FreeDiskSpace(path string) (uint64, error) {
 	return 0, ErrUnsupported
 }
+
+func SetProcessMemoryCeiling(softCeiling, hardCeiling uint64) error {
+	return ErrUnsupported
+}

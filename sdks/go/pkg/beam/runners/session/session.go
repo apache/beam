@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Deprecated: the session runner is no longer maintained and will be removed
+// in a later release.
 package session
 
 import (

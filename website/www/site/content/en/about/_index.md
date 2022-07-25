@@ -31,7 +31,7 @@ Apache Beam is the future of data processing because it provides:<br /><br />
 
 {{< about/list_with_icons about_list >}}
 
-Learn more about how Apache Beam enables custom use cases and orchestrates complex business logic for Big Data ecosystems of frontrunners in various industries by diving into our [Case Studies](http://apache-beam-website-pull-requests.storage.googleapis.com/17205/case-studies/index.html) section.
+Learn more about how Apache Beam enables custom use cases and orchestrates complex business logic for Big Data ecosystems of frontrunners in various industries by diving into our [Case Studies](/case-studies/index.html) section.
 
 ## About Apache Beam Project
 

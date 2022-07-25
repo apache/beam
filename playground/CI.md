@@ -47,20 +47,21 @@ after merge even if they do not fail in isolation.
 
 #### Build And Deploy Playground Backend Application - [build_playground_backend.yml](.github/workflows/build_playground_backend.yml)
 
-| Job                                     | Description                                                         | Pull Request Run | Direct Push/Merge Run | Requires GCP Credentials |
-|-----------------------------------------|---------------------------------------------------------------------|------------------|-----------------------|--------------------------|
-| Check out the repo                      | GitHub Action used to check-out a repository.                       | Yes              | Yes                   | No                       |
-| setup-java                              | Install Java.                                                       | Yes              | Yes                   | No                       |
-| setup-go                                | Install Go.                                                         | Yes              | Yes                   | No                       |
-| maven config clean                      | Clean maven settings                                                | Yes              | Yes                   | No                       |
-| playground:backend:precommit            | Pre commit  playground.                                             | Yes              | Yes                   | No                       |
-| npm install                             | Install nmp package.                                                | Yes              | Yes                   | No                       |
-| lint dockerfile                         | Install and  lint docker file.                                      | Yes              | Yes                   | No                       |
-| setup-terraform                         | Install terraform.                                                  | Yes              | Yes                   | No                       |
-| Docker Tag                              | Add tag , if it not set.                                            | Yes              | Yes                   | No                       |
-| GCP account                             | Connect to Gcp.                                                     | Yes              | Yes                   | Yes                      |
-| Login to Docker                         | Login to docker repository.                                         | Yes              | Yes                   | Yes                      |
-| Deploy Backend                          | Build docker container,  push it  to repository,  deploy it to Gcp. | Yes              | Yes                   | Yes                      |
+| Job                                 | Description                                                         | Pull Request Run | Direct Push/Merge Run | Requires GCP Credentials |
+|-------------------------------------|---------------------------------------------------------------------|------------------|-----------------------|--------------------------|
+| Check out the repo                  | GitHub Action used to check-out a repository.                       | Yes              | Yes                   | No                       |
+| setup-java                          | Install Java.                                                       | Yes              | Yes                   | No                       |
+| setup-go                            | Install Go.                                                         | Yes              | Yes                   | No                       |
+| maven config clean                  | Clean maven settings                                                | Yes              | Yes                   | No                       |
+| set up cloud sdk and its components | Setting up cloud client and its components for tests                | Yes              | Yes                   | No                       |
+| playground:backend:precommit        | Pre commit  playground.                                             | Yes              | Yes                   | No                       |
+| npm install                         | Install nmp package.                                                | Yes              | Yes                   | No                       |
+| lint dockerfile                     | Install and  lint docker file.                                      | Yes              | Yes                   | No                       |
+| setup-terraform                     | Install terraform.                                                  | Yes              | Yes                   | No                       |
+| Docker Tag                          | Add tag , if it not set.                                            | Yes              | Yes                   | No                       |
+| GCP account                         | Connect to Gcp.                                                     | Yes              | Yes                   | Yes                      |
+| Login to Docker                     | Login to docker repository.                                         | Yes              | Yes                   | Yes                      |
+| Deploy Backend                      | Build docker container,  push it  to repository,  deploy it to Gcp. | Yes              | Yes                   | Yes                      |
 
 #### Build And Deploy Playground Frontend Application - [build_playground_frontend.yml](.github/workflows/build_playground_frontend.yml)
 

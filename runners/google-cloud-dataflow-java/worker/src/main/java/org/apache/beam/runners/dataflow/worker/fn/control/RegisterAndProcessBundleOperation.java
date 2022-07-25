@@ -71,6 +71,7 @@ import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
@@ -668,7 +669,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
   }
 
   static ByteString encodeAndConcat(Iterable<Object> values, Coder valueCoder) throws IOException {
-    ByteString.Output out = ByteString.newOutput();
+    ByteStringOutputStream out = new ByteStringOutputStream();
     if (values != null) {
       for (Object value : values) {
         int size = out.size();

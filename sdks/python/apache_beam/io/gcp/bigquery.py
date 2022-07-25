@@ -986,24 +986,35 @@ class _CustomBigQuerySource(BoundedSource):
     temp_location = self.options.view_as(GoogleCloudOptions).temp_location
     gcs_location = bigquery_export_destination_uri(
         self.gcs_location, temp_location, self._source_uuid)
-    if self.use_json_exports:
-      job_ref = bq.perform_extract_job([gcs_location],
-                                       export_job_name,
-                                       self.table_reference,
-                                       bigquery_tools.FileFormat.JSON,
-                                       project=self._get_project(),
-                                       job_labels=job_labels,
-                                       include_header=False)
-    else:
-      job_ref = bq.perform_extract_job([gcs_location],
-                                       export_job_name,
-                                       self.table_reference,
-                                       bigquery_tools.FileFormat.AVRO,
-                                       project=self._get_project(),
-                                       include_header=False,
-                                       job_labels=job_labels,
-                                       use_avro_logical_types=True)
-    bq.wait_for_bq_job(job_ref)
+    try:
+      if self.use_json_exports:
+        job_ref = bq.perform_extract_job([gcs_location],
+                                         export_job_name,
+                                         self.table_reference,
+                                         bigquery_tools.FileFormat.JSON,
+                                         project=self._get_project(),
+                                         job_labels=job_labels,
+                                         include_header=False)
+      else:
+        job_ref = bq.perform_extract_job([gcs_location],
+                                         export_job_name,
+                                         self.table_reference,
+                                         bigquery_tools.FileFormat.AVRO,
+                                         project=self._get_project(),
+                                         include_header=False,
+                                         job_labels=job_labels,
+                                         use_avro_logical_types=True)
+      bq.wait_for_bq_job(job_ref)
+    except Exception as exn:  # pylint: disable=broad-except
+      # The error messages thrown in this case are generic and misleading,
+      # so leave this breadcrumb in case it's the root cause.
+      logging.warning(
+          "Error exporting table: %s. "
+          "Note that external tables cannot be exported: "
+          "https://cloud.google.com/bigquery/docs/external-tables"
+          "#external_table_limitations",
+          exn)
+      raise
     metadata_list = FileSystems.match([gcs_location])[0].metadata_list
 
     if isinstance(self.table_reference, vp.ValueProvider):
@@ -1022,9 +1033,9 @@ class _CustomBigQueryStorageSource(BoundedSource):
   using the BigQuery Storage API.
   Args:
     table (str, TableReference): The ID of the table. The ID must contain only
-      letters ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``  If
-      **dataset** argument is :data:`None` then the table argument must
-      contain the entire table reference specified as:
+      letters ``a-z``, ``A-Z``, numbers ``0-9``, underscores ``_`` or white
+      spaces. If **dataset** argument is :data:`None` then the table
+      argument must contain the entire table reference specified as:
       ``'PROJECT:DATASET.TABLE'`` or must specify a TableReference.
     dataset (str): Optional ID of the dataset containing this table or
       :data:`None` if the table argument specifies a TableReference.
@@ -1427,10 +1438,10 @@ class BigQuerySink(dataflow_io.NativeSink):
 
     Args:
       table (str): The ID of the table. The ID must contain only letters
-        ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``. If
-        **dataset** argument is :data:`None` then the table argument must
-        contain the entire table reference specified as: ``'DATASET.TABLE'`` or
-        ``'PROJECT:DATASET.TABLE'``.
+        ``a-z``, ``A-Z``, numbers ``0-9``, underscores ``_`` or or white
+        spaces. If **dataset** argument is :data:`None` then the table
+        argument must contain the entire table reference specified
+        as: ``'DATASET.TABLE'`` or ``'PROJECT:DATASET.TABLE'``.
       dataset (str): The ID of the dataset containing this table or
         :data:`None` if the table reference is specified entirely by the table
         argument.
@@ -2602,7 +2613,7 @@ class ReadFromBigQuery(PTransform):
       'method' is 'DIRECT_READ'.
     table (str, callable, ValueProvider): The ID of the table, or a callable
       that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
-      numbers ``0-9``, or underscores ``_``. If dataset argument is
+      numbers ``0-9``, underscores ``_`` or white spaces. If dataset argument is
       :data:`None` then the table argument must contain the entire table
       reference specified as: ``'DATASET.TABLE'``
       or ``'PROJECT:DATASET.TABLE'``. If it's a callable, it must receive one
@@ -2821,8 +2832,9 @@ class ReadFromBigQueryRequest:
       This parameter is ignored for table inputs.
     :param table:
       The ID of the table to read. The ID must contain only letters
-      ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``. Table should
-      define project and dataset (ex.: ``'PROJECT:DATASET.TABLE'``).
+      ``a-z``, ``A-Z``, numbers ``0-9``, underscores ``_`` or white spaces.
+      Table should define project and dataset
+      (ex.: ``'PROJECT:DATASET.TABLE'``).
     :param flatten_results:
       Flattens all nested and repeated fields in the query results.
       The default value is :data:`False`.

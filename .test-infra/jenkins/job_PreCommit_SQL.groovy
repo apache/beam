@@ -23,7 +23,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'SQL',
     gradleTask: ':sqlPreCommit',
     gradleSwitches: [
-      '-PdisableSpotlessCheck=true'
+      '-PdisableSpotlessCheck=true',
+      '-PdisableCheckStyle=true'
     ], // spotless checked in job_PreCommit_Spotless
     triggerPathPatterns: [
       '^sdks/java/extensions/sql.*$',
@@ -35,10 +36,6 @@ builder.build {
     recordIssues {
       tools {
         errorProne()
-        java()
-        checkStyle {
-          pattern('**/build/reports/checkstyle/*.xml')
-        }
         spotBugs {
           pattern('**/build/reports/spotbugs/*.xml')
         }

@@ -363,11 +363,6 @@ class PipelineOptionsTest(unittest.TestCase):
     result = options.get_all_options(retain_unknown_options=True)
     self.assertEqual(result['i'], True)
 
-  def test_retain_unknown_options_unary_missing_prefix(self):
-    options = PipelineOptions(['bad_option'])
-    with self.assertRaises(SystemExit):
-      options.get_all_options(retain_unknown_options=True)
-
   def test_override_options(self):
     base_flags = ['--num_workers', '5']
     options = PipelineOptions(base_flags)
