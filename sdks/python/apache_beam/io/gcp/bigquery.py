@@ -1167,7 +1167,6 @@ class _CustomBigQueryStorageSource(BoundedSource):
             _CustomBigQueryStorageSource.MAX_SPLIT_COUNT)
       stream_count = max(
           stream_count, _CustomBigQueryStorageSource.MIN_SPLIT_COUNT)
-
       parent = 'projects/{}'.format(self.table_reference.projectId)
       read_session = storage_client.create_read_session(
           parent=parent,
@@ -2483,15 +2482,14 @@ class ReadFromBigQuery(PTransform):
           'or DIRECT_READ.')
 
   def _expand_output_type(self, output_pcollection):
+    table_details = bigquery_tools.parse_table_reference(self._kwargs['table'])
     if self.output_type == 'BEAM_ROWS':
       return output_pcollection | beam.io.gcp.bigquery_schema_tools.\
             convert_to_usertype(
             beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
-                project_id=output_pcollection.pipeline.options.view_as(
-                    GoogleCloudOptions).project,
-                dataset_id=str(self._kwargs['table']).split('.', maxsplit=1)[0],
-                table_id=str(self._kwargs['table']).rsplit(
-                    '.', maxsplit=1)[-1]).schema)
+                project_id=table_details.projectId,
+                dataset_id=table_details.datasetId,
+                table_id=table_details.tableId).schema)
     elif self.output_type == 'PYTHON_DICT' or self.output_type is None:
       return output_pcollection
 
@@ -2543,33 +2541,33 @@ class ReadFromBigQuery(PTransform):
     else:
       project_id = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
 
-      def _get_pipeline_details(unused_elm):
-        pipeline_details = {}
-        if temp_table_ref is not None:
-          pipeline_details['temp_table_ref'] = temp_table_ref
-        elif project_id is not None:
-          pipeline_details['project_id'] = project_id
-          pipeline_details[
-              'bigquery_dataset_labels'] = self.bigquery_dataset_labels
-        return pipeline_details
+    def _get_pipeline_details(unused_elm):
+      pipeline_details = {}
+      if temp_table_ref is not None:
+        pipeline_details['temp_table_ref'] = temp_table_ref
+      elif project_id is not None:
+        pipeline_details['project_id'] = project_id
+        pipeline_details[
+            'bigquery_dataset_labels'] = self.bigquery_dataset_labels
+      return pipeline_details
 
-      project_to_cleanup_pcoll = beam.pvalue.AsList(
-          pcoll.pipeline
-          | 'ProjectToCleanupImpulse' >> beam.Create([None])
-          | 'MapProjectToCleanup' >> beam.Map(_get_pipeline_details))
+    project_to_cleanup_pcoll = beam.pvalue.AsList(
+        pcoll.pipeline
+        | 'ProjectToCleanupImpulse' >> beam.Create([None])
+        | 'MapProjectToCleanup' >> beam.Map(_get_pipeline_details))
 
-      return (
-          pcoll
-          | beam.io.Read(
-              _CustomBigQueryStorageSource(
-                  pipeline_options=pcoll.pipeline.options,
-                  method=self.method,
-                  use_native_datetime=self.use_native_datetime,
-                  temp_table=temp_table_ref,
-                  bigquery_dataset_labels=self.bigquery_dataset_labels,
-                  *self._args,
-                  **self._kwargs))
-          | _PassThroughThenCleanupTempDatasets(project_to_cleanup_pcoll))
+    return (
+        pcoll
+        | beam.io.Read(
+            _CustomBigQueryStorageSource(
+                pipeline_options=pcoll.pipeline.options,
+                method=self.method,
+                use_native_datetime=self.use_native_datetime,
+                temp_table=temp_table_ref,
+                bigquery_dataset_labels=self.bigquery_dataset_labels,
+                *self._args,
+                **self._kwargs))
+        | _PassThroughThenCleanupTempDatasets(project_to_cleanup_pcoll))
 
 
 class ReadFromBigQueryRequest:

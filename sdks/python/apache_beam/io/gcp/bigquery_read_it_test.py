@@ -215,10 +215,10 @@ class ReadTests(BigQueryReadIntegrationTests):
     with beam.Pipeline(argv=self.args) as p:
       result = (
           p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
-              gcs_location="gs://bqio_schema_test",
-              method="DIRECT_READ",
-              table="beam_bigquery_io_test.dfsqltable_3c7d6fd5_16e0460dfd0",
-              project="apache-beam-testing",
+              method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
+              table="apache-beam-testing:"
+              "beam_bigquery_io_test."
+              "dfsqltable_3c7d6fd5_16e0460dfd0",
               output_type='BEAM_ROWS'))
       assert_that(
           result,
