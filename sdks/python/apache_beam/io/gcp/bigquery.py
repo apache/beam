@@ -2502,8 +2502,9 @@ class ReadFromBigQuery(PTransform):
       return output_pcollection
 
   def _expand_output_type_direct_read(self, output_pcollection):
-    table_details = bigquery_tools.parse_table_reference(self._kwargs['table'])
     if self.output_type == 'BEAM_ROWS':
+      table_details = bigquery_tools.parse_table_reference(
+          self._kwargs['table'])
       return output_pcollection | beam.io.gcp.bigquery_schema_tools.\
             convert_to_usertype(
             beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
