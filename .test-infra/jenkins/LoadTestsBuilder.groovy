@@ -74,8 +74,8 @@ class LoadTestsBuilder {
       } else if (entry.value.toString().matches(".*\\s.*") &&
       !entry.value.toString().matches("'[^']*'")) {
         throw new IllegalArgumentException("""
-          '${entry.key}' has an invalid value, '${entry.value}'. Values must
-          not contain whitespace, or they must be wrapped in singe quotes.
+          Option '${entry.key}' has an invalid value, '${entry.value}'. Values
+          must not contain whitespace, or they must be wrapped in singe quotes.
           """)
       } else {
         "--${entry.key}=$entry.value".replace('\"', '\\\"').replace('\'', '\\\'')
