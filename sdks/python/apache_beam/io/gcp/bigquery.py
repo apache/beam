@@ -1167,6 +1167,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
             _CustomBigQueryStorageSource.MAX_SPLIT_COUNT)
       stream_count = max(
           stream_count, _CustomBigQueryStorageSource.MIN_SPLIT_COUNT)
+
       parent = 'projects/{}'.format(self.table_reference.projectId)
       read_session = storage_client.create_read_session(
           parent=parent,
