@@ -30,7 +30,6 @@ import (
 func init() {
 {{- range $x := .X}}
     exec.RegisterInput(reflect.TypeOf((*func (*{{$x.Type}})bool)(nil)).Elem(), iterMaker{{$x.Name}})
-    exec.RegisterInput(reflect.TypeOf((*func (*typex.EventTime, *{{$x.Type}})bool)(nil)).Elem(), iterMakerET{{$x.Name}})
 {{- range $y := .Y}}
     exec.RegisterInput(reflect.TypeOf((*func (*{{$x.Type}}, *{{$y.Type}})bool)(nil)).Elem(), iterMaker{{$x.Name}}{{$y.Name}})
     exec.RegisterInput(reflect.TypeOf((*func (*typex.EventTime, *{{$x.Type}}, *{{$y.Type}})bool)(nil)).Elem(), iterMakerET{{$x.Name}}{{$y.Name}})
