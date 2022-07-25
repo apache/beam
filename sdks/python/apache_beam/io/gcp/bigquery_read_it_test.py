@@ -192,6 +192,31 @@ class ReadTests(BigQueryReadIntegrationTests):
       result = (
           p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
               gcs_location="gs://bqio_schema_test",
+              table="beam_bigquery_io_test."
+              "dfsqltable_3c7d6fd5_16e0460dfd0",
+              project="apache-beam-testing",
+              output_type='BEAM_ROWS'))
+      assert_that(
+          result,
+          equal_to([
+              utype(id=3, name='customer1', type='test'),
+              utype(id=1, name='customer1', type='test'),
+              utype(id=2, name='customer2', type='test'),
+              utype(id=4, name='customer2', type='test')
+          ]))
+
+  @pytest.mark.it_postcommit
+  def test_table_schema_retrieve_specifying_only_table(self):
+    the_table = bigquery_tools.BigQueryWrapper().get_table(
+        project_id="apache-beam-testing",
+        dataset_id="beam_bigquery_io_test",
+        table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
+    table = the_table.schema
+    utype = bigquery_schema_tools.produce_pcoll_with_schema(table)
+    with beam.Pipeline(argv=self.args) as p:
+      result = (
+          p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+              gcs_location="gs://bqio_schema_test",
               table="apache-beam-testing:"
               "beam_bigquery_io_test."
               "dfsqltable_3c7d6fd5_16e0460dfd0",
