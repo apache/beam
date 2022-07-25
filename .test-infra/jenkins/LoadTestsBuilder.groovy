@@ -63,6 +63,11 @@ class LoadTestsBuilder {
       // Flags are indicated by null values
       if (entry.value == null) {
         "--${entry.key}"
+      } else if (entry.value.toString().matches(".*\\s.*")) {
+        throw new IllegalArgumentException("""
+          '${entry.key}' has an invalid value, '${entry.value}', values must
+          not contain whitespace.
+          """)
       } else {
         "--${entry.key}=$entry.value".replace('\"', '\\\"').replace('\'', '\\\'')
       }
