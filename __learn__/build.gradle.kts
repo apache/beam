@@ -276,3 +276,82 @@ tasks.register("pythonLintPreCommit") {
   // find alternative to hardcoding version
   dependsOn(":sdks:python:test-suites:tox:py37:lint")
 }
+
+tasks.register("pythonFormatterPreCommit") {
+  dependsOn("sdks:python:test-suites:tox:py38:formatter")
+}
+
+tasks.register("python37PostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py37:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py37:directRunnerIT")
+  dependsOn(":sdks:python:test-suites:direct:py37:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:direct:py37:mongodbioIT")
+  dependsOn(":sdks:python:test-suites:portable:py37:postCommitPy37")
+  dependsOn(":sdks:python:test-suites:dataflow:py37:spannerioIT")
+  dependsOn(":sdks:python:test-suites:direct:py37:spannerioIT")
+  dependsOn(":sdks:python:test-suites:portable:py37:xlangSpannerIOIT")
+  dependsOn(":sdks:python:test-suites:direct:py37:inferencePostCommitIT")
+}
+
+tasks.register("python38PostCommit") {
+	dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitIT")
+	dependsOn(":sdks:python:test-suites:direct:py38:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py38:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
+}
+
+tasks.register("python39PostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
+  dependsOn(":sdks:python:test-suite:direct:py39:inferencePostCommitIT")
+}
+
+task("python37SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitSickbay")
+}
+
+task("python38SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitSickbay")
+}
+
+task("python39SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitSickbay")
+}
+
+tasks.register("pythonSparkPostCommit") {
+  dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
+}
+
+tasks.register("websitePreCommit") {
+  dependsOn(":website:preCommit")
+}
+
+tasks.register("communityMetricsPreCommit") {
+  dependsOn(":beam-test-infra-metrics:preCommit")
+}
+
+tasks.register("communityMetricsProber") {
+  dependsOn(":beam-test-infra-metrics:checkProber")
+}
+
+tasks.register("javaExamplesDataflowPrecommit") {
+  dependsOn(":runners:google-cloud-dataflow-java:examples:preCommit")
+  dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:preCommit")
+}
+
+tasks.register("runBeamDependencyCheck") {
+  dependsOn(":dependencyUpdates")
+  dependsOn(":sdks:python:dependencyUpdates")
+}
+
+tasks.register("whitespacePreCommit") {
+  // @TODO https://github/apache/beam/issues/20209
+  dependsOn(":sdks:python:test-suites:tox:py38:archiveFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py38:unpackFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py38:whitespaceLint")
+}
