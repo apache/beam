@@ -160,6 +160,7 @@ class S3IO(object):
     logging.log(
         # do not spam logs when list_prefix is likely used to check empty folder
         logging.INFO if counter > 0 else logging.DEBUG,
+        "Finished listing %s files in %s seconds.",
         counter,
         time.time() - start_time)
 
