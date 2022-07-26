@@ -19,39 +19,25 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.io.IOException;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
-import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.spark.sql.Dataset;
 
 class CreatePCollectionViewTranslatorBatch<ElemT, ViewT>
-    implements TransformTranslator<PTransform<PCollection<ElemT>, PCollection<ElemT>>> {
+    extends TransformTranslator<
+        PCollection<ElemT>, PCollection<ElemT>, View.CreatePCollectionView<ElemT, ViewT>> {
 
   @Override
-  public void translateTransform(
-      PTransform<PCollection<ElemT>, PCollection<ElemT>> transform,
-      AbstractTranslationContext context) {
+  public void translate(View.CreatePCollectionView<ElemT, ViewT> transform, Context context) {
 
     Dataset<WindowedValue<ElemT>> inputDataSet = context.getDataset(context.getInput());
 
-    @SuppressWarnings("unchecked")
-    AppliedPTransform<
-            PCollection<ElemT>,
-            PCollection<ElemT>,
-            PTransform<PCollection<ElemT>, PCollection<ElemT>>>
-        application =
-            (AppliedPTransform<
-                    PCollection<ElemT>,
-                    PCollection<ElemT>,
-                    PTransform<PCollection<ElemT>, PCollection<ElemT>>>)
-                context.getCurrentTransform();
     PCollectionView<ViewT> input;
     try {
-      input = CreatePCollectionViewTranslation.getView(application);
+      input = CreatePCollectionViewTranslation.getView(context.getCurrentTransform());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

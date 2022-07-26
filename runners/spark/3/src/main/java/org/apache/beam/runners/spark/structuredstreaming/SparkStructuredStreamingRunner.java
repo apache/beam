@@ -29,10 +29,9 @@ import org.apache.beam.runners.spark.structuredstreaming.metrics.AggregatorMetri
 import org.apache.beam.runners.spark.structuredstreaming.metrics.CompositeSource;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.SparkBeamMetricSource;
-import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
-import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.PipelineTranslatorStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -41,6 +40,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.metrics.MetricsSystem;
@@ -135,7 +135,7 @@ public final class SparkStructuredStreamingRunner
     AggregatorsAccumulator.clear();
     MetricsAccumulator.clear();
 
-    final AbstractTranslationContext translationContext = translatePipeline(pipeline);
+    final TranslationContext translationContext = translatePipeline(pipeline);
 
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
     final Future<?> submissionFuture =
@@ -169,8 +169,10 @@ public final class SparkStructuredStreamingRunner
     return result;
   }
 
-  private AbstractTranslationContext translatePipeline(Pipeline pipeline) {
+  private TranslationContext translatePipeline(Pipeline pipeline) {
     PipelineTranslator.detectTranslationMode(pipeline, options);
+    Preconditions.checkArgument(
+        !options.isStreaming(), "%s does not support streaming pipelines.", getClass().getName());
 
     // Default to using the primitive versions of Read.Bounded and Read.Unbounded for non-portable
     // execution.
@@ -182,10 +184,7 @@ public final class SparkStructuredStreamingRunner
 
     PipelineTranslator.replaceTransforms(pipeline, options);
     prepareFilesToStage(options);
-    PipelineTranslator pipelineTranslator =
-        options.isStreaming()
-            ? new PipelineTranslatorStreaming(options)
-            : new PipelineTranslatorBatch(options);
+    PipelineTranslator pipelineTranslator = new PipelineTranslatorBatch(options);
 
     final JavaSparkContext jsc =
         JavaSparkContext.fromSparkContext(

@@ -50,6 +50,12 @@ public interface SparkCommonPipelineOptions
 
   void setCheckpointDir(String checkpointDir);
 
+  @Description("Batch default storage level")
+  @Default.String("MEMORY_ONLY")
+  String getStorageLevel();
+
+  void setStorageLevel(String storageLevel);
+
   @Description("Enable/disable sending aggregator values to Spark's metric sinks")
   @Default.Boolean(true)
   Boolean getEnableSparkMetricSinks();

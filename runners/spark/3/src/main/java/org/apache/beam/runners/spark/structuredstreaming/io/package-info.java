@@ -15,11 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming;
 
-public class Constants {
-
-  public static final String BEAM_SOURCE_OPTION = "beam-source";
-  public static final String DEFAULT_PARALLELISM = "default-parallelism";
-  public static final String PIPELINE_OPTIONS = "pipeline-options";
-}
+/** Spark-specific transforms for I/O. */
+package org.apache.beam.runners.spark.structuredstreaming.io;
