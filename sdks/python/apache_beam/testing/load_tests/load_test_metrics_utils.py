@@ -54,7 +54,7 @@ try:
 except ImportError:
   bigquery = None
   SchemaField = None
-  NotFound = None
+  NotFound = None  # type: ignore
 
 RUNTIME_METRIC = 'runtime'
 COUNTER_LABEL = 'total_bytes_count'
