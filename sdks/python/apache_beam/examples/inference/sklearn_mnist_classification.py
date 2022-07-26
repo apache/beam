@@ -63,7 +63,6 @@ def parse_known_args(argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--input',
-      '--input_file',
       dest='input',
       required=True,
       help='text file with comma separated int values.')
@@ -82,7 +81,12 @@ def parse_known_args(argv):
 
 def run(
     argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
-  """Entry point. Defines and runs the pipeline."""
+  """
+  Args:
+    argv: Command line arguments defined for this example.
+    save_main_session: Used for internal testing.
+    test_pipeline: Used for internal testing.
+  """
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
@@ -94,10 +98,9 @@ def run(
           model_file_type=ModelFileType.PICKLE,
           model_uri=known_args.model_path))
 
+  pipeline = test_pipeline
   if not test_pipeline:
     pipeline = beam.Pipeline(options=pipeline_options)
-  else:
-    pipeline = test_pipeline
 
   label_pixel_tuple = (
       pipeline

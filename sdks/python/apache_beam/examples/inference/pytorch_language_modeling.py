@@ -134,7 +134,6 @@ def parse_known_args(argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--input',
-      '--input_file',
       dest='input',
       help='Path to the text file containing sentences.')
   parser.add_argument(
@@ -164,8 +163,8 @@ def run(
     model_params: Parameters passed to the constructor of the model_class.
                   These will be used to instantiate the model object in the
                   RunInference API.
-    test_pipeline: Used for internal testing. No backwards-compatibility.
-
+    save_main_session: Used for internal testing.
+    test_pipeline: Used for internal testing.
   """
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)

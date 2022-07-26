@@ -172,7 +172,6 @@ def parse_known_args(argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--input',
-      '--input_file',
       dest='input',
       required=True,
       help='Path to the text file containing image names.')
@@ -209,7 +208,8 @@ def run(
     model_params: Parameters passed to the constructor of the model_class.
                   These will be used to instantiate the model object in the
                   RunInference API.
-    test_pipeline: Used for internal testing. No backwards-compatibility.
+    save_main_session: Used for internal testing.
+    test_pipeline: Used for internal testing.
   """
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
@@ -224,10 +224,9 @@ def run(
       model_class=model_class,
       model_params=model_params)
 
+  pipeline = test_pipeline
   if not test_pipeline:
     pipeline = beam.Pipeline(options=pipeline_options)
-  else:
-    pipeline = test_pipeline
 
   filename_value_pair = (
       pipeline
