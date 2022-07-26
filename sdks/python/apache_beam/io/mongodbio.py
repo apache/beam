@@ -716,7 +716,6 @@ class WriteToMongoDB(PTransform):
     self._spec = extra_client_params
     self._writeFn = writeFn
 
-
   def expand(self, pcoll):
     return (
         pcoll
@@ -724,7 +723,12 @@ class WriteToMongoDB(PTransform):
         | Reshuffle()
         | beam.ParDo(
             _WriteMongoFn(
-                self._uri, self._db, self._coll, self._batch_size, self._spec, self._writeFn)))
+                self._uri, 
+                self._db, 
+                self._coll, 
+                self._batch_size, 
+                self._spec, 
+                self._writeFn)))
 
 
 class _GenerateObjectIdFn(DoFn):
@@ -739,13 +743,18 @@ class _GenerateObjectIdFn(DoFn):
       # distributed across too many processes. See more on the ObjectId format
       # https://docs.mongodb.com/manual/reference/bson-types/#objectid.
       element["_id"] = objectid.ObjectId()
-
     yield element
 
 
 class _WriteMongoFn(DoFn):
   def __init__(
-      self, uri=None, db=None, coll=None, batch_size=100, extra_params=None, writeFn=None):
+      self, 
+      uri=None, 
+      db=None, 
+      coll=None, 
+      batch_size=100, 
+      extra_params=None, 
+      writeFn=None):
     if extra_params is None:
       extra_params = {}
     self.uri = uri
@@ -780,7 +789,8 @@ class _WriteMongoFn(DoFn):
 
 
 class _MongoSink:
-  def __init__(self, uri=None, db=None, coll=None, extra_params=None, writeFn=None):
+  def __init__(
+      self, uri=None, db=None, coll=None, extra_params=None, writeFn=None):
     if extra_params is None:
       extra_params = {}
     self.uri = uri
@@ -790,7 +800,7 @@ class _MongoSink:
     self.client = None
     self.writeFn = writeFn
     if writeFn is None:
-        self.writeFn = self._defaultWriteFn
+      self.writeFn = self._defaultWriteFn
   
   """to gain control over the write process, 
   a user could for example, change ReplaceOne into UpdateOne
@@ -799,25 +809,24 @@ class _MongoSink:
   """
   @staticmethod
   def _defaultWriteFn(client, db, coll, documents, logger):
-      requests = []
-      for doc in documents:
-          request = ReplaceOne(
-              filter={"_id": doc.get("_id", None)},
-              replacement=doc,
-              upsert=True)
-          requests.append(request)
-          resp = client[db][coll].bulk_write(requests)
-          # set logger to debug level to log the response
-          
-          logger.debug(
-          "BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, "
-          "nMatched:%d, Errors:%s" % (
-              resp.modified_count,
-              resp.upserted_count,
-              resp.matched_count,
-              resp.bulk_api_result.get("writeErrors"),
-          ))
-
+    requests = []
+    for doc in documents:
+      request = ReplaceOne(
+          filter={"_id": doc.get("_id", None)},
+          replacement=doc,
+          upsert=True)
+      requests.append(request)
+      resp = client[db][coll].bulk_write(requests)
+      # set logger to debug level to log the response
+      
+      logger.debug(
+      "BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, "
+      "nMatched:%d, Errors:%s" % (
+        resp.modified_count,
+        resp.upserted_count,
+        resp.matched_count,
+        resp.bulk_api_result.get("writeErrors"),
+      ))
 
   def write(self, documents):
     if self.client is None:
