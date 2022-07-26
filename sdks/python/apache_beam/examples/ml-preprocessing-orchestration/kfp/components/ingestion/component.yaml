@@ -1,0 +1,21 @@
+name: Ingestion
+description: Component that mimicks scraping data from the web and outputs it to a jsonlines format file
+inputs:
+    - name: base_artifact_path
+      description: base path to store data
+      type: String
+outputs:
+    - name: ingested_dataset_path
+      description: target uri for the ingested dataset
+      type: String
+implementation:
+    container:
+        image: <your-docker-registry/ingestion-image-name:latest>
+        command: [
+            python3,
+            ingest.py,
+            --base-artifact-path,
+            {inputValue: base_artifact_path},
+            --ingested-dataset-path,
+            {outputPath: ingested_dataset_path}
+        ]

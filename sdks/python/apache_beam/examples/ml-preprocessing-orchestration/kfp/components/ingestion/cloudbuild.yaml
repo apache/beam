@@ -1,0 +1,13 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args: [ '-c', 'docker pull us-central1-docker.pkg.dev/apache-beam-testing/kfp-components-preprocessing/ingestion:latest || exit 0' ]
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+        'build',
+        '-t', 'us-central1-docker.pkg.dev/apache-beam-testing/kfp-components-preprocessing/ingestion:latest',
+        '--network=cloudbuild',
+        '--cache-from', 'us-central1-docker.pkg.dev/apache-beam-testing/kfp-components-preprocessing/ingestion:latest',
+        '.'
+    ]
+images: [ 'us-central1-docker.pkg.dev/apache-beam-testing/kfp-components-preprocessing/ingestion:latest' ]
