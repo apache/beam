@@ -195,10 +195,9 @@ def run(
       model_class=model_class,
       model_params=model_params)
 
+  pipeline = test_pipeline
   if not test_pipeline:
     pipeline = beam.Pipeline(options=pipeline_options)
-  else:
-    pipeline = test_pipeline
 
   if not known_args.input:
     text = (pipeline | 'CreateSentences' >> beam.Create([
