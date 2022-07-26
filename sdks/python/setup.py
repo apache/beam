@@ -32,10 +32,11 @@ from pkg_resources import parse_version
 from pkg_resources import to_filename
 from setuptools import Command
 
+# pylint: disable=wrong-import-order
 # It is recommended to import setuptools prior to importing distutils to avoid
 # using legacy behavior from distutils.
 # https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
-from distutils.errors import DistutilsError # pylint: disable=wrong-import-order
+from distutils.errors import DistutilsError # isort:skip
 
 
 class mypy(Command):
