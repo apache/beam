@@ -28,7 +28,7 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-#    paths: ['^sdks/java/io/kafka/.*$']
+    paths: ['^sdks/java/io/kafka/.*$']
 
 jobs:
   java-kafka-io:
