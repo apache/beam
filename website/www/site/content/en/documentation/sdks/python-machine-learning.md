@@ -198,8 +198,7 @@ Disable batching by overriding the `batch_elements_kwargs` function in your Mode
 
 ## Related links
 
-{{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
-
-
 * [RunInference transforms](/documentation/transforms/python/elementwise/runinference)
 * [RunInference API pipeline examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference)
+
+{{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
