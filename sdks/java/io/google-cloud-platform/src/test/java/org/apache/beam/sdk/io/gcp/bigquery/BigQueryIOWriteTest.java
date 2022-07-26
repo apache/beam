@@ -2625,6 +2625,20 @@ public class BigQueryIOWriteTest implements Serializable {
               "Cannot use getFailedInserts as this WriteResult "
                   + "uses extended errors information. Use getFailedInsertsWithErr instead"));
     }
+
+    try {
+      p.apply("Create3", Create.<TableRow>of(row1))
+          .apply("Write3", bqIoWrite.withSuccessfulInsertsPropagation(false))
+          .getSuccessfulInserts();
+      fail();
+    } catch (IllegalStateException e) {
+      assertThat(
+          e.getMessage(),
+          is(
+              "Retrieving successful inserts is only supported for streaming inserts. "
+                  + "Make sure withSuccessfulInsertsPropagation is correctly configured for "
+                  + "BigQueryIO.Write object."));
+    }
   }
 
   void schemaUpdateOptionsTest(
