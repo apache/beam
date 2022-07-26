@@ -355,3 +355,27 @@ tasks.register("whitespacePreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py38:unpackFilesToLint")
   dependsOn(":sdks:python:test-suites:tox:py38:whitespaceLint")
 }
+
+tasks.register("typescriptPreCommit") {
+  // @TODO https://github.com/apache/beam/issues/20209
+  dependsOn(":sdks:python:test-suites:tox:py38:eslint")
+  dependsOn(":sdks:python:test-suites:tox:py38:jest")
+}
+
+tasks.regoste("pushAllDockerImages") {
+  dependsOn(":runners:spark:2:job-server:container:dockerPush")
+  dependsOn(":runners:spark:3:job-server:container:dockerPush")
+  dependsOn(":sdks:java:container:pushAll")
+  dependsOn(":sdks:python:container:pushAll")
+  dependsOn(":sdks:go:container:pushAll")
+  for(version in project.ext.get("allFlinkVersions") as Array<*>) {
+    dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
+  }
+}
+
+// validate Go, Python and Jave environment config
+tasks.register("checkSetup") {
+  dependsOn(":sdks:go:examples:wordCount")
+  dependsOn(":sdks:python:wordCount")
+  dependsOn(":examples:java:wordCount")
+}
