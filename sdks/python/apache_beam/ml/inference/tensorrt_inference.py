@@ -29,9 +29,7 @@ from apache_beam.ml.inference.base import ModelHandler, PredictionResult
 
 TRT_LOGGER = trt.Logger(trt.Logger.INFO)
 
-logging.basicConfig(level=logging.INFO)
-logging.getLogger("TensorRTEngineHandlerNumPy").setLevel(logging.INFO)
-log = logging.getLogger("TensorRTEngineHandlerNumPy")
+LOGGER = logging.getLogger("TensorRTEngineHandlerNumPy") 
 
 def _load_engine(engine_path):
   file = FileSystems.open(engine_path, 'rb')
@@ -48,9 +46,9 @@ def _load_onnx(onnx_path):
   parser = trt.OnnxParser(network, TRT_LOGGER)
   with FileSystems.open(onnx_path) as f:
     if not parser.parse(f.read()):
-      log.error("Failed to load ONNX file: {}".format(onnx_path))
+      LOGGER.error("Failed to load ONNX file: {}".format(onnx_path))
       for error in range(parser.num_errors):
-        log.error(parser.get_error(error))
+        LOGGER.error(parser.get_error(error))
       sys.exit(1)
   return network, builder
 
@@ -78,7 +76,7 @@ def _validate_inference_args(inference_args):
         'engines do not need extra arguments in their execute_v2() call.')
 
 
-def ASSERT_DRV(args):
+def _assign_or_fail(args):
   """CUDA error checking."""
   err, ret = args[0], args[1:]
   if isinstance(err, cuda.CUresult):
@@ -117,7 +115,7 @@ class TensorRTEngine:
       dtype = self.engine.get_binding_dtype(i)
       shape = self.engine.get_binding_shape(i)
       size = trt.volume(shape) * dtype.itemsize
-      allocation = ASSERT_DRV(cuda.cuMemAlloc(size))
+      allocation = _assign_or_fail(cuda.cuMemAlloc(size))
       binding = {
           'index': i,
           'name': name,
@@ -141,7 +139,7 @@ class TensorRTEngine:
       self.cpu_allocations.append(np.zeros(output['shape'], output['dtype']))
 
     """Create CUDA Stream."""
-    self.stream = ASSERT_DRV(cuda.cuStreamCreate(0))
+    self.stream = _assign_or_fail(cuda.cuStreamCreate(0))
 
   def get_engine_attrs(self):
     """Returns TensorRT engine attributes."""
@@ -224,10 +222,10 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     _validate_inference_args(inference_args)
     engine, context, inputs, outputs, gpu_allocations, cpu_allocations, stream = engine.get_engine_attrs()
     """Process I/O and execute the network"""
-    ASSERT_DRV(cuda.cuMemcpyHtoDAsync(inputs[0]['allocation'], np.ascontiguousarray(batch), inputs[0]['size'], stream))
+    _assign_or_fail(cuda.cuMemcpyHtoDAsync(inputs[0]['allocation'], np.ascontiguousarray(batch), inputs[0]['size'], stream))
     context.execute_async_v2(gpu_allocations, stream)
     for output in range(len(cpu_allocations)):
-      ASSERT_DRV(cuda.cuMemcpyDtoHAsync(cpu_allocations[output], outputs[output]['allocation'], outputs[output]['size'], stream))
+      _assign_or_fail(cuda.cuMemcpyDtoHAsync(cpu_allocations[output], outputs[output]['allocation'], outputs[output]['size'], stream))
 
     return [
         PredictionResult(x, [prediction[idx] for prediction in cpu_allocations])
