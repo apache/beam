@@ -1,0 +1,26 @@
+name: model training
+description: Train a pytorch model
+inputs:
+    - name: base_artifact_path
+      description: base path to store data
+      type: String
+    - name: preprocessed_dataset_path
+      description: path to the preprocessed dataset
+      type: String
+outputs:
+    - name: trained_model_path
+      description: trained model file
+      type: String
+implementation:
+    container:
+        image: <your-docker-registry/train-image-name:latest>
+        command: [
+            python3,
+            train.py,
+            --preprocessed-dataset-path,
+            {inputValue: preprocessed_dataset_path},
+            --base-artifact-path,
+            {inputValue: base_artifact_path},
+            --trained-model-path,
+            {outputPath: trained_model_path}
+        ]
