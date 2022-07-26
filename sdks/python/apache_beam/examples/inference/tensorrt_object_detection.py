@@ -15,22 +15,28 @@
 # limitations under the License.
 #
 
-"""A pipeline that uses RunInference API to perform object detection with TensorRT."""
+"""A pipeline that uses RunInference API to perform object detection with
+TensorRT.
+"""
 
 import argparse
 import io
-import numpy as np
 import os
-from PIL import Image
-from typing import Iterable, Optional, Tuple
+from typing import Iterable
+from typing import Optional
+from typing import Tuple
+
+import numpy as np
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference.base import (KeyedModelHandler, PredictionResult,
-                                           RunInference)
-from apache_beam.ml.inference.tensorrt_inference import \
-    TensorRTEngineHandlerNumPy
-from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
+from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.inference.tensorrt_inference import TensorRTEngineHandlerNumPy  # pylint: disable=line-too-long
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from PIL import Image
 
 COCO_OBJ_DET_CLASSES = [
     'person',
@@ -127,10 +133,11 @@ COCO_OBJ_DET_CLASSES = [
 ]
 
 
-def attach_im_size_to_key(data: Tuple[str, Image.Image]) -> Tuple[Tuple[str, int, int], Image.Image]:
-    filename, image = data 
-    width, height = image.size
-    return ((filename, width, height), image)
+def attach_im_size_to_key(
+    data: Tuple[str, Image.Image]) -> Tuple[Tuple[str, int, int], Image.Image]:
+  filename, image = data
+  width, height = image.size
+  return ((filename, width, height), image)
 
 
 def read_image(image_file_name: str,
@@ -144,22 +151,22 @@ def read_image(image_file_name: str,
 
 def preprocess_image(image: Image.Image) -> np.ndarray:
   ssd_mobilenet_v2_320x320_input_dims = (300, 300)
-  image = image.resize(ssd_mobilenet_v2_320x320_input_dims, 
-    resample=Image.Resampling.BILINEAR)
+  image = image.resize(
+      ssd_mobilenet_v2_320x320_input_dims, resample=Image.Resampling.BILINEAR)
   image = np.expand_dims(np.asarray(image, dtype=np.float32), axis=0)
   return image
 
 
 class PostProcessor(beam.DoFn):
-  """Processes the PredictionResult that consists of 
-  number of detections per image, box coordinates, scores and classes. 
+  """Processes the PredictionResult that consists of
+  number of detections per image, box coordinates, scores and classes.
 
   We loop over all detections to organize attributes on a per
   detection basis. Box coordinates are normalized, hence we have to scale them
   according to original image dimensions. Score is a floating point number
-  that provides probability percentage of a particular object. Class is 
+  that provides probability percentage of a particular object. Class is
   an integer that we can transform into actual string class using
-  COCO_OBJ_DET_CLASSES as reference. 
+  COCO_OBJ_DET_CLASSES as reference.
   """
   def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
     key, prediction_result = element
@@ -170,15 +177,16 @@ class PostProcessor(beam.DoFn):
     classes = prediction_result.inference[3]
     detections = []
     for i in range(int(num_detections[0])):
-        detections.append({
-                'ymin': str(boxes[i][0] * im_height),
-                'xmin': str(boxes[i][1] * im_width),
-                'ymax': str(boxes[i][2] * im_height),
-                'xmax': str(boxes[i][3] * im_width),
-                'score': str(scores[i]),
-                'class': COCO_OBJ_DET_CLASSES[int(classes[i])]
-            })
+      detections.append({
+          'ymin': str(boxes[i][0] * im_height),
+          'xmin': str(boxes[i][1] * im_width),
+          'ymax': str(boxes[i][2] * im_height),
+          'xmax': str(boxes[i][3] * im_width),
+          'score': str(scores[i]),
+          'class': COCO_OBJ_DET_CLASSES[int(classes[i])]
+      })
     yield filename + ',' + str(detections)
+
 
 def parse_known_args(argv):
   """Parses args for the workflow."""
@@ -198,7 +206,7 @@ def parse_known_args(argv):
       '--engine_path',
       dest='engine_path',
       required=True,
-      help='Path to the pre-built TFOD ssd_mobilenet_v2_320x320_coco17_tpu-8' 
+      help='Path to the pre-built TFOD ssd_mobilenet_v2_320x320_coco17_tpu-8'
       'TensorRT engine.')
   parser.add_argument(
       '--images_dir',
@@ -219,8 +227,9 @@ def run(argv=None, save_main_session=True):
 
   engine_handler = KeyedModelHandler(
       TensorRTEngineHandlerNumPy(
-          min_batch_size=1, max_batch_size=1, 
-        engine_path=known_args.engine_path))
+          min_batch_size=1,
+          max_batch_size=1,
+          engine_path=known_args.engine_path))
 
   with beam.Pipeline(options=pipeline_options) as p:
     filename_value_pair = (
@@ -238,10 +247,11 @@ def run(argv=None, save_main_session=True):
         | 'PyTorchRunInference' >> RunInference(engine_handler)
         | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 
-    predictions | "WriteOutputToGCS" >> beam.io.WriteToText(
-      known_args.output,
-      shard_name_template='',
-      append_trailing_newlines=True)    
+    _ = (
+        predictions | "WriteOutputToGCS" >> beam.io.WriteToText(
+            known_args.output,
+            shard_name_template='',
+            append_trailing_newlines=True))
 
 
 if __name__ == '__main__':
