@@ -35,8 +35,6 @@ jobs:
     name: Run Java Debezium IO Direct
     runs-on: self-hosted
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v2

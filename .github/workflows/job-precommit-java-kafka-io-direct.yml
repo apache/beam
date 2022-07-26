@@ -35,8 +35,6 @@ jobs:
     name: Run Java Kafka IO Direct
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    strategy:
-      fail-fast: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
