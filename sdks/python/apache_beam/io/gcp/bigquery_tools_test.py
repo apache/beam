@@ -29,6 +29,7 @@ import unittest
 
 import fastavro
 import mock
+import pytest
 import pytz
 
 import apache_beam as beam
@@ -125,38 +126,27 @@ class TestTableReferenceParser(unittest.TestCase):
     parsed_ref = parse_table_reference(value_provider_ref)
     self.assertIs(value_provider_ref, parsed_ref)
 
-  def test_calling_with_fully_qualified_table_ref(self):
-    projectId = 'test_project'
-    datasetId = 'test_dataset'
-    tableId = 'test_table'
-    fully_qualified_table = '{}:{}.{}'.format(projectId, datasetId, tableId)
+  @pytest.mark.parametrize(
+      'fully_qualified_table,project_id,dataset_id,table_id',
+      [
+          ('project:dataset.test_table', 'project', 'dataset', 'test_table'),
+          ('project:dataset.test-table', 'project', 'dataset', 'test-table'),
+          ('project:dataset.test- table', 'project', 'dataset', 'test- table'),
+          ('project.dataset. test_table', 'project', 'dataset', ' test_table'),
+      ],
+  )
+  def test_calling_with_fully_qualified_table_ref(
+      self,
+      fully_qualified_table: str,
+      project_id: str,
+      dataset_id: str,
+      table_id: str,
+  ):
     parsed_ref = parse_table_reference(fully_qualified_table)
     self.assertIsInstance(parsed_ref, bigquery.TableReference)
-    self.assertEqual(parsed_ref.projectId, projectId)
-    self.assertEqual(parsed_ref.datasetId, datasetId)
-    self.assertEqual(parsed_ref.tableId, tableId)
-
-  def test_calling_with_hyphened_table_ref(self):
-    projectId = 'test_project'
-    datasetId = 'test_dataset'
-    tableId = 'test-table'
-    fully_qualified_table = '{}:{}.{}'.format(projectId, datasetId, tableId)
-    parsed_ref = parse_table_reference(fully_qualified_table)
-    self.assertIsInstance(parsed_ref, bigquery.TableReference)
-    self.assertEqual(parsed_ref.projectId, projectId)
-    self.assertEqual(parsed_ref.datasetId, datasetId)
-    self.assertEqual(parsed_ref.tableId, tableId)
-
-  def test_calling_with_spaced_table_ref(self):
-    projectId = 'test_project'
-    datasetId = 'test_dataset'
-    tableId = 'test- -table 1'
-    fully_qualified_table = '{}:{}.{}'.format(projectId, datasetId, tableId)
-    parsed_ref = parse_table_reference(fully_qualified_table)
-    self.assertIsInstance(parsed_ref, bigquery.TableReference)
-    self.assertEqual(parsed_ref.projectId, projectId)
-    self.assertEqual(parsed_ref.datasetId, datasetId)
-    self.assertEqual(parsed_ref.tableId, tableId)
+    self.assertEqual(parsed_ref.projectId, project_id)
+    self.assertEqual(parsed_ref.datasetId, dataset_id)
+    self.assertEqual(parsed_ref.tableId, table_id)
 
   def test_calling_with_partially_qualified_table_ref(self):
     datasetId = 'test_dataset'
