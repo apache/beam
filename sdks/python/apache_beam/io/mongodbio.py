@@ -748,12 +748,12 @@ class _GenerateObjectIdFn(DoFn):
 
 class _WriteMongoFn(DoFn):
   def __init__(
-      self, 
-      uri=None, 
-      db=None, 
-      coll=None, 
-      batch_size=100, 
-      extra_params=None, 
+      self,
+      uri=None,
+      db=None,
+      coll=None,
+      batch_size=100,
+      extra_params=None,
       writeFn=None):
     if extra_params is None:
       extra_params = {}
@@ -801,24 +801,23 @@ class _MongoSink:
     self.writeFn = writeFn
     if writeFn is None:
       self.writeFn = self._defaultWriteFn
-  
+
   """to gain control over the write process, 
   a user could for example, change ReplaceOne into UpdateOne
   a user could implement their own WriteFn, using this as a template,
   notice that the 'self' argument should be ommited 
   """
+
   @staticmethod
   def _defaultWriteFn(client, db, coll, documents, logger):
     requests = []
     for doc in documents:
       request = ReplaceOne(
-          filter={"_id": doc.get("_id", None)},
-          replacement=doc,
-          upsert=True)
+          filter={"_id": doc.get("_id", None)}, replacement=doc, upsert=True)
       requests.append(request)
       resp = client[db][coll].bulk_write(requests)
       # set logger to debug level to log the response
-      
+
       logger.debug(
       "BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, "
       "nMatched:%d, Errors:%s" % (
