@@ -1,0 +1,26 @@
+name: preprocessing
+description: Component that mimicks scraping data from the web and outputs it to a jsonlines format file
+inputs:
+    - name: ingested_dataset_path
+      description: source uri of the data to scrape
+      type: String
+    - name: base_artifact_path
+      description: base path to store data
+      type: String
+outputs:
+    - name: preprocessed_dataset_path
+      description: target uri for the ingested dataset
+      type: String
+implementation:
+    container:
+        image: <your-docker-registry/preprocessing-image-name:latest>
+        command: [
+            python3,
+            preprocess.py,
+            --ingested-dataset-path,
+            {inputValue: ingested_dataset_path},
+            --base-artifact-path,
+            {inputValue: base_artifact_path},
+            --preprocessed-dataset-path,
+            {outputPath: preprocessed_dataset_path}
+        ]
