@@ -715,35 +715,7 @@ class WriteToMongoDB(PTransform):
     self._batch_size = batch_size
     self._spec = extra_client_params
     self._writeFn = writeFn
-    if writeFn is None:
-        self._writeFn = self._defaultWriteFn
 
-
-  """to gain control over the write process, 
-  a user could for example, change ReplaceOne into UpdateOne
-  a user could implement their own WriteFn, using this as a template,
-  notice that the 'self' argument should be ommited 
-  """
-  @staticmethod
-  def _defaultWriteFn(client, db, coll, documents, logger):
-      requests = []
-      for doc in documents:
-          request = ReplaceOne(
-              filter={"_id": doc.get("_id", None)},
-              replacement=doc,
-              upsert=True)
-          requests.append(request)
-          resp = client[db][coll].bulk_write(requests)
-          # set logger to debug level to log the response
-          
-          logger.debug(
-          "BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, "
-          "nMatched:%d, Errors:%s" % (
-              resp.modified_count,
-              resp.upserted_count,
-              resp.matched_count,
-              resp.bulk_api_result.get("writeErrors"),
-          ))
 
   def expand(self, pcoll):
     return (
@@ -817,6 +789,35 @@ class _MongoSink:
     self.spec = extra_params
     self.client = None
     self.writeFn = writeFn
+    if writeFn is None:
+        self.writeFn = self._defaultWriteFn
+  
+  """to gain control over the write process, 
+  a user could for example, change ReplaceOne into UpdateOne
+  a user could implement their own WriteFn, using this as a template,
+  notice that the 'self' argument should be ommited 
+  """
+  @staticmethod
+  def _defaultWriteFn(client, db, coll, documents, logger):
+      requests = []
+      for doc in documents:
+          request = ReplaceOne(
+              filter={"_id": doc.get("_id", None)},
+              replacement=doc,
+              upsert=True)
+          requests.append(request)
+          resp = client[db][coll].bulk_write(requests)
+          # set logger to debug level to log the response
+          
+          logger.debug(
+          "BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, "
+          "nMatched:%d, Errors:%s" % (
+              resp.modified_count,
+              resp.upserted_count,
+              resp.matched_count,
+              resp.bulk_api_result.get("writeErrors"),
+          ))
+
 
   def write(self, documents):
     if self.client is None:
