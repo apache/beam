@@ -180,9 +180,17 @@ To create a Beam sink, we recommend that you use a `ParDo` that writes the
 received records to the data store. To develop more complex sinks (for example,
 to support data de-duplication when failures are retried by a runner), use
 `ParDo`, `GroupByKey`, and other available Beam transforms.
+Many data services are optimized to write batches of elements at a time,
+so it may make sense to group the elements into batches before writing.
+Persistant connectons can be initialized in a DoFn's `setUp` or `startBundle`
+method rather than upon the receipt of every element as well.
+It should also be noted that in a large-scale, distributed system work can
+[fail and/or be retried](/documentation/runtime/model/), so it is preferable to
+make the external interactions idempotent when possible.
 
 For **file-based sinks**, you can use the `FileBasedSink` abstraction that is
-provided by both the Java and Python SDKs. See our language specific
+provided by both the Java and Python SDKs. Beam's `FileSystems` utility classes
+can also be useful for reading and writing files. See our language specific
 implementation guides for more details:
 
 

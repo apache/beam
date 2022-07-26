@@ -162,8 +162,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }
 
-    if (!pipelineOptions.isStreaming()
-        && !ExperimentalOptions.hasExperiment(pipelineOptions, "disable_projection_pushdown")) {
+    if (!ExperimentalOptions.hasExperiment(pipelineOptions, "disable_projection_pushdown")) {
       ProjectionPushdownOptimizer.optimize(pipeline);
     }
 

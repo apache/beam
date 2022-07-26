@@ -54,6 +54,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.FnHarness;
@@ -73,7 +74,6 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
 import org.apache.beam.runners.core.metrics.DistributionData;
-import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
@@ -130,6 +130,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -819,7 +820,7 @@ public class RemoteExecutionTest implements Serializable {
   }
 
   private static ByteString encode(String value) throws Exception {
-    ByteString.Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     StringUtf8Coder.of().encode(value, output);
     return output.toByteString();
   }
@@ -857,7 +858,7 @@ public class RemoteExecutionTest implements Serializable {
     public void startBundle() throws InterruptedException {
       Metrics.counter(RemoteExecutionTest.class, START_USER_COUNTER_NAME).inc(10);
       Metrics.distribution(RemoteExecutionTest.class, START_USER_DISTRIBUTION_NAME).update(10);
-      ExecutionStateSampler.instance().doSampling(1);
+      Thread.sleep(500);
     }
 
     @ProcessElement
@@ -867,7 +868,7 @@ public class RemoteExecutionTest implements Serializable {
       ctxt.output("two");
       Metrics.counter(RemoteExecutionTest.class, PROCESS_USER_COUNTER_NAME).inc();
       Metrics.distribution(RemoteExecutionTest.class, PROCESS_USER_DISTRIBUTION_NAME).update(1);
-      ExecutionStateSampler.instance().doSampling(2);
+      Thread.sleep(500);
       AFTER_PROCESS.get(uuid).countDown();
       checkState(
           ALLOW_COMPLETION.get(uuid).await(60, TimeUnit.SECONDS),
@@ -878,14 +879,15 @@ public class RemoteExecutionTest implements Serializable {
     public void finishBundle() throws InterruptedException {
       Metrics.counter(RemoteExecutionTest.class, FINISH_USER_COUNTER_NAME).inc(100);
       Metrics.distribution(RemoteExecutionTest.class, FINISH_USER_DISTRIBUTION_NAME).update(100);
-      ExecutionStateSampler.instance().doSampling(3);
+      Thread.sleep(500);
     }
   }
 
   @Test
   @SuppressWarnings("FutureReturnValueIgnored")
   public void testMetrics() throws Exception {
-    launchSdkHarness(PipelineOptionsFactory.create());
+    launchSdkHarness(
+        PipelineOptionsFactory.fromArgs("--experiments=state_sampling_period_millis=10").create());
     MetricsDoFn metricsDoFn = new MetricsDoFn();
     Pipeline p = Pipeline.create();
 
@@ -937,11 +939,14 @@ public class RemoteExecutionTest implements Serializable {
               (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputContents::add));
     }
 
+    AtomicReference<List<MonitoringInfo>> progressMonitoringInfos = new AtomicReference<>();
+
     final String testPTransformId = "create-ParMultiDo-Metrics-";
     BundleProgressHandler progressHandler =
         new BundleProgressHandler() {
           @Override
           public void onProgress(ProcessBundleProgressResponse response) {
+            progressMonitoringInfos.set(response.getMonitoringInfosList());
             MetricsDoFn.ALLOW_COMPLETION.get(metricsDoFn.uuid).countDown();
             List<Matcher<MonitoringInfo>> matchers = new ArrayList<>();
 
@@ -1138,7 +1143,7 @@ public class RemoteExecutionTest implements Serializable {
             matchers.add(
                 allOf(
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
-                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(2)));
+                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(1)));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(Urns.FINISH_BUNDLE_MSECS);
@@ -1147,11 +1152,17 @@ public class RemoteExecutionTest implements Serializable {
             matchers.add(
                 allOf(
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
-                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(3)));
+                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(1)));
 
-            assertThat(
-                response.getMonitoringInfosList(),
-                Matchers.hasItems(matchers.toArray(new Matcher[0])));
+            List<MonitoringInfo> oldMonitoringInfos = progressMonitoringInfos.get();
+            if (oldMonitoringInfos == null) {
+              throw new IllegalStateException(
+                  "Progress request did not complete before timeout allowing for bundle to complete.");
+            }
+            List<MonitoringInfo> mergedMonitoringInfos =
+                mergeMonitoringInfos(oldMonitoringInfos, response.getMonitoringInfosList());
+
+            assertThat(mergedMonitoringInfos, Matchers.hasItems(matchers.toArray(new Matcher[0])));
           }
         };
 
@@ -1172,6 +1183,18 @@ public class RemoteExecutionTest implements Serializable {
           });
     }
     executor.shutdown();
+  }
+
+  private static List<MonitoringInfo> mergeMonitoringInfos(
+      List<MonitoringInfo> oldMonitoringInfos, List<MonitoringInfo> newMonitoringInfos) {
+    Map<MonitoringInfo, MonitoringInfo> miKeyToMiWithPayload = new HashMap<>();
+    for (MonitoringInfo monitoringInfo : oldMonitoringInfos) {
+      miKeyToMiWithPayload.put(monitoringInfo.toBuilder().clearPayload().build(), monitoringInfo);
+    }
+    for (MonitoringInfo monitoringInfo : newMonitoringInfos) {
+      miKeyToMiWithPayload.put(monitoringInfo.toBuilder().clearPayload().build(), monitoringInfo);
+    }
+    return new ArrayList<>(miKeyToMiWithPayload.values());
   }
 
   @Test
@@ -1502,7 +1525,7 @@ public class RemoteExecutionTest implements Serializable {
 
     // 3 Requests expected: state read, state2 read, and state2 clear
     assertEquals(3, stateRequestHandler.getRequestCount());
-    ByteString.Output out = ByteString.newOutput();
+    ByteStringOutputStream out = new ByteStringOutputStream();
     StringUtf8Coder.of().encode("X", out);
 
     assertEquals(

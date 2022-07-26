@@ -174,7 +174,7 @@ type DataChannel struct {
 
 func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 	ctx, cancelFn := context.WithCancel(ctx)
-	cc, err := dial(ctx, port.URL, 15*time.Second)
+	cc, err := dial(ctx, port.URL, "data", 15*time.Second)
 	if err != nil {
 		cancelFn()
 		return nil, errors.Wrapf(err, "failed to connect to data service at %v", port.URL)
@@ -185,7 +185,10 @@ func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 		cancelFn()
 		return nil, errors.Wrapf(err, "failed to create data client on %v", port.URL)
 	}
-	return makeDataChannel(ctx, port.URL, client, cancelFn), nil
+	return makeDataChannel(ctx, port.URL, client, func() {
+		cc.Close()
+		cancelFn()
+	}), nil
 }
 
 func makeDataChannel(ctx context.Context, id string, client dataClient, cancelFn context.CancelFunc) *DataChannel {

@@ -282,7 +282,7 @@ class DataflowMetrics(MetricResults):
 
 
 def main(argv):
-  """Print the metric results for a the dataflow --job_id and --project.
+  """Print the metric results for the dataflow --job_id and --project.
 
   Instead of running an entire pipeline which takes several minutes, use this
   main method to display MetricResults for a specific --job_id and --project

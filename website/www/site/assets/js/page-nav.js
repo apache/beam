@@ -82,7 +82,7 @@ $(document).ready(function() {
           offset: $("." + idMainContainer).offset()
         };
 
-        if($(window).width() > CONST.DESKTOP_BREAKPOINT) {
+        if(window.innerWidth > CONST.DESKTOP_BREAKPOINT) {
           $("." + idPageNav).css({
             left: mainContainerData.offset.left +  mainContainerData.width - CONST.PAGENAV_WIDTH
           });
@@ -117,12 +117,18 @@ $(document).ready(function() {
         });
       },
 
+      "isContainerPresent": function () {
+        return $("." + idMainContainer).length > 0
+      },
+
       "init": function() {
-        this.bindEvents();
-        this.setPageNav();
-        this.prependArrows();
-        this.setNavEvents();
-        this.refreshScrollSpy();
+        if (this.isContainerPresent()) {
+          this.bindEvents();
+          this.setPageNav();
+          this.prependArrows();
+          this.setNavEvents();
+          this.refreshScrollSpy();
+        }
       }
     }
   }

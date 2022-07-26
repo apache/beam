@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -51,6 +52,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.mockito.verification.VerificationMode;
 
 @RunWith(Parameterized.class)
 public class SpannerIOWriteExceptionHandlingTest {
@@ -73,34 +75,36 @@ public class SpannerIOWriteExceptionHandlingTest {
     return Arrays.asList(
         new Object[][] {
           // DEADLINE_EXCEEDED is the only exception type that generates retries in-SDK
-          // The default backoff generates 9 retries, and then errors out the pipeline.
-          {ErrorCode.DEADLINE_EXCEEDED, "deadline passed!", 9, 10},
+          // The default backoff generates at least 8 retries, but can sometimes generate as many as
+          // 10 retries due to randomness in the backoff calculation. As this randomness is not
+          // easily controlled in testing we use an "atLeast" rather than "exactly" test.
+          {ErrorCode.DEADLINE_EXCEEDED, "deadline passed!", atLeast(8), atLeast(9)},
 
           // All other error codes do not generate in-SDK retries, and the errors are thrown out.
-          {ErrorCode.ABORTED, "transaction aborted!", 0, 1},
-          {ErrorCode.PERMISSION_DENIED, "permission denied, buddy!", 0, 1},
-          {ErrorCode.INTERNAL, "internal error. idk!", 0, 1},
-          {ErrorCode.RESOURCE_EXHAUSTED, "resource exhausted very tired!", 0, 1},
-          {ErrorCode.UNAUTHENTICATED, "authenticate!", 0, 1},
-          {ErrorCode.NOT_FOUND, "not found the thing", 0, 1},
-          {ErrorCode.FAILED_PRECONDITION, "conditions prestart are failed", 0, 1},
+          {ErrorCode.ABORTED, "transaction aborted!", times(0), times(1)},
+          {ErrorCode.PERMISSION_DENIED, "permission denied, buddy!", times(0), times(1)},
+          {ErrorCode.INTERNAL, "internal error. idk!", times(0), times(1)},
+          {ErrorCode.RESOURCE_EXHAUSTED, "resource exhausted very tired!", times(0), times(1)},
+          {ErrorCode.UNAUTHENTICATED, "authenticate!", times(0), times(1)},
+          {ErrorCode.NOT_FOUND, "not found the thing", times(0), times(1)},
+          {ErrorCode.FAILED_PRECONDITION, "conditions prestart are failed", times(0), times(1)},
         });
   }
 
   private final ErrorCode exceptionErrorcode;
   private final String errorString;
-  private final Integer callsToSleeper;
-  private final Integer callsToWrite;
+  private final VerificationMode callsToSleeperVerification;
+  private final VerificationMode callsToWriteVerification;
 
   public SpannerIOWriteExceptionHandlingTest(
       ErrorCode exceptionErrorcode,
       String errorString,
-      Integer callsToSleeper,
-      Integer callsToWrite) {
+      VerificationMode callsToSleeperVerification,
+      VerificationMode callsToWriteVerification) {
     this.exceptionErrorcode = exceptionErrorcode;
     this.errorString = errorString;
-    this.callsToSleeper = callsToSleeper;
-    this.callsToWrite = callsToWrite;
+    this.callsToSleeperVerification = callsToSleeperVerification;
+    this.callsToWriteVerification = callsToWriteVerification;
   }
 
   @Before
@@ -171,8 +175,8 @@ public class SpannerIOWriteExceptionHandlingTest {
     try {
       pipeline.run().waitUntilFinish();
     } finally {
-      verify(SpannerIO.WriteToSpannerFn.sleeper, times(callsToSleeper)).sleep(anyLong());
-      verify(serviceFactory.mockDatabaseClient(), times(callsToWrite))
+      verify(SpannerIO.WriteToSpannerFn.sleeper, callsToSleeperVerification).sleep(anyLong());
+      verify(serviceFactory.mockDatabaseClient(), callsToWriteVerification)
           .writeAtLeastOnceWithOptions(any(), any(Options.ReadQueryUpdateTransactionOption.class));
     }
   }
@@ -219,8 +223,8 @@ public class SpannerIOWriteExceptionHandlingTest {
     try {
       pipeline.run().waitUntilFinish();
     } finally {
-      verify(SpannerIO.WriteToSpannerFn.sleeper, times(callsToSleeper)).sleep(anyLong());
-      verify(serviceFactory.mockDatabaseClient(), times(callsToWrite))
+      verify(SpannerIO.WriteToSpannerFn.sleeper, callsToSleeperVerification).sleep(anyLong());
+      verify(serviceFactory.mockDatabaseClient(), callsToWriteVerification)
           .writeAtLeastOnceWithOptions(any(), any(Options.ReadQueryUpdateTransactionOption.class));
     }
   }

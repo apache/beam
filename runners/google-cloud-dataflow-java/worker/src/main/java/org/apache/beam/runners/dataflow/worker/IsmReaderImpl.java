@@ -563,7 +563,8 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
           }
         });
 
-    return Optional.of(rawChannelReference.get());
+    // Can be null if multiple threads coincidently invoke `indexPerShard.computeIfAbsent`.
+    return Optional.fromNullable(rawChannelReference.get());
   }
 
   /** Read index block for a shard. */

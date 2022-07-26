@@ -27,6 +27,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntryRe
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -114,9 +115,9 @@ public class UngroupedShuffleReader<T> extends NativeReader<T> {
       }
       ShuffleEntry record = iterator.next();
       // Throw away the primary and the secondary keys.
-      byte[] value = record.getValue();
+      ByteString value = record.getValue();
       shuffleReader.notifyElementRead(record.length());
-      current = CoderUtils.decodeFromByteArray(shuffleReader.coder, value);
+      current = CoderUtils.decodeFromByteString(shuffleReader.coder, value);
       return true;
     }
 

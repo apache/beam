@@ -147,7 +147,7 @@ public class ApproximateQuantiles {
   }
 
   /**
-   * Like {@link #perKey(int, Comparator)}, but sorts values using the their natural ordering.
+   * Like {@link #perKey(int, Comparator)}, but sorts values using their natural ordering.
    *
    * @param <K> the type of the keys in the input and output {@code PCollection}s
    * @param <V> the type of the values in the input {@code PCollection}

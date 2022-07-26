@@ -33,6 +33,7 @@ public interface FieldValueGetter<ObjectT, ValueT> extends Serializable {
   @Nullable
   ValueT get(ObjectT object);
 
+  /** Returns the raw value of the getter before any further transformations. */
   default @Nullable Object getRaw(ObjectT object) {
     return get(object);
   }

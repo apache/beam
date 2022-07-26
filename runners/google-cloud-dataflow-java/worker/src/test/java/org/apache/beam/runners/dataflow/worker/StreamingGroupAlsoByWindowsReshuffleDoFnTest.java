@@ -43,6 +43,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
@@ -109,7 +110,7 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
     Coder<Collection<? extends BoundedWindow>> windowsCoder =
         (Coder) CollectionCoder.of(windowCoder);
 
-    ByteString.Output dataOutput = ByteString.newOutput();
+    ByteStringOutputStream dataOutput = new ByteStringOutputStream();
     valueCoder.encode(value, dataOutput, Context.OUTER);
     messageBundle
         .addMessagesBuilder()

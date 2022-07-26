@@ -1192,7 +1192,7 @@ public class PubsubIO {
      * Writes to Pub/Sub, adding each record's unique identifier to the published messages in an
      * attribute with the specified name. The value of the attribute is an opaque string.
      *
-     * <p>If the the output from this sink is being read by another Beam pipeline, then {@link
+     * <p>If the output from this sink is being read by another Beam pipeline, then {@link
      * PubsubIO.Read#withIdAttribute(String)} can be used to ensure that* the other source reads
      * these unique identifiers from the appropriate attribute.
      */

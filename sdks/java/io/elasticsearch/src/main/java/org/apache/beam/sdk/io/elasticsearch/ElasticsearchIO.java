@@ -1720,8 +1720,8 @@ public class ElasticsearchIO {
 
     /**
      * Sets the input document i.e. desired document that will end up in Elasticsearch for this
-     * WriteSummary object. The inputDoc will be the a document that was part of the input
-     * PCollection to either {@link Write} or {@link DocToBulk}
+     * WriteSummary object. The inputDoc will be a document that was part of the input PCollection
+     * to either {@link Write} or {@link DocToBulk}
      *
      * @param inputDoc Serialized json input document destined to end up in Elasticsearch.
      * @return WriteSummary with inputDocument set.
@@ -2305,17 +2305,12 @@ public class ElasticsearchIO {
     }
 
     private static class ResultFilteringFn extends DoFn<Document, Document> {
-      @Override
-      public Duration getAllowedTimestampSkew() {
-        return Duration.millis(Long.MAX_VALUE);
-      }
-
       @ProcessElement
       public void processElement(@Element Document doc, MultiOutputReceiver out) {
         if (doc.getHasError()) {
-          out.get(Write.FAILED_WRITES).outputWithTimestamp(doc, doc.getTimestamp());
+          out.get(Write.FAILED_WRITES).output(doc);
         } else {
-          out.get(Write.SUCCESSFUL_WRITES).outputWithTimestamp(doc, doc.getTimestamp());
+          out.get(Write.SUCCESSFUL_WRITES).output(doc);
         }
       }
     }
@@ -2364,6 +2359,11 @@ public class ElasticsearchIO {
 
       protected BulkIOBaseFn(BulkIO bulkSpec) {
         this.spec = bulkSpec;
+      }
+
+      @Override
+      public Duration getAllowedTimestampSkew() {
+        return Duration.millis(Long.MAX_VALUE);
       }
 
       @Setup

@@ -28,7 +28,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * experiments.
  */
 @Experimental
-@Hidden
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

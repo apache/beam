@@ -83,8 +83,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }
 
-    if (!options.isStreaming()
-        && !ExperimentalOptions.hasExperiment(options, "disable_projection_pushdown")) {
+    if (!ExperimentalOptions.hasExperiment(options, "disable_projection_pushdown")) {
       ProjectionPushdownOptimizer.optimize(pipeline);
     }
 

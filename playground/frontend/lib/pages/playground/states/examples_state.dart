@@ -50,31 +50,31 @@ class ExampleState with ChangeNotifier {
   }
 
   Future<String> getExampleOutput(String id, SDK sdk) async {
-    return await _exampleRepository.getExampleOutput(
+    return _exampleRepository.getExampleOutput(
       GetExampleRequestWrapper(id, sdk),
     );
   }
 
   Future<String> getExampleSource(String id, SDK sdk) async {
-    return await _exampleRepository.getExampleSource(
+    return _exampleRepository.getExampleSource(
       GetExampleRequestWrapper(id, sdk),
     );
   }
 
   Future<ExampleModel> getExample(String path, SDK sdk) async {
-    return await _exampleRepository.getExample(
+    return _exampleRepository.getExample(
       GetExampleRequestWrapper(path, sdk),
     );
   }
 
   Future<String> getExampleLogs(String id, SDK sdk) async {
-    return await _exampleRepository.getExampleLogs(
+    return _exampleRepository.getExampleLogs(
       GetExampleRequestWrapper(id, sdk),
     );
   }
 
   Future<String> getExampleGraph(String id, SDK sdk) async {
-    return await _exampleRepository.getExampleGraph(
+    return _exampleRepository.getExampleGraph(
       GetExampleRequestWrapper(id, sdk),
     );
   }
@@ -124,7 +124,7 @@ class ExampleState with ChangeNotifier {
     notifyListeners();
   }
 
-  loadDefaultExamples() async {
+  Future<void> loadDefaultExamples() async {
     if (defaultExamplesMap.isNotEmpty) {
       return;
     }
@@ -144,10 +144,23 @@ class ExampleState with ChangeNotifier {
     }
 
     defaultExamplesMap.addEntries(defaultExamples);
+    final futures = <Future<void>>[];
+
     for (var entry in defaultExamplesMap.entries) {
-      loadExampleInfo(entry.value, entry.key)
+      final exampleFuture = loadExampleInfo(entry.value, entry.key)
           .then((value) => defaultExamplesMap[entry.key] = value);
+      futures.add(exampleFuture);
     }
     notifyListeners();
+
+    await Future.wait(futures);
+  }
+
+  Future<void> loadDefaultExamplesIfNot() async {
+    if (defaultExamplesMap.isNotEmpty) {
+      return;
+    }
+
+    await loadDefaultExamples();
   }
 }

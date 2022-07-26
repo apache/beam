@@ -69,6 +69,10 @@ type PlaygroundServiceClient interface {
 	GetPrecompiledObjectGraph(ctx context.Context, in *GetPrecompiledObjectGraphRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectGraphResponse, error)
 	// Get the default precompile object for the sdk.
 	GetDefaultPrecompiledObject(ctx context.Context, in *GetDefaultPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetDefaultPrecompiledObjectResponse, error)
+	// Save the snippet required for the sharing.
+	SaveSnippet(ctx context.Context, in *SaveSnippetRequest, opts ...grpc.CallOption) (*SaveSnippetResponse, error)
+	// Get the snippet of playground.
+	GetSnippet(ctx context.Context, in *GetSnippetRequest, opts ...grpc.CallOption) (*GetSnippetResponse, error)
 }
 
 type playgroundServiceClient struct {
@@ -232,6 +236,24 @@ func (c *playgroundServiceClient) GetDefaultPrecompiledObject(ctx context.Contex
 	return out, nil
 }
 
+func (c *playgroundServiceClient) SaveSnippet(ctx context.Context, in *SaveSnippetRequest, opts ...grpc.CallOption) (*SaveSnippetResponse, error) {
+	out := new(SaveSnippetResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/SaveSnippet", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *playgroundServiceClient) GetSnippet(ctx context.Context, in *GetSnippetRequest, opts ...grpc.CallOption) (*GetSnippetResponse, error) {
+	out := new(GetSnippetResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetSnippet", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PlaygroundServiceServer is the server API for PlaygroundService service.
 // All implementations should embed UnimplementedPlaygroundServiceServer
 // for forward compatibility
@@ -270,6 +292,10 @@ type PlaygroundServiceServer interface {
 	GetPrecompiledObjectGraph(context.Context, *GetPrecompiledObjectGraphRequest) (*GetPrecompiledObjectGraphResponse, error)
 	// Get the default precompile object for the sdk.
 	GetDefaultPrecompiledObject(context.Context, *GetDefaultPrecompiledObjectRequest) (*GetDefaultPrecompiledObjectResponse, error)
+	// Save the snippet required for the sharing.
+	SaveSnippet(context.Context, *SaveSnippetRequest) (*SaveSnippetResponse, error)
+	// Get the snippet of playground.
+	GetSnippet(context.Context, *GetSnippetRequest) (*GetSnippetResponse, error)
 }
 
 // UnimplementedPlaygroundServiceServer should be embedded to have forward compatible implementations.
@@ -326,6 +352,12 @@ func (UnimplementedPlaygroundServiceServer) GetPrecompiledObjectGraph(context.Co
 }
 func (UnimplementedPlaygroundServiceServer) GetDefaultPrecompiledObject(context.Context, *GetDefaultPrecompiledObjectRequest) (*GetDefaultPrecompiledObjectResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDefaultPrecompiledObject not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) SaveSnippet(context.Context, *SaveSnippetRequest) (*SaveSnippetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SaveSnippet not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) GetSnippet(context.Context, *GetSnippetRequest) (*GetSnippetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSnippet not implemented")
 }
 
 // UnsafePlaygroundServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -645,6 +677,42 @@ func _PlaygroundService_GetDefaultPrecompiledObject_Handler(srv interface{}, ctx
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PlaygroundService_SaveSnippet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SaveSnippetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).SaveSnippet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.PlaygroundService/SaveSnippet",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).SaveSnippet(ctx, req.(*SaveSnippetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PlaygroundService_GetSnippet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSnippetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetSnippet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.PlaygroundService/GetSnippet",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetSnippet(ctx, req.(*GetSnippetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PlaygroundService_ServiceDesc is the grpc.ServiceDesc for PlaygroundService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -719,6 +787,14 @@ var PlaygroundService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDefaultPrecompiledObject",
 			Handler:    _PlaygroundService_GetDefaultPrecompiledObject_Handler,
+		},
+		{
+			MethodName: "SaveSnippet",
+			Handler:    _PlaygroundService_SaveSnippet_Handler,
+		},
+		{
+			MethodName: "GetSnippet",
+			Handler:    _PlaygroundService_GetSnippet_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

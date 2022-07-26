@@ -36,9 +36,11 @@ package integration
 
 import (
 	"fmt"
+	"math/rand"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	// common runner flag.
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
@@ -83,7 +85,9 @@ var directFilters = []string{
 	// The direct runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var portableFilters = []string{
@@ -101,7 +105,9 @@ var portableFilters = []string{
 	// The portable runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var flinkFilters = []string{
@@ -117,7 +123,9 @@ var flinkFilters = []string{
 	// The flink runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var samzaFilters = []string{
@@ -138,7 +146,9 @@ var samzaFilters = []string{
 	// The samza runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var sparkFilters = []string{
@@ -160,7 +170,9 @@ var sparkFilters = []string{
 	// The spark runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO_.*",
+	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
 }
 
 var dataflowFilters = []string{
@@ -213,8 +225,9 @@ func CheckFilters(t *testing.T) {
 			t.Skipf("Test %v is currently sickbayed on all runners", n)
 		}
 	}
-	// TODO(lostluck): Improve default job names.
-	*jobopts.JobName = fmt.Sprintf("go-%v", strings.ToLower(n))
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	*jobopts.JobName = fmt.Sprintf("go-%v-%v", strings.ToLower(n), r1.Intn(1000))
 
 	// Test for runner-specific skipping second.
 	var filters []string

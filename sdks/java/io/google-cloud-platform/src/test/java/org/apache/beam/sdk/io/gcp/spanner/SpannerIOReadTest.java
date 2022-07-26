@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
@@ -202,15 +203,13 @@ public class SpannerIOReadTest implements Serializable {
 
   @Test
   public void runBatchQueryTestWithFailures() {
-
-    PCollection<Struct> results =
-        pipeline.apply(
-            "read q",
-            SpannerIO.read()
-                .withSpannerConfig(spannerConfig)
-                .withQuery(QUERY_STATEMENT)
-                .withQueryName(QUERY_NAME)
-                .withTimestampBound(TIMESTAMP_BOUND));
+    pipeline.apply(
+        "read q",
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withQuery(QUERY_STATEMENT)
+            .withQueryName(QUERY_NAME)
+            .withTimestampBound(TIMESTAMP_BOUND));
 
     when(mockBatchTx.partitionQuery(
             any(PartitionOptions.class),
@@ -223,11 +222,10 @@ public class SpannerIOReadTest implements Serializable {
             SpannerExceptionFactory.newSpannerException(
                 ErrorCode.PERMISSION_DENIED, "Simulated Failure"));
 
-    PAssert.that(results).containsInAnyOrder(FAKE_ROWS);
-
     assertThrows(
         "PERMISSION_DENIED: Simulated Failure", PipelineExecutionException.class, pipeline::run);
-    verifyQueryRequestMetricWasSet(spannerConfig, QUERY_NAME, "ok", 2);
+    // Query request should succeed at lease once (for partition query) and one execute may succeed.
+    assertTrue(getQueryRequestMetric(spannerConfig, QUERY_NAME, "ok") >= 1);
     verifyQueryRequestMetricWasSet(spannerConfig, QUERY_NAME, "permission_denied", 1);
   }
 
@@ -640,9 +638,15 @@ public class SpannerIOReadTest implements Serializable {
     verifyQueryRequestMetricWasSet(spannerConfig, QUERY_NAME, "ok", 3);
   }
 
-  private void verifyTableRequestMetricWasSet(
-      SpannerConfig config, String table, String status, long count) {
+  private long getRequestMetricCount(HashMap<String, String> baseLabels) {
+    MonitoringInfoMetricName name =
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+    MetricsContainerImpl container =
+        (MetricsContainerImpl) MetricsEnvironment.getCurrentContainer();
+    return container.getCounter(name).getCumulative();
+  }
 
+  private long getTableRequestMetric(SpannerConfig config, String table, String status) {
     HashMap<String, String> baseLabels = getBaseMetricsLabels(config);
     baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "Read");
     baseLabels.put(MonitoringInfoConstants.Labels.TABLE_ID, table);
@@ -654,17 +658,10 @@ public class SpannerIOReadTest implements Serializable {
             config.getDatabaseId().get(),
             table));
     baseLabels.put(MonitoringInfoConstants.Labels.STATUS, status);
-
-    MonitoringInfoMetricName name =
-        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
-    MetricsContainerImpl container =
-        (MetricsContainerImpl) MetricsEnvironment.getCurrentContainer();
-    assertEquals(count, (long) container.getCounter(name).getCumulative());
+    return getRequestMetricCount(baseLabels);
   }
 
-  private void verifyQueryRequestMetricWasSet(
-      SpannerConfig config, String queryName, String status, long count) {
-
+  private long getQueryRequestMetric(SpannerConfig config, String queryName, String status) {
     HashMap<String, String> baseLabels = getBaseMetricsLabels(config);
     baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "Read");
     baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_QUERY_NAME, queryName);
@@ -676,12 +673,17 @@ public class SpannerIOReadTest implements Serializable {
             config.getDatabaseId().get(),
             queryName));
     baseLabels.put(MonitoringInfoConstants.Labels.STATUS, status);
+    return getRequestMetricCount(baseLabels);
+  }
 
-    MonitoringInfoMetricName name =
-        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
-    MetricsContainerImpl container =
-        (MetricsContainerImpl) MetricsEnvironment.getCurrentContainer();
-    assertEquals(count, (long) container.getCounter(name).getCumulative());
+  private void verifyTableRequestMetricWasSet(
+      SpannerConfig config, String table, String status, long count) {
+    assertEquals(count, getTableRequestMetric(config, table, status));
+  }
+
+  private void verifyQueryRequestMetricWasSet(
+      SpannerConfig config, String queryName, String status, long count) {
+    assertEquals(count, getQueryRequestMetric(config, queryName, status));
   }
 
   @NotNull

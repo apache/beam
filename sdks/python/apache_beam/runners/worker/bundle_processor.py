@@ -1889,7 +1889,7 @@ def create_merge_windows(
       original_windows = set(windows)  # type: Set[window.BoundedWindow]
       merged_windows = collections.defaultdict(
           set
-      )  # type: MutableMapping[window.BoundedWindow, Set[window.BoundedWindow]]
+      )  # type: MutableMapping[window.BoundedWindow, Set[window.BoundedWindow]] # noqa: F821
 
       class RecordingMergeContext(window.WindowFn.MergeContext):
         def merge(

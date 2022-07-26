@@ -33,7 +33,7 @@ func init() {
 }
 
 type readResourceFn struct {
-	fhirioFnCommon
+	fnCommonVariables
 }
 
 func (fn readResourceFn) String() string {
@@ -41,11 +41,11 @@ func (fn readResourceFn) String() string {
 }
 
 func (fn *readResourceFn) Setup() {
-	fn.fhirioFnCommon.setup(fn.String())
+	fn.fnCommonVariables.setup(fn.String())
 }
 
 func (fn *readResourceFn) ProcessElement(ctx context.Context, resourcePath string, emitResource, emitDeadLetter func(string)) {
-	response, err := executeRequestAndRecordLatency(ctx, &fn.latencyMs, func() (*http.Response, error) {
+	response, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() (*http.Response, error) {
 		return fn.client.readResource(resourcePath)
 	})
 	if err != nil {
@@ -79,5 +79,5 @@ func Read(s beam.Scope, resourcePaths beam.PCollection) (beam.PCollection, beam.
 
 // This is useful as an entry point for testing because we can provide a fake FHIR store client.
 func read(s beam.Scope, resourcePaths beam.PCollection, client fhirStoreClient) (beam.PCollection, beam.PCollection) {
-	return beam.ParDo2(s, &readResourceFn{fhirioFnCommon: fhirioFnCommon{client: client}}, resourcePaths)
+	return beam.ParDo2(s, &readResourceFn{fnCommonVariables: fnCommonVariables{client: client}}, resourcePaths)
 }

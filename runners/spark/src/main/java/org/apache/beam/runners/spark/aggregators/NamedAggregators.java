@@ -27,7 +27,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 /**
  * This class wraps a map of named aggregators. Spark expects that all accumulators be declared
  * before a job is launched. Beam allows aggregators to be used and incremented on the fly. We
- * create a map of named aggregators and instantiate in the the spark context before the job is
+ * create a map of named aggregators and instantiate in the spark context before the job is
  * launched. We can then add aggregators on the fly in Spark.
  */
 @SuppressWarnings({

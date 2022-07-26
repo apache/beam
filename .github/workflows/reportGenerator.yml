@@ -28,7 +28,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - run: |
-        npm install
+        npm ci
         node generateReport.js
       working-directory: 'scripts/ci/issue-report'
       env:

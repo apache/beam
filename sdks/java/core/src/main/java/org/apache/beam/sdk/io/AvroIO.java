@@ -1474,8 +1474,8 @@ public class AvroIO {
     }
 
     /**
-     * Sets the the output schema. Can only be used when the output type is {@link GenericRecord}
-     * and when not using {@link #to(DynamicAvroDestinations)}.
+     * Sets the output schema. Can only be used when the output type is {@link GenericRecord} and
+     * when not using {@link #to(DynamicAvroDestinations)}.
      */
     public TypedWrite<UserT, DestinationT, OutputT> withSchema(Schema schema) {
       return toBuilder().setSchema(schema).build();

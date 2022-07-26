@@ -31,7 +31,9 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/syscallx"
 )
 
 var (
@@ -67,7 +69,7 @@ func init() {
 	runtime.RegisterInit(hook)
 }
 
-// hook starts the harness, if in worker mode. Otherwise, is is a no-op.
+// hook starts the harness, if in worker mode. Otherwise, is a no-op.
 func hook() {
 	if !*worker {
 		return
@@ -105,8 +107,15 @@ func hook() {
 
 	// Since Init() is hijacking main, it's appropriate to do as main
 	// does, and establish the background context here.
-
-	ctx := grpcx.WriteWorkerID(context.Background(), *id)
+	// We produce a cancelFn here so runs in Loopback mode and similar can clean up
+	// any leftover goroutines.
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+	ctx = grpcx.WriteWorkerID(ctx, *id)
+	memLimit := memoryLimit()
+	if err := syscallx.SetProcessMemoryCeiling(memLimit, memLimit); err != nil && err != syscallx.ErrUnsupported {
+		fmt.Println("Error Setting Rlimit ", err)
+	}
 	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint); err != nil {
 		fmt.Fprintf(os.Stderr, "Worker failed: %v\n", err)
 		switch ShutdownMode {
@@ -123,4 +132,14 @@ func hook() {
 		// Just hang around until we're terminated.
 		time.Sleep(time.Hour)
 	}
+}
+
+// memoryLimits returns 90% of the physical memory on the machine. If it cannot determine
+// that value, it returns 2GB. This is an imperfect heuristic. It aims to
+// ensure there is enough memory for the process without causing an OOM.
+func memoryLimit() uint64 {
+	if size, err := syscallx.PhysicalMemorySize(); err == nil {
+		return (size * 90) / 100
+	}
+	return 2 << 30
 }

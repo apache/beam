@@ -20,13 +20,22 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
 
 func init() {
-	beam.RegisterFunction(splitStringPair)
-	beam.RegisterFunction(asymJoinFn)
-	beam.RegisterFunction(splitByName)
+	register.Function4x0(emit3Fn)
+	register.Function2x1(sumValuesFn)
+	register.Function2x1(sumKVValuesFn)
+	register.Function1x2(splitStringPair)
+	register.Function3x2(asymJoinFn)
+	register.Function5x0(splitByName)
+
+	register.Iter1[int]()
+	register.Iter2[int, int]()
+	register.Emitter1[string]()
+	register.Emitter1[int]()
 }
 
 func emit3Fn(elm int, emit, emit2, emit3 func(int)) {

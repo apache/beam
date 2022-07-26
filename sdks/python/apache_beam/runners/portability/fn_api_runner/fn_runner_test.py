@@ -454,6 +454,15 @@ class FnApiRunnerTest(unittest.TestCase):
                 ExpectingSideInputsFn(f'Do{k}'),
                 *[beam.pvalue.AsList(inputs[s]) for s in range(1, k)]))
 
+  def test_flatmap_numpy_array(self):
+    with self.create_pipeline() as p:
+      pc = (
+          p
+          | beam.Create([np.array(range(10))])
+          | beam.FlatMap(lambda arr: arr))
+
+      assert_that(pc, equal_to([np.int64(i) for i in range(10)]))
+
   @unittest.skip('https://github.com/apache/beam/issues/21228')
   def test_pardo_side_input_sparse_dependencies(self):
     with self.create_pipeline() as p:

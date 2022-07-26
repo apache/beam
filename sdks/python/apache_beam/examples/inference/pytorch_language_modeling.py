@@ -17,11 +17,11 @@
 
 """"A pipeline that uses RunInference to perform Language Modeling with Bert.
 
-This pipeline takes sentences from a custom text file, removes the last word
-of the sentence, and then uses the BertForMaskedLM from Hugging Face to predict
-the best word to follow or continue that sentence given all the words already in
-the sentence. The pipeline then writes the prediction to an output file in
-which users can then compare against the original sentence.
+This pipeline takes sentences from a custom text file, converts the last word
+of the sentence into a [MASK] token, and then uses the BertForMaskedLM from
+Hugging Face to predict the best word for the masked token given all the words
+already in the sentence. The pipeline then writes the prediction to an output
+file in which users can then compare against the original sentence.
 """
 
 import argparse
@@ -42,6 +42,48 @@ from transformers import BertForMaskedLM
 from transformers import BertTokenizer
 
 BERT_TOKENIZER = BertTokenizer.from_pretrained('bert-base-uncased')
+
+
+# TODO(https://github.com/apache/beam/issues/21863): Remove once optional
+# batching flag added
+class HuggingFaceStripBatchingWrapper(BertForMaskedLM):
+  """Wrapper class to convert output from dict of lists to list of dicts
+
+  The `forward()` function in Hugging Face models doesn't return a
+  standard torch.Tensor output. Instead, it can return a dictionary of
+  different outputs. To work with current RunInference implementation which
+  returns a PredictionResult object for each example, we must override the
+  `forward()` function and convert the standard Hugging Face forward output
+  into the appropriate format of List[Dict[str, torch.Tensor]].
+
+  Before:
+  output = {
+    'logit': torch.FloatTensor of shape
+      (batch_size, sequence_length, config.vocab_size),
+    'hidden_states': tuple(torch.FloatTensor) of shape
+      (batch_size, sequence_length, hidden_size)
+  }
+  After:
+  output = [
+    {
+      'logit': torch.FloatTensor of shape
+        (sequence_length, config.vocab_size),
+      'hidden_states': tuple(torch.FloatTensor) of
+        shape (sequence_length, hidden_size)
+    },
+    {
+      'logit': torch.FloatTensor of shape
+        (sequence_length, config.vocab_size),
+      'hidden_states': tuple(torch.FloatTensor) of shape
+        (sequence_length, hidden_size)
+    },
+    ...
+  ]
+  where len(output) is batch_size
+  """
+  def forward(self, **kwargs):
+    output = super().forward(**kwargs)
+    return [dict(zip(output, v)) for v in zip(*output.values())]
 
 
 def add_mask_to_last_word(text: str) -> Tuple[str, str]:
@@ -121,49 +163,8 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
 
   if not model_class:
     model_config = BertConfig(is_decoder=False, return_dict=True)
-    model_class = BertForMaskedLM
+    model_class = HuggingFaceStripBatchingWrapper
     model_params = {'config': model_config}
-
-  # TODO(https://github.com/apache/beam/issues/21863): Remove once optional
-  # batching flag added
-  class HuggingFaceStripBatchingWrapper(model_class):
-    """Wrapper class to convert output from dict of lists to list of dicts
-
-    The `forward()` function in Hugging Face models doesn't return a
-    standard torch.Tensor output. Instead, it can return a dictionary of
-    different outputs. To work with current RunInference implementation which
-    returns a PredictionResult object for each example, we must override the
-    `forward()` function and convert the standard Hugging Face forward output
-    into the appropriate format of List[Dict[str, torch.Tensor]].
-
-    Before:
-    output = {
-      'logit': torch.FloatTensor of shape
-        (batch_size, sequence_length, config.vocab_size),
-      'hidden_states': tuple(torch.FloatTensor) of shape
-        (batch_size, sequence_length, hidden_size)
-    }
-    After:
-    output = [
-      {
-        'logit': torch.FloatTensor of shape
-          (sequence_length, config.vocab_size),
-        'hidden_states': tuple(torch.FloatTensor) of
-          shape (sequence_length, hidden_size)
-      },
-      {
-        'logit': torch.FloatTensor of shape
-          (sequence_length, config.vocab_size),
-        'hidden_states': tuple(torch.FloatTensor) of shape
-          (sequence_length, hidden_size)
-      },
-      ...
-    ]
-    where len(output) is batch_size
-    """
-    def forward(self, **kwargs):
-      output = super().forward(**kwargs)
-      return [dict(zip(output, v)) for v in zip(*output.values())]
 
   # TODO: Remove once nested tensors https://github.com/pytorch/nestedtensor
   # is officially released.
@@ -182,7 +183,7 @@ def run(argv=None, model_class=None, model_params=None, save_main_session=True):
 
   model_handler = PytorchNoBatchModelHandler(
       state_dict_path=known_args.model_state_dict_path,
-      model_class=HuggingFaceStripBatchingWrapper,
+      model_class=model_class,
       model_params=model_params)
 
   with beam.Pipeline(options=pipeline_options) as p:

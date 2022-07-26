@@ -19,89 +19,88 @@
 const { Octokit } = require("@octokit/rest");
 const nodemailer = require('nodemailer');
 
-function sendReport(title, header, issues) {
-    if (!issues || issues.length == 0) {
-        return;
-    }
-    let report = header + "\n\n"
-    for (const issue of issues) {
-        report += `${issue.url}: ${issue.title}\n`;
-    }
+const ONE_HOUR = 60 * 60 * 1000;
+
+function sendReport(title, report) {
       
-      nodemailer.createTransport({
+    nodemailer.createTransport({
         service: process.env['ISSUE_REPORT_SENDER_EMAIL_SERVICE'], // e.g. "gmail"
         auth: {
-          user: process.env['ISSUE_REPORT_SENDER_EMAIL_ADDRESS'],
-          pass: process.env['ISSUE_REPORT_SENDER_EMAIL_PASSWORD']
+            user: process.env['ISSUE_REPORT_SENDER_EMAIL_ADDRESS'],
+            pass: process.env['ISSUE_REPORT_SENDER_EMAIL_PASSWORD']
         }
-      }).sendMail({
+    }).sendMail({
         from: process.env['ISSUE_REPORT_SENDER_EMAIL_ADDRESS'],
         to: process.env['ISSUE_REPORT_RECIPIENT_EMAIL_ADDRESS'],
         subject: title,
         text: report
-      }, function(error, info){
+    }, function(error, info){
         if (error) {
-          throw new Error(`Failed to send email with error: ${error}`);
+            throw new Error(`Failed to send email with error: ${error}`);
         } else {
-          console.log('Email sent: ' + info.response);
+            console.log('Email sent: ' + info.response);
         }
-      });
+    });
+}
+
+function formatIssues(header, issues) {
+    let report = header + "\n\n"
+    for (const issue of issues) {
+        report += `${issue.html_url} ${issue.title}\n`;
+    }
+    report += "\n\n"
+    
+    return report;
+}
+
+function getDateAge(updated_at) {
+    return (new Date() - new Date(updated_at))
 }
 
 async function generateReport() {
-    const octokit = new Octokit({});
+    const octokit = new Octokit();
 
-    let p0Issues = await octokit.paginate(octokit.rest.issues.listForRepo, {
-    owner: 'apache',
-    repo: 'beam',
-    labels: 'P0'
-    });
-    p0Issues = p0Issues.filter(i => {
-        for (const l of i.labels) {
-            if (l.name == "flaky") {
-                return false;
-            }
-        }
-        return true;
-    });
-    let p0Header = `This is your daily summary of Beam's current P0 issues, not including flaky tests.
+    let shouldSend = false;
+    let report = `This is your daily summary of Beam's current high priority issues that may need attention.
 
-    See https://beam.apache.org/contribute/issue-priorities/#p0-outage for the meaning and expectations around P0 issues.
+    See https://beam.apache.org/contribute/issue-priorities for the meaning and expectations around issue priorities.
 
 `;
-    sendReport(`P0 issues report (${p0Issues.length})`, p0Header, p0Issues);
 
-    let p1Issues = await octokit.paginate(octokit.rest.issues.listForRepo, {
-    owner: 'apache',
-    repo: 'beam',
-    labels: 'P1'
+    const p0Issues = await octokit.paginate(octokit.rest.issues.listForRepo, {
+        owner: 'apache',
+        repo: 'beam',
+        labels: 'P0'
     });
-    p1Issues = p1Issues.filter(i => {
-        for (const l of i.labels) {
-            if (l.name == "flaky") {
-                return false;
-            }
-        }
-        return true;
+    const p1Issues = await octokit.paginate(octokit.rest.issues.listForRepo, {
+        owner: 'apache',
+        repo: 'beam',
+        labels: 'P1'
     });
-    let p1Header = `This is your daily summary of Beam's current P1 issues, not including flaky tests.
+    const unassignedP0Issues = p0Issues.filter(i => i.assignee == null || i.assignee.length == 0);
+    const oldP0Issues = p0Issues.filter(i => i.assignee != null && i.assignee.length > 0 && getDateAge(i.updated_at) > 36*ONE_HOUR)
+    const unassignedP1Issues = p1Issues.filter(i => i.assignee == null || i.assignee.length == 0);;
+    const oldP1Issues = p1Issues.filter(i => i.assignee != null && i.assignee.length > 0 && getDateAge(i.updated_at) > 7*24*ONE_HOUR)
+    if (unassignedP0Issues.length > 0) {
+        shouldSend = true;
+        report += formatIssues("Unassigned P0 Issues:", unassignedP0Issues);
+    }
+    if (oldP0Issues.length > 0) {
+        shouldSend = true;
+        report += formatIssues("P0 Issues with no update in the last 36 hours:", oldP0Issues);
+    }
+    if (unassignedP1Issues.length > 0) {
+        shouldSend = true;
+        report += formatIssues("Unassigned P1 Issues:", unassignedP1Issues);
+    }
+    if (oldP1Issues.length > 0) {
+        shouldSend = true;
+        report += formatIssues("P1 Issues with no update in the last week:", oldP1Issues);
+    }
 
-    See https://beam.apache.org/contribute/issue-priorities/#p1-critical for the meaning and expectations around P1 issues.
-
-`;
-    sendReport(`P1 issues report (${p1Issues.length})`, p1Header, p1Issues);
-
-    let flakyIssues = await octokit.paginate(octokit.rest.issues.listForRepo, {
-    owner: 'apache',
-    repo: 'beam',
-    labels: 'flaky'
-    });
-    let flakyHeader = `This is your daily summary of Beam's current flaky tests.
-
-    These are P1 issues because they have a major negative impact on the community and make it hard to determine the quality of the software.
-
-`;
-    sendReport(`Flaky test issue report (${flakyIssues.length})`, flakyHeader, flakyIssues); 
+    if (shouldSend) {
+        sendReport("Beam High Priority Issue Report", report);
+    }
 }
 
 function validateEnvSet(envVar) {

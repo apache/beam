@@ -119,7 +119,8 @@ public class PrecombineGroupingTableTest {
             StringUtf8Coder.of(),
             GlobalCombineFnRunners.create(COMBINE_FN),
             new StringPowerSizeEstimator(),
-            new IdentitySizeEstimator());
+            new IdentitySizeEstimator(),
+            false);
 
     TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
 
@@ -145,7 +146,8 @@ public class PrecombineGroupingTableTest {
             StringUtf8Coder.of(),
             GlobalCombineFnRunners.create(COMBINE_FN),
             new StringPowerSizeEstimator(),
-            new IdentitySizeEstimator());
+            new IdentitySizeEstimator(),
+            false);
 
     TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
 
@@ -181,7 +183,8 @@ public class PrecombineGroupingTableTest {
             StringUtf8Coder.of(),
             GlobalCombineFnRunners.create(COMBINE_FN),
             new StringPowerSizeEstimator(),
-            new IdentitySizeEstimator());
+            new IdentitySizeEstimator(),
+            false);
 
     TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
 
@@ -219,7 +222,8 @@ public class PrecombineGroupingTableTest {
             StringUtf8Coder.of(),
             GlobalCombineFnRunners.create(COMBINE_FN),
             new StringPowerSizeEstimator(),
-            new IdentitySizeEstimator());
+            new IdentitySizeEstimator(),
+            false);
 
     TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
 
@@ -248,7 +252,8 @@ public class PrecombineGroupingTableTest {
             StringUtf8Coder.of(),
             GlobalCombineFnRunners.create(COMBINE_FN),
             new StringPowerSizeEstimator(),
-            new IdentitySizeEstimator());
+            new IdentitySizeEstimator(),
+            false);
 
     TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
 
@@ -298,7 +303,8 @@ public class PrecombineGroupingTableTest {
                         VarLongCoder.of(),
                         combineFnRunner,
                         new IdentitySizeEstimator(),
-                        new IdentitySizeEstimator());
+                        new IdentitySizeEstimator(),
+                        false);
                 for (int j = 1; j <= 1000; ++j) {
                   table.put(
                       valueInGlobalWindow(KV.of((long) j, j)),

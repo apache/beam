@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
  * protos offline. Allows the driver program to access actual execution environment and services, on
  * par with code executed by SDK workers.
  *
- * <p>The entry point starts the job server and provides the endpoint to the the driver program.
+ * <p>The entry point starts the job server and provides the endpoint to the driver program.
  *
  * <p>The external driver program constructs the Beam pipeline and submits it to the job service.
  *

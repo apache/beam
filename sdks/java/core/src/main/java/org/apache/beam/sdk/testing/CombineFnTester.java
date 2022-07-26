@@ -36,7 +36,7 @@ import org.hamcrest.Matcher;
 })
 public class CombineFnTester {
   /**
-   * Tests that the the {@link CombineFn}, when applied to the provided input, produces the provided
+   * Tests that the {@link CombineFn}, when applied to the provided input, produces the provided
    * output. Tests a variety of permutations of the input.
    */
   public static <InputT, AccumT, OutputT> void testCombineFn(

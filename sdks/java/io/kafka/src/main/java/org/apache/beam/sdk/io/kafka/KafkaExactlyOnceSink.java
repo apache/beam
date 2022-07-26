@@ -102,7 +102,7 @@ class KafkaExactlyOnceSink<K, V>
 
   // Dataflow ensures at-least once processing for side effects like sinks. In order to provide
   // exactly-once semantics, a sink needs to be idempotent or it should avoid writing records
-  // that have already been written. This snk does the latter. All the the records are ordered
+  // that have already been written. This snk does the latter. All the records are ordered
   // across a fixed number of shards and records in each shard are written in order. It drops
   // any records that are already written and buffers those arriving out of order.
   //

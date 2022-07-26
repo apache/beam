@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.UnsafeByteOperations;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 
 /**
@@ -80,10 +81,16 @@ public class ByteStringCoder extends AtomicCoder<ByteString> {
     }
 
     int size = VarInt.decodeInt(inStream);
-    // ByteString reads to the end of the input stream, so give it a limited stream of exactly
-    // the right length. Also set its chunk size so that the ByteString will contain exactly
-    // one chunk.
-    return ByteString.readFrom(ByteStreams.limit(inStream, size), size);
+    if (size == 0) {
+      return ByteString.EMPTY;
+    }
+
+    // we pre-allocate a byte[] and read into it, then wrap it with a ByteString rather than using
+    // ByteString.readFrom since we know the length.  Doing so is significantly more efficient
+    // because we don't need an intermediate buffer list.
+    byte[] buf = new byte[size];
+    ByteStreams.readFully(inStream, buf, 0, size);
+    return UnsafeByteOperations.unsafeWrap(buf, 0, size);
   }
 
   @Override

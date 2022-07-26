@@ -73,6 +73,7 @@ describe("JavaScript native coders", function () {
         obj: { any: "any" },
         null: null,
         bool: true,
+        array: [1, 2, 3],
         // 'undef': undefined,  // TODO(pabloem): Figure out how to support undefined encoding/decoding.
         bigint: Number.MAX_SAFE_INTEGER + 100,
       };
@@ -108,8 +109,25 @@ describe("JavaScript native coders", function () {
         inputObject
       );
     });
-    it("encodes and decodes a number properly", function () {
+    it("encodes and decodes an integer properly", function () {
       const inputObject = 12345678;
+      const writer = new BufferWriter();
+
+      const encoded = objCoder.encode(
+        inputObject,
+        writer,
+        Context.needsDelimiters
+      );
+
+      const buffer = writer.finish();
+      const reader = new BufferReader(buffer);
+      assert.deepEqual(
+        objCoder.decode(reader, Context.needsDelimiters),
+        inputObject
+      );
+    });
+    it("encodes and decodes a float properly", function () {
+      const inputObject = 0.12345678;
       const writer = new BufferWriter();
 
       const encoded = objCoder.encode(

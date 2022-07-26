@@ -31,11 +31,11 @@ export function universalRunner(runnerOptions: {
     ): Promise<PipelineResult> {
       return new PortableRunner(
         runnerOptions as any,
-        new PythonService(
+        PythonService.forModule(
           "apache_beam.runners.portability.local_job_service_main",
           ["--port", "{{PORT}}"]
         )
-      ).runPipeline(pipeline, options);
+      ).runPipeline(pipeline, { directEmbedDockerPython: true, ...options });
     }
   })();
 }

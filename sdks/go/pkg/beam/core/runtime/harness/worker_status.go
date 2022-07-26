@@ -18,7 +18,6 @@ package harness
 import (
 	"context"
 	"fmt"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 	"io"
 	"runtime"
 	"runtime/debug"
@@ -27,6 +26,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
@@ -44,7 +45,7 @@ type workerStatusHandler struct {
 }
 
 func newWorkerStatusHandler(ctx context.Context, endpoint string, cache *statecache.SideInputCache, metStoreToString func(*strings.Builder)) (*workerStatusHandler, error) {
-	sconn, err := dial(ctx, endpoint, 60*time.Second)
+	sconn, err := dial(ctx, endpoint, "status", 60*time.Second)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect: %v\n", endpoint)
 	}

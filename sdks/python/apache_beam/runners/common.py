@@ -1561,7 +1561,8 @@ class _OutputHandler(OutputHandler):
     A value wrapped in a TaggedOutput object will be unwrapped and
     then dispatched to the appropriate indexed output.
     """
-    results = results or []
+    if results is None:
+      results = []
 
     # TODO(https://github.com/apache/beam/issues/20404): Verify that the
     #  results object is a valid iterable type if
@@ -1614,7 +1615,9 @@ class _OutputHandler(OutputHandler):
     A value wrapped in a TaggedOutput object will be unwrapped and
     then dispatched to the appropriate indexed output.
     """
-    results = results or []
+    if results is None:
+      results = []
+
     output_element_count = 0
     for result in results:
       tag, result = self._handle_tagged_output(result)

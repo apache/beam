@@ -133,7 +133,7 @@ class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def assign(self, assign_context):
-    # type: (AssignContext) -> Iterable[BoundedWindow]
+    # type: (AssignContext) -> Iterable[BoundedWindow] # noqa: F821
 
     """Associates windows to an element.
 

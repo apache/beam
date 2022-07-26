@@ -28,6 +28,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
@@ -54,13 +56,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
-import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessorCache;
@@ -76,6 +86,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Timers;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
@@ -103,7 +114,6 @@ import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.Timer;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -112,6 +122,8 @@ import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
 import org.apache.beam.sdk.fn.data.TimerEndpoint;
+import org.apache.beam.sdk.fn.test.TestExecutors;
+import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -125,6 +137,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerFamilyDeclarati
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.DoFnWithExecutionInformation;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
@@ -136,7 +149,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -155,12 +170,21 @@ public class ProcessBundleHandlerTest {
   private static final String DATA_INPUT_URN = "beam:runner:source:v1";
   private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
 
+  @Rule public TestExecutorService executor = TestExecutors.from(Executors::newCachedThreadPool);
   @Mock private BeamFnDataClient beamFnDataClient;
+  private ExecutionStateSampler executionStateSampler;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     TestBundleProcessor.resetCnt = 0;
+    executionStateSampler =
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis);
+  }
+
+  @After
+  public void tearDown() {
+    executionStateSampler.stop();
   }
 
   private static class TestDoFn extends DoFn<String, String> {
@@ -226,6 +250,11 @@ public class ProcessBundleHandlerTest {
     }
 
     @Override
+    BundleProgressReporter.InMemory getBundleProgressReporterAndRegistrar() {
+      return wrappedBundleProcessor.getBundleProgressReporterAndRegistrar();
+    }
+
+    @Override
     ProcessBundleDescriptor getProcessBundleDescriptor() {
       return wrappedBundleProcessor.getProcessBundleDescriptor();
     }
@@ -248,11 +277,6 @@ public class ProcessBundleHandlerTest {
     @Override
     List<ThrowingRunnable> getTearDownFunctions() {
       return wrappedBundleProcessor.getTearDownFunctions();
-    }
-
-    @Override
-    List<ProgressRequestCallback> getProgressRequestCallbacks() {
-      return wrappedBundleProcessor.getProgressRequestCallbacks();
     }
 
     @Override
@@ -316,6 +340,11 @@ public class ProcessBundleHandlerTest {
     }
 
     @Override
+    Lock getProgressRequestLock() {
+      return wrappedBundleProcessor.getProgressRequestLock();
+    }
+
+    @Override
     void reset() throws Exception {
       resetCnt++;
       wrappedBundleProcessor.reset();
@@ -343,6 +372,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(),
             Caches.noop(),
             new BundleProcessorCache());
@@ -372,6 +402,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(),
             Caches.noop(),
             new BundleProcessorCache());
@@ -448,6 +479,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN, startFinishRecorder,
                 DATA_OUTPUT_URN, startFinishRecorder),
@@ -553,6 +585,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             urnToPTransformRunnerFactoryMap,
             Caches.noop(),
             new BundleProcessorCache());
@@ -603,6 +636,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(DATA_INPUT_URN, (context) -> null),
             Caches.noop(),
             new TestBundleProcessorCache());
@@ -699,11 +733,11 @@ public class ProcessBundleHandlerTest {
     BundleProcessor bundleProcessor =
         BundleProcessor.create(
             processWideCache,
+            new BundleProgressReporter.InMemory(),
             ProcessBundleDescriptor.getDefaultInstance(),
             startFunctionRegistry,
             finishFunctionRegistry,
             Collections.singletonList(resetFunction),
-            new ArrayList<>(),
             new ArrayList<>(),
             splitListener,
             pCollectionConsumerRegistry,
@@ -724,14 +758,12 @@ public class ProcessBundleHandlerTest {
     Cache<Object, Object> bundleCache = bundleProcessor.getBundleCache();
     bundleCache.put("A", "B");
     assertEquals("B", bundleCache.peek("A"));
+    assertTrue(bundleProcessor.getProgressRequestLock().tryLock());
     bundleProcessor.reset();
     assertNull(bundleProcessor.getInstructionId());
     assertNull(bundleProcessor.getCacheTokens());
     assertNull(bundleCache.peek("A"));
-    verify(startFunctionRegistry, times(1)).reset();
-    verify(finishFunctionRegistry, times(1)).reset();
     verify(splitListener, times(1)).clear();
-    verify(pCollectionConsumerRegistry, times(1)).reset();
     verify(metricsContainerRegistry, times(1)).reset();
     verify(stateTracker, times(1)).reset();
     verify(bundleFinalizationCallbacks, times(1)).clear();
@@ -767,6 +799,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (context) -> {
@@ -810,6 +843,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             mockFinalizeBundleHandler,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -866,6 +900,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -1048,6 +1083,7 @@ public class ProcessBundleHandlerTest {
         null /* beamFnStateClient */,
         null /* finalizeBundleHandler */,
         new ShortIdMap(),
+        executionStateSampler,
         urnToPTransformRunnerFactoryMap,
         Caches.noop(),
         new BundleProcessorCache());
@@ -1060,9 +1096,9 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, false);
 
-    ByteString.Output encodedData = ByteString.newOutput();
+    ByteStringOutputStream encodedData = new ByteStringOutputStream();
     KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
-    ByteString.Output encodedTimer = ByteString.newOutput();
+    ByteStringOutputStream encodedTimer = new ByteStringOutputStream();
     Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
         .encode(
             Timer.of(
@@ -1125,7 +1161,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, false);
 
-    ByteString.Output encodedData = ByteString.newOutput();
+    ByteStringOutputStream encodedData = new ByteStringOutputStream();
     KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
 
     assertThrows(
@@ -1181,7 +1217,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, false);
 
-    ByteString.Output encodedTimer = ByteString.newOutput();
+    ByteStringOutputStream encodedTimer = new ByteStringOutputStream();
     Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
         .encode(
             Timer.of(
@@ -1275,7 +1311,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, true);
 
-    ByteString.Output encodedTimer = ByteString.newOutput();
+    ByteStringOutputStream encodedTimer = new ByteStringOutputStream();
     Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
         .encode(
             Timer.of(
@@ -1370,6 +1406,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -1410,7 +1447,7 @@ public class ProcessBundleHandlerTest {
 
     Mockito.doAnswer(
             (invocation) -> {
-              ByteString.Output encodedData = ByteString.newOutput();
+              ByteStringOutputStream encodedData = new ByteStringOutputStream();
               StringUtf8Coder.of().encode("A", encodedData);
               String instructionId = invocation.getArgument(0, String.class);
               CloseableFnDataReceiver<BeamFnApi.Elements> data =
@@ -1439,6 +1476,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -1492,6 +1530,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -1574,6 +1613,7 @@ public class ProcessBundleHandlerTest {
             mockBeamFnStateGrpcClient,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {
@@ -1627,6 +1667,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {
@@ -1657,6 +1698,189 @@ public class ProcessBundleHandlerTest {
   }
 
   @Test
+  public void testProgressReportingIsExecutedSerially() throws Exception {
+    BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
+        BeamFnApi.ProcessBundleDescriptor.newBuilder()
+            .putTransforms(
+                "2L",
+                RunnerApi.PTransform.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .putOutputs("2L-output", "2L-output-pc")
+                    .build())
+            .putPcollections("2L-output-pc", RunnerApi.PCollection.getDefaultInstance())
+            .build();
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
+
+    CountDownLatch startLatch = new CountDownLatch(1);
+    CountDownLatch finishLatch = new CountDownLatch(1);
+
+    AtomicReference<BundleProcessor> bundleProcessor = new AtomicReference<>();
+    AtomicReference<Thread> mainBundleProcessingThread = new AtomicReference<>();
+    AtomicInteger counter = new AtomicInteger();
+    AtomicBoolean finalWasCalled = new AtomicBoolean();
+    AtomicBoolean resetWasCalled = new AtomicBoolean();
+    BundleProgressReporter testReporter =
+        new BundleProgressReporter() {
+          @Override
+          public void updateIntermediateMonitoringData(Map<String, ByteString> monitoringData) {
+            assertTrue(
+                ((ReentrantLock) bundleProcessor.get().getProgressRequestLock())
+                    .isHeldByCurrentThread());
+            assertNotEquals(Thread.currentThread(), mainBundleProcessingThread.get());
+            assertFalse(finalWasCalled.get());
+            assertFalse(resetWasCalled.get());
+            monitoringData.put(
+                "testId", ByteString.copyFromUtf8(Long.toString(counter.getAndIncrement())));
+          }
+
+          @Override
+          public void updateFinalMonitoringData(Map<String, ByteString> monitoringData) {
+            assertTrue(
+                ((ReentrantLock) bundleProcessor.get().getProgressRequestLock())
+                    .isHeldByCurrentThread());
+            assertEquals(Thread.currentThread(), mainBundleProcessingThread.get());
+            assertFalse(finalWasCalled.getAndSet(true));
+            assertFalse(resetWasCalled.get());
+            monitoringData.put("testId", ByteString.copyFromUtf8(Long.toString(counter.get())));
+          }
+
+          @Override
+          public void reset() {
+            assertTrue(
+                ((ReentrantLock) bundleProcessor.get().getProgressRequestLock())
+                    .isHeldByCurrentThread());
+            assertEquals(Thread.currentThread(), mainBundleProcessingThread.get());
+            assertTrue(finalWasCalled.get());
+            assertFalse(resetWasCalled.getAndSet(true));
+          }
+        };
+    PTransformRunnerFactory<Object> startFinishGuard =
+        (context) -> {
+          String pTransformId = context.getPTransformId();
+          Supplier<String> processBundleInstructionId =
+              context.getProcessBundleInstructionIdSupplier();
+          context.addBundleProgressReporter(testReporter);
+          context.addStartBundleFunction(
+              () -> {
+                startLatch.countDown();
+              });
+          context.addFinishBundleFunction(
+              () -> {
+                finishLatch.await();
+              });
+          return null;
+        };
+
+    BundleProcessorCache bundleProcessorCache = new BundleProcessorCache();
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            Collections.singleton(
+                BeamUrns.getUrn(RunnerApi.StandardRunnerProtocols.Enum.MONITORING_INFO_SHORT_IDS)),
+            fnApiRegistry::get,
+            beamFnDataClient,
+            null /* beamFnStateClient */,
+            null /* finalizeBundleHandler */,
+            new ShortIdMap(),
+            executionStateSampler,
+            ImmutableMap.of(DATA_INPUT_URN, startFinishGuard),
+            Caches.noop(),
+            bundleProcessorCache);
+
+    AtomicBoolean progressShouldExit = new AtomicBoolean();
+    Future<InstructionResponse> bundleProcessorTask =
+        executor.submit(
+            () -> {
+              mainBundleProcessingThread.set(Thread.currentThread());
+              InstructionResponse response =
+                  handler
+                      .processBundle(
+                          BeamFnApi.InstructionRequest.newBuilder()
+                              .setInstructionId("999L")
+                              .setProcessBundle(
+                                  BeamFnApi.ProcessBundleRequest.newBuilder()
+                                      .setProcessBundleDescriptorId("1L"))
+                              .build())
+                      .build();
+              progressShouldExit.set(true);
+              return response;
+            });
+    startLatch.await();
+    bundleProcessor.set(bundleProcessorCache.find("999L"));
+
+    final int minNumResults = 5;
+    CountDownLatch progressLatch = new CountDownLatch(1);
+    CountDownLatch someProgressIsDone = new CountDownLatch(minNumResults);
+    List<Future<InstructionResponse>> progressReportingTasks = new ArrayList<>();
+    for (int i = 0; i < 20; ++i) {
+      final int threadId = i;
+      progressReportingTasks.add(
+          executor.submit(
+              () -> {
+                // Wait till progress threads have all been started.
+                progressLatch.await();
+                int requestCount = 0;
+                InstructionResponse.Builder response;
+                try {
+                  do {
+                    response =
+                        handler.progress(
+                            BeamFnApi.InstructionRequest.newBuilder()
+                                .setInstructionId("thread-" + threadId + "-" + (++requestCount))
+                                .setProcessBundleProgress(
+                                    ProcessBundleProgressRequest.newBuilder()
+                                        .setInstructionId("999L")
+                                        .build())
+                                .build());
+                  } while (!response
+                          .getProcessBundleProgress()
+                          .getMonitoringDataMap()
+                          .containsKey("testId")
+                      && !progressShouldExit.get());
+                } finally {
+                  someProgressIsDone.countDown();
+                }
+                return response.build();
+              }));
+    }
+    // Allow progress reporting requests to start
+    progressLatch.countDown();
+    // Wait till some progress reports are done before allowing the main processing thread to
+    // finish.
+    someProgressIsDone.await();
+    finishLatch.countDown();
+
+    List<ByteString> progressReportingResults = new ArrayList<>();
+    for (Future<InstructionResponse> progressReportingTask : progressReportingTasks) {
+      ByteString result =
+          progressReportingTask
+              .get()
+              .getProcessBundleProgress()
+              .getMonitoringDataOrDefault("testId", null);
+      if (result != null) {
+        progressReportingResults.add(result);
+      }
+    }
+
+    // We validate the lifecycle of intermediate -> final -> reset was invoked
+
+    // We should see that there is at least minNumResults intermediate results representing the
+    // set [0, 'counter.get()') with the final result having 'counter.get()'
+    assertTrue(progressReportingResults.size() >= minNumResults);
+    List<ByteString> expectedIntermediateResults = new ArrayList<>();
+    for (int i = 0; i < counter.get(); ++i) {
+      expectedIntermediateResults.add(ByteString.copyFromUtf8(Long.toString(i)));
+    }
+    assertThat(progressReportingResults, containsInAnyOrder(expectedIntermediateResults.toArray()));
+    assertEquals(
+        ByteString.copyFromUtf8(Long.toString(counter.get())),
+        bundleProcessorTask.get().getProcessBundle().getMonitoringDataOrThrow("testId"));
+    assertTrue(finalWasCalled.get());
+    assertTrue(resetWasCalled.get());
+  }
+
+  @Test
   public void testTimerRegistrationsFailIfNoTimerApiServiceDescriptorSpecified() throws Exception {
     BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
         BeamFnApi.ProcessBundleDescriptor.newBuilder()
@@ -1678,6 +1902,7 @@ public class ProcessBundleHandlerTest {
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
+            executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {

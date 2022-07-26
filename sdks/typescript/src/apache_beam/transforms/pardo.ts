@@ -208,6 +208,24 @@ export function split<T extends { [key: string]: unknown }>(
   return withName(`Split(${tags})`, expandInternal);
 }
 
+export function partition<T>(
+  partitionFn: (element: T, numPartitions: number) => number,
+  numPartitions: number
+): PTransform<PCollection<T>, PCollection<T>[]> {
+  return function partition(input: PCollection<T>) {
+    const indices = Array.from({ length: numPartitions }, (v, i) =>
+      i.toString()
+    );
+    const splits = input
+      .map((x) => {
+        const part = partitionFn(x, numPartitions);
+        return { ["" + part]: x };
+      })
+      .apply(split(indices));
+    return indices.map((ix) => splits[ix]);
+  };
+}
+
 /*
  * This is the root class of special parameters that can be provided in the
  * context of a map or DoFn.process method.  At runtime, one can invoke the
@@ -334,4 +352,4 @@ export function singletonSideInput<T>(
 // restriction trackers, counters, etc.
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.transforms.pardo", exports);
+requireForSerialization("apache-beam/transforms/pardo", exports);

@@ -26,6 +26,13 @@ tr .present a
 
 .table-container-wrapper
   overflow-x: auto
+  position: relative
+  z-index: 10
+
+//to prevent table scroll from block in case of overflow-x since h2 has a negative margin which overlaps footer of the table. h2 styles are set in _global.sass
+.table-container-wrapper + h2
+  position: relative
+  z-index: 1
 
 .table-connectors
   th,

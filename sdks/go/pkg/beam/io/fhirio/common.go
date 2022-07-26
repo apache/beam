@@ -21,33 +21,42 @@ package fhirio
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
-	"regexp"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/healthcare/v1"
 	"google.golang.org/api/option"
 )
 
 const (
-	UserAgent        = "apache-beam-io-google-cloud-platform-healthcare/" + core.SdkVersion
-	baseMetricPrefix = "fhirio/"
+	UserAgent                   = "apache-beam-io-google-cloud-platform-healthcare/" + core.SdkVersion
+	baseMetricPrefix            = "fhirio/"
+	errorCounterName            = baseMetricPrefix + "resource_error_count"
+	operationErrorCounterName   = baseMetricPrefix + "operation_error_count"
+	operationSuccessCounterName = baseMetricPrefix + "operation_success_count"
+	successCounterName          = baseMetricPrefix + "resource_success_count"
+	pageTokenParameterKey       = "_page_token"
 )
 
-func executeRequestAndRecordLatency(ctx context.Context, latencyMs *beam.Distribution, requestSupplier func() (*http.Response, error)) (*http.Response, error) {
+var backoffDuration = [...]time.Duration{time.Second, 5 * time.Second, 10 * time.Second, 15 * time.Second}
+
+func executeAndRecordLatency[T any](ctx context.Context, latencyMs *beam.Distribution, executionSupplier func() (T, error)) (T, error) {
 	timeBeforeReadRequest := time.Now()
-	response, err := requestSupplier()
+	result, err := executionSupplier()
 	latencyMs.Update(ctx, time.Since(timeBeforeReadRequest).Milliseconds())
-	return response, err
+	return result, err
 }
 
 func extractBodyFrom(response *http.Response) (string, error) {
-	if isBadStatusCode(response.Status) {
-		return "", errors.Errorf("response contains bad status: [%v]", response.Status)
+	err := googleapi.CheckResponse(response)
+	if err != nil {
+		return "", errors.Wrapf(err, "response contains bad status: [%v]", response.Status)
 	}
 
 	bodyBytes, err := io.ReadAll(response.Body)
@@ -58,38 +67,20 @@ func extractBodyFrom(response *http.Response) (string, error) {
 	return string(bodyBytes), nil
 }
 
-func isBadStatusCode(status string) bool {
-	// 2XXs are successes, otherwise failure.
-	isMatch, err := regexp.MatchString("^2\\d{2}", status)
-	if err != nil {
-		return true
-	}
-	return !isMatch
-}
-
-type fhirioFnCommon struct {
-	client                fhirStoreClient
-	resourcesErrorCount   beam.Counter
-	resourcesSuccessCount beam.Counter
-	latencyMs             beam.Distribution
-}
-
-func (fnc *fhirioFnCommon) setup(namespace string) {
-	if fnc.client == nil {
-		fnc.client = newFhirStoreClient()
-	}
-	fnc.resourcesErrorCount = beam.NewCounter(namespace, baseMetricPrefix+"resource_error_count")
-	fnc.resourcesSuccessCount = beam.NewCounter(namespace, baseMetricPrefix+"resource_success_count")
-	fnc.latencyMs = beam.NewDistribution(namespace, baseMetricPrefix+"latency_ms")
+type operationResults struct {
+	Successes int64 `json:"success,string"`
+	Failures  int64 `json:"failure,string"`
 }
 
 type fhirStoreClient interface {
 	readResource(resourcePath string) (*http.Response, error)
 	executeBundle(storePath string, bundle []byte) (*http.Response, error)
+	search(storePath, resourceType string, queries map[string]string, pageToken string) (*http.Response, error)
+	deidentify(srcStorePath, dstStorePath string, deidConfig *healthcare.DeidentifyConfig) (operationResults, error)
 }
 
 type fhirStoreClientImpl struct {
-	fhirService *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService
+	healthcareService *healthcare.Service
 }
 
 func newFhirStoreClient() *fhirStoreClientImpl {
@@ -97,13 +88,97 @@ func newFhirStoreClient() *fhirStoreClientImpl {
 	if err != nil {
 		panic("Failed to initialize Google Cloud Healthcare Service. Reason: " + err.Error())
 	}
-	return &fhirStoreClientImpl{fhirService: healthcare.NewProjectsLocationsDatasetsFhirStoresFhirService(healthcareService)}
+	return &fhirStoreClientImpl{healthcareService}
+}
+
+func (c *fhirStoreClientImpl) fhirService() *healthcare.ProjectsLocationsDatasetsFhirStoresFhirService {
+	return c.healthcareService.Projects.Locations.Datasets.FhirStores.Fhir
 }
 
 func (c *fhirStoreClientImpl) readResource(resourcePath string) (*http.Response, error) {
-	return c.fhirService.Read(resourcePath).Do()
+	return c.fhirService().Read(resourcePath).Do()
 }
 
 func (c *fhirStoreClientImpl) executeBundle(storePath string, bundle []byte) (*http.Response, error) {
-	return c.fhirService.ExecuteBundle(storePath, bytes.NewReader(bundle)).Do()
+	return c.fhirService().ExecuteBundle(storePath, bytes.NewReader(bundle)).Do()
+}
+
+func (c *fhirStoreClientImpl) search(storePath, resourceType string, queries map[string]string, pageToken string) (*http.Response, error) {
+	queryParams := make([]googleapi.CallOption, 0)
+	for key, value := range queries {
+		queryParams = append(queryParams, googleapi.QueryParameter(key, value))
+	}
+
+	if pageToken != "" {
+		queryParams = append(queryParams, googleapi.QueryParameter(pageTokenParameterKey, pageToken))
+	}
+
+	searchRequest := &healthcare.SearchResourcesRequest{}
+	if resourceType == "" {
+		return c.fhirService().Search(storePath, searchRequest).Do(queryParams...)
+	}
+	return c.fhirService().SearchType(storePath, resourceType, searchRequest).Do(queryParams...)
+}
+
+func (c *fhirStoreClientImpl) deidentify(srcStorePath, dstStorePath string, deidConfig *healthcare.DeidentifyConfig) (operationResults, error) {
+	deidRequest := &healthcare.DeidentifyFhirStoreRequest{
+		Config:           deidConfig,
+		DestinationStore: dstStorePath,
+	}
+	operation, err := c.healthcareService.Projects.Locations.Datasets.FhirStores.Deidentify(srcStorePath, deidRequest).Do()
+	if err != nil {
+		return operationResults{}, err
+	}
+	return c.pollTilCompleteAndCollectResults(operation)
+}
+
+func (c *fhirStoreClientImpl) pollTilCompleteAndCollectResults(operation *healthcare.Operation) (operationResults, error) {
+	operation, err := c.healthcareService.Projects.Locations.Datasets.Operations.Get(operation.Name).Do()
+	for i := 0; err == nil && !operation.Done; {
+		time.Sleep(backoffDuration[i])
+		if i < len(backoffDuration)-1 {
+			i += 1
+		}
+
+		operation, err = c.healthcareService.Projects.Locations.Datasets.Operations.Get(operation.Name).Do()
+	}
+
+	if err != nil {
+		return operationResults{}, err
+	}
+
+	if operation.Error != nil {
+		return operationResults{}, errors.New(operation.Error.Message)
+	}
+
+	return parseOperationCounterResultsFrom(operation.Metadata)
+}
+
+func parseOperationCounterResultsFrom(operationMetadata []byte) (operationResults, error) {
+	var operationCounterField struct {
+		Counter struct {
+			operationResults
+		} `json:"counter"`
+	}
+	err := json.NewDecoder(bytes.NewReader(operationMetadata)).Decode(&operationCounterField)
+	if err != nil {
+		return operationResults{}, err
+	}
+	return operationCounterField.Counter.operationResults, nil
+}
+
+type fnCommonVariables struct {
+	client                fhirStoreClient
+	resourcesErrorCount   beam.Counter
+	resourcesSuccessCount beam.Counter
+	latencyMs             beam.Distribution
+}
+
+func (fnc *fnCommonVariables) setup(namespace string) {
+	if fnc.client == nil {
+		fnc.client = newFhirStoreClient()
+	}
+	fnc.resourcesErrorCount = beam.NewCounter(namespace, errorCounterName)
+	fnc.resourcesSuccessCount = beam.NewCounter(namespace, successCounterName)
+	fnc.latencyMs = beam.NewDistribution(namespace, baseMetricPrefix+"latency_ms")
 }

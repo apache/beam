@@ -360,8 +360,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   /**
-   * Verifies that the the set of windows that have any state stored is exactly {@code
-   * expectedWindows} and that each of these windows has only tags from {@code allowedTags}.
+   * Verifies that the set of windows that have any state stored is exactly {@code expectedWindows}
+   * and that each of these windows has only tags from {@code allowedTags}.
    */
   private void assertHasOnlyGlobalAndAllowedTags(
       Set<W> expectedWindows, Set<StateTag<?>> allowedTags) {
