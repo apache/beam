@@ -1766,6 +1766,7 @@ public class BigQueryIO {
         .setOptimizeWrites(false)
         .setUseBeamSchema(false)
         .setAutoSharding(false)
+        .setPropagateSuccessful(true)
         .setDeterministicRecordIdFn(null)
         .build();
   }
@@ -1907,6 +1908,8 @@ public class BigQueryIO {
     @Experimental
     abstract Boolean getAutoSharding();
 
+    abstract Boolean getPropagateSuccessful();
+
     @Experimental
     abstract @Nullable SerializableFunction<T, String> getDeterministicRecordIdFn();
 
@@ -1995,6 +1998,8 @@ public class BigQueryIO {
 
       @Experimental
       abstract Builder<T> setAutoSharding(Boolean autoSharding);
+
+      abstract Builder<T> setPropagateSuccessful(Boolean propagateSuccessful);
 
       @Experimental
       abstract Builder<T> setDeterministicRecordIdFn(
@@ -2502,13 +2507,24 @@ public class BigQueryIO {
     }
 
     /**
+     * If true, it enables the propagation of the successfully inserted TableRows on BigQuery as
+     * part of the {@link WriteResult} object when using {@link Method#STREAMING_INSERTS}. By
+     * default this property is set on true. In the cases where a pipeline won't make use of the
+     * insert results this property can be set on false, which will make the pipeline let go of
+     * those inserted TableRows and reclaim worker resources.
+     */
+    public Write<T> withSuccessfulInsertsPropagation(boolean propagateSuccessful) {
+      return toBuilder().setPropagateSuccessful(propagateSuccessful).build();
+    }
+
+    /**
      * Provides a function which can serve as a source of deterministic unique ids for each record
      * to be written, replacing the unique ids generated with the default scheme. When used with
      * {@link Method#STREAMING_INSERTS} This also elides the re-shuffle from the BigQueryIO Write by
      * using the keys on which the data is grouped at the point at which BigQueryIO Write is
      * applied, since the reshuffle is necessary only for the checkpointing of the default-generated
      * ids for determinism. This may be beneficial as a performance optimization in the case when
-     * the current sharding is already sufficient for writing to BigQuery. Thi behavior takes
+     * the current sharding is already sufficient for writing to BigQuery. This behavior takes
      * precedence over {@link #withAutoSharding}.
      */
     @Experimental
@@ -2911,6 +2927,7 @@ public class BigQueryIO {
                 .withIgnoreUnknownValues(getIgnoreUnknownValues())
                 .withIgnoreInsertIds(getIgnoreInsertIds())
                 .withAutoSharding(getAutoSharding())
+                .withSuccessfulInsertsPropagation(getPropagateSuccessful())
                 .withDeterministicRecordIdFn(getDeterministicRecordIdFn())
                 .withKmsKey(getKmsKey());
         return input.apply(streamingInserts);
