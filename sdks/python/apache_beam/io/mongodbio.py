@@ -744,7 +744,6 @@ class WriteToMongoDB(PTransform):
               resp.matched_count,
               resp.bulk_api_result.get("writeErrors"),
           ))
-      return resp
 
   def expand(self, pcoll):
     return (
