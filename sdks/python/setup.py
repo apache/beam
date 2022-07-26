@@ -32,9 +32,9 @@ from pkg_resources import parse_version
 from pkg_resources import to_filename
 from setuptools import Command
 
-# distutils from stdlib is deprecated from python 3.10.
-# setuptools has been maintaining a copy of distutils and importing
-# setuptools will replace stdlib/distutils with setuptools/distutils.
+# It is recommended to import setuptools prior to importing distutils to avoid
+# using legacy behavior from distutils.
+# https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
 from distutils.errors import DistutilsError # pylint: disable=wrong-import-order
 
 
