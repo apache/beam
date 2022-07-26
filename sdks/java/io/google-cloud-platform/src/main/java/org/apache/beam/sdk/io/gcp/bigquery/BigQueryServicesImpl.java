@@ -987,7 +987,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               }
               throw e;
             }
-            LOG.info(
+            LOG.error(
                 String.format(
                     "BigQuery insertAll error, retrying: %s",
                     ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
