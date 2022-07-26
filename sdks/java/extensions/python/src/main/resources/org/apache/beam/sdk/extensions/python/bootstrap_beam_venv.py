@@ -24,13 +24,13 @@ suitable python executable.
 """
 
 import argparse
+import distutils.version
 import hashlib
 import json
 import os
 import shutil
 import subprocess
 import sys
-from pkg_resources import parse_version
 
 
 def main():
@@ -66,9 +66,9 @@ def main():
 
         def maybe_strict_version(s):
             try:
-                return parse_version(s)
+                return distutils.version.StrictVersion(s)
             except:
-                return parse_version('0.0')
+                return distutils.version.StrictVersion('0.0')
 
         beam_version = max(info['releases'], key=maybe_strict_version)
         beam_package = 'apache_beam[gcp,aws,asure,dataframe]==' + beam_version
