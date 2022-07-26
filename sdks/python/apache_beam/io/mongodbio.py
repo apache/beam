@@ -724,7 +724,8 @@ class WriteToMongoDB(PTransform):
   a user could implement their own WriteFn, using this as a template,
   notice that the 'self' argument should be ommited 
   """
-  def _defaultWriteFn(self, client, db, coll, documents, logger):
+  @staticmethod
+  def _defaultWriteFn(client, db, coll, documents, logger):
       requests = []
       for doc in documents:
           request = ReplaceOne(
