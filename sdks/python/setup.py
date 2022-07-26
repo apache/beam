@@ -20,6 +20,8 @@
 import os
 import sys
 import warnings
+from distutils.errors import DistutilsError
+from distutils.version import StrictVersion
 from pathlib import Path
 
 # Pylint and isort disagree here.
@@ -28,14 +30,8 @@ import setuptools
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
 from pkg_resources import normalize_path
-from pkg_resources import parse_version
 from pkg_resources import to_filename
 from setuptools import Command
-
-# It is recommended to import setuptools prior to importing distutils to avoid
-# using legacy behavior from distutils.
-# https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
-from distutils.errors import DistutilsError # pylint: disable=wrong-import-order
 
 
 class mypy(Command):
@@ -96,7 +92,7 @@ different technologies and user communities.
 
 REQUIRED_PIP_VERSION = '7.0.0'
 _PIP_VERSION = get_distribution('pip').version
-if parse_version(_PIP_VERSION) < parse_version(REQUIRED_PIP_VERSION):
+if StrictVersion(_PIP_VERSION) < StrictVersion(REQUIRED_PIP_VERSION):
   warnings.warn(
       "You are using version {0} of pip. " \
       "However, version {1} is recommended.".format(
@@ -107,7 +103,7 @@ if parse_version(_PIP_VERSION) < parse_version(REQUIRED_PIP_VERSION):
 REQUIRED_CYTHON_VERSION = '0.28.1'
 try:
   _CYTHON_VERSION = get_distribution('cython').version
-  if parse_version(_CYTHON_VERSION) < parse_version(REQUIRED_CYTHON_VERSION):
+  if StrictVersion(_CYTHON_VERSION) < StrictVersion(REQUIRED_CYTHON_VERSION):
     warnings.warn(
         "You are using version {0} of cython. " \
         "However, version {1} is recommended.".format(
