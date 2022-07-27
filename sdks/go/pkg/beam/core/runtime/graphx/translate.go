@@ -834,7 +834,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 				MergeStatus:     pipepb.MergeStatus_NON_MERGING,
 				WindowCoderId:   windowCoderId,
 				ClosingBehavior: pipepb.ClosingBehavior_EMIT_IF_NONEMPTY,
-				AllowedLateness: 0,
+				AllowedLateness: int64(in.From.WindowingStrategy().AllowedLateness),
 				OnTimeBehavior:  pipepb.OnTimeBehavior_FIRE_ALWAYS,
 			})
 	}
