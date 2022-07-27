@@ -65,10 +65,10 @@ func withNdjsonPatternSuffix(path string) string {
 }
 
 type createBatchFilesFn struct {
-	Filesystem            filesystem.Interface
-	TempLocation          string
-	BatchFileWriter       io.WriteCloser
-	BatchFileResourcePath string
+	fs              filesystem.Interface
+	batchFileWriter io.WriteCloser
+	batchFilePath   string
+	TempLocation    string
 }
 
 func (fn *createBatchFilesFn) StartBundle(ctx context.Context, _, _ func(string)) error {
@@ -76,9 +76,9 @@ func (fn *createBatchFilesFn) StartBundle(ctx context.Context, _, _ func(string)
 	if err != nil {
 		return err
 	}
-	fn.Filesystem = fs
-	fn.BatchFileResourcePath = fmt.Sprintf("%s/fhirImportBatch-%v.ndjson", fn.TempLocation, uuid.New())
-	fn.BatchFileWriter, err = fn.Filesystem.OpenWrite(ctx, fn.BatchFileResourcePath)
+	fn.fs = fs
+	fn.batchFilePath = fmt.Sprintf("%s/fhirImportBatch-%v.ndjson", fn.TempLocation, uuid.New())
+	fn.batchFileWriter, err = fn.fs.OpenWrite(ctx, fn.batchFilePath)
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func (fn *createBatchFilesFn) StartBundle(ctx context.Context, _, _ func(string)
 }
 
 func (fn *createBatchFilesFn) ProcessElement(ctx context.Context, resource string, _, emitFailedResource func(string)) {
-	_, err := fn.BatchFileWriter.Write([]byte(resource + "\n"))
+	_, err := fn.batchFileWriter.Write([]byte(resource + "\n"))
 	if err != nil {
 		log.Warnf(ctx, "Failed to write resource to batch file. Reason: %v", err)
 		emitFailedResource(resource)
@@ -94,21 +94,21 @@ func (fn *createBatchFilesFn) ProcessElement(ctx context.Context, resource strin
 }
 
 func (fn *createBatchFilesFn) FinishBundle(emitBatchFilePath, _ func(string)) {
-	fn.BatchFileWriter.Close()
-	fn.BatchFileWriter = nil
-	fn.Filesystem.Close()
-	fn.Filesystem = nil
-	emitBatchFilePath(fn.BatchFileResourcePath)
+	fn.batchFileWriter.Close()
+	fn.batchFileWriter = nil
+	fn.fs.Close()
+	fn.fs = nil
+	emitBatchFilePath(fn.batchFilePath)
 }
 
 type importFn struct {
 	fnCommonVariables
 	operationCounters
-	Filesystem                       filesystem.Interface
+	fs                               filesystem.Interface
+	batchFilesPath                   []string
 	FhirStorePath                    string
 	TempLocation, DeadLetterLocation string
 	ContentStructure                 ContentStructure
-	BatchFilesPath                   []string
 }
 
 func (fn importFn) String() string {
@@ -121,31 +121,31 @@ func (fn *importFn) Setup() {
 }
 
 func (fn *importFn) StartBundle(ctx context.Context, _ func(string)) error {
-	fn.BatchFilesPath = make([]string, 0)
+	fn.batchFilesPath = make([]string, 0)
 	fn.TempLocation = fmt.Sprintf("%s/tmp-%v", fn.TempLocation, uuid.New())
 	fs, err := filesystem.New(ctx, fn.TempLocation)
 	if err != nil {
 		return err
 	}
-	fn.Filesystem = fs
+	fn.fs = fs
 	return nil
 }
 
 func (fn *importFn) ProcessElement(ctx context.Context, batchFilePath string, _ func(string)) {
 	updatedBatchFilePath := fmt.Sprintf("%s/%s", fn.TempLocation, filepath.Base(batchFilePath))
-	err := filesystem.Rename(ctx, fn.Filesystem, batchFilePath, updatedBatchFilePath)
+	err := filesystem.Rename(ctx, fn.fs, batchFilePath, updatedBatchFilePath)
 	if err != nil {
 		updatedBatchFilePath = batchFilePath
 		log.Warnf(ctx, "Failed to move %v to temp location. Reason: %v", batchFilePath, err)
 	}
-	fn.BatchFilesPath = append(fn.BatchFilesPath, updatedBatchFilePath)
+	fn.batchFilesPath = append(fn.batchFilesPath, updatedBatchFilePath)
 }
 
 func (fn *importFn) FinishBundle(ctx context.Context, emitDeadLetter func(string)) {
 	defer func() {
-		fn.Filesystem.Close()
-		fn.Filesystem = nil
-		fn.BatchFilesPath = nil
+		fn.fs.Close()
+		fn.fs = nil
+		fn.batchFilesPath = nil
 	}()
 
 	importURI := withNdjsonPatternSuffix(fn.TempLocation)
@@ -166,8 +166,8 @@ func (fn *importFn) FinishBundle(ctx context.Context, emitDeadLetter func(string
 }
 
 func (fn *importFn) moveFailedImportFilesToDeadLetterLocation(ctx context.Context) {
-	for _, p := range fn.BatchFilesPath {
-		err := filesystem.Rename(ctx, fn.Filesystem, p, fmt.Sprintf("%s/%s", fn.DeadLetterLocation, filepath.Base(p)))
+	for _, p := range fn.batchFilesPath {
+		err := filesystem.Rename(ctx, fn.fs, p, fmt.Sprintf("%s/%s", fn.DeadLetterLocation, filepath.Base(p)))
 		if err != nil {
 			log.Warnf(ctx, "Failed to move failed imported file %v to %v. Reason: %v", p, fn.DeadLetterLocation, err)
 		}
@@ -175,8 +175,8 @@ func (fn *importFn) moveFailedImportFilesToDeadLetterLocation(ctx context.Contex
 }
 
 func (fn *importFn) cleanUpTempBatchFiles(ctx context.Context) {
-	for _, p := range fn.BatchFilesPath {
-		err := fn.Filesystem.(filesystem.Remover).Remove(ctx, p)
+	for _, p := range fn.batchFilesPath {
+		err := fn.fs.(filesystem.Remover).Remove(ctx, p)
 		if err != nil {
 			log.Warnf(ctx, "Failed to delete temp batch file [%v]. Reason: %v", p, err)
 		}
