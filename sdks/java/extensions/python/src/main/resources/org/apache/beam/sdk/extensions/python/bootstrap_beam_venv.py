@@ -92,6 +92,13 @@ def main():
     if not os.path.exists(venv_python):
         try:
             subprocess.run([executable, '-m', 'venv', venv_dir], check=True)
+
+            # Beam recommends upgrading pip before installing.
+            subprocess.run([
+                venv_python, '-m', 'pip', 'install', '--upgrade', 'pip'
+            ],
+                           check=True)
+
             # See https://github.com/apache/beam/issues/21506
             subprocess.run([
                 venv_python, '-m', 'pip', 'install', beam_package,
