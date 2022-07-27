@@ -92,6 +92,17 @@ def main():
     if not os.path.exists(venv_python):
         try:
             subprocess.run([executable, '-m', 'venv', venv_dir], check=True)
+
+            # Upgrading pip and setuptools for the virtual environment.
+            subprocess.run([
+                venv_python, '-m', 'pip', 'install', '--upgrade', 'pip'
+            ],
+                           check=True)
+            subprocess.run([
+                venv_python, '-m', 'pip', 'install', '--upgrade', 'setuptools'
+            ],
+                           check=True)
+
             # See https://github.com/apache/beam/issues/21506
             subprocess.run([
                 venv_python, '-m', 'pip', 'install', beam_package,
