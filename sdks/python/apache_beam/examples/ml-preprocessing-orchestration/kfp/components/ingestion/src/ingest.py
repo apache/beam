@@ -10,10 +10,10 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--ingested-dataset-path", type=str,
-        help="Source uri to ingest data from.")
+        help="Path to save the ingested dataset to.")
     parser.add_argument(
         "--base-artifact-path", type=str,
-        help="Source uri to ingest data from.")
+        help="Base path to store pipeline artifacts.")
     return parser.parse_args()
 
 

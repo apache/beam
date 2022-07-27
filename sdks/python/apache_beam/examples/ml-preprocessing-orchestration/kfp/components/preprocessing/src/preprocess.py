@@ -29,13 +29,13 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--ingested-dataset-path", type=str,
-        help="Source uri to ingest data from.")
+        help="Path to the ingested dataset")
     parser.add_argument(
         "--preprocessed-dataset-path", type=str,
         help="The target directory for the ingested dataset.")
     parser.add_argument(
         "--base-artifact-path", type=str,
-        help="Source uri to ingest data from.")
+        help="Base path to store pipeline artifacts.")
     return parser.parse_args()
 
 
