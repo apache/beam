@@ -40,6 +40,8 @@ func init() {
 	register.Emitter1[string]()
 }
 
+// ContentStructure representation of as per:
+// https://cloud.google.com/healthcare-api/docs/reference/rest/v1/projects.locations.datasets.fhirStores/import#contentstructure
 type ContentStructure int
 
 const (
@@ -184,6 +186,14 @@ func (fn *importFn) cleanUpTempBatchFiles(ctx context.Context) {
 	}
 }
 
+// Import consumes FHIR resources as input PCollection<string> and imports them
+// into a given Google Cloud Healthcare FHIR store. It does so by creating batch
+// files in the provided Google Cloud Storage `tempDir` and importing those files
+// to the store through FHIR import API method: https://cloud.google.com/healthcare-api/docs/concepts/fhir-import.
+// Resources that fail to be included in the batch files are included as the first
+// output PCollection. In case a batch file fails to be imported, it will be moved
+// to the dead letter path and an error message will be provided in the second output
+// PCollection.
 func Import(s beam.Scope, fhirStorePath, tempDir, deadLetterDir string, contentStructure ContentStructure, resources beam.PCollection) (beam.PCollection, beam.PCollection) {
 	s = s.Scope("fhirio.Import")
 
@@ -193,9 +203,10 @@ func Import(s beam.Scope, fhirStorePath, tempDir, deadLetterDir string, contentS
 	return importResourcesInBatches(s, fhirStorePath, tempDir, deadLetterDir, contentStructure, resources, nil)
 }
 
+// This is useful as an entry point for testing because we can provide a fake FHIR store client.
 func importResourcesInBatches(s beam.Scope, fhirStorePath, tempDir, deadLetterDir string, contentStructure ContentStructure, resources beam.PCollection, client fhirStoreClient) (beam.PCollection, beam.PCollection) {
 	batchFiles, failedResources := beam.ParDo2(s, &createBatchFilesFn{TempLocation: tempDir}, resources)
-	failedBatchFiles := beam.ParDo(
+	failedImportsDeadLetter := beam.ParDo(
 		s,
 		&importFn{
 			fnCommonVariables:  fnCommonVariables{client: client},
@@ -206,5 +217,5 @@ func importResourcesInBatches(s beam.Scope, fhirStorePath, tempDir, deadLetterDi
 		},
 		batchFiles,
 	)
-	return failedResources, failedBatchFiles
+	return failedResources, failedImportsDeadLetter
 }

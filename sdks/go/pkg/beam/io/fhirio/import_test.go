@@ -64,7 +64,7 @@ func TestImport(t *testing.T) {
 
 			testResources := []string{"foo", "bar"}
 			p, s, testResourcesCol := ptest.CreateList(testResources)
-			failedResources, failedFiles := importResourcesInBatches(
+			failedResources, deadLetter := importResourcesInBatches(
 				s,
 				"",
 				tempDirPath,
@@ -75,7 +75,7 @@ func TestImport(t *testing.T) {
 			)
 
 			passert.Empty(s, failedResources)
-			passert.Count(s, failedFiles, "", testCase.expectedErrorCount)
+			passert.Count(s, deadLetter, "", testCase.expectedErrorCount)
 
 			pipelineResult := ptest.RunAndValidate(t, p)
 			validateCounter(t, pipelineResult, operationErrorCounterName, testCase.expectedErrorCount)

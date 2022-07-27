@@ -256,9 +256,9 @@ func importTestTask(t *testing.T, s beam.Scope, _ fhirStoreInfo) func() {
 	practitionerTestResource := `{"resourceType":"Practitioner","id":"b0e04623-b02c-3f8b-92ea-943fc4db60da","name":[{"family":"Tillman293","given":["Franklin857"],"prefix":["Dr."]}],"address":[{"line":["295 VARNUM AVENUE"],"city":"LOWELL","state":"MA","postalCode":"01854","country":"US"}],"gender":"male"}`
 	testResources := beam.Create(s, patientTestResource, practitionerTestResource)
 
-	failedResources, failedFiles := fhirio.Import(s, fhirStorePath, tempStoragePath, tempStoragePath, fhirio.ContentStructureResource, testResources)
+	failedResources, deadLetter := fhirio.Import(s, fhirStorePath, tempStoragePath, tempStoragePath, fhirio.ContentStructureResource, testResources)
 	passert.Empty(s, failedResources)
-	passert.Empty(s, failedFiles)
+	passert.Empty(s, deadLetter)
 
 	return teardownFhirStore
 }
