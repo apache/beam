@@ -2,9 +2,6 @@
 either the beam DirectRunner or DataflowRunner"""
 import os
 
-import tensorflow as tf
-import tensorflow_transform as tft
-import tensorflow_transform.beam as tft_beam
 from tfx import v1 as tfx
 
 
