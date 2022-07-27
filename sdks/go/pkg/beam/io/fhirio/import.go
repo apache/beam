@@ -40,7 +40,7 @@ func init() {
 	register.Emitter1[string]()
 }
 
-// ContentStructure representation of as per:
+// ContentStructure representation as per:
 // https://cloud.google.com/healthcare-api/docs/reference/rest/v1/projects.locations.datasets.fhirStores/import#contentstructure
 type ContentStructure int
 
