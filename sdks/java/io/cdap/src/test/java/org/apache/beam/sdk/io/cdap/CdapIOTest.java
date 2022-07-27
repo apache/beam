@@ -27,12 +27,15 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.mapreduce.OutputCommitter;
@@ -119,9 +122,10 @@ public class CdapIOTest {
   }
 
   @Test
-  public void testReadValidationFailsMissingCdapPluginClass() {
+  public void testReadExpandingFailsMissingCdapPluginClass() {
+    PBegin testPBegin = PBegin.in(TestPipeline.create());
     CdapIO.Read<String, String> read = CdapIO.read();
-    assertThrows(IllegalArgumentException.class, read::validateTransform);
+    assertThrows(IllegalArgumentException.class, () -> read.expand(testPBegin));
   }
 
   @Test
@@ -221,9 +225,12 @@ public class CdapIOTest {
   }
 
   @Test
-  public void testWriteValidationFailsMissingCdapPluginClass() {
+  public void testWriteExpandingFailsMissingCdapPluginClass() {
+    PBegin testPBegin = PBegin.in(TestPipeline.create());
+    PCollection<KV<String, String>> testPCollection =
+        Create.empty(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())).expand(testPBegin);
     CdapIO.Write<String, String> write = CdapIO.write();
-    assertThrows(IllegalArgumentException.class, write::validateTransform);
+    assertThrows(IllegalArgumentException.class, () -> write.expand(testPCollection));
   }
 
   @Test
