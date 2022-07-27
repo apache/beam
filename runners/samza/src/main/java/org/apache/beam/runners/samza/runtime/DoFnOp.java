@@ -282,7 +282,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     }
   }
 
-  private String toStepName(ExecutableStage executableStage) {
+  private static String toStepName(ExecutableStage executableStage) {
     /*
      * Look for the first/input ParDo/DoFn in this executable stage by
      * matching ParDo/DoFn's input PCollection with executable stage's
@@ -319,10 +319,12 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     return String.format("[%s-%s]", toStepName(inputs), toStepName(outputs));
   }
 
-  private String toStepName(Set<PipelineNode.PTransformNode> nodes) {
-    // TODO: format name when there are multiple input and output PTransform in the ExecutableStage
-    return Iterables.get(
-        Splitter.on('/').split(nodes.iterator().next().getTransform().getUniqueName()), 0);
+  private static String toStepName(Set<PipelineNode.PTransformNode> nodes) {
+    // TODO: format name when there are multiple input/output PTransform(s) in the ExecutableStage
+    return nodes.isEmpty()
+        ? ""
+        : Iterables.get(
+            Splitter.on('/').split(nodes.iterator().next().getTransform().getUniqueName()), 0);
   }
 
   FutureCollector<OutT> createFutureCollector() {
