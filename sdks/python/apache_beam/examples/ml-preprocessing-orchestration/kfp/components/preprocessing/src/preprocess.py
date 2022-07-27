@@ -79,7 +79,7 @@ def preprocess_dataset(
             | "Filter licenses" >> beam.Filter(valid_license)
             | "Download image from URL" >> beam.ParDo(DownloadImageFromURL())
             | "Filter on valid images" >> beam.Filter(lambda el: el['image'] is not None)
-            | "Resize image" >> beam.ParDo(ResizeImage(size=(256,256)))
+            | "Resize image" >> beam.ParDo(ResizeImage(size=(224,224)))
             | "Clean Text" >> beam.ParDo(CleanText())
             | "Serialize Example" >> beam.ParDo(SerializeExample())
             | "Write to Avro files" >> beam.io.WriteToAvro(file_path_prefix=target_path,
