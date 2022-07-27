@@ -1053,7 +1053,7 @@ func MarshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 		AccumulationMode: makeAccumulationMode(w.AccumulationMode),
 		OutputTime:       pipepb.OutputTime_END_OF_WINDOW,
 		ClosingBehavior:  pipepb.ClosingBehavior_EMIT_IF_NONEMPTY,
-		AllowedLateness:  0,
+		AllowedLateness:  int64(w.AllowedLateness),
 		OnTimeBehavior:   pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY,
 	}
 	return ws, nil
