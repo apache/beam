@@ -186,7 +186,6 @@ func (fn *importFn) cleanUpTempBatchFiles(ctx context.Context) {
 
 func Import(s beam.Scope, fhirStorePath, tempDir, deadLetterDir string, contentStructure ContentStructure, resources beam.PCollection) (beam.PCollection, beam.PCollection) {
 	s = s.Scope("fhirio.Import")
-	// TODO: verify that input resources PCollection is bounded.
 
 	tempDir = strings.TrimSuffix(tempDir, "/")
 	deadLetterDir = strings.TrimSuffix(deadLetterDir, "/")
