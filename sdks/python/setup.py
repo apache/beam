@@ -249,7 +249,7 @@ if __name__ == '__main__':
             'pyyaml>=3.12,<7.0.0',
             'requests_mock>=1.7,<2.0',
             'tenacity>=5.0.2,<6.0',
-            'pytest>=4.4.0,<5.0',
+            'pytest>=6.2.5,<7.0',
             'pytest-xdist>=1.29.0,<2',
             'pytest-timeout>=1.3.3,<2',
             'scikit-learn>=0.20.0',
