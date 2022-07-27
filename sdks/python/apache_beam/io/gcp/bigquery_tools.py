@@ -260,8 +260,7 @@ def parse_table_reference(table, dataset=None, project=None):
   if dataset is None:
     pattern = (
         f'((?P<project>{_PROJECT_PATTERN})[:\\.])?'
-        f'(?P<dataset>{_DATASET_PATTERN})[:\\.]'
-        f'(?P<table>{_TABLE_PATTERN})')
+        f'(?P<dataset>{_DATASET_PATTERN})\\.(?P<table>{_TABLE_PATTERN})')
     match = regex.fullmatch(pattern, table)
     if not match:
       raise ValueError(
