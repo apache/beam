@@ -24,7 +24,11 @@ import static org.hamcrest.Matchers.isOneOf;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
+import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
@@ -32,8 +36,16 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.Duration;
@@ -95,6 +107,15 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     // if the pipeline was executed in streaming mode, validate aggregators.
     if (isForceStreaming) {
       try {
+        testSparkOptions.setStreaming(true);
+
+        // replace bounded read to force streaming
+        pipeline.replaceAll(
+            ImmutableList.of(
+                PTransformOverride.of(
+                    PTransformMatchers.classEqualTo(Read.Bounded.class),
+                    new UnboundedReadFromBoundedSourceOverrideFactory<>())));
+
         result = delegate.run(pipeline);
         awaitWatermarksOrTimeout(testSparkOptions, result);
         result.stop();
@@ -152,5 +173,23 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
       Uninterruptibles.sleepUninterruptibly(batchDurationMillis, TimeUnit.MILLISECONDS);
     } while ((timeoutMillis -= batchDurationMillis) > 0
         && globalWatermark.isBefore(stopPipelineWatermark));
+  }
+
+  private static class UnboundedReadFromBoundedSourceOverrideFactory<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, Read.Bounded<T>> {
+
+    @Override
+    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<T>, Read.Bounded<T>> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(),
+          new UnboundedReadFromBoundedSource<>(transform.getTransform().getSource()));
+    }
+
+    @Override
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
   }
 }
