@@ -27,6 +27,8 @@ import (
 )
 
 var (
+	testOperationResult = operationResults{Successes: 5, Failures: 2}
+
 	fakeRequestReturnErrorMessage = "internal error"
 	requestReturnErrorFakeClient  = &fakeFhirStoreClient{
 		fakeReadResources: func([]byte) (*http.Response, error) {
@@ -39,6 +41,9 @@ var (
 			return nil, errors.New(fakeRequestReturnErrorMessage)
 		},
 		fakeDeidentify: func(string, string, *healthcare.DeidentifyConfig) (operationResults, error) {
+			return operationResults{}, errors.New(fakeRequestReturnErrorMessage)
+		},
+		fakeImportResources: func(string, string, ContentStructure) (operationResults, error) {
 			return operationResults{}, errors.New(fakeRequestReturnErrorMessage)
 		},
 	}
