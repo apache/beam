@@ -615,17 +615,17 @@ class TestBigQuerySink(unittest.TestCase):
     self.assertEqual({'n': 'INTEGER', 's': 'STRING'}, result_schema)
 
   def test_project_table_display_data(self):
-    sinkq = beam.io.BigQuerySink('PROJECT:dataset.table')
+    sinkq = beam.io.BigQuerySink('project:dataset.table')
     dd = DisplayData.create_from(sinkq)
     expected_items = [
-        DisplayDataItemMatcher('table', 'PROJECT:dataset.table'),
+        DisplayDataItemMatcher('table', 'project:dataset.table'),
         DisplayDataItemMatcher('validation', False)
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_simple_schema_as_json(self):
     sink = beam.io.BigQuerySink(
-        'PROJECT:dataset.table', schema='s:STRING, n:INTEGER')
+        'project:dataset.table', schema='s:STRING, n:INTEGER')
     self.assertEqual(
         json.dumps({
             'fields': [{
@@ -1322,7 +1322,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+            projectId='project-id', datasetId='dataset_id', tableId='table_id'))
     client.insert_rows_json.return_value = []
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
@@ -1334,7 +1334,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
         kms_key=None,
         test_client=client)
 
-    fn.process(('project_id:dataset_id.table_id', {'month': 1}))
+    fn.process(('project-id:dataset_id.table_id', {'month': 1}))
 
     # InsertRows not called as batch size is not hit yet
     self.assertFalse(client.insert_rows_json.called)
@@ -1343,7 +1343,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+            projectId='project-id', datasetId='dataset_id', tableId='table_id'))
     client.insert_rows_json.return_value = []
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
@@ -1356,8 +1356,8 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
         test_client=client)
 
     fn.start_bundle()
-    fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid1')))
-    fn.process(('project_id:dataset_id.table_id', ({'month': 2}, 'insertid2')))
+    fn.process(('project-id:dataset_id.table_id', ({'month': 1}, 'insertid1')))
+    fn.process(('project-id:dataset_id.table_id', ({'month': 2}, 'insertid2')))
     # InsertRows called as batch size is hit
     self.assertTrue(client.insert_rows_json.called)
 
@@ -1365,7 +1365,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+            projectId='project-id', datasetId='dataset_id', tableId='table_id'))
     client.insert_rows_json.return_value = []
     create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
@@ -1381,7 +1381,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 
     # Destination is a tuple of (destination, schema) to ensure the table is
     # created.
-    fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid3')))
+    fn.process(('project-id:dataset_id.table_id', ({'month': 1}, 'insertid3')))
 
     self.assertTrue(client.tables.Get.called)
     # InsertRows not called as batch size is not hit
@@ -1395,7 +1395,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+            projectId='project-id', datasetId='dataset_id', tableId='table_id'))
     client.tabledata.InsertAll.return_value = \
       bigquery.TableDataInsertAllResponse(insertErrors=[])
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
@@ -1420,7 +1420,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+            projectId='project-id', datasetId='dataset_id', tableId='table_id'))
     client.insert_rows_json.return_value = []
     create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
@@ -1438,7 +1438,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     # Destination is a tuple of (destination, schema) to ensure the table is
     # created.
     fn.process((
-        'project_id:dataset_id.table_id',
+        'project-id:dataset_id.table_id',
         [({
             'month': 1
         }, 'insertid3'), ({
