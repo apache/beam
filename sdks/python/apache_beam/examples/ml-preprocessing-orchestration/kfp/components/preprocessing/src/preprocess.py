@@ -52,10 +52,13 @@ def preprocess_dataset(
                                   this component.
     """
     timestamp = time.time()
+    target_path = f"{base_artifact_path}/preprocessing/preprocessed_dataset_{timestamp}"
 
     # the directory where the output file is created may or may not exists
     # so we have to create it.
     Path(preprocessed_dataset_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(preprocessed_dataset_path, 'w') as f:
+        f.write(target_path)
 
     # We use the save_main_session option because one or more DoFn's in this
     # workflow rely on global context (e.g., a module imported at module level).
@@ -68,8 +71,6 @@ def preprocess_dataset(
         requirements_file="/requirements.txt",
         save_main_session = True,
     )
-
-    target_path = f"{base_artifact_path}/preprocessing/preprocessed_dataset_{timestamp}"
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
         (
@@ -93,12 +94,6 @@ def preprocess_dataset(
                                                                        ]},
                                                            file_name_suffix=".avro")
         )
-
-    # the directory where the output file is created may or may not exists
-    # so we have to create it.
-    Path(preprocessed_dataset_path).parent.mkdir(parents=True, exist_ok=True)
-    with open(preprocessed_dataset_path, 'w') as f:
-        f.write(target_path)
 
 
 class DownloadImageFromURL(beam.DoFn):
