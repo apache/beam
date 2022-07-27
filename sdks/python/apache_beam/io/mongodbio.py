@@ -723,11 +723,11 @@ class WriteToMongoDB(PTransform):
         | Reshuffle()
         | beam.ParDo(
             _WriteMongoFn(
-                self._uri, 
-                self._db, 
-                self._coll, 
-                self._batch_size, 
-                self._spec, 
+                self._uri,
+                self._db,
+                self._coll,
+                self._batch_size,
+                self._spec,
                 self._writeFn)))
 
 
@@ -817,15 +817,14 @@ class _MongoSink:
       requests.append(request)
       resp = client[db][coll].bulk_write(requests)
       # set logger to debug level to log the response
-
       logger.debug(
-      "BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, "
-      "nMatched:%d, Errors:%s" % (
-        resp.modified_count,
-        resp.upserted_count,
-        resp.matched_count,
-        resp.bulk_api_result.get("writeErrors"),
-      ))
+        "BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, "
+        "nMatched:%d, Errors:%s" % (
+          resp.modified_count,
+          resp.upserted_count,
+          resp.matched_count,
+          resp.bulk_api_result.get("writeErrors"),
+        ))
 
   def write(self, documents):
     if self.client is None:
