@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.spark;
 
+import static org.apache.beam.sdk.Pipeline.PipelineVisitor.CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+import static org.apache.beam.sdk.Pipeline.PipelineVisitor.CompositeBehavior.ENTER_TRANSFORM;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -24,16 +26,33 @@ import static org.hamcrest.Matchers.isOneOf;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
+import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.Duration;
@@ -83,6 +102,8 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
         PipelineOptionsValidator.validate(TestSparkPipelineOptions.class, options);
 
     boolean isForceStreaming = testSparkOptions.isForceStreaming();
+    boolean isStreaming = testSparkOptions.isStreaming();
+
     SparkPipelineResult result = null;
 
     // clear state of Aggregators, Metrics and Watermarks if exists.
@@ -93,8 +114,26 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     LOG.info("About to run test pipeline {}", options.getJobName());
 
     // if the pipeline was executed in streaming mode, validate aggregators.
-    if (isForceStreaming) {
+    if (isStreaming || isForceStreaming) {
       try {
+        testSparkOptions.setStreaming(true);
+
+        if (isForceStreaming) {
+          FindBoundedReads boundedReadsVisitor = new FindBoundedReads();
+          pipeline.traverseTopologically(boundedReadsVisitor);
+
+          if (!boundedReadsVisitor.boundedReads.isEmpty()) {
+            // replace BOUNDED read with UNBOUNDED to force streaming
+            pipeline.replaceAll(
+                ImmutableList.of(
+                    PTransformOverride.of(
+                        app -> boundedReadsVisitor.contains(app.getTransform()),
+                        new UnboundedReadFromBoundedSourceOverrideFactory<>())));
+            // force UNBOUNDED PCollections
+            pipeline.traverseTopologically(new SetUnbounded());
+          }
+        }
+
         result = delegate.run(pipeline);
         awaitWatermarksOrTimeout(testSparkOptions, result);
         result.stop();
@@ -152,5 +191,85 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
       Uninterruptibles.sleepUninterruptibly(batchDurationMillis, TimeUnit.MILLISECONDS);
     } while ((timeoutMillis -= batchDurationMillis) > 0
         && globalWatermark.isBefore(stopPipelineWatermark));
+  }
+
+  /**
+   * Override factory to replace {@link Read.Unbounded} with {@link UnboundedReadFromBoundedSource}
+   * to force streaming mode.
+   */
+  private static class UnboundedReadFromBoundedSourceOverrideFactory<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, Read.Bounded<T>> {
+
+    @Override
+    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<T>, Read.Bounded<T>> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(),
+          new UnboundedReadFromBoundedSource<>(transform.getTransform().getSource()));
+    }
+
+    @Override
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
+  private static boolean isBoundedRead(PTransform<?, ?> transform) {
+    return transform != null && transform instanceof Read.Bounded;
+  }
+
+  /** Gathers all bounded test inputs of {@link Read.Bounded} except for usages in PAssert. */
+  private static class FindBoundedReads extends PipelineVisitor.Defaults {
+    private final Set<Read.Bounded<?>> boundedReads = new HashSet<>();
+
+    @Override
+    public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+      if (node.getFullName().contains("PAssert$")) {
+        return DO_NOT_ENTER_TRANSFORM;
+      } else if (isBoundedRead(node.getTransform())) {
+        boundedReads.add((Read.Bounded) node.getTransform());
+        return DO_NOT_ENTER_TRANSFORM;
+      }
+      return ENTER_TRANSFORM;
+    }
+
+    boolean contains(PTransform<?, ?> transform) {
+      return boundedReads.contains(transform);
+    }
+  }
+
+  /**
+   * Sets all {@link PCollection}s to {@link IsBounded#UNBOUNDED} excepts for outputs of remaining
+   * {@link Read.Bounded} (used in PAssert) and descendants.
+   */
+  private static class SetUnbounded extends PipelineVisitor.Defaults {
+    private final Set<PCollection<?>> excludes = new HashSet<>();
+
+    @Override
+    public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+      if (isBoundedRead(node.getTransform())) {
+        // Output of Read.Bounded (used in PAssert) has to remain BOUNDED
+        setIsBounded(node.getOutputs(), IsBounded.BOUNDED);
+        excludes.addAll(node.getOutputs().values());
+        return DO_NOT_ENTER_TRANSFORM;
+      } else {
+        visitPrimitiveTransform(node);
+        return ENTER_TRANSFORM;
+      }
+    }
+
+    @Override
+    public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+      // Force UNBOUNDED PCollections
+      setIsBounded(node.getInputs(), IsBounded.UNBOUNDED);
+      setIsBounded(node.getOutputs(), IsBounded.UNBOUNDED);
+    }
+
+    private void setIsBounded(Map<TupleTag<?>, PCollection<?>> map, IsBounded isBounded) {
+      map.values().stream()
+          .filter(pc -> !excludes.contains(pc))
+          .forEach(in -> in.setIsBoundedInternal(isBounded));
+    }
   }
 }

@@ -279,7 +279,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     options.setExpectedAssertions(expectedAssertions);
     options.setRunner(TestSparkRunner.class);
     options.setEnableSparkMetricSinks(false);
-    options.setForceStreaming(true);
+    options.setStreaming(true);
     options.setCheckpointDir(temporaryFolder.getRoot().getPath());
     // timeout is per execution so it can be injected by the caller.
     if (stopWatermarkOption.isPresent()) {
