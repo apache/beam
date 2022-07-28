@@ -145,8 +145,6 @@ def read_image(image_file_name: str,
 
 def preprocess_image(data: Image.Image) -> torch.Tensor:
   image_size = (224, 224)
-  # Pre-trained PyTorch models expect input images normalized with the
-  # below values (see: https://pytorch.org/vision/stable/models.html)
   transform = transforms.Compose([
       transforms.Resize(image_size),
       transforms.ToTensor(),
