@@ -389,7 +389,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.41.0'
+    project.version = '2.42.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -559,6 +559,7 @@ class BeamModulePlugin implements Plugin<Project> {
         checker_qual                                : "org.checkerframework:checker-qual:$checkerframework_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.15",
+        commons_collections                         : "commons-collections:commons-collections:3.2.2",
         commons_compress                            : "org.apache.commons:commons-compress:1.21",
         commons_csv                                 : "org.apache.commons:commons-csv:1.8",
         commons_io                                  : "commons-io:commons-io:2.6",
