@@ -18,7 +18,6 @@
 package org.apache.beam.sdk;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
@@ -415,7 +414,6 @@ public class PipelineTest {
           }
         });
   }
-
 
   /**
    * Tests that {@link Pipeline#replaceAll(List)} throws when one of the PTransformOverride still
