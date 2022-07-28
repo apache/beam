@@ -29,6 +29,6 @@ runs:
       # settings.xml file
       shell: bash
       run: rm ~/.m2/settings.xml
-    - name: Run :pythonLintPreCommit
+    - name: Run Action
       shell: bash
       run: ./gradlew ${{ inputs.gradle-command }} ${{ inputs.gradle-switches }}
