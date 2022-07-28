@@ -30,7 +30,7 @@ when running the workflow for remote execution.
 import subprocess
 
 import setuptools
-from setuptools.command.build import build as _build  # type: ignore
+from distutils.command.build import build as _build  # isort:skip
 
 
 # This class handles the pip install mechanism.
