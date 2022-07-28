@@ -1190,19 +1190,21 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testStreamingWrite() throws Exception {
-    streamingWrite(false);
+    autoShardingWrite(false, false);
   }
 
   @Test
   public void testStreamingWriteWithAutoSharding() throws Exception {
-    if (useStorageApi) {
-      return;
-    }
-    streamingWrite(true);
+    autoShardingWrite(true, false);
   }
 
-  private void streamingWrite(boolean autoSharding) throws Exception {
-    if (!useStreaming) {
+  @Test
+  public void testStorageApiWriteWithAutoSharding() throws Exception {
+    autoShardingWrite(true, true);
+  }
+
+  private void autoShardingWrite(boolean autoSharding, boolean storageAPIWrite) throws Exception {
+    if (!useStreaming && !storageAPIWrite) {
       return;
     }
     BigQueryIO.Write<TableRow> write =
@@ -1219,6 +1221,12 @@ public class BigQueryIOWriteTest implements Serializable {
             .withoutValidation();
     if (autoSharding) {
       write = write.withAutoSharding();
+    }
+    if (storageAPIWrite) {
+      write =
+          write
+              .withTriggeringFrequency(Duration.standardSeconds(5))
+              .withMethod(Method.STORAGE_WRITE_API);
     }
     p.apply(
             Create.of(
