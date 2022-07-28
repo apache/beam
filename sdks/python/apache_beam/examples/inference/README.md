@@ -235,14 +235,14 @@ The pipeline reads rows of pixels corresponding to a digit, performs basic prepr
 To run the MNIST classification pipeline locally, use the following command:
 ```sh
 python -m apache_beam.examples.inference.sklearn_mnist_classification.py \
-  --input_file INPUT \
+  --input INPUT \
   --output OUTPUT \
   --model_path MODEL_PATH
 ```
 For example:
 ```sh
 python -m apache_beam.examples.inference.sklearn_mnist_classification.py \
-  --input_file mnist_data.csv \
+  --input mnist_data.csv \
   --output predictions.txt \
   --model_path mnist_model_svm.pickle
 ```
