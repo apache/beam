@@ -104,8 +104,7 @@ export PYTHON_VERSION=&lt;version&gt;
 ./gradlew :examples:multi-language:pythonDataframeWordCount --args=&quot; \
 --runner=DataflowRunner \
 --output=gs://${OUTPUT_BUCKET}/count \
---region=${GCP_REGION} \
---experiments=use_runner_v2&quot;
+--region=${GCP_REGION}&quot;
 </code></pre><p>The pipeline outputs a file with the results to
 <strong>gs://$OUTPUT_BUCKET/count-00000-of-00001</strong>.</p><h2 id=advanced-start-an-expansion-service>Advanced: Start an expansion service</h2><p>When building a job for a multi-language pipeline, Beam uses an
 <a href=/documentation/glossary/#expansion-service>expansion service</a> to expand
