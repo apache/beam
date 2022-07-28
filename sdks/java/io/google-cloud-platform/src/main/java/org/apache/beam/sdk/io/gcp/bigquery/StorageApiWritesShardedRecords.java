@@ -543,9 +543,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         // Finalize the stream
         long nextOffset = MoreObjects.firstNonNull(streamOffset.read(), 0L);
         if (inline) {
-          flushAndFinalizeStreamInline(stream, nextOffset - 1, datasetService);
+          flushAndFinalizeStreamInline(
+              stream, nextOffset - 1, Preconditions.checkArgumentNotNull(datasetService));
         } else {
-          o.output(KV.of(stream, new Operation(nextOffset - 1, true)));
+          Preconditions.checkArgumentNotNull(o)
+              .output(KV.of(stream, new Operation(nextOffset - 1, true)));
         }
         streamName.clear();
         streamOffset.clear();
