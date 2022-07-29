@@ -31,7 +31,7 @@
 //   export TEMP_LOCATION="gs://MY-BUCKET/temp"
 //   export STAGING_LOCATION="gs://MY-BUCKET/staging"
 //   export REGION="us-central1"
-//	 export SOURCE_GCS_LOCATION="gs://MY_BUCKET/path/to/resources/**"
+//   export SOURCE_GCS_LOCATION="gs://MY_BUCKET/path/to/resources/**"
 //   export FHIR_STORE_PATH="MY_FHIR_STORE_PATH"
 //   cd ./sdks/go
 //   go run ./examples/fhirio/import/import.go \
@@ -40,9 +40,9 @@
 //     --staging_location=$STAGING_LOCATION \
 //     --project=$PROJECT \
 //     --region=$REGION \
-//	   --worker_harness_container_image=apache/beam_go_sdk:latest \
-//	   --sourceGcsLocation=$SOURCE_GCS_LOCATION \
-//	   --fhirStore=$FHIR_STORE_PATH
+//     --worker_harness_container_image=apache/beam_go_sdk:latest \
+//     --sourceGcsLocation=$SOURCE_GCS_LOCATION \
+//     --fhirStore=$FHIR_STORE_PATH
 package main
 
 import (
