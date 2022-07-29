@@ -608,6 +608,7 @@ class _BigQuerySource(dataflow_io.NativeSource):
       raise ImportError(
           'Google Cloud IO not available, '
           'please install apache_beam[gcp]')
+
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -989,6 +990,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
       temp_dataset: Optional[DatasetReference] = None,
       temp_table: Optional[TableReference] = None,
       use_native_datetime: Optional[bool] = False):
+
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
