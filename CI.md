@@ -124,6 +124,8 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Unit Tests              | Runs Java unit tests.                                                                         | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
+| JavaDoc                      | Runs JavaDoc PostCommit                                                                               | Yes              | Yes                   | Yes           | -                        |
+
 
 ### GitHub Action Tips
 

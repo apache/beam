@@ -19,11 +19,9 @@
 
 name: Javadoc postcommit
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
-  push:
-    branches: ['master', 'release-*']
-    tags: 'v*'
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
