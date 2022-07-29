@@ -64,10 +64,6 @@ func (cs ContentStructure) String() string {
 	}
 }
 
-func withNdjsonPatternSuffix(path string) string {
-	return path + "/*.ndjson"
-}
-
 type createBatchFilesFn struct {
 	fs              filesystem.Interface
 	batchFileWriter io.WriteCloser
@@ -152,7 +148,7 @@ func (fn *importFn) FinishBundle(ctx context.Context, emitDeadLetter func(string
 		fn.batchFilesPath = nil
 	}()
 
-	importURI := withNdjsonPatternSuffix(fn.TempLocation)
+	importURI := fn.TempLocation + "/*.ndjson"
 	result, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() (operationResults, error) {
 		return fn.client.importResources(fn.FhirStorePath, importURI, fn.ContentStructure)
 	})
