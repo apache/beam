@@ -49,11 +49,6 @@ var (
 	}
 )
 
-// FromBytes converts a byte slice to a string.
-func FromBytes(b []byte) string {
-	return (string)(b)
-}
-
 func main() {
 	flag.Parse()
 	beam.Init()
