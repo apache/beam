@@ -16,29 +16,26 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
+import 'package:collection/collection.dart';
 
-class ShareTabBody extends StatelessWidget {
-  final List<Widget> children;
+import 'package:playground/modules/examples/models/example_loading_descriptors/example_loading_descriptor.dart';
 
-  const ShareTabBody({
-    super.key,
-    required this.children,
+class ExamplesLoadingDescriptor {
+  final List<ExampleLoadingDescriptor> descriptors;
+
+  const ExamplesLoadingDescriptor({
+    required this.descriptors,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: kXlSpacing,
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: children,
-        ),
-      ),
-    );
+  String toString() => descriptors.map((e) => e.toString()).join('_');
+
+  @override
+  int get hashCode => Object.hashAll(descriptors);
+
+  @override
+  bool operator ==(Object other) {
+    return other is ExamplesLoadingDescriptor &&
+        const ListEquality().equals(descriptors, other.descriptors);
   }
 }

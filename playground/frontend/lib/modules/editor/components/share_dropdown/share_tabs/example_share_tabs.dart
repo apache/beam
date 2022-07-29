@@ -20,23 +20,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/modules/editor/components/share_dropdown/link_text_field.dart';
 import 'package:playground/modules/editor/components/share_dropdown/share_tab_body.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:playground/utils/share_code_utils.dart';
 
 class ExampleShareTabs extends StatelessWidget {
-  final PlaygroundState playgroundState;
+  final String examplePath;
   final TabController tabController;
 
   const ExampleShareTabs({
     super.key,
-    required this.playgroundState,
+    required this.examplePath,
     required this.tabController,
   });
 
   @override
   Widget build(BuildContext context) {
     final appLocale = AppLocalizations.of(context)!;
-    final examplePath = playgroundState.selectedExample!.path;
 
     return TabBarView(
       controller: tabController,

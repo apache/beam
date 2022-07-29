@@ -18,9 +18,12 @@
 
 const kExampleParam = 'example';
 const kIsEditableParam = 'editable';
-const kSnippetIdParam = 'snippetId';
-const kSourceCode = 'code';
 const kContextLine = 'line';
-const kIsEmbedded = 'embedded';
 
 const kQuickStartCategoryName = 'quick start';
+
+const _kIsEmbedded = 'embedded';
+
+bool isEmbedded() {
+  return Uri.base.toString().contains(_kIsEmbedded);
+}

@@ -55,36 +55,6 @@ class ShareCodeUtils {
   static const _width = '90%';
   static const _height = '600px';
 
-  static Uri snippetIdToPlaygroundUrl({
-    required String snippetId,
-    required PlaygroundView view,
-  }) {
-    return Uri.base.copyWith(
-      path: view.path,
-      queryParameters: _getSnippetQueryParameters(
-        snippetId: snippetId,
-        view: view,
-      ),
-    );
-  }
-
-  static Map<String, dynamic> _getSnippetQueryParameters({
-    required String snippetId,
-    required PlaygroundView view,
-  }) {
-    switch (view) {
-      case PlaygroundView.standalone:
-        return {
-          kSnippetIdParam: snippetId,
-        };
-      case PlaygroundView.embedded:
-        return {
-          kIsEditableParam: '1',
-          kSnippetIdParam: snippetId,
-        };
-    }
-  }
-
   static Uri examplePathToPlaygroundUrl({
     required String examplePath,
     required PlaygroundView view,
@@ -113,17 +83,6 @@ class ShareCodeUtils {
           kExampleParam: examplePath,
         };
     }
-  }
-
-  static String snippetIdToIframeCode({
-    required String snippetId,
-  }) {
-    return _iframe(
-      src: snippetIdToPlaygroundUrl(
-        snippetId: snippetId,
-        view: PlaygroundView.embedded,
-      ),
-    );
   }
 
   static String examplePathToIframeCode({

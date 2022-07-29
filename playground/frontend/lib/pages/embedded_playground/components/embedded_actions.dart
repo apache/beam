@@ -40,23 +40,12 @@ class EmbeddedActions extends StatelessWidget {
         child: ElevatedButton.icon(
           icon: SvgPicture.asset(kLinkIconAsset),
           label: Text(AppLocalizations.of(context)!.tryInPlayground),
-          onPressed: _onPressed,
+          onPressed: () {
+            final exampleId = Uri.base.queryParameters[kExampleParam];
+            launchUrl(Uri.parse('/?$kExampleParam=$exampleId'));
+          },
         ),
       ),
     );
-  }
-
-  void _onPressed() {
-    final exampleId = Uri.base.queryParameters[kExampleParam];
-    if (exampleId != null) {
-      launchUrl(Uri.parse('/?$kExampleParam=$exampleId'));
-      return;
-    }
-
-    final snippetId = Uri.base.queryParameters[kSnippetIdParam];
-    if (snippetId != null) {
-      launchUrl(Uri.parse('/?$kSnippetIdParam=$snippetId'));
-      return;
-    }
   }
 }

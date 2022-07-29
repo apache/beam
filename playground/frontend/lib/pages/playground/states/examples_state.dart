@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:playground/constants/params.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
@@ -35,19 +38,27 @@ class ExampleState with ChangeNotifier {
   Map<SDK, ExampleModel> defaultExamplesMap = {};
   ExampleModel? defaultExample;
   bool isSelectorOpened = false;
-  ExampleModel? sharedExample;
+
+  final _allExamplesCompleter = Completer<void>();
+
+  Future<void> get allExamplesFuture => _allExamplesCompleter.future;
+
+  bool get hasExampleCatalog => !isEmbedded();
 
   ExampleState(this._exampleRepository);
 
-  init() {
-    if (!Uri.base.toString().contains(kIsEmbedded)) {
-      _loadCategories();
+  Future<void> init() async {
+    if (hasExampleCatalog) {
+      await Future.wait([
+        _loadCategories(),
+        loadDefaultExamplesIfNot(),
+      ]);
     }
   }
 
-  setSdkCategories(Map<SDK, List<CategoryModel>> map) {
+  void setSdkCategories(Map<SDK, List<CategoryModel>> map) {
     sdkCategories = map;
-    notifyListeners();
+    _allExamplesCompleter.complete();
   }
 
   List<CategoryModel>? getCategories(SDK sdk) {
@@ -84,27 +95,26 @@ class ExampleState with ChangeNotifier {
     );
   }
 
-  Future<void> loadSharedExample(String id) async {
+  Future<ExampleModel> loadSharedExample(String id) async {
     GetSnippetResponse result = await _exampleRepository.getSnippet(
       GetSnippetRequestWrapper(id: id),
     );
-    sharedExample = ExampleModel(
+    return ExampleModel(
       sdk: result.sdk,
       name: result.files.first.name,
-      path: '',
+      path: id,
       description: '',
       type: ExampleType.example,
       source: result.files.first.code,
       pipelineOptions: result.pipelineOptions,
     );
-    notifyListeners();
   }
 
-  Future<String> getSnippetId(
-    List<SharedFile> files,
-    SDK sdk,
-    String pipelineOptions,
-  ) async {
+  Future<String> getSnippetId({
+    required List<SharedFile> files,
+    required SDK sdk,
+    required String pipelineOptions,
+  }) async {
     String id = await _exampleRepository.saveSnippet(SaveSnippetRequestWrapper(
       files: files,
       sdk: sdk,
@@ -145,15 +155,15 @@ class ExampleState with ChangeNotifier {
     return example;
   }
 
-  _loadCategories() {
-    _exampleRepository
+  Future<void> _loadCategories() {
+    return _exampleRepository
         .getListOfExamples(
           GetListOfExamplesRequestWrapper(sdk: null, category: null),
         )
         .then((map) => setSdkCategories(map));
   }
 
-  changeSelectorVisibility() {
+  void changeSelectorVisibility() {
     isSelectorOpened = !isSelectorOpened;
     notifyListeners();
   }
@@ -196,5 +206,17 @@ class ExampleState with ChangeNotifier {
     }
 
     await loadDefaultExamples();
+  }
+
+  Future<ExampleModel?> getCatalogExampleByPath(String path) async {
+    await allExamplesFuture;
+
+    final allExamples = sdkCategories?.values
+        .expand((sdkCategory) => sdkCategory.map((e) => e.examples))
+        .expand((element) => element);
+
+    return allExamples?.firstWhereOrNull(
+      (e) => e.path == path,
+    );
   }
 }

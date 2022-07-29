@@ -17,11 +17,8 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/params.dart';
 import 'package:playground/modules/editor/components/share_dropdown/share_tabs/example_share_tabs.dart';
-import 'package:playground/modules/editor/components/share_dropdown/share_tabs/snippet_share_tabs.dart';
 import 'package:playground/modules/editor/components/share_dropdown/share_tabs/snippet_save_and_share_tabs.dart';
-import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
@@ -37,29 +34,17 @@ class ShareTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Theme.of(context).backgroundColor,
-      child: Consumer2<PlaygroundState, ExampleState>(
-        builder: (context, playgroundState, exampleState, _) {
+      child: Consumer<PlaygroundState>(
+        builder: (context, playgroundState, _) {
           if (playgroundState.isExampleChanged) {
             return SnippetSaveAndShareTabs(
-              exampleState: exampleState,
               playgroundState: playgroundState,
               tabController: tabController,
             );
           }
 
-          final sharedExample = exampleState.sharedExample;
-          if (sharedExample != null &&
-              sharedExample.sdk == playgroundState.sdk &&
-              sharedExample.source == playgroundState.source) {
-            final snippetId = Uri.base.queryParameters[kSnippetIdParam] ?? '';
-            return SnippetShareTabs(
-              snippetId: snippetId,
-              tabController: tabController,
-            );
-          }
-
           return ExampleShareTabs(
-            playgroundState: playgroundState,
+            examplePath: playgroundState.selectedExample!.path,
             tabController: tabController,
           );
         },

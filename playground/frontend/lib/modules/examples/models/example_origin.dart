@@ -16,29 +16,25 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
-class ShareTabBody extends StatelessWidget {
-  final List<Widget> children;
+enum ExampleOrigin {
+  empty,
+  standard,
+  userShared,
+  catalogDefault,
+  ;
 
-  const ShareTabBody({
-    super.key,
-    required this.children,
-  });
+  static ExampleOrigin fromToken(String? token) {
+    if (token == null) {
+      return empty;
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: kXlSpacing,
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: children,
-        ),
-      ),
-    );
+    final sdk = SDK.tryParseExamplePath(token);
+    if (sdk != null) {
+      return standard;
+    }
+
+    return userShared;
   }
 }

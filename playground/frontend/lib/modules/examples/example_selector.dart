@@ -18,7 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/components/horizontal_divider.dart';
+import 'package:playground/components/horizonta_divider/horizontal_divider.dart';
 import 'package:playground/components/loading_indicator/loading_indicator.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/links.dart';
@@ -130,12 +130,12 @@ class _ExampleSelectorState extends State<ExampleSelector>
         return ChangeNotifierProvider<PopoverState>(
           create: (context) => PopoverState(false),
           builder: (context, state) {
-            return Consumer2<ExampleState, PlaygroundState>(
-              builder: (context, exampleState, playgroundState, child) => Stack(
+            return Consumer<PlaygroundState>(
+              builder: (context, playgroundState, child) => Stack(
                 children: [
                   OutsideClickHandler(
                     onTap: () {
-                      closeDropdown(exampleState);
+                      _closeDropdown(playgroundState.exampleState);
                       // handle description dialogs
                       Navigator.of(context, rootNavigator: true)
                           .popUntil((route) {
@@ -145,9 +145,9 @@ class _ExampleSelectorState extends State<ExampleSelector>
                   ),
                   ChangeNotifierProvider(
                     create: (context) => ExampleSelectorState(
-                      exampleState,
                       playgroundState,
-                      exampleState.getCategories(playgroundState.sdk)!,
+                      playgroundState.exampleState
+                          .getCategories(playgroundState.sdk)!,
                     ),
                     builder: (context, _) => Positioned(
                       left: dropdownOffset.dx,
@@ -166,7 +166,6 @@ class _ExampleSelectorState extends State<ExampleSelector>
                             ),
                             child: _buildDropdownContent(
                               context,
-                              exampleState,
                               playgroundState,
                             ),
                           ),
@@ -185,10 +184,9 @@ class _ExampleSelectorState extends State<ExampleSelector>
 
   Widget _buildDropdownContent(
     BuildContext context,
-    ExampleState exampleState,
     PlaygroundState playgroundState,
   ) {
-    if (exampleState.sdkCategories == null ||
+    if (playgroundState.exampleState.sdkCategories == null ||
         playgroundState.selectedExample == null) {
       return const LoadingIndicator(
         size: kMdLoadingIndicatorSize,
@@ -226,7 +224,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
     );
   }
 
-  void closeDropdown(ExampleState exampleState) {
+  void _closeDropdown(ExampleState exampleState) {
     animationController.reverse();
     examplesDropdown?.remove();
     exampleState.changeSelectorVisibility();

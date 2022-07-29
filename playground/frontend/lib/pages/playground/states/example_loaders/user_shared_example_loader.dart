@@ -16,29 +16,21 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/examples/models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/pages/playground/states/example_loaders/example_loader.dart';
+import 'package:playground/pages/playground/states/examples_state.dart';
 
-class ShareTabBody extends StatelessWidget {
-  final List<Widget> children;
+class UserSharedExampleLoader extends ExampleLoader {
+  final UserSharedExampleLoadingDescriptor descriptor;
+  final ExampleState exampleState;
 
-  const ShareTabBody({
-    super.key,
-    required this.children,
+  UserSharedExampleLoader({
+    required this.descriptor,
+    required this.exampleState,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: kXlSpacing,
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: children,
-        ),
-      ),
-    );
-  }
+  Future<ExampleModel> get future =>
+      exampleState.loadSharedExample(descriptor.snippetId);
 }
