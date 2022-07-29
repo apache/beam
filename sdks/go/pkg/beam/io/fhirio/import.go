@@ -36,8 +36,8 @@ import (
 )
 
 func init() {
-	register.DoFn3x0[context.Context, string, func(string)]((*importFn)(nil))
-	register.DoFn4x0[context.Context, string, func(string), func(string)]((*createBatchFilesFn)(nil))
+	register.DoFn3x0[context.Context, string, func(string)](&importFn{})
+	register.DoFn4x0[context.Context, string, func(string), func(string)](&createBatchFilesFn{})
 	register.Emitter1[string]()
 }
 

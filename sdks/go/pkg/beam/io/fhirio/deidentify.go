@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	register.DoFn3x0[context.Context, []byte, func(string)]((*deidentifyFn)(nil))
+	register.DoFn3x0[context.Context, []byte, func(string)](&deidentifyFn{})
 	register.Emitter1[string]()
 }
 

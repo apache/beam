@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	register.DoFn4x0[context.Context, []byte, func(string), func(string)]((*readResourceFn)(nil))
+	register.DoFn4x0[context.Context, []byte, func(string), func(string)](&readResourceFn{})
 	register.Emitter1[string]()
 }
 
