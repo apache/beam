@@ -39,7 +39,7 @@
 //   export FHIR_STORE_PATH="MY_FHIR_STORE_PATH"
 //	 export PUBSUB_TOPIC="MY_FHIR_STORE_TOPIC"
 //   cd ./sdks/go
-//   go run ./examples/fhirio/read_write_pubsub.go \
+//   go run ./examples/fhirio/read_write_pubsub/read_write_pubsub.go \
 //     --runner=dataflow \
 //     --temp_location=$TEMP_LOCATION \
 //     --staging_location=$STAGING_LOCATION \
