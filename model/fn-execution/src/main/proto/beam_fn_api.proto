@@ -622,9 +622,6 @@ message StateResponse {
   // failed.
   string error = 2;
 
-  // (Optional) If this is specified, then the result of this state request
-  // can be cached using the supplied token.
-  bytes cache_token = 3;
 
   // A corresponding response matching the request will be populated.
   oneof response {
