@@ -25,6 +25,7 @@ import apache_beam.io.gcp.bigquery
 from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.options import value_provider
 
 try:
   from apitools.base.py.exceptions import HttpError
@@ -84,7 +85,7 @@ class TestBigQueryToSchema(unittest.TestCase):
       bigquery_schema_tools.produce_pcoll_with_schema(the_table_schema=schema)
 
   @mock.patch.object(BigQueryWrapper, 'get_table')
-  def test_bad_schema_public_api(self, get_table):
+  def test_bad_schema_public_api_export(self, get_table):
     fields = [
         bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
         bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
@@ -101,8 +102,137 @@ class TestBigQueryToSchema(unittest.TestCase):
       p = apache_beam.Pipeline()
       pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
           table="dataset.sample_table",
+          method="EXPORT",
           project="project",
-          output_type='BEAM_ROWS')
+          output_type='BEAM_ROW')
+      pipeline
+
+  @mock.patch.object(BigQueryWrapper, 'get_table')
+  def test_bad_schema_public_api_direct_read(self, get_table):
+    fields = [
+        bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
+        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
+        bigquery.TableFieldSchema(name='count', type='INTEGER', mode=None)
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    table = apache_beam.io.gcp.internal.clients.bigquery. \
+        bigquery_v2_messages.Table(
+        schema=schema)
+    get_table.return_value = table
+
+    with self.assertRaisesRegex(ValueError,
+                                "Encountered an unsupported type: 'DOUBLE'"):
+      p = apache_beam.Pipeline()
+      pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+          table="dataset.sample_table",
+          method="DIRECT_READ",
+          project="project",
+          output_type='BEAM_ROW')
+      pipeline
+
+  @mock.patch.object(BigQueryWrapper, 'get_table')
+  def test_unsupported_value_provider(self, get_table):
+    fields = [
+        bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
+        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
+        bigquery.TableFieldSchema(
+            name='count', type='INTEGER', mode="NULLABLE")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    table = apache_beam.io.gcp.internal.clients.bigquery. \
+        bigquery_v2_messages.Table(
+        schema=schema)
+    get_table.return_value = table
+
+    with self.assertRaisesRegex(
+        ValueError,
+        "Encountered table of type ValueProvider or callable with "
+        "output_type 'BEAM_ROW'. "
+        "'BEAM_ROW' currently only supports tables of type str."):
+      p = apache_beam.Pipeline()
+      pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+          table=value_provider.ValueProvider(), output_type='BEAM_ROW')
+      pipeline
+
+  @mock.patch.object(BigQueryWrapper, 'get_table')
+  def test_unsupported_callable(self, get_table):
+    fields = [
+        bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
+        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
+        bigquery.TableFieldSchema(
+            name='count', type='INTEGER', mode="NULLABLE")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    table = apache_beam.io.gcp.internal.clients.bigquery. \
+        bigquery_v2_messages.Table(
+        schema=schema)
+    get_table.return_value = table
+
+    def filterTable(table):
+      if table is not None:
+        return table
+
+    res = filterTable
+    with self.assertRaisesRegex(
+        ValueError,
+        "Encountered table of type ValueProvider or callable with "
+        "output_type 'BEAM_ROW'. "
+        "'BEAM_ROW' currently only supports tables of type str."):
+      p = apache_beam.Pipeline()
+      pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+          table=res, output_type='BEAM_ROW')
+      pipeline
+
+  @mock.patch.object(BigQueryWrapper, 'get_table')
+  def test_unsupported_query_export(self, get_table):
+    fields = [
+        bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
+        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
+        bigquery.TableFieldSchema(
+            name='count', type='INTEGER', mode="NULLABLE")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    table = apache_beam.io.gcp.internal.clients.bigquery. \
+        bigquery_v2_messages.Table(
+        schema=schema)
+    get_table.return_value = table
+
+    with self.assertRaisesRegex(
+        ValueError,
+        "Both a query and an output type of 'BEAM_ROW' were specified. "
+        "'BEAM_ROW' is not currently supported with queries."):
+      p = apache_beam.Pipeline()
+      pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+          table="project:dataset.sample_table",
+          method="EXPORT",
+          query='SELECT name FROM dataset.sample_table',
+          output_type='BEAM_ROW')
+      pipeline
+
+  @mock.patch.object(BigQueryWrapper, 'get_table')
+  def test_unsupported_query_direct_read(self, get_table):
+    fields = [
+        bigquery.TableFieldSchema(name='stn', type='INTEGER', mode="NULLABLE"),
+        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
+        bigquery.TableFieldSchema(
+            name='count', type='INTEGER', mode="NULLABLE")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    table = apache_beam.io.gcp.internal.clients.bigquery. \
+        bigquery_v2_messages.Table(
+        schema=schema)
+    get_table.return_value = table
+
+    with self.assertRaisesRegex(
+        ValueError,
+        "Both a query and an output type of 'BEAM_ROW' were specified. "
+        "'BEAM_ROW' is not currently supported with queries."):
+      p = apache_beam.Pipeline()
+      pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+          table="project:dataset.sample_table",
+          method="DIRECT_READ",
+          query='SELECT name FROM dataset.sample_table',
+          output_type='BEAM_ROW')
       pipeline
 
   if __name__ == '__main__':

@@ -40,7 +40,6 @@ BIG_QUERY_TO_PYTHON_TYPES = {
     "FLOAT64": np.float64,
     "BOOLEAN": bool,
     "BYTES": bytes,
-    "TIMESTAMP": beam.utils.timestamp.Timestamp,
     #TODO(https://github.com/apache/beam/issues/20810):
     # Finish mappings for all BQ types
 }

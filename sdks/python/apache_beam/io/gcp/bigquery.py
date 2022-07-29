@@ -608,7 +608,6 @@ class _BigQuerySource(dataflow_io.NativeSource):
       raise ImportError(
           'Google Cloud IO not available, '
           'please install apache_beam[gcp]')
-
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -990,7 +989,6 @@ class _CustomBigQueryStorageSource(BoundedSource):
       temp_dataset: Optional[DatasetReference] = None,
       temp_table: Optional[TableReference] = None,
       use_native_datetime: Optional[bool] = False):
-
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -2440,6 +2438,7 @@ class ReadFromBigQuery(PTransform):
       gcs_location=None,
       method=None,
       use_native_datetime=False,
+      query=None,
       output_type=None,
       *args,
       **kwargs):
@@ -2467,45 +2466,39 @@ class ReadFromBigQuery(PTransform):
         'type': 'bq_direct_read_' + str(uuid.uuid4())[0:10]
     }
     self.output_type = output_type
+    self.query = query
     self._args = args
     self._kwargs = kwargs
+
+    if self.output_type == "BEAM_ROW" and self.query is not None:
+      raise ValueError(
+          "Both a query and an output type of 'BEAM_ROW' were specified. "
+          "'BEAM_ROW' is not currently supported with queries.")
 
   def expand(self, pcoll):
     if self.method is ReadFromBigQuery.Method.EXPORT:
       output_pcollection = self._expand_export(pcoll)
-      return ReadFromBigQuery._expand_output_type_export(
-          self, output_pcollection)
+      return ReadFromBigQuery._expand_output_type(self, output_pcollection)
     elif self.method is ReadFromBigQuery.Method.DIRECT_READ:
       output_pcollection = self._expand_direct_read(pcoll)
-      return ReadFromBigQuery._expand_output_type_direct_read(
-          self, output_pcollection)
+      return ReadFromBigQuery._expand_output_type(self, output_pcollection)
     else:
       raise ValueError(
           'The method to read from BigQuery must be either EXPORT'
           'or DIRECT_READ.')
 
-  def _expand_output_type_export(self, output_pcollection):
-    if self.output_type == 'BEAM_ROWS':
-      start_idx = self._kwargs['table'].index(
-          ':') if ':' in self._kwargs['table'] else 0
-      end_idx = self._kwargs['table'].index('.')
-      return output_pcollection | beam.io.gcp.bigquery_schema_tools. \
-          convert_to_usertype(
-          beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
-              project_id=output_pcollection.pipeline.options.view_as(
-                GoogleCloudOptions).project,
-              dataset_id=str(self._kwargs['table']
-                             [start_idx+1 if ':' in self._kwargs['table']
-                              else 0:end_idx]),
-              table_id=str(self._kwargs['table']).rsplit(
-                  '.', maxsplit=1)[-1]).schema)
-    elif self.output_type == 'PYTHON_DICT' or self.output_type is None:
-      return output_pcollection
-
-  def _expand_output_type_direct_read(self, output_pcollection):
-    if self.output_type == 'BEAM_ROWS':
+  def _expand_output_type(self, output_pcollection):
+    if self.output_type == 'BEAM_ROW':
+      if isinstance(self._kwargs['table'], ValueProvider) or callable(
+          self._kwargs['table']):
+        raise ValueError(
+            "Encountered table of type ValueProvider or callable with "
+            "output_type 'BEAM_ROW'. "
+            "'BEAM_ROW' currently only supports tables of type str.")
       table_details = bigquery_tools.parse_table_reference(
-          self._kwargs['table'])
+          table=self._kwargs.get("table", None),
+          dataset=self._kwargs.get("dataset", None),
+          project=self._kwargs.get("project", None))
       return output_pcollection | beam.io.gcp.bigquery_schema_tools.\
             convert_to_usertype(
             beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(

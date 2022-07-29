@@ -192,10 +192,10 @@ class ReadTests(BigQueryReadIntegrationTests):
       result = (
           p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
               gcs_location="gs://bqio_schema_test",
-              table="beam_bigquery_io_test."
-              "dfsqltable_3c7d6fd5_16e0460dfd0",
+              dataset="beam_bigquery_io_test",
+              table="dfsqltable_3c7d6fd5_16e0460dfd0",
               project="apache-beam-testing",
-              output_type='BEAM_ROWS'))
+              output_type='BEAM_ROW'))
       assert_that(
           result,
           equal_to([
@@ -220,7 +220,7 @@ class ReadTests(BigQueryReadIntegrationTests):
               table="apache-beam-testing:"
               "beam_bigquery_io_test."
               "dfsqltable_3c7d6fd5_16e0460dfd0",
-              output_type='BEAM_ROWS'))
+              output_type='BEAM_ROW'))
       assert_that(
           result,
           equal_to([
@@ -245,7 +245,7 @@ class ReadTests(BigQueryReadIntegrationTests):
               table="apache-beam-testing:"
               "beam_bigquery_io_test."
               "dfsqltable_3c7d6fd5_16e0460dfd0",
-              output_type='BEAM_ROWS'))
+              output_type='BEAM_ROW'))
       assert_that(
           result,
           equal_to([
