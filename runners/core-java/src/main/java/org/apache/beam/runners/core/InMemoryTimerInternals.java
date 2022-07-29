@@ -28,6 +28,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -155,10 +156,18 @@ public class InMemoryTimerInternals implements TimerInternals {
   @Override
   public void deleteTimer(
       StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
-    throw new UnsupportedOperationException("Canceling a timer by ID is not yet supported.");
+    TimerData removedTimer = existingTimers.remove(namespace, timerId + '+' + timerFamilyId);
+    if (removedTimer != null) {
+      Preconditions.checkState(
+          removedTimer.getDomain().equals(timeDomain),
+          "%s doesn't match time domain %s of timer",
+          timeDomain,
+          removedTimer.getDomain());
+      timersForDomain(timeDomain).remove(removedTimer);
+    }
   }
 
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+  /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
   @Deprecated
   @Override
   public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
@@ -168,11 +177,12 @@ public class InMemoryTimerInternals implements TimerInternals {
     }
   }
 
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+  /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
   @Deprecated
   @Override
   public void deleteTimer(TimerData timer) {
-    deleteTimer(timer.getNamespace(), timer.getTimerId(), timer.getTimerFamilyId());
+    deleteTimer(
+        timer.getNamespace(), timer.getTimerId(), timer.getTimerFamilyId(), timer.getDomain());
   }
 
   @Override
