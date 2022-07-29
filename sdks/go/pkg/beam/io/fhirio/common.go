@@ -69,7 +69,7 @@ func extractBodyFrom(response *http.Response) (string, error) {
 }
 
 type operationCounters struct {
-	successCount, errorCount   beam.Counter
+	successCount, errorCount beam.Counter
 }
 
 func (c *operationCounters) setup(namespace string) {

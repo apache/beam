@@ -100,10 +100,10 @@ var (
 )
 
 type fakeFhirStoreClient struct {
-	fakeReadResources  func([]byte) (*http.Response, error)
-	fakeExecuteBundles func(string, string) (*http.Response, error)
-	fakeSearch         func(string, string, map[string]string, string) (*http.Response, error)
-	fakeDeidentify     func(string, string, *healthcare.DeidentifyConfig) (operationResults, error)
+	fakeReadResources   func([]byte) (*http.Response, error)
+	fakeExecuteBundles  func(string, string) (*http.Response, error)
+	fakeSearch          func(string, string, map[string]string, string) (*http.Response, error)
+	fakeDeidentify      func(string, string, *healthcare.DeidentifyConfig) (operationResults, error)
 	fakeImportResources func(string, string, ContentStructure) (operationResults, error)
 }
 
