@@ -20,6 +20,7 @@ package fhirio
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -156,7 +157,7 @@ func (fn *importFn) FinishBundle(ctx context.Context, emitDeadLetter func(string
 		return fn.client.importResources(fn.FhirStorePath, importURI, fn.ContentStructure)
 	})
 	if err != nil {
-		fn.moveFailedImportFilesToDeadLetterLocation(ctx)
+		fn.moveToDeadLetterOrRemoveFailedImportBatchFiles(ctx)
 		fn.operationCounters.errorCount.Inc(ctx, 1)
 		emitDeadLetter(fmt.Sprintf("Failed to import [%v]. Reason: %v", importURI, err))
 		return
@@ -165,10 +166,17 @@ func (fn *importFn) FinishBundle(ctx context.Context, emitDeadLetter func(string
 	fn.operationCounters.successCount.Inc(ctx, 1)
 	fn.resourcesSuccessCount.Inc(ctx, result.Successes)
 	fn.resourcesErrorCount.Inc(ctx, result.Failures)
-	fn.cleanUpTempBatchFiles(ctx)
+	fn.removeTempBatchFiles(ctx)
 }
 
-func (fn *importFn) moveFailedImportFilesToDeadLetterLocation(ctx context.Context) {
+func (fn *importFn) moveToDeadLetterOrRemoveFailedImportBatchFiles(ctx context.Context) {
+	if fn.DeadLetterLocation == "" {
+		log.Info(ctx, "Deadletter path not provided. Remove failed import batch files instead.")
+		fn.removeTempBatchFiles(ctx)
+		return
+	}
+
+	log.Infof(ctx, "Moving failed import files to Deadletter path: [%v]", fn.DeadLetterLocation)
 	for _, p := range fn.batchFilesPath {
 		err := filesystem.Rename(ctx, fn.fs, p, fmt.Sprintf("%s/%s", fn.DeadLetterLocation, filepath.Base(p)))
 		if err != nil {
@@ -177,7 +185,7 @@ func (fn *importFn) moveFailedImportFilesToDeadLetterLocation(ctx context.Contex
 	}
 }
 
-func (fn *importFn) cleanUpTempBatchFiles(ctx context.Context) {
+func (fn *importFn) removeTempBatchFiles(ctx context.Context) {
 	for _, p := range fn.batchFilesPath {
 		err := fn.fs.(filesystem.Remover).Remove(ctx, p)
 		if err != nil {
@@ -190,13 +198,19 @@ func (fn *importFn) cleanUpTempBatchFiles(ctx context.Context) {
 // into a given Google Cloud Healthcare FHIR store. It does so by creating batch
 // files in the provided Google Cloud Storage `tempDir` and importing those files
 // to the store through FHIR import API method: https://cloud.google.com/healthcare-api/docs/concepts/fhir-import.
-// Resources that fail to be included in the batch files are included as the first
-// output PCollection. In case a batch file fails to be imported, it will be moved
-// to the dead letter path and an error message will be provided in the second output
-// PCollection.
+// If `tempDir` is not provided, it falls back to the dataflow temp_location flag.
+// Resources that fail to be included in the batch files are included as the
+// first output PCollection. In case a batch file fails to be imported, it will
+// be moved to the `deadLetterDir` and an error message will be provided in the
+// second output PCollection. If `deadLetterDir` is not provided, the failed
+// import files will be deleted and be irretrievable, but the error message will
+// still be provided.
 func Import(s beam.Scope, fhirStorePath, tempDir, deadLetterDir string, contentStructure ContentStructure, resources beam.PCollection) (beam.PCollection, beam.PCollection) {
 	s = s.Scope("fhirio.Import")
 
+	if tempDir == "" {
+		tempDir = tryFallbackToDataflowTempDirOrPanic()
+	}
 	tempDir = strings.TrimSuffix(tempDir, "/")
 	deadLetterDir = strings.TrimSuffix(deadLetterDir, "/")
 
@@ -218,4 +232,16 @@ func importResourcesInBatches(s beam.Scope, fhirStorePath, tempDir, deadLetterDi
 		batchFiles,
 	)
 	return failedResources, failedImportsDeadLetter
+}
+
+func tryFallbackToDataflowTempDirOrPanic() string {
+	if f := flag.Lookup("temp_location"); f != nil && f.Value.String() != "" {
+		return f.Value.String()
+	}
+
+	// temp_location is optional, so fallback to staging_location.
+	if f := flag.Lookup("staging_location"); f != nil {
+		return f.Value.String()
+	}
+	panic("could not resolve to a temp directory for import batch files")
 }
