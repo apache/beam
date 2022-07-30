@@ -109,7 +109,7 @@ import org.joda.time.DateTimeZone;
  * @param <T> the type of elements handled by this coder
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class AvroCoder<T> extends CustomCoder<T> {
 
@@ -490,7 +490,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
         return;
       }
 
-      // If the the record isn't a true class, but rather a GenericRecord, SpecificRecord, etc.
+      // If the record isn't a true class, but rather a GenericRecord, SpecificRecord, etc.
       // with a specified schema, then we need to make the decision based on the generated
       // implementations.
       if (isSubtypeOf(type, IndexedRecord.class)) {

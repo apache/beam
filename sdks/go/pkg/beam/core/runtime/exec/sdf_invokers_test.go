@@ -21,6 +21,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/google/go-cmp/cmp"
 )
@@ -554,12 +555,13 @@ func (fn *VetSdf) CreateWatermarkEstimator() *VetWatermarkEstimator {
 // Note that emitting restrictions is discouraged in normal usage. It is only
 // done here to allow validating that ProcessElement is being executed
 // properly.
-func (fn *VetSdf) ProcessElement(rt *VetRTracker, i int, emit func(*VetRestriction)) {
+func (fn *VetSdf) ProcessElement(rt *VetRTracker, i int, emit func(*VetRestriction)) sdf.ProcessContinuation {
 	rest := rt.Rest
 	rest.Key = nil
 	rest.Val = i
 	rest.ProcessElm = true
 	emit(rest)
+	return sdf.ResumeProcessingIn(1 * time.Second)
 }
 
 type VetSdfStatefulWatermark struct {
@@ -669,12 +671,13 @@ func (fn *VetKvSdf) CreateTracker(rest *VetRestriction) *VetRTracker {
 // Note that emitting restrictions is discouraged in normal usage. It is only
 // done here to allow validating that ProcessElement is being executed
 // properly.
-func (fn *VetKvSdf) ProcessElement(rt *VetRTracker, i, j int, emit func(*VetRestriction)) {
+func (fn *VetKvSdf) ProcessElement(rt *VetRTracker, i, j int, emit func(*VetRestriction)) sdf.ProcessContinuation {
 	rest := rt.Rest
 	rest.Key = i
 	rest.Val = j
 	rest.ProcessElm = true
 	emit(rest)
+	return sdf.ResumeProcessingIn(1 * time.Second)
 }
 
 // VetEmptyInitialSplitSdf runs an SDF in order to test that these methods get called properly,
@@ -722,10 +725,11 @@ func (fn *VetEmptyInitialSplitSdf) CreateTracker(rest *VetRestriction) *VetRTrac
 // Note that emitting restrictions is discouraged in normal usage. It is only
 // done here to allow validating that ProcessElement is being executed
 // properly.
-func (fn *VetEmptyInitialSplitSdf) ProcessElement(rt *VetRTracker, i int, emit func(*VetRestriction)) {
+func (fn *VetEmptyInitialSplitSdf) ProcessElement(rt *VetRTracker, i int, emit func(*VetRestriction)) sdf.ProcessContinuation {
 	rest := rt.Rest
 	rest.Key = nil
 	rest.Val = i
 	rest.ProcessElm = true
 	emit(rest)
+	return sdf.ResumeProcessingIn(1 * time.Second)
 }

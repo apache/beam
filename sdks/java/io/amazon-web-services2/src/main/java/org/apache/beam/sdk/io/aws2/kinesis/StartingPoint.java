@@ -31,7 +31,7 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * case the reader will start reading at the specified point in time.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class StartingPoint implements Serializable {
 

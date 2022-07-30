@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.protobuf.Descriptors.Descriptor;
 import java.util.List;
@@ -52,6 +53,8 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
     void refreshSchema(long expectedHash) throws Exception;
 
     StorageApiWritePayload toMessage(T element) throws Exception;
+
+    TableRow toTableRow(T element);
   }
 
   private DynamicDestinations<T, DestinationT> inner;
@@ -64,7 +67,7 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
       DestinationT destination, DatasetService datasetService) throws Exception;
 
   @Override
-  public DestinationT getDestination(ValueInSingleWindow<T> element) {
+  public DestinationT getDestination(@Nullable ValueInSingleWindow<T> element) {
     return inner.getDestination(element);
   }
 
@@ -79,7 +82,7 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
   }
 
   @Override
-  public TableSchema getSchema(DestinationT destination) {
+  public @Nullable TableSchema getSchema(DestinationT destination) {
     return inner.getSchema(destination);
   }
 

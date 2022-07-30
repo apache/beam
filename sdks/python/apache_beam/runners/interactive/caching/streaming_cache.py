@@ -58,9 +58,9 @@ class StreamingCacheSink(beam.PTransform):
   transforms are writing to the same file. This PTransform is assumed to only
   run correctly with the DirectRunner.
 
-  TODO(BEAM-9447): Generalize this to more source/sink types aside from file
-  based. Also, generalize to cases where there might be multiple workers
-  writing to the same sink.
+  TODO(https://github.com/apache/beam/issues/20002): Generalize this to more
+  source/sink types aside from file based. Also, generalize to cases where
+  there might be multiple workers writing to the same sink.
   """
   def __init__(
       self,

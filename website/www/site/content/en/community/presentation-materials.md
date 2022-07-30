@@ -31,14 +31,14 @@ Are you interested in learning more about Apache Beam or giving a talk about Apa
 ## Using these materials
 These materials can be used by anyone. If you do use these materials, please remember to give credit to the authors cited in each presentation. These materials include speaker notes and you can view them by clicking **`View`** and selecting **`Show speaker notes`**. Some presentations have `[Long]` or `[Short]` in their name, such as the *Apache Beam Model*, which means there are two different presentations (a long and short version) depending on your needs and time constraints.
 
-If you have any questions about the these materials, please ask on the [`user@beam.apache.org`](mailto:user@beam.apache.org) mailing list.
+If you have any questions about these materials, please ask on the [`user@beam.apache.org`](mailto:user@beam.apache.org) mailing list.
 
 The Apache Beam community is looking for feedback on these materials to improve them over time. If you deliver a presentation based on these materials, we'd love to hear from you on the [`user@beam.apache.org`](mailto:user@beam.apache.org) mailing list. Please share your thoughts, questions you were asked, and (if available and appropriate) a link to the recording of your talk so the rest of the Apache Beam community can benefit from it.
 
 ## Contributing new content
 The Apache Beam community is always looking for new core content and contributions!
 
-If you are interested in contributing new content, we recommend you first search the [Apache Beam JIRA](https://issues.apache.org/jira/browse/BEAM) to see if your idea currently has an open JIRA item. If it does not, send an email to the [`user@beam.apache.org`](mailto:user@beam.apache.org) mailing list or open a new issue in the [Apache Beam JIRA](https://issues.apache.org/jira/browse/BEAM) using the [website](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20website) component. Based on community submissions or contributions, the Beam community collaboratively reviews or creates new content and then adds it to this shared space for everyone to use.
+If you are interested in contributing new content, we recommend you first search the [Apache Beam repo](https://github.com/apache/beam/issues) to see if your idea currently has an open issue. If it does not, send an email to the [`user@beam.apache.org`](mailto:user@beam.apache.org) mailing list or open a new issue in the [Apache Beam repo](https://github.com/apache/beam/issues/new/choose) using the website component. Based on community submissions or contributions, the Beam community collaboratively reviews or creates new content and then adds it to this shared space for everyone to use.
 
 ## Corrections and updates
 If you encounter missing, incorrect, or out of date material, please make a comment in the presentation or send an email to the [`user@beam.apache.org`](mailto:user@beam.apache.org) mailing list.

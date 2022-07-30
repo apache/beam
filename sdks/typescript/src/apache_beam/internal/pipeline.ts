@@ -21,13 +21,13 @@ import equal from "fast-deep-equal";
 import * as runnerApi from "../proto/beam_runner_api";
 import * as fnApi from "../proto/beam_fn_api";
 import {
-  PTransform,
-  AsyncPTransform,
+  PTransformClass,
+  AsyncPTransformClass,
   extractName,
 } from "../transforms/transform";
-import { GlobalWindows } from "../transforms/windowings";
+import { globalWindows } from "../transforms/windowings";
 import * as pvalue from "../pvalue";
-import { WindowInto } from "../transforms/window";
+import { createWindowingStrategyProto } from "../transforms/window";
 import * as environments from "./environments";
 import { Coder, globalRegistry as globalCoderRegistry } from "../coders/coders";
 
@@ -43,20 +43,16 @@ export class PipelineContext {
 
   getCoder<T>(coderId: string): Coder<T> {
     const this_ = this;
-    if (this.coders[coderId] == undefined) {
+    if (this.coders[coderId] === null || this.coders[coderId] === undefined) {
       const coderProto = this.components.coders[coderId];
-      const coderConstructor = globalCoderRegistry().get(coderProto.spec!.urn);
-      const components = (coderProto.componentCoderIds || []).map(
-        this_.getCoder.bind(this_)
+      const components: Coder<unknown>[] = (
+        coderProto.componentCoderIds || []
+      ).map(this_.getCoder.bind(this_));
+      this.coders[coderId] = globalCoderRegistry().getCoder(
+        coderProto.spec!.urn,
+        coderProto.spec!.payload,
+        ...components
       );
-      if (coderProto.spec!.payload?.length) {
-        this.coders[coderId] = new coderConstructor(
-          coderProto.spec!.payload,
-          ...components
-        );
-      } else {
-        this.coders[coderId] = new coderConstructor(...components);
-      }
     }
     return this.coders[coderId];
   }
@@ -74,7 +70,7 @@ export class PipelineContext {
   }
 
   getPCollectionCoderId<T>(pcoll: pvalue.PCollection<T>): string {
-    const pcollId = typeof pcoll == "string" ? pcoll : pcoll.getId();
+    const pcollId = typeof pcoll === "string" ? pcoll : pcoll.getId();
     return this.components!.pcollections[pcollId].coderId;
   }
 
@@ -118,6 +114,7 @@ export class Pipeline {
   context: PipelineContext;
   transformStack: string[] = [];
   defaultEnvironment: string;
+  usedStageNames: Set<string> = new Set();
 
   private proto: runnerApi.Pipeline;
   private globalWindowing: string;
@@ -132,13 +129,13 @@ export class Pipeline {
       environments.defaultJsEnvironment();
     this.context = new PipelineContext(this.proto.components!);
     this.proto.components!.windowingStrategies[this.globalWindowing] =
-      WindowInto.createWindowingStrategy(this, new GlobalWindows());
+      createWindowingStrategyProto(this, globalWindows());
   }
 
   preApplyTransform<
     InputT extends pvalue.PValue<any>,
     OutputT extends pvalue.PValue<any>
-  >(transform: AsyncPTransform<InputT, OutputT>, input: InputT) {
+  >(transform: AsyncPTransformClass<InputT, OutputT>, input: InputT) {
     const this_ = this;
     const transformId = this.context.createUniqueName("transform");
     let parent: runnerApi.PTransform | undefined = undefined;
@@ -151,9 +148,17 @@ export class Pipeline {
     } else {
       this.proto.rootTransformIds.push(transformId);
     }
+    const uniqueName =
+      (parent ? parent.uniqueName + "/" : "") + extractName(transform);
+    if (this.usedStageNames.has(uniqueName)) {
+      throw new Error(
+        `Duplicate stage name: "${uniqueName}". ` +
+          "Use beam.withName(...) to give your transform a unique name."
+      );
+    }
+    this.usedStageNames.add(uniqueName);
     const transformProto: runnerApi.PTransform = {
-      uniqueName:
-        (parent ? parent.uniqueName + "/" : "") + extractName(transform),
+      uniqueName,
       subtransforms: [],
       inputs: objectMap(pvalue.flattenPValue(input), (pc) => pc.getId()),
       outputs: {},
@@ -168,7 +173,7 @@ export class Pipeline {
   applyTransform<
     InputT extends pvalue.PValue<any>,
     OutputT extends pvalue.PValue<any>
-  >(transform: PTransform<InputT, OutputT>, input: InputT) {
+  >(transform: PTransformClass<InputT, OutputT>, input: InputT) {
     const { id: transformId, proto: transformProto } = this.preApplyTransform(
       transform,
       input
@@ -183,10 +188,10 @@ export class Pipeline {
     return this.postApplyTransform(transform, transformProto, result);
   }
 
-  async asyncApplyTransform<
+  async applyAsyncTransform<
     InputT extends pvalue.PValue<any>,
     OutputT extends pvalue.PValue<any>
-  >(transform: AsyncPTransform<InputT, OutputT>, input: InputT) {
+  >(transform: AsyncPTransformClass<InputT, OutputT>, input: InputT) {
     const { id: transformId, proto: transformProto } = this.preApplyTransform(
       transform,
       input
@@ -194,7 +199,7 @@ export class Pipeline {
     let result: OutputT;
     try {
       this.transformStack.push(transformId);
-      result = await transform.asyncExpandInternal(input, this, transformProto);
+      result = await transform.expandInternalAsync(input, this, transformProto);
     } finally {
       this.transformStack.pop();
     }
@@ -205,7 +210,7 @@ export class Pipeline {
     InputT extends pvalue.PValue<any>,
     OutputT extends pvalue.PValue<any>
   >(
-    transform: AsyncPTransform<InputT, OutputT>,
+    transform: AsyncPTransformClass<InputT, OutputT>,
     transformProto: runnerApi.PTransform,
     result: OutputT
   ) {
@@ -276,14 +281,14 @@ export class Pipeline {
     const pcollId = this.context.createUniqueName("pc");
     let coderId: string;
     let windowingStrategyId: string;
-    if (typeof coder == "string") {
+    if (typeof coder === "string") {
       coderId = coder;
     } else {
       coderId = this.context.getCoderId(coder);
     }
-    if (windowingStrategy == undefined) {
+    if (windowingStrategy === null || windowingStrategy === undefined) {
       windowingStrategyId = undefined!;
-    } else if (typeof windowingStrategy == "string") {
+    } else if (typeof windowingStrategy === "string") {
       windowingStrategyId = windowingStrategy;
     } else {
       windowingStrategyId = this.context.getWindowingStrategyId(
@@ -322,9 +327,9 @@ function onlyValueOr<T>(
   defaultValue: T,
   comparator: (a: T, b: T) => boolean = (a, b) => false
 ) {
-  if (valueSet.size == 0) {
+  if (valueSet.size === 0) {
     return defaultValue;
-  } else if (valueSet.size == 1) {
+  } else if (valueSet.size === 1) {
     return valueSet.values().next().value;
   } else {
     const candidate = valueSet.values().next().value;
@@ -338,4 +343,4 @@ function onlyValueOr<T>(
 }
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.pipeline", exports);
+requireForSerialization("apache-beam/internal/pipeline", exports);

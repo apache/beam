@@ -29,10 +29,12 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,9 +42,6 @@ import org.slf4j.LoggerFactory;
  * An {@link UnboundedSource} to read from Kafka, used by {@link Read} transform in KafkaIO. See
  * {@link KafkaIO} for user visible documentation and example usage.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, KafkaCheckpointMark> {
 
   /**
@@ -57,7 +56,8 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
   public List<KafkaUnboundedSource<K, V>> split(int desiredNumSplits, PipelineOptions options)
       throws Exception {
 
-    List<TopicPartition> partitions = new ArrayList<>(spec.getTopicPartitions());
+    List<TopicPartition> partitions =
+        new ArrayList<>(Preconditions.checkStateNotNull(spec.getTopicPartitions()));
 
     // (a) fetch partitions for each topic
     // (b) sort by <topic, partition>
@@ -65,7 +65,7 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
 
     if (partitions.isEmpty()) {
       try (Consumer<?, ?> consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig())) {
-        for (String topic : spec.getTopics()) {
+        for (String topic : Preconditions.checkStateNotNull(spec.getTopics())) {
           List<PartitionInfo> partitionInfoList = consumer.partitionsFor(topic);
           checkState(
               partitionInfoList != null,
@@ -126,7 +126,8 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
 
   @Override
   public KafkaUnboundedReader<K, V> createReader(
-      PipelineOptions options, KafkaCheckpointMark checkpointMark) {
+      PipelineOptions options, @Nullable KafkaCheckpointMark checkpointMark) {
+    Preconditions.checkStateNotNull(spec.getTopicPartitions());
     if (spec.getTopicPartitions().isEmpty()) {
       LOG.warn("Looks like generateSplits() is not called. Generate single split.");
       try {
@@ -152,7 +153,9 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
 
   @Override
   public Coder<KafkaRecord<K, V>> getOutputCoder() {
-    return KafkaRecordCoder.of(spec.getKeyCoder(), spec.getValueCoder());
+    Coder<K> keyCoder = Preconditions.checkStateNotNull(spec.getKeyCoder());
+    Coder<V> valueCoder = Preconditions.checkStateNotNull(spec.getValueCoder());
+    return KafkaRecordCoder.of(keyCoder, valueCoder);
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////////

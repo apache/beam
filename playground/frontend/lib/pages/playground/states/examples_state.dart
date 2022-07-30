@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/constants/params.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/repositories/example_repository.dart';
@@ -34,7 +35,9 @@ class ExampleState with ChangeNotifier {
   ExampleState(this._exampleRepository);
 
   init() {
-    _loadCategories();
+    if (!Uri.base.toString().contains(kIsEmbedded)) {
+      _loadCategories();
+    }
   }
 
   setSdkCategories(Map<SDK, List<CategoryModel>> map) {
@@ -47,31 +50,31 @@ class ExampleState with ChangeNotifier {
   }
 
   Future<String> getExampleOutput(String id, SDK sdk) async {
-    return await _exampleRepository.getExampleOutput(
+    return _exampleRepository.getExampleOutput(
       GetExampleRequestWrapper(id, sdk),
     );
   }
 
   Future<String> getExampleSource(String id, SDK sdk) async {
-    return await _exampleRepository.getExampleSource(
+    return _exampleRepository.getExampleSource(
       GetExampleRequestWrapper(id, sdk),
     );
   }
 
   Future<ExampleModel> getExample(String path, SDK sdk) async {
-    return await _exampleRepository.getExample(
+    return _exampleRepository.getExample(
       GetExampleRequestWrapper(path, sdk),
     );
   }
 
   Future<String> getExampleLogs(String id, SDK sdk) async {
-    return await _exampleRepository.getExampleLogs(
+    return _exampleRepository.getExampleLogs(
       GetExampleRequestWrapper(id, sdk),
     );
   }
 
   Future<String> getExampleGraph(String id, SDK sdk) async {
-    return await _exampleRepository.getExampleGraph(
+    return _exampleRepository.getExampleGraph(
       GetExampleRequestWrapper(id, sdk),
     );
   }
@@ -80,6 +83,21 @@ class ExampleState with ChangeNotifier {
     if (example.isInfoFetched()) {
       return example;
     }
+
+    //GRPC GetPrecompiledGraph errors hotfix
+    if (example.name == 'MinimalWordCount' &&
+        (sdk == SDK.go || sdk == SDK.scio)) {
+      final exampleData = await Future.wait([
+        getExampleSource(example.path, sdk),
+        getExampleOutput(example.path, sdk),
+        getExampleLogs(example.path, sdk),
+      ]);
+      example.setSource(exampleData[0]);
+      example.setOutputs(exampleData[1]);
+      example.setLogs(exampleData[2]);
+      return example;
+    }
+
     final exampleData = await Future.wait([
       getExampleSource(example.path, sdk),
       getExampleOutput(example.path, sdk),
@@ -106,7 +124,7 @@ class ExampleState with ChangeNotifier {
     notifyListeners();
   }
 
-  loadDefaultExamples() async {
+  Future<void> loadDefaultExamples() async {
     if (defaultExamplesMap.isNotEmpty) {
       return;
     }
@@ -126,10 +144,23 @@ class ExampleState with ChangeNotifier {
     }
 
     defaultExamplesMap.addEntries(defaultExamples);
+    final futures = <Future<void>>[];
+
     for (var entry in defaultExamplesMap.entries) {
-      loadExampleInfo(entry.value, entry.key)
+      final exampleFuture = loadExampleInfo(entry.value, entry.key)
           .then((value) => defaultExamplesMap[entry.key] = value);
+      futures.add(exampleFuture);
     }
     notifyListeners();
+
+    await Future.wait(futures);
+  }
+
+  Future<void> loadDefaultExamplesIfNot() async {
+    if (defaultExamplesMap.isNotEmpty) {
+      return;
+    }
+
+    await loadDefaultExamples();
   }
 }

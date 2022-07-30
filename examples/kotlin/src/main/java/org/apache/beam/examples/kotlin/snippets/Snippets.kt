@@ -269,8 +269,8 @@ object Snippets {
                     BigQueryIO.write<WeatherData>()
                             .to(
                                     object : DynamicDestinations<WeatherData, Long>() {
-                                        override fun getDestination(elem: ValueInSingleWindow<WeatherData>): Long? {
-                                            return elem.value!!.year
+                                        override fun getDestination(elem: ValueInSingleWindow<WeatherData>?): Long {
+                                            return elem!!.value!!.year
                                         }
 
                                         override fun getTable(destination: Long?): TableDestination {

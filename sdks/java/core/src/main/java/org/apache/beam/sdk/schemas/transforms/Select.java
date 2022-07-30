@@ -87,7 +87,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Select {
   public static <T> Fields<T> create() {
@@ -116,7 +116,7 @@ public class Select {
   }
 
   /**
-   * Selects every leaf-level field. This results in a a nested schema being flattened into a single
+   * Selects every leaf-level field. This results in a nested schema being flattened into a single
    * top-level schema. By default nested field names will be concatenated with _ characters, though
    * this can be overridden using {@link Flattened#keepMostNestedFieldName()} and {@link
    * Flattened#withFieldNameAs}.
@@ -133,7 +133,7 @@ public class Select {
 
     // TODO: This should be the same as resolved so that Beam knows which fields
     // are being accessed. Currently Beam only supports wildcard descriptors.
-    // Once BEAM-4457 is fixed, fix this.
+    // Once https://github.com/apache/beam/issues/18903 is fixed, fix this.
     @FieldAccess("selectFields")
     final FieldAccessDescriptor fieldAccess = FieldAccessDescriptor.withAllFields();
 

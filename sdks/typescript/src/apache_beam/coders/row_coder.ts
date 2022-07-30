@@ -28,10 +28,10 @@ import {
   BoolCoder,
   BytesCoder,
   IterableCoder,
+  NullableCoder,
   StrUtf8Coder,
   VarIntCoder,
 } from "./standard_coders";
-import { Value } from "../proto/google/protobuf/struct";
 
 const argsort = (x) =>
   x
@@ -75,16 +75,18 @@ export class RowCoder implements Coder<any> {
         // case "logicalType":
         default:
           throw new Error(
-            `Encountered a type that is not currently supported by RowCoder: ${f.type}`
+            `Encountered a type that is not currently supported by RowCoder: ${JSON.stringify(
+              f.type
+            )}`
           );
       }
       return obj;
     }
   }
 
-  private static inferTypeFromJSON(obj: any): FieldType {
+  static inferTypeFromJSON(obj: any, nullable: boolean = true): FieldType {
     let fieldType: FieldType = {
-      nullable: true,
+      nullable: nullable,
       typeInfo: {
         oneofKind: undefined,
       },
@@ -165,6 +167,15 @@ export class RowCoder implements Coder<any> {
     };
   }
 
+  getCoderFromType(t: FieldType): any {
+    const nonNullCoder = this.getNonNullCoderFromType(t);
+    if (t.nullable) {
+      return new NullableCoder(nonNullCoder);
+    } else {
+      return nonNullCoder;
+    }
+  }
+
   getNonNullCoderFromType(t: FieldType): any {
     let typeInfo = t.typeInfo;
 
@@ -194,7 +205,7 @@ export class RowCoder implements Coder<any> {
       case "arrayType":
         if (typeInfo.arrayType.elementType !== undefined) {
           return new IterableCoder(
-            this.getNonNullCoderFromType(typeInfo.arrayType.elementType)
+            this.getCoderFromType(typeInfo.arrayType.elementType)
           );
         } else {
           throw new Error("ElementType missing on ArrayType");
@@ -211,7 +222,9 @@ export class RowCoder implements Coder<any> {
       // case "logicalType":
       default:
         throw new Error(
-          `Encountered a type that is not currently supported by RowCoder: ${t}`
+          `Encountered a type that is not currently supported by RowCoder: ${JSON.stringify(
+            t
+          )}`
         );
     }
   }
@@ -238,7 +251,7 @@ export class RowCoder implements Coder<any> {
     if (this.schema.encodingPositionsSet) {
       // Should never be duplicate encoding positions.
       let encPosx = schema.fields.map((f: Field) => f.encodingPosition);
-      if (encPosx.length != this.encodingPositions.length) {
+      if (encPosx.length !== this.encodingPositions.length) {
         throw new Error(
           `Schema with id ${this.schema.id} has encoding_positions_set=True, but not all fields have encoding_position set`
         );
@@ -282,14 +295,14 @@ export class RowCoder implements Coder<any> {
     let nullFields: number[] = [];
 
     if (this.hasNullableFields) {
-      if (attrs.some((attr) => attr == undefined)) {
+      if (attrs.some((attr) => attr === null || attr === undefined)) {
         let running = 0;
         attrs.forEach((attr, i) => {
-          if (i && i % 8 == 0) {
+          if (i && i % 8 === 0) {
             nullFields.push(running);
             running = 0;
           }
-          running |= (attr == undefined ? 1 : 0) << i % 8;
+          running |= (attr === null || attr === undefined ? 1 : 0) << i % 8;
         });
         nullFields.push(running);
       }
@@ -304,7 +317,7 @@ export class RowCoder implements Coder<any> {
 
     positions.forEach((i) => {
       let attr = attrs[i];
-      if (attr == undefined) {
+      if (attr === null || attr === undefined) {
         if (!this.fieldNullable[i]) {
           throw new Error(
             `Attempted to encode null for non-nullable field \"${this.schema.fields[i].name}\".`
@@ -334,7 +347,7 @@ export class RowCoder implements Coder<any> {
       nulls = Array(nFields)
         .fill(0)
         .map((_, i) => {
-          if (i % 8 == 0) {
+          if (i % 8 === 0) {
             let chunk = Math.floor(i / 8);
             running = chunk >= nullMask.length ? 0 : nullMask[chunk];
           }

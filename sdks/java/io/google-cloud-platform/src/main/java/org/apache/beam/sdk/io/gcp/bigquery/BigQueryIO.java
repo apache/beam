@@ -40,6 +40,10 @@ import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.ReadStream;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -466,7 +470,7 @@ import org.slf4j.LoggerFactory;
  * here</a>.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20506)
 })
 public class BigQueryIO {
 
@@ -477,7 +481,7 @@ public class BigQueryIO {
    * <ul>
    *   <li>{@code TYPE} represents the BigQuery job type (e.g. extract / copy / load / query)
    *   <li>{@code JOB_ID} is the Beam job name.
-   *   <li>{@code STEP} is a UUID representing the the Dataflow step that created the BQ job.
+   *   <li>{@code STEP} is a UUID representing the Dataflow step that created the BQ job.
    *   <li>{@code RANDOM} is a random string.
    * </ul>
    *
@@ -1262,7 +1266,7 @@ public class BigQueryIO {
       // table for the query to read the data and subsequently delete the table and dataset. Once
       // the storage API can handle anonymous tables, the storage source should be modified to use
       // anonymous tables and all of the code related to job ID generation and table and dataset
-      // cleanup can be removed. [BEAM-6931]
+      // cleanup can be removed. [https://github.com/apache/beam/issues/19375]
       //
 
       PCollectionView<String> jobIdTokenView;
@@ -1762,6 +1766,7 @@ public class BigQueryIO {
         .setOptimizeWrites(false)
         .setUseBeamSchema(false)
         .setAutoSharding(false)
+        .setPropagateSuccessful(true)
         .setDeterministicRecordIdFn(null)
         .build();
   }
@@ -1836,7 +1841,7 @@ public class BigQueryIO {
 
     abstract RowWriterFactory.@Nullable AvroRowWriterFactory<T, ?, ?> getAvroRowWriterFactory();
 
-    abstract @Nullable SerializableFunction<TableSchema, org.apache.avro.Schema>
+    abstract @Nullable SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema>
         getAvroSchemaFactory();
 
     abstract boolean getUseAvroLogicalTypes();
@@ -1903,6 +1908,8 @@ public class BigQueryIO {
     @Experimental
     abstract Boolean getAutoSharding();
 
+    abstract Boolean getPropagateSuccessful();
+
     @Experimental
     abstract @Nullable SerializableFunction<T, String> getDeterministicRecordIdFn();
 
@@ -1926,7 +1933,7 @@ public class BigQueryIO {
           RowWriterFactory.AvroRowWriterFactory<T, ?, ?> avroRowWriterFactory);
 
       abstract Builder<T> setAvroSchemaFactory(
-          SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory);
+          SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory);
 
       abstract Builder<T> setUseAvroLogicalTypes(boolean useAvroLogicalTypes);
 
@@ -1991,6 +1998,8 @@ public class BigQueryIO {
 
       @Experimental
       abstract Builder<T> setAutoSharding(Boolean autoSharding);
+
+      abstract Builder<T> setPropagateSuccessful(Boolean propagateSuccessful);
 
       @Experimental
       abstract Builder<T> setDeterministicRecordIdFn(
@@ -2196,7 +2205,7 @@ public class BigQueryIO {
      * <p>If not specified, the TableSchema will automatically be converted to an avro schema.
      */
     public Write<T> withAvroSchemaFactory(
-        SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory) {
+        SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory) {
       return toBuilder().setAvroSchemaFactory(avroSchemaFactory).build();
     }
 
@@ -2498,13 +2507,24 @@ public class BigQueryIO {
     }
 
     /**
+     * If true, it enables the propagation of the successfully inserted TableRows on BigQuery as
+     * part of the {@link WriteResult} object when using {@link Method#STREAMING_INSERTS}. By
+     * default this property is set on true. In the cases where a pipeline won't make use of the
+     * insert results this property can be set on false, which will make the pipeline let go of
+     * those inserted TableRows and reclaim worker resources.
+     */
+    public Write<T> withSuccessfulInsertsPropagation(boolean propagateSuccessful) {
+      return toBuilder().setPropagateSuccessful(propagateSuccessful).build();
+    }
+
+    /**
      * Provides a function which can serve as a source of deterministic unique ids for each record
      * to be written, replacing the unique ids generated with the default scheme. When used with
      * {@link Method#STREAMING_INSERTS} This also elides the re-shuffle from the BigQueryIO Write by
      * using the keys on which the data is grouped at the point at which BigQueryIO Write is
      * applied, since the reshuffle is necessary only for the checkpointing of the default-generated
      * ids for determinism. This may be beneficial as a performance optimization in the case when
-     * the current sharding is already sufficient for writing to BigQuery. Thi behavior takes
+     * the current sharding is already sufficient for writing to BigQuery. This behavior takes
      * precedence over {@link #withAutoSharding}.
      */
     @Experimental
@@ -2815,7 +2835,7 @@ public class BigQueryIO {
               "Only one of withFormatFunction or withAvroFormatFunction/withAvroWriter maybe set,"
                   + " not both.");
 
-          SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory =
+          SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory =
               getAvroSchemaFactory();
           if (avroSchemaFactory == null) {
             checkArgument(
@@ -2907,6 +2927,7 @@ public class BigQueryIO {
                 .withIgnoreUnknownValues(getIgnoreUnknownValues())
                 .withIgnoreInsertIds(getIgnoreInsertIds())
                 .withAutoSharding(getAutoSharding())
+                .withSuccessfulInsertsPropagation(getPropagateSuccessful())
                 .withDeterministicRecordIdFn(getDeterministicRecordIdFn())
                 .withKmsKey(getKmsKey());
         return input.apply(streamingInserts);
@@ -2921,12 +2942,12 @@ public class BigQueryIO {
               "useAvroLogicalTypes can only be set with Avro output.");
         }
 
+        // Batch load jobs currently support JSON data insertion only with CSV files
         if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
-          // Batch load jobs currently support JSON data insertion only with CSV files
-          checkArgument(
-              !getJsonSchema().get().contains("JSON"),
-              "Found JSON type in TableSchema. JSON data insertion is currently "
-                  + "not supported with batch loads.");
+          JsonElement schema = JsonParser.parseString(getJsonSchema().get());
+          if (!schema.getAsJsonObject().keySet().isEmpty()) {
+            validateNoJsonTypeInSchema(schema);
+          }
         }
 
         BatchLoads<DestinationT, T> batchLoads =
@@ -3006,6 +3027,30 @@ public class BigQueryIO {
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);
+      }
+    }
+
+    private void validateNoJsonTypeInSchema(JsonElement schema) {
+      JsonElement fields = schema.getAsJsonObject().get("fields");
+      if (!fields.isJsonArray() || fields.getAsJsonArray().isEmpty()) {
+        return;
+      }
+
+      JsonArray fieldArray = fields.getAsJsonArray();
+
+      for (int i = 0; i < fieldArray.size(); i++) {
+        JsonObject field = fieldArray.get(i).getAsJsonObject();
+        checkArgument(
+            !field.get("type").getAsString().equals("JSON"),
+            "Found JSON type in TableSchema. JSON data insertion is currently "
+                + "not supported with 'FILE_LOADS' write method. This is supported with the "
+                + "other write methods, however. For more information, visit: "
+                + "https://cloud.google.com/bigquery/docs/reference/standard-sql/"
+                + "json-data#ingest_json_data");
+
+        if (field.get("type").getAsString().equals("STRUCT")) {
+          validateNoJsonTypeInSchema(field);
+        }
       }
     }
 

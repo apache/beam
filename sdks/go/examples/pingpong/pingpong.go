@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
@@ -35,9 +36,12 @@ var (
 )
 
 func init() {
-	beam.RegisterFunction(multiFn)
-	beam.RegisterFunction(extractFn)
-	beam.RegisterFunction(subsetFn)
+	register.Function4x1(multiFn)
+	register.Function3x1(subsetFn)
+	register.Function2x0(extractFn)
+
+	register.Emitter1[string]()
+	register.Iter1[string]()
 }
 
 // stitch constructs two composite PTranformations that provide input to each other. It

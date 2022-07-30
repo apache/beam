@@ -243,7 +243,7 @@ task validatesRunnerStreamingTests {
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
-  // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
+  // TODO(BEAM-3544,https://github.com/apache/beam/issues/19012): Disable tests with 'sickbay-streaming' tag.
   // Execute tests with xdists
   doFirst {
     def argMap = [

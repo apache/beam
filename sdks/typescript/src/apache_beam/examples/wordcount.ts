@@ -16,24 +16,25 @@
  * limitations under the License.
  */
 
-// TODO: Should this be in a top-level examples dir, rather than under apache_beam.
+// Run directly with
+//
+//    node dist/src/apache_beam/examples/wordcount.js
+//
+// A different runner can be chosen via a --runner argument, e.g.
+//
+//    node dist/src/apache_beam/examples/wordcount.js --runner=flink
+//
+// To run on Dataflow, pass the required arguments:
+//
+//    node dist/src/apache_beam/examples/wordcount.js --runner=dataflow --project=PROJECT_ID --tempLocation=gs://BUCKET/DIR' --region=us-central1
+
+// TODO: Should this be in a top-level examples dir, rather than under apache_beam?
+
+import * as yargs from "yargs";
 
 import * as beam from "../../apache_beam";
-import { DirectRunner } from "../runners/direct_runner";
-
-import { count } from "../transforms/combiners";
-import { GroupBy } from "../transforms/group_and_combine";
-
-class CountElements extends beam.PTransform<
-  beam.PCollection<any>,
-  beam.PCollection<any>
-> {
-  expand(input: beam.PCollection<any>) {
-    return input
-      .map((e) => ({ element: e }))
-      .apply(new GroupBy("element").combining("element", count, "count"));
-  }
-}
+import { createRunner } from "../runners/runner";
+import { countPerElement } from "../transforms/group_and_combine";
 
 function wordCount(lines: beam.PCollection<string>): beam.PCollection<any> {
   return lines
@@ -41,13 +42,13 @@ function wordCount(lines: beam.PCollection<string>): beam.PCollection<any> {
     .flatMap(function* (line: string) {
       yield* line.split(/[^a-z]+/);
     })
-    .apply(new CountElements("Count"));
+    .apply(countPerElement());
 }
 
 async function main() {
-  await new DirectRunner().run((root) => {
+  await createRunner(yargs.argv).run((root) => {
     const lines = root.apply(
-      new beam.Create([
+      beam.create([
         "In the beginning God created the heaven and the earth.",
         "And the earth was without form, and void; and darkness was upon the face of the deep.",
         "And the Spirit of God moved upon the face of the waters.",

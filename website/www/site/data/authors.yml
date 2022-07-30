@@ -37,6 +37,9 @@ chadrik:
 chamikara:
   name: Chamikara Jayalath
   email: chamikara@apache.org
+damccorm:
+  name: Danny McCormick
+  email: dannymccormick@google.com
 davor:
   name: Davor Bonaci
   email: davor@apache.org
@@ -231,3 +234,6 @@ hermannb:
 iht:
   name: Israel Herraiz
   email: ihr@google.com
+yichi:
+  name: Yichi Zhang
+  email: yichi@apache.org

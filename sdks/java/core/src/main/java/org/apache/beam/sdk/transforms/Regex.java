@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>Lines that do not match the Regex will not be output.
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class Regex {

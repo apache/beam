@@ -117,7 +117,7 @@ class CoderRegistry(object):
     if typehint_type not in self.custom_types:
       self.custom_types.append(typehint_type)
     if typehint_type.__module__ == '__main__':
-      # See https://issues.apache.org/jira/browse/BEAM-14250
+      # See https://github.com/apache/beam/issues/21541
       # TODO(robertwb): Remove once all runners are portable.
       typehint_type = getattr(typehint_type, '__name__', str(typehint_type))
     self._register_coder_internal(typehint_type, typehint_coder_class)
@@ -125,7 +125,7 @@ class CoderRegistry(object):
   def get_coder(self, typehint):
     # type: (Any) -> coders.Coder
     if typehint and typehint.__module__ == '__main__':
-      # See https://issues.apache.org/jira/browse/BEAM-14250
+      # See https://github.com/apache/beam/issues/21541
       # TODO(robertwb): Remove once all runners are portable.
       typehint = getattr(typehint, '__name__', str(typehint))
     coder = self._coders.get(

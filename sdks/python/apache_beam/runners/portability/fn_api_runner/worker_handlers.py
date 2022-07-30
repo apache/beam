@@ -23,6 +23,7 @@ import collections
 import contextlib
 import copy
 import logging
+import os
 import queue
 import subprocess
 import sys
@@ -64,6 +65,7 @@ from apache_beam.runners.portability.fn_api_runner.execution import Buffer
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.log_handler import LOGENTRY_TO_LOG_LEVEL_MAP
 from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.utils import proto_utils
@@ -406,24 +408,12 @@ class EmbeddedWorkerHandler(WorkerHandler):
 
 
 class BasicLoggingService(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
-
-  LOG_LEVEL_MAP = {
-      beam_fn_api_pb2.LogEntry.Severity.CRITICAL: logging.CRITICAL,
-      beam_fn_api_pb2.LogEntry.Severity.ERROR: logging.ERROR,
-      beam_fn_api_pb2.LogEntry.Severity.WARN: logging.WARNING,
-      beam_fn_api_pb2.LogEntry.Severity.NOTICE: logging.INFO + 1,
-      beam_fn_api_pb2.LogEntry.Severity.INFO: logging.INFO,
-      beam_fn_api_pb2.LogEntry.Severity.DEBUG: logging.DEBUG,
-      beam_fn_api_pb2.LogEntry.Severity.TRACE: logging.DEBUG - 1,
-      beam_fn_api_pb2.LogEntry.Severity.UNSPECIFIED: logging.NOTSET,
-  }
-
   def Logging(self, log_messages, context=None):
     # type: (Iterable[beam_fn_api_pb2.LogEntry.List], Any) -> Iterator[beam_fn_api_pb2.LogControl]
     yield beam_fn_api_pb2.LogControl()
     for log_message in log_messages:
       for log in log_message.log_entries:
-        logging.log(self.LOG_LEVEL_MAP[log.severity], str(log))
+        logging.log(LOGENTRY_TO_LOG_LEVEL_MAP[log.severity], str(log))
 
 
 class BasicProvisionService(beam_provision_api_pb2_grpc.ProvisionServiceServicer
@@ -642,7 +632,8 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
 
   def host_from_worker(self):
     # type: () -> str
-    # TODO(BEAM-8646): Reconcile across platforms.
+    # TODO(https://github.com/apache/beam/issues/19947): Reconcile across
+    # platforms.
     if sys.platform in ['win32', 'darwin']:
       return 'localhost'
     import socket
@@ -745,6 +736,29 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
 
   def start_worker(self):
     # type: () -> None
+    credential_options = []
+    try:
+      # This is the public facing API, skip if it is not available.
+      # (If this succeeds but the imports below fail, better to actually raise
+      # an error below rather than silently fail.)
+      # pylint: disable=unused-import
+      import google.auth
+    except ImportError:
+      pass
+    else:
+      from google.auth import environment_vars
+      from google.auth import _cloud_sdk
+      gcloud_cred_file = os.environ.get(
+          environment_vars.CREDENTIALS,
+          _cloud_sdk.get_application_default_credentials_path())
+      if os.path.exists(gcloud_cred_file):
+        docker_cred_file = '/docker_cred_file.json'
+        credential_options.extend([
+            '--mount',
+            f'type=bind,source={gcloud_cred_file},target={docker_cred_file}',
+            '--env',
+            f'{environment_vars.CREDENTIALS}={docker_cred_file}'
+        ])
     with SUBPROCESS_LOCK:
       try:
         _LOGGER.info('Attempting to pull image %s', self._container_image)
@@ -757,8 +771,8 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
           'docker',
           'run',
           '-d',
-          # TODO:  credentials
           '--network=host',
+      ] + credential_options + [
           self._container_image,
           '--id=%s' % self.worker_id,
           '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,

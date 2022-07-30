@@ -57,7 +57,7 @@ task flinkValidatesRunner() {
   dependsOn 'flinkCompatibilityMatrixLOOPBACK'
 }
 
-// TODO(BEAM-8598): Enable on pre-commit.
+// TODO(https://github.com/apache/beam/issues/19962): Enable on pre-commit.
 tasks.register("flinkTriggerTranscript") {
   dependsOn 'setupVirtualenv'
   dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"

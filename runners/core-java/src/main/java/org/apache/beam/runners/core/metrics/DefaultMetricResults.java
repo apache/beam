@@ -33,7 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * org.apache.beam.sdk.metrics.MetricsFilter}s linearly to them.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DefaultMetricResults extends MetricResults {
 

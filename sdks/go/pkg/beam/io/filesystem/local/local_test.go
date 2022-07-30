@@ -166,7 +166,7 @@ func TestLocal_rename(t *testing.T) {
 		t.Errorf("filesystem.Read() = %v, want %v", got, want)
 	}
 
-	// Check that the the old file doesn't exist.
+	// Check that the old file doesn't exist.
 	listGlob := filepath.Join(dirPath, "*.txt")
 	files, err := c.List(ctx, listGlob)
 	if err != nil {

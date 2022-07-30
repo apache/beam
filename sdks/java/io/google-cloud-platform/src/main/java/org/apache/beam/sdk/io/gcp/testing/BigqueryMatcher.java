@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
 @NotThreadSafe
 @Experimental
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BigqueryMatcher extends TypeSafeMatcher<TableAndQuery>
     implements SerializableMatcher<TableAndQuery> {

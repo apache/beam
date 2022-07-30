@@ -58,7 +58,8 @@ import org.slf4j.LoggerFactory;
  * org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator}.
  */
 @RunWith(Parameterized.class)
-// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// released (2.11.0)
 @SuppressWarnings("unused")
 public class PortableStateExecutionTest implements Serializable {
 

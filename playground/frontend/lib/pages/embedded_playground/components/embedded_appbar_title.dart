@@ -43,6 +43,10 @@ class EmbeddedAppBarTitle extends StatelessWidget {
           RunButton(
             isRunning: state.isCodeRunning,
             cancelRun: () {
+              final exampleName = getAnalyticsExampleName(state);
+              final analyticsService = AnalyticsService.get(context);
+              analyticsService.trackClickCancelRunEvent(exampleName);
+
               state.cancelRun().catchError(
                     (_) => NotificationManager.showError(
                       context,
@@ -53,20 +57,18 @@ class EmbeddedAppBarTitle extends StatelessWidget {
             },
             runCode: () {
               final stopwatch = Stopwatch()..start();
-              final exampleName = getAnalyticsExampleName(
-                state.selectedExample,
-                state.isExampleChanged,
-                state.sdk,
-              );
+              final exampleName = getAnalyticsExampleName(state);
+              final analyticsService = AnalyticsService.get(context);
+
               state.runCode(
                 onFinish: () {
-                  AnalyticsService.get(context).trackRunTimeEvent(
+                  analyticsService.trackRunTimeEvent(
                     exampleName,
                     stopwatch.elapsedMilliseconds,
                   );
                 },
               );
-              AnalyticsService.get(context).trackClickRunEvent(exampleName);
+              analyticsService.trackClickRunEvent(exampleName);
             },
           ),
           const ToggleThemeIconButton(),

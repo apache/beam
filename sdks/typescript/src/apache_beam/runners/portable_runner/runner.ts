@@ -16,6 +16,11 @@
  * limitations under the License.
  */
 
+const childProcess = require("child_process");
+const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+
 import { ChannelCredentials } from "@grpc/grpc-js";
 import { GrpcTransport } from "@protobuf-ts/grpc-transport";
 import { Struct } from "../../proto/google/protobuf/struct";
@@ -28,11 +33,14 @@ import { ArtifactStagingServiceClient } from "../../proto/beam_artifact_api.clie
 import { Pipeline } from "../../internal/pipeline";
 import { PipelineResult, Runner } from "../runner";
 import { PipelineOptions } from "../../options/pipeline_options";
-import { JobState_Enum } from "../../proto/beam_job_api";
+import { JobState_Enum, JobStateEvent } from "../../proto/beam_job_api";
 
 import { ExternalWorkerPool } from "../../worker/external_worker_service";
 import * as environments from "../../internal/environments";
 import * as artifacts from "../artifacts";
+import { Service as JobService } from "../../utils/service";
+
+import * as serialization from "../../serialization";
 
 const TERMINAL_STATES = [
   JobState_Enum.DONE,
@@ -42,19 +50,22 @@ const TERMINAL_STATES = [
   JobState_Enum.DRAINED,
 ];
 
+type completionCallback = (terminalState: JobStateEvent) => Promise<unknown>;
+
 class PortableRunnerPipelineResult implements PipelineResult {
   jobId: string;
   runner: PortableRunner;
-  workers?: ExternalWorkerPool;
+  completionCallbacks: completionCallback[];
+  terminalState?: JobStateEvent;
 
   constructor(
     runner: PortableRunner,
     jobId: string,
-    workers: ExternalWorkerPool | undefined = undefined
+    completionCallbacks: completionCallback[]
   ) {
     this.runner = runner;
     this.jobId = jobId;
-    this.workers = workers;
+    this.completionCallbacks = completionCallbacks;
   }
 
   static isTerminal(state: JobState_Enum) {
@@ -62,15 +73,28 @@ class PortableRunnerPipelineResult implements PipelineResult {
   }
 
   async getState() {
+    if (this.terminalState) {
+      return this.terminalState;
+    }
     const state = await this.runner.getJobState(this.jobId);
-    if (
-      this.workers != undefined &&
-      PortableRunnerPipelineResult.isTerminal(state.state)
-    ) {
-      this.workers.stop();
-      this.workers = undefined;
+    if (PortableRunnerPipelineResult.isTerminal(state.state)) {
+      this.terminalState = state;
+      for (const callback of this.completionCallbacks) {
+        await callback(state);
+      }
     }
     return state;
+  }
+
+  async cancel() {
+    if (this.terminalState) {
+      return;
+    }
+    const { state } = await this.runner.cancelJob(this.jobId);
+    this.terminalState = { state };
+    for (const callback of this.completionCallbacks) {
+      await callback({ state });
+    }
   }
 
   /**
@@ -96,28 +120,43 @@ class PortableRunnerPipelineResult implements PipelineResult {
 }
 
 export class PortableRunner extends Runner {
-  client: JobServiceClient;
+  client?: JobServiceClient;
   defaultOptions: any;
 
   constructor(
-    options: string | { jobEndpoint: string; [others: string]: any }
+    options: string | { jobEndpoint: string; [others: string]: any },
+    private jobService: JobService | undefined = undefined
   ) {
     super();
-    if (typeof options == "string") {
+    if (typeof options === "string") {
       this.defaultOptions = { jobEndpoint: options };
     } else if (options) {
       this.defaultOptions = options;
     }
-    this.client = new JobServiceClient(
-      new GrpcTransport({
-        host: this.defaultOptions?.jobEndpoint,
-        channelCredentials: ChannelCredentials.createInsecure(),
-      })
-    );
+  }
+
+  async getClient(): Promise<JobServiceClient> {
+    if (!this.client) {
+      if (this.jobService) {
+        this.defaultOptions.jobEndpoint = await this.jobService.start();
+      }
+      this.client = new JobServiceClient(
+        new GrpcTransport({
+          host: this.defaultOptions?.jobEndpoint,
+          channelCredentials: ChannelCredentials.createInsecure(),
+        })
+      );
+    }
+    return this.client;
   }
 
   async getJobState(jobId: string) {
-    const call = this.client.getState({ jobId });
+    const call = (await this.getClient()).getState({ jobId });
+    return await call.response;
+  }
+
+  async cancelJob(jobId: string) {
+    const call = (await this.getClient()).cancel({ jobId });
     return await call.response;
   }
 
@@ -132,17 +171,29 @@ export class PortableRunner extends Runner {
     pipeline: runnerApiProto.Pipeline,
     options?: PipelineOptions
   ) {
-    if (!options) {
-      options = this.defaultOptions;
-    } else {
-      options = { ...this.defaultOptions, ...options };
+    options = { ...this.defaultOptions, ...(options || {}) };
+
+    for (const [_, pcoll] of Object.entries(
+      pipeline.components!.pcollections
+    )) {
+      if (pcoll.isBounded == runnerApiProto.IsBounded_Enum.UNBOUNDED) {
+        (options as any).streaming = true;
+        break;
+      }
     }
 
-    const use_loopback_service =
-      (options as any)?.environmentType == "LOOPBACK";
-    const workers = use_loopback_service ? new ExternalWorkerPool() : undefined;
-    if (use_loopback_service) {
-      workers!.start();
+    const completionCallbacks: completionCallback[] = [];
+
+    if (this.jobService) {
+      const jobService = this.jobService;
+      completionCallbacks.push(() => jobService.stop());
+    }
+
+    let loopbackAddress: string | undefined = undefined;
+    if ((options as any)?.environmentType === "LOOPBACK") {
+      const workers = new ExternalWorkerPool();
+      loopbackAddress = await workers.start();
+      completionCallbacks.push(() => workers.stop());
     }
 
     // Replace the default environment according to the pipeline options.
@@ -150,22 +201,60 @@ export class PortableRunner extends Runner {
     for (const [envId, env] of Object.entries(
       pipeline.components!.environments
     )) {
-      if (env.urn == environments.TYPESCRIPT_DEFAULT_ENVIRONMENT_URN) {
-        if (use_loopback_service) {
+      if (env.urn === environments.TYPESCRIPT_DEFAULT_ENVIRONMENT_URN) {
+        if (loopbackAddress) {
           pipeline.components!.environments[envId] =
-            environments.asExternalEnvironment(env, workers!.address);
+            environments.asExternalEnvironment(env, loopbackAddress);
         } else {
+          // Create a docker environment.
           pipeline.components!.environments[envId] =
             environments.asDockerEnvironment(
               env,
               (options as any)?.sdkContainerImage ||
                 "gcr.io/apache-beam-testing/beam_typescript_sdk:dev"
             );
+          const deps = pipeline.components!.environments[envId].dependencies;
+
+          // Package up this code as a dependency.
+          const result = childProcess.spawnSync("npm", ["pack"], {
+            encoding: "latin1",
+          });
+          if (result.status === 0) {
+            console.debug(result.stdout);
+          } else {
+            throw new Error(result.output);
+          }
+          const packFile = path.resolve(result.stdout.trim());
+          deps.push(fileArtifact(packFile, "beam:artifact:type:npm:v1"));
+
+          // If any dependencies are files, package them up as well.
+          if (fs.existsSync("package.json")) {
+            const packageData = JSON.parse(fs.readFileSync("package.json"));
+            if (packageData.dependencies) {
+              for (const dep in packageData.dependencies) {
+                if (packageData.dependencies[dep].startsWith("file:")) {
+                  const path = packageData.dependencies[dep].substring(5);
+                  deps.push(
+                    fileArtifact(
+                      path,
+                      "beam:artifact:type:npm_dep:v1",
+                      new TextEncoder().encode(dep)
+                    )
+                  );
+                }
+              }
+            }
+          }
         }
       }
     }
 
+    // Note the set of modules that need to be imported in the worker.
+    (options as any).registeredNodeModules =
+      serialization.getRegisteredModules();
+
     // Inform the runner that we'd like to execute this pipeline.
+    console.debug("Preparing job.");
     let message: PrepareJobRequest = {
       pipeline,
       jobName: (options as any)?.jobName || "",
@@ -182,10 +271,15 @@ export class PortableRunner extends Runner {
         )
       );
     }
-    const prepareResponse = await this.client.prepare(message).response;
+    const client = await this.getClient();
+    // Ensure the pipeline (and other metadata) serializes, as the failure
+    // in grpc is hard to recover from.
+    PrepareJobRequest.toBinary(message);
+    const prepareResponse = await client.prepare(message).response;
 
     // Allow the runner to fetch any artifacts it can't interpret.
     if (prepareResponse.artifactStagingEndpoint) {
+      console.debug("Staging artifacts");
       await artifacts.offerArtifacts(
         new ArtifactStagingServiceClient(
           new GrpcTransport({
@@ -193,12 +287,14 @@ export class PortableRunner extends Runner {
             channelCredentials: ChannelCredentials.createInsecure(),
           })
         ),
-        prepareResponse.stagingSessionToken
+        prepareResponse.stagingSessionToken,
+        "/"
       );
     }
 
     // Actually kick off the job.
-    const runCall = this.client.run({
+    console.debug("Running job.");
+    const runCall = client.run({
       preparationId: prepareResponse.preparationId,
       retrievalToken: "",
     });
@@ -208,6 +304,24 @@ export class PortableRunner extends Runner {
     // If desired, the user can use this handle to await job completion, but
     // this function returns as soon as the job is successfully started, not
     // once the job has completed.
-    return new PortableRunnerPipelineResult(this, jobId, workers);
+    return new PortableRunnerPipelineResult(this, jobId, completionCallbacks);
   }
+}
+
+function fileArtifact(
+  filePath: string,
+  roleUrn: string,
+  rolePayload: Uint8Array | undefined = undefined
+) {
+  const hasher = crypto.createHash("sha256");
+  hasher.update(fs.readFileSync(filePath));
+  return runnerApiProto.ArtifactInformation.create({
+    typeUrn: "beam:artifact:type:file:v1",
+    typePayload: runnerApiProto.ArtifactFilePayload.toBinary({
+      path: path.resolve(filePath),
+      sha256: hasher.digest("hex"),
+    }),
+    roleUrn: roleUrn,
+    rolePayload: rolePayload,
+  });
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/synthetic"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/test/load"
@@ -52,6 +53,12 @@ func parseSyntheticConfig() synthetic.SourceConfig {
 	}
 }
 
+func init() {
+	register.Function2x1(compareLess)
+	register.Function3x0(getElement)
+	register.Emitter2[[]byte, []byte]()
+}
+
 func compareLess(key []byte, value []byte) bool {
 	return bytes.Compare(key, value) < 0
 }
@@ -73,6 +80,7 @@ func main() {
 		pcoll := top.LargestPerKey(s, src, *topCount, compareLess)
 		pcoll = beam.ParDo(s, getElement, pcoll)
 		pcoll = beam.ParDo(s, &load.RuntimeMonitor{}, pcoll)
+		_ = pcoll
 	}
 
 	presult, err := beamx.RunWithMetrics(ctx, p)

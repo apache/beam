@@ -23,7 +23,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Java',
     gradleTask: ':javaPreCommit',
     gradleSwitches: [
-      '-PdisableSpotlessCheck=true'
+      '-PdisableSpotlessCheck=true',
+      '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
     timeoutMins: 180,
     triggerPathPatterns: [
@@ -45,9 +46,6 @@ builder.build {
       tools {
         errorProne()
         java()
-        checkStyle {
-          pattern('**/build/reports/checkstyle/*.xml')
-        }
         spotBugs {
           pattern('**/build/reports/spotbugs/*.xml')
         }

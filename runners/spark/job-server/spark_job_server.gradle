@@ -1,3 +1,4 @@
+import groovy.json.JsonOutput
 import org.apache.beam.gradle.BeamModulePlugin
 
 /*
@@ -83,7 +84,12 @@ runShadow {
     jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
 }
 
-def portableValidatesRunnerTask(String name, boolean streaming, boolean docker) {
+def sickbayTests = [
+        // TODO(BEAM-13498)
+        'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
+]
+
+def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, ArrayList<String> sickbayTests) {
   def pipelineOptions = []
   def testCategories
   def testFilter
@@ -96,7 +102,7 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker) 
   } else {
     if (streaming) {
       pipelineOptions += "--streaming"
-      pipelineOptions += "--streamingTimeoutMs=30000"
+      pipelineOptions += "--streamingTimeoutMs=120000"
 
       testCategories = {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
@@ -117,24 +123,24 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker) 
         excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-        // TODO (BEAM-7222) SplittableDoFnTests
+        // TODO (https://github.com/apache/beam/issues/19468) SplittableDoFnTests
         excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
         // Currently unsupported in portable streaming:
-        // TODO (BEAM-10712)
+        // TODO (https://github.com/apache/beam/issues/20395)
         excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
-        // TODO (BEAM-10754)
+        // TODO (https://github.com/apache/beam/issues/20396)
         excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
-        // TODO (BEAM-10755)
+        // TODO (https://github.com/apache/beam/issues/20397)
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
       }
 
       testFilter = {
-        // TODO (BEAM-10094)
+        // TODO (https://github.com/apache/beam/issues/20189)
         excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
-        // TODO (BEAM-10784) Currently unsupported in portable streaming:
+        // TODO (https://github.com/apache/beam/issues/20429) Currently unsupported in portable streaming:
         // // Timeout error
         excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedContainsInAnyOrder'
         excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedSerializablePredicate'
@@ -176,17 +182,19 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker) 
         excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-        // TODO (BEAM-7222) SplittableDoFnTests
+        // TODO (https://github.com/apache/beam/issues/19468) SplittableDoFnTests
         excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       }
       testFilter = {
-        // TODO (BEAM-10094)
+        // TODO (https://github.com/apache/beam/issues/20189)
         excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
-        // TODO(BEAM-13498)
-        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew'
+
+        for (String test : sickbayTests) {
+          excludeTestsMatching test
+        }
       }
     }
   }
@@ -209,14 +217,31 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker) 
     )
 }
 
-project.ext.validatesPortableRunnerDocker= portableValidatesRunnerTask("Docker", false, true)
-project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false, false)
-project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false)
+project.ext.validatesPortableRunnerDocker= portableValidatesRunnerTask("Docker", false, true, sickbayTests)
+project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false, false, sickbayTests)
+project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false, sickbayTests)
 
 tasks.register("validatesPortableRunner") {
   dependsOn validatesPortableRunnerDocker
   dependsOn validatesPortableRunnerBatch
   dependsOn validatesPortableRunnerStreaming
+}
+
+tasks.register("validatesRunnerSickbay", Test) {
+  group = "Verification"
+  description "Validates Spark runner (Sickbay Tests)"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestSparkRunner",
+  ])
+
+  classpath = configurations.validatesPortableRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+
+  filter {
+    for (String test : sickbayTests) {
+      includeTestsMatching test
+    }
+  }
 }
 
 def jobPort = BeamModulePlugin.getRandomPort()

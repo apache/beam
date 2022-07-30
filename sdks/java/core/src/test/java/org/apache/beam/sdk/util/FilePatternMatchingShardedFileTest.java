@@ -55,7 +55,7 @@ public class FilePatternMatchingShardedFileTest {
 
   @Before
   public void setup() throws IOException {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10728
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20472
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     filePattern =
         LocalResources.fromFile(tmpFolder.getRoot(), true)

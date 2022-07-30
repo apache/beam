@@ -146,8 +146,9 @@ class BigQueryQueryToTableIT(unittest.TestCase):
                       'time': '00:00:00'
                   }]
     # the API Tools bigquery client expects byte values to be base-64 encoded
-    # TODO BEAM-4850: upgrade to google-cloud-bigquery which does not require
-    # handling the encoding in beam
+    # TODO https://github.com/apache/beam/issues/19073: upgrade to
+    # google-cloud-bigquery which does not require handling the encoding in
+    # beam
     for row in table_data:
       row['bytes'] = base64.b64encode(row['bytes']).decode('utf-8')
     passed, errors = self.bigquery_client.insert_rows(

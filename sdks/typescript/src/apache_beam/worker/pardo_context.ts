@@ -18,10 +18,8 @@
 
 import * as protobufjs from "protobufjs";
 
-import { PTransform, PCollection } from "../proto/beam_runner_api";
 import * as runnerApi from "../proto/beam_runner_api";
 import * as fnApi from "../proto/beam_fn_api";
-import { MultiplexingDataChannel, IDataChannel } from "./data";
 import { StateProvider } from "./state";
 
 import * as urns from "../internal/urns";
@@ -65,7 +63,7 @@ export class ParamProviderImpl implements ParamProvider {
   // if they are widely shared.
   augmentContext(context: any) {
     this.prefetchCallbacks = [];
-    if (typeof context != "object") {
+    if (typeof context !== "object") {
       return context;
     }
 
@@ -73,13 +71,13 @@ export class ParamProviderImpl implements ParamProvider {
     for (const [name, value] of Object.entries(context)) {
       // Is this the best way to check post serialization?
       if (
-        typeof value == "object" &&
-        value != null &&
-        value["parDoParamName"] != undefined
+        typeof value === "object" &&
+        value !== null &&
+        value["parDoParamName"] !== undefined
       ) {
         result[name] = Object.create(value);
         result[name].provider = this;
-        if ((value as ParDoParam<unknown>).parDoParamName == "sideInput") {
+        if ((value as ParDoParam<unknown>).parDoParamName === "sideInput") {
           this.prefetchCallbacks.push(
             this.prefetchSideInput(
               value as SideInputParam<unknown, unknown, unknown>
@@ -121,7 +119,7 @@ export class ParamProviderImpl implements ParamProvider {
         windowCoder
       );
       const lookupResult = stateProvider.getState(stateKey, decode);
-      if (lookupResult.type == "value") {
+      if (lookupResult.type === "value") {
         this_.sideInputValues.set(param.sideInputId, lookupResult.value);
         return operators.NonPromise;
       } else {
@@ -134,12 +132,12 @@ export class ParamProviderImpl implements ParamProvider {
 
   update(wvalue: WindowedValue<unknown> | undefined): operators.ProcessResult {
     this.wvalue = wvalue;
-    if (wvalue == undefined) {
+    if (wvalue === null || wvalue === undefined) {
       return operators.NonPromise;
     }
     // We have to prefetch all the side inputs.
     // TODO: (API) Let the user's process() await them.
-    if (this.prefetchCallbacks.length == 0) {
+    if (this.prefetchCallbacks.length === 0) {
       return operators.NonPromise;
     } else {
       const result = new operators.ProcessResultBuilder();
@@ -151,7 +149,7 @@ export class ParamProviderImpl implements ParamProvider {
   }
 
   provide(param) {
-    if (this.wvalue == undefined) {
+    if (this.wvalue === null || this.wvalue === undefined) {
       throw new Error(
         param.parDoParamName + " not defined outside of a process() call."
       );

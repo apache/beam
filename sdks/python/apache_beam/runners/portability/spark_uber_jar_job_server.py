@@ -248,8 +248,8 @@ class SparkBeamJob(abstract_job_service.UberJarBeamJob):
             message_text=response['message'])
         yield message
         message_ix += 1
-        # TODO(BEAM-8983) In the event of a failure, query
-        #  additional info from Spark master and/or workers.
+        # TODO(https://github.com/apache/beam/issues/20019) In the event of a
+        #  failure, query additional info from Spark master and/or workers.
       check_timestamp = self.set_state(state)
       if check_timestamp is not None:
         if message:

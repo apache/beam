@@ -77,8 +77,8 @@ examples:
 coder:
   urn: "beam:coder:bool:v1"
 examples:
-  "\0": False
-  "\u0001": True
+  "\0": false
+  "\u0001": true
 
 ---
 
@@ -156,8 +156,8 @@ coder:
   components: [{urn: "beam:coder:bytes:v1"},
                {urn: "beam:coder:bool:v1"}]
 examples:
-  "\u0003abc\u0001": {key: abc, value: True}
-  "\u0004ab\0c\0": {key: "ab\0c", value: False}
+  "\u0003abc\u0001": {key: abc, value: true}
+  "\u0004ab\0c\0": {key: "ab\0c", value: false}
 
 ---
 
@@ -197,8 +197,8 @@ coder:
   urn: "beam:coder:iterable:v1"
   components: [{urn: "beam:coder:bool:v1"}]
 examples:
-  "\0\0\0\u0001\u0001": [True]
-  "\0\0\0\u0002\u0001\0": [True, False]
+  "\0\0\0\u0001\u0001": [true]
+  "\0\0\0\u0002\u0001\0": [true, false]
   "\0\0\0\0": []
 
 ---
@@ -208,7 +208,7 @@ coder:
   components: [{urn: "beam:coder:bytes:v1"}]
   # This is for iterables of unknown length, where the encoding is not
   # deterministic.
-  non_deterministic: True
+  non_deterministic: true
 examples:
   "\u00ff\u00ff\u00ff\u00ff\u0000": []
   "\u00ff\u00ff\u00ff\u00ff\u0001\u0003abc\u0000": ["abc"]
@@ -233,16 +233,16 @@ examples:
     userKey: key,
     dynamicTimerTag: tag,
     windows: ["global"],
-    clearBit: False,
+    clearBit: false,
     fireTimestamp: 1234,
     holdTimestamp: 5678,
-    pane: {is_first: True, is_last: True, timing: UNKNOWN, index: 0, on_time_index: 0},
+    pane: {is_first: true, is_last: true, timing: UNKNOWN, index: 0, on_time_index: 0},
   }
   "\u0003\u006b\u0065\u0079\u0003\u0074\u0061\u0067\u0000\u0000\u0000\u0001\u0001": {
     userKey: key,
     dynamicTimerTag: tag,
     windows: ["global"],
-    clearBit: True,
+    clearBit: true,
   }
 
 ---
@@ -264,7 +264,7 @@ examples:
   "\u0080\0\u0001R\u009a\u00a4\u009bh\0\0\0\u0001\u000f\u0002": {
     value: 2,
     timestamp: 1454293425000,
-    pane: {is_first: True, is_last: True, timing: UNKNOWN, index: 0, on_time_index: 0},
+    pane: {is_first: true, is_last: true, timing: UNKNOWN, index: 0, on_time_index: 0},
     windows: ["global"]
   }
 
@@ -278,14 +278,14 @@ examples:
   "\u007f\u00ff\u00ff\u00ff\u00ff\u00f9\u00e5\u0080\0\0\0\u0001\u0080\0\u0001R\u009a\u00a4\u009bh\u00c0\u008b\u0011\u000f\u0004": {
     value: 4,
     timestamp: -400000,
-    pane: {is_first: True, is_last: True, timing: UNKNOWN, index: 0, on_time_index: 0},
+    pane: {is_first: true, is_last: true, timing: UNKNOWN, index: 0, on_time_index: 0},
     windows: [{end: 1454293425000, span: 280000}]
   }
 
   "\u007f\u00ff\u00ff\u00ff\u00ff\u00ff\u00ff\u009c\0\0\0\u0002\u0080\0\u0001R\u009a\u00a4\u009bh\u0080\u00dd\u00db\u0001\u007f\u00df;dZ\u001c\u00adv\u00ed\u0002\u000f\u0002": {
     value: 2,
     timestamp: -100,
-    pane: {is_first: True, is_last: True, timing: UNKNOWN, index: 0, on_time_index: 0},
+    pane: {is_first: true, is_last: true, timing: UNKNOWN, index: 0, on_time_index: 0},
     windows: [{end: 1454293425000, span: 3600000}, {end: -9223372036854410, span: 365}]
   }
 
@@ -304,7 +304,7 @@ examples:
   "\u0002": {
     value: 2,
     timestamp: 1000,
-    pane: {is_first: False, is_last: True, timing: ON_TIME, index: 30, on_time_index: 40},
+    pane: {is_first: false, is_last: true, timing: ON_TIME, index: 30, on_time_index: 40},
     windows: [{end: 20, span: 10}]
   }
 
@@ -323,7 +323,7 @@ examples:
   "\u0002": {
     value: 2,
     timestamp: -9223372036854775,
-    pane: {is_first: True, is_last: True, timing: UNKNOWN, index: 0, on_time_index: 0},
+    pane: {is_first: true, is_last: true, timing: UNKNOWN, index: 0, on_time_index: 0},
     windows: ["global"]
   }
 
@@ -381,8 +381,8 @@ coder:
   # f_bool: boolean, f_bytes: nullable bytes
   payload: "\n\x0c\n\x06f_bool\x1a\x02\x10\x08\n\x0f\n\x07f_bytes\x1a\x04\x08\x01\x10\t\x12$eea1b747-7571-43d3-aafa-9255afdceafb"
 examples:
-  "\x02\x01\x02\x01": {f_bool: True, f_bytes: null}
-  "\x02\x00\x00\x04ab\x00c": {f_bool: False, f_bytes: "ab\0c"}
+  "\x02\x01\x02\x01": {f_bool: true, f_bytes: null}
+  "\x02\x00\x00\x04ab\x00c": {f_bool: false, f_bytes: "ab\0c"}
 
 ---
 
@@ -405,7 +405,7 @@ coder:
   # f_map: map<str, nullable int64>
   payload: "\n\x15\n\x05f_map\x1a\x0c*\n\n\x02\x10\x07\x12\x04\x08\x01\x10\x04\x12$d8c8f969-14e6-457f-a8b5-62a1aec7f1cd"
   # map ordering is non-deterministic
-  non_deterministic: True
+  non_deterministic: true
 examples:
   "\x01\x00\x00\x00\x00\x00": {f_map: {}}
   "\x01\x00\x00\x00\x00\x02\x03foo\x01\xa9F\x03bar\x01\xff\xff\xff\xff\xff\xff\xff\xff\x7f": {f_map: {"foo": 9001, "bar": 9223372036854775807}}
@@ -442,7 +442,7 @@ coder:
   urn: "beam:coder:row:v1"
   payload: "\n\x0b\n\x03str\x1a\x02\x10\x07(\x01\n\x0e\n\x06f_bool\x1a\x02\x10\x08(\x02\n\x0b\n\x03i32\x1a\x04\x08\x01\x10\x03\x12$30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9 \x01"
 examples:
-  "\x03\x00\x15\x04str2\x00": {f_bool: False, i32: 21, str: "str2"}
+  "\x03\x00\x15\x04str2\x00": {f_bool: false, i32: 21, str: "str2"}
 
 ---
 
@@ -504,8 +504,8 @@ coder:
   urn: "beam:coder:state_backed_iterable:v1"
   components: [{urn: "beam:coder:bool:v1"}]
 examples:
-  "\0\0\0\u0001\u0001": [True]
-  "\0\0\0\u0002\u0001\0": [True, False]
+  "\0\0\0\u0001\u0001": [true]
+  "\0\0\0\u0002\u0001\0": [true, false]
   "\0\0\0\0": []
 
 ---
@@ -515,7 +515,7 @@ coder:
   components: [{urn: "beam:coder:bytes:v1"}]
   # This is for iterables of unknown length, where the encoding is not
   # deterministic.
-  non_deterministic: True
+  non_deterministic: true
 examples:
   "\u00ff\u00ff\u00ff\u00ff\u0000": []
   "\u00ff\u00ff\u00ff\u00ff\u0001\u0003abc\u0000": ["abc"]
@@ -540,7 +540,7 @@ coder:
   }
   # This is for iterables of unknown length, where the encoding is not
   # deterministic.
-  non_deterministic: True
+  non_deterministic: true
 
 examples:
   "\u00FF\u00FF\u00FF\u00FF\0": []  # Unknown length with empty prefix and no token

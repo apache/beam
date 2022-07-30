@@ -24,7 +24,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.impl.Tab
 
 /** Beam-customized facade behind {@link Function} to address BEAM-5921. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class UdfImpl {
 

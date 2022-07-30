@@ -209,7 +209,8 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
           elementCoder.registerByteSizeObserver(elem, observer);
         }
       } else {
-        // TODO: (BEAM-1537) Update to use an accurate count depending on size and count,
+        // TODO: (https://github.com/apache/beam/issues/18169) Update to use an accurate count
+        // depending on size and count,
         // currently we are under estimating the size by up to 10 bytes per block of data since we
         // are not encoding the count prefix which occurs at most once per 64k of data and is upto
         // 10 bytes long. Since we include the total count we can upper bound the underestimate

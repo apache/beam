@@ -24,7 +24,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 
 /** Utilities for working with Source Dataflow API definitions and {@link NativeReader} objects. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class CloudSourceUtils {
   /**

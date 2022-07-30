@@ -43,7 +43,7 @@ import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
  * window to side input.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class SideInputInitializer<ViewT>
     implements BroadcastVariableInitializer<WindowedValue<?>, Map<BoundedWindow, ViewT>> {

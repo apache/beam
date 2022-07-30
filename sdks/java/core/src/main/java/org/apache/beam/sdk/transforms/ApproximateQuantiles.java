@@ -56,7 +56,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * approximate {@code N}-tiles (e.g. quartiles, percentiles, etc.), either globally or per-key.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ApproximateQuantiles {
   private ApproximateQuantiles() {
@@ -147,7 +147,7 @@ public class ApproximateQuantiles {
   }
 
   /**
-   * Like {@link #perKey(int, Comparator)}, but sorts values using the their natural ordering.
+   * Like {@link #perKey(int, Comparator)}, but sorts values using their natural ordering.
    *
    * @param <K> the type of the keys in the input and output {@code PCollection}s
    * @param <V> the type of the values in the input {@code PCollection}

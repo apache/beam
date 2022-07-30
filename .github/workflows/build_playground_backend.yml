@@ -32,6 +32,7 @@ jobs:
       BEAM_VERSION: 2.33.0
       TERRAFORM_VERSION: 1.0.9
       STAND_SUFFIX: ''
+      DATASTORE_EMULATOR_HOST: 127.0.0.1:8888
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
@@ -45,6 +46,13 @@ jobs:
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue
         run: rm ~/.m2/settings.xml
+
+      - name: Set up Cloud SDK and its components
+        uses: google-github-actions/setup-gcloud@v0
+        with:
+            install_components: 'beta,cloud-datastore-emulator'
+            version: '389.0.0'
+
       - name: Run PreCommit
         run: ./gradlew playground:backend:precommit
       - name: install npm

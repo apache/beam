@@ -173,18 +173,22 @@ ext.goIoValidatesRunnerTask = { proj, name, scriptOpts, pipelineOpts ->
     dependsOn ":sdks:java:io:expansion-service:build"
     dependsOn ":sdks:java:extensions:schemaio-expansion-service:build"
     dependsOn ":sdks:java:io:debezium:expansion-service:build"
+    dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
     dependsOn ":sdks:java:testing:kafka-service:buildTestKafkaServiceJar"
 
     doLast {
       def ioExpJar = project(":sdks:java:io:expansion-service").shadowJar.archivePath
       def schemaIoExpJar = project(":sdks:java:extensions:schemaio-expansion-service").shadowJar.archivePath
       def debeziumIoExpJar = project(":sdks:java:io:debezium:expansion-service").shadowJar.archivePath
+      def gcpIoExpJar = project(":sdks:java:io:google-cloud-platform:expansion-service").shadowJar.archivePath
       def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
       def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
           "--kafka_jar=${kafkaJar}",
           "--expansion_jar=io:${ioExpJar}",
           "--expansion_jar=schemaio:${schemaIoExpJar}",
           "--expansion_jar=debeziumio:${debeziumIoExpJar}",
+          "--expansion_jar=gcpio:${gcpIoExpJar}",
+          "--bq_dataset=apache-beam-testing.beam_bigquery_io_test_temp",
       ]
       pipelineOptions.addAll(pipelineOpts)
       def options = [

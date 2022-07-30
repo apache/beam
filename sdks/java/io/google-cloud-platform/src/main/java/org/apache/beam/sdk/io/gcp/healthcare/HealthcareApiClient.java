@@ -143,6 +143,9 @@ public interface HealthcareApiClient {
   Operation exportFhirResourceToGcs(String fhirStore, String gcsDestinationPrefix)
       throws IOException;
 
+  Operation exportFhirResourceToBigQuery(String fhirStore, String bigQueryDatasetUri)
+      throws IOException;
+
   Operation deidentifyFhirStore(
       String sourceFhirStore, String destinationFhirStore, DeidentifyConfig deidConfig)
       throws IOException;

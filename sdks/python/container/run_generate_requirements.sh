@@ -27,7 +27,7 @@
 # ./gradlew :sdks:python:container:generatePythonRequirementsAll
 # ./gradlew :sdks:python:container:py38:generatePythonRequirements
 
-# You will need Python intepreters for all versions supported by Beam, see:
+# You will need Python interpreters for all versions supported by Beam, see:
 # https://s.apache.org/beam-python-dev-wiki
 
 if [[ $# != 2 ]]; then
@@ -91,7 +91,7 @@ cat <<EOT > $REQUIREMENTS_FILE
 # Run ./gradlew :sdks:python:container:generatePythonRequirementsAll to update.
 # Do not edit manually, adjust ../base_image_requirements_manual.txt or
 # Apache Beam's setup.py instead, and regenerate the list.
-# You will need Python intepreters for all versions supported by Beam, see:
+# You will need Python interpreters for all versions supported by Beam, see:
 # https://s.apache.org/beam-python-dev-wiki
 # Reach out to a committer if you need help.
 

@@ -24,7 +24,7 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
  * Provides convenient one line factories for unit tests that need to generate test MonitoringInfos.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class MonitoringInfoTestUtil {
   /** @return A basic MonitoringInfoMetricName to test. */

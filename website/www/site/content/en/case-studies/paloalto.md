@@ -11,6 +11,7 @@ achieved high performance and low latency, and reduced processing costs by 60%."
 authorName: "Talat Uyarer"
 authorPosition: "Sr Principal Software Engineer"
 authorImg: /images/case-study/paloalto/talat_uyarer.png
+publishDate: 2022-02-22T20:19:00+00:00
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

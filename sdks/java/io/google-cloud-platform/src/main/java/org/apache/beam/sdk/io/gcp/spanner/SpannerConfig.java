@@ -30,6 +30,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -37,7 +38,7 @@ import org.joda.time.Duration;
 /** Configuration for a Cloud Spanner client. */
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class SpannerConfig implements Serializable {
   // A default host name for batch traffic.
@@ -47,7 +48,7 @@ public abstract class SpannerConfig implements Serializable {
   // Total allowable backoff time.
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardMinutes(15);
   // A default priority for batch traffic.
-  private static final RpcPriority DEFAULT_RPC_PRIORITY = RpcPriority.MEDIUM;
+  static final RpcPriority DEFAULT_RPC_PRIORITY = RpcPriority.MEDIUM;
 
   public abstract @Nullable ValueProvider<String> getProjectId();
 
@@ -160,6 +161,8 @@ public abstract class SpannerConfig implements Serializable {
 
   /** Specifies the Cloud Spanner instance ID. */
   public SpannerConfig withInstanceId(ValueProvider<String> instanceId) {
+    Preconditions.checkNotNull(instanceId);
+    Preconditions.checkNotNull(instanceId.get());
     return toBuilder().setInstanceId(instanceId).build();
   }
 
@@ -170,6 +173,8 @@ public abstract class SpannerConfig implements Serializable {
 
   /** Specifies the Cloud Spanner database ID. */
   public SpannerConfig withDatabaseId(ValueProvider<String> databaseId) {
+    Preconditions.checkNotNull(databaseId);
+    Preconditions.checkNotNull(databaseId.get());
     return toBuilder().setDatabaseId(databaseId).build();
   }
 
@@ -180,6 +185,8 @@ public abstract class SpannerConfig implements Serializable {
 
   /** Specifies the Cloud Spanner host. */
   public SpannerConfig withHost(ValueProvider<String> host) {
+    Preconditions.checkNotNull(host);
+    Preconditions.checkNotNull(host.get());
     return toBuilder().setHost(host).build();
   }
 
@@ -250,6 +257,8 @@ public abstract class SpannerConfig implements Serializable {
 
   /** Specifies the RPC priority. */
   public SpannerConfig withRpcPriority(ValueProvider<RpcPriority> rpcPriority) {
+    Preconditions.checkNotNull(rpcPriority);
+    Preconditions.checkNotNull(rpcPriority.get());
     return toBuilder().setRpcPriority(rpcPriority).build();
   }
 }
