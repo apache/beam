@@ -379,3 +379,19 @@ tasks.register("checkSetup") {
   dependsOn(":sdks:python:wordCount")
   dependsOn(":examples:java:wordCount")
 }
+
+// set up the release plugin to focus on local work only
+// the decision to push, if at all, lies with the release manager
+// When the release fails the branch can be reset without pushing by the release manager
+release {
+  revertOnFail = false
+  tagTemplate = "v${version}"
+  // follows this workaround
+  // https://github.com/researchgate/gradle-release/issues/281#issuecomment-466876492
+  release {
+    with (propertyMissing("git") as net.researchgate.release.GitAdapter.GitConfig) {
+      requireBranch = "release.*|master"
+      pushToRemote = ""
+    }
+  }
+}
