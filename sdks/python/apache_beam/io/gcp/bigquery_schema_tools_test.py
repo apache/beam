@@ -144,11 +144,10 @@ class TestBigQueryToSchema(unittest.TestCase):
         schema=schema)
     get_table.return_value = table
 
-    with self.assertRaisesRegex(
-        ValueError,
-        "Encountered table of type ValueProvider or callable with "
-        "output_type 'BEAM_ROW'. "
-        "'BEAM_ROW' currently only supports tables of type str."):
+    with self.assertRaisesRegex(TypeError,
+                                'ReadFromBigQuery: table must be of type string'
+                                '; got %r instead' %
+                                (type(value_provider.ValueProvider()))):
       p = apache_beam.Pipeline()
       pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
           table=value_provider.ValueProvider(), output_type='BEAM_ROW')
@@ -173,11 +172,9 @@ class TestBigQueryToSchema(unittest.TestCase):
         return table
 
     res = filterTable
-    with self.assertRaisesRegex(
-        ValueError,
-        "Encountered table of type ValueProvider or callable with "
-        "output_type 'BEAM_ROW'. "
-        "'BEAM_ROW' currently only supports tables of type str."):
+    with self.assertRaisesRegex(TypeError,
+                                'ReadFromBigQuery: table must be of type string'
+                                '; got a callable instead'):
       p = apache_beam.Pipeline()
       pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
           table=res, output_type='BEAM_ROW')

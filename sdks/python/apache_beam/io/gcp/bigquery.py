@@ -2757,12 +2757,15 @@ class ReadFromBigQuery(PTransform):
           table=self._kwargs.get("table", None),
           dataset=self._kwargs.get("dataset", None),
           project=self._kwargs.get("project", None))
-      if isinstance(self._kwargs['table'], ValueProvider) or callable(
-          self._kwargs['table']):
-        raise ValueError(
-            "Encountered table of type ValueProvider or callable with "
-            "output_type 'BEAM_ROW'. "
-            "'BEAM_ROW' currently only supports tables of type str.")
+      if isinstance(self._kwargs['table'], ValueProvider):
+        raise TypeError(
+            '%s: table must be of type string'
+            '; got %r instead' %
+            (self.__class__.__name__, type(self._kwargs['table'])))
+      elif callable(self._kwargs['table']):
+        raise TypeError(
+            '%s: table must be of type string'
+            '; got a callable instead' % self.__class__.__name__)
       return output_pcollection | beam.io.gcp.bigquery_schema_tools.\
             convert_to_usertype(
             beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
