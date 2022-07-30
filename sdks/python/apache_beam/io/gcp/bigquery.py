@@ -776,7 +776,6 @@ class _CustomBigQuerySource(BoundedSource):
       unique_id=None,
       temp_dataset=None,
       query_priority=BigQueryQueryPriority.BATCH):
-
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -2692,7 +2691,7 @@ class ReadFromBigQuery(PTransform):
       #what-is-a-schema)
       """
   class Method(object):
-    EXPORT = 'EXPORT'  # This is currently the default.
+    EXPORT = 'EXPORT'  #  This is currently the default.
     DIRECT_READ = 'DIRECT_READ'
 
   COUNTER = 0
@@ -2712,7 +2711,7 @@ class ReadFromBigQuery(PTransform):
     self._kwargs = kwargs
 
     if self.method is ReadFromBigQuery.Method.EXPORT \
-            and self.use_native_datetime is True:
+        and self.use_native_datetime is True:
       raise TypeError(
           'The "use_native_datetime" parameter cannot be True for EXPORT.'
           ' Please set the "use_native_datetime" parameter to False *OR*'
