@@ -81,7 +81,7 @@ class GCSFileSystemTest(unittest.TestCase):
   def test_match_multiples(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     gcsio_mock.list_prefix.return_value = {
         'gs://bucket/file1': (1, 99999.0), 'gs://bucket/file2': (2, 88888.0)
     }
@@ -99,7 +99,7 @@ class GCSFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
     limit = 1
-    gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     gcsio_mock.list_prefix.return_value = {'gs://bucket/file1': (1, 99999.0)}
     expected_results = set([FileMetadata('gs://bucket/file1', 1, 99999.0)])
     match_result = self.fs.match(['gs://bucket/'], [limit])[0]
@@ -112,7 +112,7 @@ class GCSFileSystemTest(unittest.TestCase):
   def test_match_multiples_error(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     exception = IOError('Failed')
     gcsio_mock.list_prefix.side_effect = exception
 
@@ -128,7 +128,7 @@ class GCSFileSystemTest(unittest.TestCase):
   def test_match_multiple_patterns(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     gcsio_mock.list_prefix.side_effect = [
         {
             'gs://bucket/file1': (1, 99999.0)
@@ -146,7 +146,7 @@ class GCSFileSystemTest(unittest.TestCase):
   def test_create(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     # Issue file copy
     _ = self.fs.create('gs://bucket/from1', 'application/octet-stream')
 
@@ -157,7 +157,7 @@ class GCSFileSystemTest(unittest.TestCase):
   def test_open(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     # Issue file copy
     _ = self.fs.open('gs://bucket/from1', 'application/octet-stream')
 
@@ -168,7 +168,7 @@ class GCSFileSystemTest(unittest.TestCase):
   def test_copy_file(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     sources = ['gs://bucket/from1']
     destinations = ['gs://bucket/to1']
 
@@ -182,7 +182,7 @@ class GCSFileSystemTest(unittest.TestCase):
   def test_copy_file_error(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     sources = ['gs://bucket/from1']
     destinations = ['gs://bucket/to1']
 
@@ -208,7 +208,7 @@ class GCSFileSystemTest(unittest.TestCase):
   def test_copy_tree(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     sources = ['gs://bucket1/']
     destinations = ['gs://bucket2/']
 
@@ -222,7 +222,7 @@ class GCSFileSystemTest(unittest.TestCase):
   def test_rename(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     sources = [
         'gs://bucket/from1',
         'gs://bucket/from2',
@@ -262,7 +262,7 @@ class GCSFileSystemTest(unittest.TestCase):
   def test_rename_error(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     sources = [
         'gs://bucket/from1',
         'gs://bucket/from2',
@@ -308,7 +308,7 @@ class GCSFileSystemTest(unittest.TestCase):
   def test_delete(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     gcsio_mock._status.return_value = {'size': 0, 'last_updated': 99999.0}
     files = [
         'gs://bucket/from1',
@@ -324,7 +324,7 @@ class GCSFileSystemTest(unittest.TestCase):
   def test_delete_error(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     exception = IOError('Failed')
     gcsio_mock.delete_batch.side_effect = exception
     gcsio_mock._status.return_value = {'size': 0, 'last_updated': 99999.0}

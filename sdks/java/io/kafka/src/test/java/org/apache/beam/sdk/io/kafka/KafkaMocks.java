@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.KV;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -108,6 +111,31 @@ public class KafkaMocks {
                 new PartitionInfo("topic_a", 1, new Node(1, "myServer1", 9092), null, null)));
         return consumer;
       }
+    }
+  }
+
+  public static final class PartitionGrowthMockConsumer extends MockConsumer<byte[], byte[]>
+      implements Serializable {
+
+    private List<List<KV<String, Integer>>> partitions;
+    private int index = 0;
+
+    public PartitionGrowthMockConsumer() {
+      super(null);
+    }
+
+    public PartitionGrowthMockConsumer(List<List<KV<String, Integer>>> partitions) {
+      super(null);
+      this.partitions = partitions;
+    }
+
+    @Override
+    public synchronized List<PartitionInfo> partitionsFor(String topic) {
+      List<KV<String, Integer>> partitionInfos = partitions.get(index);
+      index++;
+      return partitionInfos.stream()
+          .map(kv -> new PartitionInfo(kv.getKey(), kv.getValue(), null, null, null))
+          .collect(Collectors.toList());
     }
   }
 }

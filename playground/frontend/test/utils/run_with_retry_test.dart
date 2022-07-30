@@ -22,23 +22,23 @@ import 'package:playground/utils/run_with_retry.dart';
 class ExecutionTime<T> {
   final int time;
   final T? value;
-  final T? error;
+  final Object? error;
 
   ExecutionTime(this.time, {this.value, this.error});
 }
 
-Future<ExecutionTime> withExecutionTime(Function fn) async {
+Future<ExecutionTime<T>> withExecutionTime<T>(Future<T> Function() fn) async {
   final stopwatch = Stopwatch()..start();
   try {
     final result = await fn();
-    return ExecutionTime(stopwatch.elapsedMilliseconds, value: result);
+    return ExecutionTime<T>(stopwatch.elapsedMilliseconds, value: result);
   } catch (e) {
-    return ExecutionTime(stopwatch.elapsedMilliseconds, error: e);
+    return ExecutionTime<T>(stopwatch.elapsedMilliseconds, error: e);
   }
 }
 
 class ResultBuilder {
-  static Function getFutureWithResult(List<Future Function()> futures) {
+  static Future<T> Function() getFutureWithResult<T>(List<Future<T> Function()> futures) {
     var attempt = 0;
     return () async {
       final futureCreator = futures[attempt];

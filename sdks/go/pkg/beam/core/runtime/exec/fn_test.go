@@ -40,7 +40,7 @@ func continuationsEqual(first, second sdf.ProcessContinuation) bool {
 	return first.ShouldResume() == second.ShouldResume()
 }
 
-// TestInvoke verifies the the various forms of input to Invoke are handled correctly.
+// TestInvoke verifies the various forms of input to Invoke are handled correctly.
 func TestInvoke(t *testing.T) {
 	tests := []struct {
 		Fn                   interface{}

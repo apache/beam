@@ -56,9 +56,12 @@ public final class Caches {
   private static final MemoryMeter MEMORY_METER =
       MemoryMeter.builder().withGuessing(Guess.BEST).build();
 
+  /** The size of a reference. */
+  public static final long REFERENCE_SIZE = 8;
+
   public static long weigh(Object o) {
     if (o == null) {
-      return 8;
+      return REFERENCE_SIZE;
     }
     try {
       return MEMORY_METER.measureDeep(o);

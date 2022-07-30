@@ -23,6 +23,7 @@ import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 /** Class for creating context object of different CDAP classes with batch source type. */
 public class BatchSourceContextImpl extends BatchContextImpl implements BatchSourceContext {
 
+  /** Overrides the input configuration of this Batch job to the specified {@link Input}. */
   @Override
   public void setInput(Input input) {
     this.inputFormatProvider = ((Input.InputFormatProviderInput) input).getInputFormatProvider();

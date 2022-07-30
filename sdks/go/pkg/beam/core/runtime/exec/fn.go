@@ -52,6 +52,10 @@ type bundleFinalizer struct {
 	lastValidCallback time.Time // Used to track when we can safely gc the bundleFinalizer
 }
 
+type needsBundleFinalization interface {
+	AttachFinalizer(*bundleFinalizer)
+}
+
 // RegisterCallback is used to register callbacks during DoFn execution.
 func (bf *bundleFinalizer) RegisterCallback(t time.Duration, cb func() error) {
 	callback := bundleFinalizationCallback{

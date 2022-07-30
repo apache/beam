@@ -57,7 +57,7 @@ import org.slf4j.LoggerFactory;
  * @param <OutT> output type of the {@link DoFnOp}
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BundleManager<OutT> {
   private static final Logger LOG = LoggerFactory.getLogger(BundleManager.class);

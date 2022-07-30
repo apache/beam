@@ -124,8 +124,8 @@ dependencies {
   shadowTest library.java.mockito_core
 }
 
-//TODO(BEAM-5657): checktyle task should be enabled in the future.
+//TODO(https://github.com/apache/beam/issues/19115): checktyle task should be enabled in the future.
 checkstyleMain.enabled = false
 checkstyleTest.enabled = false
-//TODO(BEAM-5659): javadoc task should be enabled in the future.
+//TODO(https://github.com/apache/beam/issues/19119): javadoc task should be enabled in the future.
 javadoc.enabled = false

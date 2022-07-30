@@ -74,7 +74,7 @@ import org.slf4j.LoggerFactory;
 
 @Experimental
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbTable.class);
@@ -320,7 +320,8 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
 
     @Override
     public PCollection<Row> expand(PCollection<Document> input) {
-      // TODO(BEAM-8498): figure out a way convert Document directly to Row.
+      // TODO(https://github.com/apache/beam/issues/19845): figure out a way convert Document
+      // directly to Row.
       return input
           .apply("Convert Document to JSON", ParDo.of(new DocumentToJsonStringConverter()))
           .apply("Transform JSON to Row", JsonToRow.withSchema(schema))
@@ -352,7 +353,8 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
     @Override
     public PCollection<Document> expand(PCollection<Row> input) {
       return input
-          // TODO(BEAM-8498): figure out a way convert Row directly to Document.
+          // TODO(https://github.com/apache/beam/issues/19845): figure out a way convert Row
+          // directly to Document.
           .apply("Transform Rows to JSON", ToJson.of())
           .apply("Produce documents from JSON", MapElements.via(new ObjectToDocumentFn()));
     }

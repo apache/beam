@@ -147,6 +147,17 @@ class TestTableReferenceParser(unittest.TestCase):
     self.assertEqual(parsed_ref.datasetId, datasetId)
     self.assertEqual(parsed_ref.tableId, tableId)
 
+  def test_calling_with_spaced_table_ref(self):
+    projectId = 'test_project'
+    datasetId = 'test_dataset'
+    tableId = 'test- -table 1'
+    fully_qualified_table = '{}:{}.{}'.format(projectId, datasetId, tableId)
+    parsed_ref = parse_table_reference(fully_qualified_table)
+    self.assertIsInstance(parsed_ref, bigquery.TableReference)
+    self.assertEqual(parsed_ref.projectId, projectId)
+    self.assertEqual(parsed_ref.datasetId, datasetId)
+    self.assertEqual(parsed_ref.tableId, tableId)
+
   def test_calling_with_partially_qualified_table_ref(self):
     datasetId = 'test_dataset'
     tableId = 'test_table'
@@ -223,7 +234,7 @@ class TestBigQueryWrapper(unittest.TestCase):
     self.assertTrue(client.datasets.Delete.called)
 
   @unittest.skipIf(
-      google and not hasattr(google.cloud, '_http'),
+      google and not hasattr(google.cloud, '_http'),  # pylint: disable=c-extension-no-member
       'Dependencies not installed')
   @mock.patch('time.sleep', return_value=None)
   @mock.patch('google.cloud._http.JSONConnection.http')

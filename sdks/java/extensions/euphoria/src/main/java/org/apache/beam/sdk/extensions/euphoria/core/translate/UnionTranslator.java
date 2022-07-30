@@ -25,7 +25,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Euphoria to Beam translation of {@link Union} operator. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class UnionTranslator<InputT> implements OperatorTranslator<InputT, InputT, Union<InputT>> {
 

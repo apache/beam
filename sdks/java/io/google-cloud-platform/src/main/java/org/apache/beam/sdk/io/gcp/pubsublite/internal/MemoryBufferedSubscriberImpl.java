@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import com.google.api.core.ApiFuture;
-import com.google.api.core.ApiFutures;
-import com.google.api.core.SettableApiFuture;
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
@@ -51,7 +48,6 @@ class MemoryBufferedSubscriberImpl extends ProxyService implements MemoryBuffere
   private long bytesOutstandingToServer = 0;
   private long bytesOutstanding = 0;
   private final Queue<SequencedMessage> messages = new ArrayDeque<>();
-  private SettableApiFuture<Void> newData = SettableApiFuture.create();
   private boolean shutdown = false;
 
   // onReceive will not be called inline as subscriber is not started.
@@ -88,7 +84,6 @@ class MemoryBufferedSubscriberImpl extends ProxyService implements MemoryBuffere
       return;
     }
     shutdown = true;
-    newData.set(null);
     memBlock.close();
   }
 
@@ -105,8 +100,6 @@ class MemoryBufferedSubscriberImpl extends ProxyService implements MemoryBuffere
       bytesOutstandingToServer -= message.getSizeBytes();
     }
     messages.addAll(batch);
-    newData.set(null);
-    newData = SettableApiFuture.create();
   }
 
   @Override
@@ -161,13 +154,5 @@ class MemoryBufferedSubscriberImpl extends ProxyService implements MemoryBuffere
     SequencedMessage message = messages.remove();
     bytesOutstanding -= message.getSizeBytes();
     fetchOffset = Offset.of(message.getCursor().getOffset() + 1);
-  }
-
-  @Override
-  public synchronized ApiFuture<Void> onData() {
-    if (shutdown || !messages.isEmpty()) {
-      return ApiFutures.immediateFuture(null);
-    }
-    return newData;
   }
 }

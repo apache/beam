@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 /** Unit tests for {@link TableRowToStorageApiProto}. */
 public class TableRowToStorageApiProtoIT {
@@ -363,7 +363,6 @@ public class TableRowToStorageApiProtoIT {
 
     assertEquals(1, actualTableRows.size());
     assertEquals(BASE_TABLE_ROW_EXPECTED, actualTableRows.get(0).get("nestedValue1"));
-    LOG.info("ACTUAL " + actualTableRows.get(0).get("nestedValue2"));
     assertEquals(
         ImmutableList.of(
             BASE_TABLE_ROW_EXPECTED,

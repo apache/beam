@@ -1111,9 +1111,9 @@ def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
             is_bounded=input_pcoll.is_bounded))
 
     # Set up Pack stage.
-    # TODO(BEAM-7746): classes that inherit from RunnerApiFn are expected to
-    #  accept a PipelineContext for from_runner_api/to_runner_api.  Determine
-    #  how to accomodate this.
+    # TODO(https://github.com/apache/beam/issues/19737): classes that inherit
+    #  from RunnerApiFn are expected to accept a PipelineContext for
+    #  from_runner_api/to_runner_api.  Determine how to accomodate this.
     pack_combine_fn = combiners.SingleInputTupleCombineFn(
         *[
             core.CombineFn.from_runner_api(combine_payload.combine_fn, context)  # type: ignore[arg-type]

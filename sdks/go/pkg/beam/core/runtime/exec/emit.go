@@ -35,8 +35,9 @@ type ReusableEmitter interface {
 	Value() interface{}
 }
 
-// ReusableEmitter is a resettable value needed to hold the implicit context and
-// emit event time. It also has the ability to have a watermark estimator attached.
+// ReusableTimestampObservingWatermarkEmitter is a resettable value needed to hold
+// the implicit context and emit event time. It also has the ability to have a
+// watermark estimator attached.
 type ReusableTimestampObservingWatermarkEmitter interface {
 	ReusableEmitter
 	AttachEstimator(est *sdf.WatermarkEstimator)

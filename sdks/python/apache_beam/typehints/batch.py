@@ -24,6 +24,8 @@ Sequence[E] for performance reasons.
 A trivial example is B=np.array(dtype=np.int64), E=int.
 """
 
+import random
+from math import ceil
 from typing import Callable
 from typing import Generic
 from typing import Iterator
@@ -34,6 +36,7 @@ from typing import TypeVar
 
 import numpy as np
 
+from apache_beam import coders
 from apache_beam.typehints import typehints
 
 B = TypeVar('B')
@@ -61,6 +64,9 @@ class BatchConverter(Generic[B, E]):
   def get_length(self, batch: B) -> int:
     raise NotImplementedError
 
+  def estimate_byte_size(self, batch):
+    raise NotImplementedError
+
   @staticmethod
   def register(
       batch_converter_constructor: Callable[[type, type], 'BatchConverter']):
@@ -76,8 +82,9 @@ class BatchConverter(Generic[B, E]):
       if result is not None:
         return result
 
-    # TODO(BEAM-14339): Aggregate error information from the failed
-    # BatchConverter matches instead of this generic error.
+    # TODO(https://github.com/apache/beam/issues/21654): Aggregate error
+    # information from the failed BatchConverter matches instead of this
+    # generic error.
     raise TypeError(
         f"Unable to find BatchConverter for element_type {element_type!r} and "
         f"batch_type {batch_type!r}")
@@ -104,6 +111,14 @@ class BatchConverter(Generic[B, E]):
 
 
 class ListBatchConverter(BatchConverter):
+  SAMPLE_FRACTION = 0.2
+  MAX_SAMPLES = 100
+  SAMPLED_BATCH_SIZE = MAX_SAMPLES / SAMPLE_FRACTION
+
+  def __init__(self, batch_type, element_type):
+    super().__init__(batch_type, element_type)
+    self.element_coder = coders.registry.get_coder(element_type)
+
   @staticmethod
   @BatchConverter.register
   def from_typehints(element_type, batch_type):
@@ -124,6 +139,17 @@ class ListBatchConverter(BatchConverter):
 
   def get_length(self, batch):
     return len(batch)
+
+  def estimate_byte_size(self, batch):
+    # randomly sample a fraction of the elements and use the element_coder to
+    # estimate the size of each
+    nsampled = (
+        ceil(len(batch) * self.SAMPLE_FRACTION)
+        if len(batch) < self.SAMPLED_BATCH_SIZE else self.MAX_SAMPLES)
+    mean_byte_size = sum(
+        self.element_coder.estimate_size(element)
+        for element in random.sample(batch, nsampled)) / nsampled
+    return ceil(mean_byte_size * len(batch))
 
 
 N = "ARBITRARY LENGTH DIMENSION"
@@ -186,6 +212,9 @@ class NumpyBatchConverter(BatchConverter):
 
   def get_length(self, batch):
     return np.size(batch, axis=self.partition_dimension)
+
+  def estimate_byte_size(self, batch):
+    return batch.nbytes
 
 
 # numpy is starting to add typehints, which we should support

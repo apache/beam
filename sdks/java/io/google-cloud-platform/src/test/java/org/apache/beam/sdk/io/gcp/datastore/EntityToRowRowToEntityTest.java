@@ -55,7 +55,8 @@ public class EntityToRowRowToEntityTest {
   private static final String KIND = "kind";
   private static final String UUID_VALUE = UUID.randomUUID().toString();
   private static final Key.Builder KEY = makeKey(KIND, UUID_VALUE);
-  private static final DateTime DATE_TIME = parseTimestampWithUTCTimeZone("2018-05-28 20:17:40");
+  private static final DateTime DATE_TIME =
+      parseTimestampWithUTCTimeZone("2018-05-28 20:17:40.567");
   static final String DEFAULT_KEY_FIELD = "__key__";
   private static final FieldType VARBINARY = FieldType.BYTES;
 

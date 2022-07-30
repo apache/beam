@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /** The {@link SerializableFunctions} class to store static Serializable functions. */
 public class SerializableFunctions {
@@ -32,8 +33,8 @@ public class SerializableFunctions {
             final String message = failsafeElement.getOriginalPayload();
             String timestamp = Instant.now().toString();
             outputRow.add(timestamp);
-            outputRow.add(failsafeElement.getErrorMessage());
-            outputRow.add(failsafeElement.getStacktrace());
+            outputRow.add(MoreObjects.firstNonNull(failsafeElement.getErrorMessage(), ""));
+            outputRow.add(MoreObjects.firstNonNull(failsafeElement.getStacktrace(), ""));
             // Only set the payload if it's populated on the message.
             if (failsafeElement.getOriginalPayload() != null) {
               outputRow.add(message);

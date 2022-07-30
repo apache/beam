@@ -47,7 +47,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link BufferedExternalSorter}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class BufferedExternalSorterTest {
   @Rule public ExpectedException thrown = ExpectedException.none();

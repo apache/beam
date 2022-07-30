@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import * as beam from "../../apache_beam";
-import { GlobalWindows } from "../../apache_beam/transforms/windowings";
+import * as beam from "../index";
+import { globalWindows } from "../transforms/windowings";
 import * as internal from "../transforms/internal";
 
 import * as assert from "assert";
@@ -28,55 +28,46 @@ function callAssertDeepEqual(a, b) {
 }
 
 // TODO: (Naming)
-export class AssertDeepEqual extends beam.PTransform<
-  beam.PCollection<any>,
-  void
-> {
-  expected: any[];
-
-  constructor(expected: any[]) {
-    super("AssertDeepEqual");
-    this.expected = expected;
-  }
-
-  expand(pcoll: beam.PCollection<any>) {
-    const expected = this.expected;
-    pcoll.apply(
-      new Assert("Assert", (actual) => {
-        const actualArray: any[] = [...actual];
-        expected.sort();
-        actualArray.sort();
-        callAssertDeepEqual(actualArray, expected);
-      })
-    );
-  }
+export function assertDeepEqual<T>(
+  expected: T[]
+): beam.PTransform<beam.PCollection<T>, void> {
+  return beam.withName(
+    `assertDeepEqual(${JSON.stringify(expected).substring(0, 100)})`,
+    function assertDeepEqual(pcoll: beam.PCollection<T>) {
+      pcoll.apply(
+        assertContentsSatisfies((actual: T[]) => {
+          const actualArray: T[] = [...actual];
+          expected.sort((a, b) =>
+            JSON.stringify(a) < JSON.stringify(b) ? -1 : 1
+          );
+          actualArray.sort((a, b) =>
+            JSON.stringify(a) < JSON.stringify(b) ? -1 : 1
+          );
+          callAssertDeepEqual(actualArray, expected);
+        })
+      );
+    }
+  );
 }
 
-export class Assert extends beam.PTransform<beam.PCollection<any>, void> {
-  check: (actual: any[]) => void;
-
-  constructor(name: string, check: (actual: any[]) => void) {
-    super(name);
-    this.check = check;
-  }
-
-  expand(pcoll: beam.PCollection<any>) {
-    const check = this.check;
+export function assertContentsSatisfies<T>(
+  check: (actual: T[]) => void
+): beam.PTransform<beam.PCollection<T>, void> {
+  function expand(pcoll: beam.PCollection<T>) {
     // We provide some value here to ensure there is at least one element
     // so the DoFn gets invoked.
     const singleton = pcoll
       .root()
-      .apply(new beam.Impulse())
+      .apply(beam.impulse())
       .map((_) => ({ tag: "expected" }));
     // CoGBK.
     const tagged = pcoll
       .map((e) => ({ tag: "actual", value: e }))
-      .apply(new beam.WindowInto(new GlobalWindows()));
+      .apply(beam.windowInto(globalWindows()));
     beam
       .P([singleton, tagged])
-      .apply(new beam.Flatten())
-      .map((e) => ({ key: 0, value: e }))
-      .apply(new internal.GroupByKey()) // TODO: GroupBy.
+      .apply(beam.flatten())
+      .apply(beam.groupBy((e) => 0))
       .map(
         beam.withName("extractActual", (kv) => {
           const actual: any[] =
@@ -86,11 +77,16 @@ export class Assert extends beam.PTransform<beam.PCollection<any>, void> {
         })
       );
   }
+
+  return beam.withName(
+    `assertContentsSatisfies(${beam.extractName(check)})`,
+    expand
+  );
 }
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.testing.assert", exports);
-requireForSerialization("apache_beam.testing.assert", {
-  callAssertDeepEqual: callAssertDeepEqual,
+requireForSerialization("apache-beam/testing/assert", exports);
+requireForSerialization("apache-beam/testing/assert", {
+  callAssertDeepEqual,
 });
 requireForSerialization("assert");

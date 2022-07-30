@@ -187,6 +187,8 @@ class UtilTest(unittest.TestCase):
         payload=(
             beam_runner_api_pb2.DockerPayload(
                 container_image='dummy_image')).SerializeToString())
+    dummy_env.capabilities.append(
+        common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING.urn)
     proto_pipeline.components.environments['dummy_env_id'].CopyFrom(dummy_env)
 
     dummy_transform = beam_runner_api_pb2.PTransform(
@@ -203,6 +205,12 @@ class UtilTest(unittest.TestCase):
     worker_pool = env.proto.workerPools[0]
 
     self.assertEqual(2, len(worker_pool.sdkHarnessContainerImages))
+    # Only one of the environments is missing MULTI_CORE_BUNDLE_PROCESSING.
+    self.assertEqual(
+        1,
+        sum(
+            c.useSingleCorePerContainer
+            for c in worker_pool.sdkHarnessContainerImages))
 
     env_and_image = [(item.environmentId, item.containerImage)
                      for item in worker_pool.sdkHarnessContainerImages]
@@ -249,7 +257,7 @@ class UtilTest(unittest.TestCase):
     docker_payload = proto_utils.parse_Bytes(
         env.payload, beam_runner_api_pb2.DockerPayload)
 
-    # Container image should be overridden by a the given override.
+    # Container image should be overridden by the given override.
     self.assertEqual(
         docker_payload.container_image, 'new_dummy_container_image')
 

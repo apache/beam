@@ -30,6 +30,10 @@ func Count(s beam.Scope, col beam.PCollection, name string, count int) {
 	if typex.IsKV(col.Type()) {
 		col = beam.DropKey(s, col)
 	}
+
+	if count > 0 {
+		NonEmpty(s, col)
+	}
 	counted := beam.Combine(s, &elmCountCombineFn{}, col)
 	beam.ParDo0(s, &errFn{Name: name, Count: count}, counted)
 }

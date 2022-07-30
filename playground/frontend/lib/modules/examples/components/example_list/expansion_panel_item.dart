@@ -48,12 +48,12 @@ class ExpansionPanelItem extends StatelessWidget {
           onTap: () async {
             if (playgroundState.selectedExample != example) {
               closeDropdown(exampleState);
+              AnalyticsService.get(context).trackSelectExample(example);
               final exampleWithInfo = await exampleState.loadExampleInfo(
                 example,
                 playgroundState.sdk,
               );
               playgroundState.setExample(exampleWithInfo);
-              AnalyticsService.get(context).trackSelectExample(exampleWithInfo);
             }
           },
           child: Container(

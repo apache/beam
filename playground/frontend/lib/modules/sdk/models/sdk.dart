@@ -16,6 +16,11 @@
  * limitations under the License.
  */
 
+import 'package:highlight/highlight.dart';
+import 'package:highlight/languages/go.dart';
+import 'package:highlight/languages/java.dart';
+import 'package:highlight/languages/python.dart';
+import 'package:highlight/languages/scala.dart';
 import 'package:playground/config.g.dart';
 
 enum SDK {
@@ -53,6 +58,21 @@ extension SdkToRoute on SDK {
         return kApiScioClientURL;
       default:
         return '';
+    }
+  }
+}
+
+extension SdkToHighlightMode on SDK {
+  Mode get highlightMode {
+    switch (this) {
+      case SDK.java:
+        return java;
+      case SDK.go:
+        return go;
+      case SDK.python:
+        return python;
+      case SDK.scio:
+        return scala;
     }
   }
 }

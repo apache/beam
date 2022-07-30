@@ -112,7 +112,8 @@ class RowCoder(FastCoder):
 
   @classmethod
   def from_type_hint(cls, type_hint, registry):
-    # TODO(BEAM-14250): Remove once all runners are portable.
+    # TODO(https://github.com/apache/beam/issues/21541): Remove once all
+    # runners are portable.
     if isinstance(type_hint, str):
       import importlib
       main_module = importlib.import_module('__main__')

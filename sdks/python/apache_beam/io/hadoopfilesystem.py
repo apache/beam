@@ -71,9 +71,8 @@ class HdfsDownloader(filesystemio.Downloader):
     return self._size
 
   def get_range(self, start, end):
-    with self._hdfs_client.read(self._path,
-                                offset=start,
-                                length=end - start + 1) as reader:
+    with self._hdfs_client.read(self._path, offset=start,
+                                length=end - start) as reader:
       return reader.read()
 
 
@@ -87,7 +86,9 @@ class HdfsUploader(filesystemio.Uploader):
     self._handle = self._handle_context.__enter__()
 
   def put(self, data):
-    self._handle.write(data)
+    # hdfs uses an async writer which first add data to a queue. To avoid buffer
+    # gets reused upstream a deepcopy is required here.
+    self._handle.write(bytes(data))
 
   def finish(self):
     self._handle.__exit__(None, None, None)

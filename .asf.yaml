@@ -28,6 +28,17 @@ github:
     - python
     - sql
     - streaming
+  features:
+    # Enable issue management
+    issues: true
+    # Enable projects for project management boards
+    projects: true
+
+  # Give some users issue triage permissions
+  collaborators:
+    - pcoet
+    - VladMatyunin
+    - olehborysevych
 
   enabled_merge_buttons:
     squash: true
@@ -38,4 +49,3 @@ notifications:
   commits: commits@beam.apache.org
   issues: github@beam.apache.org
   pullrequests: github@beam.apache.org
-  jira_options: link worklog

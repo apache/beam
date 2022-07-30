@@ -697,7 +697,7 @@ class TriggerPipelineTest(unittest.TestCase):
 
   def test_on_pane_watermark_hold_no_pipeline_stall(self):
     """A regression test added for
-    https://issues.apache.org/jira/browse/BEAM-10054."""
+    ttps://issues.apache.org/jira/browse/BEAM-10054."""
     START_TIMESTAMP = 1534842000
 
     test_stream = TestStream()
@@ -1043,7 +1043,8 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
 
     # Elements are encoded as a json strings to allow other languages to
     # decode elements while executing the test stream.
-    # TODO(BEAM-8600): Eliminate these gymnastics.
+    # TODO(https://github.com/apache/beam/issues/19934): Eliminate these
+    # gymnastics.
     test_stream = TestStream(coder=coders.StrUtf8Coder()).with_output_types(str)
     for action, params in transcript:
       if action == 'expect':
@@ -1180,7 +1181,8 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
        | beam.ParDo(Check(self.allow_out_of_order)))
 
     with TestPipeline() as p:
-      # TODO(BEAM-8601): Pass this during pipeline construction.
+      # TODO(https://github.com/apache/beam/issues/19933): Pass this during
+      # pipeline construction.
       p._options.view_as(StandardOptions).streaming = True
       p._options.view_as(TypeOptions).allow_unsafe_triggers = True
 

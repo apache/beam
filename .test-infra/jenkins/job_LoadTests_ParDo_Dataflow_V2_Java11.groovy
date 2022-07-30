@@ -23,8 +23,6 @@ import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
 import InfluxDBCredentialsHelper
 
-// TODO(BEAM-14229): remove forceNumInitialBundles once source issue resolved.
-
 def commonLoadTestConfig = { jobType, isStreaming ->
   [
     [
@@ -48,8 +46,7 @@ def commonLoadTestConfig = { jobType, isStreaming ->
                                 {
                                   "numRecords": 20000000,
                                   "keySizeBytes": 10,
-                                  "valueSizeBytes": 90,
-                                  "forceNumInitialBundles": 1
+                                  "valueSizeBytes": 90
                                 }
                               """.trim().replaceAll("\\s", ""),
         iterations          : 10,
@@ -81,8 +78,7 @@ def commonLoadTestConfig = { jobType, isStreaming ->
                                 {
                                   "numRecords": 20000000,
                                   "keySizeBytes": 10,
-                                  "valueSizeBytes": 90,
-                                  "forceNumInitialBundles": 1
+                                  "valueSizeBytes": 90
                                 }
                               """.trim().replaceAll("\\s", ""),
         iterations          : 200,
@@ -115,8 +111,7 @@ def commonLoadTestConfig = { jobType, isStreaming ->
                                 {
                                   "numRecords": 20000000,
                                   "keySizeBytes": 10,
-                                  "valueSizeBytes": 90,
-                                  "forceNumInitialBundles": 1
+                                  "valueSizeBytes": 90
                                 }
                               """.trim().replaceAll("\\s", ""),
         iterations          : 1,
@@ -149,8 +144,7 @@ def commonLoadTestConfig = { jobType, isStreaming ->
                                 {
                                   "numRecords": 20000000,
                                   "keySizeBytes": 10,
-                                  "valueSizeBytes": 90,
-                                  "forceNumInitialBundles": 1
+                                  "valueSizeBytes": 90
                                 }
                               """.trim().replaceAll("\\s", ""),
         iterations          : 1,

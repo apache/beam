@@ -67,7 +67,11 @@ class FileBasedSink(iobase.Sink):
       num_shards=0,
       shard_name_template=None,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
+      compression_type=CompressionTypes.AUTO,
+      *,
+      max_records_per_shard=None,
+      max_bytes_per_shard=None,
+      skip_if_empty=False):
     """
      Raises:
       TypeError: if file path parameters are not a :class:`str` or
@@ -107,6 +111,9 @@ class FileBasedSink(iobase.Sink):
         shard_name_template)
     self.compression_type = compression_type
     self.mime_type = mime_type
+    self.max_records_per_shard = max_records_per_shard
+    self.max_bytes_per_shard = max_bytes_per_shard
+    self.skip_if_empty = skip_if_empty
 
   def display_data(self):
     return {
@@ -128,7 +135,13 @@ class FileBasedSink(iobase.Sink):
     The returned file handle is passed to ``write_[encoded_]record`` and
     ``close``.
     """
-    return FileSystems.create(temp_path, self.mime_type, self.compression_type)
+    writer = FileSystems.create(
+        temp_path, self.mime_type, self.compression_type)
+    if self.max_bytes_per_shard:
+      self.byte_counter = _ByteCountingWriter(writer)
+      return self.byte_counter
+    else:
+      return writer
 
   def write_record(self, file_handle, value):
     """Writes a single record go the file handle returned by ``open()``.
@@ -404,10 +417,36 @@ class FileBasedSinkWriter(iobase.Writer):
     self.sink = sink
     self.temp_shard_path = temp_shard_path
     self.temp_handle = self.sink.open(temp_shard_path)
+    self.num_records_written = 0
 
   def write(self, value):
+    self.num_records_written += 1
     self.sink.write_record(self.temp_handle, value)
+
+  def at_capacity(self):
+    return (
+        self.sink.max_records_per_shard and
+        self.num_records_written >= self.sink.max_records_per_shard
+    ) or (
+        self.sink.max_bytes_per_shard and
+        self.sink.byte_counter.bytes_written >= self.sink.max_bytes_per_shard)
 
   def close(self):
     self.sink.close(self.temp_handle)
     return self.temp_shard_path
+
+
+class _ByteCountingWriter:
+  def __init__(self, writer):
+    self.writer = writer
+    self.bytes_written = 0
+
+  def write(self, bs):
+    self.bytes_written += len(bs)
+    self.writer.write(bs)
+
+  def flush(self):
+    self.writer.flush()
+
+  def close(self):
+    self.writer.close()

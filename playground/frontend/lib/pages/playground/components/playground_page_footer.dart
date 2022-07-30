@@ -51,7 +51,7 @@ class PlaygroundPageFooter extends StatelessWidget {
                 textStyle: const TextStyle(fontWeight: kNormalWeight),
               ),
               onPressed: () {
-                launch(kReportIssueLink);
+                launchUrl(Uri.parse(kReportIssueLink));
                 AnalyticsService.get(context).trackClickReportIssue();
               },
               child: Text(appLocale.reportIssue),
@@ -63,7 +63,7 @@ class PlaygroundPageFooter extends StatelessWidget {
               onPressed: () {
                 AnalyticsService.get(context)
                     .trackOpenLink(kBeamPrivacyPolicyLink);
-                launch(kBeamPrivacyPolicyLink);
+                launchUrl(Uri.parse(kBeamPrivacyPolicyLink));
               },
               child: Text(appLocale.privacyPolicy),
             ),

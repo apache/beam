@@ -35,7 +35,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.ImmutableB
  * serialization purpose).
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class CEPUtils {
 

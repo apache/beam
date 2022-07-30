@@ -35,7 +35,7 @@ from apache_beam.transforms.external import JavaClassLookupPayloadBuilder
 from apache_beam.transforms.external import JavaExternalTransform
 
 
-@pytest.mark.xlang_transforms
+@pytest.mark.uses_java_expansion_service
 @unittest.skipUnless(
     os.environ.get('EXPANSION_PORT'),
     "EXPANSION_PORT environment var is not provided.")
@@ -57,12 +57,6 @@ class XlangGenerateSequenceTest(unittest.TestCase):
       else:
         raise e
 
-  # Using "!= 'Python'" instead of "== 'Java'" below to make sure that the test
-  # is not silently ignored if configs change the EXPANSION_SERVICE_TYPE "Java".
-  @unittest.skipUnless(
-      os.environ.get('EXPANSION_SERVICE_TYPE') != 'Python',
-      'Java Class Lookup based expansion is not supported by the Python '
-      'expansion service')
   def test_generate_sequence_java_class_lookup_payload_builder(self):
     port = os.environ.get('EXPANSION_PORT')
     address = 'localhost:%s' % port
@@ -78,12 +72,6 @@ class XlangGenerateSequenceTest(unittest.TestCase):
           | ExternalTransform(None, payload_builder, expansion_service=address))
       assert_that(res, equal_to(list(range(1, 10))))
 
-  # Using "!= 'Python'" instead of "== 'Java'" below to make sure that the test
-  # is not silently ignored if configs change the EXPANSION_SERVICE_TYPE "Java".
-  @unittest.skipUnless(
-      os.environ.get('EXPANSION_SERVICE_TYPE') != 'Python',
-      'Java Class Lookup based expansion is not supported by the Python '
-      'expansion service')
   def test_generate_sequence_java_external_transform(self):
     port = os.environ.get('EXPANSION_PORT')
     address = 'localhost:%s' % port

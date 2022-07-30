@@ -25,6 +25,7 @@ import {
   StrUtf8Coder,
   VarIntCoder,
 } from "./standard_coders";
+import { IterableCoder } from "./required_coders";
 import * as runnerApi from "../proto/beam_runner_api";
 
 export class BsonObjectCoder<T> implements Coder<T> {
@@ -94,6 +95,7 @@ export class GeneralObjectCoder<T> implements Coder<T> {
     number: new NumberOrFloatCoder(),
     object: new BsonObjectCoder(),
     boolean: new BoolCoder(),
+    array: new IterableCoder(this),
   };
 
   // This is a map of type names to type markers. It maps a type name to its
@@ -103,6 +105,7 @@ export class GeneralObjectCoder<T> implements Coder<T> {
     number: "N",
     object: "O",
     boolean: "B",
+    array: "A",
   };
 
   // This is a map of type markers to type names. It maps a type marker to its
@@ -112,14 +115,15 @@ export class GeneralObjectCoder<T> implements Coder<T> {
     N: "number",
     O: "object",
     B: "boolean",
+    A: "array",
   };
 
   encode(element: T, writer: Writer, context: Context) {
-    if (element == null) {
+    if (element === null || element === undefined) {
       // typeof is "object" but BSON can't handle it.
       writer.string("Z");
     } else {
-      const type = typeof element;
+      const type = Array.isArray(element) ? "array" : typeof element;
       // TODO: Perf. Write a single byte (no need for the length prefix).
       writer.string(this.typeMarkers[type]);
       this.codersByType[type].encode(element, writer, context);
@@ -128,7 +132,7 @@ export class GeneralObjectCoder<T> implements Coder<T> {
 
   decode(reader: Reader, context: Context): T {
     const typeMarker = reader.string();
-    if (typeMarker == "Z") {
+    if (typeMarker === "Z") {
       return null!;
     } else {
       const type = this.markerToTypes[typeMarker];
@@ -149,7 +153,7 @@ export class GeneralObjectCoder<T> implements Coder<T> {
 globalRegistry().register(GeneralObjectCoder.URN, GeneralObjectCoder);
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.coders.js_coders", exports);
-requireForSerialization("apache_beam.coders.js_coders", {
+requireForSerialization("apache-beam/coders/js_coders", exports);
+requireForSerialization("apache-beam/coders/js_coders", {
   NumberOrFloatCoder: NumberOrFloatCoder,
 });

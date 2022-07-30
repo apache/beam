@@ -20,6 +20,10 @@ new Swiper('.swiper', {
     bulletClass: "bullet-class-custom",
     bulletActiveClass: "bullet-active-class-custom",
   },
+  navigation: {
+    nextEl: ".swiper-button-next-custom",
+    prevEl: ".swiper-button-prev-custom",
+  },
   breakpoints: {
     // switches from mobile to desktop when window width is > 1024px
     1025: {

@@ -20,4 +20,4 @@ limitations under the License.
 This roadmap is in progress. In the meantime, here are available resources:
 
  - [Runner documentation](/documentation/runners/flink)
- - JIRA: [runner-flink](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-flink)
+ - Issues: [runner-flink](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-flink)

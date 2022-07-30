@@ -42,7 +42,7 @@ class EmbeddedActions extends StatelessWidget {
           label: Text(AppLocalizations.of(context)!.tryInPlayground),
           onPressed: () {
             final exampleId = Uri.base.queryParameters[kExampleParam];
-            launch('/?$kExampleParam=$exampleId');
+            launchUrl(Uri.parse('/?$kExampleParam=$exampleId'));
           },
         ),
       ),

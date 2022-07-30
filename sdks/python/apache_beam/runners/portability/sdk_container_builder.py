@@ -209,7 +209,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     if self._google_cloud_options.no_auth:
       credentials = None
     else:
-      credentials = get_service_credentials()
+      credentials = get_service_credentials(options)
     self._storage_client = storage.StorageV1(
         url='https://www.googleapis.com/storage/v1',
         credentials=credentials,

@@ -28,7 +28,7 @@ const double kAdditionalDyAlignment = 50.0;
 
 class AppDropdownButton extends StatefulWidget {
   final Widget buttonText;
-  final Function createDropdown;
+  final Widget Function(void Function()) createDropdown;
   final double height;
   final double width;
 
@@ -41,7 +41,7 @@ class AppDropdownButton extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _AppDropdownButtonState createState() => _AppDropdownButtonState();
+  State<AppDropdownButton> createState() => _AppDropdownButtonState();
 }
 
 class _AppDropdownButtonState extends State<AppDropdownButton>

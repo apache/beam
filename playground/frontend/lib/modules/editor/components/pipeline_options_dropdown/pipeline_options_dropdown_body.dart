@@ -33,8 +33,8 @@ final kDefaultOption = [PipelineOptionController()];
 
 class PipelineOptionsDropdownBody extends StatefulWidget {
   final String pipelineOptions;
-  final Function(String) setPipelineOptions;
-  final Function close;
+  final void Function(String) setPipelineOptions;
+  final void Function() close;
 
   const PipelineOptionsDropdownBody({
     Key? key,

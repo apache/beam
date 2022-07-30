@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TableRow;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -35,14 +32,17 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 
 /** This {@link PTransform} manages loads into BigQuery using the Storage API. */
 public class StorageApiLoads<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
   static final int MAX_BATCH_SIZE_BYTES = 2 * 1024 * 1024;
+  final TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulRowsTag =
+      new TupleTag<>("successfulRows");
+  final TupleTag<BigQueryStorageApiInsertError> failedRowsTag = new TupleTag<>("failedRows");
 
   private final Coder<DestinationT> destinationCoder;
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
@@ -81,51 +81,82 @@ public class StorageApiLoads<DestinationT, ElementT>
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(e);
     }
-
+    Coder<KV<DestinationT, StorageApiWritePayload>> successCoder =
+        KvCoder.of(destinationCoder, payloadCoder);
     if (allowInconsistentWrites) {
-      return expandInconsistent(input, payloadCoder);
+      return expandInconsistent(input, successCoder);
     } else {
       return triggeringFrequency != null
-          ? expandTriggered(input, payloadCoder)
-          : expandUntriggered(input, payloadCoder);
+          ? expandTriggered(input, successCoder, payloadCoder)
+          : expandUntriggered(input, successCoder);
     }
   }
 
   public WriteResult expandInconsistent(
-      PCollection<KV<DestinationT, ElementT>> input, Coder<StorageApiWritePayload> payloadCoder) {
+      PCollection<KV<DestinationT, ElementT>> input,
+      Coder<KV<DestinationT, StorageApiWritePayload>> successCoder) {
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
 
-    PCollection<KV<DestinationT, StorageApiWritePayload>> convertedRecords =
+    PCollectionTuple convertedRecords =
         inputInGlobalWindow
             .apply(
                 "CreateTables",
                 new CreateTableDestinations<>(
                     createDisposition, bqServices, dynamicDestinations, kmsKey))
-            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations, bqServices))
-            .setCoder(KvCoder.of(destinationCoder, payloadCoder));
-    convertedRecords.apply(
-        "StorageApiWriteInconsistent",
-        new StorageApiWriteRecordsInconsistent<>(dynamicDestinations, bqServices));
-    return writeResult(input.getPipeline());
+            .apply(
+                "Convert",
+                new StorageApiConvertMessages<>(
+                    dynamicDestinations,
+                    bqServices,
+                    failedRowsTag,
+                    successfulRowsTag,
+                    BigQueryStorageApiInsertErrorCoder.of(),
+                    successCoder));
+    convertedRecords
+        .get(successfulRowsTag)
+        .apply(
+            "StorageApiWriteInconsistent",
+            new StorageApiWriteRecordsInconsistent<>(dynamicDestinations, bqServices));
+    return WriteResult.in(
+        input.getPipeline(),
+        null,
+        null,
+        null,
+        null,
+        null,
+        failedRowsTag,
+        convertedRecords.get(failedRowsTag));
   }
 
   public WriteResult expandTriggered(
-      PCollection<KV<DestinationT, ElementT>> input, Coder<StorageApiWritePayload> payloadCoder) {
+      PCollection<KV<DestinationT, ElementT>> input,
+      Coder<KV<DestinationT, StorageApiWritePayload>> successCoder,
+      Coder<StorageApiWritePayload> payloadCoder) {
     // Handle triggered, low-latency loads into BigQuery.
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
 
     // First shard all the records.
     // TODO(reuvenlax): Add autosharding support so that users don't have to pick a shard count.
-    PCollection<KV<ShardedKey<DestinationT>, StorageApiWritePayload>> shardedRecords =
+    PCollectionTuple result =
         inputInGlobalWindow
             .apply(
                 "CreateTables",
                 new CreateTableDestinations<>(
                     createDisposition, bqServices, dynamicDestinations, kmsKey))
-            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations, bqServices))
-            .setCoder(KvCoder.of(destinationCoder, payloadCoder))
+            .apply(
+                "Convert",
+                new StorageApiConvertMessages<>(
+                    dynamicDestinations,
+                    bqServices,
+                    failedRowsTag,
+                    successfulRowsTag,
+                    BigQueryStorageApiInsertErrorCoder.of(),
+                    successCoder));
+    PCollection<KV<ShardedKey<DestinationT>, StorageApiWritePayload>> shardedRecords =
+        result
+            .get(successfulRowsTag)
             .apply(
                 "AddShard",
                 ParDo.of(
@@ -165,33 +196,52 @@ public class StorageApiLoads<DestinationT, ElementT>
         new StorageApiWritesShardedRecords<>(
             dynamicDestinations, createDisposition, kmsKey, bqServices, destinationCoder));
 
-    return writeResult(input.getPipeline());
+    return WriteResult.in(
+        input.getPipeline(),
+        null,
+        null,
+        null,
+        null,
+        null,
+        failedRowsTag,
+        result.get(failedRowsTag));
   }
 
   public WriteResult expandUntriggered(
-      PCollection<KV<DestinationT, ElementT>> input, Coder<StorageApiWritePayload> payloadCoder) {
+      PCollection<KV<DestinationT, ElementT>> input,
+      Coder<KV<DestinationT, StorageApiWritePayload>> successCoder) {
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply(
             "rewindowIntoGlobal", Window.<KV<DestinationT, ElementT>>into(new GlobalWindows()));
-    PCollection<KV<DestinationT, StorageApiWritePayload>> convertedRecords =
+    PCollectionTuple convertedRecords =
         inputInGlobalWindow
             .apply(
                 "CreateTables",
                 new CreateTableDestinations<>(
                     createDisposition, bqServices, dynamicDestinations, kmsKey))
-            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations, bqServices))
-            .setCoder(KvCoder.of(destinationCoder, payloadCoder));
-    convertedRecords.apply(
-        "StorageApiWriteUnsharded",
-        new StorageApiWriteUnshardedRecords<>(dynamicDestinations, bqServices));
-    return writeResult(input.getPipeline());
-  }
+            .apply(
+                "Convert",
+                new StorageApiConvertMessages<>(
+                    dynamicDestinations,
+                    bqServices,
+                    failedRowsTag,
+                    successfulRowsTag,
+                    BigQueryStorageApiInsertErrorCoder.of(),
+                    successCoder));
+    convertedRecords
+        .get(successfulRowsTag)
+        .apply(
+            "StorageApiWriteUnsharded",
+            new StorageApiWriteUnshardedRecords<>(dynamicDestinations, bqServices));
 
-  private WriteResult writeResult(Pipeline p) {
-    // TODO(reuvenlax): Support per-record failures if schema doesn't match or if the record is too
-    // large.
-    PCollection<TableRow> empty =
-        p.apply("CreateEmptyFailedInserts", Create.empty(TypeDescriptor.of(TableRow.class)));
-    return WriteResult.in(p, new TupleTag<>("failedInserts"), empty, null, null, null);
+    return WriteResult.in(
+        input.getPipeline(),
+        null,
+        null,
+        null,
+        null,
+        null,
+        failedRowsTag,
+        convertedRecords.get(failedRowsTag));
   }
 }

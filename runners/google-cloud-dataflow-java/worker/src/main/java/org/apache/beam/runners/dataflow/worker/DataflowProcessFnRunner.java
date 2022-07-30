@@ -42,7 +42,7 @@ import org.joda.time.Instant;
  * because the code for handling pushback on streaming side inputs in Dataflow is also divergent
  * from the runner-agnostic code in runners-core. If that code is ever unified, so can this class.
  */
-@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
     implements DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
   private final DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> simpleRunner;

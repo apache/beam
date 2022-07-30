@@ -44,7 +44,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
  * again.
  */
 @Internal
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
 public final class ZipFiles {
   private ZipFiles() {}
 
@@ -150,7 +150,7 @@ public final class ZipFiles {
    */
   private static void checkName(String name) throws IOException {
     // First just check whether the entry name string contains "..".
-    // This should weed out the the vast majority of entries, which will not
+    // This should weed out the vast majority of entries, which will not
     // contain "..".
     if (name.contains("..")) {
       // If the string does contain "..", break it down into its actual name
@@ -206,7 +206,7 @@ public final class ZipFiles {
     if (!allowOverwrite) {
       checkArgument(
           !zipFile.exists(),
-          "%s already exists, file is not not being overwritten",
+          "%s already exists, file is not being overwritten",
           zipFile.getAbsolutePath());
     }
     try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(zipFile))) {

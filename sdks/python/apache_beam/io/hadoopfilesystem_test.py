@@ -114,8 +114,11 @@ class FakeHdfs(object):
     # old_file is closed and can't be operated upon. Return a copy instead.
     new_file = FakeFile(path, 'rb')
     if old_file.saved_data:
-      new_file.write(old_file.saved_data)
-      new_file.seek(0)
+      if length is None:
+        new_file.write(old_file.saved_data)
+      else:
+        new_file.write(old_file.saved_data[:offset + length])
+      new_file.seek(offset)
     return new_file
 
   def list(self, path, status=False):
@@ -385,6 +388,24 @@ class HadoopFileSystemTest(unittest.TestCase):
     read_data = handle.read(len(data))
     self.assertEqual(data, read_data)
     handle.close()
+
+  def test_random_read_large_file(self):
+    # this tests HdfsDownloader.get_range() works properly with
+    # filesystemio.readinto when reading a file of size larger than the buffer.
+    url = self.fs.join(self.tmpdir, 'read_length')
+    handle = self.fs.create(url)
+    data = b'test' * 10_000_000
+    handle.write(data)
+    handle.close()
+
+    handle = self.fs.open(url)
+    handle.seek(100)
+    # read 3 bytes
+    read_data = handle.read(3)
+    self.assertEqual(data[100:103], read_data)
+    # read 4 bytes
+    read_data = handle.read(4)
+    self.assertEqual(data[103:107], read_data)
 
   def test_open(self):
     url = self.fs.join(self.tmpdir, 'old_file1')

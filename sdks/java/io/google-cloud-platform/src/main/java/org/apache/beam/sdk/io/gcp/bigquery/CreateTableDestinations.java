@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.api.services.bigquery.model.TableSchema;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Creates any tables needed before performing writes to the tables. This is a side-effect {@link
@@ -45,7 +45,7 @@ public class CreateTableDestinations<DestinationT, ElementT>
   private final CreateDisposition createDisposition;
   private final BigQueryServices bqServices;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
-  @Nullable private final String kmsKey;
+  private final @Nullable String kmsKey;
 
   public CreateTableDestinations(
       CreateDisposition createDisposition,
@@ -110,7 +110,8 @@ public class CreateTableDestinations<DestinationT, ElementT>
                 dest);
             @Nullable
             Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
-            Supplier<TableSchema> schemaSupplier = () -> dynamicDestinations.getSchema(dest);
+            Supplier<@Nullable TableSchema> schemaSupplier =
+                () -> dynamicDestinations.getSchema(dest);
             return CreateTableHelpers.possiblyCreateTable(
                 context,
                 tableDestination1,

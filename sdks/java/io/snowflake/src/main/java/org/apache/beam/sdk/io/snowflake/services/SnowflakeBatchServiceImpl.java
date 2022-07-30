@@ -36,7 +36,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /** Implemenation of {@link SnowflakeServices.BatchService} used in production. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SnowflakeBatchServiceImpl implements SnowflakeServices.BatchService {
   private static final String SNOWFLAKE_GCS_PREFIX = "gcs://";

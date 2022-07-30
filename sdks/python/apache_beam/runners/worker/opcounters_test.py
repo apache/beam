@@ -23,6 +23,7 @@ import random
 import unittest
 
 from apache_beam import coders
+from apache_beam import typehints
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.opcounters import OperationCounters
@@ -158,6 +159,30 @@ class OperationCountersTest(unittest.TestCase):
     opcounts.update_collect()
     total_size += coder.estimate_size(value)
     self.verify_counters(opcounts, 3, (float(total_size) / 3))
+
+  def test_update_batch(self):
+    coder = coders.FastPrimitivesCoder()
+    opcounts = OperationCounters(
+        CounterFactory(),
+        'some-name',
+        coder,
+        0,
+        producer_batch_converter=typehints.batch.BatchConverter.from_typehints(
+            element_type=typehints.Any,
+            batch_type=typehints.List[typehints.Any]))
+
+    size_per_element = coder.estimate_size(50)
+
+    self.verify_counters(opcounts, 0, float('nan'))
+
+    opcounts.update_from_batch(GlobalWindows.windowed_batch(list(range(100))))
+
+    self.verify_counters(opcounts, 100, size_per_element)
+
+    opcounts.update_from_batch(
+        GlobalWindows.windowed_batch(list(range(100, 200))))
+
+    self.verify_counters(opcounts, 200, size_per_element)
 
   def test_should_sample(self):
     # Order of magnitude more buckets than highest constant in code under test.

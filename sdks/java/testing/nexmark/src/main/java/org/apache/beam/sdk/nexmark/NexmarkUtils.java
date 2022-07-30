@@ -91,8 +91,10 @@ import org.slf4j.LoggerFactory;
 
 /** Odd's 'n Ends used throughout queries and driver. */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 public class NexmarkUtils {
   private static final Logger LOG = LoggerFactory.getLogger(NexmarkUtils.class);
@@ -176,7 +178,7 @@ public class NexmarkUtils {
     QUERY,
     /** Names are suffixed with the query being run and a random number. */
     QUERY_AND_SALT,
-    /** Names are suffixed with the runner being used and a the mode (streaming/batch). */
+    /** Names are suffixed with the runner being used and a mode (streaming/batch). */
     QUERY_RUNNER_AND_MODE
   }
 

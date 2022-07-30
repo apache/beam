@@ -272,3 +272,10 @@ func (c *SideInputCache) evictElement(ctx context.Context) {
 		}
 	}
 }
+
+// CacheMetrics returns the cache metrics for current side input cache.
+func (c *SideInputCache) CacheMetrics() CacheMetrics {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.metrics
+}

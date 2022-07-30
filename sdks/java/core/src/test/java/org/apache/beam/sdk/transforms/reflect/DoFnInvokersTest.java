@@ -91,9 +91,11 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link DoFnInvokers}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "SameNameButDifferent",
-  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 public class DoFnInvokersTest {
   @Rule public ExpectedException thrown = ExpectedException.none();

@@ -72,7 +72,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
 @Internal
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FakeDatasetService implements DatasetService, Serializable {
   // Table information must be static, as each ParDo will get a separate instance of
@@ -172,6 +172,23 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public Table getTable(TableReference tableRef, @Nullable List<String> selectedFields)
+      throws InterruptedException, IOException {
+    return getTable(tableRef, selectedFields, null);
+  }
+
+  @Override
+  public Table getTable(
+      TableReference tableRef,
+      @Nullable List<String> selectedFields,
+      @Nullable TableMetadataView view)
+      throws InterruptedException, IOException {
+    return getTableImpl(tableRef, selectedFields, view);
+  }
+
+  public Table getTableImpl(
+      TableReference tableRef,
+      @Nullable List<String> selectedFields,
+      @Nullable TableMetadataView view)
       throws InterruptedException, IOException {
     synchronized (FakeDatasetService.class) {
       Map<String, TableContainer> dataset =

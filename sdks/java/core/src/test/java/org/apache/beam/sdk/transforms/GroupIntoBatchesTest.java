@@ -225,7 +225,7 @@ public class GroupIntoBatchesTest implements Serializable {
   @Test
   @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
   public void testWithShardedKeyInGlobalWindow() {
-    // Since with default sharding, the number of subshards of of a key is nondeterministic, create
+    // Since with default sharding, the number of subshards of a key is nondeterministic, create
     // a large number of input elements and a small batch size and check there is no batch larger
     // than the specified size.
     int numElements = 10000;

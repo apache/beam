@@ -24,13 +24,13 @@ suitable python executable.
 """
 
 import argparse
-import distutils.version
 import hashlib
 import json
 import os
 import shutil
 import subprocess
 import sys
+from pkg_resources import parse_version
 
 
 def main():
@@ -66,9 +66,9 @@ def main():
 
         def maybe_strict_version(s):
             try:
-                return distutils.version.StrictVersion(s)
+                return parse_version(s)
             except:
-                return distutils.version.StrictVersion('0.0')
+                return parse_version('0.0')
 
         beam_version = max(info['releases'], key=maybe_strict_version)
         beam_package = 'apache_beam[gcp,aws,asure,dataframe]==' + beam_version
@@ -77,7 +77,7 @@ def main():
           or options.beam_version.startswith('https://')):
         # It's a path to a tarball.
         beam_version = os.path.basename(options.beam_version)
-        beam_package = options.beam_version
+        beam_package = options.beam_version + '[gcp,aws,asure,dataframe]'
     else:
         beam_version = options.beam_version
         beam_package = 'apache_beam[gcp,aws,asure,dataframe]==' + beam_version
@@ -92,7 +92,18 @@ def main():
     if not os.path.exists(venv_python):
         try:
             subprocess.run([executable, '-m', 'venv', venv_dir], check=True)
-            # See https://issues.apache.org/jira/browse/BEAM-14092
+
+            # Upgrading pip and setuptools for the virtual environment.
+            subprocess.run([
+                venv_python, '-m', 'pip', 'install', '--upgrade', 'pip'
+            ],
+                           check=True)
+            subprocess.run([
+                venv_python, '-m', 'pip', 'install', '--upgrade', 'setuptools'
+            ],
+                           check=True)
+
+            # See https://github.com/apache/beam/issues/21506
             subprocess.run([
                 venv_python, '-m', 'pip', 'install', beam_package,
                 'pyparsing==2.4.2'

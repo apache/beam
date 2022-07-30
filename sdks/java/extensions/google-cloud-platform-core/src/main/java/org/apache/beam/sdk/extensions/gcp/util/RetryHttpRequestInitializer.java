@@ -45,7 +45,7 @@ import org.slf4j.LoggerFactory;
  * <p>Also can take an HttpResponseInterceptor to be applied to the responses.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class RetryHttpRequestInitializer implements HttpRequestInitializer {
 

@@ -754,9 +754,9 @@ class ReshufflePerKey(PTransform):
 
     ungrouped = pcoll | Map(reify_timestamps).with_output_types(Any)
 
-    # TODO(BEAM-8104) Using global window as one of the standard window.
-    # This is to mitigate the Dataflow Java Runner Harness limitation to
-    # accept only standard coders.
+    # TODO(https://github.com/apache/beam/issues/19785) Using global window as
+    # one of the standard window. This is to mitigate the Dataflow Java Runner
+    # Harness limitation to accept only standard coders.
     ungrouped._windowing = Windowing(
         window.GlobalWindows(),
         triggerfn=Always(),

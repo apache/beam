@@ -96,7 +96,7 @@ import org.slf4j.LoggerFactory;
 
 /** Provides operations on GCS. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GcsUtil {
 
@@ -200,7 +200,8 @@ public class GcsUtil {
     return GLOB_PREFIX.matcher(spec.getObject()).matches();
   }
 
-  private GcsUtil(
+  @VisibleForTesting
+  GcsUtil(
       Storage storageClient,
       HttpRequestInitializer httpRequestInitializer,
       ExecutorService executorService,
@@ -220,7 +221,7 @@ public class GcsUtil {
             .setGrpcEnabled(shouldUseGrpc)
             .build();
     googleCloudStorage =
-        new GoogleCloudStorageImpl(googleCloudStorageOptions, storageClient, credentials);
+        createGoogleCloudStorage(googleCloudStorageOptions, storageClient, credentials);
     this.batchRequestSupplier =
         () -> {
           // Capture reference to this so that the most recent storageClient and initializer
@@ -557,7 +558,7 @@ public class GcsUtil {
     GoogleCloudStorageOptions newGoogleCloudStorageOptions =
         googleCloudStorageOptions.toBuilder().setWriteChannelOptions(wcOptions).build();
     GoogleCloudStorage gcpStorage =
-        new GoogleCloudStorageImpl(
+        createGoogleCloudStorage(
             newGoogleCloudStorageOptions, this.storageClient, this.credentials);
     StorageResourceId resourceId =
         new StorageResourceId(
@@ -599,6 +600,19 @@ public class GcsUtil {
     }
   }
 
+  GoogleCloudStorage createGoogleCloudStorage(
+      GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
+    return new GoogleCloudStorageImpl(options, storage, credentials);
+  }
+
+  /**
+   * Checks whether the GCS bucket exists. Similar to {@link #bucketAccessible(GcsPath)}, but throws
+   * exception if the bucket is inaccessible due to permissions or does not exist.
+   */
+  public void verifyBucketAccessible(GcsPath path) throws IOException {
+    verifyBucketAccessible(path, createBackOff(), Sleeper.DEFAULT);
+  }
+
   /** Returns whether the GCS bucket exists and is accessible. */
   public boolean bucketAccessible(GcsPath path) throws IOException {
     return bucketAccessible(path, createBackOff(), Sleeper.DEFAULT);
@@ -632,6 +646,16 @@ public class GcsUtil {
     } catch (AccessDeniedException | FileNotFoundException e) {
       return false;
     }
+  }
+
+  /**
+   * Checks whether the GCS bucket exists. Similar to {@link #bucketAccessible(GcsPath, BackOff,
+   * Sleeper)}, but throws exception if the bucket is inaccessible due to permissions or does not
+   * exist.
+   */
+  @VisibleForTesting
+  void verifyBucketAccessible(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
+    getBucket(path, backoff, sleeper);
   }
 
   @VisibleForTesting
@@ -889,7 +913,7 @@ public class GcsUtil {
           readyToEnqueue = false;
           lastError = null;
         } else {
-          throw new FileNotFoundException(from.toString());
+          throw new FileNotFoundException(e.getMessage());
         }
       } else {
         lastError = e;
@@ -1035,7 +1059,8 @@ public class GcsUtil {
   }
 
   public void remove(Collection<String> filenames) throws IOException {
-    // TODO(BEAM-8268): It would be better to add per-file retries and backoff
+    // TODO(https://github.com/apache/beam/issues/19859): It would be better to add per-file retries
+    // and backoff
     // instead of failing everything if a single operation fails.
     executeBatches(makeRemoveBatches(filenames));
   }

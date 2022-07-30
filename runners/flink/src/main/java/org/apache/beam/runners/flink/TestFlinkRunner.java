@@ -26,7 +26,7 @@ import org.apache.beam.sdk.util.UserCodeException;
 
 /** Test Flink runner. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
 

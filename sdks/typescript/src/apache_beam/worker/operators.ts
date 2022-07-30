@@ -29,8 +29,10 @@ import * as urns from "../internal/urns";
 import { PipelineContext } from "../internal/pipeline";
 import { deserializeFn } from "../internal/serialize";
 import { Coder, Context as CoderContext } from "../coders/coders";
-import { Window, Instant, PaneInfo, WindowedValue } from "../values";
-import { ParDo, DoFn, ParDoParam } from "../transforms/pardo";
+import { PaneInfo, Window, Instant, WindowedValue } from "../values";
+import { PaneInfoCoder } from "../coders/standard_coders";
+import { parDo, DoFn, SplitOptions } from "../transforms/pardo";
+import { CombineFn } from "../transforms/group_and_combine";
 import { WindowFn } from "../transforms/window";
 
 import {
@@ -47,14 +49,14 @@ export type ProcessResult = null | Promise<void>;
 export class ProcessResultBuilder {
   promises: Promise<void>[] = [];
   add(result: ProcessResult) {
-    if (result != NonPromise) {
+    if (result !== NonPromise) {
       this.promises.push(result as Promise<void>);
     }
   }
   build(): ProcessResult {
-    if (this.promises.length == 0) {
+    if (this.promises.length === 0) {
       return NonPromise;
-    } else if (this.promises.length == 1) {
+    } else if (this.promises.length === 1) {
       return this.promises[0];
     } else {
       return Promise.all(this.promises).then(() => void null);
@@ -75,7 +77,7 @@ export class Receiver {
   constructor(private operators: IOperator[]) {}
 
   receive(wvalue: WindowedValue<unknown>): ProcessResult {
-    if (this.operators.length == 1) {
+    if (this.operators.length === 1) {
       return this.operators[0].process(wvalue);
     } else {
       const result = new ProcessResultBuilder();
@@ -108,7 +110,7 @@ export function createOperator(
   // Ensure receivers are eagerly created.
   Object.values(transform.outputs).map(context.getReceiver);
   let operatorConstructor = operatorsByUrn.get(transform.spec!.urn!);
-  if (operatorConstructor == undefined) {
+  if (operatorConstructor === null || operatorConstructor === undefined) {
     throw new Error("Unknown transform type:" + transform.spec!.urn);
   }
   return operatorConstructor(transformId, transform, context);
@@ -192,7 +194,7 @@ class DataSourceOperator implements IOperator {
             const maybePromise = this_.receiver.receive(
               this_.coder.decode(reader, CoderContext.needsDelimiters)
             );
-            if (maybePromise != NonPromise) {
+            if (maybePromise !== NonPromise) {
               await maybePromise;
             }
           }
@@ -305,6 +307,255 @@ class FlattenOperator implements IOperator {
 
 registerOperator("beam:transform:flatten:v1", FlattenOperator);
 
+// CombinePerKey operators.
+
+abstract class CombineOperator<I, A, O> {
+  receiver: Receiver;
+  combineFn: CombineFn<I, A, O>;
+
+  constructor(
+    transformId: string,
+    transform: PTransform,
+    context: OperatorContext
+  ) {
+    this.receiver = context.getReceiver(
+      onlyElement(Object.values(transform.outputs))
+    );
+    const spec = runnerApi.CombinePayload.fromBinary(transform.spec!.payload);
+    this.combineFn = deserializeFn(spec.combineFn!.payload).combineFn;
+  }
+}
+
+export class CombinePerKeyPrecombineOperator<I, A, O>
+  extends CombineOperator<I, A, O>
+  implements IOperator
+{
+  keyCoder: Coder<unknown>;
+  windowCoder: Coder<Window>;
+
+  groups: Map<string, A>;
+  maxKeys: number = 10000;
+
+  static checkSupportsWindowing(
+    windowingStrategy: runnerApi.WindowingStrategy
+  ) {
+    if (
+      windowingStrategy.mergeStatus !== runnerApi.MergeStatus_Enum.NON_MERGING
+    ) {
+      throw new Error("Unsupported non-merging WindowFn: " + windowingStrategy);
+    }
+    if (
+      windowingStrategy.outputTime !== runnerApi.OutputTime_Enum.END_OF_WINDOW
+    ) {
+      throw new Error(
+        "Unsupported windowing output time: " + windowingStrategy
+      );
+    }
+  }
+
+  constructor(
+    transformId: string,
+    transform: PTransform,
+    context: OperatorContext
+  ) {
+    super(transformId, transform, context);
+    const inputPc =
+      context.descriptor.pcollections[
+        onlyElement(Object.values(transform.inputs))
+      ];
+    this.keyCoder = context.pipelineContext.getCoder(
+      context.descriptor.coders[inputPc.coderId].componentCoderIds[0]
+    );
+    const windowingStrategy =
+      context.descriptor.windowingStrategies[inputPc.windowingStrategyId];
+    CombinePerKeyPrecombineOperator.checkSupportsWindowing(windowingStrategy);
+    this.windowCoder = context.pipelineContext.getCoder(
+      windowingStrategy.windowCoderId
+    );
+  }
+
+  process(wvalue: WindowedValue<any>) {
+    for (const window of wvalue.windows) {
+      const wkey =
+        encodeToBase64(window, this.windowCoder) +
+        " " +
+        encodeToBase64(wvalue.value.key, this.keyCoder);
+      if (!this.groups.has(wkey)) {
+        this.groups.set(wkey, this.combineFn.createAccumulator());
+      }
+      this.groups.set(
+        wkey,
+        this.combineFn.addInput(this.groups.get(wkey), wvalue.value.value)
+      );
+    }
+    if (this.groups.size > this.maxKeys) {
+      // Flush a random 10% of the map to make more room.
+      // TODO: Tune this, or better use LRU or ARC for this cache.
+      return this.flush(this.maxKeys * 0.9);
+    } else {
+      return NonPromise;
+    }
+  }
+
+  async startBundle() {
+    this.groups = new Map();
+  }
+
+  flush(target: number): ProcessResult {
+    const result = new ProcessResultBuilder();
+    const toDelete: string[] = [];
+    for (const [wkey, values] of this.groups) {
+      const parts = wkey.split(" ");
+      const encodedWindow = parts[0];
+      const encodedKey = parts[1];
+      const window = decodeFromBase64(encodedWindow, this.windowCoder);
+      result.add(
+        this.receiver.receive({
+          value: {
+            key: decodeFromBase64(encodedKey, this.keyCoder),
+            value: values,
+          },
+          windows: [window],
+          timestamp: window.maxTimestamp(),
+          pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
+        })
+      );
+      toDelete.push(wkey);
+      if (this.groups.size - toDelete.length <= target) {
+        break;
+      }
+    }
+    for (const wkey of toDelete) {
+      this.groups.delete(wkey);
+    }
+    return result.build();
+  }
+
+  async finishBundle() {
+    const maybePromise = this.flush(0);
+    if (maybePromise !== NonPromise) {
+      await maybePromise;
+    }
+    this.groups = null!;
+  }
+}
+
+registerOperator(
+  "beam:transform:combine_per_key_precombine:v1",
+  CombinePerKeyPrecombineOperator
+);
+
+class CombinePerKeyMergeAccumulatorsOperator<I, A, O>
+  extends CombineOperator<I, A, O>
+  implements IOperator
+{
+  async startBundle() {}
+
+  process(wvalue: WindowedValue<any>) {
+    const { key, value } = wvalue.value as { key: any; value: Iterable<A> };
+    return this.receiver.receive({
+      value: { key, value: this.combineFn.mergeAccumulators(value) },
+      windows: wvalue.windows,
+      timestamp: wvalue.timestamp,
+      pane: wvalue.pane,
+    });
+  }
+
+  async finishBundle() {}
+}
+
+registerOperator(
+  "beam:transform:combine_per_key_merge_accumulators:v1",
+  CombinePerKeyMergeAccumulatorsOperator
+);
+
+class CombinePerKeyExtractOutputsOperator<I, A, O>
+  extends CombineOperator<I, A, O>
+  implements IOperator
+{
+  async startBundle() {}
+
+  process(wvalue: WindowedValue<any>) {
+    const { key, value } = wvalue.value as { key: any; value: A };
+    return this.receiver.receive({
+      value: { key, value: this.combineFn.extractOutput(value) },
+      windows: wvalue.windows,
+      timestamp: wvalue.timestamp,
+      pane: wvalue.pane,
+    });
+  }
+
+  async finishBundle() {}
+}
+
+registerOperator(
+  "beam:transform:combine_per_key_extract_outputs:v1",
+  CombinePerKeyExtractOutputsOperator
+);
+
+class CombinePerKeyConvertToAccumulatorsOperator<I, A, O>
+  extends CombineOperator<I, A, O>
+  implements IOperator
+{
+  async startBundle() {}
+
+  process(wvalue: WindowedValue<any>) {
+    const { key, value } = wvalue.value as { key: any; value: I };
+    return this.receiver.receive({
+      value: {
+        key,
+        value: this.combineFn.addInput(
+          this.combineFn.createAccumulator(),
+          value
+        ),
+      },
+      windows: wvalue.windows,
+      timestamp: wvalue.timestamp,
+      pane: wvalue.pane,
+    });
+  }
+
+  async finishBundle() {}
+}
+
+registerOperator(
+  "beam:transform:combine_per_key_convert_to_accumulators:v1",
+  CombinePerKeyConvertToAccumulatorsOperator
+);
+
+class CombinePerKeyCombineGroupedValuesOperator<I, A, O>
+  extends CombineOperator<I, A, O>
+  implements IOperator
+{
+  async startBundle() {}
+
+  process(wvalue: WindowedValue<any>) {
+    const { key, value } = wvalue.value as { key: any; value: Iterable<I> };
+    let accumulator = this.combineFn.createAccumulator();
+    for (const input of value) {
+      accumulator = this.combineFn.addInput(accumulator, input);
+    }
+    return this.receiver.receive({
+      value: {
+        key,
+        value: this.combineFn.extractOutput(accumulator),
+      },
+      windows: wvalue.windows,
+      timestamp: wvalue.timestamp,
+      pane: wvalue.pane,
+    });
+  }
+
+  async finishBundle() {}
+}
+
+registerOperator(
+  "beam:transform:combine_grouped_values:v1",
+  CombinePerKeyCombineGroupedValuesOperator
+);
+
+// ParDo operators.
+
 class GenericParDoOperator implements IOperator {
   private doFn: DoFn<unknown, unknown, unknown>;
   private getStateProvider: () => StateProvider;
@@ -349,7 +600,7 @@ class GenericParDoOperator implements IOperator {
   }
 
   process(wvalue: WindowedValue<unknown>) {
-    if (this.augmentedContext && wvalue.windows.length != 1) {
+    if (this.augmentedContext && wvalue.windows.length !== 1) {
       // We need to process each window separately.
       // TODO: (Perf) We could inspect the context more deeply and allow some
       // cases to go through.
@@ -396,7 +647,7 @@ class GenericParDoOperator implements IOperator {
 
     // If we were able to do so without any deferred actions, process the
     // element immediately.
-    if (updateContextResult == NonPromise) {
+    if (updateContextResult === NonPromise) {
       return reallyProcess();
     } else {
       // Otherwise return a promise that first waits for all the deferred
@@ -404,7 +655,7 @@ class GenericParDoOperator implements IOperator {
       return (async () => {
         await updateContextResult;
         const update2 = this.paramProvider.update(wvalue);
-        if (update2 != NonPromise) {
+        if (update2 !== NonPromise) {
           throw new Error("Expected all promises to be resolved: " + update2);
         }
         await reallyProcess();
@@ -423,7 +674,7 @@ class GenericParDoOperator implements IOperator {
       // elements from different windows, so each element must specify its window.
       for (const element of finishBundleOutput) {
         const maybePromise = this.receiver.receive(element);
-        if (maybePromise != NonPromise) {
+        if (maybePromise !== NonPromise) {
           await maybePromise;
         }
       }
@@ -445,42 +696,37 @@ class IdentityParDoOperator implements IOperator {
 
 class SplittingDoFnOperator implements IOperator {
   constructor(
-    private splitter: (any) => string,
-    private receivers: { [key: string]: Receiver }
+    private receivers: { [key: string]: Receiver },
+    private options: SplitOptions
   ) {}
 
   async startBundle() {}
 
   process(wvalue: WindowedValue<unknown>) {
-    const tag = this.splitter(wvalue.value);
-    const receiver = this.receivers[tag];
-    if (receiver) {
-      return receiver.receive(wvalue);
-    } else {
-      // TODO: (API) Make this configurable.
+    const result = new ProcessResultBuilder();
+    const keys = Object.keys(wvalue.value as object);
+    if (this.options.exclusive && keys.length !== 1) {
       throw new Error(
-        "Unexpected tag '" +
-          tag +
-          "' for " +
-          wvalue.value +
-          " not in " +
-          [...Object.keys(this.receivers)]
+        "Multiple keys for exclusively split element: " + wvalue.value
       );
     }
-  }
-
-  async finishBundle() {}
-}
-
-class Splitting2DoFnOperator implements IOperator {
-  constructor(private receivers: { [key: string]: Receiver }) {}
-
-  async startBundle() {}
-
-  process(wvalue: WindowedValue<unknown>) {
-    const result = new ProcessResultBuilder();
-    // TODO: (API) Should I exactly one instead of allowing a union?
-    for (const tag of Object.keys(wvalue.value as object)) {
+    for (let tag of keys) {
+      if (!this.options.knownTags!.includes(tag)) {
+        if (this.options.unknownTagBehavior === "rename") {
+          tag = this.options.unknownTagName!;
+        } else if (this.options.unknownTagBehavior === "ignore") {
+          continue;
+        } else {
+          throw new Error(
+            "Unexpected tag '" +
+              tag +
+              "' for " +
+              wvalue.value +
+              " not in " +
+              this.options.knownTags
+          );
+        }
+      }
       const receiver = this.receivers[tag];
       if (receiver) {
         result.add(
@@ -490,16 +736,6 @@ class Splitting2DoFnOperator implements IOperator {
             timestamp: wvalue.timestamp,
             pane: wvalue.pane,
           })
-        );
-      } else {
-        // TODO: (API) Make this configurable.
-        throw new Error(
-          "Unexpected tag '" +
-            tag +
-            "' for " +
-            wvalue.value +
-            " not in " +
-            [...Object.keys(this.receivers)]
         );
       }
     }
@@ -558,14 +794,14 @@ class AssignTimestampsParDoOperator implements IOperator {
 }
 
 registerOperatorConstructor(
-  ParDo.urn,
+  parDo.urn,
   (transformId: string, transform: PTransform, context: OperatorContext) => {
     const receiver = context.getReceiver(
       onlyElement(Object.values(transform.outputs))
     );
     const spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);
     // TODO: (Cleanup) Ideally we could branch on the urn itself, but some runners have a closed set of known URNs.
-    if (spec.doFn?.urn == urns.SERIALIZED_JS_DOFN_INFO) {
+    if (spec.doFn?.urn === urns.SERIALIZED_JS_DOFN_INFO) {
       return new GenericParDoOperator(
         transformId,
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
@@ -574,44 +810,50 @@ registerOperatorConstructor(
         transform,
         context
       );
-    } else if (spec.doFn?.urn == urns.IDENTITY_DOFN_URN) {
+    } else if (spec.doFn?.urn === urns.IDENTITY_DOFN_URN) {
       return new IdentityParDoOperator(
         context.getReceiver(onlyElement(Object.values(transform.outputs)))
       );
-    } else if (spec.doFn?.urn == urns.JS_WINDOW_INTO_DOFN_URN) {
+    } else if (spec.doFn?.urn === urns.JS_WINDOW_INTO_DOFN_URN) {
       return new AssignWindowsParDoOperator(
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
         deserializeFn(spec.doFn.payload!).windowFn
       );
-    } else if (spec.doFn?.urn == urns.JS_ASSIGN_TIMESTAMPS_DOFN_URN) {
+    } else if (spec.doFn?.urn === urns.JS_ASSIGN_TIMESTAMPS_DOFN_URN) {
       return new AssignTimestampsParDoOperator(
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
         deserializeFn(spec.doFn.payload!).func
       );
-    } else if (spec.doFn?.urn == urns.SPLITTING_JS_DOFN_URN) {
+    } else if (spec.doFn?.urn === urns.SPLITTING_JS_DOFN_URN) {
       return new SplittingDoFnOperator(
-        deserializeFn(spec.doFn.payload!).splitter,
         Object.fromEntries(
           Object.entries(transform.outputs).map(([tag, pcId]) => [
             tag,
             context.getReceiver(pcId),
           ])
-        )
-      );
-    } else if (spec.doFn?.urn == urns.SPLITTING2_JS_DOFN_URN) {
-      return new Splitting2DoFnOperator(
-        Object.fromEntries(
-          Object.entries(transform.outputs).map(([tag, pcId]) => [
-            tag,
-            context.getReceiver(pcId),
-          ])
-        )
+        ),
+        deserializeFn(spec.doFn.payload!)
       );
     } else {
       throw new Error("Unknown DoFn type: " + spec);
     }
   }
 );
+
+///
+
+export function encodeToBase64<T>(element: T, coder: Coder<T>): string {
+  const writer = new protobufjs.Writer();
+  coder.encode(element, writer, CoderContext.wholeStream);
+  return Buffer.from(writer.finish()).toString("base64");
+}
+
+export function decodeFromBase64<T>(s: string, coder: Coder<T>): T {
+  return coder.decode(
+    new protobufjs.Reader(Buffer.from(s, "base64")),
+    CoderContext.wholeStream
+  );
+}
 
 function onlyElement<Type>(arg: Type[]): Type {
   if (arg.length > 1) {

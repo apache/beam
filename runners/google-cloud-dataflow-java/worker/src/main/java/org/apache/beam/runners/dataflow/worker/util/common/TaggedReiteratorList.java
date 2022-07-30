@@ -31,7 +31,7 @@ import org.apache.beam.sdk.util.common.Reiterator;
  * <p>This class, and the returned iterators, are not threadsafe.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TaggedReiteratorList extends AbstractList<Reiterator<Object>> {
 

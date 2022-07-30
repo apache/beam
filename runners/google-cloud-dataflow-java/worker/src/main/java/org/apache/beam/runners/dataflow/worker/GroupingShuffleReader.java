@@ -25,9 +25,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.ApproximateSplitRequest;
-import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
  * @param <V> the type of the values read from the shuffle
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K, Reiterable<V>>>> {
   private static final Logger LOG = LoggerFactory.getLogger(GroupingShuffleReader.class);
@@ -288,7 +288,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
         }
       }
 
-      K key = CoderUtils.decodeFromByteArray(parentReader.keyCoder, groups.getCurrent().key);
+      K key = CoderUtils.decodeFromByteString(parentReader.keyCoder, groups.getCurrent().key);
       parentReader.executionContext.setKey(key);
       current =
           new ValueInEmptyWindows<>(
@@ -452,20 +452,20 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
           notifyValueReturned(currentGroupSize.getAndSet(0L));
           try {
             if (parentReader.secondaryKeyCoder != null) {
-              ByteArrayInputStream bais = new ByteArrayInputStream(entry.getSecondaryKey());
+              InputStream bais = entry.getSecondaryKey().newInput();
               @SuppressWarnings("unchecked")
               V value =
                   (V)
                       KV.of(
                           // We ignore decoding the timestamp.
                           parentReader.secondaryKeyCoder.decode(bais),
-                          CoderUtils.decodeFromByteArray(
+                          CoderUtils.decodeFromByteString(
                               parentReader.valueCoder, entry.getValue()));
               return value;
             } else {
               @SuppressWarnings("unchecked")
               V value =
-                  (V) CoderUtils.decodeFromByteArray(parentReader.valueCoder, entry.getValue());
+                  (V) CoderUtils.decodeFromByteString(parentReader.valueCoder, entry.getValue());
               return value;
             }
           } catch (IOException exn) {

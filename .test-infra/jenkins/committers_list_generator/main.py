@@ -63,7 +63,6 @@ def get_committers_github_usernames(ldap_uris, cert_path):
     connection = None
     try:
         ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, cert_path)
-        ldap.set_option(ldap.OPT_X_TLS, ldap.OPT_X_TLS_DEMAND)
         ldap.set_option(ldap.OPT_X_TLS_DEMAND, True)
         ldap.set_option(ldap.OPT_REFERRALS, 0)
         connection = ldap.initialize(ldap_uris)

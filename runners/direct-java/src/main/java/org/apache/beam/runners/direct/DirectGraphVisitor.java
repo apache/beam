@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * input after the upstream transform has produced and committed output.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class DirectGraphVisitor extends PipelineVisitor.Defaults {
   private static final Logger LOG = LoggerFactory.getLogger(DirectGraphVisitor.class);
@@ -138,7 +138,7 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
 
   private AppliedPTransform<?, ?, ?> getAppliedTransform(TransformHierarchy.Node node) {
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     })
     AppliedPTransform<?, ?, ?> application = node.toAppliedPTransform(getPipeline());

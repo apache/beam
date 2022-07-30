@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.PTransform;
  */
 @Internal
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public interface PValue extends POutput, PInput {
 

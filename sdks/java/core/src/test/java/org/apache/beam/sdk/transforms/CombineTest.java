@@ -653,7 +653,7 @@ public class CombineTest implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesSideInputs.class})
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     })
     public void testSimpleCombine() {
@@ -988,7 +988,7 @@ public class CombineTest implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesSideInputs.class})
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     })
     public void testSimpleCombineWithContext() {

@@ -28,7 +28,6 @@ import (
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/stringx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -464,7 +463,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 					input := unmarshalKeyedValues(transform.GetInputs())
 					for i := 1; i < len(input); i++ {
-						// TODO(BEAM-3305) Handle ViewFns for side inputs
+						// TODO(https://github.com/apache/beam/issues/18602) Handle ViewFns for side inputs
 
 						ec, wc, err := b.makeCoderForPCollection(input[i])
 						if err != nil {
@@ -689,7 +688,7 @@ func unmarshalKeyedValues(m map[string]string) []string {
 	if len(m) == 0 {
 		return nil
 	}
-	if len(m) == 1 && stringx.Keys(m)[0] == "bogus" {
+	if _, ok := m["bogus"]; ok && len(m) == 1 {
 		return nil // Ignore special bogus node for legacy Dataflow.
 	}
 
