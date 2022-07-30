@@ -2690,9 +2690,9 @@ class ReadFromBigQuery(PTransform):
       `BEAM_ROW`. For more information on schemas, see
       https://beam.apache.org/documentation/programming-guide/\
       #what-is-a-schema)
-   """
+      """
   class Method(object):
-    EXPORT = 'EXPORT'  #  This is currently the default.
+    EXPORT = 'EXPORT'  # This is currently the default.
     DIRECT_READ = 'DIRECT_READ'
 
   COUNTER = 0
@@ -2703,16 +2703,16 @@ class ReadFromBigQuery(PTransform):
       method=None,
       use_native_datetime=False,
       output_type=None,
-      query=None,
       *args,
       **kwargs):
     self.method = method or ReadFromBigQuery.Method.EXPORT
     self.use_native_datetime = use_native_datetime
     self.output_type = output_type
-    self.query = query
+    self._args = args
+    self._kwargs = kwargs
 
     if self.method is ReadFromBigQuery.Method.EXPORT \
-        and self.use_native_datetime is True:
+            and self.use_native_datetime is True:
       raise TypeError(
           'The "use_native_datetime" parameter cannot be True for EXPORT.'
           ' Please set the "use_native_datetime" parameter to False *OR*'
@@ -2727,7 +2727,8 @@ class ReadFromBigQuery(PTransform):
       if isinstance(gcs_location, str):
         gcs_location = StaticValueProvider(str, gcs_location)
 
-    if self.output_type == "BEAM_ROW" and self.query is not None:
+    if self.output_type == 'BEAM_ROW' and self._kwargs.get('query',
+                                                           None) is not None:
       raise ValueError(
           "Both a query and an output type of 'BEAM_ROW' were specified. "
           "'BEAM_ROW' is not currently supported with queries.")
@@ -2736,8 +2737,6 @@ class ReadFromBigQuery(PTransform):
     self.bigquery_dataset_labels = {
         'type': 'bq_direct_read_' + str(uuid.uuid4())[0:10]
     }
-    self._args = args
-    self._kwargs = kwargs
 
   def expand(self, pcoll):
     if self.method is ReadFromBigQuery.Method.EXPORT:
@@ -2752,7 +2751,9 @@ class ReadFromBigQuery(PTransform):
           'or DIRECT_READ.')
 
   def _expand_output_type(self, output_pcollection):
-    if self.output_type == 'BEAM_ROW':
+    if self.output_type == 'PYTHON_DICT' or self.output_type is None:
+      return output_pcollection
+    elif self.output_type == 'BEAM_ROW':
       table_details = bigquery_tools.parse_table_reference(
           table=self._kwargs.get("table", None),
           dataset=self._kwargs.get("dataset", None),
@@ -2769,8 +2770,6 @@ class ReadFromBigQuery(PTransform):
                 project_id=table_details.projectId,
                 dataset_id=table_details.datasetId,
                 table_id=table_details.tableId).schema)
-    elif self.output_type == 'PYTHON_DICT' or self.output_type is None:
-      return output_pcollection
 
   def _expand_export(self, pcoll):
     # TODO(https://github.com/apache/beam/issues/20683): Make ReadFromBQ rely
