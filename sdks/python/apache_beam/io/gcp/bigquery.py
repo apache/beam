@@ -694,6 +694,7 @@ class _CustomBigQuerySource(BoundedSource):
       unique_id=None,
       temp_dataset=None,
       query_priority=BigQueryQueryPriority.BATCH):
+
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -2430,7 +2431,7 @@ class ReadFromBigQuery(PTransform):
       #what-is-a-schema)
    """
   class Method(object):
-    EXPORT = 'EXPORT'  #  This is currently the default.
+    EXPORT = 'EXPORT'  # This is currently the default.
     DIRECT_READ = 'DIRECT_READ'
 
   COUNTER = 0
@@ -2440,15 +2441,17 @@ class ReadFromBigQuery(PTransform):
       gcs_location=None,
       method=None,
       use_native_datetime=False,
-      query=None,
       output_type=None,
+      query=None,
       *args,
       **kwargs):
     self.method = method or ReadFromBigQuery.Method.EXPORT
     self.use_native_datetime = use_native_datetime
+    self.output_type = output_type
+    self.query = query
 
     if self.method is ReadFromBigQuery.Method.EXPORT \
-        and self.use_native_datetime is True:
+            and self.use_native_datetime is True:
       raise TypeError(
           'The "use_native_datetime" parameter cannot be True for EXPORT.'
           ' Please set the "use_native_datetime" parameter to False *OR*'
@@ -2463,19 +2466,17 @@ class ReadFromBigQuery(PTransform):
       if isinstance(gcs_location, str):
         gcs_location = StaticValueProvider(str, gcs_location)
 
-    self.gcs_location = gcs_location
-    self.bigquery_dataset_labels = {
-        'type': 'bq_direct_read_' + str(uuid.uuid4())[0:10]
-    }
-    self.output_type = output_type
-    self.query = query
-    self._args = args
-    self._kwargs = kwargs
-
     if self.output_type == "BEAM_ROW" and self.query is not None:
       raise ValueError(
           "Both a query and an output type of 'BEAM_ROW' were specified. "
           "'BEAM_ROW' is not currently supported with queries.")
+
+    self.gcs_location = gcs_location
+    self.bigquery_dataset_labels = {
+        'type': 'bq_direct_read_' + str(uuid.uuid4())[0:10]
+    }
+    self._args = args
+    self._kwargs = kwargs
 
   def expand(self, pcoll):
     if self.method is ReadFromBigQuery.Method.EXPORT:
@@ -2491,16 +2492,16 @@ class ReadFromBigQuery(PTransform):
 
   def _expand_output_type(self, output_pcollection):
     if self.output_type == 'BEAM_ROW':
+      table_details = bigquery_tools.parse_table_reference(
+          table=self._kwargs.get("table", None),
+          dataset=self._kwargs.get("dataset", None),
+          project=self._kwargs.get("project", None))
       if isinstance(self._kwargs['table'], ValueProvider) or callable(
           self._kwargs['table']):
         raise ValueError(
             "Encountered table of type ValueProvider or callable with "
             "output_type 'BEAM_ROW'. "
             "'BEAM_ROW' currently only supports tables of type str.")
-      table_details = bigquery_tools.parse_table_reference(
-          table=self._kwargs.get("table", None),
-          dataset=self._kwargs.get("dataset", None),
-          project=self._kwargs.get("project", None))
       return output_pcollection | beam.io.gcp.bigquery_schema_tools.\
             convert_to_usertype(
             beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
