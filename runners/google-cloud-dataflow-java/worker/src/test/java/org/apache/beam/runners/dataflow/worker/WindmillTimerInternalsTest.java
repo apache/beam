@@ -88,12 +88,22 @@ public class WindmillTimerInternalsTest {
                       TimerData.of(
                           namespace, timestamp, timestamp.minus(Duration.millis(1)), timeDomain));
               for (TimerData timer : anonymousTimers) {
-                assertThat(
+                Instant expectedTimestamp =
+                    timer.getOutputTimestamp().isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)
+                        ? BoundedWindow.TIMESTAMP_MIN_VALUE
+                        : timer.getOutputTimestamp();
+                TimerData computed =
                     WindmillTimerInternals.windmillTimerToTimerData(
                         prefix,
                         WindmillTimerInternals.timerDataToWindmillTimer(stateFamily, prefix, timer),
-                        coder),
-                    equalTo(timer));
+                        coder);
+                // The function itself bounds output, so we dont expect the original input as the
+                // output, we expect it to be bounded
+                TimerData expected =
+                    TimerData.of(
+                        timer.getNamespace(), timestamp, expectedTimestamp, timer.getDomain());
+
+                assertThat(computed, equalTo(expected));
               }
 
               for (String timerId : TEST_TIMER_IDS) {
@@ -117,13 +127,26 @@ public class WindmillTimerInternalsTest {
                             timeDomain));
 
                 for (TimerData timer : timers) {
+                  Instant expectedTimestamp =
+                      timer.getOutputTimestamp().isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)
+                          ? BoundedWindow.TIMESTAMP_MIN_VALUE
+                          : timer.getOutputTimestamp();
+
+                  TimerData expected =
+                      TimerData.of(
+                          timer.getTimerId(),
+                          timer.getTimerFamilyId(),
+                          timer.getNamespace(),
+                          timer.getTimestamp(),
+                          expectedTimestamp,
+                          timer.getDomain());
                   assertThat(
                       WindmillTimerInternals.windmillTimerToTimerData(
                           prefix,
                           WindmillTimerInternals.timerDataToWindmillTimer(
                               stateFamily, prefix, timer),
                           coder),
-                      equalTo(timer));
+                      equalTo(expected));
                 }
               }
             }

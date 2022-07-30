@@ -28,6 +28,7 @@ func FreeDiskSpace(path string) (uint64, error) {
 	return 0, ErrUnsupported
 }
 
+// SetProcessMemoryCeiling sets current and max process memory limit.
 func SetProcessMemoryCeiling(softCeiling, hardCeiling uint64) error {
 	return ErrUnsupported
 }
