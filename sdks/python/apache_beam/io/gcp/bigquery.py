@@ -2692,7 +2692,7 @@ class ReadFromBigQuery(PTransform):
       #what-is-a-schema)
    """
   class Method(object):
-    EXPORT = 'EXPORT'  #This is currently the default.
+    EXPORT = 'EXPORT'  #  This is currently the default.
     DIRECT_READ = 'DIRECT_READ'
 
   COUNTER = 0
