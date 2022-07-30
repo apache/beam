@@ -107,7 +107,7 @@ def addStreamingOptions(test){
 
 def loadTestJob = { scope, triggeringContext, jobType ->
   scope.description("Runs Python Combine load tests on Dataflow runner in ${jobType} mode")
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 120)
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 720)
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   for (testConfiguration in loadTestConfigurations(datasetName, jobType)) {

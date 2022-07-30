@@ -28,9 +28,13 @@ when running the workflow for remote execution.
 # pytype: skip-file
 
 import subprocess
-from distutils.command.build import build as _build  # type: ignore
 
 import setuptools
+
+# It is recommended to import setuptools prior to importing distutils to avoid
+# using legacy behavior from distutils.
+# https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
+from distutils.command.build import build as _build  # isort:skip
 
 
 # This class handles the pip install mechanism.

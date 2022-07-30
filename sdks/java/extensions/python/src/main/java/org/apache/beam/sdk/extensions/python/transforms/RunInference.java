@@ -18,21 +18,28 @@
 package org.apache.beam.sdk.extensions.python.transforms;
 
 import java.util.Map;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.python.PythonExternalTransform;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.PythonCallableSource;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Wrapper for invoking external Python RunInference. */
-public class RunInference extends PTransform<PCollection<?>, PCollection<Row>> {
+/** Wrapper for invoking external Python {@code RunInference}. @Experimental */
+public class RunInference<OutputT> extends PTransform<PCollection<?>, PCollection<OutputT>> {
+
   private final String modelLoader;
   private final Schema schema;
   private final Map<String, Object> kwargs;
   private final String expansionService;
+  private final @Nullable Coder<?> keyCoder;
 
   /**
    * Instantiates a multi-language wrapper for a Python RunInference with a given model loader.
@@ -42,12 +49,39 @@ public class RunInference extends PTransform<PCollection<?>, PCollection<Row>> {
    * @param inferenceType A schema field type for the inference column in output rows.
    * @return A {@link RunInference} for the given model loader.
    */
-  public static RunInference of(
+  public static RunInference<Row> of(
       String modelLoader, Schema.FieldType exampleType, Schema.FieldType inferenceType) {
     Schema schema =
         Schema.of(
             Schema.Field.of("example", exampleType), Schema.Field.of("inference", inferenceType));
-    return new RunInference(modelLoader, schema, ImmutableMap.of(), "");
+    return new RunInference<>(modelLoader, schema, ImmutableMap.of(), null, "");
+  }
+
+  /**
+   * Similar to {@link RunInference#of(String, FieldType, FieldType)} but the input is a {@link
+   * PCollection} of {@link KV}s.
+   *
+   * <p>Also outputs a {@link PCollection} of {@link KV}s of the same key type.
+   *
+   * <p>For example, use this if you are using Python {@code KeyedModelHandler} as the model
+   * handler.
+   *
+   * @param modelLoader A Python callable for a model loader class object.
+   * @param exampleType A schema field type for the example column in output rows.
+   * @param inferenceType A schema field type for the inference column in output rows.
+   * @param keyCoder a {@link Coder} for the input and output Key type.
+   * @param <KeyT> input and output Key type. Inferred by the provided coder.
+   * @return A {@link RunInference} for the given model loader.
+   */
+  public static <KeyT> RunInference<KV<KeyT, Row>> ofKVs(
+      String modelLoader,
+      Schema.FieldType exampleType,
+      Schema.FieldType inferenceType,
+      Coder<KeyT> keyCoder) {
+    Schema schema =
+        Schema.of(
+            Schema.Field.of("example", exampleType), Schema.Field.of("inference", inferenceType));
+    return new RunInference<>(modelLoader, schema, ImmutableMap.of(), keyCoder, "");
   }
 
   /**
@@ -57,8 +91,23 @@ public class RunInference extends PTransform<PCollection<?>, PCollection<Row>> {
    * @param schema A schema for output rows.
    * @return A {@link RunInference} for the given model loader.
    */
-  public static RunInference of(String modelLoader, Schema schema) {
-    return new RunInference(modelLoader, schema, ImmutableMap.of(), "");
+  public static RunInference<Row> of(String modelLoader, Schema schema) {
+    return new RunInference<>(modelLoader, schema, ImmutableMap.of(), null, "");
+  }
+
+  /**
+   * Similar to {@link RunInference#of(String, Schema)} but the input is a {@link PCollection} of
+   * {@link KV}s.
+   *
+   * @param modelLoader A Python callable for a model loader class object.
+   * @param schema A schema for output rows.
+   * @param keyCoder a {@link Coder} for the input and output Key type.
+   * @param <KeyT> input and output Key type. Inferred by the provided coder.
+   * @return A {@link RunInference} for the given model loader.
+   */
+  public static <KeyT> RunInference<KV<KeyT, Row>> ofKVs(
+      String modelLoader, Schema schema, Coder<KeyT> keyCoder) {
+    return new RunInference<>(modelLoader, schema, ImmutableMap.of(), keyCoder, "");
   }
 
   /**
@@ -66,10 +115,10 @@ public class RunInference extends PTransform<PCollection<?>, PCollection<Row>> {
    *
    * @return A {@link RunInference} with keyword arguments.
    */
-  public RunInference withKwarg(String key, Object arg) {
+  public RunInference<OutputT> withKwarg(String key, Object arg) {
     ImmutableMap.Builder<String, Object> builder =
         ImmutableMap.<String, Object>builder().putAll(kwargs).put(key, arg);
-    return new RunInference(modelLoader, schema, builder.build(), expansionService);
+    return new RunInference<>(modelLoader, schema, builder.build(), keyCoder, expansionService);
   }
 
   /**
@@ -78,25 +127,38 @@ public class RunInference extends PTransform<PCollection<?>, PCollection<Row>> {
    * @param expansionService A URL for a Python expansion service.
    * @return A {@link RunInference} for the given expansion service endpoint.
    */
-  public RunInference withExpansionService(String expansionService) {
-    return new RunInference(modelLoader, schema, kwargs, expansionService);
+  public RunInference<OutputT> withExpansionService(String expansionService) {
+    return new RunInference<>(modelLoader, schema, kwargs, keyCoder, expansionService);
   }
 
   private RunInference(
-      String modelLoader, Schema schema, Map<String, Object> kwargs, String expansionService) {
+      String modelLoader,
+      Schema schema,
+      Map<String, Object> kwargs,
+      @Nullable Coder<?> keyCoder,
+      String expansionService) {
     this.modelLoader = modelLoader;
     this.schema = schema;
     this.kwargs = kwargs;
+    this.keyCoder = keyCoder;
     this.expansionService = expansionService;
   }
 
   @Override
-  public PCollection<Row> expand(PCollection<?> input) {
-    return input.apply(
-        PythonExternalTransform.<PCollection<?>, PCollection<Row>>from(
-                "apache_beam.ml.inference.base.RunInference.from_callable", expansionService)
-            .withKwarg("model_handler_provider", PythonCallableSource.of(modelLoader))
-            .withKwargs(kwargs)
-            .withOutputCoder(RowCoder.of(schema)));
+  public PCollection<OutputT> expand(PCollection<?> input) {
+    Coder<OutputT> outputCoder;
+    if (this.keyCoder == null) {
+      outputCoder = (Coder<OutputT>) RowCoder.of(schema);
+    } else {
+      outputCoder = (Coder<OutputT>) KvCoder.of(keyCoder, RowCoder.of(schema));
+    }
+
+    return (PCollection<OutputT>)
+        input.apply(
+            PythonExternalTransform.<PCollection<?>, PCollection<Row>>from(
+                    "apache_beam.ml.inference.base.RunInference.from_callable", expansionService)
+                .withKwarg("model_handler_provider", PythonCallableSource.of(modelLoader))
+                .withOutputCoder(outputCoder)
+                .withKwargs(kwargs));
   }
 }
