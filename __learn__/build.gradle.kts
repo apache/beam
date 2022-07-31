@@ -379,3 +379,105 @@ tasks.register("checkSetup") {
   dependsOn(":sdks:python:wordCount")
   dependsOn(":examples:java:wordCount")
 }
+
+// set up the release plugin to focus on local work only
+// the decision to push, if at all, lies with the release manager
+// When the release fails the branch can be reset without pushing by the release manager
+release {
+  revertOnFail = false
+  tagTemplate = "v${version}"
+  // follows this workaround
+  // https://github.com/researchgate/gradle-release/issues/281#issuecomment-466876492
+  release {
+    with (propertyMissing("git") as net.researchgate.release.GitAdapter.GitConfig) {
+      requireBranch = "release.*|master"
+      pushToRemote = ""
+    }
+  }
+}
+
+// with several Beam artifact ids there can be linkage errors - this reports them
+// usage (from project root):
+// ./gradlew -Ppublishing -PjavaLinkageArtifactIds=artifactId1,artifactId2,... :checkJavaLinkage
+// here's an example:
+// ./gradlew -Ppublishing -PjavaLinkageArtifactIds=beam-sdks-java-core,beam-sdks-java-io-jdbc :checkJavaLinkage
+// this task populates your local Maven repo
+if (project.hasProperty("javaLinkageArtifactIds")) {
+  if (!project.hasProperty("publishing")) {
+    throw GradleException("Please specify -Ppublishing")
+  }
+
+  val linkageCheckerJava by configurations.creating
+  dependencies {
+    linkageCheckerJava("com.google.cloud.tools:dependencies:1.5.6")
+  }
+
+  // go through all the projects first
+  // find dependencies on all 
+  // publishMavenJavaPublicationToMavenLocal tasks below
+  for (p in rootProject.subprojects) {
+    if (p.path != project.path) {
+      evaluationDependsOn(p.path)
+    }
+  }
+
+  project.tasks.register<JavaExec>("checkJavaLinkage") {
+    dependsOn(project.getTasksByName("publishMavenJavePublicationToMavenLocal", true /* recurse */))
+    classpath = linkageCheckerJava
+    mainClass.value("com.google.cloud.tools.opensource.classpath.LinkageCheckerMain")
+    val javaLinkageArtifactIds: String = project.property("javaLinkageArtifactIds") as String? ?: ""
+    var arguments = arrayOf(
+      "-a",
+      javaLinkageArtifactIds.split(",").joinToString(",") {
+        if (it.contains(":")) {
+          "${project.ext.get("mavenGroupId")}:${it}"
+        } else {
+          // specify version if not provided
+          "${project.ext.get("mavenGroupId")}:${it}:${project.version}"
+        }
+      }
+    })
+
+    // existing linkage errors are filtered out by exclusion file before a change
+    if (project.hasProperty("javaLinkageWriteBaseline")) {
+      arguments += "--output-exclusion-file"
+      arguments += project.property("javaLinkageWriteBaseline") as String
+    } else if (project.hasProperty("javaLinkageReadBaseline")) {
+      arguments += "--exclusion-file"
+      arguments += project.property("javaLinkageReadBaseline") as String
+    }
+    args(*arguments)
+    doLast {
+      println("NOTE: Artifacts were published to your local maven repo - you can remove them if you want")
+    }
+  }
+}
+if (project.hasProperty("compileAndRunTestsWithJava11")) {
+  tasks
+    .getByName("javaPreCommitPortabilityApi")
+    .dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion")
+  tasks
+    .getByName("javaExamplesDataflowPrecommit")
+    .dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion")
+  tasks
+    .getByName("sqlPreCommit")
+    .dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion")
+} else  if (project.hasProperty("compileAndRunTestsWithJava17")) {
+  tasks
+    .getByName("javaPreCommitPortabilityApi")
+    .dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion17")
+  tasks
+    .getByName("javaExamplesDataFlowPrecommit")
+    .dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion17")
+  tasks
+    .getByName("sqlPreCommit")
+    .dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion17")
+} else {
+  allprojects {
+    tasks
+      .withType(Test::class)
+      .configureEach {
+        exclude("**/JvmVerification.class")
+      }
+  }
+}
