@@ -420,4 +420,64 @@ if (project.hasProperty("javaLinkageArtifactIds")) {
       evaluationDependsOn(p.path)
     }
   }
+
+  project.tasks.register<JavaExec>("checkJavaLinkage") {
+    dependsOn(project.getTasksByName("publishMavenJavePublicationToMavenLocal", true /* recurse */))
+    classpath = linkageCheckerJava
+    mainClass.value("com.google.cloud.tools.opensource.classpath.LinkageCheckerMain")
+    val javaLinkageArtifactIds: String = project.property("javaLinkageArtifactIds") as String? ?: ""
+    var arguments = arrayOf(
+      "-a",
+      javaLinkageArtifactIds.split(",").joinToString(",") {
+        if (it.contains(":")) {
+          "${project.ext.get("mavenGroupId")}:${it}"
+        } else {
+          // specify version if not provided
+          "${project.ext.get("mavenGroupId")}:${it}:${project.version}"
+        }
+      }
+    })
+
+    // existing linkage errors are filtered out by exclusion file before a change
+    if (project.hasProperty("javaLinkageWriteBaseline")) {
+      arguments += "--output-exclusion-file"
+      arguments += project.property("javaLinkageWriteBaseline") as String
+    } else if (project.hasProperty("javaLinkageReadBaseline")) {
+      arguments += "--exclusion-file"
+      arguments += project.property("javaLinkageReadBaseline") as String
+    }
+    args(*arguments)
+    doLast {
+      println("NOTE: Artifacts were published to your local maven repo - you can remove them if you want")
+    }
+  }
+}
+if (project.hasProperty("compileAndRunTestsWithJava11")) {
+  tasks
+    .getByName("javaPreCommitPortabilityApi")
+    .dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion")
+  tasks
+    .getByName("javaExamplesDataflowPrecommit")
+    .dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion")
+  tasks
+    .getByName("sqlPreCommit")
+    .dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion")
+} else  if (project.hasProperty("compileAndRunTestsWithJava17")) {
+  tasks
+    .getByName("javaPreCommitPortabilityApi")
+    .dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion17")
+  tasks
+    .getByName("javaExamplesDataFlowPrecommit")
+    .dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion17")
+  tasks
+    .getByName("sqlPreCommit")
+    .dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion17")
+} else {
+  allprojects {
+    tasks
+      .withType(Test::class)
+      .configureEach {
+        exclude("**/JvmVerification.class")
+      }
+  }
 }
