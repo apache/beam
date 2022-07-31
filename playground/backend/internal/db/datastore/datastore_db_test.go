@@ -16,14 +16,19 @@
 package datastore
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/db/entity"
-	"beam.apache.org/playground/backend/internal/utils"
-	"cloud.google.com/go/datastore"
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
+
+	"cloud.google.com/go/datastore"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/constants"
+	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/db/mapper"
+	"beam.apache.org/playground/backend/internal/utils"
 )
 
 const (
@@ -51,7 +56,7 @@ func setup() {
 	}
 	ctx = context.Background()
 	var err error
-	datastoreDb, err = New(ctx, datastoreEmulatorProjectId)
+	datastoreDb, err = New(ctx, mapper.NewPrecompiledObjectMapper(), datastoreEmulatorProjectId)
 	if err != nil {
 		panic(err)
 	}
@@ -82,10 +87,9 @@ func TestDatastore_PutSnippet(t *testing.T) {
 					IdLength: 11,
 				},
 				Snippet: &entity.SnippetEntity{
-					Sdk:           utils.GetNameKey(SdkKind, "SDK_GO", Namespace, nil),
+					Sdk:           utils.GetSdkKey(pb.Sdk_SDK_GO.String()),
 					PipeOpts:      "MOCK_OPTIONS",
-					Origin:        "PG_USER",
-					OwnerId:       "",
+					Origin:        constants.UserSnippetOrigin,
 					NumberOfFiles: 1,
 				},
 				Files: []*entity.FileEntity{{
@@ -107,8 +111,8 @@ func TestDatastore_PutSnippet(t *testing.T) {
 		})
 	}
 
-	cleanData(t, FileKind, "MOCK_ID_0", nil)
-	cleanData(t, SnippetKind, "MOCK_ID", nil)
+	cleanData(t, constants.FileKind, "MOCK_ID_0", nil)
+	cleanData(t, constants.SnippetKind, "MOCK_ID", nil)
 }
 
 func TestDatastore_GetSnippet(t *testing.T) {
@@ -138,11 +142,10 @@ func TestDatastore_GetSnippet(t *testing.T) {
 						IdLength: 11,
 					},
 					Snippet: &entity.SnippetEntity{
-						Sdk:           utils.GetNameKey(SdkKind, "SDK_GO", Namespace, nil),
+						Sdk:           utils.GetSdkKey(pb.Sdk_SDK_GO.String()),
 						PipeOpts:      "MOCK_OPTIONS",
 						Created:       nowDate,
-						Origin:        "PG_USER",
-						OwnerId:       "",
+						Origin:        constants.UserSnippetOrigin,
 						NumberOfFiles: 1,
 					},
 					Files: []*entity.FileEntity{{
@@ -166,9 +169,9 @@ func TestDatastore_GetSnippet(t *testing.T) {
 			}
 
 			if err == nil {
-				if snip.Sdk.Name != "SDK_GO" ||
+				if snip.Sdk.Name != pb.Sdk_SDK_GO.String() ||
 					snip.PipeOpts != "MOCK_OPTIONS" ||
-					snip.Origin != "PG_USER" ||
+					snip.Origin != constants.UserSnippetOrigin ||
 					snip.OwnerId != "" {
 					t.Error("GetSnippet() unexpected result")
 				}
@@ -176,8 +179,8 @@ func TestDatastore_GetSnippet(t *testing.T) {
 		})
 	}
 
-	cleanData(t, FileKind, "MOCK_ID_0", nil)
-	cleanData(t, SnippetKind, "MOCK_ID", nil)
+	cleanData(t, constants.FileKind, "MOCK_ID_0", nil)
+	cleanData(t, constants.SnippetKind, "MOCK_ID", nil)
 }
 
 func TestDatastore_PutSDKs(t *testing.T) {
@@ -219,7 +222,7 @@ func TestDatastore_PutSDKs(t *testing.T) {
 	}
 
 	for _, sdk := range sdks {
-		cleanData(t, SdkKind, sdk.Name, nil)
+		cleanData(t, constants.SdkKind, sdk.Name, nil)
 	}
 }
 
@@ -263,7 +266,7 @@ func TestDatastore_PutSchemaVersion(t *testing.T) {
 		})
 	}
 
-	cleanData(t, SchemaKind, "MOCK_ID", nil)
+	cleanData(t, constants.SchemaKind, "MOCK_ID", nil)
 }
 
 func TestDatastore_GetFiles(t *testing.T) {
@@ -285,27 +288,8 @@ func TestDatastore_GetFiles(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "GetFiles() in the usual case",
-			prepare: func() {
-				_ = datastoreDb.PutSnippet(ctx, "MOCK_ID", &entity.Snippet{
-					IDMeta: &entity.IDMeta{
-						Salt:     "MOCK_SALT",
-						IdLength: 11,
-					},
-					Snippet: &entity.SnippetEntity{
-						Sdk:           utils.GetNameKey(SdkKind, "SDK_GO", Namespace, nil),
-						PipeOpts:      "MOCK_OPTIONS",
-						Origin:        "PG_USER",
-						OwnerId:       "",
-						NumberOfFiles: 1,
-					},
-					Files: []*entity.FileEntity{{
-						Name:    "MOCK_NAME",
-						Content: "MOCK_CONTENT",
-						IsMain:  false,
-					}},
-				})
-			},
+			name:    "GetFiles() in the usual case",
+			prepare: func() { saveSnippet("MOCK_ID", pb.Sdk_SDK_GO.String()) },
 			args:    args{ctx: ctx, snipId: "MOCK_ID", numberOfFiles: 1},
 			wantErr: false,
 		},
@@ -321,20 +305,19 @@ func TestDatastore_GetFiles(t *testing.T) {
 			if files != nil {
 				if len(files) != 1 ||
 					files[0].Content != "MOCK_CONTENT" ||
-					files[0].IsMain != false {
+					files[0].IsMain != true {
 					t.Error("GetFiles() unexpected result")
 				}
-				cleanData(t, FileKind, "MOCK_ID_0", nil)
-				cleanData(t, SnippetKind, "MOCK_ID", nil)
+				cleanData(t, constants.FileKind, "MOCK_ID_0", nil)
+				cleanData(t, constants.SnippetKind, "MOCK_ID", nil)
 			}
 		})
 	}
 }
 
-func TestDatastore_GetSDK(t *testing.T) {
+func TestDatastore_GetSDKs(t *testing.T) {
 	type args struct {
 		ctx context.Context
-		id  string
 	}
 	sdks := getSDKs()
 	tests := []struct {
@@ -344,17 +327,15 @@ func TestDatastore_GetSDK(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "GetSDK() in the usual case",
-			prepare: func() {
-				_ = datastoreDb.PutSDKs(ctx, sdks)
-			},
-			args:    args{ctx: ctx, id: pb.Sdk_SDK_GO.String()},
+			name:    "GetSDKs() in the usual case",
+			prepare: func() { _ = datastoreDb.PutSDKs(ctx, sdks) },
+			args:    args{ctx: ctx},
 			wantErr: false,
 		},
 		{
-			name:    "GetSDK() when sdk is missing",
+			name:    "GetSDKs() when sdks are missing",
 			prepare: func() {},
-			args:    args{ctx: ctx, id: pb.Sdk_SDK_GO.String()},
+			args:    args{ctx: ctx},
 			wantErr: true,
 		},
 	}
@@ -362,17 +343,88 @@ func TestDatastore_GetSDK(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			sdkEntity, err := datastoreDb.GetSDK(tt.args.ctx, tt.args.id)
+			sdkEntities, err := datastoreDb.GetSDKs(tt.args.ctx)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetSDK() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetSDKs() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err == nil {
-				if sdkEntity.DefaultExample != "MOCK_EXAMPLE" {
-					t.Error("GetSDK() unexpected result")
+				if len(sdkEntities) != 4 {
+					t.Error("GetSDK unexpected result, should be four entities")
 				}
 				for _, sdk := range sdks {
-					cleanData(t, SdkKind, sdk.Name, nil)
+					cleanData(t, constants.SdkKind, sdk.Name, nil)
 				}
+			}
+		})
+	}
+}
+
+func TestDatastore_GetCatalog(t *testing.T) {
+	type args struct {
+		ctx        context.Context
+		sdkCatalog []*entity.SDKEntity
+	}
+	tests := []struct {
+		name    string
+		prepare func()
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Getting catalog in the usual case",
+			prepare: func() {
+				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
+				saveSnippet("SDK_JAVA_MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
+				savePCObjs("SDK_JAVA_MOCK_EXAMPLE")
+			},
+			args: args{
+				ctx: ctx,
+				sdkCatalog: func() []*entity.SDKEntity {
+					var sdks []*entity.SDKEntity
+					for sdkName := range pb.Sdk_value {
+						sdks = append(sdks, &entity.SDKEntity{
+							Name:           sdkName,
+							DefaultExample: "MOCK_DEFAULT_EXAMPLE",
+						})
+					}
+					return sdks
+				}(),
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			catalog, err := datastoreDb.GetCatalog(tt.args.ctx, tt.args.sdkCatalog)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetCatalog() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil {
+				if catalog[0].GetSdk() != pb.Sdk_SDK_JAVA {
+					t.Error("GetCatalog() unexpected result: wrong sdk")
+				}
+				actualCatName := catalog[0].GetCategories()[0].GetCategoryName()
+				actualPCObj := catalog[0].GetCategories()[0].GetPrecompiledObjects()[0]
+				if actualCatName != "MOCK_CATEGORY" {
+					t.Error("GetCatalog() unexpected result: wrong category")
+				}
+				if actualPCObj.DefaultExample != false ||
+					actualPCObj.Multifile != false ||
+					actualPCObj.Name != "MOCK_EXAMPLE" ||
+					actualPCObj.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
+					actualPCObj.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_EXAMPLE" ||
+					actualPCObj.PipelineOptions != "MOCK_OPTIONS" ||
+					actualPCObj.Description != "MOCK_DESCR" ||
+					actualPCObj.Link != "MOCK_PATH" ||
+					actualPCObj.ContextLine != 32 {
+					t.Error("GetCatalog() unexpected result: wrong precompiled obj")
+				}
+				cleanPCObjs(t, "SDK_JAVA_MOCK_EXAMPLE")
+				cleanFiles(t, "SDK_JAVA_MOCK_EXAMPLE", 1)
+				cleanData(t, constants.SnippetKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
+				cleanData(t, constants.ExampleKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
 			}
 		})
 	}
@@ -397,11 +449,69 @@ func TestNew(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := New(ctx, datastoreEmulatorProjectId)
+			_, err := New(ctx, mapper.NewPrecompiledObjectMapper(), datastoreEmulatorProjectId)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func saveExample(name, sdk string) {
+	_, _ = datastoreDb.Client.Put(ctx, utils.GetExampleKey(sdk, name), &entity.ExampleEntity{
+		Name:       name,
+		Sdk:        utils.GetSdkKey(sdk),
+		Descr:      "MOCK_DESCR",
+		Cats:       []string{"MOCK_CATEGORY"},
+		Complexity: 20,
+		Path:       "MOCK_PATH",
+		Type:       "PRECOMPILED_OBJECT_TYPE_EXAMPLE",
+		Origin:     constants.ExampleOrigin,
+		SchVer:     utils.GetSchemaVerKey("MOCK_VERSION"),
+	})
+}
+
+func saveSnippet(snipId, sdk string) {
+	_ = datastoreDb.PutSnippet(ctx, snipId, &entity.Snippet{
+		IDMeta: &entity.IDMeta{
+			Salt:     "MOCK_SALT",
+			IdLength: 11,
+		},
+		Snippet: &entity.SnippetEntity{
+			Sdk:           utils.GetSdkKey(sdk),
+			PipeOpts:      "MOCK_OPTIONS",
+			Origin:        constants.ExampleOrigin,
+			NumberOfFiles: 1,
+		},
+		Files: []*entity.FileEntity{{
+			Name:     "MOCK_NAME",
+			Content:  "MOCK_CONTENT",
+			CntxLine: 32,
+			IsMain:   true,
+		}},
+	})
+}
+
+func savePCObjs(exampleId string) {
+	pcTypes := []string{constants.PCOutputType, constants.PCLogType, constants.PCGraphType}
+	for _, pcType := range pcTypes {
+		_, _ = datastoreDb.Client.Put(
+			ctx,
+			utils.GetPCObjectKey(fmt.Sprintf("%s_%s", exampleId, pcType)),
+			&entity.PrecompiledObjectEntity{Content: "MOCK_CONTENT_" + pcType})
+	}
+}
+
+func cleanPCObjs(t *testing.T, exampleId string) {
+	pcTypes := []string{constants.PCOutputType, constants.PCLogType, constants.PCGraphType}
+	for _, pcType := range pcTypes {
+		cleanData(t, constants.PCObjectKind, utils.GetIDWithDelimiter(exampleId, pcType), nil)
+	}
+}
+
+func cleanFiles(t *testing.T, exampleId string, numberOfFiles int) {
+	for fileIndx := 0; fileIndx < numberOfFiles; fileIndx++ {
+		cleanData(t, constants.FileKind, utils.GetIDWithDelimiter(exampleId, fileIndx), nil)
 	}
 }
 
@@ -410,7 +520,7 @@ func cleanData(t *testing.T, kind, id string, parentId *datastore.Key) {
 	if parentId != nil {
 		key.Parent = parentId
 	}
-	key.Namespace = Namespace
+	key.Namespace = constants.Namespace
 	if err := datastoreDb.Client.Delete(ctx, key); err != nil {
 		t.Errorf("Error during data cleaning after the test, err: %s", err.Error())
 	}
@@ -421,7 +531,7 @@ func getSDKs() []*entity.SDKEntity {
 	for _, sdk := range pb.Sdk_name {
 		sdkEntities = append(sdkEntities, &entity.SDKEntity{
 			Name:           sdk,
-			DefaultExample: "MOCK_EXAMPLE",
+			DefaultExample: "MOCK_DEFAULT_EXAMPLE",
 		})
 	}
 	return sdkEntities

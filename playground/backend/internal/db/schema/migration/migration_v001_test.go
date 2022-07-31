@@ -16,12 +16,14 @@
 package migration
 
 import (
-	"beam.apache.org/playground/backend/internal/db/datastore"
-	"beam.apache.org/playground/backend/internal/db/schema"
-	"beam.apache.org/playground/backend/internal/environment"
 	"context"
 	"os"
 	"testing"
+
+	"beam.apache.org/playground/backend/internal/db/datastore"
+	"beam.apache.org/playground/backend/internal/db/mapper"
+	"beam.apache.org/playground/backend/internal/db/schema"
+	"beam.apache.org/playground/backend/internal/environment"
 )
 
 const (
@@ -49,7 +51,7 @@ func setup() {
 	}
 	ctx = context.Background()
 	var err error
-	datastoreDb, err = datastore.New(ctx, datastoreEmulatorProjectId)
+	datastoreDb, err = datastore.New(ctx, mapper.NewPrecompiledObjectMapper(), datastoreEmulatorProjectId)
 	if err != nil {
 		panic(err)
 	}

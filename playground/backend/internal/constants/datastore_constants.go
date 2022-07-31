@@ -13,21 +13,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mapper
+package constants
 
-import (
-	"beam.apache.org/playground/backend/internal/db/dto"
+//Cloud Datastore constants
+const (
+	Namespace          = "Playground"
+	IDDelimiter        = "_"
+	CloudPathDelimiter = "/"
+	UserSnippetOrigin  = "PG_USER"
+	ExampleOrigin      = "PG_EXAMPLES"
 
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/db/entity"
+	SnippetKind  = "pg_snippets"
+	SchemaKind   = "pg_schema_versions"
+	SdkKind      = "pg_sdks"
+	FileKind     = "pg_files"
+	ExampleKind  = "pg_examples"
+	PCObjectKind = "pg_pc_objects"
+
+	PCOutputType = "OUTPUT"
+	PCLogType    = "LOG"
+	PCGraphType  = "GRAPH"
 )
-
-type EntityMapper interface {
-	ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet
-	ToFileEntity(info *pb.SaveSnippetRequest, file *pb.SnippetFile) *entity.FileEntity
-}
-
-type ResponseMapper interface {
-	ToArrayCategories(catalogDTO *dto.CatalogDTO) []*pb.Categories
-	ToObjectInfo(exampleDTO *dto.ExampleDTO) *dto.ObjectInfo
-}

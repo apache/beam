@@ -16,8 +16,10 @@
 package entity
 
 import (
-	"beam.apache.org/playground/backend/internal/utils"
 	"testing"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/utils"
 )
 
 func TestSnippet_ID(t *testing.T) {
@@ -31,7 +33,7 @@ func TestSnippet_ID(t *testing.T) {
 			name: "Snippet ID() in the usual case",
 			snip: &Snippet{
 				Snippet: &SnippetEntity{
-					Sdk:      utils.GetNameKey("pg_sdks", "SDK_GO", "Playground", nil),
+					Sdk:      utils.GetSdkKey(pb.Sdk_SDK_GO.String()),
 					PipeOpts: "MOCK_OPTIONS",
 				},
 				Files: []*FileEntity{{

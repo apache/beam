@@ -13,21 +13,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mapper
+package entity
 
-import (
-	"beam.apache.org/playground/backend/internal/db/dto"
+import "cloud.google.com/go/datastore"
 
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/db/entity"
-)
-
-type EntityMapper interface {
-	ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet
-	ToFileEntity(info *pb.SaveSnippetRequest, file *pb.SnippetFile) *entity.FileEntity
+type ExampleEntity struct {
+	Name       string         `datastore:"name"`
+	Sdk        *datastore.Key `datastore:"sdk"`
+	Descr      string         `datastore:"descr"`
+	Tags       []string       `datastore:"tags"`
+	Cats       []string       `datastore:"cats"`
+	Complexity int8           `datastore:"complexity"`
+	Path       string         `datastore:"path"`
+	Type       string         `datastore:"type"`
+	Origin     string         `datastore:"origin"`
+	SchVer     *datastore.Key `datastore:"schVer"`
 }
 
-type ResponseMapper interface {
-	ToArrayCategories(catalogDTO *dto.CatalogDTO) []*pb.Categories
-	ToObjectInfo(exampleDTO *dto.ExampleDTO) *dto.ObjectInfo
+type PrecompiledObjectEntity struct {
+	Content string `datastore:"content,noindex"`
 }

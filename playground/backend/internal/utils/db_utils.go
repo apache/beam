@@ -16,12 +16,18 @@
 package utils
 
 import (
-	"beam.apache.org/playground/backend/internal/errors"
-	"beam.apache.org/playground/backend/internal/logger"
-	"cloud.google.com/go/datastore"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"io"
+	"strconv"
+	"strings"
+
+	"cloud.google.com/go/datastore"
+
+	"beam.apache.org/playground/backend/internal/constants"
+	"beam.apache.org/playground/backend/internal/errors"
+	"beam.apache.org/playground/backend/internal/logger"
 )
 
 func ID(salt, content string, length int8) (string, error) {
@@ -41,8 +47,68 @@ func ID(salt, content string, length int8) (string, error) {
 	return string(b)[:hashLen], nil
 }
 
-// GetNameKey returns the datastore key
-func GetNameKey(kind, id, namespace string, parentId *datastore.Key) *datastore.Key {
+func GetExampleKey(values ...interface{}) *datastore.Key {
+	id := GetIDWithDelimiter(values...)
+	return getNameKey(constants.ExampleKind, id, constants.Namespace, nil)
+}
+
+func GetSdkKey(values ...interface{}) *datastore.Key {
+	id := GetIDWithDelimiter(values...)
+	return getNameKey(constants.SdkKind, id, constants.Namespace, nil)
+}
+
+func GetFileKey(values ...interface{}) *datastore.Key {
+	id := GetIDWithDelimiter(values...)
+	return getNameKey(constants.FileKind, id, constants.Namespace, nil)
+}
+
+func GetSchemaVerKey(values ...interface{}) *datastore.Key {
+	id := GetIDWithDelimiter(values...)
+	return getNameKey(constants.SchemaKind, id, constants.Namespace, nil)
+}
+
+func GetSnippetKey(values ...interface{}) *datastore.Key {
+	id := GetIDWithDelimiter(values...)
+	return getNameKey(constants.SnippetKind, id, constants.Namespace, nil)
+}
+
+func GetPCObjectKey(values ...interface{}) *datastore.Key {
+	id := GetIDWithDelimiter(values...)
+	return getNameKey(constants.PCObjectKind, id, constants.Namespace, nil)
+}
+
+func GetExampleID(cloudPath string) (string, error) {
+	cloudPathParams := strings.Split(cloudPath, constants.CloudPathDelimiter)
+	if len(cloudPathParams) < 3 {
+		logger.Error("the wrong cloud path from a client")
+		return "", fmt.Errorf("cloud path doesn't have all options. The minimum size must be 3")
+	}
+	return GetIDWithDelimiter(cloudPathParams[0], cloudPathParams[2]), nil
+}
+
+func GetIDWithDelimiter(values ...interface{}) string {
+	valuesAsStr := make([]string, 0)
+	for _, value := range values {
+		switch value.(type) {
+		case int:
+			valuesAsStr = append(valuesAsStr, strconv.Itoa(value.(int)))
+		case int8:
+			valuesAsStr = append(valuesAsStr, strconv.Itoa(int(value.(int8))))
+		case int16:
+			valuesAsStr = append(valuesAsStr, strconv.Itoa(int(value.(int16))))
+		case int32:
+			valuesAsStr = append(valuesAsStr, strconv.Itoa(int(value.(int32))))
+		case int64:
+			valuesAsStr = append(valuesAsStr, strconv.Itoa(int(value.(int64))))
+		default:
+			valuesAsStr = append(valuesAsStr, value.(string))
+		}
+	}
+	return strings.Join(valuesAsStr, constants.IDDelimiter)
+}
+
+// getNameKey returns the datastore key
+func getNameKey(kind, id, namespace string, parentId *datastore.Key) *datastore.Key {
 	key := datastore.NameKey(kind, id, nil)
 	if parentId != nil {
 		key.Parent = parentId

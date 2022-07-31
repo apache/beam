@@ -16,13 +16,14 @@
 package mapper
 
 import (
+	"os"
+	"testing"
+
 	pb "beam.apache.org/playground/backend/internal/api/v1"
-	datastoreDb "beam.apache.org/playground/backend/internal/db/datastore"
+	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/utils"
-	"os"
-	"testing"
 )
 
 var testable *DatastoreMapper
@@ -31,7 +32,7 @@ func TestMain(m *testing.M) {
 	appEnv := environment.NewApplicationEnvs("/app", "", "", "", "", "", "../../../.", nil, 0)
 	appEnv.SetSchemaVersion("MOCK_SCHEMA")
 	props, _ := environment.NewProperties(appEnv.PropertyPath())
-	testable = New(appEnv, props)
+	testable = NewDatastoreMapper(appEnv, props)
 	exitValue := m.Run()
 	os.Exit(exitValue)
 }
@@ -55,10 +56,10 @@ func TestEntityMapper_ToSnippet(t *testing.T) {
 					IdLength: 11,
 				},
 				Snippet: &entity.SnippetEntity{
-					SchVer:        utils.GetNameKey(datastoreDb.SchemaKind, "MOCK_SCHEMA", datastoreDb.Namespace, nil),
-					Sdk:           utils.GetNameKey(datastoreDb.SdkKind, "SDK_JAVA", datastoreDb.Namespace, nil),
+					SchVer:        utils.GetSchemaVerKey("MOCK_SCHEMA"),
+					Sdk:           utils.GetSdkKey(pb.Sdk_SDK_JAVA.String()),
 					PipeOpts:      "MOCK_OPTIONS",
-					Origin:        "PG_USER",
+					Origin:        constants.UserSnippetOrigin,
 					NumberOfFiles: 1,
 				},
 				Files: []*entity.FileEntity{
@@ -80,7 +81,7 @@ func TestEntityMapper_ToSnippet(t *testing.T) {
 				result.Salt != tt.expected.Salt ||
 				result.Snippet.PipeOpts != tt.expected.Snippet.PipeOpts ||
 				result.Snippet.NumberOfFiles != 1 ||
-				result.Snippet.Origin != "PG_USER" {
+				result.Snippet.Origin != constants.UserSnippetOrigin {
 				t.Error("Unexpected result")
 			}
 		})
