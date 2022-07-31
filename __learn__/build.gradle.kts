@@ -395,3 +395,29 @@ release {
     }
   }
 }
+
+// with several Beam artifact ids there can be linkage errors - this reports them
+// usage (from project root):
+// ./gradlew -Ppublishing -PjavaLinkageArtifactIds=artifactId1,artifactId2,... :checkJavaLinkage
+// here's an example:
+// ./gradlew -Ppublishing -PjavaLinkageArtifactIds=beam-sdks-java-core,beam-sdks-java-io-jdbc :checkJavaLinkage
+// this task populates your local Maven repo
+if (project.hasProperty("javaLinkageArtifactIds")) {
+  if (!project.hasProperty("publishing")) {
+    throw GradleException("Please specify -Ppublishing")
+  }
+
+  val linkageCheckerJava by configurations.creating
+  dependencies {
+    linkageCheckerJava("com.google.cloud.tools:dependencies:1.5.6")
+  }
+
+  // go through all the projects first
+  // find dependencies on all 
+  // publishMavenJavaPublicationToMavenLocal tasks below
+  for (p in rootProject.subprojects) {
+    if (p.path != project.path) {
+      evaluationDependsOn(p.path)
+    }
+  }
+}
