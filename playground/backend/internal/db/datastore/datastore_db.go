@@ -17,6 +17,7 @@ package datastore
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"cloud.google.com/go/datastore"
@@ -241,6 +242,223 @@ func (d *Datastore) GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEnti
 		Files:      files,
 		SdkCatalog: sdkCatalog,
 	}), nil
+}
+
+//GetDefaultExamples returns the default examples
+func (d *Datastore) GetDefaultExamples(ctx context.Context, sdks []*entity.SDKEntity) (map[pb.Sdk]*pb.PrecompiledObject, error) {
+	tx, err := d.Client.NewTransaction(ctx, datastore.ReadOnly)
+	if err != nil {
+		logger.Errorf(errorMsgTemplateCreatingTx, err.Error())
+		return nil, err
+	}
+	defer rollback(tx)
+
+	//Retrieving examples
+	var exampleKeys []*datastore.Key
+	for _, sdk := range sdks {
+		exampleKeys = append(exampleKeys, utils.GetExampleKey(sdk.Name, sdk.DefaultExample))
+	}
+	var examplesWithNils = make([]*entity.ExampleEntity, len(exampleKeys))
+	examples := make([]*entity.ExampleEntity, 0)
+	if err = tx.GetMulti(exampleKeys, examplesWithNils); err != nil {
+		if errors, ok := err.(datastore.MultiError); ok {
+			for _, errVal := range errors {
+				if errVal == datastore.ErrNoSuchEntity {
+					for _, exampleVal := range examplesWithNils {
+						if exampleVal != nil {
+							examples = append(examples, exampleVal)
+						}
+					}
+				}
+			}
+		} else {
+			logger.Errorf("error during the getting default examples, err: %s\n", err.Error())
+			return nil, err
+		}
+	} else {
+		examples = examplesWithNils
+	}
+
+	if len(examples) == 0 {
+		logger.Error("no examples")
+		return nil, fmt.Errorf("no examples")
+	}
+
+	//Retrieving snippets
+	var snippetKeys []*datastore.Key
+	for _, exampleKey := range exampleKeys {
+		snippetKeys = append(snippetKeys, utils.GetSnippetKey(exampleKey.Name))
+	}
+	snippetsWithNils := make([]*entity.SnippetEntity, len(snippetKeys))
+	snippets := make([]*entity.SnippetEntity, 0)
+	if err = tx.GetMulti(snippetKeys, snippetsWithNils); err != nil {
+		if errors, ok := err.(datastore.MultiError); ok {
+			for _, errVal := range errors {
+				if errVal == datastore.ErrNoSuchEntity {
+					for _, snipVal := range snippetsWithNils {
+						if snipVal != nil {
+							snippets = append(snippets, snipVal)
+						}
+					}
+				}
+			}
+		} else {
+			logger.Errorf("error during the getting snippets, err: %s\n", err.Error())
+			return nil, err
+		}
+	} else {
+		snippets = snippetsWithNils
+	}
+
+	//Retrieving files
+	var fileKeys []*datastore.Key
+	for snpIndx, snippet := range snippets {
+		for fileIndx := 0; fileIndx < snippet.NumberOfFiles; fileIndx++ {
+			fileKey := utils.GetFileKey(examples[snpIndx].Sdk.Name, examples[snpIndx].Name, fileIndx)
+			fileKeys = append(fileKeys, fileKey)
+		}
+	}
+	files := make([]*entity.FileEntity, len(fileKeys))
+	if err = tx.GetMulti(fileKeys, files); err != nil {
+		logger.Errorf("error during the getting files, err: %s\n", err.Error())
+		return nil, err
+	}
+
+	return d.ResponseMapper.ToDefaultPrecompiledObjects(&dto.DefaultExamplesDTO{
+		Examples: examples,
+		Snippets: snippets,
+		Files:    files,
+	}), nil
+}
+
+func (d *Datastore) GetExample(ctx context.Context, id string, sdks []*entity.SDKEntity) (*pb.PrecompiledObject, error) {
+	tx, err := d.Client.NewTransaction(ctx, datastore.ReadOnly)
+	if err != nil {
+		logger.Errorf(errorMsgTemplateCreatingTx, err.Error())
+		return nil, err
+	}
+	defer rollback(tx)
+
+	exampleKey := utils.GetExampleKey(id)
+	var example = new(entity.ExampleEntity)
+	if err = tx.Get(exampleKey, example); err != nil {
+		if err == datastore.ErrNoSuchEntity {
+			logger.Warnf("error during getting example by identifier, err: %s", err.Error())
+			return nil, err
+		}
+		logger.Errorf("error during getting example by identifier, err: %s", err.Error())
+		return nil, err
+	}
+
+	snpKey := utils.GetSnippetKey(id)
+	var snippet = new(entity.SnippetEntity)
+	if err = tx.Get(snpKey, snippet); err != nil {
+		logger.Errorf("error during getting snippet by identifier, err: %s", err.Error())
+		return nil, err
+	}
+
+	fileKey := utils.GetFileKey(id, 0)
+	var file = new(entity.FileEntity)
+	if err = tx.Get(fileKey, file); err != nil {
+		logger.Errorf("error during getting file by identifier, err: %s", err.Error())
+		return nil, err
+	}
+
+	sdkToExample := make(map[string]string)
+	for _, sdk := range sdks {
+		sdkToExample[sdk.Name] = sdk.DefaultExample
+	}
+
+	return d.ResponseMapper.ToPrecompiledObj(&dto.ExampleDTO{
+		Example:            example,
+		Snippet:            snippet,
+		Files:              []*entity.FileEntity{file},
+		DefaultExampleName: sdkToExample[example.Sdk.Name],
+	}), err
+}
+
+func (d *Datastore) GetExampleCode(ctx context.Context, id string) (string, error) {
+	tx, err := d.Client.NewTransaction(ctx, datastore.ReadOnly)
+	if err != nil {
+		logger.Errorf(errorMsgTemplateCreatingTx, err.Error())
+		return "", err
+	}
+	defer rollback(tx)
+
+	fileKey := utils.GetFileKey(id, 0)
+	var file = new(entity.FileEntity)
+	if err = tx.Get(fileKey, file); err != nil {
+		if err == datastore.ErrNoSuchEntity {
+			logger.Warnf("error during getting example code by identifier, err: %s", err.Error())
+			return "", err
+		}
+		logger.Errorf("error during getting example code by identifier, err: %s", err.Error())
+		return "", err
+	}
+	return file.Content, nil
+}
+
+func (d *Datastore) GetExampleOutput(ctx context.Context, id string) (string, error) {
+	tx, err := d.Client.NewTransaction(ctx, datastore.ReadOnly)
+	if err != nil {
+		logger.Errorf(errorMsgTemplateCreatingTx, err.Error())
+		return "", err
+	}
+	defer rollback(tx)
+
+	pcObjKey := utils.GetPCObjectKey(id, constants.PCOutputType)
+	var pcObj = new(entity.PrecompiledObjectEntity)
+	if err = tx.Get(pcObjKey, pcObj); err != nil {
+		if err == datastore.ErrNoSuchEntity {
+			logger.Warnf("error during getting example output by identifier, err: %s", err.Error())
+			return "", err
+		}
+		logger.Errorf("error during getting example output by identifier, err: %s", err.Error())
+		return "", err
+	}
+	return pcObj.Content, nil
+}
+
+func (d *Datastore) GetExampleLogs(ctx context.Context, id string) (string, error) {
+	tx, err := d.Client.NewTransaction(ctx, datastore.ReadOnly)
+	if err != nil {
+		logger.Errorf(errorMsgTemplateCreatingTx, err.Error())
+		return "", err
+	}
+	defer rollback(tx)
+
+	pcObjKey := utils.GetPCObjectKey(id, constants.PCLogType)
+	var pcObj = new(entity.PrecompiledObjectEntity)
+	if err = tx.Get(pcObjKey, pcObj); err != nil {
+		if err == datastore.ErrNoSuchEntity {
+			logger.Warnf("error during getting example logs by identifier, err: %s", err.Error())
+			return "", err
+		}
+		logger.Errorf("error during getting example logs by identifier, err: %s", err.Error())
+		return "", err
+	}
+	return pcObj.Content, nil
+}
+
+func (d *Datastore) GetExampleGraph(ctx context.Context, id string) (string, error) {
+	tx, err := d.Client.NewTransaction(ctx, datastore.ReadOnly)
+	if err != nil {
+		logger.Errorf(errorMsgTemplateCreatingTx, err.Error())
+		return "", err
+	}
+	defer rollback(tx)
+
+	pcObjKey := utils.GetPCObjectKey(id, constants.PCGraphType)
+	var pcObj = new(entity.PrecompiledObjectEntity)
+	if err = tx.Get(pcObjKey, pcObj); err != nil {
+		if err == datastore.ErrNoSuchEntity {
+			logger.Warnf("error during getting example graph by identifier, err: %s", err.Error())
+			return "", err
+		}
+		logger.Errorf("error during getting example graph by identifier, err: %s", err.Error())
+		return "", err
+	}
+	return pcObj.Content, nil
 }
 
 func rollback(tx *datastore.Transaction) {
