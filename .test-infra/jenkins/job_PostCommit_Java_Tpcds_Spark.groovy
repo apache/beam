@@ -21,6 +21,9 @@ import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
 import InfluxDBCredentialsHelper
 
+import static TpcdsDatabaseProperties.tpcdsBigQueryArgs
+import static TpcdsDatabaseProperties.tpcdsInfluxDBArgs
+
 // This job runs the Tpcds benchmark suite against the Spark runner.
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Spark',
     'Spark Runner Tpcds Tests', this) {
@@ -32,24 +35,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Sp
 
       // Gradle goals for this job.
       steps {
-        shell('echo "*** RUN TPCDS IN BATCH MODE USING SPARK 2 RUNNER ***"')
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':sdks:java:testing:tpcds:run')
-          commonJobProperties.setGradleSwitches(delegate)
-          switches('-Ptpcds.runner=":runners:spark:2"' +
-              ' -Ptpcds.args="' +
-              [
-                '--dataSize=1GB',
-                '--sourceType=PARQUET',
-                '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
-                '--resultsDirectory=gs://beam-tpcds/results/',
-                '--tpcParallel=1',
-                '--runner=SparkRunner',
-                '--queries=3'
-              ].join(' '))
-        }
-        shell('echo "*** RUN TPCDS IN BATCH MODE USING SPARK 3 RUNNER ***"')
+        shell('echo "*** RUN TPC-DS USING SPARK 3 RDD RUNNER ***"')
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:tpcds:run')
@@ -57,34 +43,18 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Sp
           switches('-Ptpcds.runner=":runners:spark:3"' +
               ' -Ptpcds.args="' +
               [
+                commonJobProperties.mapToArgString(tpcdsBigQueryArgs),
+                commonJobProperties.mapToArgString(tpcdsInfluxDBArgs),
+                '--runner=SparkRunner',
                 '--dataSize=1GB',
                 '--sourceType=PARQUET',
                 '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
-                '--resultsDirectory=gs://beam-tpcds/results/',
+                '--resultsDirectory=gs://beam-tpcds/results/spark3-rdd/',
                 '--tpcParallel=1',
-                '--runner=SparkRunner',
-                '--queries=3'
+                '--queries=3,7,10,25,26,29,35,38,40,42,43,52,55,69,79,83,84,87,93,96'
               ].join(' '))
         }
-
-        shell('echo "*** RUN TPCDS IN BATCH MODE USING SPARK 2 STRUCTURED STREAMING RUNNER ***"')
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':sdks:java:testing:tpcds:run')
-          commonJobProperties.setGradleSwitches(delegate)
-          switches('-Ptpcds.runner=":runners:spark:2"' +
-              ' -Ptpcds.args="' +
-              [
-                '--dataSize=1GB',
-                '--sourceType=PARQUET',
-                '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
-                '--resultsDirectory=gs://beam-tpcds/results/',
-                '--tpcParallel=1',
-                '--runner=SparkRunner',
-                '--queries=3'
-              ].join(' '))
-        }
-        shell('echo "*** RUN TPCDS IN BATCH MODE USING SPARK 3 STRUCTURED STREAMING RUNNER ***"')
+        shell('echo "*** RUN TPC-DS USING SPARK 3 DATASET RUNNER ***"')
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:tpcds:run')
@@ -92,13 +62,15 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Sp
           switches('-Ptpcds.runner=":runners:spark:3"' +
               ' -Ptpcds.args="' +
               [
+                commonJobProperties.mapToArgString(tpcdsBigQueryArgs),
+                commonJobProperties.mapToArgString(tpcdsInfluxDBArgs),
+                '--runner=SparkStructuredStreamingRunner',
                 '--dataSize=1GB',
                 '--sourceType=PARQUET',
                 '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
-                '--resultsDirectory=gs://beam-tpcds/results/',
+                '--resultsDirectory=gs://beam-tpcds/results/spark3-dataset/',
                 '--tpcParallel=1',
-                '--runner=SparkRunner',
-                '--queries=3'
+                '--queries=3,7,10,25,26,29,35,38,40,42,43,52,55,69,79,83,84,87,93,96'
               ].join(' '))
         }
       }
@@ -115,24 +87,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Spar
 
       // Gradle goals for this job.
       steps {
-        shell('echo "*** RUN TPCDS IN BATCH MODE USING SPARK 2 RUNNER ***"')
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':sdks:java:testing:tpcds:run')
-          commonJobProperties.setGradleSwitches(delegate)
-          switches('-Ptpcds.runner=":runners:spark:2"' +
-              ' -Ptpcds.args="' +
-              [
-                '--dataSize=1GB',
-                '--sourceType=PARQUET',
-                '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
-                '--resultsDirectory=gs://beam-tpcds/results/',
-                '--tpcParallel=1',
-                '--runner=SparkRunner',
-                '--queries=3'
-              ].join(' '))
-        }
-        shell('echo "*** RUN TPCDS IN BATCH MODE USING SPARK 3 RUNNER ***"')
+        shell('echo "*** RUN TPC-DS USING SPARK 3 RDD RUNNER ***"')
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:tpcds:run')
@@ -140,34 +95,18 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Spar
           switches('-Ptpcds.runner=":runners:spark:3"' +
               ' -Ptpcds.args="' +
               [
+                commonJobProperties.mapToArgString(tpcdsBigQueryArgs),
+                commonJobProperties.mapToArgString(tpcdsInfluxDBArgs),
+                '--runner=SparkRunner',
                 '--dataSize=1GB',
                 '--sourceType=PARQUET',
                 '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
-                '--resultsDirectory=gs://beam-tpcds/results/',
+                '--resultsDirectory=gs://beam-tpcds/results/spark3-rdd/',
                 '--tpcParallel=1',
-                '--runner=SparkRunner',
-                '--queries=3'
+                '--queries=3,7,10,25,26,29,35,38,40,42,43,52,55,69,79,83,84,87,93,96'
               ].join(' '))
         }
-
-        shell('echo "*** RUN TPCDS IN BATCH MODE USING SPARK 2 STRUCTURED STREAMING RUNNER ***"')
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':sdks:java:testing:tpcds:run')
-          commonJobProperties.setGradleSwitches(delegate)
-          switches('-Ptpcds.runner=":runners:spark:2"' +
-              ' -Ptpcds.args="' +
-              [
-                '--dataSize=1GB',
-                '--sourceType=PARQUET',
-                '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
-                '--resultsDirectory=gs://beam-tpcds/results/',
-                '--tpcParallel=1',
-                '--runner=SparkRunner',
-                '--queries=3'
-              ].join(' '))
-        }
-        shell('echo "*** RUN TPCDS IN BATCH MODE USING SPARK 3 STRUCTURED STREAMING RUNNER ***"')
+        shell('echo "*** RUN TPC-DS USING SPARK 3 DATASET RUNNER ***"')
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:tpcds:run')
@@ -175,13 +114,15 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Tpcds_Spar
           switches('-Ptpcds.runner=":runners:spark:3"' +
               ' -Ptpcds.args="' +
               [
+                commonJobProperties.mapToArgString(tpcdsBigQueryArgs),
+                commonJobProperties.mapToArgString(tpcdsInfluxDBArgs),
+                '--runner=SparkStructuredStreamingRunner',
                 '--dataSize=1GB',
                 '--sourceType=PARQUET',
                 '--dataDirectory=gs://beam-tpcds/datasets/parquet/partitioned',
-                '--resultsDirectory=gs://beam-tpcds/results/',
+                '--resultsDirectory=gs://beam-tpcds/results/spark3-dataset/',
                 '--tpcParallel=1',
-                '--runner=SparkRunner',
-                '--queries=3'
+                '--queries=3,7,10,25,26,29,35,38,40,42,43,52,55,69,79,83,84,87,93,96'
               ].join(' '))
         }
       }

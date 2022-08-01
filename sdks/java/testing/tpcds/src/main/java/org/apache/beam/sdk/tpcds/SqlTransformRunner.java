@@ -17,14 +17,18 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import static java.util.stream.Collectors.toList;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,6 +41,8 @@ import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -48,6 +54,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.util.SqlBas
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
 import org.apache.commons.csv.CSVFormat;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -215,18 +222,26 @@ public class SqlTransformRunner {
     return schemaProjected;
   }
 
+  private static List<TpcdsRunResult> collectTpcdsResults(
+      CompletionService<TpcdsRunResult> completion, int numOfResults)
+      throws InterruptedException, ExecutionException {
+    List<TpcdsRunResult> results = new ArrayList<>();
+    for (int i = 0; i < numOfResults; i++) {
+      results.add(completion.take().get());
+    }
+
+    return results;
+  }
+
   /**
    * Print the summary table after all jobs are finished.
    *
-   * @param completion A collection of all TpcdsRunResult that are from finished jobs.
-   * @param numOfResults The number of results in the collection.
+   * @param results Tpcds run results
    * @throws Exception
    */
-  private static void printExecutionSummary(
-      CompletionService<TpcdsRunResult> completion, int numOfResults) throws Exception {
+  private static void printExecutionSummary(List<TpcdsRunResult> results) throws Exception {
     List<List<String>> summaryRowsList = new ArrayList<>();
-    for (int i = 0; i < numOfResults; i++) {
-      TpcdsRunResult tpcdsRunResult = completion.take().get();
+    for (TpcdsRunResult tpcdsRunResult : results) {
       List<String> list = new ArrayList<>();
       list.add(tpcdsRunResult.getQueryName());
       list.add(tpcdsRunResult.getJobName());
@@ -252,6 +267,8 @@ public class SqlTransformRunner {
    * @throws Exception
    */
   public static void runUsingSqlTransform(String[] args) throws Exception {
+    Instant start = Instant.now();
+
     TpcdsOptions tpcdsOptions =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(TpcdsOptions.class);
 
@@ -306,6 +323,68 @@ public class SqlTransformRunner {
 
     executor.shutdown();
 
-    printExecutionSummary(completion, queryNames.length);
+    List<TpcdsRunResult> results = collectTpcdsResults(completion, queryNames.length);
+
+    if (tpcdsOptions.getExportSummaryToInfluxDB()) {
+      final long timestamp = start.getMillis() / 1000; // seconds
+      savePerfsToInfluxDB(tpcdsOptions, results, timestamp);
+    }
+
+    printExecutionSummary(results);
+  }
+
+  private static void savePerfsToInfluxDB(
+      final TpcdsOptions options, final List<TpcdsRunResult> results, final long timestamp) {
+    final InfluxDBSettings settings = getInfluxSettings(options);
+    final Map<String, String> tags = options.getInfluxTags();
+    final String runner = options.getRunner().getSimpleName();
+    final List<Map<String, Object>> schemaResults =
+        results.stream()
+            .map(
+                entry ->
+                    getResultsFromSchema(
+                        entry, timestamp, runner, produceMeasurement(options, entry)))
+            .collect(toList());
+    InfluxDBPublisher.publishTpcdsResults(schemaResults, settings, tags);
+  }
+
+  private static String produceMeasurement(final TpcdsOptions options, TpcdsRunResult entry) {
+    return String.format(
+        "%s_%s_%s_%s",
+        options.getBaseInfluxMeasurement(),
+        entry.getQueryName(),
+        entry.getDialect(),
+        entry.getDataSize());
+  }
+
+  private static Map<String, Object> getResultsFromSchema(
+      final TpcdsRunResult results,
+      final long timestamp,
+      final String runner,
+      final String measurement) {
+    final Map<String, Object> schemaResults = new HashMap<>();
+    schemaResults.put("timestamp", timestamp);
+    schemaResults.put("runner", runner);
+    schemaResults.put("measurement", measurement);
+
+    // By default, InfluxDB treats all number values as floats. We need to add 'i' suffix to
+    // interpret the value as an integer.
+    final int runtimeMs =
+        results.getIsSuccessful()
+            ? (int) (results.getElapsedTime() * 1000)
+            : // change sec to ms
+            0;
+    schemaResults.put("runtimeMs", runtimeMs + "i");
+
+    return schemaResults;
+  }
+
+  private static InfluxDBSettings getInfluxSettings(final TpcdsOptions options) {
+    return InfluxDBSettings.builder()
+        .withHost(options.getInfluxHost())
+        .withDatabase(options.getInfluxDatabase())
+        .withMeasurement(options.getBaseInfluxMeasurement())
+        .withRetentionPolicy(options.getInfluxRetentionPolicy())
+        .get();
   }
 }
