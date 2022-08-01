@@ -20,12 +20,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.core.ApiFuture;
-import com.google.api.gax.rpc.ApiException;
-import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions.StreamFinalizedException;
-import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
-import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import io.grpc.Status;
@@ -71,6 +67,7 @@ import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.Preconditions;
@@ -533,22 +530,15 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     private void finalizeStream(
         @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
-        @Nullable OutputReceiver<KV<String, Operation>> o,
-        boolean inline,
-        @Nullable DatasetService datasetService)
-        throws Exception {
+        OutputReceiver<KV<String, Operation>> o,
+        org.joda.time.Instant finalizeElementTs) {
       String stream = MoreObjects.firstNonNull(streamName.read(), "");
 
       if (!Strings.isNullOrEmpty(stream)) {
         // Finalize the stream
         long nextOffset = MoreObjects.firstNonNull(streamOffset.read(), 0L);
-        if (inline) {
-          flushAndFinalizeStreamInline(
-              stream, nextOffset - 1, Preconditions.checkArgumentNotNull(datasetService));
-        } else {
-          Preconditions.checkArgumentNotNull(o)
-              .output(KV.of(stream, new Operation(nextOffset - 1, true)));
-        }
+        o.outputWithTimestamp(
+            KV.of(stream, new Operation(nextOffset - 1, true)), finalizeElementTs);
         streamName.clear();
         streamOffset.clear();
         // Make sure that the stream object is closed.
@@ -556,103 +546,19 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       }
     }
 
-    private void flushAndFinalizeStreamInline(
-        String stream, long nextOffset, DatasetService datasetService) throws Exception {
-      flushStreamInline(stream, nextOffset, datasetService);
-      finalizeStreamInline(stream, datasetService);
-    }
-
-    // TODO: The following functions duplicate a lot of code in StorageApiFlushAndFinalizeDoFn. We
-    // can't trivially
-    // refactor, as the version in the DoFn uses a lot of Beam counters that must be member
-    // variables of the DoFn.
-    // We should figure out how to refactor this into a common library.
-    private void flushStreamInline(String stream, long nextOffset, DatasetService datasetService)
-        throws Exception {
-      RetryManager<FlushRowsResponse, RetryManager.Operation.Context<FlushRowsResponse>>
-          retryManager =
-              new RetryManager<>(Duration.standardSeconds(1), Duration.standardMinutes(1), 3);
-      // First always try to flush.
-      retryManager.addOperation(
-          // runOperation
-          c -> {
-            try {
-              return datasetService.flush(stream, nextOffset);
-            } catch (Exception e) {
-              throw new RuntimeException(e);
-            }
-          },
-          // onError
-          contexts -> {
-            Throwable error =
-                Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null)).getError();
-            if (error instanceof ApiException) {
-              StatusCode.Code statusCode = ((ApiException) error).getStatusCode().getCode();
-              if (statusCode.equals(StatusCode.Code.ALREADY_EXISTS)) {
-                // Implies that we have already flushed up to this point, so don't retry.
-                return RetryType.DONT_RETRY;
-              }
-              if (statusCode.equals(StatusCode.Code.INVALID_ARGUMENT)) {
-                // Implies that the stream has already been finalized.
-                // TODO: Storage API should provide a more-specific way of identifying this failure.
-                return RetryType.DONT_RETRY;
-              }
-              if (statusCode.equals(StatusCode.Code.NOT_FOUND)) {
-                return RetryType.DONT_RETRY;
-              }
-            }
-            return RetryType.RETRY_ALL_OPERATIONS;
-          },
-          // onSuccess
-          c -> {},
-          new RetryManager.Operation.Context<>());
-      retryManager.run(true);
-    }
-
-    void finalizeStreamInline(String streamId, DatasetService datasetService) throws Exception {
-      RetryManager<
-              FinalizeWriteStreamResponse,
-              RetryManager.Operation.Context<FinalizeWriteStreamResponse>>
-          retryManager =
-              new RetryManager<>(Duration.standardSeconds(1), Duration.standardMinutes(1), 3);
-      retryManager.addOperation(
-          c -> {
-            return datasetService.finalizeWriteStream(streamId);
-          },
-          contexts -> {
-            LOG.warn(
-                "Finalize of stream "
-                    + streamId
-                    + " failed with "
-                    + Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null))
-                        .getError());
-            @javax.annotation.Nullable
-            RetryManager.Operation.Context<FinalizeWriteStreamResponse> firstContext =
-                Iterables.getFirst(contexts, null);
-            @javax.annotation.Nullable
-            Throwable error = firstContext == null ? null : firstContext.getError();
-            if (error instanceof ApiException) {
-              StatusCode.Code statusCode = ((ApiException) error).getStatusCode().getCode();
-              if (statusCode.equals(StatusCode.Code.NOT_FOUND)) {
-                return RetryType.DONT_RETRY;
-              }
-            }
-            return RetryType.RETRY_ALL_OPERATIONS;
-          },
-          r -> {},
-          new RetryManager.Operation.Context<>());
-      retryManager.run(true);
-    }
-
     @OnTimer("idleTimer")
     public void onTimer(
         @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
-        PipelineOptions pipelineOptions)
-        throws Exception {
-      // Stream is idle - clear it. Make sure to clear it inline, as we can't safely output records
-      // from here.
-      finalizeStream(streamName, streamOffset, null, true, getDatasetService(pipelineOptions));
+        OutputReceiver<KV<String, Operation>> o,
+        BoundedWindow window) {
+      // Stream is idle - clear it.
+      // Note: this is best effort. We are explicitly emiting a timestamp that is before
+      // the default output timestamp, which means that in some cases (usually when draining
+      // a pipeline) this finalize element will be dropped as late. This is usually ok as
+      // BigQuery will eventually garbage collect the stream. We attempt to finalize idle streams
+      // merely to remove the pressure of large numbers of orphaned streams from BigQuery.
+      finalizeStream(streamName, streamOffset, o, window.maxTimestamp());
       streamsIdle.inc();
     }
 
@@ -660,11 +566,16 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     public void onWindowExpiration(
         @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
-        final OutputReceiver<KV<String, Operation>> o)
-        throws Exception {
+        OutputReceiver<KV<String, Operation>> o,
+        BoundedWindow window) {
       // Window is done - usually because the pipeline has been drained. Make sure to clean up
       // streams so that they are not leaked.
-      finalizeStream(streamName, streamOffset, o, false, null);
+      finalizeStream(streamName, streamOffset, o, window.maxTimestamp());
+    }
+
+    @Override
+    public Duration getAllowedTimestampSkew() {
+      return Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
     }
   }
 }
