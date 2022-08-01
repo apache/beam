@@ -16,13 +16,16 @@
 package local
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/cache"
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/db/entity"
 )
 
 const (
@@ -35,6 +38,7 @@ type Cache struct {
 	items                     map[uuid.UUID]map[cache.SubKey]interface{}
 	pipelinesExpiration       map[uuid.UUID]time.Time
 	catalog                   []*pb.Categories
+	sdkCatalog                []*entity.SDKEntity
 	defaultPrecompiledObjects map[pb.Sdk]*pb.PrecompiledObject
 }
 
@@ -142,6 +146,22 @@ func (lc *Cache) GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk) (*
 		return nil, fmt.Errorf("default precompiled obejct is not found for %s sdk", sdk.String())
 	}
 	return defaultPrecompiledObject, nil
+}
+
+func (lc *Cache) SetSdkCatalog(_ context.Context, sdks []*entity.SDKEntity) error {
+	lc.Lock()
+	defer lc.Unlock()
+	lc.sdkCatalog = sdks
+	return nil
+}
+
+func (lc *Cache) GetSdkCatalog(_ context.Context) ([]*entity.SDKEntity, error) {
+	lc.RLock()
+	defer lc.RUnlock()
+	if lc.sdkCatalog == nil {
+		return nil, fmt.Errorf("sdk catalog is not found")
+	}
+	return lc.sdkCatalog, nil
 }
 
 func (lc *Cache) startGC(ctx context.Context) {

@@ -16,12 +16,18 @@
 package entity
 
 import (
-	"beam.apache.org/playground/backend/internal/utils"
-	"cloud.google.com/go/datastore"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"time"
+
+	"cloud.google.com/go/datastore"
+
+	"beam.apache.org/playground/backend/internal/errors"
+	"beam.apache.org/playground/backend/internal/logger"
 )
 
 type FileEntity struct {
@@ -63,9 +69,27 @@ func (s *Snippet) ID() (string, error) {
 			contentBuilder.WriteString(fmt.Sprintf("%v%s", s.Snippet.Sdk, strings.TrimSpace(s.Snippet.PipeOpts)))
 		}
 	}
-	id, err := utils.ID(s.Salt, contentBuilder.String(), s.IdLength)
+	id, err := generateID(s.Salt, contentBuilder.String(), s.IdLength)
 	if err != nil {
 		return "", err
 	}
 	return id, nil
+}
+
+//TODO after removing the cloud storage this method should be deleted. It's a duplicate code from utils package
+func generateID(salt, content string, length int8) (string, error) {
+	hash := sha256.New()
+	if _, err := io.WriteString(hash, salt); err != nil {
+		logger.Errorf("ID(): error during hash generation: %s", err.Error())
+		return "", errors.InternalError("Error during hash generation", "Error writing hash and salt")
+	}
+	hash.Write([]byte(content))
+	sum := hash.Sum(nil)
+	b := make([]byte, base64.URLEncoding.EncodedLen(len(sum)))
+	base64.URLEncoding.Encode(b, sum)
+	hashLen := int(length)
+	for hashLen <= len(b) && b[hashLen-1] == '_' {
+		hashLen++
+	}
+	return string(b)[:hashLen], nil
 }
