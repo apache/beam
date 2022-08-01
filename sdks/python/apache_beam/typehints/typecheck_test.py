@@ -36,6 +36,9 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.timeutil import TimeDomain
+from apache_beam.transforms.userstate import TimerSpec
+from apache_beam.transforms.userstate import on_timer
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import decorators
 from apache_beam.typehints import with_input_types
@@ -48,6 +51,9 @@ decorators._enable_from_callable = True
 
 
 class MyDoFn(beam.DoFn):
+
+  WINDOW_TIMER = TimerSpec('window_end', TimeDomain.WATERMARK)
+
   def __init__(self, output_filename):
     super().__init__()
     self.output_filename = output_filename
@@ -71,13 +77,22 @@ class MyDoFn(beam.DoFn):
     self._output().write('teardown\n')
     self._output().close()
 
-  def process(self, element: int, *args, **kwargs) -> Iterable[int]:
+  def process(
+      self,
+      element: Tuple[int, int],
+      window_timer=beam.DoFn.TimerParam(WINDOW_TIMER),
+      *args,
+      **kwargs) -> Iterable[int]:
     self._output().write('process\n')
-    yield element
+    yield element[1]
+
+  @on_timer(WINDOW_TIMER)
+  def on_window_timer(self):
+    pass
 
 
 class MyDoFnBadAnnotation(MyDoFn):
-  def process(self, element: int, *args, **kwargs) -> int:
+  def process(self, element: Tuple[int, int], *args, **kwargs) -> int:
     # Should raise an exception about return type not being iterable.
     return super().process()
 
@@ -105,21 +120,26 @@ class RuntimeTypeCheckTest(unittest.TestCase):
     with tempfile.TemporaryDirectory() as tmp_dirname:
       path = os.path.join(tmp_dirname + "tmp_filename")
       dofn = MyDoFn(path)
-      result = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
+      result = (
+          self.p | beam.Create([1, 2, 3]) | beam.WithKeys(0) | beam.ParDo(dofn))
       assert_that(result, equal_to([1, 2, 3]))
       self.p.run()
       with open(path, mode="r") as ft:
         lines = [line.strip() for line in ft]
-        self.assertListEqual([
-            'setup',
-            'start_bundle',
-            'process',
-            'process',
-            'process',
-            'finish_bundle',
-            'teardown',
-        ],
-                             lines)
+        self.assertListEqual(
+            [
+                'setup',
+                'start_bundle',
+                'process',
+                'process',
+                'process',
+                'finish_bundle',
+                # window timer
+                'start_bundle',
+                'finish_bundle',
+                'teardown',
+            ],
+            lines)
 
   def test_wrapper_pipeline_type_check(self):
     # Verifies that type hints are not masked by the wrapper. What actually
@@ -130,7 +150,9 @@ class RuntimeTypeCheckTest(unittest.TestCase):
     with tempfile.NamedTemporaryFile(mode='w+t') as f:
       dofn = MyDoFnBadAnnotation(f.name)
       with self.assertRaisesRegex(ValueError, r'int.*is not iterable'):
-        _ = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
+        _ = (
+            self.p
+            | beam.Create([1, 2, 3]) | beam.WithKeys(0) | beam.ParDo(dofn))
 
 
 class PerformanceRuntimeTypeCheckTest(unittest.TestCase):

@@ -1992,7 +1992,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
-    with self.assertRaises(typehints.TypeCheckError) as e:
+    with self.assertRaises(TypeError) as e:
       (
           self.p
           | beam.Create([0]).with_output_types(int)
@@ -2003,11 +2003,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertStartswith(
         e.exception.args[0],
-        "Runtime type violation detected within "
-        "ParDo(SortJoin/KeyWithVoid): "
-        "Type-hint for argument: 'v' violated. "
-        "Expected an instance of {}, "
-        "instead found 0, an instance of {}.".format(str, int))
+        "sequence item 0: expected str instance, int found")
 
   def test_combine_insufficient_type_hint_information(self):
     self.p._options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
