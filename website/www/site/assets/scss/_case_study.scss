@@ -215,7 +215,7 @@ h2.case-study-h2 {
     &:before {
       content: ' ';
       top: 16px;
-      background-image: url("/images/open-quote.svg");
+      background-image: url('{{ "images/open-quote.svg" | absURL }}');
       height: 37px;
       width: 46px;
       position: absolute;
@@ -225,7 +225,7 @@ h2.case-study-h2 {
 
     &:after {
       content: ' ';
-      background-image: url("/images/close-quote.svg");
+      background-image: url('{{ "images/close-quote.svg" | absURL }}');
       height: 37px;
       width: 46px;
       right: 12px;

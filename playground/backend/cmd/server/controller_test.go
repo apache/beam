@@ -18,7 +18,14 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
+	"beam.apache.org/playground/backend/internal/db"
+	datastoreDb "beam.apache.org/playground/backend/internal/db/datastore"
+	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/db/mapper"
+	"beam.apache.org/playground/backend/internal/db/schema"
+	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
+	"beam.apache.org/playground/backend/internal/utils"
 	"context"
 	"fmt"
 	"github.com/google/uuid"
@@ -38,16 +45,21 @@ import (
 )
 
 const (
-	bufSize               = 1024 * 1024
-	javaConfig            = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
-	javaLogConfigFilename = "logging.properties"
-	baseFileFolder        = "executable_files"
-	configFolder          = "configs"
+	bufSize                    = 1024 * 1024
+	javaConfig                 = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
+	javaLogConfigFilename      = "logging.properties"
+	baseFileFolder             = "executable_files"
+	configFolder               = "configs"
+	datastoreEmulatorHostKey   = "DATASTORE_EMULATOR_HOST"
+	datastoreEmulatorHostValue = "127.0.0.1:8888"
+	datastoreEmulatorProjectId = "test"
 )
 
 var lis *bufconn.Listener
 var cacheService cache.Cache
+var dbClient db.Database
 var opt goleak.Option
+var ctx context.Context
 
 func TestMain(m *testing.M) {
 	server := setup()
@@ -58,6 +70,7 @@ func TestMain(m *testing.M) {
 }
 
 func setup() *grpc.Server {
+	ctx = context.Background()
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer()
 
@@ -79,8 +92,21 @@ func setup() *grpc.Server {
 	}
 
 	// setup cache
-	cacheService = local.New(context.Background())
+	cacheService = local.New(ctx)
 
+	// setup database
+	datastoreEmulatorHost := os.Getenv(datastoreEmulatorHostKey)
+	if datastoreEmulatorHost == "" {
+		if err = os.Setenv(datastoreEmulatorHostKey, datastoreEmulatorHostValue); err != nil {
+			panic(err)
+		}
+	}
+	dbClient, err = datastoreDb.New(ctx, datastoreEmulatorProjectId)
+	if err != nil {
+		panic(err)
+	}
+
+	// setup environment variables
 	path, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -89,6 +115,12 @@ func setup() *grpc.Server {
 		panic(err)
 	}
 	if err = os.Setenv("APP_WORK_DIR", path); err != nil {
+		panic(err)
+	}
+	if err = os.Setenv("SDK_CONFIG", "../../../sdks.yaml"); err != nil {
+		panic(err)
+	}
+	if err = os.Setenv("PROPERTY_PATH", "../../."); err != nil {
 		panic(err)
 	}
 
@@ -104,9 +136,32 @@ func setup() *grpc.Server {
 	if err != nil {
 		panic(err)
 	}
+
+	// setup app props
+	props, err := environment.NewProperties(appEnv.PropertyPath())
+	if err != nil {
+		panic(err)
+	}
+
+	// setup initial data
+	versions := []schema.Version{
+		new(migration.InitialStructure),
+	}
+	dbSchema := schema.New(ctx, dbClient, appEnv, props, versions)
+	actualSchemaVersion, err := dbSchema.InitiateData()
+	if err != nil {
+		panic(err)
+	}
+	appEnv.SetSchemaVersion(actualSchemaVersion)
+
+	entityMapper := mapper.New(appEnv, props)
+
 	pb.RegisterPlaygroundServiceServer(s, &playgroundController{
 		env:          environment.NewEnvironment(*networkEnv, *sdkEnv, *appEnv),
 		cacheService: cacheService,
+		db:           dbClient,
+		props:        props,
+		entityMapper: entityMapper,
 	})
 	go func() {
 		if err := s.Serve(lis); err != nil {
@@ -174,12 +229,8 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			conn, err := grpc.DialContext(tt.args.ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
-			if err != nil {
-				t.Fatalf("Failed to dial bufnet: %v", err)
-			}
-			defer conn.Close()
-			client := pb.NewPlaygroundServiceClient(conn)
+			client, closeFunc := getPlaygroundServiceClient(tt.args.ctx, t)
+			defer closeFunc()
 			response, err := client.RunCode(tt.args.ctx, tt.args.request)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PlaygroundController_RunCode() error = %v, wantErr %v", err, tt.wantErr)
@@ -193,7 +244,7 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 					if response.PipelineUuid == "" {
 						t.Errorf("PlaygroundController_RunCode() response.pipeLineId shoudn't be nil")
 					}
-					_, err := cacheService.GetValue(tt.args.ctx, uuid.MustParse(response.PipelineUuid), cache.Status)
+					_, err = cacheService.GetValue(tt.args.ctx, uuid.MustParse(response.PipelineUuid), cache.Status)
 					if err != nil {
 						t.Errorf("PlaygroundController_RunCode() status should exist")
 					}
@@ -205,15 +256,10 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 
 func TestPlaygroundController_CheckStatus(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
-	ctx := context.Background()
 	pipelineId := uuid.New()
 	wantStatus := pb.Status_STATUS_FINISHED
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	defer conn.Close()
-	client := pb.NewPlaygroundServiceClient(conn)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
 
 	type args struct {
 		ctx     context.Context
@@ -284,15 +330,10 @@ func TestPlaygroundController_CheckStatus(t *testing.T) {
 
 func TestPlaygroundController_GetCompileOutput(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
-	ctx := context.Background()
 	pipelineId := uuid.New()
 	compileOutput := "MOCK_COMPILE_OUTPUT"
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	defer conn.Close()
-	client := pb.NewPlaygroundServiceClient(conn)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
 
 	type args struct {
 		ctx  context.Context
@@ -363,15 +404,10 @@ func TestPlaygroundController_GetCompileOutput(t *testing.T) {
 
 func TestPlaygroundController_GetRunOutput(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
-	ctx := context.Background()
 	pipelineId := uuid.New()
 	runOutput := "MOCK_RUN_OUTPUT"
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	defer conn.Close()
-	client := pb.NewPlaygroundServiceClient(conn)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
 
 	type args struct {
 		ctx  context.Context
@@ -472,15 +508,10 @@ func TestPlaygroundController_GetRunOutput(t *testing.T) {
 
 func TestPlaygroundController_GetLogs(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
-	ctx := context.Background()
 	pipelineId := uuid.New()
 	logs := "MOCK_LOGS"
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	defer conn.Close()
-	client := pb.NewPlaygroundServiceClient(conn)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
 
 	type args struct {
 		ctx  context.Context
@@ -581,15 +612,10 @@ func TestPlaygroundController_GetLogs(t *testing.T) {
 
 func TestPlaygroundController_GetRunError(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
-	ctx := context.Background()
 	pipelineId := uuid.New()
 	runError := "MOCK_RUN_ERROR"
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	defer conn.Close()
-	client := pb.NewPlaygroundServiceClient(conn)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
 
 	type args struct {
 		ctx  context.Context
@@ -674,14 +700,9 @@ func TestPlaygroundController_GetRunError(t *testing.T) {
 
 func TestPlaygroundController_Cancel(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
-	ctx := context.Background()
 	pipelineId := uuid.New()
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	defer conn.Close()
-	client := pb.NewPlaygroundServiceClient(conn)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
 
 	type args struct {
 		ctx  context.Context
@@ -737,4 +758,203 @@ func TestPlaygroundController_Cancel(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPlaygroundController_SaveSnippet(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
+
+	type args struct {
+		ctx  context.Context
+		info *pb.SaveSnippetRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantId  string
+		wantErr bool
+	}{
+		// Test case with calling SaveSnippet method with incorrect sdk.
+		// As a result, want to receive an error.
+		{
+			name: "SaveSnippet with incorrect sdk",
+			args: args{
+				ctx: ctx,
+				info: &pb.SaveSnippetRequest{
+					Files: []*pb.SnippetFile{{Name: "MOCK_NAME", Content: "MOCK_CONTENT"}},
+					Sdk:   pb.Sdk_SDK_UNSPECIFIED,
+				},
+			},
+			wantErr: true,
+		},
+		// Test case with calling SaveSnippet method with empty content.
+		// As a result, want to receive an error.
+		{
+			name: "SaveSnippet with empty content",
+			args: args{
+				ctx: ctx,
+				info: &pb.SaveSnippetRequest{
+					Files: []*pb.SnippetFile{{Name: "MOCK_NAME", Content: ""}},
+					Sdk:   pb.Sdk_SDK_JAVA,
+				},
+			},
+			wantErr: true,
+		},
+		// Test case with calling SaveSnippet method with a simple entity.
+		// As a result, want to receive a generated ID.
+		{
+			name: "SaveSnippet with a simple entity",
+			args: args{
+				ctx: ctx,
+				info: &pb.SaveSnippetRequest{
+					Files: []*pb.SnippetFile{{Name: "MOCK_NAME", Content: "MOCK_CONTENT"}},
+					Sdk:   pb.Sdk_SDK_GO,
+				},
+			},
+			wantErr: false,
+			wantId:  "xHce_LOg7Zm",
+		},
+		// Test case with calling SaveSnippet method with too large entity.
+		// As a result, want to receive an error.
+		{
+			name: "SaveSnippet with too large entity",
+			args: args{
+				ctx: ctx,
+				info: &pb.SaveSnippetRequest{
+					Files: []*pb.SnippetFile{{Name: "MOCK_NAME", Content: utils.RandomString(1000001)}},
+					Sdk:   pb.Sdk_SDK_JAVA,
+				},
+			},
+			wantErr: true,
+		},
+		// Test case with calling SaveSnippet method with files are nil.
+		// As a result, want to receive an error.
+		{
+			name: "SaveSnippet with files are nil",
+			args: args{
+				ctx: ctx,
+				info: &pb.SaveSnippetRequest{
+					Files: nil,
+					Sdk:   pb.Sdk_SDK_JAVA,
+				},
+			},
+			wantErr: true,
+		},
+		// Test case with calling SaveSnippet method with files are empty array.
+		// As a result, want to receive an error.
+		{
+			name: "SaveSnippet with files are empty array",
+			args: args{
+				ctx: ctx,
+				info: &pb.SaveSnippetRequest{
+					Files: []*pb.SnippetFile{},
+					Sdk:   pb.Sdk_SDK_JAVA,
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := client.SaveSnippet(ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PlaygroundController_SaveSnippet() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil {
+				if len(got.Id) != 11 || got.Id != tt.wantId {
+					t.Errorf("PlaygroundController_SaveSnippet() unexpected generated ID")
+				}
+			}
+		})
+	}
+}
+
+func TestPlaygroundController_GetSnippet(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
+	nowDate := time.Now()
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetSnippetRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		prepare func()
+		wantErr bool
+	}{
+		// Test case with calling GetSnippet method with ID that is not in the database.
+		// As a result, want to receive an error.
+		{
+			name: "GetSnippet when the entity not found",
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetSnippetRequest{Id: "MOCK_ID_G"},
+			},
+			prepare: func() {},
+			wantErr: true,
+		},
+		// Test case with calling GetSnippet method with a correct ID.
+		// As a result, want to receive a snippet entity.
+		{
+			name: "GetSnippet with correct ID",
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetSnippetRequest{Id: "MOCK_ID"},
+			},
+			prepare: func() {
+				_ = dbClient.PutSnippet(ctx, "MOCK_ID",
+					&entity.Snippet{
+						Snippet: &entity.SnippetEntity{
+							OwnerId:       "",
+							Sdk:           utils.GetNameKey(datastoreDb.SdkKind, pb.Sdk_SDK_JAVA.String(), datastoreDb.Namespace, nil),
+							PipeOpts:      "MOCK_OPTIONS",
+							Created:       nowDate,
+							Origin:        "PG_USER",
+							NumberOfFiles: 1,
+						},
+						Files: []*entity.FileEntity{{
+							Content: "MOCK_CONTENT",
+							IsMain:  false,
+						}},
+					},
+				)
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			got, err := client.GetSnippet(ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PlaygroundController_GetSnippet() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil {
+				if got.Files[0].Content != "MOCK_CONTENT" || got.Sdk != 1 || got.PipelineOptions != "MOCK_OPTIONS" {
+					t.Errorf("PlaygroundController_GetSnippet() unexpected response")
+				}
+			}
+		})
+	}
+}
+
+func getPlaygroundServiceClient(ctx context.Context, t *testing.T) (pb.PlaygroundServiceClient, func()) {
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("Failed to dial bufnet: %v", err)
+	}
+	closeFunc := func() {
+		err = conn.Close()
+		if err != nil {
+			t.Fatalf("Failed to close grpc connection: %v", err)
+		}
+	}
+	client := pb.NewPlaygroundServiceClient(conn)
+	return client, closeFunc
 }

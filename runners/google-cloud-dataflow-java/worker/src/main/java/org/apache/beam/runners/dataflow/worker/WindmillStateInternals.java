@@ -80,6 +80,7 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -351,7 +352,7 @@ class WindmillStateInternals<K> implements StateInternals {
     try {
       // Use ByteString.Output rather than concatenation and String.format. We build these keys
       // a lot, and this leads to better performance results. See associated benchmarks.
-      ByteString.Output stream = ByteString.newOutput();
+      ByteStringOutputStream stream = new ByteStringOutputStream();
       OutputStreamWriter writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
 
       // stringKey starts and ends with a slash.  We separate it from the
@@ -522,7 +523,7 @@ class WindmillStateInternals<K> implements StateInternals {
 
       ByteString encoded = null;
       if (cachedSize == -1 || modified) {
-        ByteString.Output stream = ByteString.newOutput();
+        ByteStringOutputStream stream = new ByteStringOutputStream();
         if (value != null) {
           coder.encode(value, stream, Coder.Context.OUTER);
         }
@@ -1047,7 +1048,7 @@ class WindmillStateInternals<K> implements StateInternals {
               pendingAdds,
               (elem, id) -> {
                 try {
-                  ByteString.Output elementStream = ByteString.newOutput();
+                  ByteStringOutputStream elementStream = new ByteStringOutputStream();
                   elemCoder.encode(elem.getValue(), elementStream, Context.OUTER);
                   insertBuilder.addEntries(
                       SortedListEntry.newBuilder()
@@ -1249,7 +1250,7 @@ class WindmillStateInternals<K> implements StateInternals {
     }
 
     private ByteString protoKeyFromUserKey(K key) throws IOException {
-      ByteString.Output keyStream = ByteString.newOutput();
+      ByteStringOutputStream keyStream = new ByteStringOutputStream();
       stateKeyPrefix.writeTo(keyStream);
       keyCoder.encode(key, keyStream, Context.OUTER);
       return keyStream.toByteString();
@@ -1275,7 +1276,7 @@ class WindmillStateInternals<K> implements StateInternals {
 
       for (K key : localAdditions) {
         ByteString keyBytes = protoKeyFromUserKey(key);
-        ByteString.Output valueStream = ByteString.newOutput();
+        ByteStringOutputStream valueStream = new ByteStringOutputStream();
         valueCoder.encode(cachedValues.get(key), valueStream, Context.OUTER);
         ByteString valueBytes = valueStream.toByteString();
 
@@ -1290,7 +1291,7 @@ class WindmillStateInternals<K> implements StateInternals {
       localAdditions.clear();
 
       for (K key : localRemovals) {
-        ByteString.Output keyStream = ByteString.newOutput();
+        ByteStringOutputStream keyStream = new ByteStringOutputStream();
         stateKeyPrefix.writeTo(keyStream);
         keyCoder.encode(key, keyStream, Context.OUTER);
         ByteString keyBytes = keyStream.toByteString();
@@ -1304,7 +1305,7 @@ class WindmillStateInternals<K> implements StateInternals {
 
         V cachedValue = cachedValues.remove(key);
         if (cachedValue != null) {
-          ByteString.Output valueStream = ByteString.newOutput();
+          ByteStringOutputStream valueStream = new ByteStringOutputStream();
           valueCoder.encode(cachedValues.get(key), valueStream, Context.OUTER);
         }
       }
@@ -1555,7 +1556,7 @@ class WindmillStateInternals<K> implements StateInternals {
 
     private Future<V> getFutureForKey(K key) {
       try {
-        ByteString.Output keyStream = ByteString.newOutput();
+        ByteStringOutputStream keyStream = new ByteStringOutputStream();
         stateKeyPrefix.writeTo(keyStream);
         keyCoder.encode(key, keyStream, Context.OUTER);
         return reader.valueFuture(keyStream.toByteString(), stateFamily, valueCoder);
@@ -1703,7 +1704,7 @@ class WindmillStateInternals<K> implements StateInternals {
           bagUpdatesBuilder = commitBuilder.addBagUpdatesBuilder();
         }
         for (T value : localAdditions) {
-          ByteString.Output stream = ByteString.newOutput();
+          ByteStringOutputStream stream = new ByteStringOutputStream();
           // Encode the value
           elemCoder.encode(value, stream, Coder.Context.OUTER);
           ByteString encoded = stream.toByteString();
