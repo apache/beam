@@ -21,9 +21,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 
-import '../config/theme/switch_notifier.dart';
-import '../constants/assets.dart';
 import '../constants/sizes.dart';
+import '../generated/assets.gen.dart';
+import '../theme/switch_notifier.dart';
 
 class ToggleThemeButton extends StatelessWidget {
   const ToggleThemeButton();
@@ -37,11 +37,11 @@ class ToggleThemeButton extends StatelessWidget {
 
         return Padding(
           padding: const EdgeInsets.symmetric(
-            vertical: TobSizes.size4,
-            horizontal: TobSizes.size8,
+            vertical: BeamSizes.size4,
+            horizontal: BeamSizes.size8,
           ),
           child: TextButton.icon(
-            icon: SvgPicture.asset(TobAssets.themeMode),
+            icon: SvgPicture.asset(Assets.svg.themeMode),
             label: Text(text),
             onPressed: () {
               notifier.toggleTheme();

@@ -16,39 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-
-import '../constants/sizes.dart';
-import 'footer.dart';
-import 'logo.dart';
-import 'sign_in/sign_in_button.dart';
-import 'toggle_theme_button.dart';
-
-class PageContainer extends StatelessWidget {
-  final Widget child;
-
-  const PageContainer({
-    super.key,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Logo(),
-        actions: const [
-          ToggleThemeButton(),
-          SignInButton(),
-          SizedBox(width: TobSizes.size16),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(child: child),
-          const Footer(),
-        ],
-      ),
-    );
-  }
+enum Complexity {
+  basic,
+  medium,
+  advanced,
 }

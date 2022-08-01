@@ -19,13 +19,12 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:easy_localization_loader/easy_localization_loader.dart';
 import 'package:flutter/material.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 import 'package:url_strategy/url_strategy.dart';
 
-import 'config/theme/switch_notifier.dart';
-import 'config/theme/theme.dart';
 import 'locator.dart';
-import 'pages/welcome/screen.dart';
+import 'pages/tour/screen.dart';
 
 void main() async {
   setPathUrlStrategy();
@@ -61,7 +60,7 @@ class TourOfBeamApp extends StatelessWidget {
             localizationsDelegates: context.localizationDelegates,
             supportedLocales: context.supportedLocales,
             locale: context.locale,
-            home: const WelcomeScreen(),
+            home: const TourScreen(),
           );
         },
       ),

@@ -16,7 +16,16 @@
  * limitations under the License.
  */
 
-class TobLinks {
-  static const reportIssue = 'https://github.com/apache/beam/issues';
-  static const privacyPolicy = 'https://beam.apache.org/privacy_policy/';
+import 'package:flutter/material.dart';
+
+class Pan {
+  final Widget child;
+  final double? minWeight;
+  final double? maxWeight;
+
+  const Pan({
+    required this.child,
+    this.minWeight,
+    this.maxWeight,
+  });
 }

@@ -16,42 +16,26 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
 
-import 'sign_in_overlay_content.dart';
+class ExpansionTileWrapper extends StatelessWidget {
+  final ExpansionTile expansionTile;
+  const ExpansionTileWrapper({required this.expansionTile});
 
-class SignInButton extends StatefulWidget {
-  const SignInButton();
-
-  @override
-  State<SignInButton> createState() => _SignInButtonState();
-}
-
-class _SignInButtonState extends State<SignInButton> {
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: _openOverlay,
-      child: const Text('ui.signIn').tr(),
-    );
-  }
-
-  void _openOverlay() {
-    OverlayEntry? overlay;
-    overlay = OverlayEntry(
-      builder: (context) => DismissibleOverlay(
-        close: () {
-          overlay?.remove();
-        },
-        child: const Positioned(
-          right: BeamSizes.size10,
-          top: BeamSizes.appBarHeight,
-          child: SignInOverlayContent(),
-        ),
+    return Theme(
+      data: Theme.of(context).copyWith(
+        hoverColor: Colors.transparent,
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        dividerColor: Colors.transparent,
+        unselectedWidgetColor: Colors.grey,
+        colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.grey),
+        visualDensity: const VisualDensity(vertical: -4),
+        listTileTheme: const ListTileThemeData(dense: true),
       ),
+      child: expansionTile,
     );
-    Overlay.of(context)?.insert(overlay);
   }
 }

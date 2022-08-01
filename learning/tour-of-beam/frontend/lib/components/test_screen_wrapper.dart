@@ -16,42 +16,25 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
+import 'package:provider/provider.dart';
 
-import 'sign_in_overlay_content.dart';
+class TestScreenWrapper extends StatelessWidget {
+  final Widget child;
+  const TestScreenWrapper({required this.child});
 
-class SignInButton extends StatefulWidget {
-  const SignInButton();
-
-  @override
-  State<SignInButton> createState() => _SignInButtonState();
-}
-
-class _SignInButtonState extends State<SignInButton> {
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: _openOverlay,
-      child: const Text('ui.signIn').tr(),
-    );
-  }
-
-  void _openOverlay() {
-    OverlayEntry? overlay;
-    overlay = OverlayEntry(
-      builder: (context) => DismissibleOverlay(
-        close: () {
-          overlay?.remove();
+    return ThemeSwitchNotifierProvider(
+      child: Consumer<ThemeSwitchNotifier>(
+        builder: (context, themeSwitchNotifier, _) {
+          return MaterialApp(
+            theme: kLightTheme,
+            home: child,
+          );
         },
-        child: const Positioned(
-          right: BeamSizes.size10,
-          top: BeamSizes.appBarHeight,
-          child: SignInOverlayContent(),
-        ),
       ),
     );
-    Overlay.of(context)?.insert(overlay);
   }
 }

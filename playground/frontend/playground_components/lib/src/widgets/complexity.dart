@@ -20,8 +20,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/colors.dart';
 import '../constants/sizes.dart';
-
-enum Complexity { basic, medium, advanced }
+import '../enums/complexity.dart';
 
 class ComplexityWidget extends StatelessWidget {
   final Complexity complexity;
@@ -49,8 +48,8 @@ class _Dot extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(left: 1),
-      width: TobSizes.size4,
-      height: TobSizes.size4,
+      width: BeamSizes.size4,
+      height: BeamSizes.size4,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: color,
@@ -58,8 +57,8 @@ class _Dot extends StatelessWidget {
     );
   }
 
-  static const grey = _Dot(color: TobColors.grey4);
-  static const green = _Dot(color: TobColors.green);
-  static const orange = _Dot(color: TobColors.orange);
-  static const red = _Dot(color: TobColors.red);
+  static const grey = _Dot(color: BeamColors.grey2);
+  static const green = _Dot(color: BeamColors.green);
+  static const orange = _Dot(color: BeamColors.orange);
+  static const red = _Dot(color: BeamColors.red);
 }

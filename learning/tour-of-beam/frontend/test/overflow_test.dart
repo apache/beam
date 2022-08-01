@@ -16,19 +16,19 @@
  * limitations under the License.
  */
 
-String _getPngPath(String fileName) {
-  return 'png/$fileName.png';
-}
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:tour_of_beam/components/test_screen_wrapper.dart';
+import 'package:tour_of_beam/pages/tour/screen.dart';
 
-String _getSvgPath(String fileName) {
-  return 'svg/$fileName.svg';
-}
-
-class TobAssets {
-  static final beamLogo = _getPngPath('beam-logo');
-  static final themeMode = _getSvgPath('theme-mode');
-  static final welcomeLaptop = _getPngPath('welcome-laptop');
-  static final laptopDark = _getPngPath('laptop-dark');
-  static final laptopLight = _getPngPath('laptop-light');
-  static final welcomeProgress0 = _getSvgPath('welcome-progress-0');
+void main() {
+  testWidgets('WelcomeScreen overflow', (tester) async {
+    tester.binding.window.physicalSizeTestValue = const Size(500, 296);
+    // TODO(nausharipov): fix the failure
+    await tester.pumpWidget(
+      const TestScreenWrapper(
+        child: TourScreen(),
+      ),
+    );
+  });
 }

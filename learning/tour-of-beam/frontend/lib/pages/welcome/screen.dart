@@ -20,20 +20,19 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:playground_components/playground_components.dart';
 
-import '../../components/complexity.dart';
-import '../../components/page_container.dart';
-import '../../config/theme/colors_provider.dart';
-import '../../constants/assets.dart';
-import '../../constants/colors.dart';
+import '../../components/filler_text.dart';
+import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
+import '../../generated/assets.gen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen();
 
   @override
   Widget build(BuildContext context) {
-    return PageContainer(
+    return TobScaffold(
       child: SingleChildScrollView(
         child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
             ? const _WideWelcome()
@@ -48,16 +47,18 @@ class _WideWelcome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
-        Expanded(
-          child: _SdkSelection(),
-        ),
-        Expanded(
-          child: _TourSummary(),
-        ),
-      ],
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Expanded(
+            child: _SdkSelection(),
+          ),
+          Expanded(
+            child: _TourSummary(),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -84,7 +85,7 @@ class _SdkSelection extends StatelessWidget {
     return Container(
       constraints: BoxConstraints(
         minHeight: MediaQuery.of(context).size.height -
-            TobSizes.appBarHeight -
+            BeamSizes.appBarHeight -
             TobSizes.footerHeight,
       ),
       color: ThemeColors.of(context).background,
@@ -94,10 +95,9 @@ class _SdkSelection extends StatelessWidget {
             bottom: 0,
             left: 0,
             right: 0,
-            // TODO(nausharipov): use flutter_gen after merging
             child: Theme.of(context).brightness == Brightness.dark
-                ? Image.asset(TobAssets.laptopDark)
-                : Image.asset(TobAssets.laptopLight),
+                ? Image.asset(Assets.png.laptopDark.path)
+                : Image.asset(Assets.png.laptopLight.path),
           ),
           const SizedBox(height: 900),
           Padding(
@@ -106,7 +106,7 @@ class _SdkSelection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
                 _IntroText(),
-                SizedBox(height: TobSizes.size32),
+                SizedBox(height: BeamSizes.size32),
                 _Buttons(),
               ],
             ),
@@ -124,7 +124,7 @@ class _TourSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        vertical: TobSizes.size20,
+        vertical: BeamSizes.size20,
         horizontal: 27,
       ),
       child: Column(
@@ -164,7 +164,7 @@ class _IntroText extends StatelessWidget {
         Container(
           margin: const EdgeInsets.symmetric(vertical: 32),
           height: 2,
-          color: TobColors.grey2,
+          color: BeamColors.grey2,
           constraints: const BoxConstraints(maxWidth: 150),
         ),
         RichText(
@@ -198,7 +198,7 @@ class _Buttons extends StatelessWidget {
   const _Buttons();
 
   void _onSdkChanged(String value) {
-    // TODO(nausharipov): select the language
+    // TODO(nausharipov): change sdk
   }
 
   @override
@@ -249,7 +249,7 @@ class _SdkButton extends StatelessWidget {
           backgroundColor: ThemeColors.of(context).background,
           side: groupValue == value
               ? null
-              : const BorderSide(color: TobColors.grey1),
+              : const BorderSide(color: BeamColors.grey1),
         ),
         onPressed: () {
           onChanged(value);
@@ -293,13 +293,13 @@ class _ModuleHeader extends StatelessWidget {
           child: Row(
             children: [
               Padding(
-                padding: const EdgeInsets.all(TobSizes.size4),
+                padding: const EdgeInsets.all(BeamSizes.size4),
                 child: SvgPicture.asset(
-                  TobAssets.welcomeProgress0,
+                  Assets.svg.welcomeProgress0,
                   color: ThemeColors.of(context).progressBackgroundColor,
                 ),
               ),
-              const SizedBox(width: TobSizes.size16),
+              const SizedBox(width: BeamSizes.size16),
               Expanded(
                 child: Text(
                   title,
@@ -315,7 +315,7 @@ class _ModuleHeader extends StatelessWidget {
               'complexity.medium',
               style: Theme.of(context).textTheme.headlineSmall,
             ).tr(),
-            const SizedBox(width: TobSizes.size6),
+            const SizedBox(width: BeamSizes.size6),
             const ComplexityWidget(complexity: Complexity.medium),
           ],
         ),
@@ -344,10 +344,8 @@ class _ModuleBody extends StatelessWidget {
       padding: _modulePadding,
       child: Column(
         children: [
-          const Text(
-            'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam velit purus, tincidunt id velit vitae, mattis dictum velit. Nunc sit amet nunc at turpis eleifend commodo ac ut libero. Aenean rutrum rutrum nulla ut efficitur. Vestibulum pulvinar eros dictum lectus volutpat dignissim vitae quis nisi. Maecenas sem erat, elementum in euismod ut, interdum ac massa.',
-          ),
-          const SizedBox(height: TobSizes.size16),
+          const FillerText(width: 20),
+          const SizedBox(height: BeamSizes.size16),
           Divider(
             color: ThemeColors.of(context).divider,
           ),
@@ -365,9 +363,7 @@ class _LastModuleBody extends StatelessWidget {
     return Container(
       margin: _moduleLeftMargin,
       padding: _modulePadding,
-      child: const Text(
-        'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam velit purus, tincidunt id velit vitae, mattis dictum velit. Nunc sit amet nunc at turpis eleifend commodo ac ut libero. Aenean rutrum rutrum nulla ut efficitur. Vestibulum pulvinar eros dictum lectus volutpat dignissim vitae quis nisi. Maecenas sem erat, elementum in euismod ut, interdum ac massa.',
-      ),
+      child: const FillerText(width: 20),
     );
   }
 }

@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'colors_provider.dart';
+import 'color_provider.dart';
 
 const kThemeMode = 'theme_mode';
 

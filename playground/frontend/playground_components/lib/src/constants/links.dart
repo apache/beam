@@ -16,16 +16,7 @@
  * limitations under the License.
  */
 
-class TobSizes {
-  static const double footerHeight = 35;
-  static const double authOverlayWidth = 300;
-}
-
-class ScreenSizes {
-  // TODO(nausharipov): name better
-  static const medium = 1024;
-}
-
-class ScreenBreakpoints {
-  static const twoColumns = ScreenSizes.medium;
+class BeamLinks {
+  static const reportIssue = 'https://github.com/apache/beam/issues';
+  static const privacyPolicy = 'https://beam.apache.org/privacy_policy/';
 }
