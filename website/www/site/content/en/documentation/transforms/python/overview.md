@@ -33,6 +33,7 @@ limitations under the License.
   function.</td></tr>
   <tr><td><a href="/documentation/transforms/python/elementwise/regex">Regex</a></td><td>Filters input string elements based on a regex. May also transform them based on the matching groups.</td></tr>
   <tr><td><a href="/documentation/transforms/python/elementwise/reify">Reify</a></td><td>Transforms for converting between explicit and implicit form of various Beam values.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/elementwise/runinference">RunInference</a></td><td>Uses machine learning (ML) models to do local and remote inference.</td></tr>
   <tr><td><a href="/documentation/transforms/python/elementwise/tostring">ToString</a></td><td>Transforms every element in an input collection a string.</td></tr>
   <tr><td><a href="/documentation/transforms/python/elementwise/withtimestamps">WithTimestamps</a></td><td>Applies a function to determine a timestamp to each element in the output collection,
   and updates the implicit timestamp associated with each input. Note that it is only

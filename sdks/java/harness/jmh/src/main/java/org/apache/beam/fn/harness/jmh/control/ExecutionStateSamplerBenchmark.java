@@ -35,15 +35,16 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
+import org.openjdk.jmh.infra.Blackhole;
 
 /** Benchmarks for sampling execution state. */
 public class ExecutionStateSamplerBenchmark {
   private static final String PTRANSFORM = "benchmarkPTransform";
 
-  @State(Scope.Benchmark)
-  public static class RunnersCoreStateSampler {
-    public final ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
-    public final ExecutionStateTracker tracker = new ExecutionStateTracker(sampler);
+  @State(Scope.Thread)
+  public static class RunnersCoreStateTracker {
+    public ExecutionStateTracker tracker;
+
     public final SimpleExecutionState state1 =
         new SimpleExecutionState(
             "process",
@@ -60,14 +61,13 @@ public class ExecutionStateSamplerBenchmark {
             Urns.PROCESS_BUNDLE_MSECS,
             new HashMap<>(Collections.singletonMap(Labels.PTRANSFORM, PTRANSFORM)));
 
-    @Setup(Level.Trial)
-    public void setup() {
-      sampler.start();
+    @Setup
+    public void setup(RunnersCoreStateSampler sharedState) {
+      tracker = new ExecutionStateTracker(sharedState.sampler);
     }
 
-    @TearDown(Level.Trial)
+    @TearDown
     public void tearDown() {
-      sampler.stop();
       // Print out the total millis so that JVM doesn't optimize code away.
       System.out.println(
           state1.getTotalMillis()
@@ -79,50 +79,81 @@ public class ExecutionStateSamplerBenchmark {
   }
 
   @State(Scope.Benchmark)
-  public static class HarnessStateSampler {
-    public final org.apache.beam.fn.harness.control.ExecutionStateSampler sampler =
-        new org.apache.beam.fn.harness.control.ExecutionStateSampler(
-            PipelineOptionsFactory.create(), System::currentTimeMillis);
-    public final org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker
-        tracker = sampler.create();
-    public final org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState state1 =
-        tracker.create("1", PTRANSFORM, PTRANSFORM + "Name", "1");
-    public final org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState state2 =
-        tracker.create("2", PTRANSFORM, PTRANSFORM + "Name", "2");
-    public final org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState state3 =
-        tracker.create("3", PTRANSFORM, PTRANSFORM + "Name", "3");
+  public static class RunnersCoreStateSampler {
+    public final ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
+
+    @Setup(Level.Trial)
+    public void setup() {
+      sampler.start();
+    }
 
     @TearDown(Level.Trial)
     public void tearDown() {
       sampler.stop();
+    }
+  }
+
+  @State(Scope.Thread)
+  public static class HarnessStateTracker {
+    public org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker tracker;
+
+    public org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState state1;
+    public org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState state2;
+    public org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState state3;
+
+    @Setup
+    public void setup(HarnessStateSampler sharedState) {
+      tracker = sharedState.sampler.create();
+      state1 = tracker.create("1", PTRANSFORM, PTRANSFORM + "Name", "1");
+      state2 = tracker.create("2", PTRANSFORM, PTRANSFORM + "Name", "2");
+      state3 = tracker.create("3", PTRANSFORM, PTRANSFORM + "Name", "3");
+    }
+
+    @TearDown
+    public void tearDown() {
       Map<String, ByteString> monitoringData = new HashMap<>();
-      tracker.updateFinalMonitoringData(monitoringData);
       // Print out the total millis so that JVM doesn't optimize code away.
+      tracker.updateFinalMonitoringData(monitoringData);
       System.out.println(monitoringData);
     }
   }
 
+  @State(Scope.Benchmark)
+  public static class HarnessStateSampler {
+    public final org.apache.beam.fn.harness.control.ExecutionStateSampler sampler =
+        new org.apache.beam.fn.harness.control.ExecutionStateSampler(
+            PipelineOptionsFactory.create(), System::currentTimeMillis);
+
+    @TearDown(Level.Trial)
+    public void tearDown() {
+      sampler.stop();
+    }
+  }
+
   @Benchmark
-  @Threads(1)
-  public void testTinyBundleRunnersCoreStateSampler(RunnersCoreStateSampler state)
-      throws Exception {
-    state.tracker.activate();
+  @Threads(512)
+  public void testTinyBundleRunnersCoreStateSampler(
+      RunnersCoreStateTracker trackerState, Blackhole bh) throws Exception {
+    ExecutionStateTracker tracker = trackerState.tracker;
+    Closeable c = tracker.activate();
     for (int i = 0; i < 3; ) {
-      Closeable close1 = state.tracker.enterState(state.state1);
-      Closeable close2 = state.tracker.enterState(state.state2);
-      Closeable close3 = state.tracker.enterState(state.state3);
+      Closeable close1 = tracker.enterState(trackerState.state1);
+      Closeable close2 = tracker.enterState(trackerState.state2);
+      Closeable close3 = tracker.enterState(trackerState.state3);
       // trival code that is being sampled for this state
       i += 1;
+      bh.consume(i);
       close3.close();
       close2.close();
       close1.close();
     }
-    state.tracker.reset();
+    c.close();
   }
 
   @Benchmark
-  @Threads(1)
-  public void testTinyBundleHarnessStateSampler(HarnessStateSampler state) throws Exception {
+  @Threads(512)
+  public void testTinyBundleHarnessStateSampler(HarnessStateTracker state, Blackhole bh)
+      throws Exception {
     state.tracker.start("processBundleId");
     for (int i = 0; i < 3; ) {
       state.state1.activate();
@@ -130,6 +161,7 @@ public class ExecutionStateSamplerBenchmark {
       state.state3.activate();
       // trival code that is being sampled for this state
       i += 1;
+      bh.consume(i);
       state.state3.deactivate();
       state.state2.deactivate();
       state.state1.deactivate();
@@ -138,26 +170,29 @@ public class ExecutionStateSamplerBenchmark {
   }
 
   @Benchmark
-  @Threads(1)
-  public void testLargeBundleRunnersCoreStateSampler(RunnersCoreStateSampler state)
-      throws Exception {
-    state.tracker.activate();
+  @Threads(16)
+  public void testLargeBundleRunnersCoreStateSampler(
+      RunnersCoreStateTracker trackerState, Blackhole bh) throws Exception {
+    ExecutionStateTracker tracker = trackerState.tracker;
+    Closeable c = tracker.activate();
     for (int i = 0; i < 1000; ) {
-      Closeable close1 = state.tracker.enterState(state.state1);
-      Closeable close2 = state.tracker.enterState(state.state2);
-      Closeable close3 = state.tracker.enterState(state.state3);
+      Closeable close1 = tracker.enterState(trackerState.state1);
+      Closeable close2 = tracker.enterState(trackerState.state2);
+      Closeable close3 = tracker.enterState(trackerState.state3);
       // trival code that is being sampled for this state
       i += 1;
+      bh.consume(i);
       close3.close();
       close2.close();
       close1.close();
     }
-    state.tracker.reset();
+    c.close();
   }
 
   @Benchmark
-  @Threads(1)
-  public void testLargeBundleHarnessStateSampler(HarnessStateSampler state) throws Exception {
+  @Threads(16)
+  public void testLargeBundleHarnessStateSampler(HarnessStateTracker state, Blackhole bh)
+      throws Exception {
     state.tracker.start("processBundleId");
     for (int i = 0; i < 1000; ) {
       state.state1.activate();
@@ -165,6 +200,7 @@ public class ExecutionStateSamplerBenchmark {
       state.state3.activate();
       // trival code that is being sampled for this state
       i += 1;
+      bh.consume(i);
       state.state3.deactivate();
       state.state2.deactivate();
       state.state1.deactivate();

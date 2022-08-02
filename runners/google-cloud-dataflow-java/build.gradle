@@ -413,6 +413,7 @@ createCrossLanguageValidatesRunnerTask(
   classpath: configurations.validatesRunner,
   numParallelTests: Integer.MAX_VALUE,
   needsSdkLocation: true,
+  semiPersistDir: "/var/opt/google",
   pythonPipelineOptions: [
     "--runner=TestDataflowRunner",
     "--project=${dataflowProject}",

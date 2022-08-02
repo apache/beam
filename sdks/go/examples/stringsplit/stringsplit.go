@@ -48,19 +48,20 @@ package main
 import (
 	"context"
 	"flag"
-	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*StringSplitFn)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*LogFn)(nil)).Elem())
+	register.DoFn4x0[context.Context, *sdf.LockRTracker, string, func(string)](&StringSplitFn{})
+	register.DoFn2x0[context.Context, string](&LogFn{})
+	register.Emitter1[string]()
 }
 
 // StringSplitFn is a Splittable DoFn that splits strings into substrings of the
