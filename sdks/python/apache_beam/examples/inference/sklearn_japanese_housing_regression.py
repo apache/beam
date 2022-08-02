@@ -104,7 +104,7 @@ def parse_known_args(argv):
       '--input',
       dest='input',
       required=True,
-      help='A single or comma separated list of files or uris.')
+      help='A single or comma-separated list of files or uris.')
   parser.add_argument(
       '--model_path',
       dest='model_path',
