@@ -40,6 +40,7 @@ LOGGER = logging.getLogger("TensorRTEngineHandlerNumPy")
 try:
   import tensorrt as trt
   TRT_LOGGER = trt.Logger(trt.Logger.INFO)
+  trt.init_libnvinfer_plugins(TRT_LOGGER, namespace="")
   LOGGER.info('tensorrt module successfully imported.')
 except ModuleNotFoundError:
   TRT_LOGGER = None
@@ -213,8 +214,6 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
 
   def load_model(self) -> TensorRTEngine:
     """Loads and initializes a TensorRT engine for processing."""
-    import tensorrt as trt
-    trt.init_libnvinfer_plugins(TRT_LOGGER, namespace="")
     engine = _load_engine(self.engine_path)
     return TensorRTEngine(engine)
 
