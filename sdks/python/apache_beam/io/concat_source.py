@@ -21,12 +21,8 @@ Concat Source, which reads the union of several other sources.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import bisect
 import threading
-from builtins import range
 
 from apache_beam.io import iobase
 
@@ -95,7 +91,7 @@ class ConcatSource(iobase.BoundedSource):
       # to produce the same coder.
       return self._source_bundles[0].source.default_output_coder()
     else:
-      return super(ConcatSource, self).default_output_coder()
+      return super().default_output_coder()
 
 
 class ConcatRangeTracker(iobase.RangeTracker):
@@ -110,7 +106,7 @@ class ConcatRangeTracker(iobase.RangeTracker):
       end: end position, a tuple of (source_index, source_position)
       source_bundles: the list of source bundles in the ConcatSource
     """
-    super(ConcatRangeTracker, self).__init__()
+    super().__init__()
     self._start = start
     self._end = end
     self._source_bundles = source_bundles
@@ -229,9 +225,12 @@ class ConcatRangeTracker(iobase.RangeTracker):
 
   def fraction_consumed(self):
     with self._lock:
-      return self.local_to_global(
-          self._claimed_source_ix,
-          self.sub_range_tracker(self._claimed_source_ix).fraction_consumed())
+      if self._claimed_source_ix == len(self._source_bundles):
+        return 1.0
+      else:
+        return self.local_to_global(
+            self._claimed_source_ix,
+            self.sub_range_tracker(self._claimed_source_ix).fraction_consumed())
 
   def local_to_global(self, source_ix, source_frac):
     cw = self._cumulative_weights

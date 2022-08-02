@@ -15,4 +15,4 @@
 
 package harness
 
-//go:generate protoc -I. -I../../../../../../../model/fn-execution/src/main/proto -I../../../../../../../model/pipeline/src/main/proto session.proto --go_out=Mbeam_fn_api.proto=github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1:session
+//go:generate ../../../../../scripts/genproto.sh

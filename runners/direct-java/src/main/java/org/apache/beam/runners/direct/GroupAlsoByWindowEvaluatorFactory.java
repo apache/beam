@@ -58,6 +58,11 @@ import org.joda.time.Instant;
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link
  * DirectGroupAlsoByWindow} {@link PTransform}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "keyfor",
+  "nullness"
+}) // TODO(https://github.com/apache/beam/issues/20497)
 class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
   private final PipelineOptions options;
@@ -196,6 +201,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
           .addOutput(outputBundles)
           .withTimerUpdate(stepContext.getTimerUpdate())
           .addUnprocessedElements(unprocessedElements.build())
+          .withBundleFinalizations(stepContext.getAndClearFinalizations())
           .build();
     }
 

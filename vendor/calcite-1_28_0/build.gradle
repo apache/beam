@@ -1,0 +1,124 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Vendored version of calcite.
+ *
+ * To upgrade:
+ * 1. Use mvn dependency:tree and/or https://search.maven.org/search?q=g:org.apache.calcite%20AND%20a:calcite-core
+ *    to determine dependency tree. You may need to search for optional transitive dependencies
+ *    and determine if they need to be added or upgraded (e.g. protobuf)
+ * 2. Validate built artifacts by running linkage tool
+ *    (https://github.com/apache/beam/tree/master/vendor#how-to-validate-the-vendored-dependencies)
+ *    and unit and integration tests in a PR.
+ */
+
+plugins { id 'org.apache.beam.vendor-java' }
+
+description = "Apache Beam :: Vendored Dependencies :: Calcite 1.28.0"
+
+group = "org.apache.beam"
+version = "0.2"
+
+def calcite_version = "1.28.0"
+def avatica_version = "1.19.0"
+def protobuf_version = "3.19.2"
+def prefix = "org.apache.beam.vendor.calcite.v1_28_0"
+
+List<String> packagesToRelocate = [
+        "com.esri",
+        "com.fasterxml",
+        "com.google.common",
+        "com.google.gson",
+        "com.google.protobuf",
+        "com.google.thirdparty",
+        "com.google.uzaygezen",
+        "com.jayway",
+        "com.yahoo",
+        "net.minidev",
+        "org.apache.calcite",
+        "org.apache.commons",
+        "org.apache.http",
+        "org.apiguardian.api",
+        "org.codehaus",
+        "org.objectweb",
+        "org.pentaho",
+        "org.yaml",
+]
+
+vendorJava(
+        dependencies: [
+                "org.apache.calcite:calcite-core:$calcite_version",
+                "org.apache.calcite:calcite-linq4j:$calcite_version",
+                "org.apache.calcite.avatica:avatica-core:$avatica_version",
+
+                // BEAM-13616: Override the version of protobuf to patch a security vulnerability.
+                // This override can be removed once we upgrade to a newer version of calcite that
+                // depends on protobuf >= 3.19.2.
+                "com.google.protobuf:protobuf-java:$protobuf_version",
+                "com.google.protobuf:protobuf-java-util:$protobuf_version",
+        ],
+        runtimeDependencies: [
+                library.java.slf4j_api,
+        ],
+        relocations: packagesToRelocate.collectEntries {
+            [ (it): "${prefix}.${it}" ] + [ "jdbc:calcite:": "jdbc:beam-vendor-calcite:"]
+        },
+        exclusions: [
+                // Code quality / Building annotations
+                "com/google/errorprone/**",
+                "com/google/j2objc/annotations/**",
+                "javax/annotation/**",
+                "org/checkerframework/**",
+                "org/jmlspecs/**",
+                "org/intellij/lang/annotations/**",
+                "org/jetbrains/annotations/**",
+
+                // Runtime logging interface
+                "org/slf4j/**",
+                "org/apache/log4j/**",
+                "org/apache/logging/log4j/**",
+                "META-INF/versions/9/org/apache/logging/log4j/**",
+
+                // Optional loggers
+                "org/apache/commons/logging/impl/AvalonLogger*",
+                "org/apache/commons/logging/impl/LogKitLogger*",
+
+                // Optional JSON providers
+                "com/jayway/jsonpath/spi/json/GsonJsonProvider*",
+                "com/jayway/jsonpath/spi/json/JettisonProvider*",
+                "com/jayway/jsonpath/spi/json/JsonOrgJsonProvider*",
+                "com/jayway/jsonpath/spi/json/TapestryJsonProvider*",
+                "com/jayway/jsonpath/spi/mapper/GsonMappingProvider*",
+                "com/jayway/jsonpath/spi/mapper/JsonOrgMappingProvider*",
+                "com/jayway/jsonpath/spi/mapper/TapestryMappingProvider*",
+
+                // Unused broken code
+                "org/apache/commons/dbcp2/managed/**",
+                "org/apache/commons/pool2/proxy/**",
+                "org/codehaus/janino/AntCompilerAdapter*",
+
+                // Optional kotlin code
+                "kotlin/**",
+
+                "**/module-info.class",
+        ],
+        groupId: group,
+        artifactId: "beam-vendor-calcite-1_28_0",
+        version: version,
+)

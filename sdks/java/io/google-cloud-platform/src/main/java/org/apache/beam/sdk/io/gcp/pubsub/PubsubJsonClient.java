@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.pubsub.Pubsub;
-import com.google.api.services.pubsub.Pubsub.Builder;
 import com.google.api.services.pubsub.Pubsub.Projects.Subscriptions;
 import com.google.api.services.pubsub.Pubsub.Projects.Topics;
 import com.google.api.services.pubsub.model.AcknowledgeRequest;
@@ -54,6 +53,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A Pubsub client using JSON transport. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class PubsubJsonClient extends PubsubClient {
 
   private static class PubsubJsonClientFactory implements PubsubClientFactory {
@@ -72,7 +74,7 @@ public class PubsubJsonClient extends PubsubClient {
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException {
       Pubsub pubsub =
-          new Builder(
+          new Pubsub.Builder(
                   Transport.getTransport(),
                   Transport.getJsonFactory(),
                   chainHttpRequestInitializer(
@@ -129,7 +131,7 @@ public class PubsubJsonClient extends PubsubClient {
           new PubsubMessage().encodeData(outgoingMessage.message().getData().toByteArray());
       pubsubMessage.setAttributes(getMessageAttributes(outgoingMessage));
       if (!outgoingMessage.message().getOrderingKey().isEmpty()) {
-        pubsubMessage.put("orderingKey", outgoingMessage.message().getOrderingKey());
+        pubsubMessage.setOrderingKey(outgoingMessage.message().getOrderingKey());
       }
       pubsubMessages.add(pubsubMessage);
     }
@@ -156,6 +158,7 @@ public class PubsubJsonClient extends PubsubClient {
   }
 
   @Override
+  @SuppressWarnings("ProtoFieldNullComparison")
   public List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch,
       SubscriptionPath subscription,
@@ -186,8 +189,12 @@ public class PubsubJsonClient extends PubsubClient {
       }
 
       // Timestamp.
-      long timestampMsSinceEpoch =
-          extractTimestamp(timestampAttribute, message.getMessage().getPublishTime(), attributes);
+      long timestampMsSinceEpoch;
+      if (Strings.isNullOrEmpty(timestampAttribute)) {
+        timestampMsSinceEpoch = parseTimestampAsMsSinceEpoch(message.getMessage().getPublishTime());
+      } else {
+        timestampMsSinceEpoch = extractTimestampAttribute(timestampAttribute, attributes);
+      }
 
       // Ack id.
       String ackId = message.getAckId();
@@ -207,8 +214,12 @@ public class PubsubJsonClient extends PubsubClient {
           com.google.pubsub.v1.PubsubMessage.newBuilder();
       protoMessage.setData(ByteString.copyFrom(elementBytes));
       protoMessage.putAllAttributes(attributes);
-      protoMessage.setOrderingKey(
-          (String) pubsubMessage.getUnknownKeys().getOrDefault("orderingKey", ""));
+      // PubsubMessage uses `null` to represent no ordering key where we want a default of "".
+      if (pubsubMessage.getOrderingKey() != null) {
+        protoMessage.setOrderingKey(pubsubMessage.getOrderingKey());
+      } else {
+        protoMessage.setOrderingKey("");
+      }
       incomingMessages.add(
           IncomingMessage.of(
               protoMessage.build(),

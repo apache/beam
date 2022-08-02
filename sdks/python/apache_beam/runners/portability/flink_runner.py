@@ -19,13 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import logging
 import os
 import re
-import sys
 import urllib
 
 from apache_beam.options import pipeline_options
@@ -46,7 +42,7 @@ class FlinkRunner(portable_runner.PortableRunner):
         not portable_options.environment_type and
         not portable_options.output_executable_path):
       portable_options.environment_type = 'LOOPBACK'
-    return super(FlinkRunner, self).run_pipeline(pipeline, options)
+    return super().run_pipeline(pipeline, options)
 
   def default_job_server(self, options):
     flink_options = options.view_as(pipeline_options.FlinkRunnerOptions)
@@ -54,10 +50,6 @@ class FlinkRunner(portable_runner.PortableRunner):
     flink_options.flink_master = flink_master
     if (flink_options.flink_submit_uber_jar and
         flink_master not in MAGIC_HOST_NAMES):
-      if sys.version_info < (3, 6):
-        raise ValueError(
-            'flink_submit_uber_jar requires Python 3.6+, current version %s' %
-            sys.version)
       # This has to be changed [auto], otherwise we will attempt to submit a
       # the pipeline remotely on the Flink JobMaster which will _fail_.
       # DO NOT CHANGE the following line, unless you have tested this.
@@ -90,7 +82,7 @@ class FlinkRunner(portable_runner.PortableRunner):
 
 class FlinkJarJobServer(job_server.JavaJarJobServer):
   def __init__(self, options):
-    super(FlinkJarJobServer, self).__init__(options)
+    super().__init__(options)
     options = options.view_as(pipeline_options.FlinkRunnerOptions)
     self._jar = options.flink_job_server_jar
     self._master_url = options.flink_master
@@ -110,7 +102,7 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
       return self._jar
     else:
       return self.path_to_beam_jar(
-          'runners:flink:%s:job-server:shadowJar' % self._flink_version)
+          ':runners:flink:%s:job-server:shadowJar' % self._flink_version)
 
   def java_arguments(
       self, job_port, artifact_port, expansion_port, artifacts_dir):

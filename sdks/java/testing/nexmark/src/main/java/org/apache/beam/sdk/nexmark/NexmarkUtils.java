@@ -20,6 +20,9 @@ package org.apache.beam.sdk.nexmark;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.joda.JodaModule;
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -87,11 +90,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Odd's 'n Ends used throughout queries and driver. */
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
+})
 public class NexmarkUtils {
   private static final Logger LOG = LoggerFactory.getLogger(NexmarkUtils.class);
 
   /** Mapper for (de)serializing JSON. */
-  public static final ObjectMapper MAPPER = new ObjectMapper();
+  public static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new JodaModule());
 
   /** Possible sources for events. */
   public enum SourceType {
@@ -135,6 +144,14 @@ public class NexmarkUtils {
     COMBINED
   }
 
+  /** Controls how the event objects are serialized before publishing to pubsub. */
+  public enum PubsubMessageSerializationMethod {
+    /** Use coder to serialize the event objects to byte array. */
+    CODER,
+    /** Use encode with UTF-8 to serialize event object string representation. */
+    TO_STRING
+  }
+
   /** Possible side input sources. */
   public enum SideInputType {
     /** Produce the side input via {@link Create}. */
@@ -161,7 +178,7 @@ public class NexmarkUtils {
     QUERY,
     /** Names are suffixed with the query being run and a random number. */
     QUERY_AND_SALT,
-    /** Names are suffixed with the runner being used and a the mode (streaming/batch). */
+    /** Names are suffixed with the runner being used and a mode (streaming/batch). */
     QUERY_RUNNER_AND_MODE
   }
 
@@ -308,7 +325,8 @@ public class NexmarkUtils {
   private static final boolean LOG_TO_CONSOLE = false;
 
   /** Log info message. */
-  public static void info(String format, Object... args) {
+  @FormatMethod
+  public static void info(@FormatString String format, Object... args) {
     if (LOG_INFO) {
       LOG.info(String.format(format, args));
       if (LOG_TO_CONSOLE) {
@@ -318,7 +336,8 @@ public class NexmarkUtils {
   }
 
   /** Log message to console. For client side only. */
-  public static void console(String format, Object... args) {
+  @FormatMethod
+  public static void console(@FormatString String format, Object... args) {
     System.out.printf("%s %s%n", Instant.now(), String.format(format, args));
   }
 
@@ -453,7 +472,7 @@ public class NexmarkUtils {
         new DoFn<T, T>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
-            LOG.info("%s: %s", name, c.element());
+            LOG.info("{}: {}", name, c.element());
             c.output(c.element());
           }
         });

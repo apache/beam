@@ -42,6 +42,11 @@ import org.apache.beam.sdk.util.WindowedValue;
  * Jet {@link com.hazelcast.jet.core.Processor} implementation for reading from an unbounded Beam
  * source.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness",
+  "keyfor"
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class UnboundedSourceP<T, CmT extends UnboundedSource.CheckpointMark>
     extends AbstractProcessor {
 

@@ -38,12 +38,14 @@ import org.apache.samza.system.SystemFactory;
 import org.apache.samza.system.SystemProducer;
 import org.apache.samza.system.SystemStreamMetadata;
 import org.apache.samza.system.SystemStreamPartition;
-import org.joda.time.Instant;
 
 /**
  * This is a trivial system for generating impulse event in Samza when translating IMPULSE transform
  * in portable api.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SamzaImpulseSystemFactory implements SystemFactory {
   @Override
   public SystemConsumer getConsumer(
@@ -111,13 +113,12 @@ public class SamzaImpulseSystemFactory implements SystemFactory {
     public void register(SystemStreamPartition ssp, String offset) {}
 
     private static List<IncomingMessageEnvelope> constructMessages(SystemStreamPartition ssp) {
-      final Instant time = new Instant(System.currentTimeMillis());
       final IncomingMessageEnvelope impulseMessage =
           new IncomingMessageEnvelope(
               ssp,
               DUMMY_OFFSET,
               /* key */ null,
-              OpMessage.ofElement(WindowedValue.timestampedValueInGlobalWindow(new byte[0], time)));
+              OpMessage.ofElement(WindowedValue.valueInGlobalWindow(new byte[0])));
 
       final IncomingMessageEnvelope watermarkMessage =
           IncomingMessageEnvelope.buildWatermarkEnvelope(

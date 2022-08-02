@@ -43,6 +43,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * String Strings} in JSON format into a {@link PCollection} of objects represented by those JSON
  * {@link String Strings} using Jackson.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollection<OutputT>> {
   private static final ObjectMapper DEFAULT_MAPPER = new ObjectMapper();
 

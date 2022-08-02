@@ -43,10 +43,12 @@ import (
 
 // Beam imports that the generated code requires.
 var (
-	ExecImport     = "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	TypexImport    = "github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	ReflectxImport = "github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	RuntimeImport  = "github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
+	ExecImport     = "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	TypexImport    = "github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	ReflectxImport = "github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	RuntimeImport  = "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	SchemaImport   = "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	SdfImport      = "github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 )
 
 func validateBeamImports() {
@@ -54,6 +56,8 @@ func validateBeamImports() {
 	checkImportSuffix(TypexImport, "typex")
 	checkImportSuffix(ReflectxImport, "reflectx")
 	checkImportSuffix(RuntimeImport, "runtime")
+	checkImportSuffix(SchemaImport, "schema")
+	checkImportSuffix(SdfImport, "sdf")
 }
 
 func checkImportSuffix(path, suffix string) {
@@ -107,10 +111,24 @@ func (t Top) processImports() *Top {
 	var filtered []string
 	if len(t.Emitters) > 0 {
 		pred["context"] = true
+		filtered = append(filtered, SdfImport)
+		pred[SdfImport] = true
 	}
 	if len(t.Inputs) > 0 {
 		pred["fmt"] = true
 		pred["io"] = true
+	}
+	// This should definitley be happening earlier though.
+	var filteredTypes []string
+	for _, t := range t.Types {
+		if !strings.HasPrefix(t, "beam.") {
+			filteredTypes = append(filteredTypes, t)
+		}
+	}
+	t.Types = filteredTypes
+	if len(t.Types) > 0 {
+		filtered = append(filtered, SchemaImport)
+		pred[SchemaImport] = true
 	}
 	if len(t.Types) > 0 || len(t.Functions) > 0 {
 		filtered = append(filtered, RuntimeImport)
@@ -245,6 +263,7 @@ func init() {
 {{- end}}
 {{- range $x := .Types}}
 	runtime.RegisterType(reflect.TypeOf((*{{$x}})(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*{{$x}})(nil)).Elem())
 {{- end}}
 {{- range $x := .Wraps}}
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*{{$x.Type}})(nil)).Elem(), wrapMaker{{$x.Name}})
@@ -303,6 +322,7 @@ func (c *caller{{$x.Name}}) Call{{len $x.In}}x{{len $x.Out}}({{mkargs (len $x.In
 type emitNative struct {
 	n     exec.ElementProcessor
 	fn    interface{}
+	est   *sdf.WatermarkEstimator
 
 	ctx context.Context
 	ws  []typex.Window
@@ -321,6 +341,10 @@ func (e *emitNative) Value() interface{} {
 	return e.fn
 }
 
+func (e *emitNative) AttachEstimator(est *sdf.WatermarkEstimator) {
+	e.est = est
+}
+
 {{end}}
 {{- range $x := .Emitters -}}
 func emitMaker{{$x.Name}}(n exec.ElementProcessor) exec.ReusableEmitter {
@@ -331,6 +355,9 @@ func emitMaker{{$x.Name}}(n exec.ElementProcessor) exec.ReusableEmitter {
 
 func (e *emitNative) invoke{{$x.Name}}({{if $x.Time -}} t typex.EventTime, {{end}}{{if $x.Key}}key {{$x.Key}}, {{end}}val {{$x.Val}}) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: {{- if $x.Time}} t{{else}} e.et{{end}}, {{- if $x.Key}} Elm: key, Elm2: val {{else}} Elm: val{{end -}} }
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp({{- if $x.Time}} t.ToTime(){{else}} e.et.ToTime(){{end}})
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}

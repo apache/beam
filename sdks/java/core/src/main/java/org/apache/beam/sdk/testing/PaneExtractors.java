@@ -36,6 +36,9 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * coder of any output {@link PCollection}, as appropriate {@link TypeDescriptor TypeDescriptors}
  * cannot be obtained when the extractor is created.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 final class PaneExtractors {
   private PaneExtractors() {}
 

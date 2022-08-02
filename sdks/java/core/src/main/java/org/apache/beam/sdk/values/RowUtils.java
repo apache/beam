@@ -39,6 +39,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.joda.time.base.AbstractInstant;
 
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 class RowUtils {
   static class RowPosition {
     FieldAccessDescriptor descriptor;
@@ -232,6 +236,11 @@ class RowUtils {
       this.rootSchema = rootSchema;
     }
 
+    FieldOverrides(Schema rootSchema, List<Object> overrides) {
+      this.topNode = new FieldAccessNode(rootSchema, overrides);
+      this.rootSchema = rootSchema;
+    }
+
     boolean isEmpty() {
       return topNode.isEmpty();
     }
@@ -263,6 +272,14 @@ class RowUtils {
 
       FieldAccessNode(Schema schema) {
         fieldOverrides = Lists.newArrayListWithExpectedSize(schema.getFieldCount());
+        nestedAccess = Lists.newArrayList();
+      }
+
+      FieldAccessNode(Schema schema, List<Object> overrides) {
+        fieldOverrides = Lists.newArrayListWithExpectedSize(schema.getFieldCount());
+        for (Object value : overrides) {
+          fieldOverrides.add(new FieldOverride(value));
+        }
         nestedAccess = Lists.newArrayList();
       }
 
@@ -331,7 +348,7 @@ class RowUtils {
         if (!fieldAccessDescriptor.getFieldsAccessed().isEmpty()) {
           FieldDescriptor fieldDescriptor =
               Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed());
-          return (((fieldDescriptor.getFieldId() < nestedAccess.size()))
+          return ((fieldDescriptor.getFieldId() < nestedAccess.size())
               && nestedAccess.get(fieldDescriptor.getFieldId()) != null);
         } else if (!fieldAccessDescriptor.getNestedFieldsAccessed().isEmpty()) {
           Map.Entry<FieldDescriptor, FieldAccessDescriptor> entry =
@@ -519,6 +536,10 @@ class RowUtils {
       Object retValue = null;
       FieldOverride override = override(rowPosition);
       if (override != null) {
+        if (override.getOverrideValue() == null) {
+          // This value is supposed to be overridden with null
+          return null;
+        }
         retValue = logicalType.toInputType(logicalType.toBaseType(override.getOverrideValue()));
       } else if (value != null) {
         retValue = logicalType.toInputType(logicalType.toBaseType(value));

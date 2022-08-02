@@ -20,9 +20,13 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.gcp.pubsublite.internal.AddUuidsTransform;
+import org.apache.beam.sdk.io.gcp.pubsublite.internal.PubsubLiteSink;
+import org.apache.beam.sdk.io.gcp.pubsublite.internal.SubscribeTransform;
+import org.apache.beam.sdk.io.gcp.pubsublite.internal.UuidDeduplicationTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
@@ -31,6 +35,13 @@ import org.apache.beam.sdk.values.PDone;
  *
  * <p>For the differences between this and Google Pub/Sub, please refer to the <a
  * href="https://cloud.google.com/pubsub/docs/choosing-pubsub-or-lite">product documentation</a>.
+ *
+ * <h3>Updates to the I/O connector code</h3>
+ *
+ * For any significant updates to this I/O connector, please consider involving corresponding code
+ * reviewers mentioned <a
+ * href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
+ * here</a>.
  */
 @Experimental
 public final class PubsubLiteIO {
@@ -45,27 +56,19 @@ public final class PubsubLiteIO {
    * Pipeline p = ...;
    *
    * SubscriptionPath subscriptionPath =
-   *         SubscriptionPaths.newBuilder()
-   *             .setZone(zone)
+   *         SubscriptionPath.newBuilder()
+   *             .setLocation(zone)
    *             .setProjectNumber(projectNum)
-   *             .setSubscriptionName(subscriptionName)
-   *             .build();
-   *
-   * FlowControlSettings flowControlSettings =
-   *         FlowControlSettings.builder()
-   *             // Set outstanding bytes to 10 MiB per partition.
-   *             .setBytesOutstanding(10 * 1024 * 1024L)
-   *             .setMessagesOutstanding(Long.MAX_VALUE)
+   *             .setName(subscriptionName)
    *             .build();
    *
    * PCollection<SequencedMessage> messages = p.apply(PubsubLiteIO.read(SubscriberOptions.newBuilder()
    *     .setSubscriptionPath(subscriptionPath)
-   *     .setFlowControlSettings(flowControlSettings)
    *     .build()), "read");
    * }</pre>
    */
-  public static Read.Unbounded<SequencedMessage> read(SubscriberOptions options) {
-    return Read.from(new PubsubLiteUnboundedSource(options));
+  public static PTransform<PBegin, PCollection<SequencedMessage>> read(SubscriberOptions options) {
+    return new SubscribeTransform(options);
   }
 
   /**
@@ -102,10 +105,10 @@ public final class PubsubLiteIO {
    *
    * <pre>{@code
    * TopicPath topicPath =
-   *         TopicPaths.newBuilder()
+   *         TopicPath.newBuilder()
    *             .setProjectNumber(projectNum)
-   *             .setZone(zone)
-   *             .setTopicName(topicName)
+   *             .setLocation(zone)
+   *             .setName(topicName)
    *             .build();
    *
    * PCollection<Message> messages = ...;
@@ -115,7 +118,7 @@ public final class PubsubLiteIO {
    * }</pre>
    */
   public static PTransform<PCollection<PubSubMessage>, PDone> write(PublisherOptions options) {
-    return new PTransform<PCollection<PubSubMessage>, PDone>("PubsubLiteIO") {
+    return new PTransform<PCollection<PubSubMessage>, PDone>() {
       @Override
       public PDone expand(PCollection<PubSubMessage> input) {
         PubsubLiteSink sink = new PubsubLiteSink(options);

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -75,10 +73,9 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
     if (map == null) {
       throw new CoderException("cannot encode a null Map");
     }
-    DataOutputStream dataOutStream = new DataOutputStream(outStream);
 
     int size = map.size();
-    dataOutStream.writeInt(size);
+    BitConverters.writeBigEndianInt(size, outStream);
     if (size == 0) {
       return;
     }
@@ -94,7 +91,6 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
 
     keyCoder.encode(entry.getKey(), outStream);
     valueCoder.encode(entry.getValue(), outStream, context);
-    // no flush needed as DataOutputStream does not buffer
   }
 
   @Override
@@ -105,8 +101,7 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
   @Override
   public Map<K, V> decode(InputStream inStream, Context context)
       throws IOException, CoderException {
-    DataInputStream dataInStream = new DataInputStream(inStream);
-    int size = dataInStream.readInt();
+    int size = BitConverters.readBigEndianInt(inStream);
     if (size == 0) {
       return Collections.emptyMap();
     }

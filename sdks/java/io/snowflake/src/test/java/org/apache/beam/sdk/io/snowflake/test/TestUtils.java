@@ -17,12 +17,16 @@
  */
 package org.apache.beam.sdk.io.snowflake.test;
 
+import com.google.api.gax.paging.Page;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -39,7 +43,6 @@ import javax.sql.DataSource;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
@@ -49,11 +52,15 @@ public class TestUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(TestUtils.class);
 
-  private static final String PRIVATE_KEY_FILE_NAME = "test_rsa_key.p8";
+  private static final String VALID_ENCRYPTED_PRIVATE_KEY_FILE_NAME =
+      "valid_encrypted_test_rsa_key.p8";
+  private static final String VALID_UNENCRYPTED_PRIVATE_KEY_FILE_NAME =
+      "valid_unencrypted_test_rsa_key.p8";
+  private static final String INVALID_PRIVATE_KEY_FILE_NAME = "invalid_test_rsa_key.p8";
   private static final String PRIVATE_KEY_PASSPHRASE = "snowflake";
 
   public interface SnowflakeIOITPipelineOptions
-      extends IOTestPipelineOptions, SnowflakePipelineOptions {}
+      extends IOTestPipelineOptions, TestSnowflakePipelineOptions {}
 
   public static ResultSet runConnectionWithStatement(DataSource dataSource, String query)
       throws SQLException {
@@ -70,16 +77,6 @@ public class TestUtils {
       statement.close();
       connection.close();
     }
-  }
-
-  public static String getPrivateKeyPath(Class klass) {
-    ClassLoader classLoader = klass.getClassLoader();
-    File file = new File(classLoader.getResource(PRIVATE_KEY_FILE_NAME).getFile());
-    return file.getAbsolutePath();
-  }
-
-  public static String getPrivateKeyPassphrase() {
-    return PRIVATE_KEY_PASSPHRASE;
   }
 
   public static void removeTempDir(String dir) {
@@ -112,36 +109,37 @@ public class TestUtils {
   }
 
   public static SnowflakeIO.UserDataMapper<Long> getCsvMapper() {
-    return (SnowflakeIO.UserDataMapper<Long>) recordLine -> new String[] {recordLine.toString()};
+    return recordLine -> new String[] {recordLine.toString()};
   }
 
   public static SnowflakeIO.UserDataMapper<KV<String, Long>> getLongCsvMapperKV() {
-    return (SnowflakeIO.UserDataMapper<KV<String, Long>>)
-        recordLine -> new Long[] {recordLine.getValue()};
+    return recordLine -> new Long[] {recordLine.getValue()};
   }
 
   public static SnowflakeIO.UserDataMapper<Long> getLongCsvMapper() {
-    return (SnowflakeIO.UserDataMapper<Long>) recordLine -> new Long[] {recordLine};
+    return recordLine -> new Long[] {recordLine};
   }
 
   public static SnowflakeIO.CsvMapper<TestRow> getTestRowCsvMapper() {
-    return (SnowflakeIO.CsvMapper<TestRow>)
-        parts -> TestRow.create(Integer.valueOf(parts[0]), parts[1]);
+    return parts -> TestRow.create(Integer.valueOf(parts[0]), parts[1]);
   }
 
   public static SnowflakeIO.UserDataMapper<TestRow> getTestRowDataMapper() {
-    return (SnowflakeIO.UserDataMapper<TestRow>)
-        (TestRow element) -> new Object[] {element.id(), element.name()};
+    return (TestRow element) -> new Object[] {element.id(), element.name()};
   }
 
   public static SnowflakeIO.UserDataMapper<String[]> getLStringCsvMapper() {
-    return (SnowflakeIO.UserDataMapper<String[]>) recordLine -> recordLine;
+    return recordLine -> recordLine;
+  }
+
+  public static SnowflakeIO.UserDataMapper<String> getStringCsvMapper() {
+    return recordLine -> new String[] {recordLine};
   }
 
   public static class ParseToKv extends DoFn<Long, KV<String, Long>> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      KV stringIntKV = KV.of(c.element().toString(), c.element().longValue());
+      KV<String, Long> stringIntKV = KV.of(c.element().toString(), c.element().longValue());
       c.output(stringIntKV);
     }
   }
@@ -150,7 +148,7 @@ public class TestUtils {
     List<String> lines = new ArrayList<>();
     try {
       GZIPInputStream gzip = new GZIPInputStream(new FileInputStream(file));
-      BufferedReader br = new BufferedReader(new InputStreamReader(gzip, Charset.defaultCharset()));
+      BufferedReader br = new BufferedReader(new InputStreamReader(gzip, StandardCharsets.UTF_8));
 
       String line;
       while ((line = br.readLine()) != null) {
@@ -161,5 +159,51 @@ public class TestUtils {
     }
 
     return lines;
+  }
+
+  public static String getValidEncryptedPrivateKeyPath(Class<?> c) {
+    return getPrivateKeyPath(c, VALID_ENCRYPTED_PRIVATE_KEY_FILE_NAME);
+  }
+
+  public static String getValidUnencryptedPrivateKeyPath(Class<?> c) {
+    return getPrivateKeyPath(c, VALID_UNENCRYPTED_PRIVATE_KEY_FILE_NAME);
+  }
+
+  public static String getInvalidPrivateKeyPath(Class<?> c) {
+    return getPrivateKeyPath(c, INVALID_PRIVATE_KEY_FILE_NAME);
+  }
+
+  public static String getRawValidEncryptedPrivateKey(Class<?> c) throws IOException {
+    byte[] keyBytes = Files.readAllBytes(Paths.get(getValidEncryptedPrivateKeyPath(c)));
+    return new String(keyBytes, StandardCharsets.UTF_8);
+  }
+
+  public static String getRawValidUnencryptedPrivateKey(Class<?> c) throws IOException {
+    byte[] keyBytes = Files.readAllBytes(Paths.get(getValidUnencryptedPrivateKeyPath(c)));
+    return new String(keyBytes, StandardCharsets.UTF_8);
+  }
+
+  public static String getPrivateKeyPassphrase() {
+    return PRIVATE_KEY_PASSPHRASE;
+  }
+
+  private static String getPrivateKeyPath(Class<?> c, String path) {
+    ClassLoader classLoader = c.getClassLoader();
+    File file = new File(classLoader.getResource(path).getFile());
+    return file.getAbsolutePath();
+  }
+
+  public static void clearStagingBucket(String stagingBucketName, String directory) {
+    Storage storage = StorageOptions.getDefaultInstance().getService();
+    Page<Blob> blobs;
+    if (directory != null) {
+      blobs = storage.list(stagingBucketName, Storage.BlobListOption.prefix(directory));
+    } else {
+      blobs = storage.list(stagingBucketName);
+    }
+
+    for (Blob blob : blobs.iterateAll()) {
+      storage.delete(blob.getBlobId());
+    }
   }
 }

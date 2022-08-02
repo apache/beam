@@ -27,11 +27,15 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.AggregateCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.AggregateCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Wrapper {@link CombineFn}s for aggregation function calls. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AggregationCombineFnAdapter<T> {
   private abstract static class WrappedCombinerBase<T> extends CombineFn<T, Object, Object> {
     CombineFn<T, Object, Object> combineFn;
@@ -47,10 +51,7 @@ public class AggregationCombineFnAdapter<T> {
 
     @Override
     public Object addInput(Object accumulator, T input) {
-      T processedInput = getInput(input);
-      return (processedInput == null)
-          ? accumulator
-          : combineFn.addInput(accumulator, getInput(input));
+      return combineFn.addInput(accumulator, getInput(input));
     }
 
     @Override
@@ -174,13 +175,7 @@ public class AggregationCombineFnAdapter<T> {
     } else {
       combineFn = BeamBuiltinAnalyticFunctions.create(functionName, field.getType());
     }
-    if (call.getArgList().isEmpty()) {
-      return new SingleInputCombiner(combineFn);
-    } else if (call.getArgList().size() == 1) {
-      return new SingleInputCombiner(combineFn);
-    } else {
-      return new MultiInputCombiner(combineFn);
-    }
+    return combineFn;
   }
 
   public static CombineFn<Row, ?, Row> createConstantCombineFn() {

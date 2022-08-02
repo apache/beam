@@ -24,6 +24,9 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.values.PValue;
 
 /** Pipeline visitors that fills a lookup table of {@link PValue} to number of consumers. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CountingPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
 
   private final Map<PValue, Integer> numConsumers = new HashMap<>();

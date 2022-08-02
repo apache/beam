@@ -22,32 +22,27 @@ Only works with Python 3.5+.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import base64
 import datetime
+import html
 import logging
 from datetime import timedelta
+from typing import Optional
 
 from dateutil import tz
 
-from apache_beam import pvalue
+import apache_beam as beam
 from apache_beam.runners.interactive import interactive_environment as ie
-from apache_beam.runners.interactive import pipeline_instrument as instr
 from apache_beam.runners.interactive.utils import elements_to_df
-from apache_beam.runners.interactive.utils import obfuscate
-from apache_beam.runners.interactive.utils import to_element_list
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 
 try:
   from IPython import get_ipython  # pylint: disable=import-error
-  from IPython.core.display import HTML  # pylint: disable=import-error
-  from IPython.core.display import Javascript  # pylint: disable=import-error
-  from IPython.core.display import display  # pylint: disable=import-error
-  from IPython.core.display import display_javascript  # pylint: disable=import-error
-  from IPython.core.display import update_display  # pylint: disable=import-error
+  from IPython.display import HTML  # pylint: disable=import-error
+  from IPython.display import Javascript  # pylint: disable=import-error
+  from IPython.display import display  # pylint: disable=import-error
+  from IPython.display import display_javascript  # pylint: disable=import-error
   from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator  # pylint: disable=import-error
   from timeloop import Timeloop  # pylint: disable=import-error
 
@@ -73,30 +68,46 @@ _CSS = """
             </style>"""
 _DIVE_SCRIPT_TEMPLATE = """
             try {{
-              document.querySelector("#{display_id}").data = {jsonstr};
+              document
+                .getElementById("{display_id}")
+                .contentDocument
+                .getElementById("{display_id}")
+                .data = {jsonstr};
             }} catch (e) {{
               // NOOP when the user has cleared the output from the notebook.
             }}"""
 _DIVE_HTML_TEMPLATE = _CSS + """
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script>
-            <link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist/facets-jupyter.html">
-            <facets-dive sprite-image-width="{sprite_size}" sprite-image-height="{sprite_size}" id="{display_id}" height="600"></facets-dive>
-            <script>
-              document.querySelector("#{display_id}").data = {jsonstr};
-            </script>"""
+            <iframe id={display_id} style="border:none" width="100%" height="600px"
+              srcdoc='
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script>
+                <link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist/facets-jupyter.html">
+                <facets-dive sprite-image-width="{sprite_size}" sprite-image-height="{sprite_size}" id="{display_id}" height="600"></facets-dive>
+                <script>
+                  document.getElementById("{display_id}").data = {jsonstr};
+                </script>
+              '>
+            </iframe>"""
 _OVERVIEW_SCRIPT_TEMPLATE = """
               try {{
-                document.querySelector("#{display_id}").protoInput = "{protostr}";
+                document
+                  .getElementById("{display_id}")
+                  .contentDocument
+                  .getElementById("{display_id}")
+                  .protoInput = "{protostr}";
               }} catch (e) {{
                 // NOOP when the user has cleared the output from the notebook.
               }}"""
 _OVERVIEW_HTML_TEMPLATE = _CSS + """
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script>
-            <link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist/facets-jupyter.html">
-            <facets-overview id="{display_id}"></facets-overview>
-            <script>
-              document.querySelector("#{display_id}").protoInput = "{protostr}";
-            </script>"""
+            <iframe id={display_id} style="border:none" width="100%" height="600px"
+              srcdoc='
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script>
+                <link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist/facets-jupyter.html">
+                <facets-overview id="{display_id}"></facets-overview>
+                <script>
+                  document.getElementById("{display_id}").protoInput = "{protostr}";
+                </script>
+              '>
+            </iframe>"""
 _DATATABLE_INITIALIZATION_CONFIG = """
             bAutoWidth: false,
             columns: {columns},
@@ -134,13 +145,18 @@ _DATAFRAME_PAGINATION_TEMPLATE = _CSS + """
             <script>
               {script_in_jquery_with_datatable}
             </script>"""
+_NO_DATA_TEMPLATE = _CSS + """
+            <div id="no_data_{id}">No data to display.</div>"""
+_NO_DATA_REMOVAL_SCRIPT = """
+            $("#no_data_{id}").remove();"""
 
 
 def visualize(
-    pcoll,
+    stream,
     dynamic_plotting_interval=None,
     include_window_info=False,
-    display_facets=False):
+    display_facets=False,
+    element_type=None):
   """Visualizes the data of a given PCollection. Optionally enables dynamic
   plotting with interval in seconds if the PCollection is being produced by a
   running pipeline or the pipeline is streaming indefinitely. The function
@@ -174,9 +190,10 @@ def visualize(
   if not _pcoll_visualization_ready:
     return None
   pv = PCollectionVisualization(
-      pcoll,
+      stream,
       include_window_info=include_window_info,
-      display_facets=display_facets)
+      display_facets=display_facets,
+      element_type=element_type)
   if ie.current_env().is_in_notebook:
     pv.display()
   else:
@@ -189,7 +206,7 @@ def visualize(
     logging.getLogger('timeloop').disabled = True
     tl = Timeloop()
 
-    def dynamic_plotting(pcoll, pv, tl, include_window_info, display_facets):
+    def dynamic_plotting(stream, pv, tl, include_window_info, display_facets):
       @tl.job(interval=timedelta(seconds=dynamic_plotting_interval))
       def continuous_update_display():  # pylint: disable=unused-variable
         # Always creates a new PCollVisualization instance when the
@@ -199,11 +216,15 @@ def visualize(
         # plotting interval information when instantiated because it's already
         # in dynamic plotting logic.
         updated_pv = PCollectionVisualization(
-            pcoll,
+            stream,
             include_window_info=include_window_info,
-            display_facets=display_facets)
+            display_facets=display_facets,
+            element_type=element_type)
         updated_pv.display(updating_pv=pv)
-        if ie.current_env().is_terminated(pcoll.pipeline):
+
+        # Stop updating the visualizations as soon as the stream will not yield
+        # new elements.
+        if stream.is_done():
           try:
             tl.stop()
           except RuntimeError:
@@ -213,8 +234,47 @@ def visualize(
       tl.start()
       return tl
 
-    return dynamic_plotting(pcoll, pv, tl, include_window_info, display_facets)
+    return dynamic_plotting(stream, pv, tl, include_window_info, display_facets)
   return None
+
+
+def visualize_computed_pcoll(
+    pcoll_name: str,
+    pcoll: beam.pvalue.PCollection,
+    max_n: int,
+    max_duration_secs: float,
+    dynamic_plotting_interval: Optional[int] = None,
+    include_window_info: bool = False,
+    display_facets: bool = False) -> None:
+  """A simple visualize alternative.
+
+  When the pcoll_name and pcoll pair identifies a watched and computed
+  PCollection in the current interactive environment without ambiguity, an
+  ElementStream can be built directly from cache. Returns immediately, the
+  visualization is asynchronous, but guaranteed to end in the near future.
+
+  Args:
+    pcoll_name: the variable name of the PCollection.
+    pcoll: the PCollection to be visualized.
+    max_n: the maximum number of elements to visualize.
+    max_duration_secs: max duration of elements to read in seconds.
+    dynamic_plotting_interval: the interval in seconds between visualization
+      updates if provided; otherwise, no dynamic plotting.
+    include_window_info: whether to include windowing info in the elements.
+    display_facets: whether to display the facets widgets.
+  """
+  pipeline = ie.current_env().user_pipeline(pcoll.pipeline)
+  rm = ie.current_env().get_recording_manager(pipeline, create_if_absent=True)
+
+  stream = rm.read(
+      pcoll_name, pcoll, max_n=max_n, max_duration_secs=max_duration_secs)
+  if stream:
+    visualize(
+        stream,
+        dynamic_plotting_interval=dynamic_plotting_interval,
+        include_window_info=include_window_info,
+        display_facets=display_facets,
+        element_type=pcoll.element_type)
 
 
 class PCollectionVisualization(object):
@@ -224,38 +284,30 @@ class PCollectionVisualization(object):
   access current interactive environment for materialized PCollection data at
   the moment of self instantiation through cache.
   """
-  def __init__(self, pcoll, include_window_info=False, display_facets=False):
+  def __init__(
+      self,
+      stream,
+      include_window_info=False,
+      display_facets=False,
+      element_type=None):
     assert _pcoll_visualization_ready, (
         'Dependencies for PCollection visualization are not available. Please '
         'use `pip install apache-beam[interactive]` to install necessary '
         'dependencies and make sure that you are executing code in an '
         'interactive environment such as a Jupyter notebook.')
-    assert isinstance(
-        pcoll,
-        pvalue.PCollection), ('pcoll should be apache_beam.pvalue.PCollection')
-    self._pcoll = pcoll
-    # This allows us to access cache key and other meta data about the pipeline
-    # whether it's the pipeline defined in user code or a copy of that pipeline.
-    # Thus, this module doesn't need any other user input but the PCollection
-    # variable to be visualized. It then automatically figures out the pipeline
-    # definition, materialized data and the pipeline result for the execution
-    # even if the user never assigned or waited the result explicitly.
-    # With only the constructor of PipelineInstrument, any interactivity related
-    # pre-process or instrument is not triggered for performance concerns.
-    self._pin = instr.PipelineInstrument(pcoll.pipeline)
+    self._stream = stream
     # Variable name as the title for element value in the rendered data table.
-    self._pcoll_var = self._pin.cacheable_var_by_pcoll_id(
-        self._pin.pcolls_to_pcoll_id.get(str(pcoll), None))
+    self._pcoll_var = stream.var
     if not self._pcoll_var:
       self._pcoll_var = 'Value'
-    self._cache_key = self._pin.cache_key(self._pcoll)
-    obfuscated_id = obfuscate(self._cache_key, id(self))
+    obfuscated_id = stream.display_id(id(self))
     self._dive_display_id = 'facets_dive_{}'.format(obfuscated_id)
     self._overview_display_id = 'facets_overview_{}'.format(obfuscated_id)
     self._df_display_id = 'df_{}'.format(obfuscated_id)
     self._include_window_info = include_window_info
     self._display_facets = display_facets
     self._is_datatable_empty = True
+    self._element_type = element_type
 
   def display_plain_text(self):
     """Displays a head sample of the normalized PCollection data.
@@ -324,11 +376,11 @@ class PCollectionVisualization(object):
           display_id=update._dive_display_id, jsonstr=jsonstr)
       display_javascript(Javascript(script))
     else:
-      html = _DIVE_HTML_TEMPLATE.format(
+      html_str = _DIVE_HTML_TEMPLATE.format(
           display_id=self._dive_display_id,
-          jsonstr=jsonstr,
+          jsonstr=html.escape(jsonstr),
           sprite_size=sprite_size)
-      display(HTML(html))
+      display(HTML(html_str))
 
   def _display_overview(self, data, update=None):
     if (not data.empty and self._include_window_info and
@@ -347,9 +399,9 @@ class PCollectionVisualization(object):
           display_id=update._overview_display_id, protostr=protostr)
       display_javascript(Javascript(script))
     else:
-      html = _OVERVIEW_HTML_TEMPLATE.format(
+      html_str = _OVERVIEW_HTML_TEMPLATE.format(
           display_id=self._overview_display_id, protostr=protostr)
-      display(HTML(html))
+      display(HTML(html_str))
 
   def _display_dataframe(self, data, update=None):
     table_id = 'table_{}'.format(
@@ -382,29 +434,31 @@ class PCollectionVisualization(object):
     if update and not update._is_datatable_empty:
       display_javascript(Javascript(script_in_jquery_with_datatable))
     else:
-      html = _DATAFRAME_PAGINATION_TEMPLATE.format(
-          table_id=table_id,
-          script_in_jquery_with_datatable=script_in_jquery_with_datatable)
+      if data.empty:
+        html_str = _NO_DATA_TEMPLATE.format(id=table_id)
+      else:
+        html_str = _DATAFRAME_PAGINATION_TEMPLATE.format(
+            table_id=table_id,
+            script_in_jquery_with_datatable=script_in_jquery_with_datatable)
       if update:
         if not data.empty:
-          # Re-initialize a datatable to replace the existing empty datatable.
-          update_display(HTML(html), display_id=update._df_display_id)
+          # Initialize a datatable to replace the existing no data div.
+          display(
+              Javascript(
+                  ie._JQUERY_WITH_DATATABLE_TEMPLATE.format(
+                      customized_script=_NO_DATA_REMOVAL_SCRIPT.format(
+                          id=table_id))))
+          display(HTML(html_str), display_id=update._df_display_id)
           update._is_datatable_empty = False
       else:
-        # Initialize a datatable for the first time rendering.
-        display(HTML(html), display_id=self._df_display_id)
+        display(HTML(html_str), display_id=self._df_display_id)
         if not data.empty:
           self._is_datatable_empty = False
 
   def _to_dataframe(self):
-    results = []
-    cache_manager = ie.current_env().get_cache_manager(self._pcoll.pipeline)
-    if cache_manager.exists('full', self._cache_key):
-      coder = cache_manager.load_pcoder('full', self._cache_key)
-      reader, _ = cache_manager.read('full', self._cache_key)
-      results = list(to_element_list(reader, coder, include_window_info=True))
-
-    return elements_to_df(results, self._include_window_info)
+    results = list(self._stream.read(tail=False))
+    return elements_to_df(
+        results, self._include_window_info, element_type=self._element_type)
 
 
 def format_window_info_in_dataframe(data):

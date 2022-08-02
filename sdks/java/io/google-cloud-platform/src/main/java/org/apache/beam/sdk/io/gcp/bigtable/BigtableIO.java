@@ -38,6 +38,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -171,7 +173,17 @@ import org.slf4j.LoggerFactory;
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
  * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner
  * PipelineRunners} for more details.
+ *
+ * <h3>Updates to the I/O connector code</h3>
+ *
+ * For any significant updates to this I/O connector, please consider involving corresponding code
+ * reviewers mentioned <a
+ * href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
+ * here</a>.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class BigtableIO {
   private static final Logger LOG = LoggerFactory.getLogger(BigtableIO.class);
 
@@ -400,6 +412,28 @@ public class BigtableIO {
     }
 
     /**
+     * Returns a new {@link BigtableIO.Read} that will break up read requests into smaller batches.
+     * This function will switch the base BigtableIO.Reader class to using the SegmentReader. If
+     * null is passed, this behavior will be disabled and the stream reader will be used.
+     *
+     * <p>Does not modify this object.
+     *
+     * <p>When we have a builder, we initialize the value. When they call the method then we
+     * override the value
+     */
+    @Experimental(Kind.SOURCE_SINK)
+    public Read withMaxBufferElementCount(@Nullable Integer maxBufferElementCount) {
+      BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(
+              bigtableReadOptions
+                  .toBuilder()
+                  .setMaxBufferElementCount(maxBufferElementCount)
+                  .build())
+          .build();
+    }
+
+    /**
      * Returns a new {@link BigtableIO.Read} that will read only rows in the specified range.
      *
      * <p>Does not modify this object.
@@ -452,6 +486,17 @@ public class BigtableIO {
       return toBuilder().setBigtableConfig(config.withBigtableService(bigtableService)).build();
     }
 
+    /**
+     * Returns a new {@link BigtableIO.Read} that will use an official Bigtable emulator.
+     *
+     * <p>This is used for testing.
+     */
+    @VisibleForTesting
+    public Read withEmulator(String emulatorHost) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withEmulator(emulatorHost)).build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
       getBigtableConfig().validate();
@@ -475,7 +520,7 @@ public class BigtableIO {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       ToStringHelper helper =
           MoreObjects.toStringHelper(Read.class).add("config", getBigtableConfig());
       return helper.add("readOptions", getBigtableReadOptions()).toString();
@@ -684,6 +729,17 @@ public class BigtableIO {
     }
 
     /**
+     * Returns a new {@link BigtableIO.Write} that will use an official Bigtable emulator.
+     *
+     * <p>This is used for testing.
+     */
+    @VisibleForTesting
+    public Write withEmulator(String emulatorHost) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withEmulator(emulatorHost)).build();
+    }
+
+    /**
      * Returns a {@link BigtableIO.WriteWithResults} that will emit a {@link BigtableWriteResult}
      * for each batch of rows written.
      */
@@ -708,7 +764,7 @@ public class BigtableIO {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       return MoreObjects.toStringHelper(Write.class).add("config", getBigtableConfig()).toString();
     }
   }
@@ -887,7 +943,6 @@ public class BigtableIO {
     private final BigtableConfig config;
     private final BigtableReadOptions readOptions;
     private @Nullable Long estimatedSizeBytes;
-    private transient @Nullable List<SampleRowKeysResponse> sampleRowKeys;
 
     /** Creates a new {@link BigtableSource} with just one {@link ByteKeyRange}. */
     protected BigtableSource withSingleRange(ByteKeyRange range) {
@@ -1236,6 +1291,10 @@ public class BigtableIO {
     public @Nullable RowFilter getRowFilter() {
       ValueProvider<RowFilter> rowFilter = readOptions.getRowFilter();
       return rowFilter != null && rowFilter.isAccessible() ? rowFilter.get() : null;
+    }
+
+    public @Nullable Integer getMaxBufferElementCount() {
+      return readOptions.getMaxBufferElementCount();
     }
 
     public ValueProvider<String> getTableId() {

@@ -26,25 +26,18 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow_V2', 'Run Pyt
       description('Runs Python ValidatesRunner suite on the Dataflow runner v2.')
 
       // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 200)
 
       publishers {
-        archiveJunit('**/nosetests*.xml')
+        archiveJunit('**/pytest*.xml')
       }
 
       // Execute gradle task to test Python SDK.
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':sdks:python:test-suites:dataflow:py2:validatesRunnerBatchTests')
-          tasks(':sdks:python:test-suites:dataflow:py2:validatesRunnerStreamingTests')
-          // TODO: Enable following tests after making sure we have enough capacity.
-          // tasks(':sdks:python:test-suites:dataflow:py35:validatesRunnerBatchTests')
-          // tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerBatchTests')
-          // tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerBatchTests')
-          // tasks(':sdks:python:test-suites:dataflow:py35:validatesRunnerStreamingTests')
-          // tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerStreamingTests')
-          // tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerStreamingTests')
+          tasks(':sdks:python:test-suites:dataflow:validatesRunnerBatchTestsV2')
+          tasks(':sdks:python:test-suites:dataflow:validatesRunnerStreamingTestsV2')
           switches('-PuseRunnerV2')
           commonJobProperties.setGradleSwitches(delegate)
         }

@@ -23,15 +23,11 @@ service.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import numbers
 import sys
 from collections import defaultdict
-
-from future.utils import iteritems
 
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
@@ -79,7 +75,7 @@ class DataflowMetrics(MetricResults):
       job_graph: apiclient.Job instance to be able to translate between internal
         step names (e.g. "s2"), and user step names (e.g. "split").
     """
-    super(DataflowMetrics, self).__init__()
+    super().__init__()
     self._dataflow_client = dataflow_client
     self.job_result = job_result
     self._queried_after_termination = False
@@ -97,23 +93,36 @@ class DataflowMetrics(MetricResults):
   def _translate_step_name(self, internal_name):
     """Translate between internal step names (e.g. "s1") and user step names."""
     if not self._job_graph:
-      raise ValueError('Could not translate the internal step name.')
-
-    try:
-      step = _get_match(
-          self._job_graph.proto.steps, lambda x: x.name == internal_name)
-      user_step_name = _get_match(
-          step.properties.additionalProperties,
-          lambda x: x.key == 'user_name').value.string_value
-    except ValueError:
-      raise ValueError('Could not translate the internal step name.')
+      raise ValueError(
+          'Could not translate the internal step name %r since job graph is '
+          'not available.' % internal_name)
+    user_step_name = None
+    if (self._job_graph and internal_name in
+        self._job_graph.proto_pipeline.components.transforms.keys()):
+      # Dataflow Runner v2 with portable job submission uses proto transform map
+      # IDs for step names. Also PTransform.unique_name maps to user step names.
+      # Hence we lookup user step names based on the proto.
+      user_step_name = self._job_graph.proto_pipeline.components.transforms[
+          internal_name].unique_name
+    else:
+      try:
+        step = _get_match(
+            self._job_graph.proto.steps, lambda x: x.name == internal_name)
+        user_step_name = _get_match(
+            step.properties.additionalProperties,
+            lambda x: x.key == 'user_name').value.string_value
+      except ValueError:
+        pass  # Exception is handled below.
+    if not user_step_name:
+      raise ValueError(
+          'Could not translate the internal step name %r.' % internal_name)
     return user_step_name
 
   def _get_metric_key(self, metric):
     """Populate the MetricKey object for a queried metric result."""
     step = ""
     name = metric.name.name  # Always extract a name
-    labels = dict()
+    labels = {}
     try:  # Try to extract the user step name.
       # If ValueError is thrown within this try-block, it is because of
       # one of the following:
@@ -184,7 +193,7 @@ class DataflowMetrics(MetricResults):
       metrics_by_name[metric_key][tentative_or_committed] = metric
 
     # Now we create the MetricResult elements.
-    for metric_key, metric in iteritems(metrics_by_name):
+    for metric_key, metric in metrics_by_name.items():
       attempted = self._get_metric_value(metric['tentative'])
       committed = self._get_metric_value(metric['committed'])
       result.append(
@@ -210,6 +219,18 @@ class DataflowMetrics(MetricResults):
       dist_sum = _get_match(
           metric.distribution.object_value.properties,
           lambda x: x.key == 'sum').value.integer_value
+      if dist_sum is None:
+        # distribution metric is not meant to use on large values, but in case
+        # it is, the value can overflow and become double_value, the correctness
+        # of the value may not be guaranteed.
+        _LOGGER.info(
+            "Distribution metric sum value seems to have "
+            "overflowed integer_value range, the correctness of sum or mean "
+            "value may not be guaranteed: %s" % metric.distribution)
+        dist_sum = int(
+            _get_match(
+                metric.distribution.object_value.properties,
+                lambda x: x.key == 'sum').value.double_value)
       return DistributionResult(
           DistributionData(dist_sum, dist_count, dist_min, dist_max))
     else:
@@ -261,15 +282,16 @@ class DataflowMetrics(MetricResults):
 
 
 def main(argv):
-  """Print the metric results for a the dataflow --job_id and --project.
+  """Print the metric results for the dataflow --job_id and --project.
 
   Instead of running an entire pipeline which takes several minutes, use this
   main method to display MetricResults for a specific --job_id and --project
   which takes only a few seconds.
   """
-  # TODO(BEAM-6833): The MetricResults do not show translated step names as the
-  # job_graph is not provided to DataflowMetrics.
-  # Import here to avoid adding the dependency for local running scenarios.
+  # TODO(https://github.com/apache/beam/issues/19452): The MetricResults do not
+  # show translated step names as the job_graph is not provided to
+  # DataflowMetrics. Import here to avoid adding the dependency for local
+  # running scenarios.
   try:
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.runners.dataflow.internal import apiclient

@@ -98,7 +98,7 @@ public class MutationDetectorsTest {
       @Override
       public List<Object> decode(InputStream inStream) throws CoderException, IOException {
         // Consume the written bytes
-        int read = inStream.read(new byte[4]);
+        inStream.read(new byte[4]);
         return new ArrayList<>();
       }
 

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Instant;
 
@@ -26,7 +24,6 @@ import org.joda.time.Instant;
  * A {@link WatermarkEstimator} which is used for estimating output watermarks of a splittable
  * {@link DoFn}. See {@link WatermarkEstimators} for commonly used watermark estimators.
  */
-@Experimental(Kind.SPLITTABLE_DO_FN)
 public interface WatermarkEstimator<WatermarkEstimatorStateT> {
   /**
    * Return estimated output watermark. This method must return monotonically increasing watermarks

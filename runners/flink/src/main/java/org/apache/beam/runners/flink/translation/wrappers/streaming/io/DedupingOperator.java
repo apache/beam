@@ -38,6 +38,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.joda.time.Duration;
 
 /** Remove values with duplicate ids. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DedupingOperator<T> extends AbstractStreamOperator<WindowedValue<T>>
     implements OneInputStreamOperator<WindowedValue<ValueWithRecordId<T>>, WindowedValue<T>>,
         Triggerable<ByteBuffer, VoidNamespace> {

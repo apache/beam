@@ -29,7 +29,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusResponse;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 class WorkerStatusClient implements Closeable {
 
-  public static final Logger LOG = LoggerFactory.getLogger(WorkerStatusClient.class);
+  private static final Logger LOG = LoggerFactory.getLogger(WorkerStatusClient.class);
   private final IdGenerator idGenerator = IdGenerators.incrementingLongs();
   private final StreamObserver<WorkerStatusRequest> requestReceiver;
   private final Map<String, CompletableFuture<WorkerStatusResponse>> pendingResponses =
@@ -149,7 +149,7 @@ class WorkerStatusClient implements Closeable {
 
     @Override
     public void onError(Throwable throwable) {
-      LOG.error("{} received error {}", WorkerStatusClient.class.getSimpleName(), throwable);
+      LOG.error("{} received error.", WorkerStatusClient.class.getSimpleName(), throwable);
       onCompleted();
     }
 

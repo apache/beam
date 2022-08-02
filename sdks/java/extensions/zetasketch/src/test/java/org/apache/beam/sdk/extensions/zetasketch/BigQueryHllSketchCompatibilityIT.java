@@ -26,6 +26,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
@@ -191,6 +192,7 @@ public class BigQueryHllSketchCompatibilityIT {
     PCollection<Long> result =
         p.apply(
                 BigQueryIO.read(parseQueryResultToByteArray)
+                    .withFormat(DataFormat.AVRO)
                     .fromQuery(query)
                     .usingStandardSql()
                     .withMethod(Method.DIRECT_READ)

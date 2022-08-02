@@ -72,13 +72,14 @@ import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -92,6 +93,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Testing of all the layers of translation are performed via local service runner tests.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>, Node> {
   /** Must match declared fields within {@code ProcessBundleHandler}. */
   private static final String DATA_INPUT_URN = "beam:runner:source:v1";
@@ -126,8 +130,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       IdGenerator idGenerator,
       Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
-    return new RegisterNodeFunction(
-        pipeline, idGenerator, stateApiServiceDescriptor, timerApiServiceDescriptor);
+    return new RegisterNodeFunction(pipeline, idGenerator, stateApiServiceDescriptor);
   }
 
   /**
@@ -139,15 +142,13 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       IdGenerator idGenerator,
       Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
-    return new RegisterNodeFunction(
-        null, idGenerator, stateApiServiceDescriptor, timerApiServiceDescriptor);
+    return new RegisterNodeFunction(null, idGenerator, stateApiServiceDescriptor);
   }
 
   private RegisterNodeFunction(
       RunnerApi.@Nullable Pipeline pipeline,
       IdGenerator idGenerator,
-      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
-      Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
+      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
     this.pipeline = pipeline;
     this.idGenerator = idGenerator;
     this.stateApiServiceDescriptor = stateApiServiceDescriptor;
@@ -234,7 +235,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
 
       String coderId = "generatedCoder" + idGenerator.getId();
       instructionOutputNodeToCoderIdBuilder.put(node, coderId);
-      try (ByteString.Output output = ByteString.newOutput()) {
+      try (ByteStringOutputStream output = new ByteStringOutputStream()) {
         try {
           Coder<?> javaCoder =
               CloudObjects.coderFromCloudObject(CloudObject.fromSpec(instructionOutput.getCodec()));

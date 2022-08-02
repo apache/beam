@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.theInstance;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.state.TimeDomain;
@@ -39,6 +39,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DoFnInvokers}. */
 @RunWith(JUnit4.class)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// released (2.11.0)
+@SuppressWarnings("unused")
 public class OnTimerInvokersTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 

@@ -24,7 +24,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A utility for manipulating well-known cloud types. */
-@SuppressWarnings("ImmutableEnumChecker")
+@SuppressWarnings({
+  "ImmutableEnumChecker",
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 enum CloudKnownType {
   TEXT("http://schema.org/Text", String.class) {
     @Override

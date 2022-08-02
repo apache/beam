@@ -27,9 +27,9 @@
 #      Instructions: https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line
 #   2. Please set RELEASE_BUILD_CONFIGS in script.config before running this
 #      script.
-#   3. Please manually comment trigger phrases to created PR to start Gradle
-#      release build and all PostCommit jobs. Phrases are listed in
-#      JOB_TRIGGER_PHRASES below.
+#   3. Please manually comment trigger phrases to the created PR to start
+#      Gradle release build and all PostCommit jobs, or run mass_comment.py
+#      to do so. Phrases are listed in COMMENTS_TO_ADD in mass_comment.py.
 
 
 . script.config
@@ -39,6 +39,8 @@ set -e
 BEAM_REPO_URL=https://github.com/apache/beam.git
 RELEASE_BRANCH=release-${RELEASE_VER}
 WORKING_BRANCH=postcommit_validation_pr
+SCRIPT=$(readlink -f $0)
+SCRIPT_DIR=$(dirname $SCRIPT)
 
 function clean_up(){
   echo ""
@@ -123,12 +125,12 @@ if [[ ! -z `which hub` ]]; then
   # The version change is needed for Dataflow python batch tests.
   # Without changing to dev version, the dataflow pipeline will fail because of non-existed worker containers.
   # Note that dataflow worker containers should be built after RC has been built.
-  sed -i -e "s/${RELEASE_VER}/${RELEASE_VER}.dev/g" sdks/python/apache_beam/version.py
-  sed -i -e "s/sdk_version=${RELEASE_VER}/sdk_version=${RELEASE_VER}.dev/g" gradle.properties
-  git add sdks/python/apache_beam/version.py
-  git add gradle.properties
+  sh "$SCRIPT_DIR"/set_version.sh "$RELEASE_VER" --git-add
+  # In case the version string was not changed, append a newline to CHANGES.md
+  echo "" >> CHANGES.md
+  git add CHANGES.md
   git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
-  git push -f ${GITHUB_USERNAME} --quiet
+  git push -f ${GITHUB_USERNAME} ${WORKING_BRANCH} --quiet
 
   hub pull-request -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch
 

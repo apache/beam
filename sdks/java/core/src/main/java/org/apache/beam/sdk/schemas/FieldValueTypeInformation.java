@@ -20,19 +20,33 @@ package org.apache.beam.sdk.schemas;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.stream.Stream;
+import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Represents type information for a Java type that will be used to infer a Schema type. */
 @AutoValue
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public abstract class FieldValueTypeInformation implements Serializable {
+  /** Optionally returns the field index. */
+  public abstract @Nullable Integer getNumber();
+
   /** Returns the field name. */
   public abstract String getName();
 
@@ -64,6 +78,8 @@ public abstract class FieldValueTypeInformation implements Serializable {
 
   @AutoValue.Builder
   public abstract static class Builder {
+    public abstract Builder setNumber(@Nullable Integer number);
+
     public abstract Builder setName(String name);
 
     public abstract Builder setNullable(boolean nullable);
@@ -103,10 +119,11 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .build();
   }
 
-  public static FieldValueTypeInformation forField(Field field) {
+  public static FieldValueTypeInformation forField(Field field, int index) {
     TypeDescriptor type = TypeDescriptor.of(field.getGenericType());
     return new AutoValue_FieldValueTypeInformation.Builder()
-        .setName(field.getName())
+        .setName(getNameOverride(field.getName(), field))
+        .setNumber(getNumberOverride(index, field))
         .setNullable(hasNullableAnnotation(field))
         .setType(type)
         .setRawType(type.getRawType())
@@ -118,7 +135,39 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .build();
   }
 
-  public static FieldValueTypeInformation forGetter(Method method) {
+  public static <T extends AnnotatedElement & Member> int getNumberOverride(int index, T member) {
+    @Nullable SchemaFieldNumber fieldNumber = member.getAnnotation(SchemaFieldNumber.class);
+    if (fieldNumber == null) {
+      return index;
+    }
+    return Integer.parseInt(fieldNumber.value());
+  }
+
+  public static <T extends AnnotatedElement & Member> String getNameOverride(
+      String original, T member) {
+    @Nullable SchemaFieldName fieldName = member.getAnnotation(SchemaFieldName.class);
+    @Nullable SchemaCaseFormat caseFormatAnnotation = member.getAnnotation(SchemaCaseFormat.class);
+    @Nullable
+    SchemaCaseFormat classCaseFormatAnnotation =
+        member.getDeclaringClass().getAnnotation(SchemaCaseFormat.class);
+    if (fieldName != null) {
+      if (caseFormatAnnotation != null) {
+        throw new RuntimeException(
+            String.format(
+                "Cannot define both @SchemaFieldName and @SchemaCaseFormat. From member '%s'.",
+                member.getName()));
+      }
+      return fieldName.value();
+    } else if (caseFormatAnnotation != null) {
+      return CaseFormat.LOWER_CAMEL.to(caseFormatAnnotation.value(), original);
+    } else if (classCaseFormatAnnotation != null) {
+      return CaseFormat.LOWER_CAMEL.to(classCaseFormatAnnotation.value(), original);
+    } else {
+      return original;
+    }
+  }
+
+  public static FieldValueTypeInformation forGetter(Method method, int index) {
     String name;
     if (method.getName().startsWith("get")) {
       name = ReflectUtils.stripPrefix(method.getName(), "get");
@@ -131,7 +180,8 @@ public abstract class FieldValueTypeInformation implements Serializable {
     TypeDescriptor type = TypeDescriptor.of(method.getGenericReturnType());
     boolean nullable = hasNullableReturnType(method);
     return new AutoValue_FieldValueTypeInformation.Builder()
-        .setName(name)
+        .setName(getNameOverride(name, method))
+        .setNumber(getNumberOverride(index, method))
         .setNullable(nullable)
         .setType(type)
         .setRawType(type.getRawType())
@@ -144,19 +194,12 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   private static boolean hasNullableAnnotation(Field field) {
-    for (Annotation annotation : field.getAnnotations()) {
-      if (isNullableAnnotation(annotation)) {
-        return true;
-      }
-    }
+    Stream<Annotation> annotations =
+        Stream.concat(
+            Stream.of(field.getAnnotations()),
+            Stream.of(field.getAnnotatedType().getAnnotations()));
 
-    for (Annotation annotation : field.getAnnotatedType().getAnnotations()) {
-      if (isNullableAnnotation(annotation)) {
-        return true;
-      }
-    }
-
-    return false;
+    return annotations.anyMatch(FieldValueTypeInformation::isNullableAnnotation);
   }
 
   /**
@@ -164,19 +207,26 @@ public abstract class FieldValueTypeInformation implements Serializable {
    * field is nullable.
    */
   private static boolean hasNullableReturnType(Method method) {
-    for (Annotation annotation : method.getAnnotations()) {
-      if (isNullableAnnotation(annotation)) {
-        return true;
-      }
+    Stream<Annotation> annotations =
+        Stream.concat(
+            Stream.of(method.getAnnotations()),
+            Stream.of(method.getAnnotatedReturnType().getAnnotations()));
+
+    return annotations.anyMatch(FieldValueTypeInformation::isNullableAnnotation);
+  }
+
+  private static boolean hasSingleNullableParameter(Method method) {
+    if (method.getParameterCount() != 1) {
+      throw new RuntimeException(
+          "Setter methods should take a single argument " + method.getName());
     }
 
-    for (Annotation annotation : method.getAnnotatedReturnType().getAnnotations()) {
-      if (isNullableAnnotation(annotation)) {
-        return true;
-      }
-    }
+    Stream<Annotation> annotations =
+        Stream.concat(
+            Arrays.stream(method.getAnnotatedParameterTypes()[0].getAnnotations()),
+            Arrays.stream(method.getParameterAnnotations()[0]));
 
-    return false;
+    return annotations.anyMatch(FieldValueTypeInformation::isNullableAnnotation);
   }
 
   /** Try to accept any Nullable annotation. */
@@ -195,13 +245,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
     } else {
       throw new RuntimeException("Setter has wrong prefix " + method.getName());
     }
-    if (method.getParameterCount() != 1) {
-      throw new RuntimeException("Setter methods should take a single argument.");
-    }
+
     TypeDescriptor type = TypeDescriptor.of(method.getGenericParameterTypes()[0]);
-    boolean nullable =
-        Arrays.stream(method.getParameters()[0].getAnnotatedType().getAnnotations())
-            .anyMatch(annotation -> isNullableAnnotation(annotation));
+    boolean nullable = hasSingleNullableParameter(method);
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(name)
         .setNullable(nullable)

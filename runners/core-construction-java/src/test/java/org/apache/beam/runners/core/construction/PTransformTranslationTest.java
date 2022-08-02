@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -49,6 +50,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -164,14 +166,24 @@ public class PTransformTranslationTest {
     GenerateSequence sequence = GenerateSequence.from(0);
     PCollection<Long> pcollection = pipeline.apply(sequence);
     return AppliedPTransform.of(
-        "Count", pipeline.begin().expand(), pcollection.expand(), sequence, pipeline);
+        "Count",
+        PValues.expandInput(pipeline.begin()),
+        PValues.expandOutput(pcollection),
+        sequence,
+        ResourceHints.create(),
+        pipeline);
   }
 
   private static AppliedPTransform<?, ?, ?> read(Pipeline pipeline) {
     Read.Unbounded<Long> transform = Read.from(CountingSource.unbounded());
     PCollection<Long> pcollection = pipeline.apply(transform);
     return AppliedPTransform.of(
-        "ReadTheCount", pipeline.begin().expand(), pcollection.expand(), transform, pipeline);
+        "ReadTheCount",
+        PValues.expandInput(pipeline.begin()),
+        PValues.expandOutput(pcollection),
+        transform,
+        ResourceHints.create(),
+        pipeline);
   }
 
   private static AppliedPTransform<?, ?, ?> rawPTransformWithNullSpec(Pipeline pipeline) {
@@ -189,9 +201,10 @@ public class PTransformTranslationTest {
         };
     return AppliedPTransform.<PBegin, PDone, PTransform<PBegin, PDone>>of(
         "RawPTransformWithNoSpec",
-        pipeline.begin().expand(),
-        PDone.in(pipeline).expand(),
+        PValues.expandInput(pipeline.begin()),
+        PValues.expandOutput(PDone.in(pipeline)),
         rawPTransform,
+        ResourceHints.create(),
         pipeline);
   }
 
@@ -206,12 +219,17 @@ public class PTransformTranslationTest {
                 TupleTagList.of(new TupleTag<KV<String, Long>>() {}));
     PCollectionTuple output = input.apply(parDo);
 
-    Map<TupleTag<?>, PValue> inputs = new HashMap<>();
-    inputs.putAll(parDo.getAdditionalInputs());
-    inputs.putAll(input.expand());
+    Map<TupleTag<?>, PCollection<?>> inputs = new HashMap<>();
+    inputs.putAll(PValues.fullyExpand(parDo.getAdditionalInputs()));
+    inputs.putAll(PValues.expandInput(input));
 
     return AppliedPTransform
         .<PCollection<Long>, PCollectionTuple, ParDo.MultiOutput<Long, KV<Long, String>>>of(
-            "MultiParDoInAndOut", inputs, output.expand(), parDo, pipeline);
+            "MultiParDoInAndOut",
+            inputs,
+            PValues.expandOutput(output),
+            parDo,
+            ResourceHints.create(),
+            pipeline);
   }
 }

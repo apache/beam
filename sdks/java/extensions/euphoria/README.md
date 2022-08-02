@@ -29,7 +29,7 @@ Integration of Euphoria API to Beam is in **progress** ([BEAM-3900](https://issu
 Euphoria is located in `dsl-euphoria` branch. To build `euphoria` subprojects use command:
 
 ```
-./gradlew :sdks:java:extensions:euphoria:build 
+./gradlew :sdks:java:extensions:euphoria:build
 ```
 
 ## Documentation

@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import sys
 import typing
 import unittest
@@ -39,6 +37,13 @@ _TestNestedAlias = typing.List[_TestFlatAlias]
 
 
 class _TestClass(object):
+  pass
+
+
+T = typing.TypeVar('T')
+
+
+class _TestGeneric(typing.Generic[T]):
   pass
 
 
@@ -66,14 +71,14 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         ('test class', _TestClass, _TestClass),
         ('test class in list', typing.List[_TestClass],
          typehints.List[_TestClass]),
+        ('generic bare', _TestGeneric, _TestGeneric),
+        ('generic subscripted', _TestGeneric[int], _TestGeneric[int]),
         ('complex tuple', typing.Tuple[bytes, typing.List[typing.Tuple[
             bytes, typing.Union[int, bytes, float]]]],
          typehints.Tuple[bytes, typehints.List[typehints.Tuple[
              bytes, typehints.Union[int, bytes, float]]]]),
-        # TODO(BEAM-7713): This case seems to fail on Py3.5.2 but not 3.5.4.
         ('arbitrary-length tuple', typing.Tuple[int, ...],
-         typehints.Tuple[int, ...])
-        if sys.version_info >= (3, 5, 4) else None,
+         typehints.Tuple[int, ...]),
         ('flat alias', _TestFlatAlias, typehints.Tuple[bytes, float]),  # type: ignore[misc]
         ('nested alias', _TestNestedAlias,
          typehints.List[typehints.Tuple[bytes, float]]),
@@ -88,6 +93,10 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
                          typehints.TypeVariable('V')]),
         ('iterator', typing.Iterator[typing.Any],
          typehints.Iterator[typehints.Any]),
+        ('nested generic bare', typing.List[_TestGeneric],
+         typehints.List[_TestGeneric]),
+        ('nested generic subscripted', typing.List[_TestGeneric[int]],
+         typehints.List[_TestGeneric[int]]),
     ]
 
     for test_case in test_cases:
@@ -112,13 +121,13 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         typehints.Any, convert_to_beam_type(typing.NewType('Number', int)))
 
   def test_pattern(self):
-    # TODO(BEAM-10254): Unsupported.
+    # TODO(https://github.com/apache/beam/issues/20489): Unsupported.
     self.assertEqual(typehints.Any, convert_to_beam_type(typing.Pattern))
     self.assertEqual(typehints.Any, convert_to_beam_type(typing.Pattern[str]))
     self.assertEqual(typehints.Any, convert_to_beam_type(typing.Pattern[bytes]))
 
   def test_match(self):
-    # TODO(BEAM-10254): Unsupported.
+    # TODO(https://github.com/apache/beam/issues/20489): Unsupported.
     self.assertEqual(typehints.Any, convert_to_beam_type(typing.Match))
     self.assertEqual(typehints.Any, convert_to_beam_type(typing.Match[str]))
     self.assertEqual(typehints.Any, convert_to_beam_type(typing.Match[bytes]))
@@ -187,10 +196,6 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     test_cases = [
         ('bare union', typing.Union),
     ]
-    if sys.version_info < (3, 7):
-      test_cases += [
-          ('bare generator', typing.Generator),
-      ]
     for test_case in test_cases:
       description = test_case[0]
       typing_type = test_case[1]

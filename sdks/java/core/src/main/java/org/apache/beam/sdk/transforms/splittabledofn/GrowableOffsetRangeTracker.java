@@ -21,8 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.math.BigDecimal;
 import java.math.MathContext;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 
@@ -35,7 +33,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
  *
  * <p>The growable range is marked as done by claiming {@code Long.MAX_VALUE}.
  */
-@Experimental(Kind.SPLITTABLE_DO_FN)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class GrowableOffsetRangeTracker extends OffsetRangeTracker {
   /**
    * Provides the estimated end offset of the range.
@@ -53,8 +53,8 @@ public class GrowableOffsetRangeTracker extends OffsetRangeTracker {
    * <p>If {@link #estimate} is expensive to compute, consider wrapping the implementation with
    * {@link Suppliers#memoizeWithExpiration} or equivalent as an optimization.
    *
-   * <p>TODO(BEAM-10032): Also consider using {@link RangeEndEstimator} when the range is not ended
-   * with {@code Long.MAX_VALUE}.
+   * <p>TODO(https://github.com/apache/beam/issues/20227): Also consider using {@link
+   * RangeEndEstimator} when the range is not ended with {@code Long.MAX_VALUE}.
    */
   @FunctionalInterface
   public interface RangeEndEstimator {

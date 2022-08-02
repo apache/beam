@@ -20,10 +20,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
-import sys
 import unittest
 
 from apache_beam.options.pipeline_options import PortableOptions
@@ -40,12 +37,6 @@ from apache_beam.transforms.environments import SubprocessSDKEnvironment
 
 
 class RunnerApiTest(unittest.TestCase):
-
-  if sys.version_info <= (3, ):
-
-    def assertIn(self, first, second, msg=None):
-      self.assertTrue(first in second, msg)
-
   def test_environment_encoding(self):
     for environment in (DockerEnvironment(),
                         DockerEnvironment(container_image='img'),
@@ -72,11 +63,13 @@ class RunnerApiTest(unittest.TestCase):
   def test_sdk_capabilities(self):
     sdk_capabilities = environments.python_sdk_capabilities()
     self.assertIn(common_urns.coders.LENGTH_PREFIX.urn, sdk_capabilities)
+    self.assertIn(
+        common_urns.protocols.HARNESS_MONITORING_INFOS.urn, sdk_capabilities)
     self.assertIn(common_urns.protocols.WORKER_STATUS.urn, sdk_capabilities)
-    #TODO(BEAM-10530): Add truncate capability.
-    # self.assertIn(
-    #     common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn,
-    #     sdk_capabilities)
+    self.assertIn(
+        common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn,
+        sdk_capabilities)
+    self.assertIn(common_urns.primitives.TO_STRING.urn, sdk_capabilities)
 
   def test_default_capabilities(self):
     environment = DockerEnvironment.from_options(
@@ -84,7 +77,57 @@ class RunnerApiTest(unittest.TestCase):
     context = pipeline_context.PipelineContext()
     proto = environment.to_runner_api(context)
     self.assertEqual(
-        set(proto.capabilities), set(environments.python_sdk_capabilities()))
+        set(proto.capabilities),
+        set(environments.python_sdk_docker_capabilities()))
+
+
+class EnvironmentOptionsTest(unittest.TestCase):
+  def test_process_variables_empty(self):
+    options = PortableOptions([
+        '--environment_type=PROCESS',
+        '--environment_option=process_command=foo',
+        '--sdk_location=container'
+    ])
+    environment = ProcessEnvironment.from_options(options)
+    self.assertEqual(environment.command, 'foo')
+    self.assertEqual(environment.env, {})
+
+  def test_process_variables_set(self):
+    options = PortableOptions([
+        '--environment_type=PROCESS',
+        '--environment_option=process_command=foo',
+        '--environment_option=process_variables='
+        'BASH_VARIABLE_ONE=spam,BASH_VARIABLE_TWO=ham',
+        '--sdk_location=container'
+    ])
+    environment = ProcessEnvironment.from_options(options)
+    self.assertEqual(environment.command, 'foo')
+    self.assertEqual(
+        environment.env, {
+            'BASH_VARIABLE_ONE': 'spam', 'BASH_VARIABLE_TWO': 'ham'
+        })
+
+  def test_process_variables_missing_rvalue(self):
+    with self.assertRaises(ValueError):
+      options = PortableOptions([
+          '--environment_type=PROCESS',
+          '--environment_option=process_command=foo',
+          '--environment_option=process_variables='
+          'BASH_VARIABLE_ONE=spam,MISSING_RVALUE',
+          '--sdk_location=container'
+      ])
+      ProcessEnvironment.from_options(options)
+
+  def test_environments_with_same_hints_are_equal(self):
+    options = PortableOptions([
+        '--environment_type=PROCESS',
+        '--environment_option=process_command=foo',
+        '--sdk_location=container',
+        '--resource_hint=accelerator=gpu',
+    ])
+    environment1 = ProcessEnvironment.from_options(options)
+    environment2 = ProcessEnvironment.from_options(options)
+    self.assertEqual(environment1, environment2)
 
 
 if __name__ == '__main__':

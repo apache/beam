@@ -20,19 +20,15 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 
-from past.builtins import unicode
-
 import apache_beam as beam
-import apache_beam.transforms.window as window
-from apache_beam.examples.wordcount import WordExtractingDoFn
+from apache_beam.examples.wordcount_with_metrics import WordExtractingDoFn
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.transforms import window
 
 
 def run(argv=None, save_main_session=True):
@@ -85,8 +81,7 @@ def run(argv=None, save_main_session=True):
 
     counts = (
         lines
-        | 'split' >>
-        (beam.ParDo(WordExtractingDoFn()).with_output_types(unicode))
+        | 'split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))
         | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
         | beam.WindowInto(window.FixedWindows(15, 0))
         | 'group' >> beam.GroupByKey()

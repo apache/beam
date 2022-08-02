@@ -76,8 +76,6 @@ or:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import logging
 
@@ -92,7 +90,7 @@ class CoGroupByKeyTest(LoadTest):
   CO_INPUT_TAG = 'pc2'
 
   def __init__(self):
-    super(CoGroupByKeyTest, self).__init__()
+    super().__init__()
     self.co_input_options = json.loads(
         self.pipeline.get_option('co_input_options'))
     self.iterations = self.get_option_or_default('iterations', 1)
@@ -120,7 +118,6 @@ class CoGroupByKeyTest(LoadTest):
         | 'Read ' + self.INPUT_TAG >> beam.io.Read(
             synthetic_pipeline.SyntheticSource(
                 self.parse_synthetic_source_options()))
-        | 'Make ' + self.INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
         | 'Measure time: Start pc1' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
 
@@ -129,8 +126,6 @@ class CoGroupByKeyTest(LoadTest):
         | 'Read ' + self.CO_INPUT_TAG >> beam.io.Read(
             synthetic_pipeline.SyntheticSource(
                 self.parse_synthetic_source_options(self.co_input_options)))
-        |
-        'Make ' + self.CO_INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
         | 'Measure time: Start pc2' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
     # pylint: disable=expression-not-assigned

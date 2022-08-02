@@ -46,6 +46,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Utilities to insert synthetic {@link PCollectionNode PCollections} for {@link PCollection
  * PCollections} which are produced by multiple independently executable stages.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class OutputDeduplicator {
 
   /**

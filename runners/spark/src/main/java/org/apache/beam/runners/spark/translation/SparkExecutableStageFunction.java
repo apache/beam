@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.translation;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.List;
@@ -33,6 +34,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
@@ -50,11 +52,13 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.runners.fnexecution.translation.BatchSideInputHandlerFactory;
 import org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -63,8 +67,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /**
@@ -76,11 +78,15 @@ import scala.Tuple2;
  * The resulting data set should be further processed by a {@link
  * SparkExecutableStageExtractionFunction}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class SparkExecutableStageFunction<InputT, SideInputT>
     implements FlatMapFunction<Iterator<WindowedValue<InputT>>, RawUnionValue> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SparkExecutableStageFunction.class);
-
+  // Pipeline options for initializing the FileSystems
+  private final SerializablePipelineOptions pipelineOptions;
   private final RunnerApi.ExecutableStagePayload stagePayload;
   private final Map<String, Integer> outputMap;
   private final SparkExecutableStageContextFactory contextFactory;
@@ -95,6 +101,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
   private transient Object currentTimerKey;
 
   SparkExecutableStageFunction(
+      SerializablePipelineOptions pipelineOptions,
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
@@ -102,6 +109,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
       MetricsContainerStepMapAccumulator metricsAccumulator,
       Coder windowCoder) {
+    this.pipelineOptions = pipelineOptions;
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
     this.outputMap = outputMap;
@@ -118,6 +126,16 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
   @Override
   public Iterator<RawUnionValue> call(Iterator<WindowedValue<InputT>> inputs) throws Exception {
+    SparkPipelineOptions options = pipelineOptions.get().as(SparkPipelineOptions.class);
+    // Register standard file systems.
+    FileSystems.setDefaultPipelineOptions(options);
+
+    // Do not call processElements if there are no inputs
+    // Otherwise, this may cause validation errors (e.g. ParDoTest)
+    if (!inputs.hasNext()) {
+      return Collections.emptyIterator();
+    }
+
     try (ExecutableStageContext stageContext = contextFactory.get(jobInfo)) {
       ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
       try (StageBundleFactory stageBundleFactory =
@@ -128,13 +146,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
                 executableStage, stageBundleFactory.getProcessBundleDescriptor());
         if (executableStage.getTimers().size() == 0) {
           ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
-          processElements(
-              executableStage,
-              stateRequestHandler,
-              receiverFactory,
-              null,
-              stageBundleFactory,
-              inputs);
+          processElements(stateRequestHandler, receiverFactory, null, stageBundleFactory, inputs);
           return collector.iterator();
         }
         // Used with Batch, we know that all the data is available for this key. We can't use the
@@ -161,12 +173,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
         // Process inputs.
         processElements(
-            executableStage,
-            stateRequestHandler,
-            receiverFactory,
-            timerReceiverFactory,
-            stageBundleFactory,
-            inputs);
+            stateRequestHandler, receiverFactory, timerReceiverFactory, stageBundleFactory, inputs);
 
         // Finish any pending windows by advancing the input watermark to infinity.
         timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -196,7 +203,6 @@ class SparkExecutableStageFunction<InputT, SideInputT>
   // Processes the inputs of the executable stage. Output is returned via side effects on the
   // receiver.
   private void processElements(
-      ExecutableStage executableStage,
       StateRequestHandler stateRequestHandler,
       ReceiverFactory receiverFactory,
       TimerReceiverFactory timerReceiverFactory,

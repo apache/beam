@@ -23,8 +23,8 @@ applyPythonNature()
 /*************************************************************************************************/
 // Basic build and Python environment setup/cleanup
 
-task buildPython {
-  dependsOn 'setupVirtualenv'
+def buildPython = tasks.register("buildPython") {
+  dependsOn setupVirtualenv
 
   doLast {
     logger.info('Building Python Dependencies')
@@ -34,11 +34,11 @@ task buildPython {
     }
   }
 }
-build.dependsOn buildPython
+build.dependsOn tasks.named("buildPython")
 
 // Create a Python source distribution tarball.
 def tarball = "apache-beam.tar.gz"
-task sdist {
+def sdist = tasks.register("sdist") {
   dependsOn setupVirtualenv
 
   doLast {
@@ -54,7 +54,9 @@ task sdist {
     copy { from collection.singleFile; into buildDir; rename { tarball } }
     logger.info('Create distribution tar file {} in {}', tarball, buildDir)
   }
-  inputs.files pythonSdkDeps
+  inputs.files(pythonSdkDeps)
+      .withPropertyName('pythonSdkDeps')
+      .withPathSensitivity(PathSensitivity.RELATIVE)
   outputs.file "${buildDir}/${tarball}"
 }
 
@@ -68,8 +70,8 @@ artifacts {
 
 // Snapshot of dependency requirements defined in setup.py.
 // Results will be stored in files under Gradle build directory.
-task depSnapshot {
-  dependsOn 'installGcpTest'
+def depSnapshot = tasks.register("depSnapshot") {
+  dependsOn installGcpTest
 
   doLast {
     def outputDir = file(buildDir)
@@ -87,24 +89,36 @@ task depSnapshot {
   }
 }
 
-task dependencyUpdates {
+tasks.register("dependencyUpdates") {
   dependsOn ':dependencyUpdates'
   dependsOn ':sdks:python:test-suites:tox:pycommon:dependency-check'
 }
 
-task buildSnapshot() {
-  dependsOn 'sdist'
-  dependsOn 'depSnapshot'
+tasks.register("buildSnapshot") {
+  dependsOn sdist
+  dependsOn depSnapshot
 }
 
-task startPortableRunner {
-  dependsOn 'buildPython'
+tasks.register("startPortableRunner") {
+  dependsOn buildPython
 
   doLast {
     def jobPort = project.findProperty("jobPort") ?: 8099
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort}"
+    }
+  }
+}
+
+// Run this task to validate the python environment setup for contributors
+tasks.register("wordCount") {
+  description "Run the Python word count example"
+  dependsOn installGcpTest
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --runner DirectRunner --output /tmp/output.txt"
     }
   }
 }

@@ -16,15 +16,13 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import collections
+import gc
 import logging
 import os
 import random
+import re
 import shutil
-import sys
 import tempfile
 import threading
 import time
@@ -32,20 +30,23 @@ import traceback
 import typing
 import unittest
 import uuid
-from builtins import range
 from typing import Any
 from typing import Dict
+from typing import Iterator
+from typing import List
 from typing import Tuple
+from typing import no_type_check
 
-# patches unittest.TestCase to be python3 compatible
 import hamcrest  # pylint: disable=ungrouped-imports
+import numpy as np
+import pytest
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
-from nose.plugins.attrib import attr
 from tenacity import retry
 from tenacity import stop_after_attempt
 
 import apache_beam as beam
+from apache_beam.coders import coders
 from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.io import restriction_trackers
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
@@ -54,13 +55,15 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.portability import python_urns
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
 from apache_beam.runners.worker import data_plane
-from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statesampler
+from apache_beam.runners.worker.operations import InefficientExecutionWarning
 from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -70,6 +73,7 @@ from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.utils import timestamp
+from apache_beam.utils import windowed_value
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
@@ -104,12 +108,7 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
     # underlying exception.
-    if sys.version_info < (3, 2):
-      assertRaisesRegex = self.assertRaisesRegexp
-    else:
-      assertRaisesRegex = self.assertRaisesRegex
-
-    with assertRaisesRegex(Exception, 'Failed assert'):
+    with self.assertRaisesRegex(Exception, 'Failed assert'):
       with self.create_pipeline() as p:
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
@@ -125,6 +124,264 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Map(lambda e: e * 2)
           | beam.Map(lambda e: e + 'x'))
       assert_that(res, equal_to(['aax', 'bcbcx']))
+
+  def test_batch_pardo(self):
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayMultiplyDoFn())
+          | beam.Map(lambda x: x * 3))
+
+      assert_that(res, equal_to([6, 12, 18]))
+
+  def test_batch_pardo_override_type_inference(self):
+    class ArrayMultiplyDoFnOverride(beam.DoFn):
+      def process_batch(self, batch, *unused_args,
+                        **unused_kwargs) -> Iterator[np.ndarray]:
+        assert isinstance(batch, np.ndarray)
+        yield batch * 2
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return input_type
+
+      def get_input_batch_type(self, input_element_type):
+        from apache_beam.typehints.batch import NumpyArray
+        return NumpyArray[input_element_type]
+
+      def get_output_batch_type(self, input_element_type):
+        return self.get_input_batch_type(input_element_type)
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayMultiplyDoFnOverride())
+          | beam.Map(lambda x: x * 3))
+
+      assert_that(res, equal_to([6, 12, 18]))
+
+  def test_batch_pardo_trigger_flush(self):
+    try:
+      utils.check_compiled('apache_beam.coders.coder_impl')
+    except RuntimeError:
+      self.skipTest(
+          'https://github.com/apache/beam/issues/21643: FnRunnerTest with '
+          'non-trivial inputs flakes in non-cython environments')
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          # Pass more than GeneralPurposeConsumerSet.MAX_BATCH_SIZE elements
+          # here to make sure we exercise the batch size limit.
+          | beam.Create(np.array(range(5000),
+                                 dtype=np.int64)).with_output_types(np.int64)
+          | beam.ParDo(ArrayMultiplyDoFn())
+          | beam.Map(lambda x: x * 3))
+
+      assert_that(res, equal_to([i * 2 * 3 for i in range(5000)]))
+
+  def test_batch_rebatch_pardos(self):
+    # Should raise a warning about the rebatching that mentions:
+    # - The consuming DoFn
+    # - The output batch type of the producer
+    # - The input batch type of the consumer
+    with self.assertWarnsRegex(InefficientExecutionWarning,
+                               r'ListPlusOneDoFn.*NumpyArray.*List\[int64\]'):
+      with self.create_pipeline() as p:
+        res = (
+            p
+            | beam.Create(np.array([1, 2, 3],
+                                   dtype=np.int64)).with_output_types(np.int64)
+            | beam.ParDo(ArrayMultiplyDoFn())
+            | beam.ParDo(ListPlusOneDoFn())
+            | beam.Map(lambda x: x * 3))
+
+        assert_that(res, equal_to([9, 15, 21]))
+
+  def test_batch_pardo_fusion_break(self):
+    class NormalizeDoFn(beam.DoFn):
+      @no_type_check
+      def process_batch(
+          self,
+          batch: np.ndarray,
+          mean: np.float64,
+      ) -> Iterator[np.ndarray]:
+        assert isinstance(batch, np.ndarray)
+        yield batch - mean
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return np.float64
+
+    with self.create_pipeline() as p:
+      pc = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayMultiplyDoFn()))
+
+      res = (
+          pc
+          | beam.ParDo(
+              NormalizeDoFn(),
+              mean=beam.pvalue.AsSingleton(
+                  pc | beam.CombineGlobally(beam.combiners.MeanCombineFn()))))
+      assert_that(res, equal_to([-2, 0, 2]))
+
+  def test_batch_pardo_dofn_params(self):
+    class ConsumeParamsDoFn(beam.DoFn):
+      @no_type_check
+      def process_batch(
+          self,
+          batch: np.ndarray,
+          ts=beam.DoFn.TimestampParam,
+          pane_info=beam.DoFn.PaneInfoParam,
+      ) -> Iterator[np.ndarray]:
+        assert isinstance(batch, np.ndarray)
+        assert isinstance(ts, timestamp.Timestamp)
+        assert isinstance(pane_info, windowed_value.PaneInfo)
+
+        yield batch * ts.seconds()
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return input_type
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array(range(10), dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.Map(lambda t: window.TimestampedValue(t, int(t % 2))).
+          with_output_types(np.int64)
+          | beam.ParDo(ConsumeParamsDoFn()))
+
+      assert_that(res, equal_to([0, 1, 0, 3, 0, 5, 0, 7, 0, 9]))
+
+  def test_batch_pardo_window_param(self):
+    class PerWindowDoFn(beam.DoFn):
+      @no_type_check
+      def process_batch(
+          self,
+          batch: np.ndarray,
+          window=beam.DoFn.WindowParam,
+      ) -> Iterator[np.ndarray]:
+        yield batch * window.start.seconds()
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return input_type
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array(range(10), dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.Map(lambda t: window.TimestampedValue(t, int(t))).
+          with_output_types(np.int64)
+          | beam.WindowInto(window.FixedWindows(5))
+          | beam.ParDo(PerWindowDoFn()))
+
+      assert_that(res, equal_to([0, 0, 0, 0, 0, 25, 30, 35, 40, 45]))
+
+  def test_batch_pardo_overlapping_windows(self):
+    class PerWindowDoFn(beam.DoFn):
+      @no_type_check
+      def process_batch(self,
+                        batch: np.ndarray,
+                        window=beam.DoFn.WindowParam) -> Iterator[np.ndarray]:
+        yield batch * window.start.seconds()
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return input_type
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array(range(10), dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.Map(lambda t: window.TimestampedValue(t, int(t))).
+          with_output_types(np.int64)
+          | beam.WindowInto(window.SlidingWindows(size=5, period=3))
+          | beam.ParDo(PerWindowDoFn()))
+
+      assert_that(res, equal_to([               0*-3, 1*-3, # [-3, 2)
+                                 0*0, 1*0, 2*0, 3* 0, 4* 0, # [ 0, 5)
+                                 3*3, 4*3, 5*3, 6* 3, 7* 3, # [ 3, 8)
+                                 6*6, 7*6, 8*6, 9* 6,       # [ 6, 11)
+                                 9*9                        # [ 9, 14)
+                                 ]))
+
+  def test_batch_to_element_pardo(self):
+    class ArraySumDoFn(beam.DoFn):
+      @beam.DoFn.yields_elements
+      def process_batch(self, batch: np.ndarray, *unused_args,
+                        **unused_kwargs) -> Iterator[np.int64]:
+        yield batch.sum()
+
+      def infer_output_type(self, input_type):
+        assert input_type == np.int64
+        return np.int64
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array(range(100), dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayMultiplyDoFn())
+          | beam.ParDo(ArraySumDoFn())
+          | beam.CombineGlobally(sum))
+
+      assert_that(res, equal_to([99 * 50 * 2]))
+
+  def test_element_to_batch_pardo(self):
+    class ArrayProduceDoFn(beam.DoFn):
+      @beam.DoFn.yields_batches
+      def process(self, element: np.int64, *unused_args,
+                  **unused_kwargs) -> Iterator[np.ndarray]:
+        yield np.array([element] * int(element))
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return np.int64
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayProduceDoFn())
+          | beam.ParDo(ArrayMultiplyDoFn())
+          | beam.Map(lambda x: x * 3))
+
+      assert_that(res, equal_to([6, 12, 12, 18, 18, 18]))
+
+  def test_pardo_large_input(self):
+    try:
+      utils.check_compiled('apache_beam.coders.coder_impl')
+    except RuntimeError:
+      self.skipTest(
+          'https://github.com/apache/beam/issues/21643: FnRunnerTest with '
+          'non-trivial inputs flakes in non-cython environments')
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array(range(5000),
+                                 dtype=np.int64)).with_output_types(np.int64)
+          | beam.Map(lambda e: e * 2)
+          | beam.Map(lambda e: e + 3))
+      assert_that(res, equal_to([(i * 2) + 3 for i in range(5000)]))
 
   def test_pardo_side_outputs(self):
     def tee(elem, *tags):
@@ -171,6 +428,61 @@ class FnApiRunnerTest(unittest.TestCase):
           main | beam.FlatMap(cross_product, beam.pvalue.AsList(side)),
           equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'), ('a', 'y'), ('b', 'y'),
                     ('c', 'y')]))
+
+  def test_pardo_side_input_dependencies(self):
+    ##
+    # The issue that this test surfaces is that whenever a PCollection is
+    # consumed as main input by several stages, we have a bug.
+    #
+    # The bug is: A stage assumes that it has run if its upstream PCollection
+    # has watermark=MAX. If multiple stages depend on a single PCollection, then
+    # the first stage that runs it will set its watermar to MAX, and other
+    # stages will think they've run.
+    #
+    # How to resolve?
+    # Option1: to make sure that a PCollection's watermark only advances with
+    #    its consumption by all consumers?
+    #          - I tested this and it didn't seem fruitful/obvious. (YET)
+    #
+    # Option2: Change execution schema: A PCollection's watermark represents
+    #    its *production* watermark, not its *consumption* watermark.(?)
+    with self.create_pipeline() as p:
+      inputs = [p | beam.Create([None])]
+      for k in range(1, 10):
+        inputs.append(
+            inputs[0] | beam.ParDo(
+                ExpectingSideInputsFn(f'Do{k}'),
+                *[beam.pvalue.AsList(inputs[s]) for s in range(1, k)]))
+
+  def test_flatmap_numpy_array(self):
+    with self.create_pipeline() as p:
+      pc = (
+          p
+          | beam.Create([np.array(range(10))])
+          | beam.FlatMap(lambda arr: arr))
+
+      assert_that(pc, equal_to([np.int64(i) for i in range(10)]))
+
+  @unittest.skip('https://github.com/apache/beam/issues/21228')
+  def test_pardo_side_input_sparse_dependencies(self):
+    with self.create_pipeline() as p:
+      inputs = []
+
+      def choose_input(s):
+        return inputs[(389 + s * 5077) % len(inputs)]
+
+      for k in range(20):
+        num_inputs = int((k * k % 16)**0.5)
+        if num_inputs == 0:
+          inputs.append(p | f'Create{k}' >> beam.Create([f'Create{k}']))
+        else:
+          inputs.append(
+              choose_input(0) | beam.ParDo(
+                  ExpectingSideInputsFn(f'Do{k}'),
+                  *[
+                      beam.pvalue.AsList(choose_input(s))
+                      for s in range(1, num_inputs)
+                  ]))
 
   def test_pardo_windowed_side_inputs(self):
     with self.create_pipeline() as p:
@@ -287,6 +599,11 @@ class FnApiRunnerTest(unittest.TestCase):
           pcoll | beam.FlatMap(cross_product, beam.pvalue.AsList(pcoll)),
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))
 
+  def test_pardo_unfusable_side_inputs_with_separation(self):
+    def cross_product(elem, sides):
+      for side in sides:
+        yield elem, side
+
     with self.create_pipeline() as p:
       pcoll = p | beam.Create(['a', 'b'])
       derived = ((pcoll, ) | beam.Flatten()
@@ -320,10 +637,8 @@ class FnApiRunnerTest(unittest.TestCase):
                 ('B', 'b', 3, 'b:3')]
 
     with self.create_pipeline() as p:
-      # TODO(BEAM-8893): Allow the reshuffle.
       assert_that(
-          p | beam.Create(inputs, reshuffle=False) | beam.ParDo(AddIndex()),
-          equal_to(expected))
+          p | beam.Create(inputs) | beam.ParDo(AddIndex()), equal_to(expected))
 
   @unittest.skip('TestStream not yet supported')
   def test_teststream_pardo_timers(self):
@@ -484,8 +799,7 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       actual = (
           p
-          # TODO(BEAM-8893): Allow the reshuffle.
-          | beam.Create(elements, reshuffle=False)
+          | beam.Create(elements)
           # Send even and odd elements to different windows.
           | beam.Map(lambda e: window.TimestampedValue(e, ord(e) % 2))
           | beam.WindowInto(
@@ -496,6 +810,30 @@ class FnApiRunnerTest(unittest.TestCase):
 
       assert_that(actual, is_buffered_correctly)
 
+  def test_pardo_dynamic_timer(self):
+    class DynamicTimerDoFn(beam.DoFn):
+      dynamic_timer_spec = userstate.TimerSpec(
+          'dynamic_timer', userstate.TimeDomain.WATERMARK)
+
+      def process(
+          self, element,
+          dynamic_timer=beam.DoFn.TimerParam(dynamic_timer_spec)):
+        dynamic_timer.set(element[1], dynamic_timer_tag=element[0])
+
+      @userstate.on_timer(dynamic_timer_spec)
+      def dynamic_timer_callback(
+          self,
+          tag=beam.DoFn.DynamicTimerTagParam,
+          timestamp=beam.DoFn.TimestampParam):
+        yield (tag, timestamp)
+
+    with self.create_pipeline() as p:
+      actual = (
+          p
+          | beam.Create([('key1', 10), ('key2', 20), ('key3', 30)])
+          | beam.ParDo(DynamicTimerDoFn()))
+      assert_that(actual, equal_to([('key1', 10), ('key2', 20), ('key3', 30)]))
+
   def test_sdf(self):
     class ExpandingStringsDoFn(beam.DoFn):
       def process(
@@ -503,6 +841,21 @@ class FnApiRunnerTest(unittest.TestCase):
           element,
           restriction_tracker=beam.DoFn.RestrictionParam(
               ExpandStringsProvider())):
+        assert isinstance(restriction_tracker, RestrictionTrackerView)
+        cur = restriction_tracker.current_restriction().start
+        while restriction_tracker.try_claim(cur):
+          yield element[cur]
+          cur += 1
+
+    with self.create_pipeline() as p:
+      data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
+      actual = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
+      assert_that(actual, equal_to(list(''.join(data))))
+
+  def test_sdf_with_dofn_as_restriction_provider(self):
+    class ExpandingStringsDoFn(beam.DoFn, ExpandStringsProvider):
+      def process(
+          self, element, restriction_tracker=beam.DoFn.RestrictionParam()):
         assert isinstance(restriction_tracker, RestrictionTrackerView)
         cur = restriction_tracker.current_restriction().start
         while restriction_tracker.try_claim(cur):
@@ -559,6 +912,38 @@ class FnApiRunnerTest(unittest.TestCase):
       actual = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
       assert_that(actual, equal_to(list(''.join(data))))
 
+  def test_sdf_with_dofn_as_watermark_estimator(self):
+    class ExpandingStringsDoFn(beam.DoFn, beam.WatermarkEstimatorProvider):
+      def initial_estimator_state(self, element, restriction):
+        return None
+
+      def create_watermark_estimator(self, state):
+        return beam.io.watermark_estimators.ManualWatermarkEstimator(state)
+
+      def process(
+          self,
+          element,
+          restriction_tracker=beam.DoFn.RestrictionParam(
+              ExpandStringsProvider()),
+          watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
+              ManualWatermarkEstimator.default_provider())):
+        cur = restriction_tracker.current_restriction().start
+        while restriction_tracker.try_claim(cur):
+          watermark_estimator.set_watermark(timestamp.Timestamp(cur))
+          assert (
+              watermark_estimator.current_watermark() == timestamp.Timestamp(
+                  cur))
+          yield element[cur]
+          if cur % 2 == 1:
+            restriction_tracker.defer_remainder(timestamp.Duration(micros=5))
+            return
+          cur += 1
+
+    with self.create_pipeline() as p:
+      data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
+      actual = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
+      assert_that(actual, equal_to(list(''.join(data))))
+
   def run_sdf_initiated_checkpointing(self, is_drain=False):
     counter = beam.metrics.Metrics.counter('ns', 'my_counter')
 
@@ -586,7 +971,8 @@ class FnApiRunnerTest(unittest.TestCase):
 
     if isinstance(p.runner, fn_api_runner.FnApiRunner):
       res = p.runner._latest_run_result
-      counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
+      counters = res.metrics().query(
+          beam.metrics.MetricsFilter().with_name('my_counter'))['counters']
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
 
@@ -712,6 +1098,21 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
 
+  def test_custom_merging_window(self):
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create([1, 2, 100, 101, 102])
+          | beam.Map(lambda t: window.TimestampedValue(('k', t), t))
+          | beam.WindowInto(CustomMergingWindowFn())
+          | beam.GroupByKey()
+          | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
+      assert_that(
+          res, equal_to([('k', [1]), ('k', [101]), ('k', [2, 100, 102])]))
+    gc.collect()
+    from apache_beam.runners.portability.fn_api_runner.execution import GenericMergingWindowFn
+    self.assertEqual(GenericMergingWindowFn._HANDLES, {})
+
   @unittest.skip('BEAM-9119: test is flaky')
   def test_large_elements(self):
     with self.create_pipeline() as p:
@@ -740,7 +1141,8 @@ class FnApiRunnerTest(unittest.TestCase):
       with self.create_pipeline() as p:
 
         def raise_error(x):
-          raise RuntimeError('x')
+          raise RuntimeError(
+              'This error is expected and does not indicate a test failure.')
 
         # pylint: disable=expression-not-assigned
         (
@@ -762,7 +1164,8 @@ class FnApiRunnerTest(unittest.TestCase):
       return third(x)
 
     def third(x):
-      raise ValueError('x')
+      raise ValueError(
+          'This error is expected and does not indicate a test failure.')
 
     try:
       with self.create_pipeline() as p:
@@ -839,22 +1242,40 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_register_finalizations(self):
     event_recorder = EventRecorder(tempfile.gettempdir())
-    elements_list = ['2', '1']
 
-    class FinalizableDoFn(beam.DoFn):
+    class FinalizableSplittableDoFn(beam.DoFn):
       def process(
-          self, element, bundle_finalizer=beam.DoFn.BundleFinalizerParam):
-        bundle_finalizer.register(lambda: event_recorder.record(element))
-        yield element
+          self,
+          element,
+          bundle_finalizer=beam.DoFn.BundleFinalizerParam,
+          restriction_tracker=beam.DoFn.RestrictionParam(
+              OffsetRangeProvider(
+                  use_bounded_offset_range=True, checkpoint_only=True))):
+        # We use SDF to enforce finalization call happens by using
+        # self-initiated checkpoint.
+        if 'finalized' in event_recorder.events():
+          restriction_tracker.try_claim(
+              restriction_tracker.current_restriction().start)
+          yield element
+          restriction_tracker.try_claim(element)
+          return
+        if restriction_tracker.try_claim(
+            restriction_tracker.current_restriction().start):
+          bundle_finalizer.register(lambda: event_recorder.record('finalized'))
+          # We sleep here instead of setting a resume time since the resume time
+          # doesn't need to be honored.
+          time.sleep(1)
+          restriction_tracker.defer_remainder()
 
     with self.create_pipeline() as p:
-      res = (p | beam.Create(elements_list) | beam.ParDo(FinalizableDoFn()))
+      max_retries = 100
+      res = (
+          p
+          | beam.Create([max_retries])
+          | beam.ParDo(FinalizableSplittableDoFn()))
+      assert_that(res, equal_to([max_retries]))
 
-      assert_that(res, equal_to(elements_list))
-
-    results = event_recorder.events()
     event_recorder.cleanup()
-    self.assertEqual(results, sorted(elements_list))
 
   def test_sdf_synthetic_source(self):
     common_attrs = {
@@ -900,6 +1321,55 @@ class FnApiRunnerTest(unittest.TestCase):
 
     with self.create_pipeline() as p:
       assert_that(p | beam.Create(['a', 'b']), equal_to(['a', 'b']))
+
+  def _test_pack_combiners(self, assert_using_counter_names):
+    counter = beam.metrics.Metrics.counter('ns', 'num_values')
+
+    def min_with_counter(values):
+      counter.inc()
+      return min(values)
+
+    def max_with_counter(values):
+      counter.inc()
+      return max(values)
+
+    class PackableCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
+
+      def expand(self, pcoll):
+        assert_that(
+            pcoll | 'PackableMin' >> beam.CombineGlobally(min_with_counter),
+            equal_to([10]),
+            label='AssertMin')
+        assert_that(
+            pcoll | 'PackableMax' >> beam.CombineGlobally(max_with_counter),
+            equal_to([30]),
+            label='AssertMax')
+
+    with self.create_pipeline() as p:
+      _ = p | beam.Create([10, 20, 30]) | PackableCombines()
+
+    res = p.run()
+    res.wait_until_finish()
+
+    packed_step_name_regex = (
+        r'.*Packed.*PackableMin.*CombinePerKey.*PackableMax.*CombinePerKey.*' +
+        'Pack.*')
+
+    counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
+    step_names = set(m.key.step for m in counters if m.key.step)
+    pipeline_options = p._options
+    if assert_using_counter_names:
+      if pipeline_options.view_as(StandardOptions).streaming:
+        self.assertFalse(
+            any(re.match(packed_step_name_regex, s) for s in step_names))
+      else:
+        self.assertTrue(
+            any(re.match(packed_step_name_regex, s) for s in step_names))
+
+  def test_pack_combiners(self):
+    self._test_pack_combiners(assert_using_counter_names=True)
 
 
 # These tests are kept in a separate group so that they are
@@ -1243,8 +1713,9 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
     try:
       # Test the new MonitoringInfo monitoring format.
-      self.assertEqual(2, len(res._monitoring_infos_by_stage))
-      pregbk_mis, postgbk_mis = list(res._monitoring_infos_by_stage.values())
+      self.assertEqual(3, len(res._monitoring_infos_by_stage))
+      pregbk_mis, postgbk_mis = [
+          mi for stage, mi in res._monitoring_infos_by_stage.items() if stage]
 
       if not has_mi_for_ptransform(pregbk_mis, 'Create/Map(decode)'):
         # The monitoring infos above are actually unordered. Swap.
@@ -1299,7 +1770,8 @@ class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
   def create_pipeline(self, is_drain=False):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=environments.EmbeddedPythonGrpcEnvironment(),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment.
+            default(),
             is_drain=is_drain))
 
 
@@ -1308,7 +1780,10 @@ class FnApiRunnerTestWithDisabledCaching(FnApiRunnerTest):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=environments.EmbeddedPythonGrpcEnvironment(
-                state_cache_size=0, data_buffer_time_limit_ms=0),
+                state_cache_size=0,
+                data_buffer_time_limit_ms=0,
+                capabilities=environments.python_sdk_capabilities(),
+                artifacts=()),
             is_drain=is_drain))
 
 
@@ -1318,7 +1793,7 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(is_drain=is_drain),
         options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests.
+    #TODO(https://github.com/apache/beam/issues/19936): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
@@ -1332,6 +1807,12 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_watermark_tracking(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sdf_with_dofn_as_watermark_estimator(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_register_finalizations(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
 
@@ -1342,7 +1823,7 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(is_drain=is_drain),
         options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests.
+    #TODO(https://github.com/apache/beam/issues/19936): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
@@ -1356,6 +1837,12 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_watermark_tracking(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sdf_with_dofn_as_watermark_estimator(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_register_finalizations(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
 
@@ -1374,7 +1861,7 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3, is_drain=is_drain),
         options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests.
+    #TODO(https://github.com/apache/beam/issues/19936): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
@@ -1393,6 +1880,9 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
   def test_sdf_with_watermark_tracking(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
+  def test_sdf_with_dofn_as_watermark_estimator(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
 
 class FnApiRunnerSplitTest(unittest.TestCase):
   def create_pipeline(self, is_drain=False):
@@ -1400,7 +1890,8 @@ class FnApiRunnerSplitTest(unittest.TestCase):
     # to the bundle process request.
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=environments.EmbeddedPythonGrpcEnvironment(),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment.
+            default(),
             is_drain=is_drain))
 
   def test_checkpoint(self):
@@ -1483,11 +1974,12 @@ class FnApiRunnerSplitTest(unittest.TestCase):
 
   def run_sdf_split_half(self, is_drain=False):
     element_counter = ElementCounter()
-    is_first_bundle = [True]  # emulate nonlocal for Python 2
+    is_first_bundle = True
 
     def split_manager(num_elements):
+      nonlocal is_first_bundle
       if is_first_bundle and num_elements > 0:
-        del is_first_bundle[:]
+        is_first_bundle = False
         breakpoint = element_counter.set_breakpoint(1)
         yield
         breakpoint.wait()
@@ -1740,13 +2232,22 @@ class UnboundedOffsetRestrictionTracker(
 
 
 class OffsetRangeProvider(beam.transforms.core.RestrictionProvider):
-  def __init__(self, use_bounded_offset_range):
+  def __init__(self, use_bounded_offset_range, checkpoint_only=False):
     self.use_bounded_offset_range = use_bounded_offset_range
+    self.checkpoint_only = checkpoint_only
 
   def initial_restriction(self, element):
     return restriction_trackers.OffsetRange(0, element)
 
   def create_tracker(self, restriction):
+    if self.checkpoint_only:
+
+      class CheckpointOnlyOffsetRestrictionTracker(
+          restriction_trackers.OffsetRestrictionTracker):
+        def try_split(self, unused_fraction_of_remainder):
+          return super().try_split(0.0)
+
+      return CheckpointOnlyOffsetRestrictionTracker(restriction)
     if self.use_bounded_offset_range:
       return restriction_trackers.OffsetRestrictionTracker(restriction)
     return UnboundedOffsetRestrictionTracker(restriction)
@@ -1760,7 +2261,7 @@ class OffsetRangeProvider(beam.transforms.core.RestrictionProvider):
 
 class OffsetRangeProviderWithTruncate(OffsetRangeProvider):
   def __init__(self):
-    super(OffsetRangeProviderWithTruncate, self).__init__(True)
+    super().__init__(True)
 
   def truncate(self, element, restriction):
     return restriction_trackers.OffsetRange(
@@ -1771,29 +2272,9 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=environments.EmbeddedPythonGrpcEnvironment(),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment.
+            default(),
             progress_request_frequency=0.5))
-
-  def test_lull_logging(self):
-
-    # TODO(BEAM-1251): Remove this test skip after dropping Py 2 support.
-    if sys.version_info < (3, 4):
-      self.skipTest('Log-based assertions are supported after Python 3.4')
-    try:
-      utils.check_compiled('apache_beam.runners.worker.opcounters')
-    except RuntimeError:
-      self.skipTest('Cython is not available')
-
-    with self.assertLogs(level='WARNING') as logs:
-      with self.create_pipeline() as p:
-        sdk_worker.DEFAULT_LOG_LULL_TIMEOUT_NS = 1000 * 1000  # Lull after 1 ms
-
-        _ = (p | beam.Create([1]) | beam.Map(time.sleep))
-
-    self.assertRegex(
-        ''.join(logs.output),
-        '.*Operation ongoing for over.*',
-        'Unable to find a lull logged for this job.')
 
 
 class StateBackedTestElementType(object):
@@ -1814,7 +2295,7 @@ class StateBackedTestElementType(object):
     return (self.__class__, (self.num_elements, 'x' * self.num_elements))
 
 
-@attr('ValidatesRunner')
+@pytest.mark.it_validatesrunner
 class FnApiBasedStateBackedCoderTest(unittest.TestCase):
   def create_pipeline(self):
     return beam.Pipeline(
@@ -1837,6 +2318,67 @@ class FnApiBasedStateBackedCoderTest(unittest.TestCase):
           | beam.MapTuple(lambda _, vs: sum(e.num_elements for e in vs)))
 
       assert_that(r, equal_to([VALUES_PER_ELEMENT * NUM_OF_ELEMENTS]))
+
+
+# TODO(robertwb): Why does pickling break when this is inlined?
+class CustomMergingWindowFn(window.WindowFn):
+  def assign(self, assign_context):
+    return [
+        window.IntervalWindow(
+            assign_context.timestamp, assign_context.timestamp + 1000)
+    ]
+
+  def merge(self, merge_context):
+    evens = [w for w in merge_context.windows if w.start % 2 == 0]
+    if evens:
+      merge_context.merge(
+          evens,
+          window.IntervalWindow(
+              min(w.start for w in evens), max(w.end for w in evens)))
+
+  def get_window_coder(self):
+    return coders.IntervalWindowCoder()
+
+
+class ExpectingSideInputsFn(beam.DoFn):
+  def __init__(self, name):
+    self._name = name
+
+  def default_label(self):
+    return self._name
+
+  def process(self, element, *side_inputs):
+    logging.info('Running %s (side inputs: %s)', self._name, side_inputs)
+    if not all(list(s) for s in side_inputs):
+      raise ValueError(f'Missing data in side input {side_inputs}')
+    yield self._name
+
+
+class ArrayMultiplyDoFn(beam.DoFn):
+  def process_batch(self, batch: np.ndarray, *unused_args,
+                    **unused_kwargs) -> Iterator[np.ndarray]:
+    assert isinstance(batch, np.ndarray)
+    # GeneralPurposeConsumerSet should limit batches to MAX_BATCH_SIZE (4096)
+    # elements
+    assert np.size(batch, axis=0) <= 4096
+    yield batch * 2
+
+  # infer_output_type must be defined (when there's no process method),
+  # otherwise we don't know the input type is the same as output type.
+  def infer_output_type(self, input_type):
+    return input_type
+
+
+class ListPlusOneDoFn(beam.DoFn):
+  def process_batch(self, batch: List[np.int64], *unused_args,
+                    **unused_kwargs) -> Iterator[List[np.int64]]:
+    assert isinstance(batch, list)
+    yield [element + 1 for element in batch]
+
+  # infer_output_type must be defined (when there's no process method),
+  # otherwise we don't know the input type is the same as output type.
+  def infer_output_type(self, input_type):
+    return input_type
 
 
 if __name__ == '__main__':

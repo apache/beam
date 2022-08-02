@@ -17,11 +17,9 @@ limitations under the License.
 
 # Java SDK Roadmap
 
-## Next Java LTS version support (Java 11 / 18.9)
+## Next Java LTS version support (Java 17)
 
 Work to support the next LTS release of Java is in progress. For more details
 about the scope and info on the various tasks please see the JIRA ticket.
 
-- JIRA: [BEAM-2530](https://issues.apache.org/jira/browse/BEAM-2530)
-- Contact: [Michał Walenia](mailto:mwalenia@apache.org)
-
+- JIRA: [BEAM-12240](https://issues.apache.org/jira/browse/BEAM-12240)

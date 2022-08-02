@@ -24,6 +24,9 @@ import java.util.List;
  * A {@link Factory} that uses a default constructor and a list of setters to construct a {@link
  * SchemaUserTypeCreator}.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 class SetterBasedCreatorFactory implements Factory<SchemaUserTypeCreator> {
   private final Factory<List<FieldValueSetter>> setterFactory;
 

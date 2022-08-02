@@ -18,6 +18,8 @@
 
 import CommonJobProperties as commonJobProperties
 
+import static PythonTestProperties.ALL_SUPPORTED_VERSIONS
+
 // These jobs list details about each beam runner, to clarify what software
 // is on each machine.
 def nums = 1..16
@@ -44,7 +46,13 @@ nums.each {
         defaultNodes([machine])
         allowedNodes([machine])
         trigger('multiSelectionDisallowed')
-        eligibility('IgnoreOfflineNodeEligibility')
+        eligibility('AllNodeEligibility')
+      }
+      stringParam {
+        name("tmp_unaccessed_for")
+        defaultValue("48")
+        description("Files from /tmp dir that were not accessed for last `tmp_unaccessed_for` hours will be deleted.")
+        trim(true)
       }
     }
 
@@ -53,20 +61,23 @@ nums.each {
       shell('ls /home/jenkins/tools/*')
       shell('python --version || echo "python not found"')
       shell('python3 --version || echo "python3 not found"')
-      shell('python3.5 --version || echo "python3.5 not found"')
-      shell('python3.6 --version || echo "python3.6 not found"')
-      shell('python3.7 --version || echo "python3.7 not found"')
-      shell('/home/jenkins/tools/maven/latest/mvn -v || echo "mvn not found"')
-      shell('/home/jenkins/tools/gradle4.3/gradle -v || echo "gradle not found"')
+      ALL_SUPPORTED_VERSIONS.each { version ->
+        shell("python${version} --version || echo \"python${version} not found\"")
+      }
       shell('gcloud -v || echo "gcloud not found"')
       shell('kubectl version || echo "kubectl not found"')
-      shell('virtualenv -p python2.7 test27 && . ./test27/bin/activate && python --version && deactivate || echo "python 2.7 not found"')
-      shell('virtualenv -p python3.5 test35 && . ./test35/bin/activate && python --version && deactivate || echo "python 3.5 not found"')
-      shell('virtualenv -p python3.6 test36 && . ./test36/bin/activate && python --version && deactivate || echo "python 3.6 not found"')
-      shell('virtualenv -p python3.7 test37 && . ./test37/bin/activate && python --version && deactivate || echo "python 3.7 not found"')
+      ALL_SUPPORTED_VERSIONS.each { version ->
+        def versionSuffix = version.replace('.', '')
+        shell("python${version} -m venv test${versionSuffix} && . ./test${versionSuffix}/bin/activate && python --version && deactivate || echo \"python ${version} not found\"")
+      }
       shell('echo "Maven home $MAVEN_HOME"')
       shell('env')
       shell('docker system prune --all --filter until=24h --force')
+      shell('docker volume prune --force')
+      shell('echo "Current size of /tmp dir is \$(sudo du -sh /tmp)"')
+      shell('echo "Deleting files accessed later than \${tmp_unaccessed_for} hours ago"')
+      shell('sudo find /tmp -type f -amin +\$((60*\${tmp_unaccessed_for})) -print -delete')
+      shell('echo "Size of /tmp dir after cleanup is \$(sudo du -sh /tmp)"')
     }
   }
 }

@@ -22,12 +22,9 @@ For internal use only. No backwards compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import threading
 import weakref
-from builtins import object
 from multiprocessing.pool import ThreadPool
 from typing import Any
 from typing import Dict
@@ -64,10 +61,6 @@ class ArgumentPlaceholder(object):
     equal to each other.
     """
     return isinstance(other, ArgumentPlaceholder)
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __hash__(self):
     return hash(type(self))

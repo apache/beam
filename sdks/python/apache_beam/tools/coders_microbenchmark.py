@@ -31,9 +31,6 @@ Run as:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import argparse
 import logging
 import random
@@ -41,12 +38,14 @@ import re
 import string
 import sys
 
-from past.builtins import unicode
-
+import apache_beam as beam
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
+from apache_beam.coders import row_coder
+from apache_beam.coders import typecoders
 from apache_beam.tools import utils
 from apache_beam.transforms import window
+from apache_beam.typehints import trivial_inference
 from apache_beam.utils import windowed_value
 
 
@@ -81,10 +80,9 @@ def large_int():
 
 
 def random_string(length):
-  return unicode(
-      ''.join(
-          random.choice(string.ascii_letters + string.digits)
-          for _ in range(length)))
+  return ''.join(
+      random.choice(string.ascii_letters + string.digits)
+      for _ in range(length))
 
 
 def small_string():
@@ -174,11 +172,43 @@ def wv_with_multiple_windows():
   return random_windowed_value(num_windows=32)
 
 
+def tiny_row():
+  return beam.Row(int_value=1)
+
+
+def large_row():
+  return beam.Row(**{f'int_{ix}': ix for ix in range(20)})
+
+
+def nullable_row():
+  return beam.Row(**{f'int_{ix}': ix if ix % 2 else None for ix in range(20)})
+
+
+def diverse_row():
+  return beam.Row(
+      int_value=1,
+      float_value=3.14159,
+      str_value='beam',
+      row_value=beam.Row(int_value=2, float_value=2.718281828))
+
+
+def get_row_coder(row_instance):
+  coder = typecoders.registry.get_coder(
+      trivial_inference.instance_to_type(row_instance))
+  assert isinstance(coder, row_coder.RowCoder)
+  return coder
+
+
+def row_coder_benchmark_factory(generate_fn):
+  return coder_benchmark_factory(get_row_coder(generate_fn()), generate_fn)
+
+
 def run_coder_benchmarks(
     num_runs, input_size, seed, verbose, filter_regex='.*'):
   random.seed(seed)
 
-  # TODO(BEAM-4441): Pick coders using type hints, for example:
+  # TODO(https://github.com/apache/beam/issues/18788): Pick coders using type
+  # hints, for example:
   # tuple_coder = typecoders.registry.get_coder(typing.Tuple[int, ...])
   benchmarks = [
       coder_benchmark_factory(coders.FastPrimitivesCoder(), small_int),
@@ -221,7 +251,11 @@ def run_coder_benchmarks(
               coders.FastPrimitivesCoder(), coders.GlobalWindowCoder()),
           globally_windowed_value),
       coder_benchmark_factory(
-          coders.LengthPrefixCoder(coders.FastPrimitivesCoder()), small_int)
+          coders.LengthPrefixCoder(coders.FastPrimitivesCoder()), small_int),
+      row_coder_benchmark_factory(tiny_row),
+      row_coder_benchmark_factory(large_row),
+      row_coder_benchmark_factory(nullable_row),
+      row_coder_benchmark_factory(diverse_row),
   ]
 
   suite = [

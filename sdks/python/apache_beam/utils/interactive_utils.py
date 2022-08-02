@@ -21,20 +21,27 @@ For experimental usage only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
+import logging
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def is_in_ipython():
   """Determines if current code is executed within an ipython session."""
-  is_in_ipython = False
-  # Check if the runtime is within an interactive environment, i.e., ipython.
   try:
     from IPython import get_ipython  # pylint: disable=import-error
     if get_ipython():
-      is_in_ipython = True
+      return True
+    return False
   except ImportError:
-    pass  # If dependencies are not available, then not interactive for sure.
-  return is_in_ipython
+    # If dependencies are not available, then not interactive for sure.
+    return False
+  except (KeyboardInterrupt, SystemExit):
+    raise
+  except:  # pylint: disable=bare-except
+    _LOGGER.info(
+        'Unexpected error occurred, treated as not in IPython.', exc_info=True)
+    return False
 
 
 def is_in_notebook():
@@ -82,9 +89,9 @@ def alter_label_if_ipython(transform, pvalueish):
 
 def _extract_pipeline_of_pvalueish(pvalueish):
   """Extracts the pipeline that the given pvalueish belongs to."""
-  if isinstance(pvalueish, tuple):
+  if isinstance(pvalueish, tuple) and len(pvalueish) > 0:
     pvalue = pvalueish[0]
-  elif isinstance(pvalueish, dict):
+  elif isinstance(pvalueish, dict) and len(pvalueish) > 0:
     pvalue = next(iter(pvalueish.values()))
   else:
     pvalue = pvalueish

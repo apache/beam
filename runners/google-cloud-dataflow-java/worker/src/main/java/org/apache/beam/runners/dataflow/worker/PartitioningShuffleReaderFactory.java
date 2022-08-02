@@ -34,6 +34,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Creates a PartitioningShuffleReader from a CloudObject spec. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class PartitioningShuffleReaderFactory implements ReaderFactory {
 
   /** A {@link ReaderFactory.Registrar} for partitioning shuffle sources. */

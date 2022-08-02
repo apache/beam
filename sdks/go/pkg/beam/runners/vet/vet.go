@@ -21,7 +21,7 @@
 // can use this as a sanity check on whether a given pipeline avoids known
 // performance bottlenecks.
 //
-// TODO(BEAM-7374): Add usage documentation.
+// TODO(https://github.com/apache/beam/issues/19402): Add usage documentation.
 package vet
 
 import (
@@ -33,16 +33,16 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/util/shimx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/shimx"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 func init() {
@@ -58,21 +58,21 @@ func (p disabledResolver) Sym2Addr(name string) (uintptr, error) {
 }
 
 // Execute evaluates the pipeline on whether it can run without reflection.
-func Execute(ctx context.Context, p *beam.Pipeline) error {
+func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	e, err := Evaluate(ctx, p)
 	if err != nil {
-		return errors.WithContext(err, "validating pipeline with vet runner")
+		return nil, errors.WithContext(err, "validating pipeline with vet runner")
 	}
 	if !e.Performant() {
 		e.summary()
 		e.Generate("main")
 		e.diag("*/\n")
-		err := errors.Errorf("pipeline is not performant, see diagnostic summary:\n%s\n%s", string(e.d.Bytes()), string(e.Bytes()))
+		err := errors.Errorf("pipeline is not performant, see diagnostic summary:\n%s\n%s", e.d.String(), string(e.Bytes()))
 		err = errors.WithContext(err, "validating pipeline with vet runner")
-		return errors.SetTopLevelMsg(err, "pipeline is not performant")
+		return nil, errors.SetTopLevelMsg(err, "pipeline is not performant")
 	}
 	// Pipeline nas no further tasks.
-	return nil
+	return nil, nil
 }
 
 // Evaluate returns an object that can generate necessary shims and inits.
@@ -503,7 +503,7 @@ func (e *Eval) Bytes() []byte {
 // is used.
 func (e *Eval) extractGraphFn(fn *graph.Fn) {
 	if fn.DynFn != nil {
-		// TODO(BEAM-7375) handle dynamics if necessary (probably not since it's got general function handling)
+		// TODO(https://github.com/apache/beam/issues/19401) handle dynamics if necessary (probably not since it's got general function handling)
 		e.diag(" dynamic function")
 		return
 	}

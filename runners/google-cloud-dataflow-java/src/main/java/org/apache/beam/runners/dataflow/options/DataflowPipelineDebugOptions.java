@@ -178,6 +178,30 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   void setNumberOfWorkerHarnessThreads(int value);
 
   /**
+   * Maximum number of bundles outstanding from windmill before the worker stops requesting.
+   *
+   * <p>If <= 0, use the default value of 100 + getNumberOfWorkerHarnessThreads()
+   */
+  @Description(
+      "Maximum number of bundles outstanding from windmill before the worker stops requesting.")
+  @Default.Integer(0)
+  int getMaxBundlesFromWindmillOutstanding();
+
+  void setMaxBundlesFromWindmillOutstanding(int value);
+
+  /**
+   * Maximum number of bytes outstanding from windmill before the worker stops requesting.
+   *
+   * <p>If <= 0, use the default value of 50% of jvm memory.
+   */
+  @Description(
+      "Maximum number of bytes outstanding from windmill before the worker stops requesting. If <= 0, use the default value of 50% of jvm memory.")
+  @Default.Long(0)
+  long getMaxBytesFromWindmillOutstanding();
+
+  void setMaxBytesFromWindmillOutstanding(long value);
+
+  /**
    * If {@literal true}, save a heap dump before killing a thread or process which is GC thrashing
    * or out of memory. The location of the heap file will either be echoed back to the user, or the
    * user will be given the opportunity to download the heap file.
@@ -191,6 +215,25 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   boolean getDumpHeapOnOOM();
 
   void setDumpHeapOnOOM(boolean dumpHeapBeforeExit);
+
+  /**
+   * If true, save a JFR profile when GC thrashing is first detected. The profile will run for the
+   * amount of time set by --jfrRecordingDurationSec, or 60 seconds by default.
+   *
+   * <p>Note, JFR profiles are only supported on java 9 and up.
+   */
+  @Description(
+      "If true, save a JFR profile before killing a thread or process "
+          + "which is GC thrashing or out of memory.  Only available on java 9 or up")
+  boolean getRecordJfrOnGcThrashing();
+
+  void setRecordJfrOnGcThrashing(boolean value);
+
+  @Default.Integer(60)
+  @Description("The duration of the JFR recording taken if --recordJfrOnGcThrashing is set.")
+  int getJfrRecordingDurationSec();
+
+  void setJfrRecordingDurationSec(int value);
 
   /**
    * The GC thrashing threshold percentage. A given period of time is considered "thrashing" if this
@@ -221,6 +264,38 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   void setWorkerCacheMb(Integer value);
 
   /**
+   * The amount of time before UnboundedReaders are considered idle and closed during streaming
+   * execution.
+   */
+  @Description("The amount of time before UnboundedReaders are uncached, in seconds.")
+  @Default.Integer(60)
+  Integer getReaderCacheTimeoutSec();
+
+  void setReaderCacheTimeoutSec(Integer value);
+
+  /** The max amount of time an UnboundedReader is consumed before checkpointing. */
+  @Description(
+      "The max amount of time before an UnboundedReader is consumed before checkpointing, in seconds.")
+  @Default.Integer(10)
+  Integer getUnboundedReaderMaxReadTimeSec();
+
+  void setUnboundedReaderMaxReadTimeSec(Integer value);
+
+  /** The max elements read from an UnboundedReader before checkpointing. */
+  @Description("The max elements read from an UnboundedReader before checkpointing. ")
+  @Default.Integer(10 * 1000)
+  Integer getUnboundedReaderMaxElements();
+
+  void setUnboundedReaderMaxElements(Integer value);
+
+  /** The max amount of time waiting for elements when reading from UnboundedReader. */
+  @Description("The max amount of time waiting for elements when reading from UnboundedReader.")
+  @Default.Integer(1000)
+  Integer getUnboundedReaderMaxWaitForElementsMs();
+
+  void setUnboundedReaderMaxWaitForElementsMs(Integer value);
+
+  /**
    * CAUTION: This option implies dumpHeapOnOOM, and has similar caveats. Specifically, heap dumps
    * can of comparable size to the default boot disk. Consider increasing the boot disk size before
    * setting this flag to true.
@@ -233,6 +308,15 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   String getSaveHeapDumpsToGcsPath();
 
   void setSaveHeapDumpsToGcsPath(String gcsPath);
+
+  /** Overrides for SDK harness container images. */
+  @Description(
+      "Overrides for SDK harness container images. Each entry consist of two values separated by \n"
+          + "a comma where first value gives a regex to identify the container image to override \n"
+          + "and the second value gives the replacement container image.")
+  String getSdkHarnessContainerImageOverrides();
+
+  void setSdkHarnessContainerImageOverrides(String value);
 
   /** Creates a {@link Stager} object using the class specified in {@link #getStagerClass()}. */
   class StagerFactory implements DefaultValueFactory<Stager> {

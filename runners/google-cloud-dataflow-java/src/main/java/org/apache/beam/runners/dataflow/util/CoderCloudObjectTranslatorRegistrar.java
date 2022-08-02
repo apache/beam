@@ -30,6 +30,9 @@ import org.apache.beam.sdk.coders.Coder;
  * <p>It is optional but recommended to use one of the many build time tools such as {@link
  * AutoService} to generate the necessary META-INF files automatically.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public interface CoderCloudObjectTranslatorRegistrar {
   /**
    * Gets a map from {@link Coder} to a {@link CloudObjectTranslator} that can translate that {@link

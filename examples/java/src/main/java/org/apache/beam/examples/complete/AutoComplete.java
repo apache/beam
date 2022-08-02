@@ -95,6 +95,9 @@ import org.joda.time.Duration;
  * <p>This will update the Cloud Datastore every 10 seconds based on the last 30 minutes of data
  * received.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AutoComplete {
 
   /**
@@ -366,8 +369,8 @@ public class AutoComplete {
   }
 
   /**
-   * Takes as input a the top candidates per prefix, and emits an entity suitable for writing to
-   * Cloud Datastore.
+   * Takes as input the top candidates per prefix, and emits an entity suitable for writing to Cloud
+   * Datastore.
    *
    * <p>Note: We use ancestor keys for strong consistency. See the Cloud Datastore documentation on
    * <a href="https://cloud.google.com/datastore/docs/concepts/structuring_for_strong_consistency">
@@ -464,7 +467,6 @@ public class AutoComplete {
 
   public static void runAutocompletePipeline(Options options) throws IOException {
 
-    options.setBigQuerySchema(FormatForBigquery.getSchema());
     ExampleUtils exampleUtils = new ExampleUtils(options);
 
     // We support running the same pipeline in either

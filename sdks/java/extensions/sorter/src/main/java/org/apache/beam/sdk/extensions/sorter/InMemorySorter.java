@@ -26,12 +26,21 @@ import java.util.Collections;
 import java.util.Comparator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Sorts {@code <key, value>} pairs in memory. Based on the configured size of the memory buffer,
  * will reject additional pairs.
  */
 class InMemorySorter implements Sorter {
+
+  private static final Logger LOG = LoggerFactory.getLogger(InMemorySorter.class);
+
+  private static final String ARCH_DATA_MODEL_PROPERTY = "sun.arch.data.model";
+
+  private static final long DEFAULT_BYTES_PER_WORD = 8;
+
   /** {@code Options} contains configuration of the sorter. */
   public static class Options implements Serializable {
     private long memoryMB = 100;
@@ -147,13 +156,27 @@ class InMemorySorter implements Sorter {
    * unknown.
    */
   private static long getNumBytesPerWord() {
-    String bitsPerWord = System.getProperty("sun.arch.data.model");
-
-    try {
-      return Long.parseLong(bitsPerWord) / 8;
-    } catch (Exception e) {
-      // Can't determine whether 32 or 64 bit, so assume 64
-      return 8;
+    String bitsPerWordProperty = System.getProperty(ARCH_DATA_MODEL_PROPERTY);
+    if (bitsPerWordProperty == null) {
+      LOG.warn(
+          "System property {} not set; assuming {} bits per word",
+          ARCH_DATA_MODEL_PROPERTY,
+          DEFAULT_BYTES_PER_WORD);
+      return DEFAULT_BYTES_PER_WORD;
     }
+
+    Long bitsPerWord;
+    try {
+      bitsPerWord = Long.parseLong(bitsPerWordProperty);
+    } catch (NumberFormatException e) {
+      LOG.warn(
+          "System property {} (\"{}\") could not be parsed; assuming {} bits per word",
+          ARCH_DATA_MODEL_PROPERTY,
+          bitsPerWordProperty,
+          DEFAULT_BYTES_PER_WORD);
+      return DEFAULT_BYTES_PER_WORD;
+    }
+
+    return bitsPerWord / 8;
   }
 }

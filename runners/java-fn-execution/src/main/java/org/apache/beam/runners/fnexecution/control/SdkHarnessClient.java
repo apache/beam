@@ -64,6 +64,10 @@ import org.slf4j.LoggerFactory;
  * <p>This provides a Java-friendly wrapper around {@link InstructionRequestHandler} and {@link
  * CloseableFnDataReceiver}, which handle lower-level gRPC message wrangling.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SdkHarnessClient implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(SdkHarnessClient.class);
 
@@ -179,32 +183,39 @@ public class SdkHarnessClient implements AutoCloseable {
      * }
      * }</pre>
      *
-     * <p>An exception during {@link #close()} will be thrown if the bundle requests finalization or
-     * attempts to checkpoint by returning a {@link BeamFnApi.DelayedBundleApplication}.
+     * <p>An exception during {@link #close()} will be thrown if the bundle requests finalization if
+     * {@link BundleFinalizationHandler} is {@code null} or attempts to checkpoint by returning a
+     * {@link BeamFnApi.DelayedBundleApplication} .
      */
     public ActiveBundle newBundle(
         Map<String, RemoteOutputReceiver<?>> outputReceivers,
         Map<KV<String, String>, RemoteOutputReceiver<Timer<?>>> timerReceivers,
         StateRequestHandler stateRequestHandler,
-        BundleProgressHandler progressHandler) {
+        BundleProgressHandler progressHandler,
+        BundleFinalizationHandler finalizationHandler,
+        BundleCheckpointHandler checkpointHandler) {
       return newBundle(
           outputReceivers,
           timerReceivers,
           stateRequestHandler,
           progressHandler,
           BundleSplitHandler.unsupported(),
-          request -> {
-            throw new UnsupportedOperationException(
-                String.format(
-                    "The %s does not have a registered bundle checkpoint handler.",
-                    ActiveBundle.class.getSimpleName()));
-          },
-          bundleId -> {
-            throw new UnsupportedOperationException(
-                String.format(
-                    "The %s does not have a registered bundle finalization handler.",
-                    ActiveBundle.class.getSimpleName()));
-          });
+          checkpointHandler == null
+              ? request -> {
+                throw new UnsupportedOperationException(
+                    String.format(
+                        "The %s does not have a registered bundle checkpoint handler.",
+                        ActiveBundle.class.getSimpleName()));
+              }
+              : checkpointHandler,
+          finalizationHandler == null
+              ? bundleId -> {
+                throw new UnsupportedOperationException(
+                    String.format(
+                        "The %s does not have a registered bundle finalization handler.",
+                        ActiveBundle.class.getSimpleName()));
+              }
+              : finalizationHandler);
     }
 
     /**
@@ -501,9 +512,10 @@ public class SdkHarnessClient implements AutoCloseable {
               finalizationHandler.requestsFinalization(bundleId);
             }
           } else {
-            // TODO: [BEAM-3962] Handle aborting the bundle being processed.
+            // TODO: [https://github.com/apache/beam/issues/18756] Handle aborting the bundle being
+            // processed.
             throw new IllegalStateException(
-                "Processing bundle failed, TODO: [BEAM-3962] abort bundle.");
+                "Processing bundle failed, TODO: [https://github.com/apache/beam/issues/18756] abort bundle.");
           }
         } catch (Exception e) {
           if (exception == null) {
@@ -563,6 +575,10 @@ public class SdkHarnessClient implements AutoCloseable {
     this.clientProcessors = new ConcurrentHashMap<>();
   }
 
+  public InstructionRequestHandler getInstructionRequestHandler() {
+    return fnApiControlClient;
+  }
+
   /**
    * Creates a client for a particular SDK harness. It is the responsibility of the caller to ensure
    * that these correspond to the same SDK harness, so control plane and data plane messages can be
@@ -588,9 +604,8 @@ public class SdkHarnessClient implements AutoCloseable {
    *   <li>Remote references
    * </ul>
    *
-   * <p>Note that bundle processors are cached based upon the the {@link
-   * ProcessBundleDescriptor#getId() process bundle descriptor id}. A previously created instance
-   * may be returned.
+   * <p>Note that bundle processors are cached based upon the {@link ProcessBundleDescriptor#getId()
+   * process bundle descriptor id}. A previously created instance may be returned.
    */
   public BundleProcessor getProcessor(
       BeamFnApi.ProcessBundleDescriptor descriptor,
@@ -607,9 +622,8 @@ public class SdkHarnessClient implements AutoCloseable {
   /**
    * Provides {@link BundleProcessor} that is capable of processing bundles not containing timers.
    *
-   * <p>Note that bundle processors are cached based upon the the {@link
-   * ProcessBundleDescriptor#getId() process bundle descriptor id}. A previously created instance
-   * may be returned.
+   * <p>Note that bundle processors are cached based upon the {@link ProcessBundleDescriptor#getId()
+   * process bundle descriptor id}. A previously created instance may be returned.
    */
   public BundleProcessor getProcessor(
       BeamFnApi.ProcessBundleDescriptor descriptor,
@@ -634,9 +648,8 @@ public class SdkHarnessClient implements AutoCloseable {
    *   <li>Remote references
    * </ul>
    *
-   * <p>Note that bundle processors are cached based upon the the {@link
-   * ProcessBundleDescriptor#getId() process bundle descriptor id}. A previously created instance
-   * may be returned.
+   * <p>Note that bundle processors are cached based upon the {@link ProcessBundleDescriptor#getId()
+   * process bundle descriptor id}. A previously created instance may be returned.
    */
   public BundleProcessor getProcessor(
       BeamFnApi.ProcessBundleDescriptor descriptor,

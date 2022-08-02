@@ -56,8 +56,18 @@ python user_score.py \
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
+# beam-playground:
+#   name: UserScore
+#   description: batch processing; reading input from Google Cloud Storage or a
+#     from a local text file, and writing output to a text file; using
+#     standalone DoFns; use of the CombinePerKey transform.
+#   multifile: true
+#   pipeline_options: --output output.txt
+#   context_line: 81
+#   categories:
+#     - Batch
+#     - Combiners
+#     - Options
 
 import argparse
 import csv
@@ -82,7 +92,7 @@ class ParseGameEventFn(beam.DoFn):
   """
   def __init__(self):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(ParseGameEventFn, self).__init__()
+    # super().__init__()
     beam.DoFn.__init__(self)
     self.num_parse_errors = Metrics.counter(self.__class__, 'num_parse_errors')
 
@@ -109,7 +119,7 @@ class ExtractAndSumScore(beam.PTransform):
   """
   def __init__(self, field):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(ExtractAndSumScore, self).__init__()
+    # super().__init__()
     beam.PTransform.__init__(self)
     self.field = field
 

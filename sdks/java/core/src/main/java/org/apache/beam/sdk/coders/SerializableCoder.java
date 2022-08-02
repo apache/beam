@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -37,6 +38,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A {@link Coder} for Java classes that implement {@link Serializable}.
+ *
+ * <p>{@link SerializableCoder} should be used only for objects that have proper {@link
+ * Object#equals} and {@link Object#hashCode} implementations.
  *
  * <p>To use, specify the coder type on a PCollection:
  *
@@ -115,7 +119,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
     if (warn && MISSING_EQUALS_METHOD.add(clazz)) {
       LOG.warn(
           "Can't verify serialized elements of type {} have well defined equals method. "
-              + "This may produce incorrect results on some {}",
+              + "This may produce incorrect results on some {} implementations",
           clazz.getSimpleName(),
           PipelineRunner.class.getSimpleName());
     }
@@ -165,7 +169,12 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
 
   private final Class<T> type;
 
-  /** Access via {@link #getEncodedTypeDescriptor()}. */
+  /**
+   * Access via {@link #getEncodedTypeDescriptor()}.
+   *
+   * <p>The field is restored lazily if it is not present due to serialization.
+   */
+  @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
   private transient @Nullable TypeDescriptor<T> typeDescriptor;
 
   protected SerializableCoder(Class<T> type, TypeDescriptor<T> typeDescriptor) {

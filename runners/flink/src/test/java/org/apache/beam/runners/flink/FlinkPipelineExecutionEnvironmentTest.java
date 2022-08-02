@@ -46,7 +46,6 @@ import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Create;
@@ -73,17 +72,19 @@ import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.powermock.reflect.Whitebox;
-import org.powermock.reflect.exceptions.FieldNotFoundException;
 
 /** Tests for {@link FlinkPipelineExecutionEnvironment}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Test
   public void shouldRecognizeAndTranslateStreamingPipeline() {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("[auto]");
 
@@ -151,7 +152,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Test
   public void shouldUseDefaultTempLocationIfNoneSet() {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("clusterAddress");
 
@@ -167,7 +168,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Test
   public void shouldUsePreparedFilesOnRemoteEnvironment() throws Exception {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("clusterAddress");
 
@@ -188,7 +189,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Test
   public void shouldUsePreparedFilesOnRemoteStreamEnvironment() throws Exception {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("clusterAddress");
     options.setStreaming(true);
@@ -213,7 +214,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
   public void shouldUseTransformOverrides() {
     boolean[] testParameters = {true, false};
     for (boolean streaming : testParameters) {
-      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
       options.setStreaming(streaming);
       options.setRunner(FlinkRunner.class);
       FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
@@ -233,7 +234,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Test
   public void shouldProvideParallelismToTransformOverrides() {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setStreaming(true);
     options.setRunner(FlinkRunner.class);
     FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
@@ -277,7 +278,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Test
   public void shouldUseStreamingTransformOverridesWithUnboundedSources() {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     // no explicit streaming mode set
     options.setRunner(FlinkRunner.class);
     FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
@@ -302,7 +303,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Test
   public void testTranslationModeOverrideWithUnboundedSources() {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setRunner(FlinkRunner.class);
     options.setStreaming(false);
 
@@ -318,7 +319,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
   public void testTranslationModeNoOverrideWithoutUnboundedSources() {
     boolean[] testArgs = new boolean[] {true, false};
     for (boolean streaming : testArgs) {
-      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
       options.setRunner(FlinkRunner.class);
       options.setStreaming(streaming);
 
@@ -407,7 +408,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   private FlinkPipelineOptions setPipelineOptions(
       String flinkMaster, String tempLocation, List<String> filesToStage) {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster(flinkMaster);
     options.setTempLocation(tempLocation);
@@ -429,18 +430,13 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
   }
 
   private List<URL> getJars(Object env) throws Exception {
-    try {
-      return (List<URL>) Whitebox.getInternalState(env, "jarFiles");
-    } catch (FieldNotFoundException t) {
-      // for flink 1.10+
-      Configuration config = Whitebox.getInternalState(env, "configuration");
-      Class accesorClass = Class.forName("org.apache.flink.client.cli.ExecutionConfigAccessor");
-      Method fromConfigurationMethod =
-          accesorClass.getDeclaredMethod("fromConfiguration", Configuration.class);
-      Object accesor = fromConfigurationMethod.invoke(null, config);
+    Configuration config = Whitebox.getInternalState(env, "configuration");
+    Class accesorClass = Class.forName("org.apache.flink.client.cli.ExecutionConfigAccessor");
+    Method fromConfigurationMethod =
+        accesorClass.getDeclaredMethod("fromConfiguration", Configuration.class);
+    Object accesor = fromConfigurationMethod.invoke(null, config);
 
-      Method getJarsMethod = accesorClass.getDeclaredMethod("getJars");
-      return (List<URL>) getJarsMethod.invoke(accesor);
-    }
+    Method getJarsMethod = accesorClass.getDeclaredMethod("getJars");
+    return (List<URL>) getJarsMethod.invoke(accesor);
   }
 }

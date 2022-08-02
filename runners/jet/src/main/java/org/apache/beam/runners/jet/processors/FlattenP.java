@@ -30,12 +30,16 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /** Jet {@link com.hazelcast.jet.core.Processor} implementation for Beam's Flatten primitive. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class FlattenP extends AbstractProcessor {
 
   private final Map<Integer, Coder> inputOrdinalCoders;
   private final Coder outputCoder;
 
-  @SuppressWarnings("FieldCanBeLocal") // do not remove, useful for debugging
+  @SuppressWarnings({"FieldCanBeLocal", "unused"}) // do not remove, useful for debugging
   private final String ownerId;
 
   private FlattenP(Map<Integer, Coder> inputOrdinalCoders, Coder outputCoder, String ownerId) {

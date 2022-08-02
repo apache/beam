@@ -26,6 +26,7 @@ import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientExcept
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -35,7 +36,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -45,11 +45,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link Deserializer}s and {@link Coder} given a subject.
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class ConfluentSchemaRegistryDeserializerProvider<T> implements DeserializerProvider<T> {
   private final SerializableFunction<Void, SchemaRegistryClient> schemaRegistryClientProviderFn;
   private final String schemaRegistryUrl;
   private final String subject;
   private final @Nullable Integer version;
+  static final int DEFAULT_CACHE_CAPACITY = 1000;
 
   @VisibleForTesting
   ConfluentSchemaRegistryDeserializerProvider(
@@ -70,14 +74,50 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
 
   public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
       String schemaRegistryUrl, String subject) {
-    return of(schemaRegistryUrl, subject, null);
+    return of(schemaRegistryUrl, DEFAULT_CACHE_CAPACITY, subject, null, null);
   }
 
   public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
       String schemaRegistryUrl, String subject, @Nullable Integer version) {
+    return of(schemaRegistryUrl, DEFAULT_CACHE_CAPACITY, subject, version, null);
+  }
+
+  public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
+      String schemaRegistryUrl,
+      String subject,
+      @Nullable Integer version,
+      @Nullable Map<String, ?> schemaRegistryConfigs) {
+    return of(schemaRegistryUrl, DEFAULT_CACHE_CAPACITY, subject, version, schemaRegistryConfigs);
+  }
+
+  public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
+      String schemaRegistryUrl, int schemaRegistryCacheCapacity, String subject) {
+    return of(schemaRegistryUrl, schemaRegistryCacheCapacity, subject, null, null);
+  }
+
+  public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
+      String schemaRegistryUrl,
+      int schemaRegistryCacheCapacity,
+      String subject,
+      @Nullable Integer version) {
+    return of(schemaRegistryUrl, schemaRegistryCacheCapacity, subject, version, null);
+  }
+
+  public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
+      String schemaRegistryUrl,
+      int schemaRegistryCacheCapacity,
+      String subject,
+      @Nullable Integer version,
+      @Nullable Map<String, ?> schemaRegistryConfigs) {
     return new ConfluentSchemaRegistryDeserializerProvider(
         (SerializableFunction<Void, SchemaRegistryClient>)
-            input -> new CachedSchemaRegistryClient(schemaRegistryUrl, Integer.MAX_VALUE),
+            input -> {
+              @SuppressWarnings("nullness") // confluent library is not annnotated
+              CachedSchemaRegistryClient client =
+                  new CachedSchemaRegistryClient(
+                      schemaRegistryUrl, schemaRegistryCacheCapacity, schemaRegistryConfigs);
+              return client;
+            },
         schemaRegistryUrl,
         subject,
         version);
@@ -85,21 +125,23 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
 
   @Override
   public Deserializer<T> getDeserializer(Map<String, ?> configs, boolean isKey) {
-    ImmutableMap<String, Object> csrConfig =
-        ImmutableMap.<String, Object>builder()
-            .putAll(configs)
-            .put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl)
-            .build();
+    @SuppressWarnings("unchecked")
+    Map<String, Object> csrConfig = new HashMap<>((Map<String, Object>) configs);
+    csrConfig.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
     Deserializer<T> deserializer =
-        (Deserializer<T>) new KafkaAvroDeserializer(getSchemaRegistryClient());
+        (Deserializer<T>)
+            new ConfluentSchemaRegistryDeserializer(getSchemaRegistryClient(), getAvroSchema());
     deserializer.configure(csrConfig, isKey);
     return deserializer;
   }
 
   @Override
   public Coder<T> getCoder(CoderRegistry coderRegistry) {
-    final Schema avroSchema = new Schema.Parser().parse(getSchemaMetadata().getSchema());
-    return (Coder<T>) AvroCoder.of(avroSchema);
+    return (Coder<T>) AvroCoder.of(getAvroSchema());
+  }
+
+  private Schema getAvroSchema() {
+    return new Schema.Parser().parse(getSchemaMetadata().getSchema());
   }
 
   private SchemaMetadata getSchemaMetadata() {
@@ -114,5 +156,22 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
 
   private SchemaRegistryClient getSchemaRegistryClient() {
     return this.schemaRegistryClientProviderFn.apply(null);
+  }
+}
+
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
+class ConfluentSchemaRegistryDeserializer extends KafkaAvroDeserializer {
+  Schema readerSchema;
+
+  ConfluentSchemaRegistryDeserializer(SchemaRegistryClient client, Schema readerSchema) {
+    super(client);
+    this.readerSchema = readerSchema;
+  }
+
+  @Override
+  public Object deserialize(String s, byte[] bytes) {
+    return this.deserialize(bytes, readerSchema);
   }
 }

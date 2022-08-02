@@ -56,17 +56,11 @@ R^2          0.95189
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import argparse
 import logging
 import random
-from builtins import range
 
 import apache_beam as beam
-import apache_beam.typehints.typehints as typehints
 from apache_beam.coders import VarIntCoder
 from apache_beam.runners.portability.fn_api_runner import FnApiRunner
 from apache_beam.tools import utils
@@ -74,10 +68,11 @@ from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.userstate import SetStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import on_timer
+from apache_beam.typehints import typehints
 
 NUM_PARALLEL_STAGES = 7
 
-NUM_SERIAL_STAGES = 5
+NUM_SERIAL_STAGES = 7
 
 
 class BagInStateOutputAfterTimer(beam.DoFn):
@@ -128,12 +123,13 @@ def run_single_pipeline(size):
   return _pipeline_runner
 
 
-def run_benchmark(starting_point, num_runs, num_elements_step, verbose):
+def run_benchmark(
+    starting_point=1, num_runs=10, num_elements_step=100, verbose=True):
   suite = [
       utils.LinearRegressionBenchmarkConfig(
           run_single_pipeline, starting_point, num_elements_step, num_runs)
   ]
-  utils.run_benchmarks(suite, verbose=verbose)
+  return utils.run_benchmarks(suite, verbose=verbose)
 
 
 if __name__ == '__main__':

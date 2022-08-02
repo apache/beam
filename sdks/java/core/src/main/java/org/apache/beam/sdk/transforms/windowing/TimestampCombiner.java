@@ -36,6 +36,7 @@ import org.joda.time.Instant;
  * GroupByKey} or {@link Combine}.
  */
 @Experimental(Kind.OUTPUT_TIME)
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
 public enum TimestampCombiner {
   /**
    * The policy of taking at the earliest of a set of timestamps.

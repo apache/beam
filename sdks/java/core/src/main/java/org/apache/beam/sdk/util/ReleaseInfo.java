@@ -35,6 +35,9 @@ import org.slf4j.LoggerFactory;
  */
 @AutoValue
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class ReleaseInfo implements Serializable {
   private static final String PROPERTIES_PATH = "/org/apache/beam/sdk/sdk.properties";
 
@@ -51,14 +54,19 @@ public abstract class ReleaseInfo implements Serializable {
     return getProperties().get("name");
   }
 
-  /** Provides the BEAM version. ie: 2.18.0-SNAPSHOT */
+  /** Provides the BEAM version e.g. 2.18.0-SNAPSHOT */
   public String getVersion() {
     return getProperties().get("version");
   }
 
-  /** Provides the SDK version. ie: 2.18.0 or 2.18.0.dev */
+  /** Provides the SDK version. e.g. 2.18.0 or 2.18.0.dev */
   public String getSdkVersion() {
     return getProperties().get("sdk_version");
+  }
+
+  /** Returns true if SDK version is a dev version (e.g. 2.18.0.dev) */
+  public boolean isDevSdkVersion() {
+    return getProperties().get("sdk_version").contains("dev");
   }
 
   /** Provides docker image default root (apache). */

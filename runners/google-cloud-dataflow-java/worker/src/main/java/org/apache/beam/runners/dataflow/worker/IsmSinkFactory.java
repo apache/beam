@@ -43,6 +43,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Creates an {@link IsmSink} from a {@link CloudObject} spec. Note that it is invalid to use a non
  * {@link IsmRecordCoder} with this sink factory.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class IsmSinkFactory implements SinkFactory {
 
   /** A {@link SinkFactory.Registrar} for ISM sinks. */

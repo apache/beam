@@ -23,7 +23,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.samza.translation.ConfigBuilder;
 import org.apache.beam.runners.samza.translation.PViewToIdMapper;
@@ -32,9 +34,11 @@ import org.apache.beam.runners.samza.translation.SamzaPipelineTranslator;
 import org.apache.beam.runners.samza.translation.SamzaPortablePipelineTranslator;
 import org.apache.beam.runners.samza.translation.SamzaTransformOverrides;
 import org.apache.beam.runners.samza.translation.TranslationContext;
+import org.apache.beam.runners.samza.util.PipelineJsonRenderer;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.values.PValue;
@@ -53,9 +57,13 @@ import org.slf4j.LoggerFactory;
  * A {@link PipelineRunner} that executes the operations in the {@link Pipeline} into an equivalent
  * Samza plan.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaRunner.class);
   private static final String BEAM_DOT_GRAPH = "beamDotGraph";
+  private static final String BEAM_JSON_GRAPH = "beamJsonGraph";
 
   public static SamzaRunner fromOptions(PipelineOptions opts) {
     final SamzaPipelineOptions samzaOptions =
@@ -74,9 +82,9 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
         listenerReg.hasNext() ? Iterators.getOnlyElement(listenerReg).getLifeCycleListener() : null;
   }
 
-  public PortablePipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline) {
+  public PortablePipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
     final String dotGraph = PipelineDotRenderer.toDotString(pipeline);
-    LOG.info("Portable pipeline to run:\n{}", dotGraph);
+    LOG.info("Portable pipeline to run DOT graph:\n{}", dotGraph);
 
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
     SamzaPortablePipelineTranslator.createConfig(pipeline, configBuilder, options);
@@ -97,7 +105,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
               .withApplicationContainerContextFactory(executionContext.new Factory())
               .withMetricsReporterFactories(reporterFactories);
           SamzaPortablePipelineTranslator.translate(
-              pipeline, new PortableTranslationContext(appDescriptor, options));
+              pipeline, new PortableTranslationContext(appDescriptor, options, jobInfo));
         };
 
     ApplicationRunner runner = runSamzaApp(app, config);
@@ -106,10 +114,21 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
   @Override
   public SamzaPipelineResult run(Pipeline pipeline) {
+    // TODO(https://github.com/apache/beam/issues/20530): Use SDF read as default for non-portable
+    // execution when we address performance issue.
+    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
+      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+    }
+
     MetricsEnvironment.setMetricsSupported(true);
 
     if (LOG.isDebugEnabled()) {
-      LOG.debug("Pre-processed Beam pipeline:\n{}", PipelineDotRenderer.toDotString(pipeline));
+      LOG.debug(
+          "Pre-processed Beam pipeline in dot format:\n{}",
+          PipelineDotRenderer.toDotString(pipeline));
+      LOG.debug(
+          "Pre-processed Beam pipeline in json format:\n{}",
+          PipelineJsonRenderer.toJsonString(pipeline));
     }
 
     pipeline.replaceAll(SamzaTransformOverrides.getDefaultOverrides());
@@ -117,11 +136,15 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     final String dotGraph = PipelineDotRenderer.toDotString(pipeline);
     LOG.info("Beam pipeline DOT graph:\n{}", dotGraph);
 
+    final String jsonGraph = PipelineJsonRenderer.toJsonString(pipeline);
+    LOG.info("Beam pipeline JSON graph:\n{}", jsonGraph);
+
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
 
     SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
     configBuilder.put(BEAM_DOT_GRAPH, dotGraph);
+    configBuilder.put(BEAM_JSON_GRAPH, jsonGraph);
 
     final Config config = configBuilder.build();
     options.setConfigOverride(config);
@@ -146,7 +169,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     // generated
     SamzaPipelineOptionsValidator.validate(options);
     ApplicationRunner runner = runSamzaApp(app, config);
-    return new SamzaPipelineResult(app, runner, executionContext, listener, config);
+    return new SamzaPipelineResult(runner, executionContext, listener, config);
   }
 
   private Map<String, MetricsReporterFactory> getMetricsReporters() {

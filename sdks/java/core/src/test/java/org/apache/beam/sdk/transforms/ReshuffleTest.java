@@ -18,13 +18,15 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.KvMatcher.isKv;
+import static org.apache.beam.sdk.values.TypeDescriptors.integers;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -34,6 +36,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Reshuffle.AssignShardFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -45,6 +48,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -271,6 +275,29 @@ public class ReshuffleTest implements Serializable {
 
     PCollection<KV<String, Long>> reshuffled = input.apply(Reshuffle.of());
     PAssert.that(reshuffled.apply(Values.create())).containsInAnyOrder(0L, 1L, 2L);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testAssignShardFn() {
+    List<KV<String, Integer>> inputKvs = Lists.newArrayList();
+    for (int i = 0; i < 10; i++) {
+      inputKvs.addAll(ARBITRARY_KVS);
+    }
+
+    PCollection<KV<String, Integer>> input =
+        pipeline.apply(
+            Create.of(inputKvs).withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+
+    PCollection<Integer> output =
+        input
+            .apply(ParDo.of(new AssignShardFn<>(2)))
+            .apply(GroupByKey.create())
+            .apply(MapElements.into(integers()).via(KV::getKey));
+
+    PAssert.that(output).containsInAnyOrder(ImmutableList.of(0, 1));
 
     pipeline.run();
   }

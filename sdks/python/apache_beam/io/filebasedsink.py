@@ -19,18 +19,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import os
 import re
 import time
 import uuid
-from builtins import range
-from builtins import zip
-
-from future.utils import iteritems
-from past.builtins import unicode
 
 from apache_beam.internal import util
 from apache_beam.io import iobase
@@ -74,7 +67,11 @@ class FileBasedSink(iobase.Sink):
       num_shards=0,
       shard_name_template=None,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
+      compression_type=CompressionTypes.AUTO,
+      *,
+      max_records_per_shard=None,
+      max_bytes_per_shard=None,
+      skip_if_empty=False):
     """
      Raises:
       TypeError: if file path parameters are not a :class:`str` or
@@ -84,11 +81,11 @@ class FileBasedSink(iobase.Sink):
       ValueError: if **shard_name_template** is not of expected
         format.
     """
-    if not isinstance(file_path_prefix, ((str, unicode), ValueProvider)):
+    if not isinstance(file_path_prefix, (str, ValueProvider)):
       raise TypeError(
           'file_path_prefix must be a string or ValueProvider;'
           'got %r instead' % file_path_prefix)
-    if not isinstance(file_name_suffix, ((str, unicode), ValueProvider)):
+    if not isinstance(file_name_suffix, (str, ValueProvider)):
       raise TypeError(
           'file_name_suffix must be a string or ValueProvider;'
           'got %r instead' % file_name_suffix)
@@ -101,9 +98,9 @@ class FileBasedSink(iobase.Sink):
       shard_name_template = DEFAULT_SHARD_NAME_TEMPLATE
     elif shard_name_template == '':
       num_shards = 1
-    if isinstance(file_path_prefix, (str, unicode)):
+    if isinstance(file_path_prefix, str):
       file_path_prefix = StaticValueProvider(str, file_path_prefix)
-    if isinstance(file_name_suffix, (str, unicode)):
+    if isinstance(file_name_suffix, str):
       file_name_suffix = StaticValueProvider(str, file_name_suffix)
     self.file_path_prefix = file_path_prefix
     self.file_name_suffix = file_name_suffix
@@ -114,6 +111,9 @@ class FileBasedSink(iobase.Sink):
         shard_name_template)
     self.compression_type = compression_type
     self.mime_type = mime_type
+    self.max_records_per_shard = max_records_per_shard
+    self.max_bytes_per_shard = max_bytes_per_shard
+    self.skip_if_empty = skip_if_empty
 
   def display_data(self):
     return {
@@ -135,7 +135,13 @@ class FileBasedSink(iobase.Sink):
     The returned file handle is passed to ``write_[encoded_]record`` and
     ``close``.
     """
-    return FileSystems.create(temp_path, self.mime_type, self.compression_type)
+    writer = FileSystems.create(
+        temp_path, self.mime_type, self.compression_type)
+    if self.max_bytes_per_shard:
+      self.byte_counter = _ByteCountingWriter(writer)
+      return self.byte_counter
+    else:
+      return writer
 
   def write_record(self, file_handle, value):
     """Writes a single record go the file handle returned by ``open()``.
@@ -321,7 +327,7 @@ class FileBasedSink(iobase.Sink):
         except BeamIOError as exp:
           if exp.exception_details is None:
             raise
-          for (src, dst), exception in iteritems(exp.exception_details):
+          for (src, dst), exception in exp.exception_details.items():
             if exception:
               _LOGGER.error(
                   ('Exception in _rename_batch. src: %s, '
@@ -403,10 +409,6 @@ class FileBasedSink(iobase.Sink):
     # pylint: disable=unidiomatic-typecheck
     return type(self) == type(other) and self.__dict__ == other.__dict__
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
 
 class FileBasedSinkWriter(iobase.Writer):
   """The writer for FileBasedSink.
@@ -415,10 +417,36 @@ class FileBasedSinkWriter(iobase.Writer):
     self.sink = sink
     self.temp_shard_path = temp_shard_path
     self.temp_handle = self.sink.open(temp_shard_path)
+    self.num_records_written = 0
 
   def write(self, value):
+    self.num_records_written += 1
     self.sink.write_record(self.temp_handle, value)
+
+  def at_capacity(self):
+    return (
+        self.sink.max_records_per_shard and
+        self.num_records_written >= self.sink.max_records_per_shard
+    ) or (
+        self.sink.max_bytes_per_shard and
+        self.sink.byte_counter.bytes_written >= self.sink.max_bytes_per_shard)
 
   def close(self):
     self.sink.close(self.temp_handle)
     return self.temp_shard_path
+
+
+class _ByteCountingWriter:
+  def __init__(self, writer):
+    self.writer = writer
+    self.bytes_written = 0
+
+  def write(self, bs):
+    self.bytes_written += len(bs)
+    self.writer.write(bs)
+
+  def flush(self):
+    self.writer.flush()
+
+  def close(self):
+    self.writer.close()

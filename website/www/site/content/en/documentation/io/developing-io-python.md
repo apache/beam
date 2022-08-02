@@ -19,6 +19,9 @@ limitations under the License.
 -->
 # Developing I/O connectors for Python
 
+**IMPORTANT:** Please use ``Splittable DoFn`` to develop your new I/O. For more details, please read
+the [new I/O connector overview](/documentation/io/developing-io-overview/).
+
 To connect to a data store that isn’t supported by Beam’s existing I/O
 connectors, you must create a custom I/O connector that usually consist of a
 source and a sink. All Beam sources and sinks are composite transforms; however,
@@ -42,15 +45,15 @@ multiple worker instances in parallel. As such, the code you provide for
      serializable.  The service may create multiple instances of your `Source`
      or `FileBasedSink` subclass to be sent to multiple remote workers to
      facilitate reading or writing in parallel. The *way* the source and sink
-     objects are serialized is runner specific.  
+     objects are serialized is runner specific.
 
   1. **Immutability:** Your `Source` or `FileBasedSink` subclass must be
      effectively immutable. You should only use mutable state in your `Source`
      or `FileBasedSink` subclass if you are using lazy evaluation of expensive
-     computations that you need to implement the source.  
+     computations that you need to implement the source.
 
   1. **Thread-Safety:** Your code must be thread-safe. The Beam SDK for Python
-     provides the `RangeTracker` class to make this easier.  
+     provides the `RangeTracker` class to make this easier.
 
   1. **Testability:** It is critical to exhaustively unit-test all of your
      `Source` and `FileBasedSink` subclasses. A minor implementation error can

@@ -20,10 +20,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import uuid
-from builtins import object
 from threading import Lock
 from threading import Timer
 from typing import TYPE_CHECKING
@@ -40,7 +37,7 @@ from apache_beam.pipeline import PTransformOverride
 from apache_beam.runners.common import DoFnContext
 from apache_beam.runners.common import DoFnInvoker
 from apache_beam.runners.common import DoFnSignature
-from apache_beam.runners.common import OutputProcessor
+from apache_beam.runners.common import OutputHandler
 from apache_beam.runners.direct.evaluation_context import DirectStepContext
 from apache_beam.runners.direct.util import KeyedWorkItem
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
@@ -67,7 +64,9 @@ class SplittableParDoOverride(PTransformOverride):
       signature = DoFnSignature(transform.fn)
       return signature.is_splittable_dofn()
 
-  def get_replacement_transform(self, ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
+    ptransform = applied_ptransform.transform
     assert isinstance(ptransform, ParDo)
     do_fn = ptransform.fn
     signature = DoFnSignature(do_fn)
@@ -117,19 +116,18 @@ class ElementAndRestriction(object):
 class PairWithRestrictionFn(beam.DoFn):
   """A transform that pairs each element with a restriction."""
   def __init__(self, do_fn):
-    self._do_fn = do_fn
+    self._signature = DoFnSignature(do_fn)
 
   def start_bundle(self):
-    signature = DoFnSignature(self._do_fn)
     self._invoker = DoFnInvoker.create_invoker(
-        signature,
-        output_processor=_NoneShallPassOutputProcessor(),
+        self._signature,
+        output_processor=_NoneShallPassOutputHandler(),
         process_invocation=False)
 
   def process(self, element, window=beam.DoFn.WindowParam, *args, **kwargs):
     initial_restriction = self._invoker.invoke_initial_restriction(element)
     watermark_estimator_state = (
-        self.signature.process_method.watermark_estimator_provider.
+        self._signature.process_method.watermark_estimator_provider.
         initial_estimator_state(element, initial_restriction))
     yield ElementAndRestriction(
         element, initial_restriction, watermark_estimator_state)
@@ -144,7 +142,7 @@ class SplitRestrictionFn(beam.DoFn):
     signature = DoFnSignature(self._do_fn)
     self._invoker = DoFnInvoker.create_invoker(
         signature,
-        output_processor=_NoneShallPassOutputProcessor(),
+        output_processor=_NoneShallPassOutputHandler(),
         process_invocation=False)
 
   def process(self, element_and_restriction, *args, **kwargs):
@@ -205,8 +203,9 @@ class ProcessKeyedElementsViaKeyedWorkItemsOverride(PTransformOverride):
   def matches(self, applied_ptransform):
     return isinstance(applied_ptransform.transform, ProcessKeyedElements)
 
-  def get_replacement_transform(self, ptransform):
-    return ProcessKeyedElementsViaKeyedWorkItems(ptransform)
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
+    return ProcessKeyedElementsViaKeyedWorkItems(applied_ptransform.transform)
 
 
 class ProcessKeyedElementsViaKeyedWorkItems(PTransform):
@@ -269,7 +268,7 @@ class ProcessFn(beam.DoFn):
         'watermark_estimator_state')
     self.watermark_hold_tag = _ReadModifyWriteStateTag('watermark_hold')
     self._process_element_invoker = None
-    self._output_processor = _OutputProcessor()
+    self._output_processor = _OutputHandler()
 
     self.sdf_invoker = DoFnInvoker.create_invoker(
         DoFnSignature(self.sdf),
@@ -537,7 +536,7 @@ class SDFProcessElementInvoker(object):
     yield result
 
 
-class _OutputProcessor(OutputProcessor):
+class _OutputHandler(OutputHandler):
   def __init__(self):
     self.output_iter = None
 
@@ -550,7 +549,7 @@ class _OutputProcessor(OutputProcessor):
     self.output_iter = None
 
 
-class _NoneShallPassOutputProcessor(OutputProcessor):
+class _NoneShallPassOutputHandler(OutputHandler):
   def process_outputs(
       self, windowed_input_element, output_iter, watermark_estimator=None):
     # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None

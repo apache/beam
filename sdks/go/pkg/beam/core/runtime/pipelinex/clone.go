@@ -16,8 +16,8 @@
 package pipelinex
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 )
 
 func shallowClonePipeline(p *pipepb.Pipeline) *pipepb.Pipeline {
@@ -49,46 +49,11 @@ func ShallowClonePTransform(t *pipepb.PTransform) *pipepb.PTransform {
 		UniqueName:  t.UniqueName,
 		Spec:        t.Spec,
 		DisplayData: t.DisplayData,
+		Annotations: t.Annotations,
 	}
 	ret.Subtransforms, _ = reflectx.ShallowClone(t.Subtransforms).([]string)
 	ret.Inputs, _ = reflectx.ShallowClone(t.Inputs).(map[string]string)
 	ret.Outputs, _ = reflectx.ShallowClone(t.Outputs).(map[string]string)
 	ret.EnvironmentId = t.EnvironmentId
 	return ret
-}
-
-// ShallowCloneParDoPayload makes a shallow copy of the given ParDoPayload.
-func ShallowCloneParDoPayload(p *pipepb.ParDoPayload) *pipepb.ParDoPayload {
-	if p == nil {
-		return nil
-	}
-
-	ret := &pipepb.ParDoPayload{
-		DoFn:               p.DoFn,
-		RestrictionCoderId: p.RestrictionCoderId,
-	}
-	ret.SideInputs, _ = reflectx.ShallowClone(p.SideInputs).(map[string]*pipepb.SideInput)
-	ret.StateSpecs, _ = reflectx.ShallowClone(p.StateSpecs).(map[string]*pipepb.StateSpec)
-	ret.TimerFamilySpecs, _ = reflectx.ShallowClone(p.TimerFamilySpecs).(map[string]*pipepb.TimerFamilySpec)
-	return ret
-}
-
-// ShallowCloneSideInput makes a shallow copy of the given SideInput.
-func ShallowCloneSideInput(p *pipepb.SideInput) *pipepb.SideInput {
-	if p == nil {
-		return nil
-	}
-	var ret pipepb.SideInput
-	ret = *p
-	return &ret
-}
-
-// ShallowCloneFunctionSpec makes a shallow copy of the given FunctionSpec.
-func ShallowCloneFunctionSpec(p *pipepb.FunctionSpec) *pipepb.FunctionSpec {
-	if p == nil {
-		return nil
-	}
-	var ret pipepb.FunctionSpec
-	ret = *p
-	return &ret
 }

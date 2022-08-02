@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.Collections;
 import org.apache.beam.runners.spark.examples.WordCount;
@@ -49,16 +49,21 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test {@link SparkRunnerDebugger} with different pipelines. */
+@RunWith(JUnit4.class)
 public class SparkRunnerDebuggerTest {
+
+  @ClassRule public static SparkContextRule contextRule = new SparkContextRule("local[1]");
 
   @Test
   public void debugBatchPipeline() {
-    PipelineOptions options = PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
+    PipelineOptions options = contextRule.configure(PipelineOptionsFactory.create());
     options.setRunner(SparkRunnerDebugger.class);
-
     Pipeline pipeline = Pipeline.create(options);
 
     PCollection<String> lines =
@@ -102,11 +107,9 @@ public class SparkRunnerDebuggerTest {
 
   @Test
   public void debugStreamingPipeline() {
-    TestSparkPipelineOptions options =
-        PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
-    options.setForceStreaming(true);
+    PipelineOptions options = contextRule.configure(PipelineOptionsFactory.create());
     options.setRunner(SparkRunnerDebugger.class);
-
+    options.as(TestSparkPipelineOptions.class).setForceStreaming(true);
     Pipeline pipeline = Pipeline.create(options);
 
     KafkaIO.Read<String, String> read =

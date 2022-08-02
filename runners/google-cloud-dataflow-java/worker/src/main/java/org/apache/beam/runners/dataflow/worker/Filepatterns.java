@@ -22,6 +22,9 @@ import java.util.regex.Pattern;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Utilities for handling filepatterns. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Filepatterns {
   private static final Pattern AT_N_SPEC = Pattern.compile("@(?<N>\\d+)");
 

@@ -63,6 +63,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
  *      -PloadTest.mainClass="org.apache.beam.sdk.loadtests.CombineLoadTest"
  * </pre>
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
 
   private static final String METRICS_NAMESPACE = "combine";

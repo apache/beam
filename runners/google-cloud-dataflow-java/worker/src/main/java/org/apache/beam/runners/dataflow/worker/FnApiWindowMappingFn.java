@@ -72,6 +72,9 @@ import org.slf4j.LoggerFactory;
  * instead of per mapping request. This requires rewriting the {@link StreamingSideInputFetcher} to
  * not be inline calls and process elements over a stream.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
     extends WindowMappingFn<TargetWindowT> {
   private static final Logger LOG = LoggerFactory.getLogger(FnApiWindowMappingFn.class);
@@ -214,8 +217,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
       TargetWindowT rval =
           (TargetWindowT)
               sideInputMappingCache.get(
-                  CacheKey.create(windowMappingFn, mainWindow),
-                  () -> loadIfNeeded(windowMappingFn, mainWindow));
+                  CacheKey.create(windowMappingFn, mainWindow), () -> loadIfNeeded(mainWindow));
       return rval;
     } catch (ExecutionException e) {
       throw new IllegalStateException(
@@ -223,7 +225,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
     }
   }
 
-  private TargetWindowT loadIfNeeded(FunctionSpec windowMappingFn, BoundedWindow mainWindow) {
+  private TargetWindowT loadIfNeeded(BoundedWindow mainWindow) {
     try {
       String processRequestInstructionId = idGenerator.getId();
       InstructionRequest processRequest =

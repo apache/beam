@@ -22,7 +22,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // FullType represents the tree structure of data types processed by the graph.
@@ -87,6 +87,8 @@ func printShortComposite(t reflect.Type) string {
 		return "CoGBK"
 	case KVType:
 		return "KV"
+	case NullableType:
+		return "Nullable"
 	default:
 		return fmt.Sprintf("invalid(%v)", t)
 	}
@@ -415,4 +417,10 @@ func checkTypesNotNil(list []FullType) {
 			panic(fmt.Sprintf("nil type at index: %v", i))
 		}
 	}
+}
+
+// NoFiringPane return PaneInfo assigned as NoFiringPane(0x0f)
+func NoFiringPane() PaneInfo {
+	pn := PaneInfo{IsFirst: true, IsLast: true, Timing: PaneUnknown}
+	return pn
 }

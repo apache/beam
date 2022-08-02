@@ -22,17 +22,11 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import hashlib
-import imp
+import importlib
 import os
 import shutil
 import tempfile
-from builtins import object
-
-from mock import Mock
-from mock import patch
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.utils import retry
@@ -101,15 +95,16 @@ def patch_retry(testcase, module):
     module: The module that uses retry and need to be replaced with mock
       clock and logger in test.
   """
+  # Import mock here to avoid execution time errors for other utilities
+  from mock import Mock
+  from mock import patch
+
   real_retry_with_exponential_backoff = retry.with_exponential_backoff
 
-  def patched_retry_with_exponential_backoff(num_retries, retry_filter):
+  def patched_retry_with_exponential_backoff(**kwargs):
     """A patch for retry decorator to use a mock dummy clock and logger."""
-    return real_retry_with_exponential_backoff(
-        num_retries=num_retries,
-        retry_filter=retry_filter,
-        logger=Mock(),
-        clock=Mock())
+    kwargs.update(logger=Mock(), clock=Mock())
+    return real_retry_with_exponential_backoff(**kwargs)
 
   patch.object(
       retry,
@@ -117,12 +112,12 @@ def patch_retry(testcase, module):
       side_effect=patched_retry_with_exponential_backoff).start()
 
   # Reload module after patching.
-  imp.reload(module)
+  importlib.reload(module)
 
   def remove_patches():
     patch.stopall()
     # Reload module again after removing patch.
-    imp.reload(module)
+    importlib.reload(module)
 
   testcase.addCleanup(remove_patches)
 
@@ -145,13 +140,13 @@ def delete_files(file_paths):
 def cleanup_subscriptions(sub_client, subs):
   """Cleanup PubSub subscriptions if exist."""
   for sub in subs:
-    sub_client.delete_subscription(sub.name)
+    sub_client.delete_subscription(subscription=sub.name)
 
 
 def cleanup_topics(pub_client, topics):
   """Cleanup PubSub topics if exist."""
   for topic in topics:
-    pub_client.delete_topic(topic.name)
+    pub_client.delete_topic(topic=topic.name)
 
 
 class PullResponseMessage(object):
@@ -186,22 +181,28 @@ def create_pull_response(responses):
     responses.
   """
   from google.cloud import pubsub
+  from google.protobuf import timestamp_pb2
 
   res = pubsub.types.PullResponse()
   for response in responses:
-    received_message = res.received_messages.add()
+    received_message = pubsub.types.ReceivedMessage()
 
     message = received_message.message
     message.data = response.data
     if response.attributes is not None:
       for k, v in response.attributes.items():
         message.attributes[k] = v
+
+    publish_time = timestamp_pb2.Timestamp()
     if response.publish_time_secs is not None:
-      message.publish_time.seconds = response.publish_time_secs
+      publish_time.seconds = response.publish_time_secs
     if response.publish_time_nanos is not None:
-      message.publish_time.nanos = response.publish_time_nanos
+      publish_time.nanos = response.publish_time_nanos
+    message.publish_time = publish_time
 
     if response.ack_id is not None:
       received_message.ack_id = response.ack_id
+
+    res.received_messages.append(received_message)
 
   return res

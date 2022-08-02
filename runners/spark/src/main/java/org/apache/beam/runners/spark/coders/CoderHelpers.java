@@ -38,6 +38,9 @@ import org.joda.time.Instant;
 import scala.Tuple2;
 
 /** Serialization utility class. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class CoderHelpers {
   private CoderHelpers() {}
 

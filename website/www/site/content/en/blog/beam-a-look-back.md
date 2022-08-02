@@ -61,7 +61,7 @@ new and updated runners were developed:
  - Apache Spark 2.x update
  - [IBM Streams runner](https://www.ibm.com/blogs/bluemix/2017/10/streaming-analytics-updates-ibm-streams-runner-apache-beam-2-0/)
  - MapReduce runner
- - [JStorm runner](http://jstorm.io/)
+ - [JStorm runner](https://github.com/alibaba/jstorm)
 
 In addition to runners, Beam added new IO connectors, some notable ones being
 the Cassandra, MQTT, AMQP, HBase/HCatalog, JDBC, Solr, Tika, Redis, and

@@ -19,11 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import threading
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import DefaultDict
@@ -275,6 +272,7 @@ class EvaluationContext(object):
     self._metrics = DirectMetrics()
 
     self._lock = threading.Lock()
+    self.shutdown_requested = False
 
   def _initialize_keyed_states(self, root_transforms, value_to_consumers):
     """Initialize user state dicts.
@@ -453,11 +451,14 @@ class EvaluationContext(object):
     return self._side_inputs_container.get_value_or_block_until_ready(
         side_input, task, block_until)
 
+  def shutdown(self):
+    self.shutdown_requested = True
+
 
 class DirectUnmergedState(InMemoryUnmergedState):
   """UnmergedState implementation for the DirectRunner."""
   def __init__(self):
-    super(DirectUnmergedState, self).__init__(defensive_copy=False)
+    super().__init__(defensive_copy=False)
 
 
 class DirectStepContext(object):

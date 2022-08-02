@@ -19,13 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from abc import ABCMeta
 from abc import abstractmethod
-from builtins import object
-
-from future.utils import with_metaclass
 
 from apache_beam.portability.api import beam_runner_api_pb2
 
@@ -44,8 +39,6 @@ class TimeDomain(object):
   _RUNNER_API_MAPPING = {
       WATERMARK: beam_runner_api_pb2.TimeDomain.EVENT_TIME,
       REAL_TIME: beam_runner_api_pb2.TimeDomain.PROCESSING_TIME,
-      DEPENDENT_REAL_TIME: beam_runner_api_pb2.TimeDomain.
-      SYNCHRONIZED_PROCESSING_TIME,
   }
 
   @staticmethod
@@ -60,9 +53,12 @@ class TimeDomain(object):
   def to_runner_api(domain):
     return TimeDomain._RUNNER_API_MAPPING[domain]
 
+  @staticmethod
+  def is_event_time(domain):
+    return TimeDomain.from_string(domain) == TimeDomain.WATERMARK
 
-class TimestampCombinerImpl(with_metaclass(ABCMeta,
-                                           object)):  # type: ignore[misc]
+
+class TimestampCombinerImpl(metaclass=ABCMeta):
   """Implementation of TimestampCombiner."""
   @abstractmethod
   def assign_output_time(self, window, input_timestamp):
@@ -87,8 +83,7 @@ class TimestampCombinerImpl(with_metaclass(ABCMeta,
     return self.combine_all(merging_timestamps)
 
 
-class DependsOnlyOnWindow(with_metaclass(ABCMeta, TimestampCombinerImpl)
-                          ):  # type: ignore[misc]
+class DependsOnlyOnWindow(TimestampCombinerImpl, metaclass=ABCMeta):
   """TimestampCombinerImpl that only depends on the window."""
   def merge(self, result_window, unused_merging_timestamps):
     # Since we know that the result only depends on the window, we can ignore

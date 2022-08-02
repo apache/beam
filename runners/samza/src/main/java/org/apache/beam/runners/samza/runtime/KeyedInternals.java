@@ -28,6 +28,8 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
+import org.apache.beam.runners.samza.state.SamzaMapState;
+import org.apache.beam.runners.samza.state.SamzaSetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -36,6 +38,10 @@ import org.joda.time.Instant;
 
 /** Provides access to the keyed StateInternals and TimerInternals. */
 @ThreadSafe
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class KeyedInternals<K> {
 
   private static class KeyedStates<K> {
@@ -83,8 +89,10 @@ class KeyedInternals<K> {
     final List<State> states = threadLocalKeyedStates.get().states;
     states.forEach(
         state -> {
-          if (state instanceof SamzaStoreStateInternals.KeyValueIteratorState) {
-            ((SamzaStoreStateInternals.KeyValueIteratorState) state).closeIterators();
+          if (state instanceof SamzaMapState) {
+            ((SamzaMapState) state).closeIterators();
+          } else if (state instanceof SamzaSetState) {
+            ((SamzaSetState) state).closeIterators();
           }
         });
     states.clear();
@@ -134,8 +142,9 @@ class KeyedInternals<K> {
     }
 
     @Override
-    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-      getInternals().deleteTimer(namespace, timerId, timeDomain);
+    public void deleteTimer(
+        StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
+      getInternals().deleteTimer(namespace, timerId, timerFamilyId, timeDomain);
     }
 
     @Override
@@ -153,9 +162,8 @@ class KeyedInternals<K> {
       return getInternals().currentProcessingTime();
     }
 
-    @Nullable
     @Override
-    public Instant currentSynchronizedProcessingTime() {
+    public @Nullable Instant currentSynchronizedProcessingTime() {
       return getInternals().currentSynchronizedProcessingTime();
     }
 
@@ -164,9 +172,8 @@ class KeyedInternals<K> {
       return getInternals().currentInputWatermarkTime();
     }
 
-    @Nullable
     @Override
-    public Instant currentOutputWatermarkTime() {
+    public @Nullable Instant currentOutputWatermarkTime() {
       return getInternals().currentOutputWatermarkTime();
     }
   }

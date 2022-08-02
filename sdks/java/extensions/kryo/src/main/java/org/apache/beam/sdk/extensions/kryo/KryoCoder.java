@@ -210,8 +210,11 @@ public class KryoCoder<T> extends CustomCoder<T> {
       }
       throw new CoderException("Cannot encode given object of type [" + value.getClass() + "].", e);
     } catch (IllegalArgumentException e) {
-      if (e.getMessage().startsWith("Class is not registered")) {
-        throw new CoderException(e.getMessage());
+      String message = e.getMessage();
+      if (message != null) {
+        if (message.startsWith("Class is not registered")) {
+          throw new CoderException(message);
+        }
       }
       throw e;
     }

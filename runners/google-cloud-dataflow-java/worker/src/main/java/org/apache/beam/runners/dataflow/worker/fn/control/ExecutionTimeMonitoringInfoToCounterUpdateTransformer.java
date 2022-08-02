@@ -43,10 +43,12 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Use getSupportedUrns to get all urns this class supports.
  */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class ExecutionTimeMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutor.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(ExecutionTimeMonitoringInfoToCounterUpdateTransformer.class);
 
   private SpecMonitoringInfoValidator specValidator;
   private Map<String, DataflowStepContext> transformIdMapping;

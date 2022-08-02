@@ -26,10 +26,10 @@ python -m apache_beam.examples.bitcoin \
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
+
+from fastavro.schema import parse_schema
 
 import apache_beam as beam
 from apache_beam.io.avroio import ReadFromAvro
@@ -38,19 +38,12 @@ from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
-# pylint: disable=wrong-import-order, wrong-import-position
-try:
-  from avro.schema import Parse  # avro-python3 library for python3
-except ImportError:
-  from avro.schema import parse as Parse  # avro library for python2
-# pylint: enable=wrong-import-order, wrong-import-position
-
 
 class BitcoinTxnCountDoFn(beam.DoFn):
   """Count inputs and outputs per transaction"""
   def __init__(self):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(BitcoinTxnCountDoFn, self).__init__()
+    # super().__init__()
     beam.DoFn.__init__(self)
     self.txn_counter = Metrics.counter(self.__class__, 'txns')
     self.inputs_dist = Metrics.distribution(self.__class__, 'inputs_per_txn')
@@ -91,23 +84,26 @@ class BitcoinTxnCountDoFn(beam.DoFn):
     }]
 
 
-SCHEMA = Parse(
-    '''
-  {
+SCHEMA = parse_schema({
     "namespace": "example.avro",
     "type": "record",
     "name": "Transaction",
-    "fields": [
-      {"name": "transaction_id", "type": "string"},
-      {"name": "timestamp", "type": "long"},
-      {"name": "block_id", "type": "string"},
-      {"name": "previous_block", "type": "string"},
-      {"name": "num_inputs", "type": "int"},
-      {"name": "num_outputs", "type": "int"},
-      {"name": "sum_output", "type": "long"}
-    ]
-  }
-  ''')
+    "fields": [{
+        "name": "transaction_id", "type": "string"
+    }, {
+        "name": "timestamp", "type": "long"
+    }, {
+        "name": "block_id", "type": "string"
+    }, {
+        "name": "previous_block", "type": "string"
+    }, {
+        "name": "num_inputs", "type": "int"
+    }, {
+        "name": "num_outputs", "type": "int"
+    }, {
+        "name": "sum_output", "type": "long"
+    }]
+})
 
 
 def run(argv=None):
@@ -147,7 +143,7 @@ def run(argv=None):
 
   # Read the avro file[pattern] into a PCollection.
   records = \
-      p | 'read' >> ReadFromAvro(opts.input, use_fastavro=opts.use_fastavro)
+      p | 'read' >> ReadFromAvro(opts.input)
 
   measured = records | 'scan' >> beam.ParDo(BitcoinTxnCountDoFn())
 
@@ -157,7 +153,6 @@ def run(argv=None):
           opts.output,
           schema=SCHEMA,
           codec=('deflate' if opts.compress else 'null'),
-          use_fastavro=opts.use_fastavro
       )
 
   result = p.run()

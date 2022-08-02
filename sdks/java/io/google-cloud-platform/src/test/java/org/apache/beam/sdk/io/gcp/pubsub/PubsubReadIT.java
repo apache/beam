@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import java.util.Set;
-import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -30,13 +30,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Integration test for PubsubIO. */
 @RunWith(JUnit4.class)
 public class PubsubReadIT {
-  private static final Logger LOG = LoggerFactory.getLogger(PubsubReadIT.class);
 
   @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -44,7 +41,7 @@ public class PubsubReadIT {
   @Test
   public void testReadPublicData() throws Exception {
     // The pipeline will never terminate on its own
-    pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
+    pipeline.getOptions().as(TestPipelineOptions.class).setBlockOnRun(false);
 
     PCollection<String> messages =
         pipeline.apply(
@@ -59,7 +56,7 @@ public class PubsubReadIT {
     PipelineResult job = pipeline.run();
     start.get();
 
-    signal.waitForSuccess(Duration.standardSeconds(30));
+    signal.waitForSuccess(Duration.standardMinutes(5));
     // A runner may not support cancel
     try {
       job.cancel();
@@ -71,7 +68,7 @@ public class PubsubReadIT {
   @Test
   public void testReadPubsubMessageId() throws Exception {
     // The pipeline will never terminate on its own
-    pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
+    pipeline.getOptions().as(TestPipelineOptions.class).setBlockOnRun(false);
 
     PCollection<PubsubMessage> messages =
         pipeline.apply(
@@ -87,7 +84,7 @@ public class PubsubReadIT {
     PipelineResult job = pipeline.run();
     start.get();
 
-    signal.waitForSuccess(Duration.standardMinutes(1));
+    signal.waitForSuccess(Duration.standardMinutes(5));
     // A runner may not support cancel
     try {
       job.cancel();

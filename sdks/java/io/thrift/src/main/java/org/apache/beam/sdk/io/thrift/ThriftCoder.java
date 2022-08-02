@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.thrift;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -27,6 +26,7 @@ import org.apache.thrift.TBase;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.apache.thrift.transport.TIOStreamTransport;
+import org.apache.thrift.transport.TTransportException;
 
 /**
  * A {@link org.apache.beam.sdk.coders.Coder} using a Thrift {@link TProtocol} to
@@ -34,7 +34,10 @@ import org.apache.thrift.transport.TIOStreamTransport;
  *
  * @param <T> type of element handled by coder.
  */
-class ThriftCoder<T> extends CustomCoder<T> {
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+public class ThriftCoder<T> extends CustomCoder<T> {
 
   private final Class<T> type;
   private final TProtocolFactory protocolFactory;
@@ -54,7 +57,7 @@ class ThriftCoder<T> extends CustomCoder<T> {
    * @return ThriftCoder initialize with class to be encoded/decoded and {@link TProtocolFactory}
    *     used to encode/decode.
    */
-  static <T> ThriftCoder<T> of(Class<T> clazz, TProtocolFactory protocolFactory) {
+  public static <T> ThriftCoder<T> of(Class<T> clazz, TProtocolFactory protocolFactory) {
     return new ThriftCoder<>(clazz, protocolFactory);
   }
 
@@ -65,19 +68,18 @@ class ThriftCoder<T> extends CustomCoder<T> {
    * @param value {@link org.apache.thrift.TBase} to encode.
    * @param outStream stream to output encoded value to.
    * @throws IOException if writing to the {@code OutputStream} fails for some reason
-   * @throws CoderException if the value could not be encoded for some reason
    */
   @Override
   public void encode(T value, OutputStream outStream) throws CoderException, IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(baos));
     try {
+      TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(outStream));
       TBase<?, ?> tBase = (TBase<?, ?>) value;
       tBase.write(protocol);
+    } catch (TTransportException tte) {
+      throw new CoderException("Could not transport value. Error: " + tte.getMessage());
     } catch (Exception te) {
       throw new CoderException("Could not write value. Error: " + te.getMessage());
     }
-    outStream.write(baos.toByteArray());
   }
 
   /**

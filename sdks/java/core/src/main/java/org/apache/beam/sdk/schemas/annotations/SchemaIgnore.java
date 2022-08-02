@@ -48,6 +48,8 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD, ElementType.METHOD})
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 @Experimental(Kind.SCHEMAS)
 public @interface SchemaIgnore {}

@@ -36,24 +36,36 @@
 //
 //     --runner=YOUR_SELECTED_RUNNER
 //
-// The input file defaults to a public data set containing the text of of King
+// The input file defaults to a public data set containing the text of King
 // Lear, by William Shakespeare. You can override it and choose your own input
 // with --input.
 package main
+
+// beam-playground:
+//   name: DebuggingWordCount
+//   description: An example that counts words in Shakespeare's works includes regex filter("Flourish|stomach").
+//   multifile: false
+//   pipeline_options: --output output.txt
+//   context_line: 83
+//   categories:
+//     - Options
+//     - Filtering
+//     - Debugging
+//     - Quickstart
 
 import (
 	"context"
 	"flag"
 	"fmt"
-	"reflect"
 	"regexp"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 // TODO(herohde) 10/16/2017: support metrics and log level cutoff.
@@ -69,9 +81,12 @@ var (
 // available at runtime.
 
 func init() {
+	register.Function2x0(extractFn)
+	register.Function2x1(formatFn)
 	// To be correctly serialized on non-direct runners, struct form DoFns must be
 	// registered during initialization.
-	beam.RegisterType(reflect.TypeOf((*filterFn)(nil)).Elem())
+	register.DoFn4x0[context.Context, string, int, func(string, int)](&filterFn{})
+	register.Emitter2[string, int]()
 }
 
 // filterFn is a DoFn for filtering out certain words.

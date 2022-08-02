@@ -19,11 +19,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import tempfile
 import unittest
+
+import pytest
 
 from apache_beam.examples.cookbook import mergecontacts
 from apache_beam.testing.util import open_shards
@@ -138,6 +138,7 @@ class MergeContactsTest(unittest.TestCase):
           ]))
     return '\n'.join(sorted(lines_out)) + '\n'
 
+  @pytest.mark.examples_postcommit
   def test_mergecontacts(self):
     path_email = self.create_temp_file(self.CONTACTS_EMAIL)
     path_phone = self.create_temp_file(self.CONTACTS_PHONE)

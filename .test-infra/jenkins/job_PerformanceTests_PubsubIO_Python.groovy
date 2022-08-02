@@ -24,7 +24,9 @@ import static java.util.UUID.randomUUID
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def withDataflowWorkerJar = true
+def final JOB_SPECIFIC_SWITCHES = [
+  '-PwithDataflowWorkerJar="true"'
+]
 
 def psio_test = [
   title          : 'PubsubIO Write Performance Test Python 2GB',
@@ -40,7 +42,7 @@ def psio_test = [
     metrics_table             : 'psio_io_2GB_results',
     influx_measurement        : 'python_psio_2GB_results',
     influx_db_name            : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname           : InfluxDBCredentialsHelper.InfluxDBHostname,
+    influx_hostname           : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     input_options             : '\'{' +
     '"num_records": 2097152,' +
     '"key_size": 1,' +
@@ -56,7 +58,7 @@ def executeJob = { scope, testConfig ->
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
   loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner,
-      CommonTestProperties.SDK.PYTHON_37, testConfig.pipelineOptions, testConfig.test, withDataflowWorkerJar)
+      CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, JOB_SPECIFIC_SWITCHES)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(

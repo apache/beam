@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.apache.beam.runners.dataflow.worker.util.CounterHamcrestMatchers.CounterStructuredNameMatcher.hasStructuredName;
 import static org.apache.beam.runners.dataflow.worker.util.CounterHamcrestMatchers.CounterUpdateDistributionMatcher.hasDistribution;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
@@ -27,7 +28,6 @@ import static org.hamcrest.core.AnyOf.anyOf;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
@@ -215,7 +215,7 @@ public class SimpleParDoFnTest {
     ParDoFn userParDoFn =
         new SimpleParDoFn<>(
             options,
-            DoFnInstanceManagers.cloningPool(fnInfo),
+            DoFnInstanceManagers.cloningPool(fnInfo, options),
             new EmptySideInputReader(),
             MAIN_OUTPUT,
             ImmutableMap.of(
@@ -437,7 +437,7 @@ public class SimpleParDoFnTest {
     ParDoFn userParDoFn =
         new SimpleParDoFn<>(
             options,
-            DoFnInstanceManagers.cloningPool(fnInfo),
+            DoFnInstanceManagers.cloningPool(fnInfo, options),
             NullSideInputReader.empty(),
             MAIN_OUTPUT,
             ImmutableMap.of(MAIN_OUTPUT, 0, new TupleTag<String>("declared"), 1),

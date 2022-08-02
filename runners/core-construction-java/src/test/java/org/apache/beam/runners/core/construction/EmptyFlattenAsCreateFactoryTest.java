@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyIterable;
-import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
 import java.util.Map;
@@ -30,9 +30,10 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -59,6 +60,7 @@ public class EmptyFlattenAsCreateFactoryTest {
                 Collections.emptyMap(),
                 Collections.emptyMap(),
                 Flatten.pCollections(),
+                ResourceHints.create(),
                 pipeline));
     assertThat(replacement.getInput().getAll(), emptyIterable());
   }
@@ -74,9 +76,10 @@ public class EmptyFlattenAsCreateFactoryTest {
     factory.getReplacementTransform(
         AppliedPTransform.of(
             "nonEmptyInput",
-            nonEmpty.expand(),
+            PValues.expandInput(nonEmpty),
             Collections.emptyMap(),
             Flatten.pCollections(),
+            ResourceHints.create(),
             pipeline));
   }
 
@@ -84,7 +87,8 @@ public class EmptyFlattenAsCreateFactoryTest {
   public void mapOutputsSucceeds() {
     PCollection<Long> original = pipeline.apply("Original", GenerateSequence.from(0));
     PCollection<Long> replacement = pipeline.apply("Replacement", GenerateSequence.from(0));
-    Map<PValue, ReplacementOutput> mapping = factory.mapOutputs(original.expand(), replacement);
+    Map<PCollection<?>, ReplacementOutput> mapping =
+        factory.mapOutputs(PValues.expandOutput(original), replacement);
 
     assertThat(
         mapping,
@@ -108,6 +112,7 @@ public class EmptyFlattenAsCreateFactoryTest {
                         Collections.emptyMap(),
                         Collections.emptyMap(),
                         Flatten.pCollections(),
+                        ResourceHints.create(),
                         pipeline))
                 .getTransform());
     PAssert.that(emptyFlattened).empty();

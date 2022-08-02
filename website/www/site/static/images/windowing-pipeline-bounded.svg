@@ -23,8 +23,8 @@
 	    <path d="M204.5,296 L204.5,316" id="Directed-edge" stroke="#3062A8" stroke-width="2" stroke-linecap="square" transform="translate(204.500000, 306.000000) rotate(-90.000000) translate(-204.500000, -306.000000) "></path>
 	    <g id="PCollection" transform="translate(214.000000, 271.000000)">
 	        <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="35" cy="35" r="35"></circle>
-	        <text id="Rows-after-ParDo" font-family="Roboto-Regular, Roboto" font-size="15" font-weight="normal" fill="#000000">
-	            <tspan x="17.1015625" y="21">Rows </tspan>
+	        <text id="Lines-after-ParDo" font-family="Roboto-Regular, Roboto" font-size="15" font-weight="normal" fill="#000000">
+	            <tspan x="17.1015625" y="21">Lines </tspan>
 	            <tspan x="19.8554688" y="39">after </tspan>
 	            <tspan x="14.9555664" y="57">ParDo</tspan>
 	        </text>
@@ -60,9 +60,9 @@
 	    </g>
 	    <g id="PCollection" transform="translate(696.500000, 61.000000)">
 	        <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="31" cy="31" r="31"></circle>
-	        <text id="Table-rows" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
-	            <tspan x="11.7070312" y="28">Table </tspan>
-	            <tspan x="14.09375" y="47">rows</tspan>
+	        <text id="File-lines" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+	            <tspan x="16" y="28">File</tspan>
+	            <tspan x="16" y="47">lines</tspan>
 	        </text>
 	    </g>
 	    <g id="PTransform" transform="translate(482.000000, 30.000000)">
@@ -78,30 +78,25 @@
 	    </g>
 	    <g id="PCollection" transform="translate(374.000000, 61.000000)">
 	        <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="31" cy="31" r="31"></circle>
-	        <text id="Table-rows" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
-	            <tspan x="11.2070312" y="28">Table </tspan>
-	            <tspan x="13.59375" y="47">rows</tspan>
+	        <text id="File-lines" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+	            <tspan x="16" y="28">File</tspan>
+	            <tspan x="16" y="47">lines</tspan>
 	        </text>
 	    </g>
 	    <g id="PTransform" transform="translate(160.000000, 30.000000)">
 	        <rect id="PTransform-symbol" fill="#3062A8" x="0" y="0" width="194" height="124"></rect>
-	        <text id="Read-from-Kafka-IO" font-family="Roboto-Regular, Roboto" font-size="24" font-weight="normal" fill="#FFFFFF">
+	        <text id="Read-from-Text-IO" font-family="Roboto-Regular, Roboto" font-size="24" font-weight="normal" fill="#FFFFFF">
 	            <tspan x="44" y="55">Read from </tspan>
-	            <tspan x="44" y="83">Kafka IO</tspan>
+	            <tspan x="44" y="83">Text IO</tspan>
 	        </text>
 	    </g>
 	    <path id="Directed-edge" d="M146,92 L113,92 L113,90 L146,90 L146,84 L160,91 L146,98 L146,92 Z" fill="#E0E0E0" fill-rule="nonzero"></path>
-	    <g id="Database" transform="translate(0.000000, 40.000000)">
-	        <g id="Database-symbol" transform="translate(0.000000, 0.000000)">
-	            <ellipse id="Oval" fill="#E0E0E0" cx="56.5" cy="83.2631579" rx="56.5" ry="17.8421053"></ellipse>
-	            <rect id="Rectangle" fill="#E0E0E0" x="0" y="17.8421053" width="113" height="65.4210526"></rect>
-	            <ellipse id="Oval" fill="#EFEFEF" cx="56.5" cy="17.8421053" rx="56.5" ry="17.8421053"></ellipse>
-	        </g>
-	        <text id="Database-table" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#414141">
-	            <tspan x="18" y="61">Database </tspan>
-	            <tspan x="18" y="82">table</tspan>
-	        </text>
-	    </g>
+        <g id="Document" transform="translate(0.000000, 50.000000)">
+            <path d="M0,0 L0,81.1880544 C5.73926173,85.0626848 15.1689615,87 28.2890992,87 C56.5,87 57.2032971,71.8576229 84.878475,71.8576229 C90.6940962,71.8576229 100.067938,74.9677667 113,81.1880544 L113,0 L0,0 Z" id="Document-symbol" fill="#E0E0E0"></path>
+            <text id="Text-file" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#414141">
+                <tspan x="25" y="43">Text file</tspan>
+            </text>
+        </g>
 	    <g id="Legend" transform="translate(0.000000, 388.000000)">
 	        <rect id="PTransform-symbol" fill="#3062A8" x="0" y="4" width="15" height="15"></rect>
 	        <text id="PTransform" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">

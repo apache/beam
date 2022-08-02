@@ -40,7 +40,16 @@ import org.joda.time.Instant;
 @Internal
 public abstract class ValueInSingleWindow<T> {
   /** Returns the value of this {@code ValueInSingleWindow}. */
-  public abstract @Nullable T getValue();
+  @SuppressWarnings("nullness")
+  public T getValue() {
+    return getNullableValue();
+  };
+
+  /**
+   * Workaround for autovalue code generation, which does not allow type variables to be
+   * instantiated with nullable actual parameters.
+   */
+  protected abstract @Nullable T getNullableValue();
 
   /** Returns the timestamp of this {@code ValueInSingleWindow}. */
   public abstract Instant getTimestamp();

@@ -17,17 +17,16 @@
  */
 package org.apache.beam.runners.dataflow.worker.logging;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CoderMalfunctionError;
-import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
 import java.util.Formatter;
 import java.util.Locale;
@@ -36,21 +35,27 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * A {@link PrintStream} factory that creates {@link PrintStream}s which output to the specified JUL
  * {@link Handler} at the specified {@link Level}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class JulHandlerPrintStreamAdapterFactory {
-  private static final AtomicBoolean outputWarning = new AtomicBoolean(false);
+  private static final AtomicBoolean OUTPUT_WARNING = new AtomicBoolean(false);
+
+  @VisibleForTesting
+  static final String LOGGING_DISCLAIMER =
+      String.format(
+          "Please use a logger instead of System.out or System.err.%n"
+              + "Please switch to using org.slf4j.Logger.%n"
+              + "See: https://cloud.google.com/dataflow/pipelines/logging");
 
   private static class JulHandlerPrintStream extends PrintStream {
-    private static final String LOGGING_DISCLAIMER =
-        String.format(
-            "Please use a logger instead of System.out or System.err.%n"
-                + "Please switch to using org.slf4j.Logger.%n"
-                + "See: https://cloud.google.com/dataflow/pipelines/logging");
     // This limits the number of bytes which we buffer in case we don't have a flush.
     private static final int BUFFER_LIMIT = 1 << 10; // 1024 chars
 
@@ -59,42 +64,52 @@ class JulHandlerPrintStreamAdapterFactory {
 
     private final Handler handler;
     private final String loggerName;
-    private final StringBuilder buffer;
     private final Level messageLevel;
-    private final CharsetDecoder decoder;
-    private final CharBuffer decoded;
-    private int carryOverBytes;
-    private byte[] carryOverByteArray;
 
-    private JulHandlerPrintStream(Handler handler, String loggerName, Level logLevel) {
+    @GuardedBy("this")
+    private final StringBuilder buffer;
+
+    @GuardedBy("this")
+    private final CharsetDecoder decoder;
+
+    @GuardedBy("this")
+    private final CharBuffer decoded;
+
+    @GuardedBy("this")
+    private ByteArrayOutputStream carryOverBytes;
+
+    private JulHandlerPrintStream(
+        Handler handler, String loggerName, Level logLevel, Charset charset)
+        throws UnsupportedEncodingException {
       super(
           new OutputStream() {
             @Override
             public void write(int i) throws IOException {
               throw new RuntimeException("All methods should be overwritten so this is unused");
             }
-          });
+          },
+          false,
+          charset.name());
       this.handler = handler;
       this.loggerName = loggerName;
       this.messageLevel = logLevel;
       this.logger = Logger.getLogger(loggerName);
       this.buffer = new StringBuilder();
       this.decoder =
-          Charset.defaultCharset()
+          charset
               .newDecoder()
               .onMalformedInput(CodingErrorAction.REPLACE)
               .onUnmappableCharacter(CodingErrorAction.REPLACE);
-      this.carryOverByteArray = new byte[6];
-      this.carryOverBytes = 0;
+      this.carryOverBytes = new ByteArrayOutputStream();
       this.decoded = CharBuffer.allocate(BUFFER_LIMIT);
     }
 
     @Override
     public void flush() {
-      publishIfNonEmpty(flushToString());
+      publishIfNonEmpty(flushBufferToString());
     }
 
-    private synchronized String flushToString() {
+    private synchronized String flushBufferToString() {
       if (buffer.length() > 0 && buffer.charAt(buffer.length() - 1) == '\n') {
         buffer.setLength(buffer.length() - 1);
       }
@@ -123,47 +138,55 @@ class JulHandlerPrintStreamAdapterFactory {
 
     @Override
     public void write(byte[] a, int offset, int length) {
+      if (length == 0) {
+        return;
+      }
+
       ByteBuffer incoming = ByteBuffer.wrap(a, offset, length);
+      assert incoming.hasArray();
+
+      String msg = null;
       // Consume the added bytes, flushing on decoded newlines or if we hit
       // the buffer limit.
-      String msg = null;
-      synchronized (decoder) {
-        decoded.clear();
-        boolean flush = false;
+      synchronized (this) {
+        int startLength = buffer.length();
+
         try {
           // Process any remaining bytes from last time by adding a byte at a time.
-          while (carryOverBytes > 0 && incoming.hasRemaining()) {
-            carryOverByteArray[carryOverBytes++] = incoming.get();
-            ByteBuffer wrapped = ByteBuffer.wrap(carryOverByteArray, 0, carryOverBytes);
+          while (carryOverBytes.size() > 0 && incoming.hasRemaining()) {
+            carryOverBytes.write(incoming.get());
+            ByteBuffer wrapped =
+                ByteBuffer.wrap(carryOverBytes.toByteArray(), 0, carryOverBytes.size());
             decoder.decode(wrapped, decoded, false);
             if (!wrapped.hasRemaining()) {
-              carryOverBytes = 0;
+              carryOverBytes.reset();
             }
           }
-          carryOverBytes = 0;
-          if (incoming.hasRemaining()) {
-            CoderResult result = decoder.decode(incoming, decoded, false);
-            if (result.isOverflow()) {
-              flush = true;
-            }
-            // Keep the unread bytes.
-            assert (incoming.remaining() <= carryOverByteArray.length);
-            while (incoming.hasRemaining()) {
-              carryOverByteArray[carryOverBytes++] = incoming.get();
-            }
+
+          // Append chunks while we are hitting the decoded buffer limit
+          while (decoder.decode(incoming, decoded, false).isOverflow()) {
+            decoded.flip();
+            buffer.append(decoded);
+            decoded.clear();
           }
+
+          // Append the partial chunk
+          decoded.flip();
+          buffer.append(decoded);
+          decoded.clear();
+
+          // Check to see if we should output this message
+          if (buffer.length() > BUFFER_LIMIT || buffer.indexOf("\n", startLength) >= 0) {
+            msg = flushBufferToString();
+          }
+
+          // Keep all unread bytes.
+          carryOverBytes.write(
+              incoming.array(), incoming.arrayOffset() + incoming.position(), incoming.remaining());
         } catch (CoderMalfunctionError error) {
           decoder.reset();
-          carryOverBytes = 0;
+          carryOverBytes.reset();
           error.printStackTrace();
-        }
-        decoded.flip();
-        synchronized (this) {
-          int startLength = buffer.length();
-          buffer.append(decoded);
-          if (flush || buffer.indexOf("\n", startLength) >= 0) {
-            msg = flushToString();
-          }
         }
       }
       publishIfNonEmpty(msg);
@@ -213,7 +236,7 @@ class JulHandlerPrintStreamAdapterFactory {
         if (!flush) {
           return;
         }
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -227,7 +250,7 @@ class JulHandlerPrintStreamAdapterFactory {
         if (!flush) {
           return;
         }
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -247,7 +270,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(b);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -257,7 +280,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(c);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -267,7 +290,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(i);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -277,7 +300,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(l);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -287,7 +310,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(f);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -297,7 +320,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(d);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -307,7 +330,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(a);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -317,7 +340,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(s);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -327,7 +350,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(o);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -347,7 +370,7 @@ class JulHandlerPrintStreamAdapterFactory {
         if (buffer.indexOf("\n", startLength) < 0) {
           return this;
         }
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
       return this;
@@ -369,22 +392,18 @@ class JulHandlerPrintStreamAdapterFactory {
         if (!flush) {
           return this;
         }
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
       return this;
     }
 
-    // Note to avoid a deadlock, publish may never be called synchronized. See BEAM-9399.
     private void publishIfNonEmpty(String message) {
-      checkState(
-          !Thread.holdsLock(this),
-          "BEAM-9399: publish should not be called with the lock as it may cause deadlock");
       if (message == null || message.isEmpty()) {
         return;
       }
       if (logger.isLoggable(messageLevel)) {
-        if (outputWarning.compareAndSet(false, true)) {
+        if (OUTPUT_WARNING.compareAndSet(false, true)) {
           LogRecord log = new LogRecord(Level.WARNING, LOGGING_DISCLAIMER);
           log.setLoggerName(loggerName);
           handler.publish(log);
@@ -400,12 +419,16 @@ class JulHandlerPrintStreamAdapterFactory {
    * Creates a {@link PrintStream} which redirects all output to the JUL {@link Handler} with the
    * specified {@code loggerName} and {@code level}.
    */
-  static PrintStream create(Handler handler, String loggerName, Level messageLevel) {
-    return new JulHandlerPrintStream(handler, loggerName, messageLevel);
+  static PrintStream create(
+      Handler handler, String loggerName, Level messageLevel, Charset charset) {
+    try {
+      return new JulHandlerPrintStream(handler, loggerName, messageLevel, charset);
+    } catch (UnsupportedEncodingException exc) {
+      throw new RuntimeException("Encoding not supported: " + charset.name(), exc);
+    }
   }
 
-  @VisibleForTesting
   static void reset() {
-    outputWarning.set(false);
+    OUTPUT_WARNING.set(false);
   }
 }

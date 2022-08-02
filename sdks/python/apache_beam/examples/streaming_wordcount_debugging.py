@@ -19,7 +19,8 @@
 
 It demonstrate the use of logging and assert_that in streaming mode.
 
-This workflow only works with the DirectRunner (BEAM-3377).
+This workflow only works with the DirectRunner
+(https://github.com/apache/beam/issues/18709).
 
 Usage:
 python streaming_wordcount_debugging.py
@@ -34,23 +35,19 @@ gcloud alpha pubsub topics publish $PUBSUB_INPUT_TOPIC --message '210 213 151'
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import re
 import time
 
-from past.builtins import unicode
-
 import apache_beam as beam
-import apache_beam.transforms.window as window
 from apache_beam.examples.wordcount import WordExtractingDoFn
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to_per_window
+from apache_beam.transforms import window
 from apache_beam.transforms.core import ParDo
 
 
@@ -132,8 +129,7 @@ def run(argv=None, save_main_session=True):
 
     counts = (
         lines
-        | 'Split' >>
-        (beam.ParDo(WordExtractingDoFn()).with_output_types(unicode))
+        | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))
         | 'AddTimestampFn' >> beam.ParDo(AddTimestampFn())
         | 'After AddTimestampFn' >> ParDo(PrintFn('After AddTimestampFn'))
         | 'PairWithOne' >> beam.Map(lambda x: (x, 1))

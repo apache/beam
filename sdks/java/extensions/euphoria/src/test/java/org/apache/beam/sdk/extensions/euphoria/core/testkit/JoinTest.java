@@ -48,8 +48,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test operator {@code Join}. */
+@RunWith(JUnit4.class)
 public class JoinTest extends AbstractOperatorTest {
 
   @Test
@@ -764,8 +767,8 @@ public class JoinTest extends AbstractOperatorTest {
   }
 
   /**
-   * Elements with even numeric values are are assigned to one 'even' window. All others are
-   * assigned to window named 'win: #', where '#' is value of assigned element.
+   * Elements with even numeric values are assigned to one 'even' window. All others are assigned to
+   * window named 'win: #', where '#' is value of assigned element.
    */
   private static class EvenOddWindowFn extends WindowFn<KV<Integer, Number>, BoundedWindow> {
 

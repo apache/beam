@@ -35,7 +35,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.EnumMap;
 import java.util.logging.ErrorManager;
-import java.util.logging.Formatter;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.SimpleFormatter;
@@ -52,6 +51,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutpu
  * Formats {@link LogRecord} into JSON format for Cloud Logging. Any exception is represented using
  * {@link Throwable#printStackTrace()}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DataflowWorkerLoggingHandler extends Handler {
   private static final EnumMap<BeamFnApi.LogEntry.Severity.Enum, String>
       BEAM_LOG_LEVEL_TO_CLOUD_LOG_LEVEL;
@@ -100,6 +102,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
    * or negative.
    */
   DataflowWorkerLoggingHandler(Supplier<OutputStream> factory, long sizeLimit) throws IOException {
+    this.setFormatter(new SimpleFormatter());
     this.outputStreamFactory = factory;
     this.generatorFactory = new ObjectMapper().getFactory();
     this.sizeLimit = sizeLimit < 1 ? Long.MAX_VALUE : sizeLimit;
@@ -139,7 +142,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
           "severity",
           MoreObjects.firstNonNull(LEVELS.get(record.getLevel()), record.getLevel().getName()));
       // Write the other labels.
-      writeIfNotEmpty("message", formatter.formatMessage(record));
+      writeIfNotEmpty("message", getFormatter().formatMessage(record));
       writeIfNotEmpty("thread", String.valueOf(record.getThreadID()));
       writeIfNotEmpty("job", DataflowWorkerLoggingMDC.getJobId());
       writeIfNotEmpty("stage", DataflowWorkerLoggingMDC.getStageName());
@@ -341,5 +344,4 @@ public class DataflowWorkerLoggingHandler extends Handler {
   private final long sizeLimit;
   private final Supplier<OutputStream> outputStreamFactory;
   private final JsonFactory generatorFactory;
-  private final Formatter formatter = new SimpleFormatter();
 }

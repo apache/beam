@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Key;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -30,6 +31,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class OutputReference extends GenericJson {
   @Key("@type")
+  @SuppressFBWarnings("SS_SHOULD_BE_STATIC") // read via reflection so must be Field just like this
   public final String type = "OutputReference";
 
   @Key("step_name")

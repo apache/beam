@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auth.Credentials;
@@ -50,8 +51,6 @@ import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -63,39 +62,18 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A helper class for talking to Pubsub via grpc. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class PubsubGrpcClient extends PubsubClient {
   private static final int LIST_BATCH_SIZE = 1000;
 
   private static final int DEFAULT_TIMEOUT_S = 60;
 
   private static ManagedChannel channelForRootUrl(String urlString) throws IOException {
-    URL url;
-    try {
-      url = new URL(urlString);
-    } catch (MalformedURLException e) {
-      throw new IllegalArgumentException(
-          String.format("Could not parse pubsub root url \"%s\"", urlString), e);
-    }
+    String format = PubsubOptions.targetForRootUrl(urlString);
 
-    int port = url.getPort();
-
-    if (port < 0) {
-      switch (url.getProtocol()) {
-        case "https":
-          port = 443;
-          break;
-        case "http":
-          port = 80;
-          break;
-        default:
-          throw new IllegalArgumentException(
-              String.format(
-                  "Could not determine port for pubsub root url \"%s\". You must either specify the port or use the protocol \"https\" or \"http\"",
-                  urlString));
-      }
-    }
-
-    return NettyChannelBuilder.forAddress(url.getHost(), port)
+    return NettyChannelBuilder.forTarget(format)
         .negotiationType(NegotiationType.TLS)
         .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
         .build();
@@ -253,14 +231,15 @@ public class PubsubGrpcClient extends PubsubClient {
       @Nullable Map<String, String> attributes = pubsubMessage.getAttributes();
 
       // Timestamp.
-      String pubsubTimestampString = null;
-      Timestamp timestampProto = pubsubMessage.getPublishTime();
-      if (timestampProto != null) {
-        pubsubTimestampString =
-            String.valueOf(timestampProto.getSeconds() + timestampProto.getNanos() / 1000L);
+      long timestampMsSinceEpoch;
+      if (Strings.isNullOrEmpty(timestampAttribute)) {
+        Timestamp timestampProto = pubsubMessage.getPublishTime();
+        checkArgument(timestampProto != null, "Pubsub message is missing timestamp proto");
+        timestampMsSinceEpoch =
+            timestampProto.getSeconds() * 1000 + timestampProto.getNanos() / 1000L / 1000L;
+      } else {
+        timestampMsSinceEpoch = extractTimestampAttribute(timestampAttribute, attributes);
       }
-      long timestampMsSinceEpoch =
-          extractTimestamp(timestampAttribute, pubsubTimestampString, attributes);
 
       // Ack id.
       String ackId = message.getAckId();

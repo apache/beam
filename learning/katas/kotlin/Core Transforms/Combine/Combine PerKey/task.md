@@ -19,13 +19,13 @@
 Combine - Combine PerKey
 ------------------------
 
-After creating a keyed PCollection (for example, by using a GroupByKey transform), a common pattern 
-is to combine the collection of values associated with each key into a single, merged value. This 
-pattern of a GroupByKey followed by merging the collection of values is equivalent to Combine 
-PerKey transform. The combine function you supply to Combine PerKey must be an associative 
+After creating a keyed PCollection (for example, by using a GroupByKey transform), a common pattern
+is to combine the collection of values associated with each key into a single, merged value. This
+pattern of a GroupByKey followed by merging the collection of values is equivalent to Combine
+PerKey transform. The combine function you supply to Combine PerKey must be an associative
 reduction function or a subclass of CombineFn.
 
-**Kata:** Implement the sum of scores per player using 
+**Kata:** Implement the sum of scores per player using
 [Combine.perKey](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/CombineFnBase.GlobalCombineFn.html).
 
 <div class="hint">

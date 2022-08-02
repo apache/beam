@@ -32,6 +32,11 @@ This directory contains end-to-end example pipelines that perform complex data p
   Pub/Sub topic, splits each line into individual words, capitalizes those
   words, and writes the output to a BigQuery table.
   </li>
+  <li><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/kafkatopubsub/KafkaToPubsub.java">KafkaToPubsub</a>
+  &mdash; A streaming pipeline example that creates a pipeline to read data
+  from a single or multiple topics from Apache Kafka and write data into a single topic
+  in Google Cloud Pub/Sub.
+  </li>
   <li><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/TfIdf.java">TfIdf</a>
   &mdash; An example that computes a basic TF-IDF search table for a directory or
   Cloud Storage prefix. Demonstrates joining data, side inputs, and logging.

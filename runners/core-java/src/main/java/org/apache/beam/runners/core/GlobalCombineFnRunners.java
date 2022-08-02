@@ -31,6 +31,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  * Static utility methods that provide {@link GlobalCombineFnRunner} implementations for different
  * combine functions.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class GlobalCombineFnRunners {
   /** Returns a {@link GlobalCombineFnRunner} from a {@link GlobalCombineFn}. */
   public static <InputT, AccumT, OutputT> GlobalCombineFnRunner<InputT, AccumT, OutputT> create(

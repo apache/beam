@@ -34,6 +34,9 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utility class for working with Hadoop related objects. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 final class HadoopFormats {
 
   private static final int DEFAULT_JOB_NUMBER = 0;

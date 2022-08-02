@@ -51,7 +51,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -125,8 +124,8 @@ public class SplittableParDoViaKeyedWorkItems {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollectionTuple newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollectionTuple newOutput) {
       return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }
@@ -179,7 +178,8 @@ public class SplittableParDoViaKeyedWorkItems {
           original.getElementCoder(),
           original.getRestrictionCoder(),
           original.getWatermarkEstimatorStateCoder(),
-          original.getInputWindowingStrategy());
+          original.getInputWindowingStrategy(),
+          original.getSideInputMapping());
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -188,6 +188,10 @@ public class SplittableParDoViaKeyedWorkItems {
 
     public List<PCollectionView<?>> getSideInputs() {
       return original.getSideInputs();
+    }
+
+    public Map<String, PCollectionView<?>> getSideInputMapping() {
+      return original.getSideInputMapping();
     }
 
     public TupleTag<OutputT> getMainOutputTag() {
@@ -221,7 +225,7 @@ public class SplittableParDoViaKeyedWorkItems {
    * {@link ProcessFn} sets timers, and timers are namespaced to a single window and it should be
    * the window of the input element.
    *
-   * <p>See also: https://issues.apache.org/jira/browse/BEAM-1983
+   * <p>See also: https://github.com/apache/beam/issues/18366
    */
   @VisibleForTesting
   public static class ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
@@ -259,9 +263,11 @@ public class SplittableParDoViaKeyedWorkItems {
     private final Coder<InputT> elementCoder;
     private final Coder<RestrictionT> restrictionCoder;
     private final WindowingStrategy<InputT, ?> inputWindowingStrategy;
+    private final Map<String, PCollectionView<?>> sideInputMapping;
 
     private transient @Nullable StateInternalsFactory<byte[]> stateInternalsFactory;
     private transient @Nullable TimerInternalsFactory<byte[]> timerInternalsFactory;
+    private transient @Nullable SideInputReader sideInputReader;
     private transient @Nullable SplittableProcessElementInvoker<
             InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
         processElementInvoker;
@@ -273,7 +279,8 @@ public class SplittableParDoViaKeyedWorkItems {
         Coder<InputT> elementCoder,
         Coder<RestrictionT> restrictionCoder,
         Coder<WatermarkEstimatorStateT> watermarkEstimatorStateCoder,
-        WindowingStrategy<InputT, ?> inputWindowingStrategy) {
+        WindowingStrategy<InputT, ?> inputWindowingStrategy,
+        Map<String, PCollectionView<?>> sideInputMapping) {
       this.fn = fn;
       this.elementCoder = elementCoder;
       this.restrictionCoder = restrictionCoder;
@@ -286,6 +293,7 @@ public class SplittableParDoViaKeyedWorkItems {
       this.restrictionTag = StateTags.value("restriction", restrictionCoder);
       this.watermarkEstimatorStateTag =
           StateTags.value("watermarkEstimatorState", watermarkEstimatorStateCoder);
+      this.sideInputMapping = sideInputMapping;
     }
 
     public void setStateInternalsFactory(StateInternalsFactory<byte[]> stateInternalsFactory) {
@@ -294,6 +302,10 @@ public class SplittableParDoViaKeyedWorkItems {
 
     public void setTimerInternalsFactory(TimerInternalsFactory<byte[]> timerInternalsFactory) {
       this.timerInternalsFactory = timerInternalsFactory;
+    }
+
+    public void setSideInputReader(SideInputReader sideInputReader) {
+      this.sideInputReader = sideInputReader;
     }
 
     public void setProcessElementInvoker(
@@ -320,9 +332,9 @@ public class SplittableParDoViaKeyedWorkItems {
     }
 
     @Setup
-    public void setup() throws Exception {
+    public void setup(PipelineOptions options) throws Exception {
       invoker = DoFnInvokers.invokerFor(fn);
-      invoker.invokeSetup();
+      invoker.invokeSetup(wrapOptionsAsSetup(options));
     }
 
     @Teardown
@@ -348,7 +360,7 @@ public class SplittableParDoViaKeyedWorkItems {
      * <p>Uses a watermark hold to control watermark advancement.
      */
     @ProcessElement
-    public void processElement(final ProcessContext c, BoundedWindow boundedWindow) {
+    public void processElement(final ProcessContext c) {
       byte[] key = c.element().key();
       StateInternals stateInternals = stateInternalsFactory.stateInternalsForKey(key);
       TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
@@ -401,7 +413,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
                   @Override
                   public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                    return c.timestamp();
+                    return elementAndRestriction.getKey().getTimestamp();
                   }
 
                   @Override
@@ -411,12 +423,23 @@ public class SplittableParDoViaKeyedWorkItems {
 
                   @Override
                   public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                    return c.pane();
+                    return elementAndRestriction.getKey().getPane();
                   }
 
                   @Override
                   public BoundedWindow window() {
-                    return boundedWindow;
+                    return Iterables.getOnlyElement(elementAndRestriction.getKey().getWindows());
+                  }
+
+                  @Override
+                  public Object sideInput(String tagId) {
+                    PCollectionView<?> view = sideInputMapping.get(tagId);
+                    if (view == null) {
+                      throw new IllegalArgumentException(
+                          "calling getSideInput() with unknown view");
+                    }
+                    return sideInputReader.get(
+                        view, view.getWindowMappingFn().getSideInputWindow(window()));
                   }
 
                   @Override
@@ -450,7 +473,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
                 @Override
                 public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                  return c.timestamp();
+                  return elementAndRestriction.getKey().getTimestamp();
                 }
 
                 @Override
@@ -460,17 +483,27 @@ public class SplittableParDoViaKeyedWorkItems {
 
                 @Override
                 public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                  return c.pane();
+                  return elementAndRestriction.getKey().getPane();
                 }
 
                 @Override
                 public BoundedWindow window() {
-                  return boundedWindow;
+                  return Iterables.getOnlyElement(elementAndRestriction.getKey().getWindows());
                 }
 
                 @Override
                 public Object watermarkEstimatorState() {
                   return watermarkEstimatorStateT;
+                }
+
+                @Override
+                public Object sideInput(String tagId) {
+                  PCollectionView<?> view = sideInputMapping.get(tagId);
+                  if (view == null) {
+                    throw new IllegalArgumentException("calling getSideInput() with unknown view");
+                  }
+                  return sideInputReader.get(
+                      view, view.getWindowMappingFn().getSideInputWindow(window()));
                 }
 
                 @Override
@@ -494,7 +527,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
                 @Override
                 public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                  return c.timestamp();
+                  return elementAndRestriction.getKey().getTimestamp();
                 }
 
                 @Override
@@ -504,12 +537,22 @@ public class SplittableParDoViaKeyedWorkItems {
 
                 @Override
                 public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                  return c.pane();
+                  return elementAndRestriction.getKey().getPane();
                 }
 
                 @Override
                 public BoundedWindow window() {
-                  return boundedWindow;
+                  return Iterables.getOnlyElement(elementAndRestriction.getKey().getWindows());
+                }
+
+                @Override
+                public Object sideInput(String tagId) {
+                  PCollectionView<?> view = sideInputMapping.get(tagId);
+                  if (view == null) {
+                    throw new IllegalArgumentException("calling getSideInput() with unknown view");
+                  }
+                  return sideInputReader.get(
+                      view, view.getWindowMappingFn().getSideInputWindow(window()));
                 }
 
                 @Override
@@ -522,7 +565,11 @@ public class SplittableParDoViaKeyedWorkItems {
               .Result
           result =
               processElementInvoker.invokeProcessElement(
-                  invoker, elementAndRestriction.getKey(), tracker, watermarkEstimator);
+                  invoker,
+                  elementAndRestriction.getKey(),
+                  tracker,
+                  watermarkEstimator,
+                  sideInputMapping);
 
       // Save state for resuming.
       if (result.getResidualRestriction() == null) {
@@ -547,6 +594,21 @@ public class SplittableParDoViaKeyedWorkItems {
       timerInternals.setTimer(
           TimerInternals.TimerData.of(
               stateNamespace, wakeupTime, wakeupTime, TimeDomain.PROCESSING_TIME));
+    }
+
+    private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapOptionsAsSetup(
+        final PipelineOptions options) {
+      return new BaseArgumentProvider<InputT, OutputT>() {
+        @Override
+        public PipelineOptions pipelineOptions() {
+          return options;
+        }
+
+        @Override
+        public String getErrorContext() {
+          return "SplittableParDoViaKeyedWorkItems/Setup";
+        }
+      };
     }
 
     private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapContextAsStartBundle(

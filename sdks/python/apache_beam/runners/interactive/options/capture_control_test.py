@@ -19,15 +19,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-import sys
 import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam import coders
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api import beam_interactive_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_beam as ib
@@ -37,13 +35,6 @@ from apache_beam.runners.interactive.caching.streaming_cache import StreamingCac
 from apache_beam.runners.interactive.options import capture_control
 from apache_beam.runners.interactive.options import capture_limiters
 from apache_beam.testing.test_stream_service import TestStreamServiceController
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch  # type: ignore[misc]
 
 
 def _build_an_empty_streaming_pipeline():
@@ -71,8 +62,6 @@ def _fake_a_running_test_stream_service(pipeline):
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class CaptureControlTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()
@@ -103,7 +92,7 @@ class CaptureControlTest(unittest.TestCase):
     ie.current_env().set_cached_source_signature(p, 'a signature')
     ie.current_env().mark_pcollection_computed(['fake_pcoll'])
     capture_control.evict_captured_data()
-    mocked_background_caching_job_cancel.assert_called_once()
+    mocked_background_caching_job_cancel.assert_called()
     mocked_test_stream_service_stop.assert_called_once()
     # Neither timer nor capture size limit is reached, thus, the cancelling
     # main job's background caching job is not considered as done.
@@ -130,7 +119,7 @@ class CaptureControlTest(unittest.TestCase):
     cache = StreamingCache(cache_dir=None)
     # Build a sink object to track the label as a capture in the test.
     cache.sink(['my_label'], is_capture=True)
-    cache.write([TestStreamFileRecord()], 'my_label')
+    cache.write([beam_interactive_api_pb2.TestStreamFileRecord()], 'my_label')
     self.assertTrue(cache.exists('my_label'))
     ie.current_env().set_cache_manager(cache, 'dummy pipeline')
 
@@ -142,11 +131,13 @@ class CaptureControlTest(unittest.TestCase):
     cache = StreamingCache(cache_dir=None)
     cache.sink(['my_label'], is_capture=True)
     cache.write([
-        TestStreamFileRecord(
-            recorded_event=TestStreamPayload.Event(
-                element_event=TestStreamPayload.Event.AddElements(
+        beam_interactive_api_pb2.TestStreamFileRecord(
+            recorded_event=beam_runner_api_pb2.TestStreamPayload.Event(
+                element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+                AddElements(
                     elements=[
-                        TestStreamPayload.TimestampedElement(
+                        beam_runner_api_pb2.TestStreamPayload.
+                        TimestampedElement(
                             encoded_element=coders.FastPrimitivesCoder().encode(
                                 'a'),
                             timestamp=0)
@@ -172,7 +163,7 @@ class CaptureControlTest(unittest.TestCase):
 
     limiter = FakeLimiter()
     background_caching_job = bcj.BackgroundCachingJob(
-        runner.PipelineResult(runner.PipelineState.CANCELLED),
+        runner.PipelineResult(runner.PipelineState.CANCELLING),
         limiters=[limiter])
     ie.current_env().set_background_caching_job(p, background_caching_job)
 

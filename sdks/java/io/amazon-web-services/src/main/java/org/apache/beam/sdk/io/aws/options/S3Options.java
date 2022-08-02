@@ -74,6 +74,14 @@ public interface S3Options extends AwsOptions {
   void setSSEAwsKeyManagementParams(SSEAwsKeyManagementParams value);
 
   @Description(
+      "Set to true to use an S3 Bucket Key for object encryption with server-side "
+          + "encryption using AWS KMS (SSE-KMS)")
+  @Default.Boolean(false)
+  boolean getBucketKeyEnabled();
+
+  void setBucketKeyEnabled(boolean value);
+
+  @Description(
       "Factory class that should be created and used to create a builder of AmazonS3 client."
           + "Override the default value if you need a S3 client with custom properties, like path style access, etc.")
   @Default.Class(DefaultS3ClientBuilderFactory.class)

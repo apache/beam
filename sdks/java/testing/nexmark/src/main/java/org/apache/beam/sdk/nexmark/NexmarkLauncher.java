@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.nexmark;
 
+import static org.apache.beam.sdk.nexmark.NexmarkQueryName.PORTABILITY_BATCH;
 import static org.apache.beam.sdk.nexmark.NexmarkUtils.PubSubMode.COMBINED;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
@@ -25,6 +26,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -41,6 +43,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.nexmark.NexmarkUtils.PubSubMode;
+import org.apache.beam.sdk.nexmark.NexmarkUtils.PubsubMessageSerializationMethod;
 import org.apache.beam.sdk.nexmark.NexmarkUtils.SourceType;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
@@ -58,6 +61,8 @@ import org.apache.beam.sdk.nexmark.queries.Query1;
 import org.apache.beam.sdk.nexmark.queries.Query10;
 import org.apache.beam.sdk.nexmark.queries.Query11;
 import org.apache.beam.sdk.nexmark.queries.Query12;
+import org.apache.beam.sdk.nexmark.queries.Query13;
+import org.apache.beam.sdk.nexmark.queries.Query14;
 import org.apache.beam.sdk.nexmark.queries.Query1Model;
 import org.apache.beam.sdk.nexmark.queries.Query2;
 import org.apache.beam.sdk.nexmark.queries.Query2Model;
@@ -86,6 +91,7 @@ import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery7;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
@@ -94,25 +100,27 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.LoggerFactory;
 
 /** Run a single Nexmark query using a given configuration. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class NexmarkLauncher<OptionT extends NexmarkOptions> {
-
-  private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(NexmarkLauncher.class);
 
   /** Command line parameter value for query language. */
   private static final String SQL = "sql";
@@ -267,18 +275,18 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
     long numEvents = eventMetrics.getCounterMetric(eventMonitor.prefix + ".elements");
     long numEventBytes = eventMetrics.getCounterMetric(eventMonitor.prefix + ".bytes");
-    long eventStart = eventMetrics.getStartTimeMetric(eventMonitor.prefix + ".startTime");
-    long eventEnd = eventMetrics.getEndTimeMetric(eventMonitor.prefix + ".endTime");
+    long eventStart = eventMetrics.getStartTimeMetric(eventMonitor.prefix + ".processingTime");
+    long eventEnd = eventMetrics.getEndTimeMetric(eventMonitor.prefix + ".processingTime");
 
     MetricsReader resultMetrics = new MetricsReader(result, resultMonitor.name);
 
     long numResults = resultMetrics.getCounterMetric(resultMonitor.prefix + ".elements");
     long numResultBytes = resultMetrics.getCounterMetric(resultMonitor.prefix + ".bytes");
-    long resultStart = resultMetrics.getStartTimeMetric(resultMonitor.prefix + ".startTime");
-    long resultEnd = resultMetrics.getEndTimeMetric(resultMonitor.prefix + ".endTime");
+    long resultStart = resultMetrics.getStartTimeMetric(resultMonitor.prefix + ".processingTime");
+    long resultEnd = resultMetrics.getEndTimeMetric(resultMonitor.prefix + ".processingTime");
     long timestampStart =
-        resultMetrics.getStartTimeMetric(resultMonitor.prefix + ".startTimestamp");
-    long timestampEnd = resultMetrics.getEndTimeMetric(resultMonitor.prefix + ".endTimestamp");
+        resultMetrics.getStartTimeMetric(resultMonitor.prefix + ".eventTimestamp");
+    long timestampEnd = resultMetrics.getEndTimeMetric(resultMonitor.prefix + ".eventTimestamp");
 
     long effectiveEnd = -1;
     if (eventEnd >= 0 && resultEnd >= 0) {
@@ -709,11 +717,12 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             .withBootstrapServers(options.getBootstrapServers())
             .withTopic(options.getKafkaTopic())
             .withValueSerializer(ByteArraySerializer.class)
+            .withInputTimestamp()
             .values());
   }
 
-  static final DoFn<KV<Long, byte[]>, Event> BYTEARRAY_TO_EVENT =
-      new DoFn<KV<Long, byte[]>, Event>() {
+  static final DoFn<KV<byte[], byte[]>, Event> BYTEARRAY_TO_EVENT =
+      new DoFn<KV<byte[], byte[]>, Event>() {
         @ProcessElement
         public void processElement(ProcessContext c) throws IOException {
           byte[] encodedEvent = c.element().getValue();
@@ -723,19 +732,34 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       };
 
   /** Return source of events from Kafka. */
-  private PCollection<Event> sourceEventsFromKafka(Pipeline p, final Instant now) {
+  private PCollection<Event> sourceEventsFromKafka(Pipeline p, final Instant start) {
     checkArgument((options.getBootstrapServers() != null), "Missing --bootstrapServers");
     NexmarkUtils.console("Reading events from Kafka Topic %s", options.getKafkaTopic());
 
-    KafkaIO.Read<Long, byte[]> read =
-        KafkaIO.<Long, byte[]>read()
+    KafkaIO.Read<byte[], byte[]> read =
+        KafkaIO.<byte[], byte[]>read()
             .withBootstrapServers(options.getBootstrapServers())
-            .withTopic(options.getKafkaTopic())
-            .withKeyDeserializer(LongDeserializer.class)
+            .withKeyDeserializer(ByteArrayDeserializer.class)
             .withValueDeserializer(ByteArrayDeserializer.class)
-            .withStartReadTime(now)
+            .withStartReadTime(start)
             .withMaxNumRecords(
                 options.getNumEvents() != null ? options.getNumEvents() : Long.MAX_VALUE);
+
+    if (options.getKafkaTopicCreateTimeMaxDelaySec() >= 0) {
+      read =
+          read.withCreateTime(
+              Duration.standardSeconds(options.getKafkaTopicCreateTimeMaxDelaySec()));
+    }
+
+    if (options.getNumKafkaTopicPartitions() > 0) {
+      ArrayList<TopicPartition> partitionArrayList = new ArrayList<>();
+      for (int i = 0; i < options.getNumKafkaTopicPartitions(); ++i) {
+        partitionArrayList.add(new TopicPartition(options.getKafkaTopic(), i));
+      }
+      read = read.withTopicPartitions(partitionArrayList);
+    } else {
+      read = read.withTopic(options.getKafkaTopic());
+    }
 
     return p.apply(queryName + ".ReadKafkaEvents", read.withoutMetadata())
         .apply(queryName + ".KafkaToEvents", ParDo.of(BYTEARRAY_TO_EVENT));
@@ -765,8 +789,22 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     }
 
     events
-        .apply(queryName + ".EventToPubsubMessage", ParDo.of(new EventPubsubMessageDoFn()))
+        .apply(
+            queryName + ".EventToPubsubMessage",
+            ParDo.of(new EventPubsubMessageDoFn(configuration.pubsubMessageSerializationMethod)))
         .apply(queryName + ".WritePubsubEvents", io);
+  }
+
+  /** Send {@code events} to file with prefix {@code generateInputFileOnlyPrefix}. */
+  private void sinkEventsToFile(PCollection<Event> events) {
+    events
+        .apply(MapElements.into(TypeDescriptors.strings()).via(Event::toString))
+        .apply(
+            "writeToFile",
+            TextIO.write()
+                .to(configuration.generateEventFilePathPrefix)
+                .withSuffix(".json")
+                .withNumShards(1));
   }
 
   /** Send {@code formattedResults} to Kafka. */
@@ -780,6 +818,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             .withBootstrapServers(options.getBootstrapServers())
             .withTopic(options.getKafkaResultsTopic())
             .withValueSerializer(StringSerializer.class)
+            .withInputTimestamp()
             .values());
   }
 
@@ -918,6 +957,11 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     switch (configuration.sourceType) {
       case DIRECT:
         source = sourceEventsFromSynthetic(p);
+        if (configuration.generateEventFilePathPrefix != null) {
+          PCollection<Event> events = source;
+          source = null;
+          sinkEventsToFile(events);
+        }
         break;
       case AVRO:
         source = sourceEventsFromAvro(p);
@@ -985,7 +1029,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
                 // finished. In other case. when pubSubMode=SUBSCRIBE_ONLY, now should be null and
                 // it will be ignored.
                 source =
-                    sourceEventsFromKafka(p, configuration.pubSubMode == COMBINED ? now : null);
+                    sourceEventsFromKafka(
+                        p, configuration.pubSubMode == COMBINED ? now : Instant.EPOCH);
               } else {
                 source = sourceEventsFromPubsub(p);
               }
@@ -1074,10 +1119,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     Collections.sort(counts);
     int n = counts.size();
     if (n < 5) {
-      NexmarkUtils.console("Query%s: only %d samples", model.configuration.query, n);
+      NexmarkUtils.console("Query %s: only %d samples", model.configuration.query, n);
     } else {
       NexmarkUtils.console(
-          "Query%d: N:%d; min:%d; 1st%%:%d; mean:%d; 3rd%%:%d; max:%d",
+          "Query %s: N:%d; min:%d; 1st%%:%d; mean:%d; 3rd%%:%d; max:%d",
           model.configuration.query,
           n,
           counts.get(0),
@@ -1113,6 +1158,11 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       NexmarkQuery<? extends KnownSize> query = getNexmarkQuery();
       if (query == null) {
         NexmarkUtils.console("skipping since configuration is not implemented");
+        return null;
+      }
+
+      if (configuration.query == PORTABILITY_BATCH && options.isStreaming()) {
+        NexmarkUtils.console("skipping PORTABILITY_BATCH since it does not support streaming mode");
         return null;
       }
 
@@ -1285,7 +1335,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         // Gets rejected after PR/8301, causing failures.
         //
         // See:
-        //   https://issues.apache.org/jira/browse/BEAM-7072
+        //   https://github.com/apache/beam/issues/19541
         //   https://github.com/apache/beam/pull/8301
         //   https://github.com/apache/beam/pull/8422#issuecomment-487676350
         //
@@ -1362,6 +1412,11 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(
             NexmarkQueryName.SESSION_SIDE_INPUT_JOIN,
             new NexmarkQuery(configuration, new SessionSideInputJoin(configuration)))
+        .put(
+            NexmarkQueryName.PORTABILITY_BATCH,
+            new NexmarkQuery(configuration, new Query13(configuration)))
+        .put(
+            NexmarkQueryName.RESHUFFLE, new NexmarkQuery(configuration, new Query14(configuration)))
         .build();
   }
 
@@ -1375,9 +1430,25 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private static class EventPubsubMessageDoFn extends DoFn<Event, PubsubMessage> {
+    private final PubsubMessageSerializationMethod serializationMethod;
+
+    public EventPubsubMessageDoFn(PubsubMessageSerializationMethod serializationMethod) {
+      this.serializationMethod = serializationMethod;
+    }
+
     @ProcessElement
     public void processElement(ProcessContext c) throws IOException {
-      byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+      byte[] payload;
+      switch (serializationMethod) {
+        case CODER:
+          payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+          break;
+        case TO_STRING:
+          payload = c.element().toString().getBytes(StandardCharsets.UTF_8);
+          break;
+        default:
+          throw new IllegalArgumentException("Unsupported serialization method used.");
+      }
       c.output(new PubsubMessage(payload, Collections.emptyMap()));
     }
   }

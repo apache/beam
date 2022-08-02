@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.api.client.util.Base64.encodeBase64String;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
@@ -40,7 +41,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for ShuffleSinkFactory. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class ShuffleSinkFactoryTest {
 
   private ShuffleSink runTestCreateShuffleSinkHelper(
@@ -63,7 +66,7 @@ public class ShuffleSinkFactoryTest {
             options,
             BatchModeExecutionContext.forTesting(options, "testStage"),
             TestOperationContext.create());
-    Assert.assertThat(sink, new IsInstanceOf(ShuffleSink.class));
+    assertThat(sink, new IsInstanceOf(ShuffleSink.class));
     ShuffleSink shuffleSink = (ShuffleSink) sink;
     Assert.assertArrayEquals(shuffleWriterConfig, shuffleSink.shuffleWriterConfig);
     Assert.assertEquals(coder, shuffleSink.windowedElemCoder);

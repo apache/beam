@@ -31,29 +31,28 @@ the sink.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import math
 import random
 import uuid
-from builtins import object
-from builtins import range
 from collections import namedtuple
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam.coders.coders import _MemoizingPickleCoder
+from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsSingleton
+from apache_beam.transforms import Impulse
+from apache_beam.transforms import PTransform
 from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
@@ -62,9 +61,6 @@ from apache_beam.transforms.display import HasDisplayData
 from apache_beam.utils import timestamp
 from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
-
-if TYPE_CHECKING:
-  from apache_beam.runners.pipeline_context import PipelineContext
 
 __all__ = [
     'BoundedSource',
@@ -754,6 +750,9 @@ class Sink(HasDisplayData):
   documentation at
   ``https://beam.apache.org/documentation/sdks/python-custom-io#creating-sinks``
   """
+  # Whether Beam should skip writing any shards if all are empty.
+  skip_if_empty = False
+
   def initialize_write(self):
     """Initializes the sink before writing begins.
 
@@ -850,7 +849,8 @@ class Writer(object):
   writing to a sink.
   """
   def write(self, value):
-    """Writes a value to the sink using the current writer."""
+    """Writes a value to the sink using the current writer.
+    """
     raise NotImplementedError
 
   def close(self):
@@ -864,9 +864,18 @@ class Writer(object):
     """
     raise NotImplementedError
 
+  def at_capacity(self) -> bool:
+    """Returns whether this writer should be considered at capacity
+    and a new one should be created.
+    """
+    return False
+
 
 class Read(ptransform.PTransform):
   """A transform that reads a PCollection."""
+  # Import runners here to prevent circular imports
+  from apache_beam.runners.pipeline_context import PipelineContext
+
   def __init__(self, source):
     # type: (SourceBase) -> None
 
@@ -875,7 +884,7 @@ class Read(ptransform.PTransform):
     Args:
       source: Data source to read from.
     """
-    super(Read, self).__init__()
+    super().__init__()
     self.source = source
 
   @staticmethod
@@ -889,7 +898,20 @@ class Read(ptransform.PTransform):
 
   def expand(self, pbegin):
     if isinstance(self.source, BoundedSource):
-      return pbegin | _SDFBoundedSourceWrapper(self.source)
+      coders.registry.register_coder(BoundedSource, _MemoizingPickleCoder)
+      display_data = self.source.display_data() or {}
+      display_data['source'] = self.source.__class__
+
+      return (
+          pbegin
+          | Impulse()
+          | core.Map(lambda _: self.source).with_output_types(BoundedSource)
+          | SDFBoundedSourceReader(display_data))
+    elif isinstance(self.source, ptransform.PTransform):
+      # The Read transform can also admit a full PTransform as an input
+      # rather than an anctual source. If the input is a PTransform, then
+      # just apply it directly.
+      return pbegin.pipeline | self.source
     else:
       # Treat Read itself as a primitive.
       return pvalue.PCollection(
@@ -915,26 +937,89 @@ class Read(ptransform.PTransform):
         'source_dd': self.source
     }
 
-  def to_runner_api_parameter(self, context):
-    # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.ReadPayload]
-    return (
-        common_urns.deprecated_primitives.READ.urn,
-        beam_runner_api_pb2.ReadPayload(
-            source=self.source.to_runner_api(context),
-            is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
-            if self.source.is_bounded() else
-            beam_runner_api_pb2.IsBounded.UNBOUNDED))
+  def to_runner_api_parameter(
+      self,
+      context: PipelineContext,
+  ) -> Tuple[str, Any]:
+    from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+    if isinstance(self.source, (BoundedSource, dataflow_io.NativeSource)):
+      from apache_beam.io.gcp.pubsub import _PubSubSource
+      if isinstance(self.source, _PubSubSource):
+        return (
+            common_urns.composites.PUBSUB_READ.urn,
+            beam_runner_api_pb2.PubSubReadPayload(
+                topic=self.source.full_topic,
+                subscription=self.source.full_subscription,
+                timestamp_attribute=self.source.timestamp_attribute,
+                with_attributes=self.source.with_attributes,
+                id_attribute=self.source.id_label))
+      return (
+          common_urns.deprecated_primitives.READ.urn,
+          beam_runner_api_pb2.ReadPayload(
+              source=self.source.to_runner_api(context),
+              is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
+              if self.source.is_bounded() else
+              beam_runner_api_pb2.IsBounded.UNBOUNDED))
+    elif isinstance(self.source, ptransform.PTransform):
+      return self.source.to_runner_api_parameter(context)
+    raise NotImplementedError(
+        "to_runner_api_parameter not "
+        "implemented for type")
 
   @staticmethod
-  def from_runner_api_parameter(unused_ptransform, parameter, context):
-    # type: (beam_runner_api_pb2.ReadPayload, PipelineContext) -> Read
-    return Read(SourceBase.from_runner_api(parameter.source, context))
+  def from_runner_api_parameter(
+      transform: beam_runner_api_pb2.PTransform,
+      payload: Union[beam_runner_api_pb2.ReadPayload,
+                     beam_runner_api_pb2.PubSubReadPayload],
+      context: PipelineContext,
+  ) -> "Read":
+    if transform.spec.urn == common_urns.composites.PUBSUB_READ.urn:
+      assert isinstance(payload, beam_runner_api_pb2.PubSubReadPayload)
+      # Importing locally to prevent circular dependencies.
+      from apache_beam.io.gcp.pubsub import _PubSubSource
+      source = _PubSubSource(
+          topic=payload.topic or None,
+          subscription=payload.subscription or None,
+          id_label=payload.id_attribute or None,
+          with_attributes=payload.with_attributes,
+          timestamp_attribute=payload.timestamp_attribute or None)
+      return Read(source)
+    else:
+      assert isinstance(payload, beam_runner_api_pb2.ReadPayload)
+      return Read(SourceBase.from_runner_api(payload.source, context))
+
+  @staticmethod
+  def _from_runner_api_parameter_read(
+      transform: beam_runner_api_pb2.PTransform,
+      payload: beam_runner_api_pb2.ReadPayload,
+      context: PipelineContext,
+  ) -> "Read":
+    """Method for type proxying when calling register_urn due to limitations
+     in type exprs in Python"""
+    return Read.from_runner_api_parameter(transform, payload, context)
+
+  @staticmethod
+  def _from_runner_api_parameter_pubsub_read(
+      transform: beam_runner_api_pb2.PTransform,
+      payload: beam_runner_api_pb2.PubSubReadPayload,
+      context: PipelineContext,
+  ) -> "Read":
+    """Method for type proxying when calling register_urn due to limitations
+     in type exprs in Python"""
+    return Read.from_runner_api_parameter(transform, payload, context)
 
 
 ptransform.PTransform.register_urn(
     common_urns.deprecated_primitives.READ.urn,
     beam_runner_api_pb2.ReadPayload,
-    Read.from_runner_api_parameter)
+    Read._from_runner_api_parameter_read,
+)
+
+ptransform.PTransform.register_urn(
+    common_urns.composites.PUBSUB_READ.urn,
+    beam_runner_api_pb2.PubSubReadPayload,
+    Read._from_runner_api_parameter_pubsub_read,
+)
 
 
 class Write(ptransform.PTransform):
@@ -964,13 +1049,16 @@ class Write(ptransform.PTransform):
   should not be updated by users. These sinks are processed using a Dataflow
   native write transform.
   """
+  # Import runners here to prevent circular imports
+  from apache_beam.runners.pipeline_context import PipelineContext
+
   def __init__(self, sink):
     """Initializes a Write transform.
 
     Args:
       sink: Data sink to write to.
     """
-    super(Write, self).__init__()
+    super().__init__()
     self.sink = sink
 
   def display_data(self):
@@ -992,12 +1080,54 @@ class Write(ptransform.PTransform):
           'A sink must inherit iobase.Sink, iobase.NativeSink, '
           'or be a PTransform. Received : %r' % self.sink)
 
+  def to_runner_api_parameter(
+      self,
+      context: PipelineContext,
+  ) -> Tuple[str, Any]:
+    # Importing locally to prevent circular dependencies.
+    from apache_beam.io.gcp.pubsub import _PubSubSink
+    if isinstance(self.sink, _PubSubSink):
+      payload = beam_runner_api_pb2.PubSubWritePayload(
+          topic=self.sink.full_topic,
+          id_attribute=self.sink.id_label,
+          timestamp_attribute=self.sink.timestamp_attribute)
+      return (common_urns.composites.PUBSUB_WRITE.urn, payload)
+    else:
+      return super().to_runner_api_parameter(context)
+
+  @staticmethod
+  @ptransform.PTransform.register_urn(
+      common_urns.composites.PUBSUB_WRITE.urn,
+      beam_runner_api_pb2.PubSubWritePayload)
+  def from_runner_api_parameter(
+      ptransform: Any,
+      payload: beam_runner_api_pb2.PubSubWritePayload,
+      unused_context: PipelineContext,
+  ) -> "Write":
+    if ptransform.spec.urn != common_urns.composites.PUBSUB_WRITE.urn:
+      raise ValueError(
+          'Write transform cannot be constructed for the given proto %r',
+          ptransform)
+
+    if not payload.topic:
+      raise NotImplementedError(
+          "from_runner_api_parameter does not "
+          "handle empty or None topic")
+
+    # Importing locally to prevent circular dependencies.
+    from apache_beam.io.gcp.pubsub import _PubSubSink
+    sink = _PubSubSink(
+        topic=payload.topic,
+        id_label=payload.id_attribute or None,
+        timestamp_attribute=payload.timestamp_attribute or None)
+    return Write(sink)
+
 
 class WriteImpl(ptransform.PTransform):
   """Implements the writing of custom sinks."""
   def __init__(self, sink):
     # type: (Sink) -> None
-    super(WriteImpl, self).__init__()
+    super().__init__()
     self.sink = sink
 
   def expand(self, pcoll):
@@ -1009,7 +1139,7 @@ class WriteImpl(ptransform.PTransform):
       if min_shards == 1:
         keyed_pcoll = pcoll | core.Map(lambda x: (None, x))
       else:
-        keyed_pcoll = pcoll | core.ParDo(_RoundRobinKeyFn(min_shards))
+        keyed_pcoll = pcoll | core.ParDo(_RoundRobinKeyFn(), count=min_shards)
       write_result_coll = (
           keyed_pcoll
           | core.WindowInto(window.GlobalWindows())
@@ -1028,18 +1158,20 @@ class WriteImpl(ptransform.PTransform):
           | 'Extract' >> core.FlatMap(lambda x: x[1]))
     # PreFinalize should run before FinalizeWrite, and the two should not be
     # fused.
-    pre_finalize_coll = do_once | 'PreFinalize' >> core.FlatMap(
-        _pre_finalize,
-        self.sink,
-        AsSingleton(init_result_coll),
-        AsIter(write_result_coll))
+    pre_finalize_coll = (
+        do_once
+        | 'PreFinalize' >> core.FlatMap(
+            _pre_finalize,
+            self.sink,
+            AsSingleton(init_result_coll),
+            AsIter(write_result_coll)))
     return do_once | 'FinalizeWrite' >> core.FlatMap(
         _finalize_write,
         self.sink,
         AsSingleton(init_result_coll),
         AsIter(write_result_coll),
         min_shards,
-        AsSingleton(pre_finalize_coll))
+        AsSingleton(pre_finalize_coll)).with_output_types(str)
 
 
 class _WriteBundleDoFn(core.DoFn):
@@ -1060,6 +1192,9 @@ class _WriteBundleDoFn(core.DoFn):
       # We ignore UUID collisions here since they are extremely rare.
       self.writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
     self.writer.write(element)
+    if self.writer.at_capacity():
+      yield self.writer.close()
+      self.writer = None
 
   def finish_bundle(self):
     if self.writer is not None:
@@ -1097,11 +1232,12 @@ def _finalize_write(
   write_results = list(write_results)
   extra_shards = []
   if len(write_results) < min_shards:
-    _LOGGER.debug(
-        'Creating %s empty shard(s).', min_shards - len(write_results))
-    for _ in range(min_shards - len(write_results)):
-      writer = sink.open_writer(init_result, str(uuid.uuid4()))
-      extra_shards.append(writer.close())
+    if write_results or not sink.skip_if_empty:
+      _LOGGER.debug(
+          'Creating %s empty shard(s).', min_shards - len(write_results))
+      for _ in range(min_shards - len(write_results)):
+        writer = sink.open_writer(init_result, str(uuid.uuid4()))
+        extra_shards.append(writer.close())
   outputs = sink.finalize_write(
       init_result, write_results + extra_shards, pre_finalize_results)
   if outputs:
@@ -1110,22 +1246,18 @@ def _finalize_write(
 
 
 class _RoundRobinKeyFn(core.DoFn):
-  def __init__(self, count):
-    # type: (int) -> None
-    self.count = count
-
   def start_bundle(self):
-    self.counter = random.randint(0, self.count - 1)
+    self.counter = None
 
-  def process(self, element):
-    self.counter += 1
-    if self.counter >= self.count:
-      self.counter -= self.count
+  def process(self, element, count):
+    if self.counter is None:
+      self.counter = random.randrange(0, count)
+    self.counter = (1 + self.counter) % count
     yield self.counter, element
 
 
 class RestrictionTracker(object):
-  """Manages concurrent access to a restriction.
+  """Manages access to a restriction.
 
   Keeps track of the restrictions claimed part for a Splittable DoFn.
 
@@ -1136,8 +1268,6 @@ class RestrictionTracker(object):
   See following documents for more details.
   * https://s.apache.org/splittable-do-fn
   * https://s.apache.org/splittable-do-fn-python-sdk
-
-  Experimental; no backwards-compatibility guarantees.
   """
   def current_restriction(self):
     """Returns the current restriction.
@@ -1168,8 +1298,8 @@ class RestrictionTracker(object):
   def check_done(self):
     """Checks whether the restriction has been fully processed.
 
-    Called by the runner after iterator returned by ``DoFn.process()`` has been
-    fully read.
+    Called by the SDK harness after iterator returned by ``DoFn.process()``
+    has been fully read.
 
     This method must raise a `ValueError` if there is still any unclaimed work
     remaining in the restriction when this method is invoked. Exception raised
@@ -1226,7 +1356,8 @@ class RestrictionTracker(object):
 
   def try_claim(self, position):
     """Attempts to claim the block of work in the current restriction
-    identified by the given position.
+    identified by the given position. Each claimed position MUST be a valid
+    split point.
 
     If this succeeds, the DoFn MUST execute the entire block of work. If it
     fails, the ``DoFn.process()`` MUST return ``None`` without performing any
@@ -1264,7 +1395,8 @@ class RestrictionTracker(object):
 
 class WatermarkEstimator(object):
   """A WatermarkEstimator which is used for estimating output_watermark based on
-  the timestamp of output records or manual modifications.
+  the timestamp of output records or manual modifications. Please refer to
+  ``watermark_estiamtors`` for commonly used watermark estimators.
 
   The base class provides common APIs that are called by the framework, which
   are also accessible inside a DoFn.process() body. Derived watermark estimator
@@ -1301,10 +1433,7 @@ class WatermarkEstimator(object):
 
 
 class RestrictionProgress(object):
-  """Used to record the progress of a restriction.
-
-  Experimental; no backwards-compatibility guarantees.
-  """
+  """Used to record the progress of a restriction."""
   def __init__(self, **kwargs):
     # Only accept keyword arguments.
     self._fraction = kwargs.pop('fraction', None)
@@ -1363,35 +1492,30 @@ class RestrictionProgress(object):
         fraction=self._fraction, remaining=self._remaining, completed=completed)
 
 
-class _SDFBoundedSourceWrapper(ptransform.PTransform):
-  """A ``PTransform`` that uses SDF to read from a ``BoundedSource``.
+class _SDFBoundedSourceRestriction(object):
+  """ A restriction wraps SourceBundle and RangeTracker. """
+  def __init__(self, source_bundle, range_tracker=None):
+    self._source_bundle = source_bundle
+    self._range_tracker = range_tracker
 
-  NOTE: This transform can only be used with beam_fn_api enabled.
-  """
-  class _SDFBoundedSourceRestriction(object):
-    """ A restriction wraps SourceBundle and RangeTracker. """
-    def __init__(self, source_bundle, range_tracker=None):
-      self._source_bundle = source_bundle
-      self._range_tracker = range_tracker
+  def __reduce__(self):
+    # The instance of RangeTracker shouldn't be serialized.
+    return (self.__class__, (self._source_bundle, ))
 
-    def __reduce__(self):
-      # The instance of RangeTracker shouldn't be serialized.
-      return (self.__class__, (self._source_bundle, ))
+  def range_tracker(self):
+    if not self._range_tracker:
+      self._range_tracker = self._source_bundle.source.get_range_tracker(
+          self._source_bundle.start_position, self._source_bundle.stop_position)
+    return self._range_tracker
 
-    def range_tracker(self):
-      if not self._range_tracker:
-        self._range_tracker = self._source_bundle.source.get_range_tracker(
-            self._source_bundle.start_position,
-            self._source_bundle.stop_position)
-      return self._range_tracker
+  def weight(self):
+    return self._source_bundle.weight
 
-    def weight(self):
-      return self._source_bundle.weight
+  def source(self):
+    return self._source_bundle.source
 
-    def source(self):
-      return self._source_bundle.source
-
-    def try_split(self, fraction_of_remainder):
+  def try_split(self, fraction_of_remainder):
+    try:
       consumed_fraction = self.range_tracker().fraction_consumed()
       fraction = (
           consumed_fraction + (1 - consumed_fraction) * fraction_of_remainder)
@@ -1413,144 +1537,160 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
             split_pos)
         return (
             self,
-            _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
+            _SDFBoundedSourceRestriction(
                 SourceBundle(
                     residual_weight,
                     self._source_bundle.source,
                     split_pos,
                     stop_pos)))
+    except Exception:
+      # For any exceptions from underlying trySplit calls, the wrapper will
+      # think that the source refuses to split at this point. In this case,
+      # no split happens at the wrapper level.
+      return None
 
-  class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
-    """An `iobase.RestrictionTracker` implementations for wrapping BoundedSource
-    with SDF. The tracked restriction is a _SDFBoundedSourceRestriction, which
-    wraps SourceBundle and RangeTracker.
 
-    Delegated RangeTracker guarantees synchronization safety.
-    """
-    def __init__(self, restriction):
-      if not isinstance(restriction,
-                        _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction):
-        raise ValueError(
-            'Initializing SDFBoundedSourceRestrictionTracker'
-            ' requires a _SDFBoundedSourceRestriction')
-      self.restriction = restriction
+class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
+  """An `iobase.RestrictionTracker` implementations for wrapping BoundedSource
+  with SDF. The tracked restriction is a _SDFBoundedSourceRestriction, which
+  wraps SourceBundle and RangeTracker.
 
-    def current_progress(self):
-      # type: () -> RestrictionProgress
-      return RestrictionProgress(
-          fraction=self.restriction.range_tracker().fraction_consumed())
-
-    def current_restriction(self):
-      self.restriction.range_tracker()
-      return self.restriction
-
-    def start_pos(self):
-      return self.restriction.range_tracker().start_position()
-
-    def stop_pos(self):
-      return self.restriction.range_tracker().stop_position()
-
-    def try_claim(self, position):
-      return self.restriction.range_tracker().try_claim(position)
-
-    def try_split(self, fraction_of_remainder):
-      return self.restriction.try_split(fraction_of_remainder)
-
-    def check_done(self):
-      return self.restriction.range_tracker().fraction_consumed() >= 1.0
-
-    def is_bounded(self):
-      return True
-
-  class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
-    """A `RestrictionProvider` that is used by SDF for `BoundedSource`."""
-    def __init__(self, source, desired_chunk_size=None):
-      self._source = source
-      self._desired_chunk_size = desired_chunk_size
-
-    def initial_restriction(self, element):
-      # Get initial range_tracker from source
-      range_tracker = self._source.get_range_tracker(None, None)
-      return _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
-          SourceBundle(
-              None,
-              self._source,
-              range_tracker.start_position(),
-              range_tracker.stop_position()))
-
-    def create_tracker(self, restriction):
-      return _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionTracker(
+  Delegated RangeTracker guarantees synchronization safety.
+  """
+  def __init__(self, restriction):
+    if not isinstance(restriction, _SDFBoundedSourceRestriction):
+      raise ValueError(
+          'Initializing SDFBoundedSourceRestrictionTracker'
+          ' requires a _SDFBoundedSourceRestriction. Got %s instead.' %
           restriction)
+    self.restriction = restriction
 
-    def split(self, element, restriction):
-      if self._desired_chunk_size is None:
-        try:
-          estimated_size = self._source.estimate_size()
-        except NotImplementedError:
-          estimated_size = None
-        self._desired_chunk_size = Read.get_desired_chunk_size(estimated_size)
+  def current_progress(self):
+    # type: () -> RestrictionProgress
+    return RestrictionProgress(
+        fraction=self.restriction.range_tracker().fraction_consumed())
 
-      # Invoke source.split to get initial splitting results.
-      source_bundles = self._source.split(self._desired_chunk_size)
-      for source_bundle in source_bundles:
-        yield _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
-            source_bundle)
+  def current_restriction(self):
+    self.restriction.range_tracker()
+    return self.restriction
 
-    def restriction_size(self, element, restriction):
-      return restriction.weight()
+  def start_pos(self):
+    return self.restriction.range_tracker().start_position()
 
-    def restriction_coder(self):
-      return coders.DillCoder()
+  def stop_pos(self):
+    return self.restriction.range_tracker().stop_position()
 
-  def __init__(self, source):
-    if not isinstance(source, BoundedSource):
-      raise RuntimeError('SDFBoundedSourceWrapper can only wrap BoundedSource')
-    super(_SDFBoundedSourceWrapper, self).__init__()
-    self.source = source
+  def try_claim(self, position):
+    return self.restriction.range_tracker().try_claim(position)
+
+  def try_split(self, fraction_of_remainder):
+    return self.restriction.try_split(fraction_of_remainder)
+
+  def check_done(self):
+    return self.restriction.range_tracker().fraction_consumed() >= 1.0
+
+  def is_bounded(self):
+    return True
+
+
+class _SDFBoundedSourceWrapperRestrictionCoder(coders.Coder):
+  def decode(self, value):
+    return _SDFBoundedSourceRestriction(SourceBundle(*pickler.loads(value)))
+
+  def encode(self, restriction):
+    return pickler.dumps((
+        restriction._source_bundle.weight,
+        restriction._source_bundle.source,
+        restriction._source_bundle.start_position,
+        restriction._source_bundle.stop_position))
+
+
+class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
+  """
+  A `RestrictionProvider` that is used by SDF for `BoundedSource`.
+
+  This restriction provider initializes restriction based on input
+  element that is expected to be of BoundedSource type.
+  """
+  def __init__(self, desired_chunk_size=None, restriction_coder=None):
+    self._desired_chunk_size = desired_chunk_size
+    self._restriction_coder = (
+        restriction_coder or _SDFBoundedSourceWrapperRestrictionCoder())
+
+  def _check_source(self, src):
+    if not isinstance(src, BoundedSource):
+      raise RuntimeError(
+          'SDFBoundedSourceRestrictionProvider can only utilize BoundedSource')
+
+  def initial_restriction(self, element_source: BoundedSource):
+    self._check_source(element_source)
+    range_tracker = element_source.get_range_tracker(None, None)
+    return _SDFBoundedSourceRestriction(
+        SourceBundle(
+            None,
+            element_source,
+            range_tracker.start_position(),
+            range_tracker.stop_position()))
+
+  def create_tracker(self, restriction):
+    return _SDFBoundedSourceRestrictionTracker(restriction)
+
+  def split(self, element, restriction):
+    if self._desired_chunk_size is None:
+      try:
+        estimated_size = restriction.source().estimate_size()
+      except NotImplementedError:
+        estimated_size = None
+      self._desired_chunk_size = Read.get_desired_chunk_size(estimated_size)
+
+    # Invoke source.split to get initial splitting results.
+    source_bundles = restriction.source().split(self._desired_chunk_size)
+    for source_bundle in source_bundles:
+      yield _SDFBoundedSourceRestriction(source_bundle)
+
+  def restriction_size(self, element, restriction):
+    return restriction.weight()
+
+  def restriction_coder(self):
+    return self._restriction_coder
+
+
+class SDFBoundedSourceReader(PTransform):
+  """A ``PTransform`` that uses SDF to read from each ``BoundedSource`` in a
+  PCollection.
+
+  NOTE: This transform can only be used with beam_fn_api enabled.
+  """
+  def __init__(self, data_to_display=None):
+    self._data_to_display = data_to_display or {}
+    super().__init__()
 
   def _create_sdf_bounded_source_dofn(self):
-    source = self.source
-
     class SDFBoundedSourceDoFn(core.DoFn):
-      def __init__(self, read_source):
-        self.source = read_source
+      def __init__(self, dd):
+        self._dd = dd
 
       def display_data(self):
-        return {
-            'source': DisplayDataItem(
-                self.source.__class__, label='Read Source'),
-            'source_dd': self.source
-        }
+        return self._dd
 
       def process(
           self,
-          element,
+          unused_element,
           restriction_tracker=core.DoFn.RestrictionParam(
-              _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionProvider(
-                  source))):
+              _SDFBoundedSourceRestrictionProvider())):
         current_restriction = restriction_tracker.current_restriction()
-        assert isinstance(
-            current_restriction,
-            _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction)
+        assert isinstance(current_restriction, _SDFBoundedSourceRestriction)
+
         return current_restriction.source().read(
             current_restriction.range_tracker())
 
-    return SDFBoundedSourceDoFn(self.source)
+    return SDFBoundedSourceDoFn(self._data_to_display)
 
-  def expand(self, pbegin):
-    return (
-        pbegin
-        | core.Impulse()
-        | core.ParDo(self._create_sdf_bounded_source_dofn()))
+  def expand(self, pvalue):
+    return pvalue | core.ParDo(self._create_sdf_bounded_source_dofn())
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
 
-  def _infer_output_coder(self, input_type=None, input_coder=None):
-    return self.source.default_output_coder()
-
   def display_data(self):
-    return {
-        'source': DisplayDataItem(self.source.__class__, label='Read Source'),
-        'source_dd': self.source
-    }
+    return self._data_to_display

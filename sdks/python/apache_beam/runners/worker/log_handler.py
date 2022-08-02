@@ -18,9 +18,7 @@
 """Beam fn API log handler."""
 
 # pytype: skip-file
-
-from __future__ import absolute_import
-from __future__ import print_function
+# mypy: disallow-untyped-defs
 
 import logging
 import math
@@ -29,6 +27,12 @@ import sys
 import threading
 import time
 import traceback
+from typing import TYPE_CHECKING
+from typing import Iterable
+from typing import Iterator
+from typing import List
+from typing import Union
+from typing import cast
 
 import grpc
 
@@ -37,6 +41,33 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+from apache_beam.utils.sentinel import Sentinel
+
+if TYPE_CHECKING:
+  from apache_beam.portability.api import endpoints_pb2
+
+# Mapping from logging levels to LogEntry levels.
+LOG_LEVEL_TO_LOGENTRY_MAP = {
+    logging.FATAL: beam_fn_api_pb2.LogEntry.Severity.CRITICAL,
+    logging.ERROR: beam_fn_api_pb2.LogEntry.Severity.ERROR,
+    logging.WARNING: beam_fn_api_pb2.LogEntry.Severity.WARN,
+    logging.INFO: beam_fn_api_pb2.LogEntry.Severity.INFO,
+    logging.DEBUG: beam_fn_api_pb2.LogEntry.Severity.DEBUG,
+    logging.NOTSET: beam_fn_api_pb2.LogEntry.Severity.UNSPECIFIED,
+    -float('inf'): beam_fn_api_pb2.LogEntry.Severity.DEBUG,
+}
+
+# Mapping from LogEntry levels to logging levels
+LOGENTRY_TO_LOG_LEVEL_MAP = {
+    beam_fn_api_pb2.LogEntry.Severity.CRITICAL: logging.CRITICAL,
+    beam_fn_api_pb2.LogEntry.Severity.ERROR: logging.ERROR,
+    beam_fn_api_pb2.LogEntry.Severity.WARN: logging.WARNING,
+    beam_fn_api_pb2.LogEntry.Severity.NOTICE: logging.INFO + 1,
+    beam_fn_api_pb2.LogEntry.Severity.INFO: logging.INFO,
+    beam_fn_api_pb2.LogEntry.Severity.DEBUG: logging.DEBUG,
+    beam_fn_api_pb2.LogEntry.Severity.TRACE: logging.DEBUG - 1,
+    beam_fn_api_pb2.LogEntry.Severity.UNSPECIFIED: logging.NOTSET,
+}
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -47,28 +78,20 @@ class FnApiLogRecordHandler(logging.Handler):
   # Maximum number of log entries in a single stream request.
   _MAX_BATCH_SIZE = 1000
   # Used to indicate the end of stream.
-  _FINISHED = object()
+  _FINISHED = Sentinel.sentinel
   # Size of the queue used to buffer messages. Once full, messages will be
   # dropped. If the average log size is 1KB this may use up to 10MB of memory.
   _QUEUE_SIZE = 10000
 
-  # Mapping from logging levels to LogEntry levels.
-  LOG_LEVEL_MAP = {
-      logging.FATAL: beam_fn_api_pb2.LogEntry.Severity.CRITICAL,
-      logging.ERROR: beam_fn_api_pb2.LogEntry.Severity.ERROR,
-      logging.WARNING: beam_fn_api_pb2.LogEntry.Severity.WARN,
-      logging.INFO: beam_fn_api_pb2.LogEntry.Severity.INFO,
-      logging.DEBUG: beam_fn_api_pb2.LogEntry.Severity.DEBUG,
-      -float('inf'): beam_fn_api_pb2.LogEntry.Severity.DEBUG,
-  }
-
   def __init__(self, log_service_descriptor):
-    super(FnApiLogRecordHandler, self).__init__()
+    # type: (endpoints_pb2.ApiServiceDescriptor) -> None
+    super().__init__()
 
     self._alive = True
     self._dropped_logs = 0
     self._log_entry_queue = queue.Queue(
-        maxsize=self._QUEUE_SIZE)  # type: queue.Queue[beam_fn_api_pb2.LogEntry]
+        maxsize=self._QUEUE_SIZE
+    )  # type: queue.Queue[Union[beam_fn_api_pb2.LogEntry, Sentinel]]
 
     ch = GRPCChannelFactory.insecure_channel(log_service_descriptor.url)
     # Make sure the channel is ready to avoid [BEAM-4649]
@@ -81,19 +104,22 @@ class FnApiLogRecordHandler(logging.Handler):
     self._reader.start()
 
   def connect(self):
+    # type: () -> Iterable
     if hasattr(self, '_logging_stub'):
-      del self._logging_stub
+      del self._logging_stub  # type: ignore[has-type]
     self._logging_stub = beam_fn_api_pb2_grpc.BeamFnLoggingStub(
         self._log_channel)
     return self._logging_stub.Logging(self._write_log_entries())
 
   def map_log_level(self, level):
+    # type: (int) -> beam_fn_api_pb2.LogEntry.Severity.Enum
     try:
-      return self.LOG_LEVEL_MAP[level]
+      return LOG_LEVEL_TO_LOGENTRY_MAP[level]
     except KeyError:
       return max(
           beam_level for python_level,
-          beam_level in self.LOG_LEVEL_MAP.items() if python_level <= level)
+          beam_level in LOG_LEVEL_TO_LOGENTRY_MAP.items()
+          if python_level <= level)
 
   def emit(self, record):
     # type: (logging.LogRecord) -> None
@@ -125,6 +151,8 @@ class FnApiLogRecordHandler(logging.Handler):
       self._dropped_logs += 1
 
   def close(self):
+    # type: () -> None
+
     """Flush out all existing log entries and unregister this handler."""
     try:
       self._alive = False
@@ -136,7 +164,7 @@ class FnApiLogRecordHandler(logging.Handler):
       self._reader.join()
       self.release()
       # Unregister this handler.
-      super(FnApiLogRecordHandler, self).close()
+      super().close()
     except Exception:
       # Log rather than raising exceptions, to avoid clobbering
       # underlying errors that may have caused this to close
@@ -144,6 +172,7 @@ class FnApiLogRecordHandler(logging.Handler):
       logging.error("Error closing the logging channel.", exc_info=True)
 
   def _write_log_entries(self):
+    # type: () -> Iterator[beam_fn_api_pb2.LogEntry.List]
     done = False
     while not done:
       log_entries = [self._log_entry_queue.get()]
@@ -156,9 +185,13 @@ class FnApiLogRecordHandler(logging.Handler):
         done = True
         log_entries.pop()
       if log_entries:
-        yield beam_fn_api_pb2.LogEntry.List(log_entries=log_entries)
+        # typing: log_entries was initialized as List[Union[..., Sentinel]],
+        # but now that we've popped the sentinel out (above) we can safely cast
+        yield beam_fn_api_pb2.LogEntry.List(
+            log_entries=cast(List[beam_fn_api_pb2.LogEntry], log_entries))
 
   def _read_log_control_messages(self):
+    # type: () -> None
     # Only reconnect when we are alive.
     # We can drop some logs in the unlikely event of logging connection
     # dropped(not closed) during termination when we still have logs to be sent.

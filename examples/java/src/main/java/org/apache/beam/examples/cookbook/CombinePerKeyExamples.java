@@ -179,6 +179,10 @@ public class CombinePerKeyExamples {
   public static void main(String[] args) throws Exception {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+    runCombinePerKeyExamples(options);
+  }
+
+  static void runCombinePerKeyExamples(Options options) {
     Pipeline p = Pipeline.create(options);
 
     // Build the table schema for the output table.

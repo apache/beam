@@ -19,9 +19,9 @@
 ParDo
 -----
 
-ParDo is a Beam transform for generic parallel processing. The ParDo processing paradigm is similar 
-to the “Map” phase of a Map/Shuffle/Reduce-style algorithm: a ParDo transform considers each 
-element in the input PCollection, performs some processing function (your user code) on that 
+ParDo is a Beam transform for generic parallel processing. The ParDo processing paradigm is similar
+to the “Map” phase of a Map/Shuffle/Reduce-style algorithm: a ParDo transform considers each
+element in the input PCollection, performs some processing function (your user code) on that
 element, and emits zero, one, or multiple elements to an output PCollection.
 
 **Kata:** Please write a simple ParDo that maps the input element by multiplying it by 10.

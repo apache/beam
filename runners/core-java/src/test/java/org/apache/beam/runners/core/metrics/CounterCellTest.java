@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.metrics.MetricName;
 import org.junit.Assert;
@@ -67,7 +67,7 @@ public class CounterCellTest {
     Assert.assertNotEquals(counterCell, new Object());
 
     CounterCell differentDirty = new CounterCell(MetricName.named("namespace", "name"));
-    differentDirty.getDirty().beforeCommit();
+    differentDirty.getDirty().afterModification();
     Assert.assertNotEquals(counterCell, differentDirty);
     Assert.assertNotEquals(counterCell.hashCode(), differentDirty.hashCode());
 
@@ -85,6 +85,7 @@ public class CounterCellTest {
   public void testReset() {
     CounterCell counterCell = new CounterCell(MetricName.named("namespace", "name"));
     counterCell.inc(1);
+    Assert.assertNotEquals(counterCell.getDirty(), new DirtyState());
     assertThat(counterCell.getCumulative(), equalTo(1L));
 
     counterCell.reset();

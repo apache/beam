@@ -19,17 +19,16 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import os
 import time
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples import wordcount
+from apache_beam.internal.gcp import auth
 from apache_beam.testing.load_tests.load_test_metrics_utils import InfluxDBMetricsPublisherOptions
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from apache_beam.testing.pipeline_verifiers import FileChecksumMatcher
@@ -40,21 +39,71 @@ from apache_beam.testing.test_utils import delete_files
 
 class WordCountIT(unittest.TestCase):
 
-  # Enable nose tests running in parallel
-  _multiprocess_can_split_ = True
-
   # The default checksum is a SHA-1 hash generated from a sorted list of
   # lines read from expected output. This value corresponds to the default
   # input of WordCount example.
   DEFAULT_CHECKSUM = '33535a832b7db6d78389759577d4ff495980b9c0'
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_wordcount_it(self):
     self._run_wordcount_it(wordcount.run)
 
-  @attr('IT', 'ValidatesContainer')
+  @pytest.mark.it_postcommit
+  @pytest.mark.sickbay_direct
+  @pytest.mark.sickbay_spark
+  @pytest.mark.sickbay_flink
+  def test_wordcount_impersonation_it(self):
+    """Tests impersonation on dataflow.
+
+    For testing impersonation, we use three ingredients:
+    - a principal to impersonate
+    - a dataflow service account that only that principal is
+      allowed to launch jobs as
+    - a temp root that only the above two accounts have access to
+
+    Jenkins and Dataflow workers both run as GCE default service account.
+    So we remove that account from all the above.
+    """
+    # Credentials need to be reset or this test will fail and credentials
+    # from a previous test will be used.
+    auth._Credentials._credentials_init = False
+
+    ACCOUNT_TO_IMPERSONATE = (
+        'allows-impersonation@apache-'
+        'beam-testing.iam.gserviceaccount.com')
+    RUNNER_ACCOUNT = (
+        'impersonation-dataflow-worker@'
+        'apache-beam-testing.iam.gserviceaccount.com')
+    TEMP_DIR = 'gs://impersonation-test-bucket/temp-it'
+    STAGING_LOCATION = 'gs://impersonation-test-bucket/staging-it'
+    extra_options = {
+        'impersonate_service_account': ACCOUNT_TO_IMPERSONATE,
+        'service_account_email': RUNNER_ACCOUNT,
+        'temp_location': TEMP_DIR,
+        'staging_location': STAGING_LOCATION
+    }
+    self._run_wordcount_it(wordcount.run, **extra_options)
+    # Reset credentials for future tests.
+    auth._Credentials._credentials_init = False
+
+  @pytest.mark.it_postcommit
+  @pytest.mark.it_validatescontainer
   def test_wordcount_fnapi_it(self):
     self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
+
+  @pytest.mark.it_validatescontainer
+  def test_wordcount_it_with_prebuilt_sdk_container_local_docker(self):
+    self._run_wordcount_it(
+        wordcount.run,
+        experiment='beam_fn_api',
+        prebuild_sdk_container_engine='local_docker')
+
+  @pytest.mark.it_validatescontainer
+  def test_wordcount_it_with_prebuilt_sdk_container_cloud_build(self):
+    self._run_wordcount_it(
+        wordcount.run,
+        experiment='beam_fn_api',
+        prebuild_sdk_container_engine='cloud_build')
 
   def _run_wordcount_it(self, run_wordcount, **opts):
     test_pipeline = TestPipeline(is_integration_test=True)
@@ -87,8 +136,7 @@ class WordCountIT(unittest.TestCase):
     # Register clean up before pipeline execution
     self.addCleanup(delete_files, [test_output + '*'])
 
-    publish_to_bq = bool(
-        test_pipeline.get_option('publish_to_big_query') or False)
+    publish_to_bq = bool(test_pipeline.get_option('publish_to_big_query'))
 
     # Start measure time for performance test
     start_time = time.time()

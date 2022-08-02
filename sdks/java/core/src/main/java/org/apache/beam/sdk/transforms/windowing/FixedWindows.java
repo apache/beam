@@ -79,7 +79,7 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
 
     // The global window is inclusive of max timestamp, while interval window excludes its
     // upper bound
-    Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp().plus(1);
+    Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1));
 
     // The end of the window is either start + size if that is within the allowable range, otherwise
     // the end of the global window. Truncating the window drives many other

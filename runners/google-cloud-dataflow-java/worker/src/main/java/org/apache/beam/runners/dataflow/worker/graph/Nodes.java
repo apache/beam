@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.JsonGenerator;
-import com.google.api.client.util.Charsets;
 import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.api.services.dataflow.model.SideInputInfo;
@@ -42,9 +41,13 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /** Container class for different types of network nodes. All nodes only have reference equality. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Nodes {
   /** Base class for network nodes. All nodes only have reference equality. */
   public abstract static class Node {
@@ -169,7 +172,7 @@ public class Nodes {
       generator.enablePrettyPrint();
       generator.serialize(json);
       generator.flush();
-      return byteStream.toString();
+      return byteStream.toString(Charsets.UTF_8.name());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -196,7 +199,7 @@ public class Nodes {
     public abstract ParallelInstruction getParallelInstruction();
 
     @Override
-    public String toString() {
+    public final String toString() {
       return MoreObjects.toStringHelper(this)
           .add("parallelInstruction", toStringWithTrimmedLiterals(getParallelInstruction()))
           .add("executionLocation", getExecutionLocation().toString())
@@ -221,7 +224,7 @@ public class Nodes {
     public abstract String getPcollectionId();
 
     @Override
-    public String toString() {
+    public final String toString() {
       return MoreObjects.toStringHelper(this)
           .add("instructionOutput", toStringWithTrimmedLiterals(getInstructionOutput()))
           .add("pcollectionId", getPcollectionId())
@@ -301,7 +304,7 @@ public class Nodes {
     public abstract Map<String, NameContext> getPCollectionToPartialNameContextMap();
 
     @Override
-    public String toString() {
+    public final String toString() {
       // The request may be very large.
       return "RegisterRequestNode";
     }
@@ -333,7 +336,7 @@ public class Nodes {
     public abstract Map<String, Iterable<PCollectionView<?>>> getPTransformIdToPCollectionViewMap();
 
     @Override
-    public String toString() {
+    public final String toString() {
       // The request may be very large.
       return "ExecutableStageNode";
     }

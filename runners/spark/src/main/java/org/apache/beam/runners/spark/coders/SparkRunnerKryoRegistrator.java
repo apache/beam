@@ -41,6 +41,9 @@ import scala.collection.mutable.WrappedArray;
  * {@code org.apache.spark.serializer.KryoSerializer} and register this class via Spark {@code
  * spark.kryo.registrator} configuration.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class SparkRunnerKryoRegistrator implements KryoRegistrator {
 
   @Override

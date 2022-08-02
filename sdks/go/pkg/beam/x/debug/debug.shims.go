@@ -25,20 +25,28 @@ import (
 	"reflect"
 
 	// Library imports
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
 	runtime.RegisterFunction(discardFn)
 	runtime.RegisterType(reflect.TypeOf((*context.Context)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*context.Context)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*headFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*headFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*headKVFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*headKVFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*printFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*printFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*printGBKFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*printGBKFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*printKVFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*printKVFn)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*headFn)(nil)).Elem(), wrapMakerHeadFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*headKVFn)(nil)).Elem(), wrapMakerHeadKVFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*printFn)(nil)).Elem(), wrapMakerPrintFn)
@@ -255,8 +263,9 @@ func (c *callerTypex۰TГ) Call1x0(arg0 interface{}) {
 }
 
 type emitNative struct {
-	n  exec.ElementProcessor
-	fn interface{}
+	n   exec.ElementProcessor
+	fn  interface{}
+	est *sdf.WatermarkEstimator
 
 	ctx   context.Context
 	ws    []typex.Window
@@ -275,6 +284,10 @@ func (e *emitNative) Value() interface{} {
 	return e.fn
 }
 
+func (e *emitNative) AttachEstimator(est *sdf.WatermarkEstimator) {
+	e.est = est
+}
+
 func emitMakerTypex۰T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
 	ret.fn = ret.invokeTypex۰T
@@ -283,6 +296,9 @@ func emitMakerTypex۰T(n exec.ElementProcessor) exec.ReusableEmitter {
 
 func (e *emitNative) invokeTypex۰T(val typex.T) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: val}
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}
@@ -296,6 +312,9 @@ func emitMakerTypex۰XTypex۰Y(n exec.ElementProcessor) exec.ReusableEmitter {
 
 func (e *emitNative) invokeTypex۰XTypex۰Y(key typex.X, val typex.Y) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: key, Elm2: val}
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}

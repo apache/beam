@@ -19,14 +19,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
-import sys
 import unittest
 
 import mock
-import pytest
 from hamcrest import assert_that as hc_assert_that
 
 from apache_beam.io.gcp import bigquery_tools
@@ -57,14 +53,38 @@ class BigqueryMatcherTest(unittest.TestCase):
     mock_query_result[1].values.return_value = None
     mock_query_result[2].values.return_value = None
 
-    mock_bigquery.return_value.query.return_value.result.return_value = (
-        mock_query_result)
+    mock_query = mock_bigquery.return_value.query
+    mock_query.return_value.result.return_value = mock_query_result
 
     matcher = bq_verifier.BigqueryMatcher(
         'mock_project',
         'mock_query',
         '59f9d6bdee30d67ea73b8aded121c3a0280f9cd8')
     hc_assert_that(self._mock_result, matcher)
+    self.assertEqual(1, mock_query.call_count)
+
+  def test_bigquery_matcher_success_streaming_retry(self, mock_bigquery):
+    # Simulate case where a streaming insert takes time to process, such that
+    # the first query result is incomplete (empty).
+    empty_query_result = []
+    mock_query_result = [mock.Mock(), mock.Mock(), mock.Mock()]
+    mock_query_result[0].values.return_value = []
+    mock_query_result[1].values.return_value = None
+    mock_query_result[2].values.return_value = None
+
+    mock_query = mock_bigquery.return_value.query
+    mock_query.return_value.result.side_effect = [
+        empty_query_result, mock_query_result
+    ]
+
+    matcher = bq_verifier.BigqueryMatcher(
+        'mock_project',
+        'mock_query',
+        '59f9d6bdee30d67ea73b8aded121c3a0280f9cd8',
+        timeout_secs=5,
+    )
+    hc_assert_that(self._mock_result, matcher)
+    self.assertEqual(2, mock_query.call_count)
 
   def test_bigquery_matcher_query_error_retry(self, mock_bigquery):
     mock_query = mock_bigquery.return_value.query
@@ -75,6 +95,21 @@ class BigqueryMatcherTest(unittest.TestCase):
     with self.assertRaises(NotFound):
       hc_assert_that(self._mock_result, matcher)
     self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.call_count)
+
+  def test_bigquery_matcher_query_error_checksum(self, mock_bigquery):
+    empty_query_result = []
+
+    mock_query = mock_bigquery.return_value.query
+    mock_query.return_value.result.return_value = empty_query_result
+
+    matcher = bq_verifier.BigqueryMatcher(
+        'mock_project',
+        'mock_query',
+        '59f9d6bdee30d67ea73b8aded121c3a0280f9cd8',
+    )
+    with self.assertRaisesRegex(AssertionError, r'Expected checksum'):
+      hc_assert_that(self._mock_result, matcher)
+    self.assertEqual(1, mock_query.call_count)
 
 
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
@@ -122,24 +157,20 @@ class BigqueryTableMatcherTest(unittest.TestCase):
     self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.call_count)
 
 
-@pytest.mark.no_xdist  # xdist somehow makes the test do real requests.
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
-@mock.patch.object(
-    bq_verifier.BigqueryFullResultStreamingMatcher, '_query_with_retry')
-class BigqueryFullResultStreamingMatcher(unittest.TestCase):
+@mock.patch.object(bigquery, 'Client')
+class BigqueryFullResultStreamingMatcherTest(unittest.TestCase):
   def setUp(self):
     self.timeout = 0.01
 
-  def test__get_query_result_timeout(self, mock__query_with_retry):
-    mock__query_with_retry.side_effect = lambda: []
+  def test__get_query_result_timeout(self, mock_bigquery):
+    mock_query = mock_bigquery.return_value.query
+    mock_query.return_value.result.return_value = []
+
     matcher = bq_verifier.BigqueryFullResultStreamingMatcher(
         'some-project', 'some-query', [1, 2, 3], timeout=self.timeout)
-    if sys.version_info >= (3, ):
-      with self.assertRaises(TimeoutError):  # noqa: F821
-        matcher._get_query_result()
-    else:
-      with self.assertRaises(RuntimeError):
-        matcher._get_query_result()
+    with self.assertRaises(TimeoutError):  # noqa: F821
+      matcher._get_query_result()
 
 
 if __name__ == '__main__':

@@ -20,22 +20,28 @@ A connector for reading from and writing to Google Cloud Datastore.
 
 This module uses the newer google-cloud-datastore client package. Its API was
 different enough to require extensive changes to this and associated modules.
+
+**Updates to the I/O connector code**
+
+For any significant updates to this I/O connector, please consider involving
+corresponding code reviewers mentioned in
+https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import time
-from builtins import round
 
 from apache_beam import typehints
+from apache_beam.internal.metrics.metric import ServiceCallMetric
+from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.datastore.v1new import helper
 from apache_beam.io.gcp.datastore.v1new import query_splitter
 from apache_beam.io.gcp.datastore.v1new import types
 from apache_beam.io.gcp.datastore.v1new import util
 from apache_beam.io.gcp.datastore.v1new.adaptive_throttler import AdaptiveThrottler
+from apache_beam.io.gcp.datastore.v1new.rampup_throttling_fn import RampupThrottlingFn
+from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.metric import Metrics
 from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
@@ -43,6 +49,14 @@ from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Reshuffle
 from apache_beam.utils import retry
+
+# Protect against environments where datastore library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py.exceptions import HttpError
+  from google.api_core.exceptions import ClientError, GoogleAPICallError
+except ImportError:
+  pass
 
 __all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
@@ -106,7 +120,7 @@ class ReadFromDatastore(PTransform):
         used to fetch entities.
       num_splits: (:class:`int`) (optional) Number of splits for the query.
     """
-    super(ReadFromDatastore, self).__init__()
+    super().__init__()
 
     if not query.project:
       raise ValueError("query.project cannot be empty")
@@ -160,7 +174,7 @@ class ReadFromDatastore(PTransform):
   class _SplitQueryFn(DoFn):
     """A `DoFn` that splits a given query into multiple sub-queries."""
     def __init__(self, num_splits):
-      super(ReadFromDatastore._SplitQueryFn, self).__init__()
+      super().__init__()
       self._num_splits = num_splits
 
     def process(self, query, *args, **kwargs):
@@ -268,10 +282,35 @@ class ReadFromDatastore(PTransform):
   class _QueryFn(DoFn):
     """A DoFn that fetches entities from Cloud Datastore, for a given query."""
     def process(self, query, *unused_args, **unused_kwargs):
+      if query.namespace is None:
+        query.namespace = ''
       _client = helper.get_client(query.project, query.namespace)
       client_query = query._to_client_query(_client)
-      for client_entity in client_query.fetch(query.limit):
-        yield types.Entity.from_client_entity(client_entity)
+      # Create request count metric
+      resource = resource_identifiers.DatastoreNamespace(
+          query.project, query.namespace)
+      labels = {
+          monitoring_infos.SERVICE_LABEL: 'Datastore',
+          monitoring_infos.METHOD_LABEL: 'BatchDatastoreRead',
+          monitoring_infos.RESOURCE_LABEL: resource,
+          monitoring_infos.DATASTORE_NAMESPACE_LABEL: query.namespace,
+          monitoring_infos.DATASTORE_PROJECT_ID_LABEL: query.project,
+          monitoring_infos.STATUS_LABEL: 'ok'
+      }
+      service_call_metric = ServiceCallMetric(
+          request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+          base_labels=labels)
+      try:
+        for client_entity in client_query.fetch(query.limit):
+          yield types.Entity.from_client_entity(client_entity)
+        service_call_metric.call('ok')
+      except (ClientError, GoogleAPICallError) as e:
+        # e.code.value contains the numeric http status code.
+        service_call_metric.call(e.code.value)
+        raise
+      except HttpError as e:
+        service_call_metric.call(e)
+        raise
 
 
 class _Mutate(PTransform):
@@ -280,15 +319,33 @@ class _Mutate(PTransform):
   Only idempotent Datastore mutation operations (upsert and delete) are
   supported, as the commits are retried when failures occur.
   """
-  def __init__(self, mutate_fn):
+
+  # Default hint for the expected number of workers in the ramp-up throttling
+  # step for write or delete operations.
+  _DEFAULT_HINT_NUM_WORKERS = 500
+
+  def __init__(
+      self,
+      mutate_fn,
+      throttle_rampup=True,
+      hint_num_workers=_DEFAULT_HINT_NUM_WORKERS):
     """Initializes a Mutate transform.
 
      Args:
        mutate_fn: Instance of `DatastoreMutateFn` to use.
+       throttle_rampup: Whether to enforce a gradual ramp-up.
+       hint_num_workers: A hint for the expected number of workers, used to
+                         estimate appropriate limits during ramp-up throttling.
      """
     self._mutate_fn = mutate_fn
+    self._throttle_rampup = throttle_rampup
+    self._hint_num_workers = hint_num_workers
 
   def expand(self, pcoll):
+    if self._throttle_rampup:
+      throttling_fn = RampupThrottlingFn(self._hint_num_workers)
+      pcoll = (
+          pcoll | 'Enforce throttling during ramp-up' >> ParDo(throttling_fn))
     return pcoll | 'Write Batch to Datastore' >> ParDo(self._mutate_fn)
 
   class DatastoreMutateFn(DoFn):
@@ -380,17 +437,39 @@ class _Mutate(PTransform):
         for element in self._batch_elements:
           self.add_to_batch(element)
 
+      # Create request count metric
+      resource = resource_identifiers.DatastoreNamespace(self._project, "")
+      labels = {
+          monitoring_infos.SERVICE_LABEL: 'Datastore',
+          monitoring_infos.METHOD_LABEL: 'BatchDatastoreWrite',
+          monitoring_infos.RESOURCE_LABEL: resource,
+          monitoring_infos.DATASTORE_NAMESPACE_LABEL: "",
+          monitoring_infos.DATASTORE_PROJECT_ID_LABEL: self._project,
+          monitoring_infos.STATUS_LABEL: 'ok'
+      }
+
+      service_call_metric = ServiceCallMetric(
+          request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+          base_labels=labels)
+
       try:
         start_time = time.time()
         self._batch.commit()
         end_time = time.time()
+        service_call_metric.call('ok')
 
         rpc_stats_callback(successes=1)
         throttler.successful_request(start_time * 1000)
         commit_time_ms = int((end_time - start_time) * 1000)
         return commit_time_ms
-      except Exception:
+      except (ClientError, GoogleAPICallError) as e:
         self._batch = None
+        # e.code.value contains the numeric http status code.
+        service_call_metric.call(e.code.value)
+        rpc_stats_callback(errors=1)
+        raise
+      except HttpError as e:
+        service_call_metric.call(e)
         rpc_stats_callback(errors=1)
         raise
 
@@ -444,14 +523,21 @@ class WriteToDatastore(_Mutate):
   property key is empty then it is filled with the project ID passed to this
   transform.
   """
-  def __init__(self, project):
+  def __init__(
+      self,
+      project,
+      throttle_rampup=True,
+      hint_num_workers=_Mutate._DEFAULT_HINT_NUM_WORKERS):
     """Initialize the `WriteToDatastore` transform.
 
     Args:
       project: (:class:`str`) The ID of the project to write entities to.
+      throttle_rampup: Whether to enforce a gradual ramp-up.
+      hint_num_workers: A hint for the expected number of workers, used to
+                        estimate appropriate limits during ramp-up throttling.
     """
     mutate_fn = WriteToDatastore._DatastoreWriteFn(project)
-    super(WriteToDatastore, self).__init__(mutate_fn)
+    super().__init__(mutate_fn, throttle_rampup, hint_num_workers)
 
   class _DatastoreWriteFn(_Mutate.DatastoreMutateFn):
     def element_to_client_batch_item(self, element):
@@ -489,15 +575,22 @@ class DeleteFromDatastore(_Mutate):
   project ID passed to this transform. If ``project`` field in key is empty then
   it is filled with the project ID passed to this transform.
   """
-  def __init__(self, project):
+  def __init__(
+      self,
+      project,
+      throttle_rampup=True,
+      hint_num_workers=_Mutate._DEFAULT_HINT_NUM_WORKERS):
     """Initialize the `DeleteFromDatastore` transform.
 
     Args:
       project: (:class:`str`) The ID of the project from which the entities will
         be deleted.
+      throttle_rampup: Whether to enforce a gradual ramp-up.
+      hint_num_workers: A hint for the expected number of workers, used to
+                        estimate appropriate limits during ramp-up throttling.
     """
     mutate_fn = DeleteFromDatastore._DatastoreDeleteFn(project)
-    super(DeleteFromDatastore, self).__init__(mutate_fn)
+    super().__init__(mutate_fn, throttle_rampup, hint_num_workers)
 
   class _DatastoreDeleteFn(_Mutate.DatastoreMutateFn):
     def element_to_client_batch_item(self, element):

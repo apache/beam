@@ -29,6 +29,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type of elements returned by this iterator
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class PeekingReiterator<T> implements Reiterator<T> {
   private @Nullable T nextElement;
   private boolean nextElementComputed;

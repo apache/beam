@@ -36,7 +36,9 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.DateTime;
@@ -156,6 +158,14 @@ public class SchemaUtilTest {
   @Test
   public void testBeamRowMapperPrimitiveTypes() throws Exception {
     ResultSet mockResultSet = mock(ResultSet.class);
+    AtomicBoolean isNull = new AtomicBoolean(false);
+    when(mockResultSet.wasNull())
+        .thenAnswer(
+            x -> {
+              boolean val = isNull.get();
+              isNull.set(false);
+              return val;
+            });
     when(mockResultSet.getLong(eq(1))).thenReturn(42L);
     when(mockResultSet.getBytes(eq(2))).thenReturn("binary".getBytes(Charset.forName("UTF-8")));
     when(mockResultSet.getBoolean(eq(3))).thenReturn(true);
@@ -174,6 +184,18 @@ public class SchemaUtilTest {
     when(mockResultSet.getShort(eq(15))).thenReturn((short) 4);
     when(mockResultSet.getBytes(eq(16))).thenReturn("varbinary".getBytes(Charset.forName("UTF-8")));
     when(mockResultSet.getString(eq(17))).thenReturn("varchar");
+    when(mockResultSet.getBoolean(eq(18)))
+        .thenAnswer(
+            x -> {
+              isNull.set(true);
+              return false;
+            });
+    when(mockResultSet.getInt(eq(19)))
+        .thenAnswer(
+            x -> {
+              isNull.set(true);
+              return 0;
+            });
 
     Schema wantSchema =
         Schema.builder()
@@ -194,6 +216,8 @@ public class SchemaUtilTest {
             .addField("tinyint_col", Schema.FieldType.INT16)
             .addField("varbinary_col", Schema.FieldType.BYTES)
             .addField("varchar_col", Schema.FieldType.STRING)
+            .addField("nullable_boolean_col", Schema.FieldType.BOOLEAN.withNullable(true))
+            .addField("another_int_col", Schema.FieldType.INT32.withNullable(true))
             .build();
     Row wantRow =
         Row.withSchema(wantSchema)
@@ -214,13 +238,74 @@ public class SchemaUtilTest {
                 (short) 8,
                 (short) 4,
                 "varbinary".getBytes(Charset.forName("UTF-8")),
-                "varchar")
+                "varchar",
+                null,
+                null)
             .build();
 
     SchemaUtil.BeamRowMapper beamRowMapper = SchemaUtil.BeamRowMapper.of(wantSchema);
     Row haveRow = beamRowMapper.mapRow(mockResultSet);
 
     assertEquals(wantRow, haveRow);
+  }
+
+  @Test
+  public void testJdbcLogicalTypesMapValidAvroSchemaIT() {
+    String expectedAvroSchema =
+        "{"
+            + " \"type\": \"record\","
+            + " \"name\": \"topLevelRecord\","
+            + " \"fields\": [{"
+            + "  \"name\": \"longvarchar_col\","
+            + "  \"type\": {"
+            + "   \"type\": \"string\","
+            + "   \"logicalType\": \"varchar\","
+            + "   \"maxLength\": 50"
+            + "  }"
+            + " }, {"
+            + "  \"name\": \"varchar_col\","
+            + "  \"type\": {"
+            + "   \"type\": \"string\","
+            + "   \"logicalType\": \"varchar\","
+            + "   \"maxLength\": 15"
+            + "  }"
+            + " }, {"
+            + "  \"name\": \"fixedlength_char_col\","
+            + "  \"type\": {"
+            + "   \"type\": \"string\","
+            + "   \"logicalType\": \"char\","
+            + "   \"maxLength\": 25"
+            + "  }"
+            + " }, {"
+            + "  \"name\": \"date_col\","
+            + "  \"type\": {"
+            + "   \"type\": \"int\","
+            + "   \"logicalType\": \"date\""
+            + "  }"
+            + " }, {"
+            + "  \"name\": \"time_col\","
+            + "  \"type\": {"
+            + "   \"type\": \"int\","
+            + "   \"logicalType\": \"time-millis\""
+            + "  }"
+            + " }]"
+            + "}";
+
+    Schema jdbcRowSchema =
+        Schema.builder()
+            .addField(
+                "longvarchar_col", LogicalTypes.variableLengthString(JDBCType.LONGVARCHAR, 50))
+            .addField("varchar_col", LogicalTypes.variableLengthString(JDBCType.VARCHAR, 15))
+            .addField("fixedlength_char_col", LogicalTypes.fixedLengthString(JDBCType.CHAR, 25))
+            .addField("date_col", LogicalTypes.JDBC_DATE_TYPE)
+            .addField("time_col", LogicalTypes.JDBC_TIME_TYPE)
+            .build();
+
+    System.out.println(AvroUtils.toAvroSchema(jdbcRowSchema));
+
+    assertEquals(
+        new org.apache.avro.Schema.Parser().parse(expectedAvroSchema),
+        AvroUtils.toAvroSchema(jdbcRowSchema));
   }
 
   @Test
@@ -287,6 +372,7 @@ public class SchemaUtilTest {
       return new JdbcFieldInfo(columnLabel, columnType, columnTypeName, nullable, 0, 0);
     }
 
+    @SuppressWarnings("unused")
     private static JdbcFieldInfo of(String columnLabel, int columnType, boolean nullable) {
       return new JdbcFieldInfo(columnLabel, columnType, null, nullable, 0, 0);
     }

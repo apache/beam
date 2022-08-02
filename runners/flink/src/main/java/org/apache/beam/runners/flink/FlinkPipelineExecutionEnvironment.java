@@ -17,17 +17,16 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +38,9 @@ import org.slf4j.LoggerFactory;
  * FlinkStreamingPipelineTranslator}) to transform the Beam job into a Flink one, and executes the
  * (translated) job.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class FlinkPipelineExecutionEnvironment {
 
   private static final Logger LOG =
@@ -95,18 +97,14 @@ class FlinkPipelineExecutionEnvironment {
 
     FlinkPipelineTranslator translator;
     if (options.isStreaming()) {
-      this.flinkStreamEnv =
-          FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-              options, options.getFilesToStage());
+      this.flinkStreamEnv = FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
       if (hasUnboundedOutput && !flinkStreamEnv.getCheckpointConfig().isCheckpointingEnabled()) {
         LOG.warn(
             "UnboundedSources present which rely on checkpointing, but checkpointing is disabled.");
       }
       translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options);
     } else {
-      this.flinkBatchEnv =
-          FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-              options, options.getFilesToStage());
+      this.flinkBatchEnv = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
     }
 
@@ -124,21 +122,7 @@ class FlinkPipelineExecutionEnvironment {
    */
   private static void prepareFilesToStageForRemoteClusterExecution(FlinkPipelineOptions options) {
     if (!options.getFlinkMaster().matches("\\[auto\\]|\\[collection\\]|\\[local\\]")) {
-      if (options.getFilesToStage() == null) {
-        options.setFilesToStage(
-            detectClassPathResourcesToStage(FlinkRunner.class.getClassLoader(), options));
-        LOG.info(
-            "PipelineOptions.filesToStage was not specified. "
-                + "Defaulting to files from the classpath: will stage {} files. "
-                + "Enable logging at DEBUG level to see which files will be staged.",
-            options.getFilesToStage().size());
-        LOG.debug("Classpath elements: {}", options.getFilesToStage());
-      }
-      options.setFilesToStage(
-          PipelineResources.prepareFilesForStaging(
-              options.getFilesToStage(),
-              MoreObjects.firstNonNull(
-                  options.getTempLocation(), System.getProperty("java.io.tmpdir"))));
+      PipelineResources.prepareFilesForStaging(options);
     }
   }
 
@@ -162,7 +146,11 @@ class FlinkPipelineExecutionEnvironment {
   @VisibleForTesting
   JobGraph getJobGraph(Pipeline p) {
     translate(p);
-    return flinkStreamEnv.getStreamGraph().getJobGraph();
+    StreamGraph streamGraph = flinkStreamEnv.getStreamGraph();
+    // Normally the job name is set when we execute the job, and JobGraph is immutable, so we need
+    // to set the job name here.
+    streamGraph.setJobName(p.getOptions().getJobName());
+    return streamGraph.getJobGraph();
   }
 
   @VisibleForTesting

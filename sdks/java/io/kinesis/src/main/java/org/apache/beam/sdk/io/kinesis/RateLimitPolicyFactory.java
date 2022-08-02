@@ -17,10 +17,18 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.function.Supplier;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implement this interface to create a {@code RateLimitPolicy}. Used to create a rate limiter for
@@ -34,6 +42,16 @@ public interface RateLimitPolicyFactory extends Serializable {
 
   static RateLimitPolicyFactory withoutLimiter() {
     return () -> new RateLimitPolicy() {};
+  }
+
+  static RateLimitPolicyFactory withDefaultRateLimiter() {
+    return withDefaultRateLimiter(
+        Duration.millis(100), Duration.millis(500), Duration.standardSeconds(1));
+  }
+
+  static RateLimitPolicyFactory withDefaultRateLimiter(
+      Duration emptySuccessBaseDelay, Duration throttledBaseDelay, Duration maxDelay) {
+    return () -> new DefaultRateLimiter(emptySuccessBaseDelay, throttledBaseDelay, maxDelay);
   }
 
   static RateLimitPolicyFactory withFixedDelay() {
@@ -65,6 +83,64 @@ public interface RateLimitPolicyFactory extends Serializable {
     @Override
     public void onSuccess(List<KinesisRecord> records) throws InterruptedException {
       Thread.sleep(delay.get().getMillis());
+    }
+  }
+
+  /**
+   * Default rate limiter that throttles reading from a shard using an exponential backoff if the
+   * response is empty or if the consumer is throttled by AWS.
+   */
+  class DefaultRateLimiter implements RateLimitPolicy {
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultRateLimiter.class);
+    private final Sleeper sleeper;
+    private final BackOff throttled;
+    private final BackOff emptySuccess;
+
+    @VisibleForTesting
+    DefaultRateLimiter(BackOff emptySuccess, BackOff throttled, Sleeper sleeper) {
+      this.emptySuccess = emptySuccess;
+      this.throttled = throttled;
+      this.sleeper = sleeper;
+    }
+
+    public DefaultRateLimiter(BackOff emptySuccess, BackOff throttled) {
+      this(emptySuccess, throttled, Sleeper.DEFAULT);
+    }
+
+    public DefaultRateLimiter(
+        Duration emptySuccessBaseDelay, Duration throttledBaseDelay, Duration maxDelay) {
+      this(
+          FluentBackoff.DEFAULT
+              .withInitialBackoff(emptySuccessBaseDelay)
+              .withMaxBackoff(maxDelay)
+              .backoff(),
+          FluentBackoff.DEFAULT
+              .withInitialBackoff(throttledBaseDelay)
+              .withMaxBackoff(maxDelay)
+              .backoff());
+    }
+
+    @Override
+    public void onSuccess(List<KinesisRecord> records) throws InterruptedException {
+      try {
+        if (records.isEmpty()) {
+          BackOffUtils.next(sleeper, emptySuccess);
+        } else {
+          emptySuccess.reset();
+        }
+        throttled.reset();
+      } catch (IOException e) {
+        LOG.warn("Error applying onSuccess rate limit policy", e);
+      }
+    }
+
+    @Override
+    public void onThrottle(KinesisClientThrottledException e) throws InterruptedException {
+      try {
+        BackOffUtils.next(sleeper, throttled);
+      } catch (IOException ioe) {
+        LOG.warn("Error applying onThrottle rate limit policy", e);
+      }
     }
   }
 }

@@ -119,9 +119,9 @@ That will create a markdown file `/www/site/content/en/blog/my-new-blogpost.md` 
 ---
 title: "My New Blogpost"
 date: "2020-04-20T14:02:57+02:00"
-categories: 
+categories:
   - blog
-authors: 
+authors:
   - "Your Name"
 ---
 ```
@@ -184,6 +184,33 @@ To have a programming language tab switcher, for instance of java, python and go
 
 The purpose is to switch languages of codeblocks.
 
+You can also provide language tabs without the language switcher widget. To do so, place `{{< highlight >}}` shortcodes next to each other, like this:
+
+```
+{{< highlight java >}}
+// Java code here...
+{{< /highlight >}}
+{{< highlight py >}}
+# Python code here...
+{{< /highlight >}}
+```
+
+Note that the `{{< highlight >}}` blocks should be directly adjacent to each other, without an extra return between them.
+
+Do NOT do this:
+
+```
+{{< highlight java >}}
+// Java code here...
+{{< /highlight >}}
+
+{{< highlight py >}}
+# Python code here...
+{{< /highlight >}}
+```
+
+In some circumstances, the Hugo markdown parser will generate a pair of empty `<p>` tags for the extra return, and that breaks the formatting of the code tabs. TODO: Fix this issue: [Issue 21030](https://github.com/apache/beam/issues/21030).
+
 ### Code highlighting
 
 To be consistent, please prefer to use `{{< highlight >}}` syntax instead of ` ``` `, for code-blocks or syntax-highlighters.
@@ -219,6 +246,7 @@ Render:
 ```
 
 The purpose of adding classes or programming languages (java, py or go) in code highlighting is to activate the language switching feature.
+If you want highlighting for a code block that should *not* be affected by language switching - that is, if you want to a highlight a code block, and you don't want the block to go away when a different language is selected - use ` ``` `. For example: ` ```java // Java code here...``` `.
 
 ### Adding class to markdown text
 
@@ -346,7 +374,7 @@ In order to add a new language into Apache Beam website, please follow this guid
 For more details of syntax, please refer to the [Hugo documentation](https://gohugo.io/content-management/multilingual/). Below is a step-by-step instructions of translating our website to Polish as an example.
 
 1. Configuring a new language
-  
+
 Firstly, we add the following params to our config file `/www/site/config.toml`.
 
 ```

@@ -33,6 +33,10 @@ import org.apache.beam.sdk.values.PValue;
 import org.slf4j.LoggerFactory;
 
 /** Twister2PipelineExecutionEnvironment. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Twister2PipelineExecutionEnvironment {
   private static final Logger LOG =
       Logger.getLogger(Twister2PipelineExecutionEnvironment.class.getName());
@@ -61,7 +65,7 @@ public class Twister2PipelineExecutionEnvironment {
     Twister2PipelineTranslator translator;
     if (options.isStreaming()) {
       twister2TranslationContext = new Twister2StreamTranslationContext(options);
-      translator = new Twister2StreamPipelineTranslator(options, twister2TranslationContext);
+      translator = new Twister2StreamPipelineTranslator();
     } else {
       twister2TranslationContext = new Twister2BatchTranslationContext(options);
       translator =

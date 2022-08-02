@@ -19,9 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import sys
+import threading
 import types
 import unittest
 
@@ -88,6 +87,12 @@ class PicklerTest(unittest.TestCase):
     self.assertEqual(
         'RecursiveClass:abc',
         loads(dumps(module_test.RecursiveClass('abc').datum)))
+
+  def test_pickle_rlock(self):
+    rlock_instance = threading.RLock()
+    rlock_type = type(rlock_instance)
+
+    self.assertIsInstance(loads(dumps(rlock_instance)), rlock_type)
 
   @unittest.skipIf(NO_MAPPINGPROXYTYPE, 'test if MappingProxyType introduced')
   def test_dump_and_load_mapping_proxy(self):

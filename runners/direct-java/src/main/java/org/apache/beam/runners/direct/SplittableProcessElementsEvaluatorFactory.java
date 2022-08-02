@@ -20,7 +20,6 @@ package org.apache.beam.runners.direct;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -29,6 +28,7 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ProcessFnRunner;
+import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -47,6 +47,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class SplittableProcessElementsEvaluatorFactory<
         InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
     implements TransformEvaluatorFactory {
@@ -77,7 +80,7 @@ class SplittableProcessElementsEvaluatorFactory<
                         (ProcessElements<
                                 InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>)
                             application.getTransform();
-                return DoFnLifecycleManager.of(transform.newProcessFn(transform.getFn()));
+                return DoFnLifecycleManager.of(transform.newProcessFn(transform.getFn()), options);
               }
             },
             options);
@@ -130,7 +133,7 @@ class SplittableProcessElementsEvaluatorFactory<
                 application.getTransform().getMainOutputTag(),
                 application.getTransform().getAdditionalOutputTags().getAll(),
                 DoFnSchemaInformation.create(),
-                Collections.emptyMap());
+                application.getTransform().getSideInputMapping());
     final ParDoEvaluator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> pde =
         evaluator.getParDoEvaluator();
     final ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT> processFn =
@@ -165,17 +168,21 @@ class SplittableProcessElementsEvaluatorFactory<
             outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
           }
         };
+    SideInputReader sideInputReader =
+        evaluationContext.createSideInputReader(transform.getSideInputs());
+    processFn.setSideInputReader(sideInputReader);
     processFn.setProcessElementInvoker(
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             transform.getFn(),
             options,
             outputWindowedValue,
-            evaluationContext.createSideInputReader(transform.getSideInputs()),
+            sideInputReader,
             ses,
             // Setting small values here to stimulate frequent checkpointing and better exercise
             // splittable DoFn's in that respect.
             100,
-            Duration.standardSeconds(1)));
+            Duration.standardSeconds(1),
+            stepContext::bundleFinalizer));
 
     return evaluator;
   }

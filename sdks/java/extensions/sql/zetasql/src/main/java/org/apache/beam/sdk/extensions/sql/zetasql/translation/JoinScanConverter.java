@@ -21,13 +21,12 @@ import com.google.zetasql.resolvedast.ResolvedColumn;
 import com.google.zetasql.resolvedast.ResolvedJoinScanEnums.JoinType;
 import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedJoinScan;
-import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedWithRefScan;
 import java.util.List;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRelType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalJoin;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.JoinRelType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalJoin;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -52,8 +51,7 @@ class JoinScanConverter extends RelConverter<ResolvedJoinScan> {
 
   @Override
   public boolean canConvert(ResolvedJoinScan zetaNode) {
-    return !(zetaNode.getLeftScan() instanceof ResolvedWithRefScan)
-        && !(zetaNode.getRightScan() instanceof ResolvedWithRefScan);
+    return true;
   }
 
   @Override
@@ -94,6 +92,7 @@ class JoinScanConverter extends RelConverter<ResolvedJoinScan> {
     return LogicalJoin.create(
         convertedLeftInput,
         convertedRightInput,
+        ImmutableList.of(),
         condition,
         ImmutableSet.of(),
         convertResolvedJoinType(zetaNode.getJoinType()));

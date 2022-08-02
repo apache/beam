@@ -31,6 +31,9 @@ import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
+import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
+import org.apache.beam.sdk.fn.server.InProcessServerFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -92,11 +95,9 @@ public class EmbeddedSdkHarness extends ExternalResource implements TestRule {
                 clientPool.getSource())
             // The EmbeddedEnvironmentFactory can only create Java environments, regardless of the
             // Environment that's passed to it.
-            .createEnvironment(Environment.getDefaultInstance(), "unusedWorkerId")
+            .createEnvironment(Environment.getDefaultInstance(), "embedded_worker")
             .getInstructionRequestHandler();
 
-    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Worker ids cannot currently be set by
-    // the harness. All clients have the implicit empty id for now.
     client = SdkHarnessClient.usingFnApiClient(requestHandler, dataServer.getService());
   }
 

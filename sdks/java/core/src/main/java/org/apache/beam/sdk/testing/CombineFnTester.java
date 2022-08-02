@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,9 +31,12 @@ import org.hamcrest.Matcher;
  * Utilities for testing {@link CombineFn CombineFns}. Ensures that the {@link CombineFn} gives
  * correct results across various permutations and shardings of the input.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CombineFnTester {
   /**
-   * Tests that the the {@link CombineFn}, when applied to the provided input, produces the provided
+   * Tests that the {@link CombineFn}, when applied to the provided input, produces the provided
    * output. Tests a variety of permutations of the input.
    */
   public static <InputT, AccumT, OutputT> void testCombineFn(

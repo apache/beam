@@ -36,6 +36,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * automatically loaded by CLI or other cases when {@link JdbcDriver} is used with default
  * connection parameters.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public interface TableProvider {
   /** Gets the table type this provider handles. */
   String getTableType();

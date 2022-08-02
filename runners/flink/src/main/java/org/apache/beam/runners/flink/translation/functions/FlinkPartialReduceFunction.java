@@ -23,7 +23,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -33,8 +33,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 /**
- * This is is the first step for executing a {@link org.apache.beam.sdk.transforms.Combine.PerKey}
- * on Flink. The second part is {@link FlinkReduceFunction}. This function performs a local combine
+ * This is the first step for executing a {@link org.apache.beam.sdk.transforms.Combine.PerKey} on
+ * Flink. The second part is {@link FlinkReduceFunction}. This function performs a local combine
  * step before shuffling while the latter does the final combination after a shuffle.
  *
  * <p>The input to {@link #combine(Iterable, Collector)} are elements of the same key but for
@@ -98,11 +98,10 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
     if (groupedByWindow) {
       reduceRunner = new SingleWindowFlinkCombineRunner<>();
     } else {
-      if (!windowingStrategy.getWindowFn().isNonMerging()
-          && !windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
-        reduceRunner = new HashingFlinkCombineRunner<>();
-      } else {
+      if (windowingStrategy.needsMerge() && windowingStrategy.getWindowFn() instanceof Sessions) {
         reduceRunner = new SortingFlinkCombineRunner<>();
+      } else {
+        reduceRunner = new HashingFlinkCombineRunner<>();
       }
     }
 

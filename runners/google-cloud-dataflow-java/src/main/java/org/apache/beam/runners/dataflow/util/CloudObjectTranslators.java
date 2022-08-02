@@ -33,6 +33,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.join.CoGbkResult.CoGbkResultCoder;
 import org.apache.beam.sdk.transforms.join.CoGbkResultSchema;
@@ -48,6 +49,10 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Utilities for creating {@link CloudObjectTranslator} instances for {@link Coder Coders}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class CloudObjectTranslators {
   private CloudObjectTranslators() {}
 
@@ -233,6 +238,34 @@ class CloudObjectTranslators {
       @Override
       public String cloudObjectClassName() {
         return CloudObjectKinds.KIND_INTERVAL_WINDOW;
+      }
+    };
+  }
+
+  static CloudObjectTranslator<TimestampPrefixingWindowCoder> customWindow() {
+    return new CloudObjectTranslator<TimestampPrefixingWindowCoder>() {
+      @Override
+      public CloudObject toCloudObject(
+          TimestampPrefixingWindowCoder target, SdkComponents sdkComponents) {
+        CloudObject result = CloudObject.forClassName(CloudObjectKinds.KIND_CUSTOM_WINDOW);
+        return addComponents(result, target.getComponents(), sdkComponents);
+      }
+
+      @Override
+      public TimestampPrefixingWindowCoder fromCloudObject(CloudObject cloudObject) {
+        List<Coder<?>> components = getComponents(cloudObject);
+        checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
+        return TimestampPrefixingWindowCoder.of((Coder<? extends BoundedWindow>) components.get(0));
+      }
+
+      @Override
+      public Class<? extends TimestampPrefixingWindowCoder> getSupportedClass() {
+        return TimestampPrefixingWindowCoder.class;
+      }
+
+      @Override
+      public String cloudObjectClassName() {
+        return CloudObjectKinds.KIND_CUSTOM_WINDOW;
       }
     };
   }

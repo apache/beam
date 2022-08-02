@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -41,6 +42,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link SchemaCoder} is used as the coder for types that have schemas registered. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SchemaCoder<T> extends CustomCoder<T> {
   protected final Schema schema;
   private final TypeDescriptor<T> typeDescriptor;
@@ -84,6 +88,11 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   /** Returns a {@link SchemaCoder} for {@link Row} instances with the given {@code schema}. */
   public static SchemaCoder<Row> of(Schema schema) {
     return RowCoder.of(schema);
+  }
+
+  /** Override encoding positions for the given schema. */
+  public static void overrideEncodingPositions(UUID uuid, Map<String, Integer> encodingPositions) {
+    RowCoderGenerator.overrideEncodingPositions(uuid, encodingPositions);
   }
 
   /** Returns the schema associated with this type. */
@@ -208,30 +217,6 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   @Override
   public int hashCode() {
     return Objects.hash(schema, typeDescriptor, toRowFunction, fromRowFunction);
-  }
-
-  private static RowIdentity identity() {
-    return new RowIdentity();
-  }
-
-  private static class RowIdentity implements SerializableFunction<Row, Row> {
-    @Override
-    public Row apply(Row input) {
-      return input;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(getClass());
-    }
-
-    @Override
-    public boolean equals(@Nullable Object o) {
-      if (this == o) {
-        return true;
-      }
-      return o != null && getClass() == o.getClass();
-    }
   }
 
   @Override

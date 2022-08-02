@@ -9,10 +9,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
- 
+
 - id: blog-title
-  translation: "Apache Beam Blog"
+  translation: "Blog"
 - id: blog-subtitle
   translation: "This is the blog for the Apache Beam project. This blog contains news and updates for the project."
 - id: blog-readmore
   translation: "Read more"
+- id: blog-loadmore
+  translation: "Load more"

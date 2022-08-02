@@ -32,6 +32,9 @@ import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 
 /** ByteToWindow function. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ByteToWindowFunctionPrimitive<K, V>
     implements MapFunc<WindowedValue<KV<K, V>>, Tuple<byte[], byte[]>> {
   private transient Coder<K> keyCoder;

@@ -27,6 +27,9 @@ import org.slf4j.LoggerFactory;
  * TrivialNativeTransformExpander is used to replace transforms with known URNs with their native
  * equivalent.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class TrivialNativeTransformExpander {
   private static final Logger LOG = LoggerFactory.getLogger(TrivialNativeTransformExpander.class);
 
@@ -52,7 +55,7 @@ public class TrivialNativeTransformExpander {
           trimmedPipeline.getComponents().getTransformsOrDefault(ptransformId, null);
       if (currentTransform != null && knownUrns.contains(currentTransform.getSpec().getUrn())) {
         LOG.debug(
-            "Removing descendants and environment of known native PTransform {}" + ptransformId);
+            "Removing descendants and environment of known native PTransform {}", ptransformId);
         removeDescendants(trimmedPipeline, ptransformId);
         trimmedPipeline
             .getComponentsBuilder()

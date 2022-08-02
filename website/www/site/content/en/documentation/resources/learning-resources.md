@@ -66,6 +66,7 @@ If you have additional material that you would like to see here, please let us k
 
 ### Machine Learning
 
+*   **[Machine Learning with Python using the RunInference API](/documentation/sdks/python-machine-learning/)** - Use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Follow the [RunInference API pipeline examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference) to do image classification, image segmentation, language modeling, and MNIST digit classification. See examples of [RunInference transforms](/documentation/transforms/python/elementwise/runinference/).
 *   **[Machine Learning Preprocessing and Prediction](https://cloud.google.com/dataflow/examples/molecules-walkthrough)** - Predict the molecular energy from data stored in the [Spatial Data File](https://en.wikipedia.org/wiki/Spatial_Data_File) (SDF) format. Train a [TensorFlow](https://www.tensorflow.org/) model with [tf.Transform](https://github.com/tensorflow/transform) for preprocessing in Python. This also shows how to create batch and streaming prediction pipelines in Apache Beam.
 *   **[Machine Learning Preprocessing](https://cloud.google.com/blog/products/ai-machine-learning/pre-processing-tensorflow-pipelines-tftransform-google-cloud)** - Find the optimal parameter settings for simulated physical machines like a bottle filler or cookie machine. The goal of each simulated machine is to have the same input/output of the actual machine, making it a "digital twin". This uses [tf.Transform](https://github.com/tensorflow/transform) for preprocessing.
 
@@ -75,6 +76,16 @@ If you have additional material that you would like to see here, please let us k
 *   **[Stateful Processing](https://beam.apache.org/blog/2017/02/13/stateful-processing.html)** - Learn how to access a persistent mutable state while processing input elements, this allows for _side effects_ in a `DoFn`. This can be used for arbitrary-but-consistent index assignment, if you want to assign a unique incrementing index to each incoming element where order doesn't matter.
 *   **[Timely and Stateful Processing](https://beam.apache.org/blog/2017/08/28/timely-processing.html)** - An example on how to do batched RPC calls. The call requests are stored in a mutable state as they are received. Once there are either enough requests or a certain time has passed, the batch of requests is triggered to be sent.
 *   **[Running External Libraries](https://cloud.google.com/blog/products/gcp/running-external-libraries-with-cloud-dataflow-for-grid-computing-workloads)** - Call an external library written in a language that does not have a native SDK in Apache Beam such as C++.
+
+## Books {#books}
+
+### Building Big Data Pipelines with Apache Beam
+
+**[Building Big Data Pipelines with Apache Beam](https://www.packtpub.com/product/building-big-data-pipelines-with-apache-beam/9781800564930)** by Jan Lukavský, Packt. (January 2022). A general description of the Apache Beam model including gradually built examples that help create solid understanding of the subject. In the first part the book explains concepts using Java SDK, then SQL DSL and Portability layer with focus on Python SDK. The last part of the book is dedicated to more advanced topics like IO connectors using Splittable DoFn and description of how a typical runner executes Pipeline.
+
+###  Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing
+
+**[Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing](https://learning.oreilly.com/library/view/streaming-systems/9781491983867/)** by Tyler Akidau, Slava Chernyak, Reuven Lax. (August 2018). Expanded from Tyler Akidau’s popular blog posts "Streaming 101" and "Streaming 102", this book takes you from an introductory level to a nuanced understanding of the what, where, when, and how of processing real-time data streams.
 
 ## Interactive Labs {#interactive-labs}
 
@@ -87,17 +98,16 @@ If you have additional material that you would like to see here, please let us k
 
 ### Python
 
-*   **[Python Qwik Start](https://qwiklabs.com/focuses/1100?locale=en&parent=catalog)** (30m) - Run a word count pipeline on the Dataflow runner.
-*   **[NDVI from Landsat Images](https://qwiklabs.com/focuses/1849?locale=en&parent=catalog)** (45m) - Process Landsat satellite data in a distributed environment to compute the [Normalized Difference Vegetation Index](https://en.wikipedia.org/wiki/Normalized_difference_vegetation_index) (NDVI).
+*   **[Python Qwik Start](https://www.qwiklabs.com/focuses/1098?parent=catalog)** (30m) - Run a word count pipeline on the Dataflow runner.
 *   **[Simulate historic flights](https://qwiklabs.com/focuses/1159?locale=en&parent=catalog)** (60m) - Simulate real-time historic internal flights in the United States and store the resulting simulated data in BigQuery.
 
 ## Beam Katas {#beam-katas}
 
 Beam Katas are interactive Beam coding exercises (i.e. [code katas](http://codekata.com/))
 that can help you to learn Apache Beam concepts and programming model hands-on.
-Built based on [JetBrains Educational Products](https://www.jetbrains.com/education/), Beam Katas 
-objective is to provide a series of structured hands-on learning experiences for learners 
-to understand about Apache Beam and its SDKs by solving exercises with gradually increasing 
+Built based on [JetBrains Educational Products](https://www.jetbrains.com/education/), Beam Katas
+objective is to provide a series of structured hands-on learning experiences for learners
+to understand about Apache Beam and its SDKs by solving exercises with gradually increasing
 complexity. Beam Katas are available for both Java and Python SDKs.
 
 ### Java
@@ -131,17 +141,23 @@ complexity. Beam Katas are available for both Java and Python SDKs.
 *   **[Snippets](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/cookbook)** - Commonly-used data analysis patterns such as how to use [BigQuery](https://cloud.google.com/bigquery), [Datastore](https://cloud.google.com/datastore/), coders, combiners, filters, custom PTransforms, etc.
 *   **[Complete Examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete)** - End-to-end example pipelines such as an auto complete, getting mobile gaming statistics, calculating the [Julia set](https://en.wikipedia.org/wiki/Julia_set), solving distributing optimization tasks, estimating PI, calculating the Term Frequency-Inverse Document Frequency ([TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf)), getting the top Wikipedia sessions, etc.
 
+### Beam Playground
+
+* [Beam Playground](https://play.beam.apache.org) is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
+    You can try the available Apache Beam examples at [Beam Playground](https://play.beam.apache.org).
+* Learn more about how to add an Apache Beam example/test/kata into Beam Playground catalog [here](https://beam.apache.org/get-started/try-beam-playground/#how-to-add-new-examples).
+
 ## API Reference {#api-reference}
 
 *   **[Java API Reference](https://beam.apache.org/documentation/sdks/javadoc/)** - Official API Reference for the Java SDK.
 *   **[Python API Reference](https://beam.apache.org/documentation/sdks/pydoc/)** - Official API Reference for the Python SDK.
-*   **[Go API Reference](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam)** - Official API Reference for the Go SDK.
+*   **[Go API Reference](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam)** - Official API Reference for the Go SDK.
 
 ## Feedback and Suggestions {#feedback-and-suggestions}
 
 We are open for feedback and suggestions, you can find different ways to reach out to the community in the [Contact Us](https://beam.apache.org/community/contact-us/) page.
 
-If you have a bug report or want to suggest a new feature, you can let us know by [submitting a new issue](https://issues.apache.org/jira/secure/CreateIssue!default.jspa).
+If you have a bug report or want to suggest a new feature, you can let us know by [submitting a new issue](https://github.com/apache/beam/issues/new/choose).
 
 ## How to Contribute {#how-to-contribute}
 

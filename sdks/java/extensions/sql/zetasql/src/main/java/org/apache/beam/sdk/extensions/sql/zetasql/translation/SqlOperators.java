@@ -17,42 +17,55 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
+import static org.apache.beam.sdk.extensions.sql.zetasql.BeamZetaSqlCatalog.ZETASQL_FUNCTION_GROUP_NAME;
+
+import com.google.zetasql.Value;
+import com.google.zetasql.io.grpc.Status;
+import com.google.zetasql.io.grpc.StatusRuntimeException;
+import com.google.zetasql.resolvedast.ResolvedNodes;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
+import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CountIf;
+import org.apache.beam.sdk.extensions.sql.impl.udaf.ArrayAgg;
 import org.apache.beam.sdk.extensions.sql.impl.udaf.StringAgg;
 import org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlException;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.BeamBuiltinMethods;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.CastFunctionImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactoryImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.AggregateFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.FunctionParameter;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ScalarFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlSyntax;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.FamilyOperandTypeChecker;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.InferTypes;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.OperandTypes;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlReturnTypeInference;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeFactoryImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeFamily;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Optionality;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Util;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFactoryImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.AggregateFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.FunctionParameter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ScalarFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlSyntax;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.ArraySqlType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.FamilyOperandTypeChecker;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.InferTypes;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.OperandTypes;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeFactoryImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeFamily;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Optionality;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Util;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
@@ -60,7 +73,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * A separate SqlOperators table for those functions that do not exist or not compatible with
  * Calcite. Most of functions within this class is copied from Calcite.
  */
-class SqlOperators {
+@Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+public class SqlOperators {
   public static final SqlOperator ZETASQL_TIMESTAMP_ADD =
       createZetaSqlFunction("timestamp_add", SqlTypeName.TIMESTAMP);
 
@@ -70,43 +87,52 @@ class SqlOperators {
   private static final RelDataType BIGINT = createSqlType(SqlTypeName.BIGINT, false);
   private static final RelDataType NULLABLE_BIGINT = createSqlType(SqlTypeName.BIGINT, true);
 
-  public static final SqlOperator STRING_AGG_STRING_FN =
+  public static final SqlOperator ARRAY_AGG_FN =
       createUdafOperator(
-          "string_agg",
-          x -> createTypeFactory().createSqlType(SqlTypeName.VARCHAR),
-          new UdafImpl<>(new StringAgg.StringAggString()));
+          "array_agg",
+          x -> new ArraySqlType(x.getOperandType(0), true),
+          new UdafImpl<>(new ArrayAgg.ArrayAggArray<>()));
 
   public static final SqlOperator START_WITHS =
-      createUdfOperator("STARTS_WITH", BeamBuiltinMethods.STARTS_WITH_METHOD);
+      createUdfOperator(
+          "STARTS_WITH", BeamBuiltinMethods.STARTS_WITH_METHOD, ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator CONCAT =
-      createUdfOperator("CONCAT", BeamBuiltinMethods.CONCAT_METHOD);
+      createUdfOperator("CONCAT", BeamBuiltinMethods.CONCAT_METHOD, ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator REPLACE =
-      createUdfOperator("REPLACE", BeamBuiltinMethods.REPLACE_METHOD);
+      createUdfOperator("REPLACE", BeamBuiltinMethods.REPLACE_METHOD, ZETASQL_FUNCTION_GROUP_NAME);
 
-  public static final SqlOperator TRIM = createUdfOperator("TRIM", BeamBuiltinMethods.TRIM_METHOD);
+  public static final SqlOperator TRIM =
+      createUdfOperator("TRIM", BeamBuiltinMethods.TRIM_METHOD, ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator LTRIM =
-      createUdfOperator("LTRIM", BeamBuiltinMethods.LTRIM_METHOD);
+      createUdfOperator("LTRIM", BeamBuiltinMethods.LTRIM_METHOD, ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator RTRIM =
-      createUdfOperator("RTRIM", BeamBuiltinMethods.RTRIM_METHOD);
+      createUdfOperator("RTRIM", BeamBuiltinMethods.RTRIM_METHOD, ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator SUBSTR =
-      createUdfOperator("SUBSTR", BeamBuiltinMethods.SUBSTR_METHOD);
+      createUdfOperator("SUBSTR", BeamBuiltinMethods.SUBSTR_METHOD, ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator REVERSE =
-      createUdfOperator("REVERSE", BeamBuiltinMethods.REVERSE_METHOD);
+      createUdfOperator("REVERSE", BeamBuiltinMethods.REVERSE_METHOD, ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator CHAR_LENGTH =
-      createUdfOperator("CHAR_LENGTH", BeamBuiltinMethods.CHAR_LENGTH_METHOD);
+      createUdfOperator(
+          "CHAR_LENGTH", BeamBuiltinMethods.CHAR_LENGTH_METHOD, ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator ENDS_WITH =
-      createUdfOperator("ENDS_WITH", BeamBuiltinMethods.ENDS_WITH_METHOD);
+      createUdfOperator(
+          "ENDS_WITH", BeamBuiltinMethods.ENDS_WITH_METHOD, ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator LIKE =
-      createUdfOperator("LIKE", BeamBuiltinMethods.LIKE_METHOD, SqlSyntax.BINARY);
+      createUdfOperator(
+          "LIKE",
+          BeamBuiltinMethods.LIKE_METHOD,
+          SqlSyntax.BINARY,
+          ZETASQL_FUNCTION_GROUP_NAME,
+          "");
 
   public static final SqlOperator VALIDATE_TIMESTAMP =
       createUdfOperator(
@@ -114,7 +140,8 @@ class SqlOperators {
           DateTimeUtils.class,
           "validateTimestamp",
           x -> NULLABLE_TIMESTAMP,
-          ImmutableList.of(TIMESTAMP));
+          ImmutableList.of(TIMESTAMP),
+          ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator VALIDATE_TIME_INTERVAL =
       createUdfOperator(
@@ -122,26 +149,85 @@ class SqlOperators {
           DateTimeUtils.class,
           "validateTimeInterval",
           x -> NULLABLE_BIGINT,
-          ImmutableList.of(BIGINT, OTHER));
+          ImmutableList.of(BIGINT, OTHER),
+          ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator TIMESTAMP_OP =
-      createUdfOperator("TIMESTAMP", BeamBuiltinMethods.TIMESTAMP_METHOD);
+      createUdfOperator(
+          "TIMESTAMP", BeamBuiltinMethods.TIMESTAMP_METHOD, ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator DATE_OP =
-      createUdfOperator("DATE", BeamBuiltinMethods.DATE_METHOD);
+      createUdfOperator("DATE", BeamBuiltinMethods.DATE_METHOD, ZETASQL_FUNCTION_GROUP_NAME);
+
+  public static final SqlOperator BIT_XOR =
+      createUdafOperator(
+          "BIT_XOR",
+          x -> NULLABLE_BIGINT,
+          new UdafImpl<>(new BeamBuiltinAggregations.BitXOr<Number>()));
+
+  public static final SqlOperator COUNTIF =
+      createUdafOperator(
+          "countif",
+          x -> createTypeFactory().createSqlType(SqlTypeName.BIGINT),
+          new UdafImpl<>(new CountIf.CountIfFn()));
 
   public static final SqlUserDefinedFunction CAST_OP =
       new SqlUserDefinedFunction(
           new SqlIdentifier("CAST", SqlParserPos.ZERO),
-          null,
+          SqlKind.OTHER_FUNCTION,
           null,
           null,
           null,
           new CastFunctionImpl());
 
+  public static SqlOperator createStringAggOperator(
+      ResolvedNodes.ResolvedFunctionCallBase aggregateFunctionCall) {
+    List<ResolvedNodes.ResolvedExpr> args = aggregateFunctionCall.getArgumentList();
+    String inputType = args.get(0).getType().typeName();
+    Value delimiter = null;
+    if (args.size() == 2) {
+      ResolvedNodes.ResolvedExpr resolvedExpr = args.get(1);
+      if (resolvedExpr instanceof ResolvedNodes.ResolvedLiteral) {
+        delimiter = ((ResolvedNodes.ResolvedLiteral) resolvedExpr).getValue();
+      } else {
+        // TODO(https://github.com/apache/beam/issues/21283) Add support for params
+        throw new ZetaSqlException(
+            new StatusRuntimeException(
+                Status.INVALID_ARGUMENT.withDescription(
+                    String.format(
+                        "STRING_AGG only supports ResolvedLiteral as delimiter, provided %s",
+                        resolvedExpr.getClass().getName()))));
+      }
+    }
+
+    switch (inputType) {
+      case "BYTES":
+        return SqlOperators.createUdafOperator(
+            "string_agg",
+            x -> SqlOperators.createTypeFactory().createSqlType(SqlTypeName.VARBINARY),
+            new UdafImpl<>(
+                new StringAgg.StringAggByte(
+                    delimiter == null
+                        ? ",".getBytes(StandardCharsets.UTF_8)
+                        : delimiter.getBytesValue().toByteArray())));
+      case "STRING":
+        return SqlOperators.createUdafOperator(
+            "string_agg",
+            x -> SqlOperators.createTypeFactory().createSqlType(SqlTypeName.VARCHAR),
+            new UdafImpl<>(
+                new StringAgg.StringAggString(
+                    delimiter == null ? "," : delimiter.getStringValue())));
+      default:
+        throw new UnsupportedOperationException(
+            String.format("[%s] is not supported in STRING_AGG", inputType));
+    }
+  }
+
   /**
    * Create a dummy SqlFunction of type OTHER_FUNCTION from given function name and return type.
-   * These functions will be unparsed in BeamZetaSqlCalcRel and then executed by ZetaSQL evaluator.
+   * These functions will be unparsed in either {@link
+   * org.apache.beam.sdk.extensions.sql.zetasql.BeamZetaSqlCalcRel} (for built-in functions) or
+   * {@link org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel} (for user-defined functions).
    */
   public static SqlFunction createZetaSqlFunction(String name, SqlTypeName returnType) {
     return new SqlFunction(
@@ -153,7 +239,7 @@ class SqlOperators {
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
   }
 
-  private static SqlUserDefinedAggFunction createUdafOperator(
+  static SqlUserDefinedAggFunction createUdafOperator(
       String name, SqlReturnTypeInference returnTypeInference, AggregateFunction function) {
     return new SqlUserDefinedAggFunction(
         new SqlIdentifier(name, SqlParserPos.ZERO),
@@ -172,26 +258,29 @@ class SqlOperators {
       Class<?> methodClass,
       String methodName,
       SqlReturnTypeInference returnTypeInference,
-      List<RelDataType> paramTypes) {
+      List<RelDataType> paramTypes,
+      String funGroup) {
     return new SqlUserDefinedFunction(
         new SqlIdentifier(name, SqlParserPos.ZERO),
         returnTypeInference,
         null,
         null,
         paramTypes,
-        ScalarFunctionImpl.create(methodClass, methodName));
+        ZetaSqlScalarFunctionImpl.create(methodClass, methodName, funGroup, ""));
   }
 
-  // Helper function to create SqlUserDefinedFunction based on a function name and a method.
-  // SqlUserDefinedFunction will be able to pass through Calcite codegen and get proper function
-  // called.
-  private static SqlUserDefinedFunction createUdfOperator(String name, Method method) {
-    return createUdfOperator(name, method, SqlSyntax.FUNCTION);
+  static SqlUserDefinedFunction createUdfOperator(
+      String name, Method method, String funGroup, String jarPath) {
+    return createUdfOperator(name, method, SqlSyntax.FUNCTION, funGroup, jarPath);
+  }
+
+  static SqlUserDefinedFunction createUdfOperator(String name, Method method, String funGroup) {
+    return createUdfOperator(name, method, SqlSyntax.FUNCTION, funGroup, "");
   }
 
   private static SqlUserDefinedFunction createUdfOperator(
-      String name, Method method, final SqlSyntax syntax) {
-    Function function = ScalarFunctionImpl.create(method);
+      String name, Method method, final SqlSyntax syntax, String funGroup, String jarPath) {
+    Function function = ZetaSqlScalarFunctionImpl.create(method, funGroup, jarPath);
     final RelDataTypeFactory typeFactory = createTypeFactory();
 
     List<RelDataType> argTypes = new ArrayList<>();

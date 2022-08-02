@@ -38,6 +38,9 @@ import org.slf4j.LoggerFactory;
  * @see <a
  *     href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/util/AccumulatorV2.html">accumulatorsV2</a>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AggregatorsAccumulator {
   private static final Logger LOG = LoggerFactory.getLogger(AggregatorsAccumulator.class);
 
@@ -60,7 +63,6 @@ public class AggregatorsAccumulator {
           NamedAggregators namedAggregators = new NamedAggregators();
           NamedAggregatorsAccumulator accumulator =
               new NamedAggregatorsAccumulator(namedAggregators);
-          jsc.sc().register(accumulator, ACCUMULATOR_NAME);
 
           if (maybeCheckpointDir.isPresent()) {
             Optional<NamedAggregators> maybeRecoveredValue =
@@ -69,6 +71,7 @@ public class AggregatorsAccumulator {
               accumulator = new NamedAggregatorsAccumulator(maybeRecoveredValue.get());
             }
           }
+          jsc.sc().register(accumulator, ACCUMULATOR_NAME);
           instance = accumulator;
         }
       }
@@ -78,7 +81,7 @@ public class AggregatorsAccumulator {
 
   public static NamedAggregatorsAccumulator getInstance() {
     if (instance == null) {
-      throw new IllegalStateException("Aggregrators accumulator has not been instantiated");
+      throw new IllegalStateException("Aggregators accumulator has not been instantiated");
     } else {
       return instance;
     }

@@ -69,7 +69,7 @@ public class BigQueryTimePartitioningClusteringIT {
     PipelineOptionsFactory.register(BigQueryClusteringITOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigQueryClusteringITOptions.class);
     options.setTempLocation(options.getTempRoot() + "/temp-it/");
-    bqClient = BigqueryClient.getNewBigquerryClient(options.getAppName());
+    bqClient = BigqueryClient.getNewBigqueryClient(options.getAppName());
   }
 
   /** Customized PipelineOptions for BigQueryClustering Integration Test. */
@@ -103,9 +103,8 @@ public class BigQueryTimePartitioningClusteringIT {
       this.tableName = tableName;
     }
 
-    @Nullable
     @Override
-    public Coder<TableDestination> getDestinationCoder() {
+    public @Nullable Coder<TableDestination> getDestinationCoder() {
       return TableDestinationCoderV3.of();
     }
 
@@ -144,7 +143,7 @@ public class BigQueryTimePartitioningClusteringIT {
 
     p.run().waitUntilFinish();
 
-    bqClient = BigqueryClient.getNewBigquerryClient(options.getAppName());
+    bqClient = BigqueryClient.getNewBigqueryClient(options.getAppName());
     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
     Assert.assertEquals(table.getTimePartitioning(), TIME_PARTITIONING);

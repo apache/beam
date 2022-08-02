@@ -58,8 +58,11 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test operator {@code ReduceByKey}. */
+@RunWith(JUnit4.class)
 public class ReduceByKeyTest extends AbstractOperatorTest {
 
   /** Validates the output type upon a `.reduceBy` operation on global window. */
@@ -603,7 +606,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     @Override
     public boolean equals(@Nullable Object other) {
       if (other instanceof CountWindow) {
-        return value == (((CountWindow) other).value);
+        return value == ((CountWindow) other).value;
       }
       return false;
     }

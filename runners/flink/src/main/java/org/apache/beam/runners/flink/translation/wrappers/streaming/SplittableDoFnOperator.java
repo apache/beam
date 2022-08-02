@@ -60,6 +60,9 @@ import org.slf4j.LoggerFactory;
  * Flink operator for executing splittable {@link DoFn DoFns}. Specifically, for executing the
  * {@code @ProcessElement} method of a splittable {@link DoFn}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
     extends DoFnOperator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
 
@@ -127,6 +130,7 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
 
     ((ProcessFn) doFn).setStateInternalsFactory(stateInternalsFactory);
     ((ProcessFn) doFn).setTimerInternalsFactory(timerInternalsFactory);
+    ((ProcessFn) doFn).setSideInputReader(sideInputReader);
     ((ProcessFn) doFn)
         .setProcessElementInvoker(
             new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
@@ -156,7 +160,8 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
                 sideInputReader,
                 executorService,
                 10000,
-                Duration.standardSeconds(10)));
+                Duration.standardSeconds(10),
+                this::getBundleFinalizer));
   }
 
   @Override

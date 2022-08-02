@@ -16,7 +16,9 @@
 # limitations under the License.
 ################################################################################
 
-FROM grafana/grafana:6.7.3
+FROM grafana/grafana:8.1.8
+
+RUN grafana-cli plugins install marcusolsson-json-datasource
 
 COPY ./provisioning /etc/beamgrafana/provisioning
 COPY ./dashboards /etc/beamgrafana/dashboards

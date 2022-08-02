@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.fn.splittabledofn;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +34,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link RestrictionTrackers}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class RestrictionTrackersTest {
   @Test
   public void testObservingClaims() {

@@ -49,8 +49,8 @@ public class GaugeCell implements Gauge, MetricCell<GaugeData> {
 
   @Override
   public void reset() {
-    dirty.afterModification();
     gaugeValue.set(GaugeData.empty());
+    dirty.reset();
   }
 
   /** Set the gauge to the given value. */

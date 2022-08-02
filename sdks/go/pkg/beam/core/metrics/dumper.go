@@ -21,7 +21,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // DumpToLog is a debugging function that outputs all metrics available locally
@@ -74,6 +74,7 @@ func dumperExtractor(store *Store, p func(format string, args ...interface{})) {
 		GaugeInt64: func(l Labels, v int64, t time.Time) {
 			m[l] = &gauge{v: v, t: t}
 		},
+		MsecsInt64: func(labels string, e *[4]ExecutionState) {},
 	}
 	e.ExtractFrom(store)
 	dumpTo(m, p)

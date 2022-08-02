@@ -103,7 +103,7 @@ public class MongoDbIOTest {
     client = new MongoClient("localhost", port);
 
     LOG.info("Insert test data");
-    List<Document> documents = createDocuments(1000);
+    List<Document> documents = createDocuments(1000, false);
     MongoCollection<Document> collection = getCollection(COLLECTION);
     collection.insertMany(documents);
   }
@@ -147,10 +147,10 @@ public class MongoDbIOTest {
     List<BsonDocument> buckets = MongoDbIO.BoundedMongoDbSource.splitKeysToMatch(documents);
     assertEquals(2, buckets.size());
     assertEquals(
-        "{ \"$match\" : { \"_id\" : { \"$lte\" : { \"$oid\" : \"52cc8f6254c5317943000005\" } } } }",
+        "{\"$match\": {\"_id\": {\"$lte\": {\"$oid\": \"52cc8f6254c5317943000005\"}}}}",
         buckets.get(0).toString());
     assertEquals(
-        "{ \"$match\" : { \"_id\" : { \"$gt\" : { \"$oid\" : \"52cc8f6254c5317943000005\" } } } }",
+        "{\"$match\": {\"_id\": {\"$gt\": {\"$oid\": \"52cc8f6254c5317943000005\"}}}}",
         buckets.get(1).toString());
 
     // add more splits and verify the buckets
@@ -159,16 +159,16 @@ public class MongoDbIOTest {
     buckets = MongoDbIO.BoundedMongoDbSource.splitKeysToMatch(documents);
     assertEquals(4, buckets.size());
     assertEquals(
-        "{ \"$match\" : { \"_id\" : { \"$lte\" : { \"$oid\" : \"52cc8f6254c5317943000005\" } } } }",
+        "{\"$match\": {\"_id\": {\"$lte\": {\"$oid\": \"52cc8f6254c5317943000005\"}}}}",
         buckets.get(0).toString());
     assertEquals(
-        "{ \"$match\" : { \"_id\" : { \"$gt\" : { \"$oid\" : \"52cc8f6254c5317943000005\" }, \"$lte\" : { \"$oid\" : \"52cc8f6254c5317943000007\" } } } }",
+        "{\"$match\": {\"_id\": {\"$gt\": {\"$oid\": \"52cc8f6254c5317943000005\"}, \"$lte\": {\"$oid\": \"52cc8f6254c5317943000007\"}}}}",
         buckets.get(1).toString());
     assertEquals(
-        "{ \"$match\" : { \"_id\" : { \"$gt\" : { \"$oid\" : \"52cc8f6254c5317943000007\" }, \"$lte\" : { \"$oid\" : \"54242e9e54c531ef8800001f\" } } } }",
+        "{\"$match\": {\"_id\": {\"$gt\": {\"$oid\": \"52cc8f6254c5317943000007\"}, \"$lte\": {\"$oid\": \"54242e9e54c531ef8800001f\"}}}}",
         buckets.get(2).toString());
     assertEquals(
-        "{ \"$match\" : { \"_id\" : { \"$gt\" : { \"$oid\" : \"54242e9e54c531ef8800001f\" } } } }",
+        "{\"$match\": {\"_id\": {\"$gt\": {\"$oid\": \"54242e9e54c531ef8800001f\"}}}}",
         buckets.get(3).toString());
   }
 
@@ -329,7 +329,7 @@ public class MongoDbIOTest {
     final int numElements = 1000;
 
     pipeline
-        .apply(Create.of(createDocuments(numElements)))
+        .apply(Create.of(createDocuments(numElements, false)))
         .apply(
             MongoDbIO.write()
                 .withUri("mongodb://localhost:" + port)
@@ -361,7 +361,37 @@ public class MongoDbIOTest {
     assertEquals(1, countElements(collectionName));
   }
 
-  private static List<Document> createDocuments(final int n) {
+  @Test
+  public void testUpdate() {
+    final String collectionName = "testUpdate";
+    final int numElements = 100;
+    Document doc = Document.parse("{\"id\":1,\"scientist\":\"Updated\",\"country\":\"India\"}");
+
+    getCollection(collectionName).insertMany(createDocuments(numElements, true));
+    assertEquals(numElements, countElements(collectionName));
+    List<Document> docs = new ArrayList<>();
+    docs.add(doc);
+    pipeline
+        .apply(Create.of(docs))
+        .apply(
+            MongoDbIO.write()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE)
+                .withCollection(collectionName)
+                .withUpdateConfiguration(
+                    UpdateConfiguration.create()
+                        .withUpdateKey("id")
+                        .withUpdateFields(
+                            UpdateField.fieldUpdate("$set", "scientist", "scientist"),
+                            UpdateField.fieldUpdate("$set", "country", "country"))));
+    pipeline.run();
+
+    Document out = getCollection(collectionName).find(new Document("_id", 1)).first();
+    assertEquals("Updated", out.get("scientist"));
+    assertEquals("India", out.get("country"));
+  }
+
+  private static List<Document> createDocuments(final int n, boolean addId) {
     final String[] scientists =
         new String[] {
           "Einstein",
@@ -392,6 +422,9 @@ public class MongoDbIOTest {
     for (int i = 1; i <= n; i++) {
       int index = i % scientists.length;
       Document document = new Document();
+      if (addId) {
+        document.append("_id", i);
+      }
       document.append("scientist", scientists[index]);
       document.append("country", country[index]);
       documents.add(document);

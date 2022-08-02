@@ -20,12 +20,12 @@ Combine - Combine PerKey
 ------------------------
 
 After creating a keyed PCollection (for example, by using a GroupByKey transform), a common pattern
-is to combine the collection of values associated with each key into a single, merged value. This 
+is to combine the collection of values associated with each key into a single, merged value. This
 pattern of a GroupByKey followed by merging the collection of values is equivalent to Combine PerKey
-transform. The combine function you supply to Combine PerKey must be an associative reduction 
+transform. The combine function you supply to Combine PerKey must be an associative reduction
 function or a subclass of CombineFn.
 
-**Kata:** Implement the sum of scores per player using 
+**Kata:** Implement the sum of scores per player using
 [CombinePerKey](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombinePerKey).
 
 <div class="hint">

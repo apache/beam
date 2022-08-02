@@ -20,15 +20,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import errno
 import io
 import logging
 import re
 import time
 import traceback
-from builtins import object
 
 from apache_beam.io.aws.clients.s3 import messages
 from apache_beam.io.filesystemio import Downloader
@@ -58,11 +55,13 @@ def parse_s3_path(s3_path, object_optional=False):
 
 class S3IO(object):
   """S3 I/O client."""
-  def __init__(self, client=None):
+  def __init__(self, client=None, options=None):
+    if client is None and options is None:
+      raise ValueError('Must provide one of client or options')
     if client is not None:
       self.client = client
     elif BOTO3_INSTALLED:
-      self.client = boto3_client.Client()
+      self.client = boto3_client.Client(options=options)
     else:
       message = 'AWS dependencies are not installed, and no alternative ' \
       'client was provided to S3IO.'
@@ -102,23 +101,28 @@ class S3IO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def list_prefix(self, path):
+  def list_prefix(self, path, with_metadata=False):
     """Lists files matching the prefix.
 
     Args:
       path: S3 file path pattern in the form s3://<bucket>/[name].
+      with_metadata: Experimental. Specify whether returns file metadata.
 
     Returns:
-      Dictionary of file name -> size.
+      If ``with_metadata`` is False: dict of file name -> size; if
+        ``with_metadata`` is True: dict of file name -> tuple(size, timestamp).
     """
     bucket, prefix = parse_s3_path(path, object_optional=True)
     request = messages.ListRequest(bucket=bucket, prefix=prefix)
 
-    file_sizes = {}
+    file_info = {}
     counter = 0
     start_time = time.time()
 
-    logging.info("Starting the size estimation of the input")
+    if with_metadata:
+      logging.debug("Starting the file information of the input")
+    else:
+      logging.debug("Starting the size estimation of the input")
 
     while True:
       #The list operation will raise an exception
@@ -135,34 +139,40 @@ class S3IO(object):
 
       for item in response.items:
         file_name = 's3://%s/%s' % (bucket, item.key)
-        file_sizes[file_name] = item.size
+        if with_metadata:
+          file_info[file_name] = (
+              item.size, self._updated_to_seconds(item.last_modified))
+        else:
+          file_info[file_name] = item.size
         counter += 1
         if counter % 10000 == 0:
-          logging.info("Finished computing size of: %s files", len(file_sizes))
+          if with_metadata:
+            logging.info(
+                "Finished computing file information of: %s files",
+                len(file_info))
+          else:
+            logging.info("Finished computing size of: %s files", len(file_info))
       if response.next_token:
         request.continuation_token = response.next_token
       else:
         break
 
-    logging.info(
+    logging.log(
+        # do not spam logs when list_prefix is likely used to check empty folder
+        logging.INFO if counter > 0 else logging.DEBUG,
         "Finished listing %s files in %s seconds.",
         counter,
         time.time() - start_time)
 
-    return file_sizes
+    return file_info
 
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def checksum(self, path):
     """Looks up the checksum of an S3 object.
 
     Args:
       path: S3 file path pattern in the form s3://<bucket>/<name>.
     """
-    bucket, object_path = parse_s3_path(path)
-    request = messages.GetRequest(bucket, object_path)
-    item = self.client.get_object_metadata(request)
-    return item.etag
+    return self._s3_object(path).etag
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
@@ -401,8 +411,6 @@ class S3IO(object):
     paths = self.list_prefix(root)
     return self.delete_files(paths)
 
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def size(self, path):
     """Returns the size of a single S3 object.
 
@@ -411,10 +419,7 @@ class S3IO(object):
 
     Returns: size of the S3 object in bytes.
     """
-    bucket, object_path = parse_s3_path(path)
-    request = messages.GetRequest(bucket, object_path)
-    item = self.client.get_object_metadata(request)
-    return item.size
+    return self._s3_object(path).size
 
   # We intentionally do not decorate this method with a retry, since the
   # underlying copy and delete operations are already idempotent operations
@@ -429,8 +434,6 @@ class S3IO(object):
     self.copy(src, dest)
     self.delete(src)
 
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def last_updated(self, path):
     """Returns the last updated epoch time of a single S3 object.
 
@@ -439,12 +442,7 @@ class S3IO(object):
 
     Returns: last updated time of the S3 object in second.
     """
-    bucket, object = parse_s3_path(path)
-    request = messages.GetRequest(bucket, object)
-    datetime = self.client.get_object_metadata(request).last_modified
-    return (
-        time.mktime(datetime.timetuple()) - time.timezone +
-        datetime.microsecond / 1000000.0)
+    return self._updated_to_seconds(self._s3_object(path).last_modified)
 
   def exists(self, path):
     """Returns whether the given S3 object exists.
@@ -452,10 +450,8 @@ class S3IO(object):
     Args:
       path: S3 file path pattern in the form s3://<bucket>/<name>.
     """
-    bucket, object = parse_s3_path(path)
-    request = messages.GetRequest(bucket, object)
     try:
-      self.client.get_object_metadata(request)
+      self._s3_object(path)
       return True
     except messages.S3ClientError as e:
       if e.code == 404:
@@ -464,6 +460,49 @@ class S3IO(object):
       else:
         # We re-raise all other exceptions
         raise
+
+  def _status(self, path):
+    """For internal use only; no backwards-compatibility guarantees.
+
+    Returns supported fields (checksum, last_updated, size) of a single object
+    as a dict at once.
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single S3 object.
+
+    Returns: dict of fields of the S3 object.
+    """
+    s3_object = self._s3_object(path)
+    file_status = {}
+    if hasattr(s3_object, 'etag'):
+      file_status['checksum'] = s3_object.etag
+    if hasattr(s3_object, 'last_modified'):
+      file_status['last_updated'] = self._updated_to_seconds(
+          s3_object.last_modified)
+    if hasattr(s3_object, 'size'):
+      file_status['size'] = s3_object.size
+    return file_status
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def _s3_object(self, path):
+    """Returns a S3 object metadata for the given path
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single S3 object.
+
+    Returns: S3 object metadata.
+    """
+    bucket, object = parse_s3_path(path)
+    request = messages.GetRequest(bucket, object)
+    return self.client.get_object_metadata(request)
+
+  @staticmethod
+  def _updated_to_seconds(updated):
+    """Helper function transform the updated field of response to seconds"""
+    return (
+        time.mktime(updated.timetuple()) - time.timezone +
+        updated.microsecond / 1000000.0)
 
   def rename_files(self, src_dest_pairs):
     """Renames the given S3 objects from src to dest.
@@ -491,7 +530,7 @@ class S3IO(object):
     for src, dest, err in copy_results:
       if err is not None: rename_results.append((src, dest, err))
       elif delete_results_dict[src] is not None:
-        rename_results.append(src, dest, delete_results_dict[src])
+        rename_results.append((src, dest, delete_results_dict[src]))
       else:
         rename_results.append((src, dest, None))
 
@@ -605,8 +644,13 @@ class S3Uploader(Uploader):
         raise
 
   def finish(self):
-
-    self._write_to_s3(self.buffer)
+    if len(self.buffer) > 0:
+      # writes with zero length or mid size files between
+      # MIN_WRITE_SIZE = 5 * 1024 * 1024
+      # MAX_WRITE_SIZE = 5 * 1024 * 1024 * 1024
+      # as we will reach this finish() with len(self.buffer) == 0
+      # which will fail
+      self._write_to_s3(self.buffer)
 
     if self.last_error is not None:
       raise self.last_error  # pylint: disable=raising-bad-type

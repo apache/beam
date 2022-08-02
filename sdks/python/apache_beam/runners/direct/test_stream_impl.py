@@ -25,9 +25,6 @@ tagged PCollection.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import itertools
 import logging
 from queue import Empty as EmptyException
@@ -276,14 +273,24 @@ class _TestStream(PTransform):
         output_ids=[str(tag) for tag in output_tags])
 
     event_stream = stub.Events(event_request)
-    for e in event_stream:
-      channel.put(_TestStream.test_stream_payload_to_events(e, coder))
-      if not is_alive():
+    try:
+      for e in event_stream:
+        channel.put(_TestStream.test_stream_payload_to_events(e, coder))
+        if not is_alive():
+          return
+    except grpc.RpcError as e:
+      # Do not raise an exception in the non-error status codes. These can occur
+      # when the Python interpreter shuts down or when in a notebook environment
+      # when the kernel is interrupted.
+      if e.code() in (grpc.StatusCode.CANCELLED, grpc.StatusCode.UNAVAILABLE):
         return
-    channel.put(_EndOfStream())
+      raise e
+    finally:
+      # Gracefully stop the job if there is an exception.
+      channel.put(_EndOfStream())
 
   @staticmethod
-  def events_from_rpc(endpoint, output_tags, coder):
+  def events_from_rpc(endpoint, output_tags, coder, evaluation_context):
     """Yields the events received from the given endpoint.
 
     This method starts a new thread that reads from the TestStreamService and
@@ -296,13 +303,17 @@ class _TestStream(PTransform):
     """
     # Shared variable with the producer queue. This shuts down the producer if
     # the consumer exits early.
-    is_alive = True
+    shutdown_requested = False
+
+    def is_alive():
+      return not (shutdown_requested or evaluation_context.shutdown_requested)
 
     # The shared queue that allows the producer and consumer to communicate.
-    channel = Queue()  # type: Queue[Union[test_stream.Event, _EndOfStream]]
+    channel = Queue(
+    )  # type: Queue[Union[test_stream.Event, _EndOfStream]] # noqa: F821
     event_stream = Thread(
         target=_TestStream._stream_events_from_rpc,
-        args=(endpoint, output_tags, coder, channel, lambda: is_alive))
+        args=(endpoint, output_tags, coder, channel, is_alive))
     event_stream.setDaemon(True)
     event_stream.start()
 
@@ -322,7 +333,7 @@ class _TestStream(PTransform):
         _LOGGER.warning(
             'TestStream timed out waiting for new events from service.'
             ' Stopping pipeline.')
-        is_alive = False
+        shutdown_requested = True
         raise e
 
   @staticmethod

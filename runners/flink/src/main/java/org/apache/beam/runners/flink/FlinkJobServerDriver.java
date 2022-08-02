@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.flink;
 
-import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.jobsubmission.JobServerDriver;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -31,6 +31,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Driver program that starts a job server for the Flink runner. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class FlinkJobServerDriver extends JobServerDriver {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobServerDriver.class);

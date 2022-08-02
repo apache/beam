@@ -19,11 +19,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 )
 
 func makeInput(vs ...interface{}) []MainInput {
@@ -39,6 +39,26 @@ func makeValues(vs ...interface{}) []FullValue {
 	for _, v := range vs {
 		ret = append(ret, FullValue{
 			Windows:   window.SingleGlobalWindow,
+			Timestamp: mtime.ZeroTimestamp,
+			Elm:       v,
+		})
+	}
+	return ret
+}
+
+func makeWindowedInput(ws []typex.Window, vs ...interface{}) []MainInput {
+	var ret []MainInput
+	for _, v := range makeWindowedValues(ws, vs...) {
+		ret = append(ret, MainInput{Key: v})
+	}
+	return ret
+}
+
+func makeWindowedValues(ws []typex.Window, vs ...interface{}) []FullValue {
+	var ret []FullValue
+	for _, v := range vs {
+		ret = append(ret, FullValue{
+			Windows:   ws,
 			Timestamp: mtime.ZeroTimestamp,
 			Elm:       v,
 		})
@@ -162,12 +182,6 @@ func equal(a, b FullValue) bool {
 	}
 	return true
 }
-
-type testStruct struct {
-	a int
-}
-
-func (*testStruct) M() {}
 
 // Conversion tests.
 func TestConvert(t *testing.T) {

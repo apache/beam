@@ -42,10 +42,14 @@ import org.slf4j.LoggerFactory;
  * Class for transforming MonitoringInfo's containing User counter values, to relevant CounterUpdate
  * proto.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class UserMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutor.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(UserMonitoringInfoToCounterUpdateTransformer.class);
 
   private final Map<String, DataflowStepContext> transformIdMapping;
 

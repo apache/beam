@@ -20,9 +20,11 @@ package org.apache.beam.sdk.io.snowflake;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.options.ValueProvider;
 
-public interface SnowflakePipelineOptions extends PipelineOptions {
+public interface SnowflakePipelineOptions extends PipelineOptions, StreamingOptions {
   String BASIC_CONNECTION_INFO_VALIDATION_GROUP = "BASIC_CONNECTION_INFO_GROUP";
   String AUTH_VALIDATION_GROUP = "AUTH_VALIDATION_GROUP";
 
@@ -35,15 +37,15 @@ public interface SnowflakePipelineOptions extends PipelineOptions {
 
   @Description("Server Name - full server name with account, zone and domain.")
   @Validation.Required(groups = BASIC_CONNECTION_INFO_VALIDATION_GROUP)
-  String getServerName();
+  ValueProvider<String> getServerName();
 
-  void setServerName(String serverName);
+  void setServerName(ValueProvider<String> serverName);
 
   @Description("Username. Required for username/password and Private Key authentication.")
   @Validation.Required(groups = AUTH_VALIDATION_GROUP)
-  String getUsername();
+  ValueProvider<String> getUsername();
 
-  void setUsername(String username);
+  void setUsername(ValueProvider<String> username);
 
   @Description("OAuth token. Required for OAuth authentication only.")
   @Validation.Required(groups = AUTH_VALIDATION_GROUP)
@@ -53,9 +55,9 @@ public interface SnowflakePipelineOptions extends PipelineOptions {
 
   @Description("Password. Required for username/password authentication only.")
   @Default.String("")
-  String getPassword();
+  ValueProvider<String> getPassword();
 
-  void setPassword(String password);
+  void setPassword(ValueProvider<String> password);
 
   @Description("Path to Private Key file. Required for Private Key authentication only.")
   @Default.String("")
@@ -63,35 +65,54 @@ public interface SnowflakePipelineOptions extends PipelineOptions {
 
   void setPrivateKeyPath(String privateKeyPath);
 
+  @Description("Private key. Required for Private Key authentication only.")
+  @Default.String("")
+  ValueProvider<String> getRawPrivateKey();
+
+  void setRawPrivateKey(ValueProvider<String> rawPrivateKey);
+
   @Description("Private Key's passphrase. Required for Private Key authentication only.")
   @Default.String("")
-  String getPrivateKeyPassphrase();
+  ValueProvider<String> getPrivateKeyPassphrase();
 
-  void setPrivateKeyPassphrase(String keyPassphrase);
+  void setPrivateKeyPassphrase(ValueProvider<String> keyPassphrase);
 
   @Description("Warehouse to use. Optional.")
   @Default.String("")
-  String getWarehouse();
+  ValueProvider<String> getWarehouse();
 
-  void setWarehouse(String warehouse);
+  void setWarehouse(ValueProvider<String> warehouse);
 
   @Description("Database name to connect to. Optional.")
   @Default.String("")
-  String getDatabase();
+  @Validation.Required
+  ValueProvider<String> getDatabase();
 
-  void setDatabase(String database);
+  void setDatabase(ValueProvider<String> database);
 
   @Description("Schema to use. Optional.")
   @Default.String("")
-  String getSchema();
+  ValueProvider<String> getSchema();
 
-  void setSchema(String schema);
+  void setSchema(ValueProvider<String> schema);
+
+  @Description("Table to use. Optional.")
+  @Default.String("")
+  ValueProvider<String> getTable();
+
+  void setTable(ValueProvider<String> table);
+
+  @Description("Query to use. Optional.")
+  @Default.String("")
+  ValueProvider<String> getQuery();
+
+  void setQuery(ValueProvider<String> query);
 
   @Description("Role to use. Optional.")
   @Default.String("")
-  String getRole();
+  ValueProvider<String> getRole();
 
-  void setRole(String role);
+  void setRole(ValueProvider<String> role);
 
   @Description("Authenticator to use. Optional.")
   @Default.String("")
@@ -112,12 +133,19 @@ public interface SnowflakePipelineOptions extends PipelineOptions {
   void setLoginTimeout(String loginTimeout);
 
   @Description("Temporary GCS bucket name.")
-  String getStagingBucketName();
+  @Validation.Required
+  ValueProvider<String> getStagingBucketName();
 
-  void setStagingBucketName(String stagingBucketName);
+  void setStagingBucketName(ValueProvider<String> stagingBucketName);
 
   @Description("Storage integration name")
-  String getStorageIntegrationName();
+  @Validation.Required
+  ValueProvider<String> getStorageIntegrationName();
 
-  void setStorageIntegrationName(String storageIntegrationName);
+  void setStorageIntegrationName(ValueProvider<String> storageIntegrationName);
+
+  @Description("SnowPipe name. Optional.")
+  ValueProvider<String> getSnowPipe();
+
+  void setSnowPipe(ValueProvider<String> snowPipe);
 }

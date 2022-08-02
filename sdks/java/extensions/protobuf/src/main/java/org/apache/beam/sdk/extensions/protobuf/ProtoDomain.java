@@ -56,6 +56,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>ProtoDomains aren't assumed to be used on with normal Message descriptors, only with
  * DynamicMessage descriptors.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class ProtoDomain implements Serializable {
   public static final long serialVersionUID = 1L;
   private transient DescriptorProtos.FileDescriptorSet fileDescriptorSet;
@@ -76,13 +80,6 @@ public final class ProtoDomain implements Serializable {
     this.fileDescriptorSet = fileDescriptorSet;
     hashCode = java.util.Arrays.hashCode(this.fileDescriptorSet.toByteArray());
     crosswire();
-  }
-
-  private static Map<String, DescriptorProtos.FileDescriptorProto> extractProtoMap(
-      DescriptorProtos.FileDescriptorSet fileDescriptorSet) {
-    HashMap<String, DescriptorProtos.FileDescriptorProto> map = new HashMap<>();
-    fileDescriptorSet.getFileList().forEach(fdp -> map.put(fdp.getName(), fdp));
-    return map;
   }
 
   private static Descriptors.@Nullable FileDescriptor convertToFileDescriptorMap(

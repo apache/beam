@@ -31,6 +31,9 @@ import org.slf4j.LoggerFactory;
  * @see ByteKey
  * @see ByteKeyRange
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
   private static final Logger LOG = LoggerFactory.getLogger(ByteKeyRangeTracker.class);
 

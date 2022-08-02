@@ -28,6 +28,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link UnsupportedOverrideFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class UnsupportedOverrideFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 

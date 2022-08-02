@@ -32,6 +32,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Always returns a constant {@link FilenamePolicy}, {@link Schema}, metadata, and codec. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class ConstantAvroDestination<UserT, OutputT>
     extends DynamicAvroDestinations<UserT, Void, OutputT> {
   private static class SchemaFunction implements Serializable, Function<String, Schema> {
@@ -48,6 +51,7 @@ class ConstantAvroDestination<UserT, OutputT>
   private final Map<String, Object> metadata;
   private final SerializableAvroCodecFactory codec;
   private final SerializableFunction<UserT, OutputT> formatFunction;
+  private final AvroSink.DatumWriterFactory<OutputT> datumWriterFactory;
 
   private class Metadata implements HasDisplayData {
     @Override
@@ -74,11 +78,22 @@ class ConstantAvroDestination<UserT, OutputT>
       Map<String, Object> metadata,
       CodecFactory codec,
       SerializableFunction<UserT, OutputT> formatFunction) {
+    this(filenamePolicy, schema, metadata, codec, formatFunction, null);
+  }
+
+  public ConstantAvroDestination(
+      FilenamePolicy filenamePolicy,
+      Schema schema,
+      Map<String, Object> metadata,
+      CodecFactory codec,
+      SerializableFunction<UserT, OutputT> formatFunction,
+      AvroSink.@Nullable DatumWriterFactory<OutputT> datumWriterFactory) {
     this.filenamePolicy = filenamePolicy;
     this.schema = Suppliers.compose(new SchemaFunction(), Suppliers.ofInstance(schema.toString()));
     this.metadata = metadata;
     this.codec = new SerializableAvroCodecFactory(codec);
     this.formatFunction = formatFunction;
+    this.datumWriterFactory = datumWriterFactory;
   }
 
   @Override
@@ -114,6 +129,11 @@ class ConstantAvroDestination<UserT, OutputT>
   @Override
   public CodecFactory getCodec(Void destination) {
     return codec.getCodec();
+  }
+
+  @Override
+  public AvroSink.@Nullable DatumWriterFactory<OutputT> getDatumWriterFactory(Void destination) {
+    return datumWriterFactory;
   }
 
   @Override

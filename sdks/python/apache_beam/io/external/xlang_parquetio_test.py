@@ -19,15 +19,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import logging
 import os
 import re
 import unittest
-
-from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam import coders
@@ -39,7 +34,8 @@ from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 PARQUET_WRITE_URN = "beam:transforms:xlang:test:parquet_write"
 
 
-@attr('UsesCrossLanguageTransforms')
+# TODO: enable test_xlang_parquetio_write after fixing BEAM-10507
+# @pytest.mark.uses_java_expansion_service
 @unittest.skipUnless(
     os.environ.get('EXPANSION_JAR'),
     "EXPANSION_JAR environment variable is not set.")
@@ -49,7 +45,7 @@ PARQUET_WRITE_URN = "beam:transforms:xlang:test:parquet_write"
 class XlangParquetIOTest(unittest.TestCase):
   # TODO: add verification for the file written by external transform
   #  after fixing BEAM-7612
-  def test_write(self):
+  def test_xlang_parquetio_write(self):
     expansion_jar = os.environ.get('EXPANSION_JAR')
     port = os.environ.get('EXPANSION_PORT')
     address = 'localhost:%s' % port
@@ -82,7 +78,7 @@ class AvroTestCoder(coders.AvroGenericCoder):
   """
 
   def __init__(self):
-    super(AvroTestCoder, self).__init__(self.SCHEMA)
+    super().__init__(self.SCHEMA)
 
 
 coders.registry.register_coder(AvroRecord, AvroTestCoder)

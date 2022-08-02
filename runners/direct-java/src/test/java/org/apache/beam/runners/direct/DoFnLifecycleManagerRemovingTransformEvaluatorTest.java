@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -28,6 +28,7 @@ import static org.mockito.Mockito.verify;
 
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -47,13 +48,12 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
 
   @Before
   public void setup() {
-    lifecycleManager = DoFnLifecycleManager.of(new TestFn());
+    lifecycleManager = DoFnLifecycleManager.of(new TestFn(), PipelineOptionsFactory.create());
   }
 
   @Test
   public void delegatesToUnderlying() throws Exception {
     ParDoEvaluator<Object> underlying = mock(ParDoEvaluator.class);
-    DoFn<?, ?> original = lifecycleManager.get();
     TransformEvaluator<Object> evaluator =
         DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(underlying, lifecycleManager);
     WindowedValue<Object> first = WindowedValue.valueInGlobalWindow(new Object());

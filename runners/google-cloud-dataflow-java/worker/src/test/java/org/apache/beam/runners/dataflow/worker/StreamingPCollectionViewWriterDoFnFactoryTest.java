@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.runners.dataflow.util.CloudObject;
@@ -38,6 +38,9 @@ import org.mockito.Mockito;
 
 /** Tests for {@link StreamingPCollectionViewWriterDoFnFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class StreamingPCollectionViewWriterDoFnFactoryTest {
   @Test
   public void testConstruction() throws Exception {

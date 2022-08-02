@@ -26,12 +26,8 @@ produced when the pipeline gets executed.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import itertools
-from builtins import hex
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -41,8 +37,6 @@ from typing import Optional
 from typing import Sequence
 from typing import TypeVar
 from typing import Union
-
-from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam import typehints
@@ -62,6 +56,7 @@ if TYPE_CHECKING:
 __all__ = [
     'PCollection',
     'TaggedOutput',
+    'AsSideInput',
     'AsSingleton',
     'AsIter',
     'AsList',
@@ -88,7 +83,7 @@ class PValue(object):
   def __init__(self,
                pipeline,  # type: Pipeline
                tag=None,  # type: Optional[str]
-               element_type=None,  # type: Optional[object]
+               element_type=None,  # type: Optional[Union[type,typehints.TypeConstraint]]
                windowing=None,  # type: Optional[Windowing]
                is_bounded=True,
               ):
@@ -109,6 +104,7 @@ class PValue(object):
     self.is_bounded = is_bounded
     if windowing:
       self._windowing = windowing
+    self.requires_deterministic_key_coder = None
 
   def __str__(self):
     return self._str_internal()
@@ -151,10 +147,6 @@ class PCollection(PValue, Generic[T]):
     if isinstance(other, PCollection):
       return self.tag == other.tag and self.producer == other.producer
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     return hash((self.tag, self.producer))
 
@@ -174,20 +166,23 @@ class PCollection(PValue, Generic[T]):
     return _InvalidUnpickledPCollection, ()
 
   @staticmethod
-  def from_(pcoll):
-    # type: (PValue) -> PCollection
+  def from_(pcoll, is_bounded=None):
+    # type: (PValue, Optional[bool]) -> PCollection
 
     """Create a PCollection, using another PCollection as a starting point.
 
     Transfers relevant attributes.
     """
-    return PCollection(pcoll.pipeline, is_bounded=pcoll.is_bounded)
+    if is_bounded is None:
+      is_bounded = pcoll.is_bounded
+    return PCollection(pcoll.pipeline, is_bounded=is_bounded)
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.PCollection
     return beam_runner_api_pb2.PCollection(
         unique_name=self._unique_name(),
-        coder_id=context.coder_id_from_element_type(self.element_type),
+        coder_id=context.coder_id_from_element_type(
+            self.element_type, self.requires_deterministic_key_coder),
         is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
         if self.is_bounded else beam_runner_api_pb2.IsBounded.UNBOUNDED,
         windowing_strategy_id=context.windowing_strategies.get_id(
@@ -245,12 +240,15 @@ class DoOutputsTuple(object):
                pipeline,  # type: Pipeline
                transform,  # type: ParDo
                tags,  # type: Sequence[str]
-               main_tag  # type: Optional[str]
+               main_tag,  # type: Optional[str]
+               allow_unknown_tags=None,  # type: Optional[bool]
               ):
     self._pipeline = pipeline
     self._tags = tags
     self._main_tag = main_tag
     self._transform = transform
+    self._allow_unknown_tags = (
+        not tags if allow_unknown_tags is None else allow_unknown_tags)
     # The ApplyPTransform instance for the application of the multi FlatMap
     # generating this value. The field gets initialized when a transform
     # gets applied.
@@ -295,7 +293,7 @@ class DoOutputsTuple(object):
       tag = str(tag)
     if tag == self._main_tag:
       tag = None
-    elif self._tags and tag not in self._tags:
+    elif self._tags and tag not in self._tags and not self._allow_unknown_tags:
       raise ValueError(
           "Tag '%s' is neither the main tag '%s' "
           "nor any of the tags %s" % (tag, self._main_tag, self._tags))
@@ -335,7 +333,7 @@ class TaggedOutput(object):
   """
   def __init__(self, tag, value):
     # type: (str, Any) -> None
-    if not isinstance(tag, (str, unicode)):
+    if not isinstance(tag, str):
       raise TypeError(
           'Attempting to create a TaggedOutput with non-string tag %s' %
           (tag, ))
@@ -421,7 +419,16 @@ class _UnpickledSideInput(AsSideInput):
 
   @staticmethod
   def _from_runtime_iterable(it, options):
-    return options['data'].view_fn(it)
+    access_pattern = options['data'].access_pattern
+    if access_pattern == common_urns.side_inputs.ITERABLE.urn:
+      raw_view = it
+    elif access_pattern == common_urns.side_inputs.MULTIMAP.urn:
+      raw_view = collections.defaultdict(list)
+      for k, v in it:
+        raw_view[k].append(v)
+    else:
+      raise ValueError('Unknown access_pattern: %s' % access_pattern)
+    return options['data'].view_fn(raw_view)
 
   def _view_options(self):
     return {
@@ -490,14 +497,14 @@ class AsSingleton(AsSideInput):
 
   def __init__(self, pcoll, default_value=_NO_DEFAULT):
     # type: (PCollection, Any) -> None
-    super(AsSingleton, self).__init__(pcoll)
+    super().__init__(pcoll)
     self.default_value = default_value
 
   def __repr__(self):
     return 'AsSingleton(%s)' % self.pvalue
 
   def _view_options(self):
-    base = super(AsSingleton, self)._view_options()
+    base = super()._view_options()
     if self.default_value != AsSingleton._NO_DEFAULT:
       return dict(base, default=self.default_value)
     return base
@@ -656,6 +663,33 @@ class Row(object):
 
   when applied to a PCollection of ints will produce a PCollection with schema
   `(x=int, y=float)`.
+
+  Note that in Beam 2.30.0 and later, Row objects are sensitive to field order.
+  So `Row(x=3, y=4)` is not considered equal to `Row(y=4, x=3)`.
   """
   def __init__(self, **kwargs):
     self.__dict__.update(kwargs)
+
+  def as_dict(self):
+    return dict(self.__dict__)
+
+  def __iter__(self):
+    for _, value in self.__dict__.items():
+      yield value
+
+  def __repr__(self):
+    return 'Row(%s)' % ', '.join('%s=%r' % kv for kv in self.__dict__.items())
+
+  def __hash__(self):
+    return hash(self.__dict__.items())
+
+  def __eq__(self, other):
+    return type(self) == type(other) and all(
+        s == o for s, o in zip(self.__dict__.items(), other.__dict__.items()))
+
+  def __reduce__(self):
+    return _make_Row, tuple(self.__dict__.items())
+
+
+def _make_Row(*items):
+  return Row(**dict(items))

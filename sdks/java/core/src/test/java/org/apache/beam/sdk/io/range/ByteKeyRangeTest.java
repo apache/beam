@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.io.range;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -271,8 +271,8 @@ public class ByteKeyRangeTest {
   @Test
   public void testInterpolateKeyIsNotEmpty() {
     String fmt = "Interpolating %s at fraction 0.0 should not return the empty key";
-    for (ByteKeyRange range : TEST_RANGES) {
-      range = ByteKeyRange.ALL_KEYS;
+    for (ByteKeyRange ignored : TEST_RANGES) {
+      ByteKeyRange range = ByteKeyRange.ALL_KEYS;
       assertFalse(String.format(fmt, range), range.interpolateKey(0.0).isEmpty());
     }
   }

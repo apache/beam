@@ -18,12 +18,12 @@
 package org.apache.beam.runners.direct;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -106,6 +106,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for basic {@link DirectRunner} functionality. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class DirectRunnerTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
@@ -328,8 +331,9 @@ public class DirectRunnerTest implements Serializable {
     // The pipeline should never complete;
     assertThat(result.getState(), is(State.RUNNING));
     // Must time out, otherwise this test will never complete
-    result.waitUntilFinish(Duration.millis(1L));
-    assertEquals(null, result.getState());
+    assertEquals(null, result.waitUntilFinish(Duration.millis(1L)));
+    // Ensure multiple calls complete
+    assertEquals(null, result.waitUntilFinish(Duration.millis(1L)));
   }
 
   private static final AtomicLong TEARDOWN_CALL = new AtomicLong(-1);
@@ -600,7 +604,6 @@ public class DirectRunnerTest implements Serializable {
     Pipeline p = getPipeline();
     p.apply(GenerateSequence.from(0)).setCoder(new LongNoDecodeCoder());
 
-    thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Cannot decode a long");
     p.run();
   }

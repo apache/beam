@@ -20,6 +20,5 @@
 Anything in this package not imported here is an internal implementation detail
 with no backwards-compatibility guarantees.
 """
-from __future__ import absolute_import
 
 from apache_beam.runners.direct.direct_runner import DirectRunner

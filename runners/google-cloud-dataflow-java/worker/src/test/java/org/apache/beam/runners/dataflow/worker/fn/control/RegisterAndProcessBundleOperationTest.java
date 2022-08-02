@@ -18,11 +18,11 @@
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import static org.apache.beam.runners.dataflow.worker.fn.control.RegisterAndProcessBundleOperation.encodeAndConcat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -78,7 +78,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow.Coder;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableTable;
@@ -96,7 +96,10 @@ import org.mockito.stubbing.Answer;
 
 /** Tests for {@link RegisterAndProcessBundleOperation}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("FutureReturnValueIgnored")
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "FutureReturnValueIgnored",
+})
 public class RegisterAndProcessBundleOperationTest {
   private static final BeamFnApi.RegisterRequest REGISTER_REQUEST =
       BeamFnApi.RegisterRequest.newBuilder()
@@ -222,6 +225,7 @@ public class RegisterAndProcessBundleOperationTest {
                 BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("555"))
             .build());
     operation.finish();
+    assertEquals(false, operation.hasFailed());
 
     // Ensure on restart that we only send the process bundle request
     operation.start();
@@ -233,6 +237,7 @@ public class RegisterAndProcessBundleOperationTest {
                 BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("555"))
             .build());
     operation.finish();
+    assertEquals(false, operation.hasFailed());
   }
 
   @Test
@@ -258,7 +263,6 @@ public class RegisterAndProcessBundleOperationTest {
                           // Purposefully sleep simulating SDK harness doing work
                           Thread.sleep(100);
                           responseFuture.complete(responseFor(request).build());
-                          completeFuture(request, responseFuture);
                           return null;
                         });
                     return responseFuture;
@@ -280,6 +284,69 @@ public class RegisterAndProcessBundleOperationTest {
     operation.start();
     // This method blocks till the requests are completed
     operation.finish();
+    assertEquals(false, operation.hasFailed());
+
+    // Ensure that the messages were received
+    assertEquals(
+        requests.get(0),
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setInstructionId("777")
+            .setRegister(REGISTER_REQUEST)
+            .build());
+    assertEquals(
+        requests.get(1),
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setInstructionId("778")
+            .setProcessBundle(
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("555"))
+            .build());
+  }
+
+  @Test
+  public void testProcessingBundleBlocksOnFinishWithError() throws Exception {
+    List<BeamFnApi.InstructionRequest> requests = new ArrayList<>();
+    IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
+    ExecutorService executorService = Executors.newCachedThreadPool();
+    RegisterAndProcessBundleOperation operation =
+        new RegisterAndProcessBundleOperation(
+            idGenerator,
+            new TestInstructionRequestHandler() {
+              @Override
+              public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
+                requests.add(request);
+                switch (request.getRequestCase()) {
+                  case REGISTER:
+                    return CompletableFuture.completedFuture(responseFor(request).build());
+                  case PROCESS_BUNDLE:
+                    CompletableFuture<InstructionResponse> responseFuture =
+                        new CompletableFuture<>();
+                    executorService.submit(
+                        () -> {
+                          // Purposefully sleep simulating SDK harness doing work
+                          Thread.sleep(100);
+                          responseFuture.complete(responseFor(request).setError("error").build());
+                          return null;
+                        });
+                    return responseFuture;
+                  default:
+                    // Anything else hangs; nothing else should be blocking
+                    return new CompletableFuture<>();
+                }
+              }
+            },
+            mockBeamFnStateDelegator,
+            REGISTER_REQUEST,
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            ImmutableTable.of(),
+            ImmutableMap.of(),
+            mockContext);
+
+    operation.start();
+    // This method blocks till the requests are completed
+    operation.finish();
+    assertEquals(true, operation.hasFailed());
 
     // Ensure that the messages were received
     assertEquals(
@@ -300,7 +367,6 @@ public class RegisterAndProcessBundleOperationTest {
   @Test
   public void testProcessingBundleHandlesUserStateRequests() throws Exception {
     IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
-    ExecutorService executorService = Executors.newCachedThreadPool();
 
     InMemoryStateInternals<ByteString> stateInternals =
         InMemoryStateInternals.forKey(ByteString.EMPTY);
@@ -406,7 +472,6 @@ public class RegisterAndProcessBundleOperationTest {
   @Test
   public void testProcessingBundleHandlesMultimapSideInputRequests() throws Exception {
     IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
-    ExecutorService executorService = Executors.newCachedThreadPool();
 
     DataflowStepContext mockStepContext = mock(DataflowStepContext.class);
     DataflowStepContext mockUserStepContext = mock(DataflowStepContext.class);
@@ -470,9 +535,8 @@ public class RegisterAndProcessBundleOperationTest {
 
     SideInputReader fakeSideInputReader =
         new SideInputReader() {
-          @Nullable
           @Override
-          public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+          public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
             assertEquals(GlobalWindow.INSTANCE, window);
             assertEquals("testSideInputId", view.getTagInternal().getId());
             return (T)

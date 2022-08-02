@@ -30,6 +30,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIt
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Manages the instances of {@link ExecutionState} */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class DataflowExecutionStateRegistry {
 
   /**

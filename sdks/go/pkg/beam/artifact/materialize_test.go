@@ -22,13 +22,14 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -166,12 +167,66 @@ func TestNewRetrieveWithManyFiles(t *testing.T) {
 	defer os.RemoveAll(dest)
 	ctx := grpcx.WriteWorkerID(context.Background(), "worker")
 
-	mds, err := newMaterializeWithClient(ctx, client, client.resolvedArtifacts(), dest)
+	mds, err := newMaterializeWithClient(ctx, client, client.resolvedArtifactsWithStagingTo(), dest)
 	if err != nil {
 		t.Fatalf("materialize failed: %v", err)
 	}
 
 	checkStagedFiles(mds, dest, expected, t)
+}
+
+func TestNewRetrieveWithFileGeneratedStageName(t *testing.T) {
+	expected := map[string]string{"a.txt": "", "b.txt": "", "c.txt": ""}
+
+	client := &fakeRetrievalService{
+		artifacts: expected,
+	}
+
+	dest := makeTempDir(t)
+	defer os.RemoveAll(dest)
+	ctx := grpcx.WriteWorkerID(context.Background(), "worker")
+
+	mds, err := newMaterializeWithClient(ctx, client, client.fileArtifactsWithoutStagingTo(), dest)
+	if err != nil {
+		t.Fatalf("materialize failed: %v", err)
+	}
+
+	generated := make(map[string]string)
+	for _, md := range mds {
+		name, _ := MustExtractFilePayload(md)
+		payload, _ := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
+			StagedName: name})
+		generated[name] = string(payload)
+	}
+
+	checkStagedFiles(mds, dest, generated, t)
+}
+
+func TestNewRetrieveWithUrlGeneratedStageName(t *testing.T) {
+	expected := map[string]string{"a.txt": "", "b.txt": "", "c.txt": ""}
+
+	client := &fakeRetrievalService{
+		artifacts: expected,
+	}
+
+	dest := makeTempDir(t)
+	defer os.RemoveAll(dest)
+	ctx := grpcx.WriteWorkerID(context.Background(), "worker")
+
+	mds, err := newMaterializeWithClient(ctx, client, client.urlArtifactsWithoutStagingTo(), dest)
+	if err != nil {
+		t.Fatalf("materialize failed: %v", err)
+	}
+
+	generated := make(map[string]string)
+	for _, md := range mds {
+		name, _ := MustExtractFilePayload(md)
+		payload, _ := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
+			StagedName: name})
+		generated[name] = string(payload)
+	}
+
+	checkStagedFiles(mds, dest, generated, t)
 }
 
 func TestNewRetrieveWithSubdir(t *testing.T) {
@@ -185,7 +240,7 @@ func TestNewRetrieveWithSubdir(t *testing.T) {
 	defer os.RemoveAll(dest)
 	ctx := grpcx.WriteWorkerID(context.Background(), "worker")
 
-	mds, err := newMaterializeWithClient(ctx, client, client.resolvedArtifacts(), dest)
+	mds, err := newMaterializeWithClient(ctx, client, client.resolvedArtifactsWithStagingTo(), dest)
 	if err != nil {
 		t.Fatalf("materialize failed: %v", err)
 	}
@@ -212,12 +267,13 @@ func TestNewRetrieveWithResolution(t *testing.T) {
 	checkStagedFiles(mds, dest, expected, t)
 }
 
-func checkStagedFiles(mds []*jobpb.ArtifactMetadata, dest string, expected map[string]string, t *testing.T) {
+func checkStagedFiles(mds []*pipepb.ArtifactInformation, dest string, expected map[string]string, t *testing.T) {
 	if len(mds) != len(expected) {
 		t.Errorf("wrong number of artifacts staged %v vs %v", len(mds), len(expected))
 	}
 	for _, md := range mds {
-		filename := filepath.Join(dest, filepath.FromSlash(md.Name))
+		name, _ := MustExtractFilePayload(md)
+		filename := filepath.Join(dest, filepath.FromSlash(name))
 		fd, err := os.Open(filename)
 		if err != nil {
 			t.Errorf("error opening file %v", err)
@@ -230,8 +286,8 @@ func checkStagedFiles(mds []*jobpb.ArtifactMetadata, dest string, expected map[s
 			t.Errorf("error reading file %v", err)
 		}
 
-		if string(data[:n]) != expected[md.Name] {
-			t.Errorf("missmatched contents for %v: '%s' vs '%s'", md.Name, string(data[:n]), expected[md.Name])
+		if string(data[:n]) != expected[name] {
+			t.Errorf("missmatched contents for %v: '%s' vs '%s'", name, string(data[:n]), expected[name])
 		}
 	}
 }
@@ -240,7 +296,7 @@ type fakeRetrievalService struct {
 	artifacts map[string]string // name -> content
 }
 
-func (fake *fakeRetrievalService) resolvedArtifacts() []*pipepb.ArtifactInformation {
+func (fake *fakeRetrievalService) resolvedArtifactsWithStagingTo() []*pipepb.ArtifactInformation {
 	var artifacts []*pipepb.ArtifactInformation
 	for name, contents := range fake.artifacts {
 		payload, _ := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
@@ -250,6 +306,32 @@ func (fake *fakeRetrievalService) resolvedArtifacts() []*pipepb.ArtifactInformat
 			TypePayload: []byte(contents),
 			RoleUrn:     URNStagingTo,
 			RolePayload: payload,
+		})
+	}
+	return artifacts
+}
+
+func (fake *fakeRetrievalService) fileArtifactsWithoutStagingTo() []*pipepb.ArtifactInformation {
+	var artifacts []*pipepb.ArtifactInformation
+	for name := range fake.artifacts {
+		payload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{
+			Path: filepath.Join("/tmp", name)})
+		artifacts = append(artifacts, &pipepb.ArtifactInformation{
+			TypeUrn:     URNFileArtifact,
+			TypePayload: payload,
+		})
+	}
+	return artifacts
+}
+
+func (fake *fakeRetrievalService) urlArtifactsWithoutStagingTo() []*pipepb.ArtifactInformation {
+	var artifacts []*pipepb.ArtifactInformation
+	for name := range fake.artifacts {
+		payload, _ := proto.Marshal(&pipepb.ArtifactUrlPayload{
+			Url: path.Join("gs://tmp", name)})
+		artifacts = append(artifacts, &pipepb.ArtifactInformation{
+			TypeUrn:     URNUrlArtifact,
+			TypePayload: payload,
 		})
 	}
 	return artifacts
@@ -267,7 +349,7 @@ func (fake *fakeRetrievalService) ResolveArtifacts(ctx context.Context, request 
 	response := jobpb.ResolveArtifactsResponse{}
 	for _, dep := range request.Artifacts {
 		if dep.TypeUrn == "unresolved" {
-			response.Replacements = append(response.Replacements, fake.resolvedArtifacts()...)
+			response.Replacements = append(response.Replacements, fake.resolvedArtifactsWithStagingTo()...)
 		} else {
 			response.Replacements = append(response.Replacements, dep)
 		}
@@ -276,10 +358,14 @@ func (fake *fakeRetrievalService) ResolveArtifacts(ctx context.Context, request 
 }
 
 func (fake *fakeRetrievalService) GetArtifact(ctx context.Context, request *jobpb.GetArtifactRequest, opts ...grpc.CallOption) (jobpb.ArtifactRetrievalService_GetArtifactClient, error) {
-	if request.Artifact.TypeUrn == "resolved" {
+	switch request.Artifact.TypeUrn {
+	case "resolved":
 		return &fakeGetArtifactResponseStream{data: request.Artifact.TypePayload}, nil
+	case URNFileArtifact, URNUrlArtifact:
+		return &fakeGetArtifactResponseStream{data: request.Artifact.RolePayload}, nil
+	default:
+		return nil, errors.Errorf("Unsupported artifact %v", request.Artifact)
 	}
-	return nil, errors.Errorf("Unsupported artifact %v", request.Artifact)
 }
 
 type fakeGetArtifactResponseStream struct {

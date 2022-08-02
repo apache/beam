@@ -22,12 +22,12 @@ import (
 
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 // See: https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/JoinExamples.java
@@ -40,6 +40,16 @@ const (
 var (
 	output = flag.String("output", "", "Output filename")
 )
+
+func init() {
+	beam.RegisterFunction(extractEventDataFn)
+	beam.RegisterFunction(extractCountryInfoFn)
+	beam.RegisterFunction(formatFn)
+	beam.RegisterFunction(processFn)
+	beam.RegisterType(reflect.TypeOf((*Code)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*CountryInfoRow)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*EventDataRow)(nil)).Elem())
+}
 
 type Code string
 

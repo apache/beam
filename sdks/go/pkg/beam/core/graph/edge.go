@@ -18,13 +18,14 @@ package graph
 import (
 	"fmt"
 	"reflect"
+	"sort"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Opcode represents a primitive Beam instruction kind.
@@ -136,6 +137,13 @@ func (o *Outbound) String() string {
 type Payload struct {
 	URN  string
 	Data []byte
+
+	// Optional fields mapping tags to inputs. If present, will override
+	// the default IO tagging for the transform's input PCollections.
+	InputsMap map[string]int
+	// Optional fields mapping tags to outputs. If present, will override
+	// the default IO tagging for the transform's output PCollections.
+	OutputsMap map[string]int
 }
 
 // MultiEdge represents a primitive data processing operation. Each non-user
@@ -145,13 +153,14 @@ type MultiEdge struct {
 	parent *Scope
 
 	Op               Opcode
-	DoFn             *DoFn        // ParDo
-	RestrictionCoder *coder.Coder // SplittableParDo
-	CombineFn        *CombineFn   // Combine
-	AccumCoder       *coder.Coder // Combine
-	Value            []byte       // Impulse
-	Payload          *Payload     // External
-	WindowFn         *window.Fn   // WindowInto
+	DoFn             *DoFn              // ParDo
+	RestrictionCoder *coder.Coder       // SplittableParDo
+	CombineFn        *CombineFn         // Combine
+	AccumCoder       *coder.Coder       // Combine
+	Value            []byte             // Impulse
+	External         *ExternalTransform // Current External Transforms API
+	Payload          *Payload           // Legacy External Transforms API
+	WindowFn         *window.Fn         // WindowInto
 
 	Input  []*Inbound
 	Output []*Outbound
@@ -281,6 +290,79 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 	return edge, nil
 }
 
+// NewCrossLanguage inserts a Cross-langugae External transform using initialized input and output nodes
+func NewCrossLanguage(g *Graph, s *Scope, ext *ExternalTransform, ins []*Inbound, outs []*Outbound) (*MultiEdge, func(*Node, bool)) {
+	edge := g.NewEdge(s)
+	edge.Op = External
+	edge.External = ext
+
+	ws := window.DefaultWindowingStrategy()
+	if len(ins) > 0 {
+		ws = inputWindow([]*Node{ins[0].From})
+	}
+	for _, o := range outs {
+		o.To.w = ws
+	}
+
+	isBoundedUpdater := func(n *Node, bounded bool) {
+		n.bounded = bounded
+	}
+
+	edge.Input = ins
+	edge.Output = outs
+
+	return edge, isBoundedUpdater
+}
+
+// NamedInboundLinks returns an array of new Inbound links and a map (tag ->
+// index of Inbound in MultiEdge.Input) of corresponding indices with respect to
+// their names.
+func NamedInboundLinks(ins map[string]*Node) (map[string]int, []*Inbound) {
+	inputsMap := make(map[string]int)
+	var inboundLinks []*Inbound
+
+	// Ensuring deterministic order of Nodes
+	var tags []string
+	for tag := range ins {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+
+	for _, tag := range tags {
+		node := ins[tag]
+		id := len(inboundLinks)
+		inputsMap[tag] = id
+		inboundLinks = append(inboundLinks, &Inbound{Kind: Main, From: node, Type: node.Type()})
+	}
+
+	return inputsMap, inboundLinks
+}
+
+// NamedOutboundLinks returns an array of new Outbound links and a map (tag ->
+// index of Outbound in MultiEdge.Output) of corresponding indices with respect
+// to their names.
+func NamedOutboundLinks(g *Graph, outs map[string]typex.FullType) (map[string]int, []*Outbound) {
+	outputsMap := make(map[string]int)
+	var outboundLinks []*Outbound
+
+	// Ensuring deterministic order of Nodes
+	var tags []string
+	for tag := range outs {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+
+	for _, tag := range tags {
+		fullType := outs[tag]
+		node := g.NewNode(fullType, nil, true)
+		id := len(outboundLinks)
+		outputsMap[tag] = id
+		outboundLinks = append(outboundLinks, &Outbound{To: node, Type: fullType})
+	}
+
+	return outputsMap, outboundLinks
+}
+
 // NewExternal inserts an External transform. The system makes no assumptions about
 // what this transform might do.
 func NewExternal(g *Graph, s *Scope, payload *Payload, in []*Node, out []typex.FullType, bounded bool) *MultiEdge {
@@ -294,6 +376,31 @@ func NewExternal(g *Graph, s *Scope, payload *Payload, in []*Node, out []typex.F
 		n := g.NewNode(t, inputWindow(in), bounded)
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: t})
 	}
+	return edge
+}
+
+// NewTaggedExternal inserts an External transform with tagged inbound and
+// outbound connections. The system makes no assumptions about what this
+// transform might do.
+func NewTaggedExternal(g *Graph, s *Scope, payload *Payload, ins []*Inbound, outs []*Outbound, bounded bool) *MultiEdge {
+	edge := g.NewEdge(s)
+	edge.Op = External
+	edge.Payload = payload
+
+	var windowingStrategy *window.WindowingStrategy
+	if len(ins) == 0 {
+		windowingStrategy = window.DefaultWindowingStrategy()
+	} else {
+		windowingStrategy = inputWindow([]*Node{ins[0].From})
+	}
+
+	for _, o := range outs {
+		o.To.w = windowingStrategy
+		o.To.bounded = bounded
+	}
+
+	edge.Input = ins
+	edge.Output = outs
 	return edge
 }
 
@@ -319,8 +426,12 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, rc *coder.C
 	for i := 0; i < len(in); i++ {
 		edge.Input = append(edge.Input, &Inbound{Kind: kinds[i], From: in[i], Type: inbound[i]})
 	}
+
+	_, continuation := u.ProcessElementFn().ProcessContinuation()
+
+	bounded := inputBounded(in) && !continuation
 	for i := 0; i < len(out); i++ {
-		n := g.NewNode(out[i], inputWindow(in), inputBounded(in))
+		n := g.NewNode(out[i], inputWindow(in), bounded)
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: outbound[i]})
 	}
 	edge.RestrictionCoder = rc
@@ -426,13 +537,13 @@ func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
 }
 
 // NewWindowInto inserts a new WindowInto edge into the graph.
-func NewWindowInto(g *Graph, s *Scope, wfn *window.Fn, in *Node) *MultiEdge {
-	n := g.NewNode(in.Type(), &window.WindowingStrategy{Fn: wfn}, in.Bounded())
+func NewWindowInto(g *Graph, s *Scope, ws *window.WindowingStrategy, in *Node) *MultiEdge {
+	n := g.NewNode(in.Type(), ws, in.Bounded())
 	n.Coder = in.Coder
 
 	edge := g.NewEdge(s)
 	edge.Op = WindowInto
-	edge.WindowFn = wfn
+	edge.WindowFn = ws.Fn
 	edge.Input = []*Inbound{{Kind: Main, From: in, Type: in.Type()}}
 	edge.Output = []*Outbound{{To: n, Type: in.Type()}}
 	return edge

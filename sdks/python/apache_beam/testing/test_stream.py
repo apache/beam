@@ -21,25 +21,18 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from abc import ABCMeta
 from abc import abstractmethod
-from builtins import object
 from enum import Enum
 from functools import total_ordering
-
-from future.utils import with_metaclass
 
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_interactive_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
-from apache_beam.portability.api.endpoints_pb2 import ApiServiceDescriptor
+from apache_beam.portability.api import endpoints_pb2
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import core
 from apache_beam.transforms import window
@@ -63,7 +56,7 @@ __all__ = [
 
 
 @total_ordering
-class Event(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class Event(metaclass=ABCMeta):  # type: ignore[misc]
   """Test stream event to be emitted during execution of a TestStream."""
   @abstractmethod
   def __eq__(self, other):
@@ -76,10 +69,6 @@ class Event(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   @abstractmethod
   def __lt__(self, other):
     raise NotImplementedError
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   @abstractmethod
   def to_runner_api(self, element_coder):
@@ -216,15 +205,56 @@ class ProcessingTimeEvent(Event):
     return 'ProcessingTimeEvent: <{}>'.format(self.advance_by)
 
 
-class WindowedValueHolder:
+class WindowedValueHolderMeta(type):
+  """A metaclass that overrides the isinstance check for WindowedValueHolder.
+
+  Python does a quick test for exact match. If an instance is exactly of
+  type WindowedValueHolder, the overridden isinstance check is omitted.
+  The override is needed because WindowedValueHolder elements encoded then
+  decoded become Row elements.
+  """
+  def __instancecheck__(cls, other):
+    """Checks if a beam.Row typed instance is a WindowedValueHolder.
+    """
+    return (
+        isinstance(other, beam.Row) and hasattr(other, 'windowed_value') and
+        hasattr(other, 'urn') and
+        isinstance(other.windowed_value, WindowedValue) and
+        other.urn == common_urns.coders.ROW.urn)
+
+
+class WindowedValueHolder(beam.Row, metaclass=WindowedValueHolderMeta):
   """A class that holds a WindowedValue.
 
   This is a special class that can be used by the runner that implements the
   TestStream as a signal that the underlying value should be unreified to the
   specified window.
   """
+  # Register WindowedValueHolder to always use RowCoder.
+  coders.registry.register_coder(WindowedValueHolderMeta, coders.RowCoder)
+
   def __init__(self, windowed_value):
-    self.windowed_value = windowed_value
+    assert isinstance(windowed_value, WindowedValue), (
+        'WindowedValueHolder can only hold %s type. Instead, %s is given.') % (
+            WindowedValue, windowed_value)
+    super().__init__(
+        **{
+            'windowed_value': windowed_value, 'urn': common_urns.coders.ROW.urn
+        })
+
+  @classmethod
+  def from_row(cls, row):
+    """Converts a beam.Row typed instance to WindowedValueHolder.
+    """
+    if isinstance(row, WindowedValueHolder):
+      return WindowedValueHolder(row.windowed_value)
+    assert isinstance(row, beam.Row), 'The given row %s must be a %s type' % (
+        row, beam.Row)
+    assert hasattr(row, 'windowed_value'), (
+        'The given %s must have a windowed_value attribute.') % row
+    assert isinstance(row.windowed_value, WindowedValue), (
+        'The windowed_value attribute of %s must be a %s type') % (
+            row, WindowedValue)
 
 
 class TestStream(PTransform):
@@ -254,7 +284,7 @@ class TestStream(PTransform):
       endpoint: (str) a URL locating a TestStreamService.
     """
 
-    super(TestStream, self).__init__()
+    super().__init__()
     assert coder is not None
 
     self.coder = coder
@@ -375,7 +405,7 @@ class TestStream(PTransform):
         beam_runner_api_pb2.TestStreamPayload(
             coder_id=context.coders.get_id(self.coder),
             events=[e.to_runner_api(self.coder) for e in self._events],
-            endpoint=ApiServiceDescriptor(url=self._endpoint)))
+            endpoint=endpoints_pb2.ApiServiceDescriptor(url=self._endpoint)))
 
   @staticmethod
   @PTransform.register_urn(
@@ -551,7 +581,7 @@ class _TimingEventGenerator(beam.DoFn):
 
       # Here we capture the initial time offset and initial watermark. This is
       # where we emit the TestStreamFileHeader.
-      yield TestStreamFileHeader(tag=self._output_tag)
+      yield beam_interactive_api_pb2.TestStreamFileHeader(tag=self._output_tag)
       yield ProcessingTimeEvent(
           Duration(micros=timing_info.processing_time.micros))
       yield WatermarkEvent(MIN_TIMESTAMP)
@@ -595,7 +625,7 @@ class _TestStreamFormatter(beam.DoFn):
     """
     _, (element, timing_info) = e
 
-    if isinstance(element, TestStreamFileHeader):
+    if isinstance(element, beam_interactive_api_pb2.TestStreamFileHeader):
       self.header = element
     elif isinstance(element, WatermarkEvent):
       # WatermarkEvents come in with a watermark of MIN_TIMESTAMP. Fill in the
@@ -655,19 +685,21 @@ class _TestStreamFormatter(beam.DoFn):
     records = []
     for e in self.timing_events:
       if isinstance(e, ProcessingTimeEvent):
-        processing_time_event = TestStreamPayload.Event.AdvanceProcessingTime(
+        processing_time_event = beam_runner_api_pb2.\
+            TestStreamPayload.Event.AdvanceProcessingTime(
             advance_duration=e.advance_by.micros)
         records.append(
-            TestStreamFileRecord(
-                recorded_event=TestStreamPayload.Event(
+            beam_interactive_api_pb2.TestStreamFileRecord(
+                recorded_event=beam_runner_api_pb2.TestStreamPayload.Event(
                     processing_time_event=processing_time_event)))
 
       elif isinstance(e, WatermarkEvent):
-        watermark_event = TestStreamPayload.Event.AdvanceWatermark(
+        watermark_event = beam_runner_api_pb2.\
+            TestStreamPayload.Event.AdvanceWatermark(
             new_watermark=int(e.new_watermark))
         records.append(
-            TestStreamFileRecord(
-                recorded_event=TestStreamPayload.Event(
+            beam_interactive_api_pb2.TestStreamFileRecord(
+                recorded_event=beam_runner_api_pb2.TestStreamPayload.Event(
                     watermark_event=watermark_event)))
 
     return records
@@ -683,6 +715,8 @@ class _TestStreamFormatter(beam.DoFn):
           timestamp=element_timestamp)
       elements.append(element)
 
-    element_event = TestStreamPayload.Event.AddElements(elements=elements)
-    return TestStreamFileRecord(
-        recorded_event=TestStreamPayload.Event(element_event=element_event))
+    element_event = beam_runner_api_pb2.TestStreamPayload.Event.AddElements(
+        elements=elements)
+    return beam_interactive_api_pb2.TestStreamFileRecord(
+        recorded_event=beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=element_event))

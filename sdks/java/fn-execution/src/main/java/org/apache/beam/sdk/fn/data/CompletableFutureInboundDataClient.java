@@ -49,6 +49,12 @@ public class CompletableFutureInboundDataClient implements InboundDataClient {
   }
 
   @Override
+  @SuppressWarnings("FutureReturnValueIgnored")
+  public void runWhenComplete(Runnable completeRunnable) {
+    future.whenComplete((result, throwable) -> completeRunnable.run());
+  }
+
+  @Override
   public boolean isDone() {
     return future.isDone();
   }

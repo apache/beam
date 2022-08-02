@@ -30,8 +30,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test operator {@code FlatMap}. */
+@RunWith(JUnit4.class)
 public class FlatMapTest extends AbstractOperatorTest {
 
   @Test

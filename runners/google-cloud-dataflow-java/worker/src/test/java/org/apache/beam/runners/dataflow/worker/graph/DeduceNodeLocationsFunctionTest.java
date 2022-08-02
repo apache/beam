@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.graph;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.dataflow.model.FlattenInstruction;
@@ -320,11 +320,5 @@ public final class DeduceNodeLocationsFunctionTest {
             .setName(name)
             .setParDo(new ParDoInstruction().setUserFn(CloudObject.forClassName(parDoClassName))),
         Nodes.ExecutionLocation.UNKNOWN);
-  }
-
-  /** Creates a node already set to execute in the SDK harness. */
-  private static ParallelInstructionNode createSdkNode(String name) {
-    return ParallelInstructionNode.create(
-        new ParallelInstruction().setName(name), Nodes.ExecutionLocation.SDK_HARNESS);
   }
 }

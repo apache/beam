@@ -23,10 +23,12 @@ import (
 	"reflect"
 
 	// Library imports
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
@@ -34,6 +36,7 @@ func init() {
 	runtime.RegisterFunction(KvFn)
 	runtime.RegisterFunction(VFn)
 	runtime.RegisterType(reflect.TypeOf((*SCombine)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*SCombine)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*SCombine)(nil)).Elem(), wrapMakerSCombine)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int, int) int)(nil)).Elem(), funcMakerIntIntГInt)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int) (string, int))(nil)).Elem(), funcMakerIntГStringInt)
@@ -154,8 +157,9 @@ func (c *callerStringIntГStringInt) Call2x2(arg0, arg1 interface{}) (interface{
 }
 
 type emitNative struct {
-	n  exec.ElementProcessor
-	fn interface{}
+	n   exec.ElementProcessor
+	fn  interface{}
+	est *sdf.WatermarkEstimator
 
 	ctx   context.Context
 	ws    []typex.Window
@@ -174,6 +178,10 @@ func (e *emitNative) Value() interface{} {
 	return e.fn
 }
 
+func (e *emitNative) AttachEstimator(est *sdf.WatermarkEstimator) {
+	e.est = est
+}
+
 func emitMakerStringInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
 	ret.fn = ret.invokeStringInt
@@ -182,6 +190,9 @@ func emitMakerStringInt(n exec.ElementProcessor) exec.ReusableEmitter {
 
 func (e *emitNative) invokeStringInt(key string, val int) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: key, Elm2: val}
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}

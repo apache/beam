@@ -16,8 +16,10 @@
  * limitations under the License.
  */
 
+// TODO(https://github.com/apache/beam/issues/20209): Move this definition into common.gradle.
+
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(publish: false, exportJavadoc: false, enableChecker:false)
+applyJavaNature(publish: false, exportJavadoc: false)
 
 import org.apache.beam.gradle.BeamModulePlugin
 
@@ -26,25 +28,42 @@ project.evaluationDependsOn(":runners:portability:java")
 
 def envDir = project.project(":sdks:python").envdir
 def crossLanguageTestClasspath = project.project(":runners:portability:java").sourceSets.test.runtimeClasspath
-def jobPort = BeamModulePlugin.startingExpansionPortNumber.getAndDecrement()
-def pidFile = "/tmp/local_job_service_main-${jobPort}.pid"
+def jobPort = BeamModulePlugin.getRandomPort()
+def tmpDir = System.getenv("TMPDIR") ?: System.getenv("WORKSPACE") ?: "/tmp"
+def pidFile = "${tmpDir}/local_job_service_main-${jobPort}.pid"
 
-def setupTask = project.tasks.create(name: "fnApiJobServerSetup", type: Exec) {
+def setupTask = project.tasks.register("fnApiJobServerSetup", Exec) {
   dependsOn ':sdks:python:installGcpTest'
 
   executable 'sh'
-  args '-c', ". ${envdir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort} --pid_file ${pidFile} --background >/tmp/beam-fnapi-job-server.log 2>&1 </dev/null"
+  args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort} --pid_file ${pidFile} --background --stdout_file ${tmpDir}/beam-fnapi-job-server.log"
 }
 
-def cleanupTask = project.tasks.create(name: "fnApiJobServerCleanup", type: Exec) {
+def cleanupTask = project.tasks.register("fnApiJobServerCleanup", Exec) {
   executable 'sh'
-  args '-c', ". ${envdir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --pid_file ${pidFile} --stop"
+  args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --pid_file ${pidFile} --stop"
 }
 
 createCrossLanguageValidatesRunnerTask(
   startJobServer: setupTask,
   cleanupJobServer: cleanupTask,
-  jobEndpoint: "localhost:${jobPort}",
   numParallelTests: 1,
-  classpath: crossLanguageTestClasspath
+  classpath: crossLanguageTestClasspath,
+  pythonPipelineOptions: [
+    "--runner=PortableRunner",
+    "--job_endpoint=localhost:${jobPort}",
+    "--environment_cache_millis=10000",
+    "--experiments=beam_fn_api",
+  ],
+  javaPipelineOptions: [
+    "--runner=PortableRunner",
+    "--jobEndpoint=localhost:${jobPort}",
+    "--environmentCacheMillis=10000",
+    "--experiments=beam_fn_api",
+  ],
+  goScriptOptions: [
+    "--runner portable",
+    "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
+    "--endpoint localhost:${jobPort}",
+  ],
 )

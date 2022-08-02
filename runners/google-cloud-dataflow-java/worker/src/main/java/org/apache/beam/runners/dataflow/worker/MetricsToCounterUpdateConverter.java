@@ -29,6 +29,9 @@ import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 
 /** Convertor from Metrics to {@link CounterUpdate} protos. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MetricsToCounterUpdateConverter {
 
   private MetricsToCounterUpdateConverter() {}

@@ -31,6 +31,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Creates an UngroupedShuffleReader from a CloudObject spec. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class UngroupedShuffleReaderFactory implements ReaderFactory {
 
   /** A {@link ReaderFactory.Registrar} for ungrouped shuffle sources. */

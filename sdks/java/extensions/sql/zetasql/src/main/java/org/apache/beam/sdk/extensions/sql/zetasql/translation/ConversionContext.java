@@ -18,15 +18,14 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import com.google.zetasql.resolvedast.ResolvedNode;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.zetasql.QueryTrait;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.FrameworkConfig;
 
 /** Conversion context, some rules need this data to convert the nodes. */
 @Internal
@@ -35,11 +34,6 @@ public class ConversionContext {
   private final ExpressionConverter expressionConverter;
   private final RelOptCluster cluster;
   private final QueryTrait trait;
-
-  // SQL native user-defined table-valued function can be resolved by Analyzer. Keeping the
-  // function name to its ResolvedNode mapping so during Plan conversion, UDTVF implementation
-  // can replace inputs of TVFScanConverter.
-  private final Map<List<String>, ResolvedNode> userDefinedTableValuedFunctions;
 
   // SQL native user-defined table-valued function can be resolved by Analyzer. Its sql body is
   // converted to ResolvedNode, in which function parameters are replaced with ResolvedArgumentRef.
@@ -52,31 +46,19 @@ public class ConversionContext {
       FrameworkConfig config,
       ExpressionConverter expressionConverter,
       RelOptCluster cluster,
-      QueryTrait trait,
-      Map<List<String>, ResolvedNode> sqlUDTVF) {
-    return new ConversionContext(config, expressionConverter, cluster, trait, sqlUDTVF);
-  }
-
-  public static ConversionContext of(
-      FrameworkConfig config,
-      ExpressionConverter expressionConverter,
-      RelOptCluster cluster,
       QueryTrait trait) {
-    return new ConversionContext(
-        config, expressionConverter, cluster, trait, Collections.emptyMap());
+    return new ConversionContext(config, expressionConverter, cluster, trait);
   }
 
   private ConversionContext(
       FrameworkConfig config,
       ExpressionConverter expressionConverter,
       RelOptCluster cluster,
-      QueryTrait trait,
-      Map<List<String>, ResolvedNode> sqlUDTVF) {
+      QueryTrait trait) {
     this.config = config;
     this.expressionConverter = expressionConverter;
     this.cluster = cluster;
     this.trait = trait;
-    this.userDefinedTableValuedFunctions = sqlUDTVF;
     this.functionArgumentRefMapping = new HashMap<>();
   }
 
@@ -97,7 +79,7 @@ public class ConversionContext {
   }
 
   Map<List<String>, ResolvedNode> getUserDefinedTableValuedFunctions() {
-    return userDefinedTableValuedFunctions;
+    return getExpressionConverter().userFunctionDefinitions.sqlTableValuedFunctions();
   }
 
   Map<String, RexNode> getFunctionArgumentRefMapping() {

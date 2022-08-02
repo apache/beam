@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.extensions.sql.meta.store;
 
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 
 import com.alibaba.fastjson.JSONObject;
 import java.util.HashMap;

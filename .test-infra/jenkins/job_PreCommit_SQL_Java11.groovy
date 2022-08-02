@@ -25,13 +25,15 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     gradleTask: ':sqlPreCommit',
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
+      '-PdisableCheckStyle=true',
       '-PcompileAndRunTestsWithJava11',
+      '-PskipCheckerFramework',
+      // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
       "-Pjava11Home=${properties.JAVA_11_HOME}"
     ], // spotless checked in job_PreCommit_Spotless
     triggerPathPatterns: [
       '^sdks/java/extensions/sql.*$',
-    ],
-    timeoutMins: 30
+    ]
     )
 builder.build {
   publishers {
@@ -40,13 +42,8 @@ builder.build {
       tools {
         errorProne()
         java()
-        checkStyle {
-          pattern('**/build/reports/checkstyle/*.xml')
-        }
-        configure { node ->
-          node / 'spotBugs' << 'io.jenkins.plugins.analysis.warnings.SpotBugs' {
-            pattern('**/build/reports/spotbugs/*.xml')
-          }
+        spotBugs {
+          pattern('**/build/reports/spotbugs/*.xml')
         }
       }
       enabledForFailure(true)

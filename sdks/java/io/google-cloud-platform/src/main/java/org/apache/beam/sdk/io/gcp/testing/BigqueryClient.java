@@ -78,7 +78,7 @@ import org.slf4j.LoggerFactory;
  * <p>Get a new Bigquery client:
  *
  * <pre>{@code [
- *    BigqueryClient client = BigqueryClient.getNewBigquerryClient(applicationName);
+ *    BigqueryClient client = BigqueryClient.getNewBigqueryClient(applicationName);
  * ]}</pre>
  *
  * <p>Execute a query with retries:
@@ -112,6 +112,9 @@ import org.slf4j.LoggerFactory;
  * ]}</pre>
  */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class BigqueryClient {
   private static final Logger LOG = LoggerFactory.getLogger(BigqueryClient.class);
   // The maximum number of retries to execute a BigQuery RPC
@@ -146,7 +149,7 @@ public class BigqueryClient {
     return credential;
   }
 
-  public static Bigquery getNewBigquerryClient(String applicationName) {
+  public static Bigquery getNewBigqueryClient(String applicationName) {
     HttpTransport transport = Transport.getTransport();
     JsonFactory jsonFactory = Transport.getJsonFactory();
     Credentials credential = getDefaultCredential();
@@ -160,7 +163,7 @@ public class BigqueryClient {
   }
 
   public BigqueryClient(String applicationName) {
-    bqClient = BigqueryClient.getNewBigquerryClient(applicationName);
+    bqClient = BigqueryClient.getNewBigqueryClient(applicationName);
   }
 
   @Nonnull
@@ -378,6 +381,13 @@ public class BigqueryClient {
   /** Creates a new dataset. */
   public void createNewDataset(String projectId, String datasetId)
       throws IOException, InterruptedException {
+    createNewDataset(projectId, datasetId, null);
+  }
+
+  /** Creates a new dataset with defaultTableExpirationMs. */
+  public void createNewDataset(
+      String projectId, String datasetId, @Nullable Long defaultTableExpirationMs)
+      throws IOException, InterruptedException {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
     IOException lastException = null;
@@ -392,7 +402,8 @@ public class BigqueryClient {
                 .insert(
                     projectId,
                     new Dataset()
-                        .setDatasetReference(new DatasetReference().setDatasetId(datasetId)))
+                        .setDatasetReference(new DatasetReference().setDatasetId(datasetId))
+                        .setDefaultTableExpirationMs(defaultTableExpirationMs))
                 .execute();
         if (response != null) {
           LOG.info("Successfully created new dataset : " + response.getId());

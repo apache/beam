@@ -19,7 +19,7 @@ limitations under the License.
 
 {{< localstorage language language-py >}}
 
-{{< button-pydoc path="apache_beam.transforms.core" class="Pardo" >}}
+{{< button-pydoc path="apache_beam.transforms.core" class="ParDo" >}}
 
 A transform for generic parallel processing.
 A `ParDo` transform considers each element in the input `PCollection`,
@@ -41,7 +41,8 @@ which stores the `delimiter` as an object field.
 The `process` method is called once per element,
 and it can yield zero or more output elements.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn >}}
 {{</ highlight >}}
 
@@ -52,10 +53,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" plants >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
 
 ### Example 2: ParDo with timestamp and window information
 
@@ -70,7 +67,8 @@ In this example, we add new parameters to the `process` method to bind parameter
   [`apache_beam.transforms.window.*Window`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html)
   object.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_params >}}
 {{</ highlight >}}
 
@@ -82,10 +80,6 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" dofn_params >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
-
 ### Example 3: ParDo with DoFn methods
 
 A [`DoFn`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn)
@@ -96,8 +90,9 @@ You can also customize what to do when a
 starts and finishes with `start_bundle` and `finish_bundle`.
 
 * [`DoFn.setup()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.setup):
-  Called *once per `DoFn` instance* when the `DoFn` instance is initialized.
-  `setup` need not to be cached, so it could be called more than once per worker.
+  Called whenever the `DoFn` instance is deserialized on the worker. This means it can be called more than once per worker because
+  multiple instances of a given `DoFn` subclass may be created (e.g., due to parallelization, or due to garbage collection after a period
+  of disuse).
   This is a good place to connect to database instances, open network connections or other resources.
 
 * [`DoFn.start_bundle()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.start_bundle):
@@ -131,7 +126,8 @@ starts and finishes with `start_bundle` and `finish_bundle`.
   Note that `teardown` is called as a *best effort* and is *not guaranteed*.
   For example, if the worker crashes, `teardown` might not be called.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_methods >}}
 {{</ highlight >}}
 
@@ -143,15 +139,9 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" results >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
-
 > *Known issues:*
 >
-> * [[BEAM-7885]](https://issues.apache.org/jira/browse/BEAM-7885)
->   `DoFn.setup()` doesn't run for streaming jobs running in the `DirectRunner`.
-> * [[BEAM-7340]](https://issues.apache.org/jira/browse/BEAM-7340)
+> * [[Issue 19394]](https://github.com/apache/beam/issues/19394)
 >   `DoFn.teardown()` metrics are lost.
 
 ## Related transforms

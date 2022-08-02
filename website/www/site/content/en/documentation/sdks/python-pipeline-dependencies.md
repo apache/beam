@@ -45,6 +45,17 @@ If your pipeline uses public packages from the [Python Package Index](https://py
     The runner will use the `requirements.txt` file to install your additional dependencies onto the remote workers.
 
 **Important:** Remote workers will install all packages listed in the `requirements.txt` file. Because of this, it's very important that you delete non-PyPI packages from the `requirements.txt` file, as stated in step 2. If you don't remove non-PyPI packages, the remote workers will fail when attempting to install packages from sources that are unknown to them.
+> **NOTE**: An alternative to `pip freeze` is to use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile all the dependencies required for the pipeline from a `--requirements_file`, where only top-level dependencies are mentioned.
+
+## Custom Containers {#custom-containers}
+
+You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=image) image with all the dependencies that are needed for the pipeline instead of `requirements.txt`. [Follow the instructions on how to run pipeline with Custom Container images](https://beam.apache.org/documentation/runtime/environments/#running-pipelines).
+
+1. If you are using a custom container image, we recommend that you install the dependencies from the `--requirements_file` directly into your image at build time. In this case, you do not need to pass `--requirements_file` option at runtime, which will reduce the pipeline startup time.
+
+       # Add these lines with the path to the requirements.txt to the Dockerfile
+       COPY <path to requirements.txt> /tmp/requirements.txt
+       RUN python -m pip install -r /tmp/requirements.txt
 
 
 ## Local or non-PyPI Dependencies {#local-or-nonpypi}
@@ -53,7 +64,7 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
 1. Identify which packages are installed on your machine and are not public. Run the following command:
 
-        pip freeze
+      pip freeze
 
     This command lists all packages that are installed on your machine, regardless of where they were installed from.
 
@@ -66,7 +77,7 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
         python setup.py sdist
 
-   See the [sdist documentation](https://docs.python.org/2/distutils/sourcedist.html) for more details on this command.
+   See the [sdist documentation](https://docs.python.org/3/distutils/sourcedist.html) for more details on this command.
 
 ## Multiple File Dependencies
 
@@ -123,3 +134,11 @@ If your pipeline uses non-Python packages (e.g. packages that require installati
         --setup_file /path/to/setup.py
 
 **Note:** Because custom commands execute after the dependencies for your workflow are installed (by `pip`), you should omit the PyPI package dependency from the pipeline's `requirements.txt` file and from the `install_requires` parameter in the `setuptools.setup()` call of your `setup.py` file.
+
+## Pre-building SDK container image
+
+In pipeline execution modes where a Beam runner launches SDK workers in Docker containers, the additional pipeline dependencies (specified via `--requirements_file` and other runtime options) are installed into the containers at runtime. This can increase the worker startup time.
+However, it may be possible to pre-build the SDK containers and perform the dependency installation once before the workers start with `--prebuild_sdk_container_engine`. For instructions of how to use pre-building with Google Cloud
+Dataflow, see [Pre-building the python SDK custom container image with extra dependencies](https://cloud.google.com/dataflow/docs/guides/using-custom-containers#prebuild).
+
+**NOTE**: This feature is available only for the `Dataflow Runner v2`.

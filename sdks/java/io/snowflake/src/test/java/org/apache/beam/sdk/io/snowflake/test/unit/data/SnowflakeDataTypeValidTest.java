@@ -61,7 +61,7 @@ public class SnowflakeDataTypeValidTest {
   }
 
   @Parameterized.Parameters
-  public static Collection primeNumbers() {
+  public static Collection<Object[]> primeNumbers() {
     return Arrays.asList(
         new Object[][] {
           {SnowflakeBoolean.of(), "BOOLEAN"},

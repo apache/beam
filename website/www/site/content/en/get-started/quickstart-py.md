@@ -23,13 +23,13 @@ If you're interested in contributing to the Apache Beam Python codebase, see the
 
 {{< toc >}}
 
-The Python SDK supports Python 2.7, 3.5, 3.6, and 3.7. New Python SDK releases will stop supporting Python 2.7 in 2020 ([BEAM-8371](https://issues.apache.org/jira/browse/BEAM-8371)). For best results, use Beam with Python 3.
+The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last release with support for Python 2.7 and 3.5.
 
 ## Set up your environment
 
 ### Check your Python version
 
-The Beam SDK requires Python 2 users to use Python 2.7 and Python 3 users to use Python 3.5 or higher. Check your version by running:
+The Beam SDK requires Python users to use Python version 3.6 or higher. Check your version by running:
 
 {{< highlight >}}
 python --version
@@ -46,55 +46,28 @@ pip --version
 If you do not have `pip` version 7.0.0 or newer, run the following command to
 install it. This command might require administrative privileges.
 
-{{< highlight class="shell-unix" >}}
+{{< shell unix >}}
 pip install --upgrade pip
-{{< /highlight >}}
+{{< /shell >}}
 
-{{< highlight class="shell-PowerShell" >}}
+{{< shell powerShell >}}
 PS> python -m pip install --upgrade pip
-{{< /highlight >}}
+{{< /shell >}}
 
-
-### Install Python virtual environment
-
-It is recommended that you install a [Python virtual environment](https://docs.python-guide.org/en/latest/dev/virtualenvs/)
-for initial experiments. If you do not have `virtualenv` version 13.1.0 or
-newer, run the following command to install it. This command might require
-administrative privileges.
-
-{{< highlight class="shell-unix" >}}
-pip install --upgrade virtualenv
-{{< /highlight >}}
-
-{{< highlight class="shell-PowerShell" >}}
-PS> python -m pip install --upgrade virtualenv
-{{< /highlight >}}
-
-If you do not want to use a Python virtual environment (not recommended), ensure
-`setuptools` is installed on your machine. If you do not have `setuptools`
-version 17.1 or newer, run the following command to install it.
-
-{{< highlight class="shell-unix" >}}
-pip install --upgrade setuptools
-{{< /highlight >}}
-
-{{< highlight class="shell-PowerShell" >}}
-PS> python -m pip install --upgrade setuptools
-{{< /highlight >}}
 
 ## Get Apache Beam
 
 ### Create and activate a virtual environment
 
-A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, create a directory and run:
+A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, run:
 
-{{< highlight class="shell-unix" >}}
-virtualenv /path/to/directory
-{{< /highlight >}}
+{{< shell unix >}}
+python -m venv /path/to/directory
+{{< /shell >}}
 
-{{< highlight class="shell-PowerShell" >}}
-PS> virtualenv C:\path\to\directory
-{{< /highlight >}}
+{{< shell powerShell >}}
+PS> python -m venv C:\path\to\directory
+{{< /shell >}}
 
 A virtual environment needs to be activated for each shell that is to use it.
 Activating it sets some environment variables that point to the virtual
@@ -102,49 +75,49 @@ environment's directories.
 
 To activate a virtual environment in Bash, run:
 
-{{< highlight class="shell-unix" >}}
+{{< shell unix >}}
 . /path/to/directory/bin/activate
-{{< /highlight >}}
+{{< /shell >}}
 
-{{< highlight class="shell-PowerShell" >}}
+{{< shell powerShell >}}
 PS> C:\path\to\directory\Scripts\activate.ps1
-{{< /highlight >}}
+{{< /shell >}}
 
 That is, execute the `activate` script under the virtual environment directory you created.
 
-For instructions using other shells, see the [virtualenv documentation](https://virtualenv.pypa.io/en/stable/userguide/#activate-script).
+For instructions using other shells, see the [venv documentation](https://docs.python.org/3/library/venv.html).
 
 ### Download and install
 
 Install the latest Python SDK from PyPI:
 
-{{< highlight class="shell-unix" >}}
+{{< shell unix >}}
 pip install apache-beam
-{{< /highlight >}}
+{{< /shell >}}
 
-{{< highlight class="shell-PowerShell" >}}
+{{< shell powerShell >}}
 PS> python -m pip install apache-beam
-{{< /highlight >}}
+{{< /shell >}}
 
 #### Extra requirements
 
-The above installation will not install all the extra dependencies for using features like the Google Cloud Dataflow runner. Information on what extra packages are required for different features are highlighted below. It is possible to install multiple extra requirements using something like `pip install apache-beam[feature1,feature2]`.
+The above installation will not install all the extra dependencies for using features like the Google Cloud Dataflow runner. Information on what extra packages are required for different features are highlighted below. It is possible to install multiple extra requirements using something like `pip install 'apache-beam[feature1,feature2]'`.
 
 - **Google Cloud Platform**
-  - Installation Command: `pip install apache-beam[gcp]`
+  - Installation Command: `pip install 'apache-beam[gcp]'`
   - Required for:
     - Google Cloud Dataflow Runner
     - GCS IO
     - Datastore IO
     - BigQuery IO
 - **Amazon Web Services**
-  - Installation Command: `pip install apache-beam[aws]`
+  - Installation Command: `pip install 'apache-beam[aws]'`
   - Required for I/O connectors interfacing with AWS
 - **Tests**
-  - Installation Command: `pip install apache-beam[test]`
+  - Installation Command: `pip install 'apache-beam[test]'`
   - Required for developing on beam and running unittests
 - **Docs**
-  - Installation Command: `pip install apache-beam[docs]`
+  - Installation Command: `pip install 'apache-beam[docs]'`
   - Generating API documentation using Sphinx
 
 ## Execute a pipeline
@@ -153,26 +126,23 @@ The Apache Beam [examples](https://github.com/apache/beam/tree/master/sdks/pytho
 
 For example, run `wordcount.py` with the following command:
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
-Currently, running wordcount.py on Flink requires a full download of the Beam source code.
-See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
-{{< /highlight >}}
+{{< runner flink >}}
+python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+                                         --output /path/to/write/counts \
+                                         --runner FlinkRunner
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
-Currently, running wordcount.py on Flink requires a full download of the Beam source code.
-See https://beam.apache.org/documentation/runners/flink/ for more information.
-{{< /highlight >}}
+{{< runner spark >}}
+python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+                                         --output /path/to/write/counts \
+                                         --runner SparkRunner
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
-Currently, running wordcount.py on Spark requires a full download of the Beam source code.
-See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.
-{{< /highlight >}}
-
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 # As part of the initial setup, install Google Cloud Platform specific extra components. Make sure you
 # complete the setup steps at /documentation/runners/dataflow/#setup
 pip install apache-beam[gcp]
@@ -182,11 +152,11 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
                                          --project your-gcp-project \
                                          --region your-gcp-region \
                                          --temp_location gs://<your-gcs-bucket>/tmp/
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
 After the pipeline completes, you can view the output files at your specified
 output path. For example, if you specify `/dir1/counts` for the `--output`

@@ -28,7 +28,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
@@ -82,6 +81,9 @@ import org.joda.time.Duration;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
     extends ShuffleOperator<InputT, KeyT, Triple<KeyT, ValueT, ScoreT>>
     implements TypeAware.Value<ValueT>, CompositeOperator<InputT, Triple<KeyT, ValueT, ScoreT>> {
@@ -317,7 +319,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
     }
 
     @Override
-    public PCollection<Triple<KeyT, ValueT, ScoreT>> output(OutputHint... outputHints) {
+    public PCollection<Triple<KeyT, ValueT, ScoreT>> output() {
       final TopPerKey<InputT, KeyT, ValueT, ScoreT> sbk =
           new TopPerKey<>(
               name,

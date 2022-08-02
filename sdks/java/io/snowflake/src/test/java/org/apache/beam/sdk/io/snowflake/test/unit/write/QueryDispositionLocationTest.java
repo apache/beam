@@ -25,12 +25,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
-import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServices;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
-import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServiceImpl;
+import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServicesImpl;
+import org.apache.beam.sdk.io.snowflake.test.TestSnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -47,23 +47,23 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class QueryDispositionLocationTest {
   private static final String FAKE_TABLE = "FAKE_TABLE";
-  private static final String BUCKET_NAME = "BUCKET";
+  private static final String BUCKET_NAME = "BUCKET/";
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException exceptionRule = ExpectedException.none();
 
-  private static SnowflakePipelineOptions options;
+  private static TestSnowflakePipelineOptions options;
   private static SnowflakeIO.DataSourceConfiguration dc;
 
-  private static SnowflakeService snowflakeService;
+  private static SnowflakeServices snowflakeServices;
   private static List<Long> testData;
 
   @BeforeClass
   public static void setupAll() {
-    PipelineOptionsFactory.register(SnowflakePipelineOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(SnowflakePipelineOptions.class);
+    PipelineOptionsFactory.register(TestSnowflakePipelineOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(TestSnowflakePipelineOptions.class);
 
-    snowflakeService = new FakeSnowflakeServiceImpl();
+    snowflakeServices = new FakeSnowflakeServicesImpl();
     testData = LongStream.range(0, 100).boxed().collect(Collectors.toList());
   }
 
@@ -99,7 +99,7 @@ public class QueryDispositionLocationTest {
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withFileNameTemplate("output")
                 .withWriteDisposition(WriteDisposition.TRUNCATE)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
@@ -128,7 +128,7 @@ public class QueryDispositionLocationTest {
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withFileNameTemplate("output")
                 .withWriteDisposition(WriteDisposition.EMPTY)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
   }
@@ -149,7 +149,7 @@ public class QueryDispositionLocationTest {
                 .withFileNameTemplate("output")
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withWriteDisposition(WriteDisposition.EMPTY)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 

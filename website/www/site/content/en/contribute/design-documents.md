@@ -15,6 +15,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<!-- 
+<!--
 This page will be redirected to https://cwiki.apache.org/confluence/display/BEAM/Design+Documents
 -->

@@ -44,6 +44,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>This {@link Operation} supports restart.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteGrpcPortWriteOperation.class);
 
@@ -150,8 +153,8 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
   public Consumer<Integer> processedElementsConsumer() {
     usingElementsProcessed = true;
     return elementsProcessed -> {
+      lock.lock();
       try {
-        lock.lock();
         this.elementsProcessed.set(elementsProcessed);
         condition.signal();
       } finally {
@@ -165,8 +168,8 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
 
   private void maybeWait() throws Exception {
     if (shouldWait()) {
+      lock.lock();
       try {
-        lock.lock();
         while (shouldWait()) {
           LOG.debug(
               "Throttling elements at {} until more than {} elements been processed.",
@@ -182,8 +185,8 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
 
   public void abortWait() {
     usingElementsProcessed = false;
+    lock.lock();
     try {
-      lock.lock();
       condition.signal();
     } finally {
       lock.unlock();

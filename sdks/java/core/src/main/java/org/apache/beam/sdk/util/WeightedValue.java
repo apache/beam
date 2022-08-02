@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
@@ -46,5 +48,27 @@ public final class WeightedValue<T> implements Weighted {
 
   public T getValue() {
     return value;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof WeightedValue)) {
+      return false;
+    }
+    WeightedValue<?> that = (WeightedValue<?>) o;
+    return weight == that.weight && Objects.equals(value, that.value);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(value, weight);
+  }
+
+  @Override
+  public String toString() {
+    return "WeightedValue{value=" + value + ", weight=" + weight + "}";
   }
 }

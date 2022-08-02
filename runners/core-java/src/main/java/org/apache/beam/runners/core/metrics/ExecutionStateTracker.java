@@ -25,12 +25,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Tracks the current state of a single execution thread. */
 @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification = "Intentional for performance.")
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> {
 
   /**
@@ -38,10 +42,12 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * don't use a ThreadLocal to allow testing the implementation of this class without having to run
    * from multiple threads.
    */
-  private static final Map<Thread, ExecutionStateTracker> CURRENT_TRACKERS =
+  private static final Map<Long, ExecutionStateTracker> CURRENT_TRACKERS =
       new ConcurrentHashMap<>();
 
   private static final long LULL_REPORT_MS = TimeUnit.MINUTES.toMillis(5);
+  private static final AtomicIntegerFieldUpdater<ExecutionStateTracker> SAMPLING_UPDATER =
+      AtomicIntegerFieldUpdater.newUpdater(ExecutionStateTracker.class, "sampling");
 
   public static final String START_STATE_NAME = "start";
   public static final String PROCESS_STATE_NAME = "process";
@@ -112,7 +118,10 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * <p>This variable is written by the Execution thread, and read by the sampling and progress
    * reporting threads, thus it being marked volatile.
    */
-  private @Nullable volatile ExecutionState currentState;
+  private volatile @Nullable ExecutionState currentState;
+
+  @SuppressWarnings("UnusedVariable")
+  private volatile int sampling = 0;
 
   /**
    * The current number of times that this {@link ExecutionStateTracker} has transitioned state.
@@ -138,14 +147,16 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   }
 
   /** Reset the execution status. */
-  public void reset() {
-    trackedThread = null;
+  public synchronized void reset() {
+    if (trackedThread != null) {
+      CURRENT_TRACKERS.remove(trackedThread.getId());
+      trackedThread = null;
+    }
     currentState = null;
     numTransitions = 0;
     millisSinceLastTransition = 0;
     transitionsAtLastSample = 0;
     nextLullReportMs = LULL_REPORT_MS;
-    CURRENT_TRACKERS.entrySet().removeIf(entry -> entry.getValue() == this);
   }
 
   @VisibleForTesting
@@ -177,7 +188,17 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * either is no current state or if the current thread is not currently tracking the state.
    */
   public static @Nullable ExecutionState getCurrentExecutionState() {
-    ExecutionStateTracker tracker = CURRENT_TRACKERS.get(Thread.currentThread());
+    ExecutionStateTracker tracker = CURRENT_TRACKERS.get(Thread.currentThread().getId());
+    return tracker == null ? null : tracker.currentState;
+  }
+
+  /**
+   * Return the current {@link ExecutionState} of the thread with thread id, or {@code null} if
+   * there either is no current state or if the corresponding thread is not currently tracking the
+   * state.
+   */
+  public static @Nullable ExecutionState getCurrentExecutionState(long threadId) {
+    ExecutionStateTracker tracker = CURRENT_TRACKERS.get(threadId);
     return tracker == null ? null : tracker.currentState;
   }
 
@@ -200,7 +221,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     checkState(
         trackedThread == null, "Cannot activate an ExecutionStateTracker that is already in use.");
 
-    ExecutionStateTracker other = CURRENT_TRACKERS.put(thread, this);
+    ExecutionStateTracker other = CURRENT_TRACKERS.put(thread.getId(), this);
     checkState(
         other == null,
         "Execution state of thread {} was already being tracked by {}",
@@ -221,7 +242,9 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   private synchronized void deactivate() {
     sampler.removeTracker(this);
     Thread thread = this.trackedThread;
-    CURRENT_TRACKERS.remove(thread);
+    if (thread != null) {
+      CURRENT_TRACKERS.remove(thread.getId());
+    }
     this.trackedThread = null;
   }
 
@@ -281,7 +304,17 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     return nextLullReportMs;
   }
 
-  protected void takeSample(long millisSinceLastSample) {
+  void takeSample(long millisSinceLastSample) {
+    if (SAMPLING_UPDATER.compareAndSet(this, 0, 1)) {
+      try {
+        takeSampleOnce(millisSinceLastSample);
+      } finally {
+        SAMPLING_UPDATER.set(this, 0);
+      }
+    }
+  }
+
+  protected void takeSampleOnce(long millisSinceLastSample) {
     // These variables are read by Sampler thread, and written by Execution and Progress Reporting
     // threads.
     // Because there is no read/modify/write cycle in the Sampler thread, making them volatile

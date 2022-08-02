@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeThat;
 
 import java.io.IOException;
@@ -69,10 +69,9 @@ public class ReadTranslationTest {
     // TODO: Split into two tests.
     assumeThat(source, instanceOf(BoundedSource.class));
     BoundedSource<?> boundedSource = (BoundedSource<?>) this.source;
-    Read.Bounded<?> boundedRead = Read.from(boundedSource);
-    SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createDockerEnvironment("java"));
-    ReadPayload payload = ReadTranslation.toProto(boundedRead, components);
+    SplittableParDo.PrimitiveBoundedRead<?> boundedRead =
+        new SplittableParDo.PrimitiveBoundedRead<>(Read.from(boundedSource));
+    ReadPayload payload = ReadTranslation.toProto(boundedRead);
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.BOUNDED));
     BoundedSource<?> deserializedSource = ReadTranslation.boundedSourceFromProto(payload);
     assertThat(deserializedSource, equalTo(source));
@@ -82,10 +81,10 @@ public class ReadTranslationTest {
   public void testToFromProtoUnbounded() throws Exception {
     assumeThat(source, instanceOf(UnboundedSource.class));
     UnboundedSource<?, ?> unboundedSource = (UnboundedSource<?, ?>) this.source;
-    Read.Unbounded<?> unboundedRead = Read.from(unboundedSource);
-    SdkComponents components = SdkComponents.create();
+    SplittableParDo.PrimitiveUnboundedRead<?> unboundedRead =
+        new SplittableParDo.PrimitiveUnboundedRead<>(Read.from(unboundedSource));
     // No environment set for unbounded sources
-    ReadPayload payload = ReadTranslation.toProto(unboundedRead, components);
+    ReadPayload payload = ReadTranslation.toProto(unboundedRead);
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.UNBOUNDED));
     UnboundedSource<?, ?> deserializedSource = ReadTranslation.unboundedSourceFromProto(payload);
     assertThat(deserializedSource, equalTo(source));

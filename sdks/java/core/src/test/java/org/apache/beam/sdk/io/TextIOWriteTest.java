@@ -20,12 +20,14 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.sdk.TestUtils.LINES2_ARRAY;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.apache.beam.sdk.io.fs.MatchResult.Status.NOT_FOUND;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -74,6 +76,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIt
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.commons.lang3.SystemUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -120,9 +123,8 @@ public class TextIOWriteTest {
       return "";
     }
 
-    @Nullable
     @Override
-    public Coder<String> getDestinationCoder() {
+    public @Nullable Coder<String> getDestinationCoder() {
       return StringUtf8Coder.of();
     }
 
@@ -366,6 +368,12 @@ public class TextIOWriteTest {
 
   private void runTestWrite(String[] elems, String header, String footer, int numShards)
       throws Exception {
+    runTestWrite(elems, header, footer, numShards, false);
+  }
+
+  private void runTestWrite(
+      String[] elems, String header, String footer, int numShards, boolean skipIfEmpty)
+      throws Exception {
     String outputName = "file.txt";
     Path baseDir = Files.createTempDirectory(tempFolder.getRoot().toPath(), "testwrite");
     ResourceId baseFilename =
@@ -382,6 +390,9 @@ public class TextIOWriteTest {
     } else if (numShards > 0) {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
+    if (skipIfEmpty) {
+      write = write.skipIfEmpty();
+    }
 
     input.apply(write);
 
@@ -394,7 +405,8 @@ public class TextIOWriteTest {
         numShards,
         baseFilename,
         firstNonNull(
-            write.getShardTemplate(), DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE));
+            write.getShardTemplate(), DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE),
+        skipIfEmpty);
   }
 
   private static void assertOutputFiles(
@@ -405,8 +417,25 @@ public class TextIOWriteTest {
       ResourceId outputPrefix,
       String shardNameTemplate)
       throws Exception {
+    assertOutputFiles(elems, header, footer, numShards, outputPrefix, shardNameTemplate, false);
+  }
+
+  private static void assertOutputFiles(
+      String[] elems,
+      final String header,
+      final String footer,
+      int numShards,
+      ResourceId outputPrefix,
+      String shardNameTemplate,
+      boolean skipIfEmpty)
+      throws Exception {
     List<File> expectedFiles = new ArrayList<>();
-    if (numShards == 0) {
+    if (skipIfEmpty && elems.length == 0) {
+      String pattern = outputPrefix.toString() + "*";
+      MatchResult matches =
+          Iterables.getOnlyElement(FileSystems.match(Collections.singletonList(pattern)));
+      assertEquals(NOT_FOUND, matches.status());
+    } else if (numShards == 0) {
       String pattern = outputPrefix.toString() + "*";
       List<MatchResult> matches = FileSystems.match(Collections.singletonList(pattern));
       for (Metadata expectedFile : Iterables.getOnlyElement(matches).metadata()) {
@@ -464,9 +493,8 @@ public class TextIOWriteTest {
   private static Function<List<String>, List<String>> removeHeaderAndFooter(
       final String header, final String footer) {
     return new Function<List<String>, List<String>>() {
-      @Nullable
       @Override
-      public List<String> apply(List<String> lines) {
+      public @Nullable List<String> apply(List<String> lines) {
         ArrayList<String> newLines = Lists.newArrayList(lines);
         if (header != null) {
           newLines.remove(0);
@@ -505,6 +533,12 @@ public class TextIOWriteTest {
   @Category(NeedsRunner.class)
   public void testWriteEmptyStrings() throws Exception {
     runTestWrite(NO_LINES_ARRAY);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteEmptyStringsSkipIfEmpty() throws Exception {
+    runTestWrite(NO_LINES_ARRAY, null, null, 0, true);
   }
 
   @Test
@@ -577,6 +611,8 @@ public class TextIOWriteTest {
 
   @Test
   public void testWriteDisplayData() {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20467
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     TextIO.Write write =
         TextIO.write()
             .to("/foo")
@@ -655,15 +691,14 @@ public class TextIOWriteTest {
                     .triggering(AfterPane.elementCountAtLeast(3))
                     .withAllowedLateness(Duration.standardMinutes(1))
                     .discardingFiredPanes());
-    PCollection<String> filenames =
-        data.apply(
-                TextIO.write()
-                    .to(new File(tempFolder.getRoot(), "windowed-writes").getAbsolutePath())
-                    .withNumShards(2)
-                    .withWindowedWrites()
-                    .<Void>withOutputFilenames())
-            .getPerDestinationOutputFilenames()
-            .apply(Values.create());
+    data.apply(
+            TextIO.write()
+                .to(new File(tempFolder.getRoot(), "windowed-writes").getAbsolutePath())
+                .withNumShards(2)
+                .withWindowedWrites()
+                .<Void>withOutputFilenames())
+        .getPerDestinationOutputFilenames()
+        .apply(Values.create());
   }
 
   @Test
@@ -685,20 +720,6 @@ public class TextIOWriteTest {
                 .apply("Match All", FileIO.matchAll())
                 .apply("Read Matches", FileIO.readMatches())
                 .apply("Read Files", TextIO.readFiles()))
-        .containsInAnyOrder(data);
-
-    PAssert.that(
-            p.apply("Create Data ReadAll", Create.of(data))
-                .apply(
-                    "Write ReadAll",
-                    FileIO.<String>write()
-                        .to(tempFolder.getRoot().toString())
-                        .withSuffix(".txt")
-                        .via(TextIO.sink())
-                        .withIgnoreWindowing())
-                .getPerDestinationOutputFilenames()
-                .apply("Extract Values ReadAll", Values.create())
-                .apply("Read All", TextIO.readAll()))
         .containsInAnyOrder(data);
 
     p.run();

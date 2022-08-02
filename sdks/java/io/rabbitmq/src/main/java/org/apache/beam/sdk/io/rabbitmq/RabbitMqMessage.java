@@ -35,6 +35,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * It contains the message payload, and additional metadata like routing key or attributes. The main
  * reason of this class is that AMQP.BasicProperties doesn't provide a serializable public API.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class RabbitMqMessage implements Serializable {
 
   /**

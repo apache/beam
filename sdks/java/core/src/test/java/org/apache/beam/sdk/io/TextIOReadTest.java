@@ -27,40 +27,38 @@ import static org.apache.beam.sdk.io.Compression.GZIP;
 import static org.apache.beam.sdk.io.Compression.UNCOMPRESSED;
 import static org.apache.beam.sdk.io.Compression.ZIP;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Writer;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -69,12 +67,13 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ToString;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
@@ -88,16 +87,19 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
+import org.apache.commons.lang3.SystemUtils;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
 /** Tests for {@link TextIO.Read}. */
+@RunWith(Enclosed.class)
 public class TextIOReadTest {
   private static final int LINES_NUMBER_FOR_LARGE = 1000;
   private static final List<String> EMPTY = Collections.emptyList();
@@ -480,9 +482,10 @@ public class TextIOReadTest {
       File emptyFile = tempFolder.newFile();
       p.enableAbandonedNodeEnforcement(false);
 
-      assertEquals("TextIO.Read/Read.out", p.apply(TextIO.read().from("somefile")).getName());
-      assertEquals(
-          "MyRead/Read.out", p.apply("MyRead", TextIO.read().from(emptyFile.getPath())).getName());
+      assertThat(p.apply(TextIO.read().from("somefile")).getName(), startsWith("TextIO.Read/Read"));
+      assertThat(
+          p.apply("MyRead", TextIO.read().from(emptyFile.getPath())).getName(),
+          startsWith("MyRead/Read"));
     }
 
     @Test
@@ -493,24 +496,6 @@ public class TextIOReadTest {
 
       assertThat(displayData, hasDisplayItem("filePattern", "foo.*"));
       assertThat(displayData, hasDisplayItem("compressionType", BZIP2.toString()));
-    }
-
-    @Test
-    @Category(ValidatesRunner.class)
-    public void testPrimitiveReadDisplayData() {
-      // Read is no longer a primitive transform when using the portability framework.
-      assumeFalse(
-          ExperimentalOptions.hasExperiment(
-              DisplayDataEvaluator.getDefaultOptions(), "beam_fn_api"));
-      DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-
-      TextIO.Read read = TextIO.read().from("foobar");
-
-      Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-      assertThat(
-          "TextIO.Read should include the file prefix in its primitive display data",
-          displayData,
-          hasItem(hasDisplayItem(hasValue(startsWith("foobar")))));
     }
 
     /** Options for testing. */
@@ -769,6 +754,8 @@ public class TextIOReadTest {
 
     @Test
     public void testInitialSplitAutoModeGz() throws Exception {
+      // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20470
+      assumeFalse(SystemUtils.IS_OS_WINDOWS);
       PipelineOptions options = TestPipeline.testingPipelineOptions();
       long desiredBundleSize = 1000;
       File largeGz = writeToFile(LARGE, tempFolder, "large.gz", GZIP);
@@ -867,6 +854,123 @@ public class TextIOReadTest {
 
       PAssert.that(lines).containsInAnyOrder("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
       p.run();
+    }
+  }
+
+  /** Tests for TextSource class. */
+  @RunWith(JUnit4.class)
+  public static class TextSourceTest {
+    @Rule public transient TestPipeline pipeline = TestPipeline.create();
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testRemoveUtf8BOM() throws Exception {
+      Path p1 = createTestFile("test_txt_ascii", Charset.forName("US-ASCII"), "1,p1", "2,p1");
+      Path p2 =
+          createTestFile(
+              "test_txt_utf8_no_bom",
+              Charset.forName("UTF-8"),
+              "1,p2-Japanese:テスト",
+              "2,p2-Japanese:テスト");
+      Path p3 =
+          createTestFile(
+              "test_txt_utf8_bom",
+              Charset.forName("UTF-8"),
+              "\uFEFF1,p3-テストBOM",
+              "\uFEFF2,p3-テストBOM");
+      PCollection<String> contents =
+          pipeline
+              .apply("Create", Create.of(p1.toString(), p2.toString(), p3.toString()))
+              .setCoder(StringUtf8Coder.of())
+              // PCollection<String>
+              .apply("Read file", new TextIOReadTest.TextSourceTest.TextFileReadTransform());
+      // PCollection<KV<String, String>>: tableName, line
+
+      // Validate that the BOM bytes (\uFEFF) at the beginning of the first line have been removed.
+      PAssert.that(contents)
+          .containsInAnyOrder(
+              "1,p1",
+              "2,p1",
+              "1,p2-Japanese:テスト",
+              "2,p2-Japanese:テスト",
+              "1,p3-テストBOM",
+              "\uFEFF2,p3-テストBOM");
+
+      pipeline.run();
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testPreserveNonBOMBytes() throws Exception {
+      // Contains \uFEFE, not UTF BOM.
+      Path p1 =
+          createTestFile(
+              "test_txt_utf_bom", Charset.forName("UTF-8"), "\uFEFE1,p1テスト", "\uFEFE2,p1テスト");
+      PCollection<String> contents =
+          pipeline
+              .apply("Create", Create.of(p1.toString()))
+              .setCoder(StringUtf8Coder.of())
+              // PCollection<String>
+              .apply("Read file", new TextIOReadTest.TextSourceTest.TextFileReadTransform());
+
+      PAssert.that(contents).containsInAnyOrder("\uFEFE1,p1テスト", "\uFEFE2,p1テスト");
+
+      pipeline.run();
+    }
+
+    private static class FileReadDoFn extends DoFn<FileIO.ReadableFile, String> {
+
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        FileIO.ReadableFile file = c.element();
+        ValueProvider<String> filenameProvider =
+            ValueProvider.StaticValueProvider.of(file.getMetadata().resourceId().getFilename());
+        // Create a TextSource, passing null as the delimiter to use the default
+        // delimiters ('\n', '\r', or '\r\n').
+        TextSource textSource = new TextSource(filenameProvider, null, null);
+        try {
+          BoundedSource.BoundedReader<String> reader =
+              textSource
+                  .createForSubrangeOfFile(file.getMetadata(), 0, file.getMetadata().sizeBytes())
+                  .createReader(c.getPipelineOptions());
+          for (boolean more = reader.start(); more; more = reader.advance()) {
+            c.output(reader.getCurrent());
+          }
+        } catch (IOException e) {
+          throw new RuntimeException(
+              "Unable to readFile: " + file.getMetadata().resourceId().toString());
+        }
+      }
+    }
+
+    /** A transform that reads CSV file records. */
+    private static class TextFileReadTransform
+        extends PTransform<PCollection<String>, PCollection<String>> {
+      public TextFileReadTransform() {}
+
+      @Override
+      public PCollection<String> expand(PCollection<String> files) {
+        return files
+            // PCollection<String>
+            .apply(FileIO.matchAll().withEmptyMatchTreatment(EmptyMatchTreatment.DISALLOW))
+            // PCollection<Match.Metadata>
+            .apply(FileIO.readMatches())
+            // PCollection<FileIO.ReadableFile>
+            .apply("Read lines", ParDo.of(new TextIOReadTest.TextSourceTest.FileReadDoFn()));
+        // PCollection<String>: line
+      }
+    }
+
+    private Path createTestFile(String filename, Charset charset, String... lines)
+        throws IOException {
+      Path path = Files.createTempFile(filename, ".csv");
+      try (BufferedWriter writer = Files.newBufferedWriter(path, charset)) {
+        for (String line : lines) {
+          writer.write(line);
+          writer.write('\n');
+        }
+      }
+      return path;
     }
   }
 }

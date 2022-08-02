@@ -48,11 +48,14 @@ import org.slf4j.LoggerFactory;
  * requests a {@link org.apache.beam.runners.fnexecution.control.RemoteBundle}, sends elements to
  * SDK and receive processed results from SDK, passing these elements downstream.
  */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessRemoteBundleOperation.class);
   private final StageBundleFactory stageBundleFactory;
   private static final OutputReceiver[] EMPTY_RECEIVER_ARRAY = new OutputReceiver[0];
   private final Map<String, OutputReceiver> outputReceiverMap;
+
+  @SuppressWarnings("UnnecessaryAnonymousClass")
   private final OutputReceiverFactory receiverFactory =
       new OutputReceiverFactory() {
         @Override
@@ -60,10 +63,10 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
           return receivedElement -> receive(pCollectionId, receivedElement);
         }
       };
+
   private final StateRequestHandler stateRequestHandler;
   private final BundleProgressHandler progressHandler;
   private RemoteBundle remoteBundle;
-  private ExecutableStage executableStage;
 
   public ProcessRemoteBundleOperation(
       ExecutableStage executableStage,
@@ -77,7 +80,6 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
 
     this.stageBundleFactory = stageBundleFactory;
     this.progressHandler = BundleProgressHandler.ignored();
-    this.executableStage = executableStage;
     this.outputReceiverMap = outputReceiverMap;
 
     StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =

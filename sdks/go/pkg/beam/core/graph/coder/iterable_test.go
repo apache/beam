@@ -80,7 +80,7 @@ func TestEncodeDecodeIterable(t *testing.T) {
 		if !test.decodeOnly {
 			t.Run(fmt.Sprintf("encode %q", test.v), func(t *testing.T) {
 				var buf bytes.Buffer
-				err := iterableEncoder(reflect.TypeOf(test.v), test.encElm)(reflect.ValueOf(test.v), &buf)
+				err := iterableEncoder(reflect.TypeOf(test.v), typeEncoderFieldReflect{encode: test.encElm})(reflect.ValueOf(test.v), &buf)
 				if err != nil {
 					t.Fatalf("EncodeBytes(%q) = %v", test.v, err)
 				}
@@ -95,9 +95,9 @@ func TestEncodeDecodeIterable(t *testing.T) {
 			var dec func(reflect.Value, io.Reader) error
 			switch rt.Kind() {
 			case reflect.Slice:
-				dec = iterableDecoderForSlice(rt, test.decElm)
+				dec = iterableDecoderForSlice(rt, typeDecoderFieldReflect{decode: test.decElm})
 			case reflect.Array:
-				dec = iterableDecoderForArray(rt, test.decElm)
+				dec = iterableDecoderForArray(rt, typeDecoderFieldReflect{decode: test.decElm})
 			}
 			rv := reflect.New(rt).Elem()
 			err := dec(rv, buf)

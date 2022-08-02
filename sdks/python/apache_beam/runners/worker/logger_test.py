@@ -19,15 +19,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import json
 import logging
 import sys
 import threading
 import unittest
-from builtins import object
 
 from apache_beam.runners.worker import logger
 from apache_beam.runners.worker import statesampler

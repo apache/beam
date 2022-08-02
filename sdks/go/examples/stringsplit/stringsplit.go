@@ -20,7 +20,7 @@
 //
 // 1. From a command line, navigate to the top-level beam/ directory and run
 // the Flink job server:
-//    ./gradlew :runners:flink:1.10:job-server:runShadow -Djob-host=localhost -Dflink-master=local
+//    ./gradlew :runners:flink:1.13:job-server:runShadow -Djob-host=localhost -Dflink-master=local
 //
 // 2. The job server is ready to receive jobs once it outputs a log like the
 // following: `JobService started on localhost:8099`. Take note of the endpoint
@@ -36,22 +36,32 @@
 // phrase "StringSplit Output".
 package main
 
+// beam-playground:
+//   name: StringSplit
+//   description: An example of using a Splittable DoFn in the Go SDK with a portable runner.
+//   multifile: false
+//   context_line: 61
+//   categories:
+//     - Debugging
+//     - Flatten
+
 import (
 	"context"
 	"flag"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
-	"reflect"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*StringSplitFn)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*LogFn)(nil)).Elem())
+	register.DoFn4x0[context.Context, *sdf.LockRTracker, string, func(string)](&StringSplitFn{})
+	register.DoFn2x0[context.Context, string](&LogFn{})
+	register.Emitter1[string]()
 }
 
 // StringSplitFn is a Splittable DoFn that splits strings into substrings of the

@@ -1,0 +1,11 @@
+{"schema": [
+  {"name":"cp_catalog_page_sk","type":"identifier"},
+  {"name":"cp_catalog_page_id","type":"char(16)"},
+  {"name":"cp_start_date_sk","type":"integer"},
+  {"name":"cp_end_date_sk","type":"integer"},
+  {"name":"cp_department","type":"varchar(50)"},
+  {"name":"cp_catalog_number","type":"integer"},
+  {"name":"cp_catalog_page_number","type":"integer"},
+  {"name":"cp_description","type":"varchar(100)"},
+  {"name":"cp_type","type":"varchar(100)"}
+]}

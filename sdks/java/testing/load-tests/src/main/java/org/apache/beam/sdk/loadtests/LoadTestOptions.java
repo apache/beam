@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.loadtests;
 
+import java.util.Map;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -39,22 +40,6 @@ public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions
   String getStepOptions();
 
   void setStepOptions(String stepOptions);
-
-  @Description("Whether the results should be published to BigQuery database")
-  @Default.Boolean(false)
-  Boolean getPublishToBigQuery();
-
-  void setPublishToBigQuery(Boolean publishToBigQuery);
-
-  @Description("BigQuery dataset name")
-  String getBigQueryDataset();
-
-  void setBigQueryDataset(String dataset);
-
-  @Description("BigQuery table name")
-  String getBigQueryTable();
-
-  void setBigQueryTable(String tableName);
 
   @Description("Timeout for a load test expressed in minutes")
   @Default.Integer(240)
@@ -91,6 +76,12 @@ public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions
   Boolean getPublishToInfluxDB();
 
   void setPublishToInfluxDB(Boolean publishToInfluxDB);
+
+  @Description("Additional tags for Influx data")
+  @Nullable
+  Map<String, String> getInfluxTags();
+
+  void setInfluxTags(Map<String, String> influxTags);
 
   static <T extends LoadTestOptions> T readFromArgs(String[] args, Class<T> optionsClass) {
     return PipelineOptionsFactory.fromArgs(args).withValidation().as(optionsClass);

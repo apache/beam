@@ -18,8 +18,7 @@
 """Support for user state in the BundleBasedDirectRunner."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
+import copy
 import itertools
 
 from apache_beam.transforms import userstate
@@ -63,8 +62,7 @@ UNREAD_VALUE = object()
 class ReadModifyWriteRuntimeState(DirectRuntimeState,
                                   userstate.ReadModifyWriteRuntimeState):
   def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(ReadModifyWriteRuntimeState,
-          self).__init__(state_spec, state_tag, current_value_accessor)
+    super().__init__(state_spec, state_tag, current_value_accessor)
     self._value = UNREAD_VALUE
     self._cleared = False
     self._modified = False
@@ -97,8 +95,7 @@ class ReadModifyWriteRuntimeState(DirectRuntimeState,
 
 class BagRuntimeState(DirectRuntimeState, userstate.BagRuntimeState):
   def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(BagRuntimeState,
-          self).__init__(state_spec, state_tag, current_value_accessor)
+    super().__init__(state_spec, state_tag, current_value_accessor)
     self._cached_value = UNREAD_VALUE
     self._cleared = False
     self._new_values = []
@@ -123,8 +120,7 @@ class BagRuntimeState(DirectRuntimeState, userstate.BagRuntimeState):
 
 class SetRuntimeState(DirectRuntimeState, userstate.SetRuntimeState):
   def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(SetRuntimeState,
-          self).__init__(state_spec, state_tag, current_value_accessor)
+    super().__init__(state_spec, state_tag, current_value_accessor)
     self._current_accumulator = UNREAD_VALUE
     self._modified = False
 
@@ -156,11 +152,12 @@ class CombiningValueRuntimeState(DirectRuntimeState,
                                  userstate.CombiningValueRuntimeState):
   """Combining value state interface object passed to user code."""
   def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(CombiningValueRuntimeState,
-          self).__init__(state_spec, state_tag, current_value_accessor)
+    super().__init__(state_spec, state_tag, current_value_accessor)
     self._current_accumulator = UNREAD_VALUE
     self._modified = False
-    self._combine_fn = state_spec.combine_fn
+    self._combine_fn = copy.deepcopy(state_spec.combine_fn)
+    self._combine_fn.setup()
+    self._finalized = False
 
   def _read_initial_value(self):
     if self._current_accumulator is UNREAD_VALUE:
@@ -186,6 +183,11 @@ class CombiningValueRuntimeState(DirectRuntimeState,
     self._modified = True
     self._current_accumulator = self._combine_fn.create_accumulator()
 
+  def finalize(self):
+    if not self._finalized:
+      self._combine_fn.teardown()
+      self._finalized = True
+
 
 class DirectUserStateContext(userstate.UserStateContext):
   """userstate.UserStateContext for the BundleBasedDirectRunner.
@@ -198,8 +200,7 @@ class DirectUserStateContext(userstate.UserStateContext):
     self.dofn = dofn
     self.key_coder = key_coder
 
-    self.all_state_specs, self.all_timer_specs = (
-        userstate.get_dofn_specs(dofn))
+    self.all_state_specs, self.all_timer_specs = userstate.get_dofn_specs(dofn)
     self.state_tags = {}
     for state_spec in self.all_state_specs:
       state_key = 'user/%s' % state_spec.name
@@ -218,12 +219,14 @@ class DirectUserStateContext(userstate.UserStateContext):
     self.cached_states = {}
     self.cached_timers = {}
 
-  def get_timer(self, timer_spec, key, window, timestamp, pane):
+  def get_timer(
+      self, timer_spec: userstate.TimerSpec, key, window, timestamp,
+      pane) -> userstate.RuntimeTimer:
     assert timer_spec in self.all_timer_specs
     encoded_key = self.key_coder.encode(key)
     cache_key = (encoded_key, window, timer_spec)
     if cache_key not in self.cached_timers:
-      self.cached_timers[cache_key] = userstate.RuntimeTimer(timer_spec)
+      self.cached_timers[cache_key] = userstate.RuntimeTimer()
     return self.cached_timers[cache_key]
 
   def get_state(self, state_spec, key, window):
@@ -283,13 +286,25 @@ class DirectUserStateContext(userstate.UserStateContext):
       encoded_key, window, timer_spec = cache_key
       state = self.step_context.get_keyed_state(encoded_key)
       timer_name = 'user/%s' % timer_spec.name
-      if runtime_timer._cleared:
-        state.clear_timer(window, timer_name, timer_spec.time_domain)
-      if runtime_timer._new_timestamp is not None:
-        # TODO(ccy): add corresponding watermark holds after the DirectRunner
-        # allows for keyed watermark holds.
-        state.set_timer(
-            window,
-            timer_name,
-            timer_spec.time_domain,
-            runtime_timer._new_timestamp)
+      for dynamic_timer_tag, timer in runtime_timer._timer_recordings.items():
+        if timer.cleared:
+          state.clear_timer(
+              window,
+              timer_name,
+              timer_spec.time_domain,
+              dynamic_timer_tag=dynamic_timer_tag)
+        if timer.timestamp:
+          # TODO(ccy): add corresponding watermark holds after the DirectRunner
+          # allows for keyed watermark holds.
+          state.set_timer(
+              window,
+              timer_name,
+              timer_spec.time_domain,
+              timer.timestamp,
+              dynamic_timer_tag=dynamic_timer_tag)
+
+  def reset(self):
+    for state in self.cached_states.values():
+      state.finalize()
+    self.cached_states = {}
+    self.cached_timers = {}

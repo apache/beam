@@ -39,14 +39,15 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.io.aws.options.S3Options;
-import org.apache.beam.sdk.io.aws.options.S3Options.S3UploadBufferSizeBytesFactory;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /** A writable S3 object, as a {@link WritableByteChannel}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class S3WritableByteChannel implements WritableByteChannel {
   private final AmazonS3 amazonS3;
-  private final S3Options options;
+  private final S3FileSystemConfiguration config;
   private final S3ResourceId path;
 
   private final String uploadId;
@@ -58,38 +59,40 @@ class S3WritableByteChannel implements WritableByteChannel {
   private boolean open = true;
   private final MessageDigest md5 = md5();
 
-  S3WritableByteChannel(AmazonS3 amazonS3, S3ResourceId path, String contentType, S3Options options)
+  S3WritableByteChannel(
+      AmazonS3 amazonS3, S3ResourceId path, String contentType, S3FileSystemConfiguration config)
       throws IOException {
     this.amazonS3 = checkNotNull(amazonS3, "amazonS3");
-    this.options = checkNotNull(options);
+    this.config = checkNotNull(config);
     this.path = checkNotNull(path, "path");
     checkArgument(
         atMostOne(
-            options.getSSECustomerKey() != null,
-            options.getSSEAlgorithm() != null,
-            options.getSSEAwsKeyManagementParams() != null),
+            config.getSSECustomerKey() != null,
+            config.getSSEAlgorithm() != null,
+            config.getSSEAwsKeyManagementParams() != null),
         "Either SSECustomerKey (SSE-C) or SSEAlgorithm (SSE-S3)"
             + " or SSEAwsKeyManagementParams (SSE-KMS) must not be set at the same time.");
     // Amazon S3 API docs: Each part must be at least 5 MB in size, except the last part.
     checkArgument(
-        options.getS3UploadBufferSizeBytes()
-            >= S3UploadBufferSizeBytesFactory.MINIMUM_UPLOAD_BUFFER_SIZE_BYTES,
+        config.getS3UploadBufferSizeBytes()
+            >= S3FileSystemConfiguration.MINIMUM_UPLOAD_BUFFER_SIZE_BYTES,
         "S3UploadBufferSizeBytes must be at least %s bytes",
-        S3UploadBufferSizeBytesFactory.MINIMUM_UPLOAD_BUFFER_SIZE_BYTES);
-    this.uploadBuffer = ByteBuffer.allocate(options.getS3UploadBufferSizeBytes());
+        S3FileSystemConfiguration.MINIMUM_UPLOAD_BUFFER_SIZE_BYTES);
+    this.uploadBuffer = ByteBuffer.allocate(config.getS3UploadBufferSizeBytes());
     eTags = new ArrayList<>();
 
     ObjectMetadata objectMetadata = new ObjectMetadata();
     objectMetadata.setContentType(contentType);
-    if (options.getSSEAlgorithm() != null) {
-      objectMetadata.setSSEAlgorithm(options.getSSEAlgorithm());
+    if (config.getSSEAlgorithm() != null) {
+      objectMetadata.setSSEAlgorithm(config.getSSEAlgorithm());
     }
     InitiateMultipartUploadRequest request =
         new InitiateMultipartUploadRequest(path.getBucket(), path.getKey())
-            .withStorageClass(options.getS3StorageClass())
+            .withStorageClass(config.getS3StorageClass())
             .withObjectMetadata(objectMetadata);
-    request.setSSECustomerKey(options.getSSECustomerKey());
-    request.setSSEAwsKeyManagementParams(options.getSSEAwsKeyManagementParams());
+    request.setSSECustomerKey(config.getSSECustomerKey());
+    request.setSSEAwsKeyManagementParams(config.getSSEAwsKeyManagementParams());
+    request.setBucketKeyEnabled(config.getBucketKeyEnabled());
     InitiateMultipartUploadResult result;
     try {
       result = amazonS3.initiateMultipartUpload(request);
@@ -115,13 +118,25 @@ class S3WritableByteChannel implements WritableByteChannel {
 
     int totalBytesWritten = 0;
     while (sourceBuffer.hasRemaining()) {
+      int position = sourceBuffer.position();
       int bytesWritten = Math.min(sourceBuffer.remaining(), uploadBuffer.remaining());
       totalBytesWritten += bytesWritten;
 
-      byte[] copyBuffer = new byte[bytesWritten];
-      sourceBuffer.get(copyBuffer);
-      uploadBuffer.put(copyBuffer);
-      md5.update(copyBuffer);
+      if (sourceBuffer.hasArray()) {
+        // If the underlying array is accessible, direct access is the most efficient approach.
+        int start = sourceBuffer.arrayOffset() + position;
+        uploadBuffer.put(sourceBuffer.array(), start, bytesWritten);
+        md5.update(sourceBuffer.array(), start, bytesWritten);
+      } else {
+        // Otherwise, use a readonly copy with an appropriate mark to read the current range of the
+        // buffer twice.
+        ByteBuffer copyBuffer = sourceBuffer.asReadOnlyBuffer();
+        copyBuffer.mark().limit(position + bytesWritten);
+        uploadBuffer.put(copyBuffer);
+        copyBuffer.reset();
+        md5.update(copyBuffer);
+      }
+      sourceBuffer.position(position + bytesWritten); // move position forward by the bytes written
 
       if (!uploadBuffer.hasRemaining() || sourceBuffer.hasRemaining()) {
         flush();
@@ -133,7 +148,8 @@ class S3WritableByteChannel implements WritableByteChannel {
 
   private void flush() throws IOException {
     uploadBuffer.flip();
-    ByteArrayInputStream inputStream = new ByteArrayInputStream(uploadBuffer.array());
+    ByteArrayInputStream inputStream =
+        new ByteArrayInputStream(uploadBuffer.array(), 0, uploadBuffer.limit());
 
     UploadPartRequest request =
         new UploadPartRequest()
@@ -141,10 +157,10 @@ class S3WritableByteChannel implements WritableByteChannel {
             .withKey(path.getKey())
             .withUploadId(uploadId)
             .withPartNumber(partNumber++)
-            .withPartSize(uploadBuffer.remaining())
+            .withPartSize(uploadBuffer.limit())
             .withMD5Digest(Base64.encodeAsString(md5.digest()))
             .withInputStream(inputStream);
-    request.setSSECustomerKey(options.getSSECustomerKey());
+    request.setSSECustomerKey(config.getSSECustomerKey());
 
     UploadPartResult result;
     try {

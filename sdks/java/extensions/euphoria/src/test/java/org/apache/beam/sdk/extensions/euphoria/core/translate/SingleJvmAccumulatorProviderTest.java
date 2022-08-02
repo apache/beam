@@ -26,12 +26,15 @@ import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SingleJ
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Unit test of {@link SingleJvmAccumulatorProvider}. Note that this test is placed outside of
  * {@code testkit} package on purpouse. All the other tests in {@code testkit} are not runnable by
  * JUnit directly.
  */
+@RunWith(JUnit4.class)
 public class SingleJvmAccumulatorProviderTest {
 
   private static final String TEST_COUNTER_NAME = "test-counter";

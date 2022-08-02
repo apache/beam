@@ -23,6 +23,7 @@ import org.apache.beam.sdk.values.Row;
 /** Base class for types representing timestamps or durations as nanoseconds. */
 abstract class NanosType<T> implements Schema.LogicalType<T, Row> {
   private final String identifier;
+  // TODO(https://github.com/apache/beam/issues/20540): This should be a constant
   protected final Schema schema;
 
   NanosType(String identifier) {

@@ -17,18 +17,29 @@ package graphx_test
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
 	runtime.RegisterFunction(dec)
 	runtime.RegisterFunction(enc)
+}
+
+type registeredNamedTypeForTest struct {
+	A, B int64
+	C    string
+}
+
+func init() {
+	schema.RegisterType(reflect.TypeOf((*registeredNamedTypeForTest)(nil)))
 }
 
 // TestMarshalUnmarshalCoders verifies that coders survive a proto roundtrip.
@@ -78,6 +89,10 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			coder.NewW(coder.NewBytes(), coder.NewGlobalWindow()),
 		},
 		{
+			"N<bytes>",
+			coder.NewN(coder.NewBytes()),
+		},
+		{
 			"KV<foo,bar>",
 			coder.NewKV([]*coder.Coder{foo, bar}),
 		},
@@ -89,11 +104,48 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			"CoGBK<foo,bar,baz>",
 			coder.NewCoGBK([]*coder.Coder{foo, bar, baz}),
 		},
+		{
+			name: "R[graphx.registeredNamedTypeForTest]",
+			c:    coder.NewR(typex.New(reflect.TypeOf((*registeredNamedTypeForTest)(nil)).Elem())),
+		},
+		{
+			name: "R[*graphx.registeredNamedTypeForTest]",
+			c:    coder.NewR(typex.New(reflect.TypeOf((*registeredNamedTypeForTest)(nil)))),
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			coders, err := graphx.UnmarshalCoders(graphx.MarshalCoders([]*coder.Coder{test.c}))
+			ids, marshalCoders, err := graphx.MarshalCoders([]*coder.Coder{test.c})
+			if err != nil {
+				t.Fatalf("Marshal(%v) failed: %v", test.c, err)
+			}
+			coders, err := graphx.UnmarshalCoders(ids, marshalCoders)
+			if err != nil {
+				t.Fatalf("Unmarshal(Marshal(%v)) failed: %v", test.c, err)
+			}
+			if len(coders) != 1 || !test.c.Equals(coders[0]) {
+				t.Errorf("Unmarshal(Marshal(%v)) = %v, want identity", test.c, coders)
+			}
+		})
+	}
+
+	for _, test := range tests {
+		t.Run("namespaced:"+test.name, func(t *testing.T) {
+			cm := graphx.NewCoderMarshaller()
+			cm.Namespace = "testnamespace"
+			ids, err := cm.AddMulti([]*coder.Coder{test.c})
+			if err != nil {
+				t.Fatalf("AddMulti(%v) failed: %v", test.c, err)
+			}
+			marshalCoders := cm.Build()
+			for _, id := range ids {
+				if !strings.Contains(id, cm.Namespace) {
+					t.Errorf("got %v, want it to contain %v", id, cm.Namespace)
+				}
+			}
+
+			coders, err := graphx.UnmarshalCoders(ids, marshalCoders)
 			if err != nil {
 				t.Fatalf("Unmarshal(Marshal(%v)) failed: %v", test.c, err)
 			}

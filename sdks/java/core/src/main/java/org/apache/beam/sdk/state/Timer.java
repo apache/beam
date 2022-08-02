@@ -81,6 +81,9 @@ public interface Timer {
    */
   void setRelative();
 
+  /** Clears a timer. Previous set timers will become unset. */
+  void clear();
+
   /** Offsets the target timestamp used by {@link #setRelative()} by the given duration. */
   Timer offset(Duration offset);
 
@@ -95,4 +98,17 @@ public interface Timer {
    * the timer fires.
    */
   Timer withOutputTimestamp(Instant outputTime);
+
+  /**
+   * Asserts that there is no output timestamp. The output watermark will not be held up, and it is
+   * illegal to output messages from this timer using the default output timestamp.
+   */
+  Timer withNoOutputTimestamp();
+
+  /**
+   * Returns the current relative time used by {@link #setRelative()} and {@link #offset}. This can
+   * be used by a client that self-manages relative timers (e.g. one that stores the current timer
+   * time in a state variable.
+   */
+  Instant getCurrentRelativeTime();
 }

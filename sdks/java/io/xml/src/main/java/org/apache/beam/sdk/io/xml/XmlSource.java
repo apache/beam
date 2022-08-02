@@ -48,6 +48,9 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.codehaus.stax2.XMLInputFactory2;
 
 /** Implementation of {@link XmlIO#read}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class XmlSource<T> extends FileBasedSource<T> {
 
   private static final String XML_VERSION = "1.1";
@@ -177,12 +180,12 @@ public class XmlSource<T> extends FileBasedSource<T> {
       // this XML parsing may fail or may produce incorrect results.
 
       byte[] dummyStartDocumentBytes =
-          (String.format(
+          String.format(
                   "<?xml version=\"%s\" encoding=\""
                       + getCurrentSource().configuration.getCharset()
                       + "\"?><%s>",
                   XML_VERSION,
-                  getCurrentSource().configuration.getRootElement()))
+                  getCurrentSource().configuration.getRootElement())
               .getBytes(Charset.forName(getCurrentSource().configuration.getCharset()));
       preambleByteBuffer.write(dummyStartDocumentBytes);
       // Gets the byte offset (in the input file) of the first record in ReadableByteChannel. This
@@ -230,6 +233,8 @@ public class XmlSource<T> extends FileBasedSource<T> {
       int charBytesFound = 0;
 
       ByteBuffer buf = ByteBuffer.allocate(BUF_SIZE);
+      boolean bufSizeChanged = false;
+
       byte[] recordStartBytes =
           ("<" + getCurrentSource().configuration.getRecordElement())
               .getBytes(StandardCharsets.UTF_8);
@@ -278,7 +283,16 @@ public class XmlSource<T> extends FileBasedSource<T> {
               break outer;
             } else {
               // Matching was unsuccessful. Reset the buffer to include bytes read for the char.
-              ByteBuffer newbuf = ByteBuffer.allocate(BUF_SIZE);
+              int bytesToWrite = buf.remaining() + charBytes.length;
+              ByteBuffer newbuf;
+              if (bytesToWrite > BUF_SIZE) {
+                // Avoiding buffer overflow. The number of bytes to push to the buffer might be
+                // larger than BUF_SIZE due to additional 'charBytes'.
+                newbuf = ByteBuffer.allocate(bytesToWrite);
+                bufSizeChanged = true;
+              } else {
+                newbuf = ByteBuffer.allocate(BUF_SIZE);
+              }
               newbuf.put(charBytes);
               offsetInFileOfCurrentByte -= charBytes.length;
               while (buf.hasRemaining()) {
@@ -317,7 +331,14 @@ public class XmlSource<T> extends FileBasedSource<T> {
             recordStartBytesMatched = true;
           }
         }
-        buf.clear();
+        if (bufSizeChanged) {
+          // We have to reset the size of the buffer to 'BUF_SIZE'
+          // to prevent it from infinitely increasing.
+          buf = ByteBuffer.allocate(BUF_SIZE);
+          bufSizeChanged = false;
+        } else {
+          buf.clear();
+        }
       }
 
       if (!fullyMatched) {

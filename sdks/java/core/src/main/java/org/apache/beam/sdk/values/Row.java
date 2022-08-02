@@ -43,12 +43,12 @@ import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.SchemaUtils;
 import org.apache.beam.sdk.values.RowUtils.CapturingRowCases;
 import org.apache.beam.sdk.values.RowUtils.FieldOverride;
 import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
 import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
 import org.apache.beam.sdk.values.RowUtils.RowPosition;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
@@ -86,6 +86,10 @@ import org.joda.time.ReadableInstant;
  * }</pre>
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public abstract class Row implements Serializable {
   private final Schema schema;
 
@@ -96,14 +100,14 @@ public abstract class Row implements Serializable {
   // Abstract methods to be implemented by subclasses that handle object access.
 
   /** Get value by field index, {@link ClassCastException} is thrown if schema doesn't match. */
-  @Nullable
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  public abstract <T> T getValue(int fieldIdx);
+  public abstract <T> @Nullable T getValue(int fieldIdx);
 
   /** Return the size of data fields. */
   public abstract int getFieldCount();
 
-  /** Return the list of data values. */
+  /** Return the list of raw unmodified data values to enable 0-copy code. */
+  @Internal
   public abstract List<Object> getValues();
 
   /** Return a list of data values. Any LogicalType values are returned as base values. * */
@@ -114,9 +118,8 @@ public abstract class Row implements Serializable {
   }
 
   /** Get value by field name, {@link ClassCastException} is thrown if type doesn't match. */
-  @Nullable
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  public <T> T getValue(String fieldName) {
+  public <T> @Nullable T getValue(String fieldName) {
     return getValue(getSchema().indexOf(fieldName));
   }
 
@@ -459,7 +462,10 @@ public abstract class Row implements Serializable {
       if (a == null || b == null) {
         return a == b;
       } else if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
-        return deepEquals(a, b, fieldType.getLogicalType().getBaseType());
+        return deepEquals(
+            SchemaUtils.toLogicalBaseType(fieldType.getLogicalType(), a),
+            SchemaUtils.toLogicalBaseType(fieldType.getLogicalType(), b),
+            fieldType.getLogicalType().getBaseType());
       } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
         return Arrays.equals((byte[]) a, (byte[]) b);
       } else if (fieldType.getTypeName() == TypeName.ARRAY) {
@@ -577,7 +583,63 @@ public abstract class Row implements Serializable {
 
   @Override
   public String toString() {
-    return "Row:" + Arrays.deepToString(Iterables.toArray(getValues(), Object.class));
+    return toString(true);
+  }
+
+  /** Convert Row to String. */
+  public String toString(boolean includeFieldNames) {
+    StringBuilder builder = new StringBuilder();
+    builder.append("Row: ");
+    builder.append(System.lineSeparator());
+    for (int i = 0; i < getSchema().getFieldCount(); ++i) {
+      Schema.Field field = getSchema().getField(i);
+      if (includeFieldNames) {
+        builder.append(field.getName() + ":");
+      }
+      builder.append(toString(field.getType(), getValue(i), includeFieldNames));
+      builder.append(System.lineSeparator());
+    }
+    return builder.toString();
+  }
+
+  private String toString(Schema.FieldType fieldType, Object value, boolean includeFieldNames) {
+    if (value == null) {
+      return "<null>";
+    }
+    StringBuilder builder = new StringBuilder();
+    switch (fieldType.getTypeName()) {
+      case ARRAY:
+      case ITERABLE:
+        builder.append("[");
+        for (Object element : (Iterable<?>) value) {
+          builder.append(
+              toString(fieldType.getCollectionElementType(), element, includeFieldNames));
+          builder.append(", ");
+        }
+        builder.append("]");
+        break;
+      case MAP:
+        builder.append("{");
+        for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+          builder.append("(");
+          builder.append(toString(fieldType.getMapKeyType(), entry.getKey(), includeFieldNames));
+          builder.append(", ");
+          builder.append(
+              toString(fieldType.getMapValueType(), entry.getValue(), includeFieldNames));
+          builder.append("), ");
+        }
+        builder.append("}");
+        break;
+      case BYTES:
+        builder.append(Arrays.toString((byte[]) value));
+        break;
+      case ROW:
+        builder.append(((Row) value).toString(includeFieldNames));
+        break;
+      default:
+        builder.append(value);
+    }
+    return builder.toString();
   }
 
   /**
@@ -678,7 +740,6 @@ public abstract class Row implements Serializable {
   public static class Builder {
     private List<Object> values = Lists.newArrayList();
     private final Schema schema;
-    private Row nullRow;
 
     Builder(Schema schema) {
       this.schema = schema;
@@ -793,23 +854,19 @@ public abstract class Row implements Serializable {
                 + " fields.");
       }
 
-      FieldOverrides fieldOverrides = new FieldOverrides(schema);
-      fieldOverrides.setOverrides(this.values);
-
-      Row row;
-      if (!fieldOverrides.isEmpty()) {
-        row =
-            (Row)
-                new RowFieldMatcher()
-                    .match(
-                        new CapturingRowCases(schema, fieldOverrides),
-                        FieldType.row(schema),
-                        new RowPosition(FieldAccessDescriptor.create()),
-                        null);
-      } else {
-        row = new RowWithStorage(schema, Collections.emptyList());
+      if (!values.isEmpty()) {
+        FieldOverrides fieldOverrides = new FieldOverrides(schema, this.values);
+        if (!fieldOverrides.isEmpty()) {
+          return (Row)
+              new RowFieldMatcher()
+                  .match(
+                      new CapturingRowCases(schema, fieldOverrides),
+                      FieldType.row(schema),
+                      new RowPosition(FieldAccessDescriptor.create()),
+                      null);
+        }
       }
-      return row;
+      return new RowWithStorage(schema, Collections.emptyList());
     }
   }
 

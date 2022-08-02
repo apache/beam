@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
@@ -32,7 +31,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
@@ -41,6 +39,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@link TransformEvaluatorFactory} for {@link ParDo.MultiOutput}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluatorFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(ParDoEvaluatorFactory.class);
@@ -64,7 +65,8 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
     return new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
       @Override
       public DoFnLifecycleManager load(AppliedPTransform<?, ?, ?> application) throws Exception {
-        return DoFnLifecycleManager.of(ParDoTranslation.getDoFn(application));
+        return DoFnLifecycleManager.of(
+            ParDoTranslation.getDoFn(application), application.getPipeline().getOptions());
       }
     };
   }
@@ -159,7 +161,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
           sideInputs,
           mainOutputTag,
           additionalOutputTags,
-          pcollections(application.getOutputs()),
+          application.getOutputs(),
           doFnSchemaInformation,
           sideInputMapping,
           runnerFactory);
@@ -174,13 +176,5 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       }
       throw e;
     }
-  }
-
-  static Map<TupleTag<?>, PCollection<?>> pcollections(Map<TupleTag<?>, PValue> outputs) {
-    Map<TupleTag<?>, PCollection<?>> pcs = new HashMap<>();
-    for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
-      pcs.put(output.getKey(), (PCollection<?>) output.getValue());
-    }
-    return pcs;
   }
 }

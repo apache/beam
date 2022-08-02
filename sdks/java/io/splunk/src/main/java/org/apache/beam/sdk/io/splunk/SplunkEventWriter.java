@@ -54,6 +54,12 @@ import org.slf4j.LoggerFactory;
 
 /** A {@link DoFn} to write {@link SplunkEvent}s to Splunk's HEC endpoint. */
 @AutoValue
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
+})
 abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWriteError> {
 
   private static final Integer DEFAULT_BATCH_COUNT = 1;

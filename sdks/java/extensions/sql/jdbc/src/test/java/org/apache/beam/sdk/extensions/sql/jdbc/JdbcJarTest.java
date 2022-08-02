@@ -43,7 +43,7 @@ public class JdbcJarTest {
     String path = System.getProperty("driver.jar");
 
     if (path != null) {
-      URL jdbcUrl = new File(System.getProperty("driver.jar")).toURI().toURL();
+      URL jdbcUrl = new File(path).toURI().toURL();
       classLoader = new URLClassLoader(new URL[] {jdbcUrl}, ClassLoader.getSystemClassLoader());
     }
 

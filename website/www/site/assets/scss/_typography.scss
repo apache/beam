@@ -1,0 +1,201 @@
+/*!
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+ @import "media";
+
+ .component-title {
+   font-size: 36px;
+   font-weight: 500;
+   font-style: normal;
+   line-height: 1.1;
+   letter-spacing: normal;
+   margin: 0;
+   color: $color-gray;
+ }
+
+ .component-large-header {
+   font-size: 30px;
+   font-weight: 500;
+   font-style: normal;
+   line-height: 1.4;
+   letter-spacing: normal;
+   margin: 0;
+   color: $color-gray;
+ }
+
+ .component-header {
+   font-size: 22px;
+   font-weight: 500;
+   font-style: normal;
+   line-height: 1.45;
+   letter-spacing: 0.43px;
+   margin: 0;
+   color: $color-gray;
+ }
+
+ .component-small-header {
+   font-size: 18px;
+   font-weight: 500;
+   font-style: normal;
+   line-height: 1.56;
+   letter-spacing: 0.43px;
+   margin: 0;
+   color: $color-gray;
+ }
+
+ .component-text {
+   font-size: 16px;
+   font-weight: normal;
+   font-style: normal;
+   line-height: 1.63;
+   letter-spacing: 0.43px;
+   margin: 0;
+   color: $color-gray;
+ }
+
+ .component-label {
+   font-size: 16px;
+   font-weight: bold;
+   font-stretch: normal;
+   font-style: normal;
+   line-height: 1.5;
+   letter-spacing: 0.43px;
+   margin: 0;
+   color: $color-gray;
+ }
+
+ .component-tag {
+   font-size: 16px;
+   font-weight: normal;
+   font-style: normal;
+   line-height: 1.63;
+   letter-spacing: 0.43px;
+   margin: 0;
+   color: $color-smoke;
+ }
+
+ .component-quote {
+   font-size: 20px;
+   font-weight: normal;
+   font-stretch: normal;
+   font-style: italic;
+   line-height: 1.44;
+   letter-spacing: 0.43px;
+   text-align: center;
+   color: $color-gray;
+ }
+
+ .hero-title {
+   font-size: 16px;
+   font-weight: normal;
+   font-style: normal;
+   line-height: 1.88;
+   letter-spacing: 0.8px;
+   color: $color-white;
+ }
+
+ .hero-heading {
+   font-size: 46px;
+   font-weight: 500;
+   font-style: normal;
+   line-height: 1;
+   letter-spacing: normal;
+   color: $color-white;
+ }
+
+ .hero-subheading {
+   font-size: 20px;
+   font-weight: normal;
+   font-style: normal;
+   line-height: 1.44;
+   letter-spacing: normal;
+   color: $color-white;
+ }
+
+ @media (max-width: $tablet) {
+   .component-title {
+     font-size: 28px;
+     line-height: 1.29;
+   }
+   .component-large-header {
+     font-size: 24px;
+   }
+ }
+
+ h1 {
+   font-size: 36px;
+   font-weight: 500;
+   line-height: 1.1;
+   letter-spacing: normal;
+   margin-bottom: 24px;
+   margin-top: 64px;
+ }
+ h2 {
+   font-size: 30px;
+   font-weight: 500;
+   line-height: 1.2;
+   letter-spacing: normal;
+   margin-bottom: 24px;
+   margin-top: 56px;
+ }
+ h3 {
+   font-size: 24px;
+   font-weight: 500;
+   line-height: 1.25;
+   letter-spacing: normal;
+   margin-bottom: 16px;
+   margin-top: 48px;
+ }
+ h4 {
+   font-size: 22px;
+   font-weight: 500;
+   line-height: 1.36;
+   letter-spacing: normal;
+   margin-bottom: 12px;
+   margin-top: 48px;
+ }
+ h5 {
+   font-size: 18px;
+   font-weight: 500;
+   line-height: 1.6;
+   letter-spacing: 0.43px;
+   margin-bottom: 12px;
+   margin-top: 32px;
+ }
+ h6 {
+   font-size: 16px;
+   font-weight: bold;
+   line-height: 1.2;
+   letter-spacing: 0.43px;
+   margin-bottom: 12px;
+   margin-top: 32px;
+ }
+
+ p {
+   font-size: 16px;
+   font-weight: normal;
+   line-height: 1.63;
+   letter-spacing: 0.43px;
+ }
+ .hero-heading {
+   font-size: 32px;
+ }
+ li {
+   font-size: 16px;
+   letter-spacing: 0.43px;
+   line-height: 1.63;
+ }

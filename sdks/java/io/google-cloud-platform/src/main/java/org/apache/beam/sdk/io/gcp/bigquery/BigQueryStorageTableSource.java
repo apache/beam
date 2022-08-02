@@ -22,14 +22,13 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
+import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -40,14 +39,37 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing reading from a table. */
-@Experimental(Kind.SOURCE_SINK)
 public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageTableSource.class);
 
+  private final ValueProvider<TableReference> tableReferenceProvider;
+  private final boolean projectionPushdownApplied;
+
+  private transient AtomicReference<@Nullable Table> cachedTable;
+
   public static <T> BigQueryStorageTableSource<T> create(
       ValueProvider<TableReference> tableRefProvider,
-      @Nullable TableReadOptions readOptions,
+      DataFormat format,
+      @Nullable ValueProvider<List<String>> selectedFields,
+      @Nullable ValueProvider<String> rowRestriction,
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      Coder<T> outputCoder,
+      BigQueryServices bqServices,
+      boolean projectionPushdownApplied) {
+    return new BigQueryStorageTableSource<>(
+        tableRefProvider,
+        format,
+        selectedFields,
+        rowRestriction,
+        parseFn,
+        outputCoder,
+        bqServices,
+        projectionPushdownApplied);
+  }
+
+  public static <T> BigQueryStorageTableSource<T> create(
+      ValueProvider<TableReference> tableRefProvider,
       @Nullable ValueProvider<List<String>> selectedFields,
       @Nullable ValueProvider<String> rowRestriction,
       SerializableFunction<SchemaAndRecord, T> parseFn,
@@ -55,28 +77,27 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
       BigQueryServices bqServices) {
     return new BigQueryStorageTableSource<>(
         tableRefProvider,
-        readOptions,
+        null,
         selectedFields,
         rowRestriction,
         parseFn,
         outputCoder,
-        bqServices);
+        bqServices,
+        false);
   }
-
-  private final ValueProvider<TableReference> tableReferenceProvider;
-
-  private transient AtomicReference<Table> cachedTable;
 
   private BigQueryStorageTableSource(
       ValueProvider<TableReference> tableRefProvider,
-      @Nullable TableReadOptions readOptions,
+      @Nullable DataFormat format,
       @Nullable ValueProvider<List<String>> selectedFields,
       @Nullable ValueProvider<String> rowRestriction,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
-      BigQueryServices bqServices) {
-    super(readOptions, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
+      BigQueryServices bqServices,
+      boolean projectionPushdownApplied) {
+    super(format, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
     this.tableReferenceProvider = checkNotNull(tableRefProvider, "tableRefProvider");
+    this.projectionPushdownApplied = projectionPushdownApplied;
     cachedTable = new AtomicReference<>();
   }
 
@@ -88,21 +109,64 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.addIfNotNull(
-        DisplayData.item("table", BigQueryHelpers.displayTable(tableReferenceProvider))
-            .withLabel("Table"));
+    builder
+        .addIfNotNull(
+            DisplayData.item("table", BigQueryHelpers.displayTable(tableReferenceProvider))
+                .withLabel("Table"))
+        .addIfNotDefault(
+            DisplayData.item("projectionPushdownApplied", projectionPushdownApplied)
+                .withLabel("Projection Pushdown Applied"),
+            false);
+
+    if (selectedFieldsProvider != null && selectedFieldsProvider.isAccessible()) {
+      builder.add(
+          DisplayData.item("selectedFields", String.join(", ", selectedFieldsProvider.get()))
+              .withLabel("Selected Fields"));
+    }
+
     // Note: This transform does not set launchesBigQueryJobs because it doesn't launch
     // BigQuery jobs, but instead uses the storage api to directly read the table.
   }
 
   @Override
   public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-    return getTargetTable(options.as(BigQueryOptions.class)).getNumBytes();
+    Table table = getTargetTable(options.as(BigQueryOptions.class));
+    if (table != null) {
+      return table.getNumBytes();
+    }
+    // If the table does not exist, then it will be null.
+    // Avoid the NullPointerException here, allow a more meaningful table "not_found"
+    // error to be shown to the user, upon table read.
+    return 0;
+  }
+
+  @Override
+  protected String getTargetTableId(BigQueryOptions options) throws Exception {
+    TableReference tableReference = tableReferenceProvider.get();
+    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+      checkState(
+          !Strings.isNullOrEmpty(options.getProject()),
+          "No project ID set in %s or %s, cannot construct a complete %s",
+          TableReference.class.getSimpleName(),
+          BigQueryOptions.class.getSimpleName(),
+          TableReference.class.getSimpleName());
+      LOG.info(
+          "Project ID not set in {}. Using default project from {}.",
+          TableReference.class.getSimpleName(),
+          BigQueryOptions.class.getSimpleName());
+      tableReference.setProjectId(options.getProject());
+    }
+    return String.format(
+        "projects/%s/datasets/%s/tables/%s",
+        tableReference.getProjectId(), tableReference.getDatasetId(), tableReference.getTableId());
   }
 
   @Override
   protected Table getTargetTable(BigQueryOptions options) throws Exception {
-    if (cachedTable.get() == null) {
+    Table maybeTable = cachedTable.get();
+    if (maybeTable != null) {
+      return maybeTable;
+    } else {
       TableReference tableReference = tableReferenceProvider.get();
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
         checkState(
@@ -115,12 +179,19 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
             "Project ID not set in {}. Using default project from {}.",
             TableReference.class.getSimpleName(),
             BigQueryOptions.class.getSimpleName());
-        tableReference.setProjectId(options.getProject());
+        tableReference.setProjectId(
+            options.getBigQueryProject() == null
+                ? options.getProject()
+                : options.getBigQueryProject());
       }
-      Table table = bqServices.getDatasetService(options).getTable(tableReference);
-      cachedTable.compareAndSet(null, table);
+      try (DatasetService datasetService = bqServices.getDatasetService(options)) {
+        Table table = bqServices.getDatasetService(options).getTable(tableReference);
+        if (table == null) {
+          throw new IllegalArgumentException("Table not found" + table);
+        }
+        cachedTable.compareAndSet(null, table);
+        return table;
+      }
     }
-
-    return cachedTable.get();
   }
 }

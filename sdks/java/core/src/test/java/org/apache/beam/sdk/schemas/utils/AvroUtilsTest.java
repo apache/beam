@@ -17,20 +17,18 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeThat;
 
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.sql.JDBCType;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -46,10 +44,13 @@ import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -57,15 +58,21 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Days;
+import org.joda.time.Instant;
+import org.joda.time.LocalTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 /** Tests for conversion between AVRO records and Beam rows. */
 @RunWith(JUnitQuickcheck.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class AvroUtilsTest {
 
   private static final org.apache.avro.Schema NULL_SCHEMA =
@@ -75,8 +82,6 @@ public class AvroUtilsTest {
   @SuppressWarnings("unchecked")
   public void supportsAnyAvroSchema(
       @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
-    // not everything is possible to translate
-    assumeThat(avroSchema, not(containsField(AvroUtilsTest::hasNonNullUnion)));
 
     Schema schema = AvroUtils.toBeamSchema(avroSchema);
     Iterable iterable = new RandomData(avroSchema, 10);
@@ -91,12 +96,6 @@ public class AvroUtilsTest {
   @SuppressWarnings("unchecked")
   public void avroToBeamRoundTrip(
       @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
-    // not everything is possible to translate
-    assumeThat(avroSchema, not(containsField(AvroUtilsTest::hasNonNullUnion)));
-    // roundtrip for enums returns strings because Beam doesn't have enum type
-    assumeThat(avroSchema, not(containsField(x -> x.getType() == Type.ENUM)));
-    // roundtrip for fixed returns bytes because Beam doesn't have FIXED type
-    assumeThat(avroSchema, not(containsField(x -> x.getType() == Type.FIXED)));
 
     Schema schema = AvroUtils.toBeamSchema(avroSchema);
     Iterable iterable = new RandomData(avroSchema, 10);
@@ -153,7 +152,7 @@ public class AvroUtilsTest {
         new org.apache.avro.Schema.Field(
             "arrayField",
             ReflectData.makeNullable(
-                org.apache.avro.Schema.createArray((org.apache.avro.Schema.create(Type.INT)))),
+                org.apache.avro.Schema.createArray(org.apache.avro.Schema.create(Type.INT))),
             "",
             null);
 
@@ -171,7 +170,7 @@ public class AvroUtilsTest {
         new org.apache.avro.Schema.Field(
             "arrayField",
             ReflectData.makeNullable(
-                org.apache.avro.Schema.createArray((org.apache.avro.Schema.create(Type.INT)))),
+                org.apache.avro.Schema.createArray(org.apache.avro.Schema.create(Type.INT))),
             "",
             null);
 
@@ -416,6 +415,15 @@ public class AvroUtilsTest {
                 ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
             "",
             null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "enum",
+            ReflectData.makeNullable(
+                org.apache.avro.Schema.createEnum(
+                    "fruit", "", "", ImmutableList.of("banana", "apple", "pear"))),
+            "",
+            null));
+
     org.apache.avro.Schema avroSchema =
         org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
 
@@ -424,6 +432,10 @@ public class AvroUtilsTest {
             .addNullableField("int", FieldType.INT32)
             .addArrayField("array", FieldType.BYTES.withNullable(true))
             .addMapField("map", FieldType.STRING, FieldType.INT32.withNullable(true))
+            .addField(
+                "enum",
+                FieldType.logicalType(EnumerationType.create("banana", "apple", "pear"))
+                    .withNullable(true))
             .build();
     assertEquals(expectedSchema, AvroUtils.toBeamSchema(avroSchema));
 
@@ -434,12 +446,14 @@ public class AvroUtilsTest {
             .set("int", null)
             .set("array", Lists.newArrayList((Object) null))
             .set("map", nullMap)
+            .set("enum", null)
             .build();
     Row expectedRow =
         Row.withSchema(expectedSchema)
             .addValue(null)
             .addValue(Lists.newArrayList((Object) null))
             .addValue(nullMap)
+            .addValue(null)
             .build();
     assertEquals(expectedRow, AvroUtils.toBeamRowStrict(genericRecord, expectedSchema));
   }
@@ -496,8 +510,220 @@ public class AvroUtilsTest {
   }
 
   @Test
+  public void testUnionFieldInAvroSchema() {
+
+    List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
+    List<org.apache.avro.Schema> unionFields = Lists.newArrayList();
+
+    unionFields.add(org.apache.avro.Schema.create(Type.INT));
+    unionFields.add(org.apache.avro.Schema.create(Type.STRING));
+
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "union", org.apache.avro.Schema.createUnion(unionFields), "", null));
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
+    OneOfType oneOfType =
+        OneOfType.create(Field.of("int", FieldType.INT32), Field.of("string", FieldType.STRING));
+
+    Schema expectedSchema = Schema.builder().addLogicalTypeField("union", oneOfType).build();
+    assertEquals(expectedSchema, AvroUtils.toBeamSchema(avroSchema));
+    GenericRecord genericRecord = new GenericRecordBuilder(avroSchema).set("union", 23423).build();
+    Row expectedRow =
+        Row.withSchema(expectedSchema).addValue(oneOfType.createValue(0, 23423)).build();
+    assertEquals(expectedRow, AvroUtils.toBeamRowStrict(genericRecord, expectedSchema));
+  }
+
+  @Test
+  public void testUnionFieldInBeamSchema() {
+    OneOfType oneOfType =
+        OneOfType.create(Field.of("int", FieldType.INT32), Field.of("string", FieldType.STRING));
+
+    Schema beamSchema = Schema.builder().addLogicalTypeField("union", oneOfType).build();
+    List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
+    List<org.apache.avro.Schema> unionFields = Lists.newArrayList();
+
+    unionFields.add(org.apache.avro.Schema.create(Type.INT));
+    unionFields.add(org.apache.avro.Schema.create(Type.STRING));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "union", org.apache.avro.Schema.createUnion(unionFields), "", null));
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
+    GenericRecord expectedGenericRecord =
+        new GenericRecordBuilder(avroSchema).set("union", 23423).build();
+    Row row = Row.withSchema(beamSchema).addValue(oneOfType.createValue(0, 23423)).build();
+    assertEquals(expectedGenericRecord, AvroUtils.toGenericRecord(row, avroSchema));
+  }
+
+  @Test
+  public void testJdbcLogicalVarCharRowDataToAvroSchema() {
+    String expectedAvroSchemaJson =
+        "{ "
+            + " \"name\": \"topLevelRecord\", "
+            + " \"type\": \"record\", "
+            + " \"fields\": [{ "
+            + "   \"name\": \"my_varchar_field\", "
+            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"varchar\", \"maxLength\": 10}"
+            + "  }, "
+            + "  { "
+            + "   \"name\": \"my_longvarchar_field\", "
+            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"varchar\", \"maxLength\": 50}"
+            + "  }, "
+            + "  { "
+            + "   \"name\": \"my_nvarchar_field\", "
+            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"varchar\", \"maxLength\": 10}"
+            + "  }, "
+            + "  { "
+            + "   \"name\": \"my_longnvarchar_field\", "
+            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"varchar\", \"maxLength\": 50}"
+            + "  }, "
+            + "  { "
+            + "   \"name\": \"fixed_length_char_field\", "
+            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"char\", \"maxLength\": 25}"
+            + "  } "
+            + " ] "
+            + "}";
+
+    Schema beamSchema =
+        Schema.builder()
+            .addField(
+                Field.of(
+                    "my_varchar_field", FieldType.logicalType(JdbcType.StringType.varchar(10))))
+            .addField(
+                Field.of(
+                    "my_longvarchar_field",
+                    FieldType.logicalType(JdbcType.StringType.longvarchar(50))))
+            .addField(
+                Field.of(
+                    "my_nvarchar_field", FieldType.logicalType(JdbcType.StringType.nvarchar(10))))
+            .addField(
+                Field.of(
+                    "my_longnvarchar_field",
+                    FieldType.logicalType(JdbcType.StringType.longnvarchar(50))))
+            .addField(
+                Field.of(
+                    "fixed_length_char_field",
+                    FieldType.logicalType(JdbcType.StringType.fixedLengthChar(25))))
+            .build();
+
+    assertEquals(
+        new org.apache.avro.Schema.Parser().parse(expectedAvroSchemaJson),
+        AvroUtils.toAvroSchema(beamSchema));
+  }
+
+  @Test
+  public void testJdbcLogicalVarCharRowDataToGenericRecord() {
+    Schema beamSchema =
+        Schema.builder()
+            .addField(
+                Field.of(
+                    "my_varchar_field", FieldType.logicalType(JdbcType.StringType.varchar(10))))
+            .addField(
+                Field.of(
+                    "my_longvarchar_field",
+                    FieldType.logicalType(JdbcType.StringType.longvarchar(50))))
+            .addField(
+                Field.of(
+                    "my_nvarchar_field", FieldType.logicalType(JdbcType.StringType.nvarchar(10))))
+            .addField(
+                Field.of(
+                    "my_longnvarchar_field",
+                    FieldType.logicalType(JdbcType.StringType.longnvarchar(50))))
+            .build();
+
+    Row rowData =
+        Row.withSchema(beamSchema)
+            .addValue("varchar_value")
+            .addValue("longvarchar_value")
+            .addValue("nvarchar_value")
+            .addValue("longnvarchar_value")
+            .build();
+
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+    GenericRecord expectedRecord =
+        new GenericRecordBuilder(avroSchema)
+            .set("my_varchar_field", "varchar_value")
+            .set("my_longvarchar_field", "longvarchar_value")
+            .set("my_nvarchar_field", "nvarchar_value")
+            .set("my_longnvarchar_field", "longnvarchar_value")
+            .build();
+
+    assertEquals(expectedRecord, AvroUtils.toGenericRecord(rowData, avroSchema));
+  }
+
+  @Test
+  public void testJdbcLogicalDateAndTimeRowDataToAvroSchema() {
+    String expectedAvroSchemaJson =
+        "{ "
+            + " \"name\": \"topLevelRecord\", "
+            + " \"type\": \"record\", "
+            + " \"fields\": [{ "
+            + "   \"name\": \"my_date_field\", "
+            + "   \"type\": { \"type\": \"int\", \"logicalType\": \"date\" }"
+            + "  }, "
+            + "  { "
+            + "   \"name\": \"my_time_field\", "
+            + "   \"type\": { \"type\": \"int\", \"logicalType\": \"time-millis\" }"
+            + "  }"
+            + " ] "
+            + "}";
+
+    Schema beamSchema =
+        Schema.builder()
+            .addField(Field.of("my_date_field", FieldType.logicalType(JdbcType.DATE)))
+            .addField(Field.of("my_time_field", FieldType.logicalType(JdbcType.TIME)))
+            .build();
+
+    assertEquals(
+        new org.apache.avro.Schema.Parser().parse(expectedAvroSchemaJson),
+        AvroUtils.toAvroSchema(beamSchema));
+  }
+
+  @Test
+  public void testJdbcLogicalDateAndTimeRowDataToGenericRecord() {
+    // Test Fixed clock at
+    DateTime testDateTime = DateTime.parse("2021-05-29T11:15:16.234Z");
+
+    Schema beamSchema =
+        Schema.builder()
+            .addField(Field.of("my_date_field", FieldType.logicalType(JdbcType.DATE)))
+            .addField(Field.of("my_time_field", FieldType.logicalType(JdbcType.TIME)))
+            .build();
+
+    Row rowData =
+        Row.withSchema(beamSchema)
+            .addValue(testDateTime.toLocalDate().toDateTime(LocalTime.MIDNIGHT).toInstant())
+            .addValue(Instant.ofEpochMilli(testDateTime.toLocalTime().millisOfDay().get()))
+            .build();
+
+    int daysFromEpoch =
+        Days.daysBetween(
+                Instant.EPOCH,
+                testDateTime.toLocalDate().toDateTime(LocalTime.MIDNIGHT).toInstant())
+            .getDays();
+    int timeSinceMidNight = testDateTime.toLocalTime().getMillisOfDay();
+
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+    GenericRecord expectedRecord =
+        new GenericRecordBuilder(avroSchema)
+            .set("my_date_field", daysFromEpoch)
+            .set("my_time_field", timeSinceMidNight)
+            .build();
+
+    assertEquals(expectedRecord, AvroUtils.toGenericRecord(rowData, avroSchema));
+  }
+
+  @Test
   public void testBeamRowToGenericRecord() {
     GenericRecord genericRecord = AvroUtils.toGenericRecord(getBeamRow(), null);
+    assertEquals(getAvroSchema(), genericRecord.getSchema());
+    assertEquals(getGenericRecord(), genericRecord);
+  }
+
+  @Test
+  public void testBeamRowToGenericRecordInferSchema() {
+    GenericRecord genericRecord = AvroUtils.toGenericRecord(getBeamRow());
     assertEquals(getAvroSchema(), genericRecord.getSchema());
     assertEquals(getGenericRecord(), genericRecord);
   }
@@ -558,64 +784,111 @@ public class AvroUtilsTest {
     CoderProperties.coderSerializable(users.getCoder());
   }
 
-  public static ContainsField containsField(Function<org.apache.avro.Schema, Boolean> predicate) {
-    return new ContainsField(predicate);
+  @Test
+  public void testAvroBytesToRowAndRowToAvroBytesFunctions() {
+    Schema schema =
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addInt64Field("f_long")
+            .addDoubleField("f_double")
+            .addStringField("f_string")
+            .build();
+
+    SimpleFunction<Row, byte[]> toBytesFn = AvroUtils.getRowToAvroBytesFunction(schema);
+    SimpleFunction<byte[], Row> toRowFn = AvroUtils.getAvroBytesToRowFunction(schema);
+
+    Row row = Row.withSchema(schema).attachValues(1, 1L, 1d, "string");
+
+    byte[] serializedRow = toBytesFn.apply(row);
+    Row deserializedRow = toRowFn.apply(serializedRow);
+
+    assertEquals(row, deserializedRow);
   }
 
-  // doesn't work because Beam doesn't have unions, only nullable fields
-  public static boolean hasNonNullUnion(org.apache.avro.Schema schema) {
-    if (schema.getType() == Type.UNION) {
-      final List<org.apache.avro.Schema> types = schema.getTypes();
+  @Test
+  public void testNullSchemas() {
+    assertEquals(
+        AvroUtils.getFromRowFunction(GenericRecord.class),
+        AvroUtils.getFromRowFunction(GenericRecord.class));
+  }
 
-      if (types.size() == 2) {
-        return !types.contains(NULL_SCHEMA);
-      } else {
-        return true;
+  /** Helper class that simulate JDBC Logical types. */
+  private static class JdbcType<T> implements Schema.LogicalType<T, T> {
+
+    private static final JdbcType<Instant> DATE =
+        new JdbcType<>(JDBCType.DATE, FieldType.STRING, FieldType.DATETIME, "");
+    private static final JdbcType<Instant> TIME =
+        new JdbcType<>(JDBCType.TIME, FieldType.STRING, FieldType.DATETIME, "");
+
+    private final String identifier;
+    private final FieldType argumentType;
+    private final FieldType baseType;
+    private final Object argument;
+
+    private static class StringType extends JdbcType<String> {
+
+      private static StringType fixedLengthChar(int size) {
+        return new StringType(JDBCType.CHAR, size);
+      }
+
+      private static StringType varchar(int size) {
+        return new StringType(JDBCType.VARCHAR, size);
+      }
+
+      private static StringType longvarchar(int size) {
+        return new StringType(JDBCType.LONGVARCHAR, size);
+      }
+
+      private static StringType nvarchar(int size) {
+        return new StringType(JDBCType.NVARCHAR, size);
+      }
+
+      private static StringType longnvarchar(int size) {
+        return new StringType(JDBCType.LONGNVARCHAR, size);
+      }
+
+      private StringType(JDBCType type, int size) {
+        super(type, FieldType.INT32, FieldType.STRING, size);
       }
     }
 
-    return false;
-  }
-
-  static class ContainsField extends BaseMatcher<org.apache.avro.Schema> {
-
-    private final Function<org.apache.avro.Schema, Boolean> predicate;
-
-    ContainsField(final Function<org.apache.avro.Schema, Boolean> predicate) {
-      this.predicate = predicate;
+    private JdbcType(
+        JDBCType jdbcType, FieldType argumentType, FieldType baseType, Object argument) {
+      this.identifier = jdbcType.getName();
+      this.argumentType = argumentType;
+      this.baseType = baseType;
+      this.argument = argument;
     }
 
     @Override
-    public boolean matches(final Object item0) {
-      if (!(item0 instanceof org.apache.avro.Schema)) {
-        return false;
-      }
-
-      org.apache.avro.Schema item = (org.apache.avro.Schema) item0;
-
-      if (predicate.apply(item)) {
-        return true;
-      }
-
-      switch (item.getType()) {
-        case RECORD:
-          return item.getFields().stream().anyMatch(x -> matches(x.schema()));
-
-        case UNION:
-          return item.getTypes().stream().anyMatch(this::matches);
-
-        case ARRAY:
-          return matches(item.getElementType());
-
-        case MAP:
-          return matches(item.getValueType());
-
-        default:
-          return false;
-      }
+    public String getIdentifier() {
+      return identifier;
     }
 
     @Override
-    public void describeTo(final Description description) {}
+    public @Nullable FieldType getArgumentType() {
+      return argumentType;
+    }
+
+    @Override
+    public FieldType getBaseType() {
+      return baseType;
+    }
+
+    @Override
+    @SuppressWarnings("TypeParameterUnusedInFormals")
+    public <T1> @Nullable T1 getArgument() {
+      return (T1) argument;
+    }
+
+    @Override
+    public @NonNull T toBaseType(@NonNull T input) {
+      return input;
+    }
+
+    @Override
+    public @NonNull T toInputType(@NonNull T base) {
+      return base;
+    }
   }
 }

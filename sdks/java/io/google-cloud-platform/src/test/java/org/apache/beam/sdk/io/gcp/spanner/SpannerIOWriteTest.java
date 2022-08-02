@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -36,38 +36,53 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.CommitResponse;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeyRange;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Options.ReadQueryUpdateTransactionOption;
+import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSets;
 import com.google.cloud.spanner.SpannerExceptionFactory;
+import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchableMutationFilterFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.FailureMode;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.GatherSortCreateBatchesFn;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.Write;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteToSpannerFn;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -93,18 +108,25 @@ import org.mockito.MockitoAnnotations;
  */
 @RunWith(JUnit4.class)
 public class SpannerIOWriteTest implements Serializable {
+
   private static final long CELLS_PER_KEY = 7;
+  private static final String TABLE_NAME = "test-table";
+  private static final SpannerConfig SPANNER_CONFIG =
+      SpannerConfig.create()
+          .withDatabaseId("test-database")
+          .withInstanceId("test-instance")
+          .withProjectId("test-project");
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
   @Captor public transient ArgumentCaptor<Iterable<Mutation>> mutationBatchesCaptor;
+  @Captor public transient ArgumentCaptor<ReadQueryUpdateTransactionOption> optionsCaptor;
   @Captor public transient ArgumentCaptor<Iterable<MutationGroup>> mutationGroupListCaptor;
   @Captor public transient ArgumentCaptor<MutationGroup> mutationGroupCaptor;
 
   private FakeServiceFactory serviceFactory;
 
   @Before
-  @SuppressWarnings("unchecked")
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
     serviceFactory = new FakeServiceFactory();
@@ -112,23 +134,34 @@ public class SpannerIOWriteTest implements Serializable {
     ReadOnlyTransaction tx = mock(ReadOnlyTransaction.class);
     when(serviceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(tx);
 
-    // Capture batches sent to writeAtLeastOnce.
-    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(mutationBatchesCaptor.capture()))
+    // Capture batches sent to writeAtLeastOnceWithOptions.
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(mutationBatchesCaptor.capture(), optionsCaptor.capture()))
         .thenReturn(null);
 
     // Simplest schema: a table with int64 key
-    preparePkMetadata(tx, Arrays.asList(pkMetadata("tEsT", "key", "ASC")));
-    prepareColumnMetadata(tx, Arrays.asList(columnMetadata("tEsT", "key", "INT64", CELLS_PER_KEY)));
+    // Verify case-insensitivity of table names by using different case for teble name.
+    preparePkMetadata(tx, Arrays.asList(pkMetadata("tEsT-TaBlE", "key", "ASC")));
+    prepareColumnMetadata(
+        tx, Arrays.asList(columnMetadata("tEsT-TaBlE", "key", "INT64", CELLS_PER_KEY)));
+    preparePgColumnMetadata(
+        tx, Arrays.asList(columnMetadata("tEsT-TaBlE", "key", "bigint", CELLS_PER_KEY)));
+
+    // Setup the ProcessWideContainer for testing metrics are set.
+    MetricsContainerImpl container = new MetricsContainerImpl(null);
+    MetricsEnvironment.setProcessWideContainer(container);
+    MetricsEnvironment.setCurrentContainer(container);
   }
 
   private SpannerSchema getSchema() {
     return SpannerSchema.builder()
-        .addColumn("tEsT", "key", "INT64", CELLS_PER_KEY)
-        .addKeyPart("tEsT", "key", false)
+        .addColumn("tEsT-TaBlE", "key", "INT64", CELLS_PER_KEY)
+        .addKeyPart("tEsT-TaBlE", "key", false)
         .build();
   }
 
-  private static Struct columnMetadata(
+  static Struct columnMetadata(
       String tableName, String columnName, String type, long cellsMutated) {
     return Struct.newBuilder()
         .set("table_name")
@@ -142,7 +175,7 @@ public class SpannerIOWriteTest implements Serializable {
         .build();
   }
 
-  private static Struct pkMetadata(String tableName, String columnName, String ordering) {
+  static Struct pkMetadata(String tableName, String columnName, String ordering) {
     return Struct.newBuilder()
         .set("table_name")
         .to(tableName)
@@ -153,7 +186,7 @@ public class SpannerIOWriteTest implements Serializable {
         .build();
   }
 
-  private void prepareColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
+  static void prepareColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
     Type type =
         Type.struct(
             Type.StructField.of("table_name", Type.string()),
@@ -176,7 +209,32 @@ public class SpannerIOWriteTest implements Serializable {
         .thenReturn(ResultSets.forRows(type, rows));
   }
 
-  private void preparePkMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
+  static void preparePgColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
+    Type type =
+        Type.struct(
+            Type.StructField.of("table_name", Type.string()),
+            Type.StructField.of("column_name", Type.string()),
+            Type.StructField.of("spanner_type", Type.string()),
+            Type.StructField.of("cells_mutated", Type.int64()));
+    when(tx.executeQuery(
+            argThat(
+                new ArgumentMatcher<Statement>() {
+
+                  @Override
+                  public boolean matches(Statement argument) {
+                    if (!(argument instanceof Statement)) {
+                      return false;
+                    }
+                    Statement st = (Statement) argument;
+                    return st.getSql().contains("information_schema.columns")
+                        && st.getSql()
+                            .contains("('information_schema', 'spanner_sys', 'pg_catalog')");
+                  }
+                })))
+        .thenReturn(ResultSets.forRows(type, rows));
+  }
+
+  static void preparePkMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
     Type type =
         Type.struct(
             Type.StructField.of("table_name", Type.string()),
@@ -224,40 +282,143 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   public void singleMutationPipeline() throws Exception {
-    Mutation mutation = m(2L);
+    Mutation mutation = buildUpsertMutation(2L);
     PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
 
     mutations.apply(
-        SpannerIO.write()
-            .withProjectId("test-project")
-            .withInstanceId("test-instance")
-            .withDatabaseId("test-database")
-            .withServiceFactory(serviceFactory));
+        SpannerIO.write().withSpannerConfig(SPANNER_CONFIG).withServiceFactory(serviceFactory));
     pipeline.run();
 
-    verifyBatches(batch(m(2L)));
+    verifyBatches(buildMutationBatch(buildUpsertMutation(2L)));
+  }
+
+  @Test
+  public void singlePgMutationPipeline() throws Exception {
+    Mutation mutation = buildUpsertMutation(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+    PCollectionView<Dialect> pgDialectView =
+        pipeline
+            .apply("Create PG dialect", Create.of(Dialect.POSTGRESQL))
+            .apply(View.asSingleton());
+
+    mutations.apply(
+        SpannerIO.write()
+            .withSpannerConfig(SPANNER_CONFIG)
+            .withServiceFactory(serviceFactory)
+            .withDialectView(pgDialectView));
+    pipeline.run();
+
+    verifyBatches(buildMutationBatch(buildUpsertMutation(2L)));
+  }
+
+  @Test
+  public void singleMutationPipelineNoProjectId() throws Exception {
+    Mutation mutation = buildUpsertMutation(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+
+    SpannerConfig config =
+        SpannerConfig.create().withInstanceId("test-instance").withDatabaseId("test-database");
+    mutations.apply(SpannerIO.write().withSpannerConfig(config).withServiceFactory(serviceFactory));
+    pipeline.run();
+
+    // don't use VerifyBatches as that uses the common SPANNER_CONFIG with project ID:
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnceWithOptions(
+            mutationsInNoOrder(buildMutationBatch(buildUpsertMutation(2L))),
+            any(ReadQueryUpdateTransactionOption.class));
+
+    verifyTableWriteRequestMetricWasSet(config, TABLE_NAME, "ok", 1);
+  }
+
+  @Test
+  public void singleMutationPipelineNullProjectId() throws Exception {
+    Mutation mutation = buildUpsertMutation(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+
+    SpannerConfig config =
+        SpannerConfig.create()
+            .withProjectId((String) null)
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database");
+    mutations.apply(SpannerIO.write().withSpannerConfig(config).withServiceFactory(serviceFactory));
+    pipeline.run();
+
+    // don't use VerifyBatches as that uses the common SPANNER_CONFIG with project ID:
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnceWithOptions(
+            mutationsInNoOrder(buildMutationBatch(buildUpsertMutation(2L))),
+            any(ReadQueryUpdateTransactionOption.class));
+
+    verifyTableWriteRequestMetricWasSet(config, TABLE_NAME, "ok", 1);
   }
 
   @Test
   public void singleMutationGroupPipeline() throws Exception {
     PCollection<MutationGroup> mutations =
-        pipeline.apply(Create.<MutationGroup>of(g(m(1L), m(2L), m(3L))));
+        pipeline.apply(
+            Create.<MutationGroup>of(
+                buildMutationGroup(
+                    buildUpsertMutation(1L), buildUpsertMutation(2L), buildUpsertMutation(3L))));
     mutations.apply(
         SpannerIO.write()
-            .withProjectId("test-project")
-            .withInstanceId("test-instance")
-            .withDatabaseId("test-database")
+            .withSpannerConfig(SPANNER_CONFIG)
             .withServiceFactory(serviceFactory)
             .grouped());
     pipeline.run();
 
-    verifyBatches(batch(m(1L), m(2L), m(3L)));
+    verifyBatches(
+        buildMutationBatch(
+            buildUpsertMutation(1L), buildUpsertMutation(2L), buildUpsertMutation(3L)));
+  }
+
+  @Test
+  public void singlePgMutationGroupPipeline() throws Exception {
+    PCollection<MutationGroup> mutations =
+        pipeline.apply(
+            Create.<MutationGroup>of(
+                buildMutationGroup(
+                    buildUpsertMutation(1L), buildUpsertMutation(2L), buildUpsertMutation(3L))));
+    PCollectionView<Dialect> pgDialectView =
+        pipeline
+            .apply("Create PG dialect", Create.of(Dialect.POSTGRESQL))
+            .apply(View.asSingleton());
+
+    mutations.apply(
+        SpannerIO.write()
+            .withSpannerConfig(SPANNER_CONFIG)
+            .withServiceFactory(serviceFactory)
+            .withDialectView(pgDialectView)
+            .grouped());
+    pipeline.run();
+
+    verifyBatches(
+        buildMutationBatch(
+            buildUpsertMutation(1L), buildUpsertMutation(2L), buildUpsertMutation(3L)));
+  }
+
+  @Test
+  public void metricsForDifferentTables() throws Exception {
+    Mutation mutation = buildUpsertMutation(2L);
+    Mutation mutation2 =
+        Mutation.newInsertOrUpdateBuilder("other-table").set("key").to("3L").build();
+
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation, mutation2));
+
+    mutations.apply(
+        SpannerIO.write().withSpannerConfig(SPANNER_CONFIG).withServiceFactory(serviceFactory));
+    pipeline.run();
+
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "ok", 1);
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, "other-table", "ok", 1);
   }
 
   private void verifyBatches(Iterable<Mutation>... batches) {
     for (Iterable<Mutation> b : batches) {
-      verify(serviceFactory.mockDatabaseClient(), times(1)).writeAtLeastOnce(mutationsInNoOrder(b));
+      verify(serviceFactory.mockDatabaseClient(), times(1))
+          .writeAtLeastOnceWithOptions(
+              mutationsInNoOrder(b), any(ReadQueryUpdateTransactionOption.class));
     }
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "ok", batches.length);
   }
 
   @Test
@@ -269,50 +430,82 @@ public class SpannerIOWriteTest implements Serializable {
     ReadOnlyTransaction tx = mock(ReadOnlyTransaction.class);
     when(fakeServiceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(tx);
 
-    // Capture batches sent to writeAtLeastOnce.
-    when(fakeServiceFactory.mockDatabaseClient().writeAtLeastOnce(mutationBatchesCaptor.capture()))
+    // Capture batches sent to writeAtLeastOnceWithOptions.
+    when(fakeServiceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(mutationBatchesCaptor.capture(), optionsCaptor.capture()))
         .thenReturn(null);
 
-    PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L))));
+    PCollection<MutationGroup> mutations =
+        pipeline.apply(
+            Create.of(
+                buildMutationGroup(buildUpsertMutation(1L)),
+                buildMutationGroup(buildUpsertMutation(2L))));
     mutations.apply(
         SpannerIO.write()
-            .withProjectId("test-project")
-            .withInstanceId("test-instance")
-            .withDatabaseId("test-database")
+            .withSpannerConfig(SPANNER_CONFIG)
             .withServiceFactory(fakeServiceFactory)
             .withBatchSizeBytes(1)
             .grouped());
     pipeline.run();
 
     verify(fakeServiceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(batch(m(1L))));
+        .writeAtLeastOnceWithOptions(
+            mutationsInNoOrder(buildMutationBatch(buildUpsertMutation(1L))),
+            any(ReadQueryUpdateTransactionOption.class));
     verify(fakeServiceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(batch(m(2L))));
+        .writeAtLeastOnceWithOptions(
+            mutationsInNoOrder(buildMutationBatch(buildUpsertMutation(2L))),
+            any(ReadQueryUpdateTransactionOption.class));
     // If no batching then the DB schema is never read.
     verify(tx, never()).executeQuery(any());
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "ok", 2);
   }
 
   @Test
   public void streamingWrites() throws Exception {
     TestStream<Mutation> testStream =
         TestStream.create(SerializableCoder.of(Mutation.class))
-            .addElements(m(1L), m(2L))
+            .addElements(buildUpsertMutation(1L), buildUpsertMutation(2L))
             .advanceProcessingTime(Duration.standardMinutes(1))
-            .addElements(m(3L), m(4L))
+            .addElements(buildUpsertMutation(3L), buildUpsertMutation(4L))
             .advanceProcessingTime(Duration.standardMinutes(1))
-            .addElements(m(5L), m(6L))
+            .addElements(buildUpsertMutation(5L), buildUpsertMutation(6L))
             .advanceWatermarkToInfinity();
     pipeline
         .apply(testStream)
         .apply(
-            SpannerIO.write()
-                .withProjectId("test-project")
-                .withInstanceId("test-instance")
-                .withDatabaseId("test-database")
-                .withServiceFactory(serviceFactory));
+            SpannerIO.write().withSpannerConfig(SPANNER_CONFIG).withServiceFactory(serviceFactory));
     pipeline.run();
 
-    verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
+    verifyBatches(
+        buildMutationBatch(buildUpsertMutation(1L), buildUpsertMutation(2L)),
+        buildMutationBatch(buildUpsertMutation(3L), buildUpsertMutation(4L)),
+        buildMutationBatch(buildUpsertMutation(5L), buildUpsertMutation(6L)));
+  }
+
+  @Test
+  public void streamingWritesWithPriority() throws Exception {
+    TestStream<Mutation> testStream =
+        TestStream.create(SerializableCoder.of(Mutation.class))
+            .addElements(buildUpsertMutation(1L), buildUpsertMutation(2L))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(buildUpsertMutation(3L), buildUpsertMutation(4L))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(buildUpsertMutation(5L), buildUpsertMutation(6L))
+            .advanceWatermarkToInfinity();
+    Write write =
+        SpannerIO.write()
+            .withSpannerConfig(SPANNER_CONFIG)
+            .withServiceFactory(serviceFactory)
+            .withHighPriority();
+    pipeline.apply(testStream).apply(write);
+    pipeline.run();
+    assertEquals(RpcPriority.HIGH, write.getSpannerConfig().getRpcPriority().get());
+    verifyBatches(
+        buildMutationBatch(buildUpsertMutation(1L), buildUpsertMutation(2L)),
+        buildMutationBatch(buildUpsertMutation(3L), buildUpsertMutation(4L)),
+        buildMutationBatch(buildUpsertMutation(5L), buildUpsertMutation(6L)));
   }
 
   @Test
@@ -321,22 +514,62 @@ public class SpannerIOWriteTest implements Serializable {
     // verify that grouping/sorting occurs when set.
     TestStream<Mutation> testStream =
         TestStream.create(SerializableCoder.of(Mutation.class))
-            .addElements(m(1L), m(5L), m(2L), m(4L), m(3L), m(6L))
+            .addElements(
+                buildUpsertMutation(1L),
+                buildUpsertMutation(5L),
+                buildUpsertMutation(2L),
+                buildUpsertMutation(4L),
+                buildUpsertMutation(3L),
+                buildUpsertMutation(6L))
             .advanceWatermarkToInfinity();
     pipeline
         .apply(testStream)
         .apply(
             SpannerIO.write()
-                .withProjectId("test-project")
-                .withInstanceId("test-instance")
-                .withDatabaseId("test-database")
+                .withSpannerConfig(SPANNER_CONFIG)
                 .withServiceFactory(serviceFactory)
                 .withGroupingFactor(40)
                 .withMaxNumRows(2));
     pipeline.run();
 
     // Output should be batches of sorted mutations.
-    verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
+    verifyBatches(
+        buildMutationBatch(buildUpsertMutation(1L), buildUpsertMutation(2L)),
+        buildMutationBatch(buildUpsertMutation(3L), buildUpsertMutation(4L)),
+        buildMutationBatch(buildUpsertMutation(5L), buildUpsertMutation(6L)));
+  }
+
+  @Test
+  public void streamingWritesWithGroupingWithPriority() throws Exception {
+
+    // verify that grouping/sorting occurs when set.
+    TestStream<Mutation> testStream =
+        TestStream.create(SerializableCoder.of(Mutation.class))
+            .addElements(
+                buildUpsertMutation(1L),
+                buildUpsertMutation(5L),
+                buildUpsertMutation(2L),
+                buildUpsertMutation(4L),
+                buildUpsertMutation(3L),
+                buildUpsertMutation(6L))
+            .advanceWatermarkToInfinity();
+
+    Write write =
+        SpannerIO.write()
+            .withSpannerConfig(SPANNER_CONFIG)
+            .withServiceFactory(serviceFactory)
+            .withGroupingFactor(40)
+            .withMaxNumRows(2)
+            .withLowPriority();
+    pipeline.apply(testStream).apply(write);
+    pipeline.run();
+    assertEquals(RpcPriority.LOW, write.getSpannerConfig().getRpcPriority().get());
+
+    // Output should be batches of sorted mutations.
+    verifyBatches(
+        buildMutationBatch(buildUpsertMutation(1L), buildUpsertMutation(2L)),
+        buildMutationBatch(buildUpsertMutation(3L), buildUpsertMutation(4L)),
+        buildMutationBatch(buildUpsertMutation(5L), buildUpsertMutation(6L)));
   }
 
   @Test
@@ -345,7 +578,13 @@ public class SpannerIOWriteTest implements Serializable {
     // verify that grouping/sorting does not occur - batches should be created in received order.
     TestStream<Mutation> testStream =
         TestStream.create(SerializableCoder.of(Mutation.class))
-            .addElements(m(1L), m(5L), m(2L), m(4L), m(3L), m(6L))
+            .addElements(
+                buildUpsertMutation(1L),
+                buildUpsertMutation(5L),
+                buildUpsertMutation(2L),
+                buildUpsertMutation(4L),
+                buildUpsertMutation(3L),
+                buildUpsertMutation(6L))
             .advanceWatermarkToInfinity();
 
     // verify that grouping/sorting does not occur when notset.
@@ -353,14 +592,15 @@ public class SpannerIOWriteTest implements Serializable {
         .apply(testStream)
         .apply(
             SpannerIO.write()
-                .withProjectId("test-project")
-                .withInstanceId("test-instance")
-                .withDatabaseId("test-database")
+                .withSpannerConfig(SPANNER_CONFIG)
                 .withServiceFactory(serviceFactory)
                 .withMaxNumRows(2));
     pipeline.run();
 
-    verifyBatches(batch(m(1L), m(5L)), batch(m(2L), m(4L)), batch(m(3L), m(6L)));
+    verifyBatches(
+        buildMutationBatch(buildUpsertMutation(1L), buildUpsertMutation(5L)),
+        buildMutationBatch(buildUpsertMutation(2L), buildUpsertMutation(4L)),
+        buildMutationBatch(buildUpsertMutation(3L), buildUpsertMutation(6L)));
   }
 
   @Test
@@ -368,12 +608,14 @@ public class SpannerIOWriteTest implements Serializable {
 
     MutationGroup[] mutationGroups = new MutationGroup[10];
     for (int i = 0; i < mutationGroups.length; i++) {
-      mutationGroups[i] = g(m((long) i));
+      mutationGroups[i] = buildMutationGroup(buildUpsertMutation((long) i));
     }
 
     List<MutationGroup> mutationGroupList = Arrays.asList(mutationGroups);
 
-    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenAnswer(
             invocationOnMock -> {
               Preconditions.checkNotNull(invocationOnMock.getArguments()[0]);
@@ -385,9 +627,7 @@ public class SpannerIOWriteTest implements Serializable {
             .apply(Create.of(mutationGroupList))
             .apply(
                 SpannerIO.write()
-                    .withProjectId("test-project")
-                    .withInstanceId("test-instance")
-                    .withDatabaseId("test-database")
+                    .withSpannerConfig(SPANNER_CONFIG)
                     .withServiceFactory(serviceFactory)
                     .withBatchSizeBytes(0)
                     .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES)
@@ -401,36 +641,40 @@ public class SpannerIOWriteTest implements Serializable {
     PAssert.that(result.getFailedMutations()).containsInAnyOrder(mutationGroupList);
     pipeline.run().waitUntilFinish();
 
-    // writeAtLeastOnce called once for the batch of mutations
+    // writeAtLeastOnceWithOptions called once for the batch of mutations
     // (which as they are unbatched = each mutation group) then again for the individual retry.
-    verify(serviceFactory.mockDatabaseClient(), times(20)).writeAtLeastOnce(any());
+    verify(serviceFactory.mockDatabaseClient(), times(20))
+        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
+
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "ok", 0);
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "already_exists", 20);
   }
 
   @Test
   public void deadlineExceededRetries() throws InterruptedException {
-    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
 
     // mock sleeper so that it does not actually sleep.
     WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
     // respond with 2 timeouts and a success.
-    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(
             SpannerExceptionFactory.newSpannerException(
                 ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 1"))
         .thenThrow(
             SpannerExceptionFactory.newSpannerException(
                 ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 2"))
-        .thenReturn(Timestamp.now());
+        .thenReturn(new CommitResponse(Timestamp.now()));
 
     SpannerWriteResult result =
         pipeline
             .apply(Create.of(mutationList))
             .apply(
                 SpannerIO.write()
-                    .withProjectId("test-project")
-                    .withInstanceId("test-instance")
-                    .withDatabaseId("test-database")
+                    .withSpannerConfig(SPANNER_CONFIG)
                     .withServiceFactory(serviceFactory)
                     .withBatchSizeBytes(0)
                     .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES));
@@ -447,18 +691,24 @@ public class SpannerIOWriteTest implements Serializable {
     // 2 calls to sleeper
     verify(WriteToSpannerFn.sleeper, times(2)).sleep(anyLong());
     // 3 write attempts for the single mutationGroup.
-    verify(serviceFactory.mockDatabaseClient(), times(3)).writeAtLeastOnce(any());
+    verify(serviceFactory.mockDatabaseClient(), times(3))
+        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
+
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "ok", 1);
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "deadline_exceeded", 2);
   }
 
   @Test
   public void deadlineExceededFailsAfterRetries() throws InterruptedException {
-    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
 
     // mock sleeper so that it does not actually sleep.
     WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
     // respond with all timeouts.
-    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(
             SpannerExceptionFactory.newSpannerException(
                 ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout"));
@@ -468,9 +718,7 @@ public class SpannerIOWriteTest implements Serializable {
             .apply(Create.of(mutationList))
             .apply(
                 SpannerIO.write()
-                    .withProjectId("test-project")
-                    .withInstanceId("test-instance")
-                    .withDatabaseId("test-database")
+                    .withSpannerConfig(SPANNER_CONFIG)
                     .withServiceFactory(serviceFactory)
                     .withBatchSizeBytes(0)
                     .withMaxCumulativeBackoff(Duration.standardHours(2))
@@ -485,10 +733,6 @@ public class SpannerIOWriteTest implements Serializable {
             });
     pipeline.run().waitUntilFinish();
 
-    // Due to jitter in backoff algorithm, we cannot test for an exact number of retries,
-    // but there will be more than 16 (normally 18).
-    int numSleeps = Mockito.mockingDetails(WriteToSpannerFn.sleeper).getInvocations().size();
-    assertTrue(String.format("Should be least 16 sleeps, got %d", numSleeps), numSleeps > 16);
     long totalSleep =
         Mockito.mockingDetails(WriteToSpannerFn.sleeper).getInvocations().stream()
             .mapToLong(i -> i.getArgument(0))
@@ -500,15 +744,21 @@ public class SpannerIOWriteTest implements Serializable {
         String.format("Should be least 7200s of sleep, got %d", totalSleep),
         totalSleep >= Duration.standardHours(2).getMillis());
 
+    int numSleeps = Mockito.mockingDetails(WriteToSpannerFn.sleeper).getInvocations().size();
     // Number of write attempts should be numSleeps + 2 write attempts:
     //      1 batch attempt, numSleeps/2 batch retries,
     // then 1 individual attempt + numSleeps/2 individual retries
-    verify(serviceFactory.mockDatabaseClient(), times(numSleeps + 2)).writeAtLeastOnce(any());
+    verify(serviceFactory.mockDatabaseClient(), times(numSleeps + 2))
+        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
+
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "ok", 0);
+    verifyTableWriteRequestMetricWasSet(
+        SPANNER_CONFIG, TABLE_NAME, "deadline_exceeded", numSleeps + 2);
   }
 
   @Test
   public void retryOnSchemaChangeException() throws InterruptedException {
-    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
 
     String errString =
         "Transaction aborted. "
@@ -518,19 +768,19 @@ public class SpannerIOWriteTest implements Serializable {
     WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
     // respond with 2 timeouts and a success.
-    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
-        .thenReturn(Timestamp.now());
+        .thenReturn(new CommitResponse(Timestamp.now()));
 
     SpannerWriteResult result =
         pipeline
             .apply(Create.of(mutationList))
             .apply(
                 SpannerIO.write()
-                    .withProjectId("test-project")
-                    .withInstanceId("test-instance")
-                    .withDatabaseId("test-database")
+                    .withSpannerConfig(SPANNER_CONFIG)
                     .withServiceFactory(serviceFactory)
                     .withBatchSizeBytes(0)
                     .withFailureMode(FailureMode.FAIL_FAST));
@@ -547,12 +797,16 @@ public class SpannerIOWriteTest implements Serializable {
     // 0 calls to sleeper
     verify(WriteToSpannerFn.sleeper, times(0)).sleep(anyLong());
     // 3 write attempts for the single mutationGroup.
-    verify(serviceFactory.mockDatabaseClient(), times(3)).writeAtLeastOnce(any());
+    verify(serviceFactory.mockDatabaseClient(), times(3))
+        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
+
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "ok", 1);
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "aborted", 2);
   }
 
   @Test
   public void retryMaxOnSchemaChangeException() throws InterruptedException {
-    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
 
     String errString =
         "Transaction aborted. "
@@ -562,7 +816,9 @@ public class SpannerIOWriteTest implements Serializable {
     WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
     // Respond with Aborted transaction
-    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString));
 
     // When spanner aborts transaction for more than 5 time, pipeline execution stops with
@@ -575,9 +831,7 @@ public class SpannerIOWriteTest implements Serializable {
             .apply(Create.of(mutationList))
             .apply(
                 SpannerIO.write()
-                    .withProjectId("test-project")
-                    .withInstanceId("test-instance")
-                    .withDatabaseId("test-database")
+                    .withSpannerConfig(SPANNER_CONFIG)
                     .withServiceFactory(serviceFactory)
                     .withBatchSizeBytes(0)
                     .withFailureMode(FailureMode.FAIL_FAST));
@@ -594,12 +848,16 @@ public class SpannerIOWriteTest implements Serializable {
     // 0 calls to sleeper
     verify(WriteToSpannerFn.sleeper, times(0)).sleep(anyLong());
     // 5 write attempts for the single mutationGroup.
-    verify(serviceFactory.mockDatabaseClient(), times(5)).writeAtLeastOnce(any());
+    verify(serviceFactory.mockDatabaseClient(), times(5))
+        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
+
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "ok", 0);
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "aborted", 5);
   }
 
   @Test
   public void retryOnAbortedAndDeadlineExceeded() throws InterruptedException {
-    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
 
     String errString =
         "Transaction aborted. "
@@ -610,7 +868,9 @@ public class SpannerIOWriteTest implements Serializable {
 
     // Respond with (1) Aborted transaction a couple of times (2) deadline exceeded
     // (3) Aborted transaction 3 times (4)  deadline exceeded and finally return success.
-    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
         .thenThrow(
@@ -622,16 +882,14 @@ public class SpannerIOWriteTest implements Serializable {
         .thenThrow(
             SpannerExceptionFactory.newSpannerException(
                 ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 2"))
-        .thenReturn(Timestamp.now());
+        .thenReturn(new CommitResponse(Timestamp.now()));
 
     SpannerWriteResult result =
         pipeline
             .apply(Create.of(mutationList))
             .apply(
                 SpannerIO.write()
-                    .withProjectId("test-project")
-                    .withInstanceId("test-instance")
-                    .withDatabaseId("test-database")
+                    .withSpannerConfig(SPANNER_CONFIG)
                     .withServiceFactory(serviceFactory)
                     .withBatchSizeBytes(0)
                     .withFailureMode(FailureMode.FAIL_FAST));
@@ -648,16 +906,19 @@ public class SpannerIOWriteTest implements Serializable {
     // 2 calls to sleeper
     verify(WriteToSpannerFn.sleeper, times(2)).sleep(anyLong());
     // 8 write attempts for the single mutationGroup.
-    verify(serviceFactory.mockDatabaseClient(), times(8)).writeAtLeastOnce(any());
+    verify(serviceFactory.mockDatabaseClient(), times(8))
+        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
+
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "ok", 1);
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "aborted", 5);
+    verifyTableWriteRequestMetricWasSet(SPANNER_CONFIG, TABLE_NAME, "deadline_exceeded", 2);
   }
 
   @Test
   public void displayDataWrite() throws Exception {
     SpannerIO.Write write =
         SpannerIO.write()
-            .withProjectId("test-project")
-            .withInstanceId("test-instance")
-            .withDatabaseId("test-database")
+            .withSpannerConfig(SPANNER_CONFIG)
             .withBatchSizeBytes(123)
             .withMaxNumMutations(456)
             .withMaxNumRows(789)
@@ -674,11 +935,7 @@ public class SpannerIOWriteTest implements Serializable {
     assertThat(data, hasDisplayItem("groupingFactor", "100"));
 
     // check for default grouping value
-    write =
-        SpannerIO.write()
-            .withProjectId("test-project")
-            .withInstanceId("test-instance")
-            .withDatabaseId("test-database");
+    write = SpannerIO.write().withSpannerConfig(SPANNER_CONFIG);
 
     data = DisplayData.from(write);
     assertThat(data.items(), hasSize(7));
@@ -689,9 +946,7 @@ public class SpannerIOWriteTest implements Serializable {
   public void displayDataWriteGrouped() throws Exception {
     SpannerIO.WriteGrouped writeGrouped =
         SpannerIO.write()
-            .withProjectId("test-project")
-            .withInstanceId("test-instance")
-            .withDatabaseId("test-database")
+            .withSpannerConfig(SPANNER_CONFIG)
             .withBatchSizeBytes(123)
             .withMaxNumMutations(456)
             .withMaxNumRows(789)
@@ -709,12 +964,7 @@ public class SpannerIOWriteTest implements Serializable {
     assertThat(data, hasDisplayItem("groupingFactor", "100"));
 
     // check for default grouping value
-    writeGrouped =
-        SpannerIO.write()
-            .withProjectId("test-project")
-            .withInstanceId("test-instance")
-            .withDatabaseId("test-database")
-            .grouped();
+    writeGrouped = SpannerIO.write().withSpannerConfig(SPANNER_CONFIG).grouped();
 
     data = DisplayData.from(writeGrouped);
     assertThat(data.items(), hasSize(7));
@@ -723,27 +973,32 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   public void testBatchableMutationFilterFn_cells() {
-    Mutation all = Mutation.delete("test", KeySet.all());
-    Mutation prefix = Mutation.delete("test", KeySet.prefixRange(Key.of(1L)));
+    Mutation all = Mutation.delete(TABLE_NAME, KeySet.all());
+    Mutation prefix = Mutation.delete(TABLE_NAME, KeySet.prefixRange(Key.of(1L)));
     Mutation range =
         Mutation.delete(
-            "test", KeySet.range(KeyRange.openOpen(Key.of(1L), Key.newBuilder().build())));
+            TABLE_NAME, KeySet.range(KeyRange.openOpen(Key.of(1L), Key.newBuilder().build())));
     MutationGroup[] mutationGroups =
         new MutationGroup[] {
-          g(m(1L)),
-          g(m(2L), m(3L)),
-          g(m(2L), m(3L), m(4L), m(5L)), // not batchable - too big.
-          g(del(1L)),
-          g(del(5L, 6L)), // not point delete.
-          g(all),
-          g(prefix),
-          g(range)
+          buildMutationGroup(buildUpsertMutation(1L)),
+          buildMutationGroup(buildUpsertMutation(2L), buildUpsertMutation(3L)),
+          buildMutationGroup(
+              buildUpsertMutation(2L),
+              buildUpsertMutation(3L),
+              buildUpsertMutation(4L),
+              buildUpsertMutation(5L)), // not batchable - too big.
+          buildMutationGroup(buildDeleteMutation(1L)),
+          buildMutationGroup(buildDeleteMutation(5L, 6L)), // not point delete.
+          buildMutationGroup(all),
+          buildMutationGroup(prefix),
+          buildMutationGroup(range)
         };
 
     BatchableMutationFilterFn testFn =
         new BatchableMutationFilterFn(null, null, 10000000, 3 * CELLS_PER_KEY, 1000);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    BatchableMutationFilterFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
@@ -759,7 +1014,10 @@ public class SpannerIOWriteTest implements Serializable {
     // Verify captured batchable elements.
     assertThat(
         mutationGroupCaptor.getAllValues(),
-        containsInAnyOrder(g(m(1L)), g(m(2L), m(3L)), g(del(1L))));
+        containsInAnyOrder(
+            buildMutationGroup(buildUpsertMutation(1L)),
+            buildMutationGroup(buildUpsertMutation(2L), buildUpsertMutation(3L)),
+            buildMutationGroup(buildDeleteMutation(1L))));
 
     // Verify captured unbatchable mutations
     Iterable<MutationGroup> unbatchableMutations =
@@ -767,37 +1025,46 @@ public class SpannerIOWriteTest implements Serializable {
     assertThat(
         unbatchableMutations,
         containsInAnyOrder(
-            g(m(2L), m(3L), m(4L), m(5L)), // not batchable - too big.
-            g(del(5L, 6L)), // not point delete.
-            g(all),
-            g(prefix),
-            g(range)));
+            buildMutationGroup(
+                buildUpsertMutation(2L),
+                buildUpsertMutation(3L),
+                buildUpsertMutation(4L),
+                buildUpsertMutation(5L)), // not batchable - too big.
+            buildMutationGroup(buildDeleteMutation(5L, 6L)), // not point delete.
+            buildMutationGroup(all),
+            buildMutationGroup(prefix),
+            buildMutationGroup(range)));
   }
 
   @Test
   public void testBatchableMutationFilterFn_size() {
-    Mutation all = Mutation.delete("test", KeySet.all());
-    Mutation prefix = Mutation.delete("test", KeySet.prefixRange(Key.of(1L)));
+    Mutation all = Mutation.delete(TABLE_NAME, KeySet.all());
+    Mutation prefix = Mutation.delete(TABLE_NAME, KeySet.prefixRange(Key.of(1L)));
     Mutation range =
         Mutation.delete(
-            "test", KeySet.range(KeyRange.openOpen(Key.of(1L), Key.newBuilder().build())));
+            TABLE_NAME, KeySet.range(KeyRange.openOpen(Key.of(1L), Key.newBuilder().build())));
     MutationGroup[] mutationGroups =
         new MutationGroup[] {
-          g(m(1L)),
-          g(m(2L), m(3L)),
-          g(m(1L), m(3L), m(4L), m(5L)), // not batchable - too big.
-          g(del(1L)),
-          g(del(5L, 6L)), // not point delete.
-          g(all),
-          g(prefix),
-          g(range)
+          buildMutationGroup(buildUpsertMutation(1L)),
+          buildMutationGroup(buildUpsertMutation(2L), buildUpsertMutation(3L)),
+          buildMutationGroup(
+              buildUpsertMutation(1L),
+              buildUpsertMutation(3L),
+              buildUpsertMutation(4L),
+              buildUpsertMutation(5L)), // not batchable - too big.
+          buildMutationGroup(buildDeleteMutation(1L)),
+          buildMutationGroup(buildDeleteMutation(5L, 6L)), // not point delete.
+          buildMutationGroup(all),
+          buildMutationGroup(prefix),
+          buildMutationGroup(range)
         };
 
-    long mutationSize = MutationSizeEstimator.sizeOf(m(1L));
+    long mutationSize = MutationSizeEstimator.sizeOf(buildUpsertMutation(1L));
     BatchableMutationFilterFn testFn =
         new BatchableMutationFilterFn(null, null, mutationSize * 3, 1000, 1000);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    DoFn<MutationGroup, MutationGroup>.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
@@ -813,7 +1080,10 @@ public class SpannerIOWriteTest implements Serializable {
     // Verify captured batchable elements.
     assertThat(
         mutationGroupCaptor.getAllValues(),
-        containsInAnyOrder(g(m(1L)), g(m(2L), m(3L)), g(del(1L))));
+        containsInAnyOrder(
+            buildMutationGroup(buildUpsertMutation(1L)),
+            buildMutationGroup(buildUpsertMutation(2L), buildUpsertMutation(3L)),
+            buildMutationGroup(buildDeleteMutation(1L))));
 
     // Verify captured unbatchable mutations
     Iterable<MutationGroup> unbatchableMutations =
@@ -821,36 +1091,44 @@ public class SpannerIOWriteTest implements Serializable {
     assertThat(
         unbatchableMutations,
         containsInAnyOrder(
-            g(m(1L), m(3L), m(4L), m(5L)), // not batchable - too big.
-            g(del(5L, 6L)), // not point delete.
-            g(all),
-            g(prefix),
-            g(range)));
+            buildMutationGroup(
+                buildUpsertMutation(1L),
+                buildUpsertMutation(3L),
+                buildUpsertMutation(4L),
+                buildUpsertMutation(5L)), // not batchable - too big.
+            buildMutationGroup(buildDeleteMutation(5L, 6L)), // not point delete.
+            buildMutationGroup(all),
+            buildMutationGroup(prefix),
+            buildMutationGroup(range)));
   }
 
   @Test
   public void testBatchableMutationFilterFn_rows() {
-    Mutation all = Mutation.delete("test", KeySet.all());
-    Mutation prefix = Mutation.delete("test", KeySet.prefixRange(Key.of(1L)));
+    Mutation all = Mutation.delete(TABLE_NAME, KeySet.all());
+    Mutation prefix = Mutation.delete(TABLE_NAME, KeySet.prefixRange(Key.of(1L)));
     Mutation range =
         Mutation.delete(
-            "test", KeySet.range(KeyRange.openOpen(Key.of(1L), Key.newBuilder().build())));
+            TABLE_NAME, KeySet.range(KeyRange.openOpen(Key.of(1L), Key.newBuilder().build())));
     MutationGroup[] mutationGroups =
         new MutationGroup[] {
-          g(m(1L)),
-          g(m(2L), m(3L)),
-          g(m(1L), m(3L), m(4L), m(5L)), // not batchable - too many rows.
-          g(del(1L)),
-          g(del(5L, 6L)), // not point delete.
-          g(all),
-          g(prefix),
-          g(range)
+          buildMutationGroup(buildUpsertMutation(1L)),
+          buildMutationGroup(buildUpsertMutation(2L), buildUpsertMutation(3L)),
+          buildMutationGroup(
+              buildUpsertMutation(1L),
+              buildUpsertMutation(3L),
+              buildUpsertMutation(4L),
+              buildUpsertMutation(5L)), // not batchable - too many rows.
+          buildMutationGroup(buildDeleteMutation(1L)),
+          buildMutationGroup(buildDeleteMutation(5L, 6L)), // not point delete.
+          buildMutationGroup(all),
+          buildMutationGroup(prefix),
+          buildMutationGroup(range)
         };
 
-    long mutationSize = MutationSizeEstimator.sizeOf(m(1L));
     BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 1000, 1000, 3);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    BatchableMutationFilterFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
@@ -866,7 +1144,10 @@ public class SpannerIOWriteTest implements Serializable {
     // Verify captured batchable elements.
     assertThat(
         mutationGroupCaptor.getAllValues(),
-        containsInAnyOrder(g(m(1L)), g(m(2L), m(3L)), g(del(1L))));
+        containsInAnyOrder(
+            buildMutationGroup(buildUpsertMutation(1L)),
+            buildMutationGroup(buildUpsertMutation(2L), buildUpsertMutation(3L)),
+            buildMutationGroup(buildDeleteMutation(1L))));
 
     // Verify captured unbatchable mutations
     Iterable<MutationGroup> unbatchableMutations =
@@ -874,21 +1155,31 @@ public class SpannerIOWriteTest implements Serializable {
     assertThat(
         unbatchableMutations,
         containsInAnyOrder(
-            g(m(1L), m(3L), m(4L), m(5L)), // not batchable - too many rows.
-            g(del(5L, 6L)), // not point delete.
-            g(all),
-            g(prefix),
-            g(range)));
+            buildMutationGroup(
+                buildUpsertMutation(1L),
+                buildUpsertMutation(3L),
+                buildUpsertMutation(4L),
+                buildUpsertMutation(5L)), // not batchable - too many rows.
+            buildMutationGroup(buildDeleteMutation(5L, 6L)), // not point delete.
+            buildMutationGroup(all),
+            buildMutationGroup(prefix),
+            buildMutationGroup(range)));
   }
 
   @Test
   public void testBatchableMutationFilterFn_batchingDisabled() {
     MutationGroup[] mutationGroups =
-        new MutationGroup[] {g(m(1L)), g(m(2L)), g(del(1L)), g(del(5L, 6L))};
+        new MutationGroup[] {
+          buildMutationGroup(buildUpsertMutation(1L)),
+          buildMutationGroup(buildUpsertMutation(2L)),
+          buildMutationGroup(buildDeleteMutation(1L)),
+          buildMutationGroup(buildDeleteMutation(5L, 6L))
+        };
 
     BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 0, 0, 0);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    BatchableMutationFilterFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
@@ -921,8 +1212,10 @@ public class SpannerIOWriteTest implements Serializable {
             100, // groupingFactor
             null);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
-    FinishBundleContext mockFinishBundleContext = Mockito.mock(FinishBundleContext.class);
+    GatherSortCreateBatchesFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
+    GatherSortCreateBatchesFn.FinishBundleContext mockFinishBundleContext =
+        Mockito.mock(FinishBundleContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
@@ -936,18 +1229,18 @@ public class SpannerIOWriteTest implements Serializable {
           // each mutation is considered 7 cells,
           // should be sorted and output as 2 lists of 5, then 1 list of 2
           // with mutations sorted in order.
-          g(m(4L)),
-          g(m(1L)),
-          g(m(7L)),
-          g(m(12L)),
-          g(m(10L)),
-          g(m(11L)),
-          g(m(2L)),
-          g(del(8L)),
-          g(m(3L)),
-          g(m(6L)),
-          g(m(9L)),
-          g(m(5L))
+          buildMutationGroup(buildUpsertMutation(4L)),
+          buildMutationGroup(buildUpsertMutation(1L)),
+          buildMutationGroup(buildUpsertMutation(7L)),
+          buildMutationGroup(buildUpsertMutation(12L)),
+          buildMutationGroup(buildUpsertMutation(10L)),
+          buildMutationGroup(buildUpsertMutation(11L)),
+          buildMutationGroup(buildUpsertMutation(2L)),
+          buildMutationGroup(buildDeleteMutation(8L)),
+          buildMutationGroup(buildUpsertMutation(3L)),
+          buildMutationGroup(buildUpsertMutation(6L)),
+          buildMutationGroup(buildUpsertMutation(9L)),
+          buildMutationGroup(buildUpsertMutation(5L))
         };
 
     // Process all elements as one bundle.
@@ -965,9 +1258,21 @@ public class SpannerIOWriteTest implements Serializable {
     assertThat(
         mutationGroupListCaptor.getAllValues(),
         contains(
-            Arrays.asList(g(m(1L)), g(m(2L)), g(m(3L)), g(m(4L)), g(m(5L))),
-            Arrays.asList(g(m(6L)), g(m(7L)), g(del(8L)), g(m(9L)), g(m(10L))),
-            Arrays.asList(g(m(11L)), g(m(12L)))));
+            Arrays.asList(
+                buildMutationGroup(buildUpsertMutation(1L)),
+                buildMutationGroup(buildUpsertMutation(2L)),
+                buildMutationGroup(buildUpsertMutation(3L)),
+                buildMutationGroup(buildUpsertMutation(4L)),
+                buildMutationGroup(buildUpsertMutation(5L))),
+            Arrays.asList(
+                buildMutationGroup(buildUpsertMutation(6L)),
+                buildMutationGroup(buildUpsertMutation(7L)),
+                buildMutationGroup(buildDeleteMutation(8L)),
+                buildMutationGroup(buildUpsertMutation(9L)),
+                buildMutationGroup(buildUpsertMutation(10L))),
+            Arrays.asList(
+                buildMutationGroup(buildUpsertMutation(11L)),
+                buildMutationGroup(buildUpsertMutation(12L)))));
   }
 
   @Test
@@ -982,8 +1287,10 @@ public class SpannerIOWriteTest implements Serializable {
             3, // groupingFactor
             null);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
-    FinishBundleContext mockFinishBundleContext = Mockito.mock(FinishBundleContext.class);
+    GatherSortCreateBatchesFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
+    GatherSortCreateBatchesFn.FinishBundleContext mockFinishBundleContext =
+        Mockito.mock(FinishBundleContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
     OutputReceiver<Iterable<MutationGroup>> mockOutputReceiver = mock(OutputReceiver.class);
 
@@ -1000,18 +1307,18 @@ public class SpannerIOWriteTest implements Serializable {
           // each mutation is considered 7 cells,
           // should be sorted and output as 2 lists of 5, then 1 list of 2
           // with mutations sorted in order.
-          g(m(4L)),
-          g(m(1L)),
-          g(m(7L)),
-          g(m(9L)),
-          g(m(10L)),
-          g(m(11L)),
+          buildMutationGroup(buildUpsertMutation(4L)),
+          buildMutationGroup(buildUpsertMutation(1L)),
+          buildMutationGroup(buildUpsertMutation(7L)),
+          buildMutationGroup(buildUpsertMutation(9L)),
+          buildMutationGroup(buildUpsertMutation(10L)),
+          buildMutationGroup(buildUpsertMutation(11L)),
           // end group
-          g(m(2L)),
-          g(del(8L)), // end batch
-          g(m(3L)),
-          g(m(6L)), // end batch
-          g(m(5L))
+          buildMutationGroup(buildUpsertMutation(2L)),
+          buildMutationGroup(buildDeleteMutation(8L)), // end batch
+          buildMutationGroup(buildUpsertMutation(3L)),
+          buildMutationGroup(buildUpsertMutation(6L)), // end batch
+          buildMutationGroup(buildUpsertMutation(5L))
           // end bundle, so end group and end batch.
         };
 
@@ -1032,14 +1339,34 @@ public class SpannerIOWriteTest implements Serializable {
     assertEquals(6, mgListGroups.size());
     // verify contents of 6 sorted groups.
     // first group should be 1,3,4,7,9,11
-    assertThat(mgListGroups.get(0), contains(g(m(1L)), g(m(4L))));
-    assertThat(mgListGroups.get(1), contains(g(m(7L)), g(m(9L))));
-    assertThat(mgListGroups.get(2), contains(g(m(10L)), g(m(11L))));
+    assertThat(
+        mgListGroups.get(0),
+        contains(
+            buildMutationGroup(buildUpsertMutation(1L)),
+            buildMutationGroup(buildUpsertMutation(4L))));
+    assertThat(
+        mgListGroups.get(1),
+        contains(
+            buildMutationGroup(buildUpsertMutation(7L)),
+            buildMutationGroup(buildUpsertMutation(9L))));
+    assertThat(
+        mgListGroups.get(2),
+        contains(
+            buildMutationGroup(buildUpsertMutation(10L)),
+            buildMutationGroup(buildUpsertMutation(11L))));
 
     // second group at finishBundle should be 2,3,5,6,8
-    assertThat(mgListGroups.get(3), contains(g(m(2L)), g(m(3L))));
-    assertThat(mgListGroups.get(4), contains(g(m(5L)), g(m(6L))));
-    assertThat(mgListGroups.get(5), contains(g(del(8L))));
+    assertThat(
+        mgListGroups.get(3),
+        contains(
+            buildMutationGroup(buildUpsertMutation(2L)),
+            buildMutationGroup(buildUpsertMutation(3L))));
+    assertThat(
+        mgListGroups.get(4),
+        contains(
+            buildMutationGroup(buildUpsertMutation(5L)),
+            buildMutationGroup(buildUpsertMutation(6L))));
+    assertThat(mgListGroups.get(5), contains(buildMutationGroup(buildDeleteMutation(8L))));
   }
 
   @Test
@@ -1060,7 +1387,7 @@ public class SpannerIOWriteTest implements Serializable {
   @Test
   public void testBatchFn_size() throws Exception {
 
-    long mutationSize = MutationSizeEstimator.sizeOf(m(1L));
+    long mutationSize = MutationSizeEstimator.sizeOf(buildUpsertMutation(1L));
 
     // Setup class to bundle every 3 mutations by size)
     GatherSortCreateBatchesFn testFn =
@@ -1090,8 +1417,10 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   private void testAndVerifyBatches(GatherSortCreateBatchesFn testFn) throws Exception {
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
-    FinishBundleContext mockFinishBundleContext = Mockito.mock(FinishBundleContext.class);
+    GatherSortCreateBatchesFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
+    GatherSortCreateBatchesFn.FinishBundleContext mockFinishBundleContext =
+        Mockito.mock(FinishBundleContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the output at finish bundle..
@@ -1101,13 +1430,18 @@ public class SpannerIOWriteTest implements Serializable {
 
     List<MutationGroup> mutationGroups =
         Arrays.asList(
-            g(m(1L)),
-            g(m(4L)),
-            g(m(5L), m(6L), m(7L), m(8L), m(9L)),
-            g(m(3L)),
-            g(m(10L)),
-            g(m(11L)),
-            g(m(2L)));
+            buildMutationGroup(buildUpsertMutation(1L)),
+            buildMutationGroup(buildUpsertMutation(4L)),
+            buildMutationGroup(
+                buildUpsertMutation(5L),
+                buildUpsertMutation(6L),
+                buildUpsertMutation(7L),
+                buildUpsertMutation(8L),
+                buildUpsertMutation(9L)),
+            buildMutationGroup(buildUpsertMutation(3L)),
+            buildMutationGroup(buildUpsertMutation(10L)),
+            buildMutationGroup(buildUpsertMutation(11L)),
+            buildMutationGroup(buildUpsertMutation(2L)));
 
     // Process elements.
     for (MutationGroup m : mutationGroups) {
@@ -1122,10 +1456,31 @@ public class SpannerIOWriteTest implements Serializable {
     assertEquals(4, batches.size());
 
     // verify contents of 4 batches.
-    assertThat(batches.get(0), contains(g(m(1L)), g(m(2L)), g(m(3L))));
-    assertThat(batches.get(1), contains(g(m(4L)))); // small batch : next mutation group is too big.
-    assertThat(batches.get(2), contains(g(m(5L), m(6L), m(7L), m(8L), m(9L))));
-    assertThat(batches.get(3), contains(g(m(10L)), g(m(11L))));
+    assertThat(
+        batches.get(0),
+        contains(
+            buildMutationGroup(buildUpsertMutation(1L)),
+            buildMutationGroup(buildUpsertMutation(2L)),
+            buildMutationGroup(buildUpsertMutation(3L))));
+    assertThat(
+        batches.get(1),
+        contains(
+            buildMutationGroup(
+                buildUpsertMutation(4L)))); // small batch : next mutation group is too big.
+    assertThat(
+        batches.get(2),
+        contains(
+            buildMutationGroup(
+                buildUpsertMutation(5L),
+                buildUpsertMutation(6L),
+                buildUpsertMutation(7L),
+                buildUpsertMutation(8L),
+                buildUpsertMutation(9L))));
+    assertThat(
+        batches.get(3),
+        contains(
+            buildMutationGroup(buildUpsertMutation(10L)),
+            buildMutationGroup(buildUpsertMutation(11L))));
   }
 
   @Test
@@ -1206,29 +1561,25 @@ public class SpannerIOWriteTest implements Serializable {
     verify(serviceFactory.mockSpanner(), times(2)).close();
   }
 
-  private static MutationGroup g(Mutation m, Mutation... other) {
+  static MutationGroup buildMutationGroup(Mutation m, Mutation... other) {
     return MutationGroup.create(m, other);
   }
 
-  private static Mutation m(Long key) {
-    return Mutation.newInsertOrUpdateBuilder("test").set("key").to(key).build();
+  static Mutation buildUpsertMutation(Long key) {
+    return Mutation.newInsertOrUpdateBuilder(TABLE_NAME).set("key").to(key).build();
   }
 
-  private static Iterable<Mutation> batch(Mutation... m) {
+  private static Iterable<Mutation> buildMutationBatch(Mutation... m) {
     return Arrays.asList(m);
   }
 
-  private static Mutation del(Long... keys) {
+  private static Mutation buildDeleteMutation(Long... keys) {
 
     KeySet.Builder builder = KeySet.newBuilder();
     for (Long key : keys) {
       builder.addKey(Key.of(key));
     }
-    return Mutation.delete("test", builder.build());
-  }
-
-  private static Mutation delRange(Long start, Long end) {
-    return Mutation.delete("test", KeySet.range(KeyRange.closedClosed(Key.of(start), Key.of(end))));
+    return Mutation.delete(TABLE_NAME, builder.build());
   }
 
   private static Iterable<Mutation> mutationsInNoOrder(Iterable<Mutation> expected) {
@@ -1252,19 +1603,41 @@ public class SpannerIOWriteTest implements Serializable {
         });
   }
 
-  private Iterable<Mutation> iterableOfSize(final int size) {
-    return argThat(
-        new ArgumentMatcher<Iterable<Mutation>>() {
+  private void verifyTableWriteRequestMetricWasSet(
+      SpannerConfig config, String table, String status, long count) {
 
-          @Override
-          public boolean matches(Iterable<Mutation> argument) {
-            return argument instanceof Iterable && Iterables.size((Iterable<?>) argument) == size;
-          }
+    HashMap<String, String> baseLabels = getBaseMetricsLabels(config);
+    baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "Write");
+    baseLabels.put(MonitoringInfoConstants.Labels.TABLE_ID, table);
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.RESOURCE,
+        GcpResourceIdentifiers.spannerTable(
+            baseLabels.get(MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID),
+            config.getInstanceId().get(),
+            config.getDatabaseId().get(),
+            table));
+    baseLabels.put(MonitoringInfoConstants.Labels.STATUS, status);
 
-          @Override
-          public String toString() {
-            return "The size of the iterable must equal " + size;
-          }
-        });
+    MonitoringInfoMetricName name =
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+    MetricsContainerImpl container =
+        (MetricsContainerImpl) MetricsEnvironment.getCurrentContainer();
+    assertEquals(count, (long) container.getCounter(name).getCumulative());
+  }
+
+  private HashMap<String, String> getBaseMetricsLabels(SpannerConfig config) {
+    HashMap<String, String> baseLabels = new HashMap<>();
+    baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Spanner");
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID,
+        config.getProjectId() == null || config.getProjectId().get() == null
+            ? SpannerOptions.getDefaultProjectId()
+            : config.getProjectId().get());
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.SPANNER_INSTANCE_ID, config.getInstanceId().get());
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.SPANNER_DATABASE_ID, config.getDatabaseId().get());
+    return baseLabels;
   }
 }

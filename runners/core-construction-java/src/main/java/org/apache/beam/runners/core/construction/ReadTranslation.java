@@ -29,8 +29,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.IsBounded;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -38,44 +36,48 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * Methods for translating {@link Read.Bounded} and {@link Read.Unbounded} {@link PTransform
- * PTransformTranslation} into {@link ReadPayload} protos.
+ * Methods for translating {@link SplittableParDo.PrimitiveBoundedRead} and {@link
+ * SplittableParDo.PrimitiveUnboundedRead} {@link PTransform PTransformTranslation} into {@link
+ * ReadPayload} protos.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class ReadTranslation {
   private static final String JAVA_SERIALIZED_BOUNDED_SOURCE = "beam:java:boundedsource:v1";
   private static final String JAVA_SERIALIZED_UNBOUNDED_SOURCE = "beam:java:unboundedsource:v1";
 
-  public static ReadPayload toProto(Read.Bounded<?> read, SdkComponents components) {
+  public static ReadPayload toProto(SplittableParDo.PrimitiveBoundedRead<?> read) {
     return ReadPayload.newBuilder()
         .setIsBounded(IsBounded.Enum.BOUNDED)
-        .setSource(toProto(read.getSource(), components))
+        .setSource(toProto(read.getSource()))
         .build();
   }
 
-  public static ReadPayload toProto(Unbounded<?> read, SdkComponents components) {
+  public static ReadPayload toProto(SplittableParDo.PrimitiveUnboundedRead<?> read) {
     return ReadPayload.newBuilder()
         .setIsBounded(IsBounded.Enum.UNBOUNDED)
-        .setSource(toProto(read.getSource(), components))
+        .setSource(toProto(read.getSource()))
         .build();
   }
 
-  public static FunctionSpec toProto(Source<?> source, SdkComponents components) {
+  public static FunctionSpec toProto(Source<?> source) {
     if (source instanceof BoundedSource) {
-      return toProto((BoundedSource) source, components);
+      return toProto((BoundedSource) source);
     } else if (source instanceof UnboundedSource) {
-      return toProto((UnboundedSource<?, ?>) source, components);
+      return toProto((UnboundedSource<?, ?>) source);
     } else {
       throw new IllegalArgumentException(
           String.format("Unknown %s type %s", Source.class.getSimpleName(), source.getClass()));
     }
   }
 
-  private static FunctionSpec toProto(BoundedSource<?> source, SdkComponents components) {
+  private static FunctionSpec toProto(BoundedSource<?> source) {
     return FunctionSpec.newBuilder()
         .setUrn(JAVA_SERIALIZED_BOUNDED_SOURCE)
         .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(source)))
@@ -113,7 +115,7 @@ public class ReadTranslation {
             .getPayload());
   }
 
-  private static FunctionSpec toProto(UnboundedSource<?, ?> source, SdkComponents components) {
+  private static FunctionSpec toProto(UnboundedSource<?, ?> source) {
     return FunctionSpec.newBuilder()
         .setUrn(JAVA_SERIALIZED_UNBOUNDED_SOURCE)
         .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(source)))
@@ -141,9 +143,10 @@ public class ReadTranslation {
     }
   }
 
-  /** A {@link TransformPayloadTranslator} for {@link Read.Unbounded}. */
+  /** A {@link TransformPayloadTranslator} for {@link SplittableParDo.PrimitiveUnboundedRead}. */
   public static class UnboundedReadPayloadTranslator
-      implements PTransformTranslation.TransformPayloadTranslator<Read.Unbounded<?>> {
+      implements PTransformTranslation.TransformPayloadTranslator<
+          SplittableParDo.PrimitiveUnboundedRead<?>> {
     public static TransformPayloadTranslator create() {
       return new UnboundedReadPayloadTranslator();
     }
@@ -151,14 +154,15 @@ public class ReadTranslation {
     private UnboundedReadPayloadTranslator() {}
 
     @Override
-    public String getUrn(Read.Unbounded<?> transform) {
+    public String getUrn(SplittableParDo.PrimitiveUnboundedRead<?> transform) {
       return PTransformTranslation.READ_TRANSFORM_URN;
     }
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, Read.Unbounded<?>> transform, SdkComponents components) {
-      ReadPayload payload = toProto(transform.getTransform(), components);
+        AppliedPTransform<?, ?, SplittableParDo.PrimitiveUnboundedRead<?>> transform,
+        SdkComponents components) {
+      ReadPayload payload = toProto(transform.getTransform());
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
           .setPayload(payload.toByteString())
@@ -166,9 +170,10 @@ public class ReadTranslation {
     }
   }
 
-  /** A {@link TransformPayloadTranslator} for {@link Read.Bounded}. */
+  /** A {@link TransformPayloadTranslator} for {@link SplittableParDo.PrimitiveBoundedRead}. */
   public static class BoundedReadPayloadTranslator
-      implements PTransformTranslation.TransformPayloadTranslator<Read.Bounded<?>> {
+      implements PTransformTranslation.TransformPayloadTranslator<
+          SplittableParDo.PrimitiveBoundedRead<?>> {
     public static TransformPayloadTranslator create() {
       return new BoundedReadPayloadTranslator();
     }
@@ -176,14 +181,15 @@ public class ReadTranslation {
     private BoundedReadPayloadTranslator() {}
 
     @Override
-    public String getUrn(Read.Bounded<?> transform) {
+    public String getUrn(SplittableParDo.PrimitiveBoundedRead<?> transform) {
       return PTransformTranslation.READ_TRANSFORM_URN;
     }
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, Read.Bounded<?>> transform, SdkComponents components) {
-      ReadPayload payload = toProto(transform.getTransform(), components);
+        AppliedPTransform<?, ?, SplittableParDo.PrimitiveBoundedRead<?>> transform,
+        SdkComponents components) {
+      ReadPayload payload = toProto(transform.getTransform());
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
           .setPayload(payload.toByteString())
@@ -198,8 +204,8 @@ public class ReadTranslation {
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
-          .put(Read.Unbounded.class, new UnboundedReadPayloadTranslator())
-          .put(Read.Bounded.class, new BoundedReadPayloadTranslator())
+          .put(SplittableParDo.PrimitiveUnboundedRead.class, new UnboundedReadPayloadTranslator())
+          .put(SplittableParDo.PrimitiveBoundedRead.class, new BoundedReadPayloadTranslator())
           .build();
     }
   }

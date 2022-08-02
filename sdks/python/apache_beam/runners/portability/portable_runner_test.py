@@ -16,19 +16,12 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import inspect
 import logging
-import platform
-import signal
 import socket
 import subprocess
 import sys
-import threading
 import time
-import traceback
 import unittest
 
 import grpc
@@ -56,37 +49,10 @@ from apache_beam.transforms import userstate
 _LOGGER = logging.getLogger(__name__)
 
 
-# Disable timeout since this test implements its own.
-# TODO(BEAM-9011): Consider using pytest-timeout's mechanism instead.
-@pytest.mark.timeout(0)
 class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
-
-  TIMEOUT_SECS = 60
 
   # Controls job service interaction, not sdk harness interaction.
   _use_subprocesses = False
-
-  def setUp(self):
-    if platform.system() != 'Windows':
-
-      def handler(signum, frame):
-        msg = 'Timed out after %s seconds.' % self.TIMEOUT_SECS
-        print('=' * 20, msg, '=' * 20)
-        traceback.print_stack(frame)
-        threads_by_id = {th.ident: th for th in threading.enumerate()}
-        for thread_id, stack in sys._current_frames().items():
-          th = threads_by_id.get(thread_id)
-          print()
-          print('# Thread:', th or thread_id)
-          traceback.print_stack(stack)
-        raise BaseException(msg)
-
-      signal.signal(signal.SIGALRM, handler)
-      signal.alarm(self.TIMEOUT_SECS)
-
-  def tearDown(self):
-    if platform.system() != 'Windows':
-      signal.alarm(0)
 
   @classmethod
   def _pick_unused_port(cls):
@@ -255,11 +221,24 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
     raise unittest.SkipTest("Portable runners don't support drain yet.")
 
 
-@unittest.skip("BEAM-7248")
+@unittest.skip("https://github.com/apache/beam/issues/19422")
 class PortableRunnerOptimized(PortableRunnerTest):
   def create_options(self):
-    options = super(PortableRunnerOptimized, self).create_options()
+    options = super().create_options()
     options.view_as(DebugOptions).add_experiment('pre_optimize=all')
+    options.view_as(DebugOptions).add_experiment('state_cache_size=100')
+    options.view_as(DebugOptions).add_experiment(
+        'data_buffer_time_limit_ms=1000')
+    return options
+
+
+# TODO(https://github.com/apache/beam/issues/19422): Delete this test after
+# PortableRunner supports beam:runner:executable_stage:v1.
+class PortableRunnerOptimizedWithoutFusion(PortableRunnerTest):
+  def create_options(self):
+    options = super().create_options()
+    options.view_as(DebugOptions).add_experiment(
+        'pre_optimize=all_except_fusion')
     options.view_as(DebugOptions).add_experiment('state_cache_size=100')
     options.view_as(DebugOptions).add_experiment(
         'data_buffer_time_limit_ms=1000')
@@ -278,17 +257,20 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
     cls._worker_server.stop(1)
 
   def create_options(self):
-    options = super(PortableRunnerTestWithExternalEnv, self).create_options()
+    options = super().create_options()
     options.view_as(PortableOptions).environment_type = 'EXTERNAL'
     options.view_as(PortableOptions).environment_config = self._worker_address
     return options
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="[https://github.com/apache/beam/issues/20427]")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_subprocesses = True
 
   def create_options(self):
-    options = super(PortableRunnerTestWithSubprocesses, self).create_options()
+    options = super().create_options()
     options.view_as(PortableOptions).environment_type = (
         python_urns.SUBPROCESS_SDK)
     options.view_as(PortableOptions).environment_config = (
@@ -311,13 +293,18 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
         str(job_port),
     ]
 
+  def test_batch_rebatch_pardos(self):
+    raise unittest.SkipTest(
+        "Portable runners with subprocess can't make "
+        "assertions about warnings raised on the worker.")
+
 
 class PortableRunnerTestWithSubprocessesAndMultiWorkers(
     PortableRunnerTestWithSubprocesses):
   _use_subprocesses = True
 
   def create_options(self):
-    options = super(PortableRunnerTestWithSubprocessesAndMultiWorkers, self) \
+    options = super() \
       .create_options()
     options.view_as(DirectOptions).direct_num_workers = 2
     return options
@@ -416,7 +403,7 @@ def hasDockerImage():
     "no docker image")
 class PortableRunnerTestWithLocalDocker(PortableRunnerTest):
   def create_options(self):
-    options = super(PortableRunnerTestWithLocalDocker, self).create_options()
+    options = super().create_options()
     options.view_as(PortableOptions).job_endpoint = 'embed'
     return options
 

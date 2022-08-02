@@ -35,6 +35,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Factory interface for creating counters. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CounterFactory {
 
   protected <InputT, AccumT> Counter<InputT, AccumT> createCounter(

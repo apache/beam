@@ -20,32 +20,39 @@
 // common properties that are shared among all Jenkins projects.
 // Code in this directory should conform to the Groovy style guide.
 //  http://groovy-lang.org/style-guide.html
+
+import Committers as committers
+import PythonTestProperties as pythonTestProperties
+
 class CommonJobProperties {
 
   static String checkoutDir = 'src'
   final static String JAVA_8_HOME = '/usr/lib/jvm/java-8-openjdk-amd64'
   final static String JAVA_11_HOME = '/usr/lib/jvm/java-11-openjdk-amd64'
+  final static String JAVA_17_HOME = '/usr/lib/jvm/java-17-openjdk-amd64'
+  final static String PYTHON = pythonTestProperties.DEFAULT_INTERPRETER
 
   // Sets common top-level job properties for main repository jobs.
   static void setTopLevelMainJobProperties(def context,
       String defaultBranch = 'master',
       int defaultTimeout = 100,
       boolean allowRemotePoll = true,
-      String jenkinsExecutorLabel =  'beam') {
+      String jenkinsExecutorLabel = 'beam',
+      boolean cleanWorkspace = true) {
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/beam/')
     }
 
     // Set JDK version.
-    context.jdk('JDK 1.8 (latest)')
+    context.jdk('jdk_1.8_latest')
 
     // Restrict this project to run only on Jenkins executors as specified
     context.label(jenkinsExecutorLabel)
 
     // Discard old builds. Build records are only kept up to this number of days.
     context.logRotator {
-      daysToKeep(14)
+      daysToKeep(30)
     }
 
     // Source code management.
@@ -85,15 +92,26 @@ class CommonJobProperties {
         abortBuild()
       }
 
-      // Set SPARK_LOCAL_IP for spark tests.
       environmentVariables {
+        // Set SPARK_LOCAL_IP for spark tests.
         env('SPARK_LOCAL_IP', '127.0.0.1')
+        // Set SETUPTOOLS_USE_DISTUTILS to workaround issue with setuptools
+        // 50.0 and Ubuntu executors (BEAM-10841)
+        env('SETUPTOOLS_USE_DISTUTILS', 'stdlib')
       }
       credentialsBinding {
+        string("CODECOV_TOKEN", "beam-codecov-token")
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
-        string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
       }
       timestamps()
+      colorizeOutput()
+    }
+
+    if (cleanWorkspace) {
+      context.publishers {
+        // Clean after job completes.
+        wsCleanup()
+      }
     }
   }
 
@@ -110,9 +128,10 @@ class CommonJobProperties {
       githubPullRequest {
         admins(['asfbot'])
         useGitHubHooks()
-        orgWhitelist(['apache'])
-        allowMembersOfWhitelistedOrgsAsAdmin()
         permitAll(prPermitAll)
+        if (!prPermitAll) {
+          userWhitelist(committers.GITHUB_USERNAMES)
+        }
         // prTriggerPhrase is the argument which gets set when we want to allow
         // post-commit builds to run against pending pull requests. This block
         // overrides the default trigger phrase with the new one. Setting this
@@ -150,7 +169,7 @@ class CommonJobProperties {
   }
 
   // Default maxWorkers is 12 to avoid jvm oom as in [BEAM-4847].
-  static void setGradleSwitches(context, maxWorkers = 12) {
+  static void setGradleSwitches(context, maxWorkers = 8) {
     def defaultSwitches = [
       // Continue the build even if there is a failure to show as many potential failures as possible.
       '--continue',
@@ -163,9 +182,15 @@ class CommonJobProperties {
 
     // Ensure that parallel workers don't exceed total available memory.
 
-    // For [BEAM-4847], hardcode Xms and Xmx to reasonable values (2g/4g).
+    // Workers are n1-highmem-16 with 104GB
+    // 2 Jenkins executors * 8 Gradle workers * 6GB = 96GB
     context.switches("-Dorg.gradle.jvmargs=-Xms2g")
-    context.switches("-Dorg.gradle.jvmargs=-Xmx4g")
+    context.switches("-Dorg.gradle.jvmargs=-Xmx6g")
+
+    // Disable file system watching for CI builds
+    // Builds are performed on a clean clone and files aren't modified, so
+    // there's no value in watching for changes.
+    context.switches("-Dorg.gradle.vfs.watch=false")
 
     // Include dependency licenses when build docker images on Jenkins, see https://s.apache.org/zt68q
     context.switches("-Pdocker-pull-licenses")
@@ -195,7 +220,7 @@ class CommonJobProperties {
 
   // Sets common config for jobs which run on a schedule; optionally on push
   static void setAutoJob(context,
-      String buildSchedule = '0 */6 * * *',
+      String buildSchedule = 'H H/6 * * *',
       notifyAddress = 'builds@beam.apache.org',
       triggerOnCommit = false,
       emailIndividuals = false) {

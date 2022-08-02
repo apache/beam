@@ -37,6 +37,9 @@ import org.joda.time.Instant;
 import org.junit.Assert;
 
 /** A direct implementation of {@link Query4}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Query4Model extends NexmarkQueryModel<CategoryPrice> implements Serializable {
   /** Simulator for query 4. */
   private class Simulator extends AbstractSimulator<AuctionBid, CategoryPrice> {

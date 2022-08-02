@@ -65,7 +65,13 @@ class LocalDeserializerProvider<T> implements DeserializerProvider<T> {
    * deserializer argument using the {@link Coder} registry.
    */
   @Override
-  public NullableCoder<T> getCoder(CoderRegistry coderRegistry) {
+  public Coder<T> getCoder(CoderRegistry coderRegistry) {
+    // It is safe to treat a Coder<@Nullable T> as a Coder<T> for deserialization
+    // purposes
+    return (Coder<T>) getNullableCoder(coderRegistry);
+  }
+
+  public NullableCoder<T> getNullableCoder(CoderRegistry coderRegistry) {
     for (Type type : deserializer.getGenericInterfaces()) {
       if (!(type instanceof ParameterizedType)) {
         continue;

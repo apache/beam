@@ -22,9 +22,9 @@ import static org.apache.beam.sdk.TestUtils.LINES2;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -488,7 +488,7 @@ public class FlattenTest implements Serializable {
     List<PCollection<T>> pcs = new ArrayList<>();
     int index = 0;
     for (List<T> list : lists) {
-      PCollection<T> pc = p.apply("Create" + (index++), Create.of(list).withCoder(coder));
+      PCollection<T> pc = p.apply("Create" + index++, Create.of(list).withCoder(coder));
       pcs.add(pc);
     }
     return PCollectionList.of(pcs);

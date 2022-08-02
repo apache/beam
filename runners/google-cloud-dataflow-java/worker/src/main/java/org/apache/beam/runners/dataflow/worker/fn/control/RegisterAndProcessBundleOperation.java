@@ -71,10 +71,11 @@ import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -93,6 +94,11 @@ import org.slf4j.LoggerFactory;
  *
  * <p>This operation supports restart.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "keyfor",
+  "nullness"
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class RegisterAndProcessBundleOperation extends Operation {
   private static final Logger LOG =
       LoggerFactory.getLogger(RegisterAndProcessBundleOperation.class);
@@ -398,12 +404,15 @@ public class RegisterAndProcessBundleOperation extends Operation {
   }
 
   public boolean hasFailed() throws ExecutionException, InterruptedException {
-    if (processBundleResponse != null && processBundleResponse.toCompletableFuture().isDone()) {
-      return !processBundleResponse.toCompletableFuture().get().getError().isEmpty();
-    } else {
-      // At the very least, we don't know that this has failed yet.
-      return false;
+    if (processBundleResponse != null) {
+      @Nullable
+      InstructionResponse response = processBundleResponse.toCompletableFuture().getNow(null);
+      if (response != null) {
+        return !response.getError().isEmpty();
+      }
     }
+    // Either this has not failed yet, or has completed successfully.
+    return false;
   }
 
   /*
@@ -421,7 +430,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
         String pcollection =
             mi.getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
         if ((pcollection != null)
-            && (grpcReadTransformReadWritePCollectionNames.contains(pcollection))) {
+            && grpcReadTransformReadWritePCollectionNames.contains(pcollection)) {
           result.add(mi);
         }
       }
@@ -660,7 +669,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
   }
 
   static ByteString encodeAndConcat(Iterable<Object> values, Coder valueCoder) throws IOException {
-    ByteString.Output out = ByteString.newOutput();
+    ByteStringOutputStream out = new ByteStringOutputStream();
     if (values != null) {
       for (Object value : values) {
         int size = out.size();

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
@@ -30,6 +31,9 @@ import org.apache.flink.metrics.reporter.AbstractReporter;
  * metrics to a file specified via the "metrics.reporter.file.path" config key (assuming an alias of
  * "file" for this reporter in the "metrics.reporters" setting).
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class FileReporter extends AbstractReporter {
   @Override
   public String filterCharacters(String input) {
@@ -40,6 +44,8 @@ public class FileReporter extends AbstractReporter {
   private PrintStream ps;
 
   @Override
+  @SuppressFBWarnings(
+      "DM_DEFAULT_ENCODING") // should this method specify the encoding for the PrintStream?
   public void open(MetricConfig config) {
     synchronized (this) {
       if (path == null) {
@@ -63,7 +69,13 @@ public class FileReporter extends AbstractReporter {
     final String name = group.getMetricIdentifier(metricName, this);
     super.notifyOfRemovedMetric(metric, metricName, group);
     synchronized (this) {
-      ps.printf("%s: %s%n", name, Metrics.toString(metric));
+      try {
+        ps.printf("%s: %s%n", name, Metrics.toString(metric));
+      } catch (NullPointerException e) {
+        // Workaround to avoid a NPE on Flink's DeclarativeSlotManager during unregister
+        // TODO Remove once FLINK-22646 is fixed on upstream Flink.
+        log.warn("unable to log details on metric {}", name);
+      }
     }
   }
 

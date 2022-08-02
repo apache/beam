@@ -16,18 +16,17 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import logging
 import os
 import shutil
-import sys
 import tempfile
 import unittest
+from tempfile import TemporaryDirectory
 
 import hamcrest as hc
 import pandas
+import pytest
 from parameterized import param
 from parameterized import parameterized
 
@@ -58,15 +57,12 @@ except ImportError:
   pl = None
   pq = None
 
+ARROW_MAJOR_VERSION, _, _ = map(int, pa.__version__.split('.'))
+
 
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
+@pytest.mark.uses_pyarrow
 class TestParquet(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
@@ -100,15 +96,51 @@ class TestParquet(unittest.TestCase):
                         'name': 'Percy',
                         'favorite_number': 6,
                         'favorite_color': 'Green'
+                    },
+                    {
+                        'name': 'Peter',
+                        'favorite_number': 3,
+                        'favorite_color': None
                     }]
 
-    self.SCHEMA = pa.schema([('name', pa.string()),
-                             ('favorite_number', pa.int64()),
+    self.SCHEMA = pa.schema([('name', pa.string(), False),
+                             ('favorite_number', pa.int64(), False),
                              ('favorite_color', pa.string())])
 
-    self.SCHEMA96 = pa.schema([('name', pa.string()),
-                               ('favorite_number', pa.timestamp('ns')),
+    self.SCHEMA96 = pa.schema([('name', pa.string(), False),
+                               ('favorite_number', pa.timestamp('ns'), False),
                                ('favorite_color', pa.string())])
+
+    self.RECORDS_NESTED = [{
+        'items': [
+            {
+                'name': 'Thomas',
+                'favorite_number': 1,
+                'favorite_color': 'blue'
+            },
+            {
+                'name': 'Henry',
+                'favorite_number': 3,
+                'favorite_color': 'green'
+            },
+        ]
+    },
+                           {
+                               'items': [
+                                   {
+                                       'name': 'Toby',
+                                       'favorite_number': 7,
+                                       'favorite_color': 'brown'
+                                   },
+                               ]
+                           }]
+
+    self.SCHEMA_NESTED = pa.schema([(
+        'items',
+        pa.list_(
+            pa.struct([('name', pa.string(), False),
+                       ('favorite_number', pa.int64(), False),
+                       ('favorite_color', pa.string())])))])
 
   def tearDown(self):
     shutil.rmtree(self.temp_dir)
@@ -119,6 +151,7 @@ class TestParquet(unittest.TestCase):
       column = []
       for r in records:
         column.append(r[n])
+
       col_list.append(column)
     return col_list
 
@@ -135,7 +168,7 @@ class TestParquet(unittest.TestCase):
       data.append(self.RECORDS[i % len_records])
     col_data = self._record_to_columns(data, schema)
     col_array = [pa.array(c, schema.types[cn]) for cn, c in enumerate(col_data)]
-    return pa.Table.from_arrays(col_array, schema.names)
+    return pa.Table.from_arrays(col_array, schema=schema)
 
   def _write_data(
       self,
@@ -160,13 +193,16 @@ class TestParquet(unittest.TestCase):
 
       return f.name
 
-  def _write_pattern(self, num_files):
+  def _write_pattern(self, num_files, with_filename=False):
     assert num_files > 0
     temp_dir = tempfile.mkdtemp(dir=self.temp_dir)
 
+    file_list = []
     for _ in range(num_files):
-      self._write_data(directory=temp_dir, prefix='mytemp')
+      file_list.append(self._write_data(directory=temp_dir, prefix='mytemp'))
 
+    if with_filename:
+      return (temp_dir + os.path.sep + 'mytemp*', file_list)
     return temp_dir + os.path.sep + 'mytemp*'
 
   def _run_parquet_test(
@@ -251,6 +287,7 @@ class TestParquet(unittest.TestCase):
         1024 * 1024,
         1000,
         False,
+        False,
         '.end',
         0,
         None,
@@ -296,8 +333,8 @@ class TestParquet(unittest.TestCase):
               path, self.SCHEMA96, num_shards=1, shard_name_template='')
 
   def test_sink_transform(self):
-    with tempfile.NamedTemporaryFile() as dst:
-      path = dst.name
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname + "tmp_filename")
       with TestPipeline() as p:
         _ = p \
         | Create(self.RECORDS) \
@@ -311,9 +348,31 @@ class TestParquet(unittest.TestCase):
             | Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
+  def test_sink_transform_compliant_nested_type(self):
+    if ARROW_MAJOR_VERSION < 4:
+      return unittest.skip(
+          'Writing with compliant nested type is only '
+          'supported in pyarrow 4.x and above')
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname + 'tmp_filename')
+      with TestPipeline() as p:
+        _ = p \
+        | Create(self.RECORDS_NESTED) \
+        | WriteToParquet(
+            path, self.SCHEMA_NESTED, num_shards=1,
+            shard_name_template='', use_compliant_nested_type=True)
+      with TestPipeline() as p:
+        # json used for stable sortability
+        readback = \
+            p \
+            | ReadFromParquet(path) \
+            | Map(json.dumps)
+        assert_that(
+            readback, equal_to([json.dumps(r) for r in self.RECORDS_NESTED]))
+
   def test_batched_read(self):
-    with tempfile.NamedTemporaryFile() as dst:
-      path = dst.name
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname + "tmp_filename")
       with TestPipeline() as p:
         _ = p \
         | Create(self.RECORDS, reshuffle=False) \
@@ -334,8 +393,12 @@ class TestParquet(unittest.TestCase):
       param(compression_type='zstd')
   ])
   def test_sink_transform_compressed(self, compression_type):
-    with tempfile.NamedTemporaryFile() as dst:
-      path = dst.name
+    if compression_type == 'lz4' and ARROW_MAJOR_VERSION == 1:
+      return unittest.skip(
+          "Writing with LZ4 compression is not supported in "
+          "pyarrow 1.x")
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname + "tmp_filename")
       with TestPipeline() as p:
         _ = p \
         | Create(self.RECORDS) \
@@ -361,7 +424,7 @@ class TestParquet(unittest.TestCase):
     # a list of pa.Table instances to model this expecation
     expected_result = [
         pa.Table.from_batches([batch]) for batch in self._records_as_arrow(
-            count=12000).to_batches(chunksize=1000)
+            count=12000).to_batches(max_chunksize=1000)
     ]
     self._run_parquet_test(file_name, None, None, False, expected_result)
 
@@ -371,7 +434,7 @@ class TestParquet(unittest.TestCase):
     # a list of pa.Table instances to model this expecation
     expected_result = [
         pa.Table.from_batches([batch]) for batch in self._records_as_arrow(
-            count=12000).to_batches(chunksize=1000)
+            count=12000).to_batches(max_chunksize=1000)
     ]
     self._run_parquet_test(file_name, None, 10000, True, expected_result)
 
@@ -408,8 +471,8 @@ class TestParquet(unittest.TestCase):
         count=120, row_group_size=20, schema=self.SCHEMA96)
     orig = self._records_as_arrow(count=120, schema=self.SCHEMA96)
     expected_result = [
-        pa.Table.from_batches([batch])
-        for batch in orig.to_batches(chunksize=20)
+        pa.Table.from_batches([batch], schema=self.SCHEMA96)
+        for batch in orig.to_batches(max_chunksize=20)
     ]
     self._run_parquet_test(file_name, None, None, False, expected_result)
 
@@ -444,14 +507,18 @@ class TestParquet(unittest.TestCase):
   def test_selective_columns(self):
     file_name = self._write_data()
     orig = self._records_as_arrow()
+    name_column = self.SCHEMA.field('name')
     expected_result = [
-        pa.Table.from_arrays([orig.column('name')], names=['name'])
+        pa.Table.from_arrays(
+            [orig.column('name')],
+            schema=pa.schema([('name', name_column.type, name_column.nullable)
+                              ]))
     ]
     self._run_parquet_test(file_name, ['name'], None, False, expected_result)
 
   def test_sink_transform_multiple_row_group(self):
-    with tempfile.NamedTemporaryFile() as dst:
-      path = dst.name
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname + "tmp_filename")
       with TestPipeline() as p:
         # writing 623200 bytes of data
         _ = p \
@@ -525,6 +592,16 @@ class TestParquet(unittest.TestCase):
           | Create([file_pattern1, file_pattern2, file_pattern3]) \
           | ReadAllFromParquetBatched(),
           equal_to([self._records_as_arrow()] * 10))
+
+  def test_read_all_from_parquet_with_filename(self):
+    file_pattern, file_paths = self._write_pattern(3, with_filename=True)
+    result = [(path, record) for path in file_paths for record in self.RECORDS]
+    with TestPipeline() as p:
+      assert_that(
+          p \
+          | Create([file_pattern]) \
+          | ReadAllFromParquet(with_filename=True),
+          equal_to(result))
 
 
 if __name__ == '__main__':

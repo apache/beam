@@ -37,6 +37,9 @@ import org.apache.beam.sdk.io.FileSystems;
 
 /** A utility to test {@link ResourceId} implementations. */
 @Experimental(Kind.FILESYSTEM)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class ResourceIdTester {
   /**
    * Enforces that the {@link ResourceId} implementation of {@code baseDirectory} meets the {@link

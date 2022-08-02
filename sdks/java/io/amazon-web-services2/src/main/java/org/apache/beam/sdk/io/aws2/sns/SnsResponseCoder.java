@@ -31,6 +31,9 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Custom Coder for WrappedSnsResponse. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class SnsResponseCoder<T> extends StructuredCoder<SnsResponse<T>> {
 
   private final Coder<T> elementCoder;

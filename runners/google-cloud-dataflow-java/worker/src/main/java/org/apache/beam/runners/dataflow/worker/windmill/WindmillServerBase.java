@@ -25,6 +25,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
  * Implementation of a WindmillServerStub which communcates with an actual windmill server at the
  * specified location.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class WindmillServerBase extends WindmillServerStub {
 
   /** Pointer to the underlying native windmill client object. */

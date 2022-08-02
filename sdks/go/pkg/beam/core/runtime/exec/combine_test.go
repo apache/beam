@@ -24,13 +24,13 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/coderx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 var intInput = []interface{}{int(1), int(2), int(3), int(4), int(5), int(6)}
@@ -84,6 +84,8 @@ func TestCombine(t *testing.T) {
 // ExtractOutput nodes work correctly after the lift has been performed.
 func TestLiftedCombine(t *testing.T) {
 	withCoder := func(t *testing.T, suffix string, key interface{}, keyCoder *coder.Coder) {
+		// The test values are all single global window.
+		wc := coder.NewGlobalWindow()
 		for _, test := range tests {
 			t.Run(fnName(test.Fn)+"_"+suffix, func(t *testing.T) {
 				edge := getCombineEdge(t, test.Fn, reflectx.Int, test.AccumCoder)
@@ -91,8 +93,8 @@ func TestLiftedCombine(t *testing.T) {
 				out := &CaptureNode{UID: 1}
 				extract := &ExtractOutput{Combine: &Combine{UID: 2, Fn: edge.CombineFn, Out: out}}
 				merge := &MergeAccumulators{Combine: &Combine{UID: 3, Fn: edge.CombineFn, Out: extract}}
-				gbk := &simpleGBK{UID: 4, KeyCoder: keyCoder, Out: merge}
-				precombine := &LiftedCombine{Combine: &Combine{UID: 5, Fn: edge.CombineFn, Out: gbk}, KeyCoder: keyCoder}
+				gbk := &simpleGBK{UID: 4, KeyCoder: keyCoder, WindowCoder: wc, Out: merge}
+				precombine := &LiftedCombine{Combine: &Combine{UID: 5, Fn: edge.CombineFn, Out: gbk}, KeyCoder: keyCoder, WindowCoder: wc}
 				n := &FixedRoot{UID: 6, Elements: makeKVInput(key, test.Input...), Out: precombine}
 
 				constructAndExecutePlan(t, []Unit{n, precombine, gbk, merge, extract, out})
@@ -112,6 +114,202 @@ func TestLiftedCombine(t *testing.T) {
 	}
 	withCoder(t, "pointerKeys", &myCodable{42}, &coder.Coder{Kind: coder.Custom, T: typex.New(myCodableType), Custom: cc})
 
+}
+
+// pigeonHasher only returns 0 for even hashes, and 1 for odd hashes
+// nearly guaranteeing that overflow behavior must be tested for small sets.
+type pigeonHasher struct {
+	hasher elementHasher
+}
+
+func (p *pigeonHasher) Hash(element interface{}, w typex.Window) (uint64, error) {
+	k, err := p.hasher.Hash(element, w)
+	if err != nil {
+		return 0, err
+	}
+	return k & 0x1, nil
+}
+
+func TestLiftingCache(t *testing.T) {
+	zeroVal, zeroWindow := &FullValue{Elm: 0}, window.SingleGlobalWindow[0]
+	t.Run("lookup", func(t *testing.T) {
+		c := newLiftingCache(1, intCoder(reflectx.Int), coder.NewGlobalWindow())
+		// Replace with pigeon hasher to ensure pigeonholing.
+		c.keyHash = &pigeonHasher{hasher: c.keyHash}
+		c.start()
+
+		zerokey, fv, notfirst, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(0, GW) = %v", err)
+		}
+
+		// Check properties of the cache
+		if got, want := len(c.cache), 1; got != want {
+			t.Fatalf("len(liftingCache.cache) = %v, want %v after first lookup", got, want)
+		}
+		if notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want first value for key", zerokey, fv, notfirst)
+		}
+		// Set value to ensure we get the same one we expect later.
+		// the cache expects the value to have the key (Elm) and
+		// a window set.
+		fv.Elm = 0
+		fv.Elm2 = "want"
+		fv.Windows = window.SingleGlobalWindow
+
+		key, fv2, notfirst, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(0, GW) = %v", err)
+		}
+		if got, want := len(c.cache), 1; got != want {
+			t.Fatalf("len(liftingCache.cache) = %v, want %v after lookup of existing key", got, want)
+		}
+		if got, want := key, zerokey; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), want %v", got, want)
+		}
+		// This shouldn't be the first value.
+		if !notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want existing value for key", key, fv2, notfirst)
+		}
+		if got, want := fv2.Elm2, fv.Elm2; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = %v, want %v", got, want)
+		}
+
+		// Now the hard part: We lookup new values until we pigeon hole & get a collision.
+		// This will validates overflow lookups.
+		var collision *FullValue
+		for i := 1; i < 100; i++ {
+			collision = &FullValue{Elm: i}
+			key, fv2, notfirst, err = c.lookup(collision, zeroWindow)
+			if err != nil {
+				t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", i, err)
+			}
+			if key == zerokey {
+				break
+			}
+			// Set values so subsequent hits won't fail.
+			fv2.Elm = collision.Elm
+			fv2.Elm2 = "ignoreme"
+			fv2.Windows = window.SingleGlobalWindow
+		}
+		if notfirst {
+			t.Errorf("liftingCache.lookup(%v, GW) = key(%v), %v, notfirst(%v) but want first value for key", collision.Elm, key, fv2, notfirst)
+		}
+		// Set values so we can validate later.
+		fv2.Elm = collision.Elm
+		fv2.Elm2 = "newthing"
+		fv2.Windows = window.SingleGlobalWindow
+
+		key, fv2, notfirst, err = c.lookup(collision, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", collision.Elm, err)
+		}
+		if !notfirst {
+			t.Errorf("liftingCache.lookup(%v, GW) = key(%v), %v, notfirst(%v) but want first value for key", collision.Elm, key, fv2, notfirst)
+		}
+		if got, want := fv2.Elm2, "newthing"; got != want {
+			t.Fatalf("liftingCache.lookup(%v, GW) = %v, want %v", collision.Elm, got, want)
+		}
+
+		// Check the original key again.
+		key, fv2, notfirst, err = c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(0, GW) = %v", err)
+		}
+		if got, want := key, zerokey; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), want %v", got, want)
+		}
+		if !notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want existing value for key", key, fv2, notfirst)
+		}
+		if got, want := fv2.Elm2, "want"; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = %v, want %v", got, want)
+		}
+	})
+	load := func(c *liftingCache, n int) {
+		t.Helper()
+		for i := 0; i < n; i++ {
+			_, fv, _, err := c.lookup(&FullValue{Elm: i}, zeroWindow)
+			if err != nil {
+				t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", i, err)
+			}
+			// Set values so subsequent hits won't fail.
+			fv.Elm = i
+			fv.Elm2 = "ignoreme"
+			fv.Windows = window.SingleGlobalWindow
+		}
+	}
+	t.Run("compact_sparse", func(t *testing.T) {
+		max := 10
+		c := newLiftingCache(max, intCoder(reflectx.Int), coder.NewGlobalWindow())
+		c.start()
+		load(c, 100)
+		zerokey, _, _, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", 0, err)
+		}
+		c.compact(context.Background(), zerokey, func(ctx context.Context, elm *FullValue, values ...ReStream) error { return nil })
+		if got := len(c.cache); got >= max {
+			t.Errorf("len(c.cache) = %v, want < %v", got, max)
+		}
+		// Validate that "current" key wasn't removed.
+		key, fv, notfirst, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", 0, err)
+		}
+		if !notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want existing value for key", key, fv, notfirst)
+		}
+		if got, want := fv.Elm2, "ignoreme"; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = %v, want %v", got, want)
+		}
+	})
+	t.Run("compact_dense", func(t *testing.T) {
+		max := 1
+		c := newLiftingCache(max, intCoder(reflectx.Int), coder.NewGlobalWindow())
+		// Replace with pigeon hasher to ensure pigeonholing.
+		c.keyHash = &pigeonHasher{hasher: c.keyHash}
+		c.start()
+		load(c, 100)
+		zerokey, _, _, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", 0, err)
+		}
+		c.compact(context.Background(), zerokey, func(ctx context.Context, elm *FullValue, values ...ReStream) error { return nil })
+		if got, want := len(c.cache), 1; got != want {
+			t.Errorf("len(c.cache) = %v, want %v", got, want)
+		}
+		key, fv, notfirst, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", 0, err)
+		}
+		if !notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want existing value for key", key, fv, notfirst)
+		}
+		if got, want := fv.Elm2, "ignoreme"; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = %v, want %v", got, want)
+		}
+	})
+	t.Run("emitAll", func(t *testing.T) {
+		c := newLiftingCache(1, intCoder(reflectx.Int), coder.NewGlobalWindow())
+		// Replace with pigeon hasher to ensure pigeonholing.
+		c.keyHash = &pigeonHasher{hasher: c.keyHash}
+		c.start()
+		want := 100
+		load(c, want)
+		var got int
+		c.emitAll(context.Background(), func(ctx context.Context, elm *FullValue, values ...ReStream) error {
+			got++
+			return nil
+		})
+		if got != want {
+			t.Errorf("c.emitAll emitted %v values, want %v", got, want)
+		}
+		if got, want := len(c.cache), 0; got != want {
+			t.Errorf("len(c.cache) = %v, want %v", got, want)
+		}
+
+	})
 }
 
 // TestConvertToAccumulators verifies that the ConvertToAccumulators phase
@@ -360,9 +558,10 @@ func intCoder(t reflect.Type) *coder.Coder {
 
 // simpleGBK buffers all input and continues on FinishBundle. Use with small single-bundle data only.
 type simpleGBK struct {
-	UID      UnitID
-	Out      Node
-	KeyCoder *coder.Coder
+	UID         UnitID
+	Out         Node
+	KeyCoder    *coder.Coder
+	WindowCoder *coder.WindowCoder
 
 	hasher elementHasher
 	m      map[uint64]*group
@@ -379,7 +578,7 @@ func (n *simpleGBK) ID() UnitID {
 
 func (n *simpleGBK) Up(ctx context.Context) error {
 	n.m = make(map[uint64]*group)
-	n.hasher = makeElementHasher(n.KeyCoder)
+	n.hasher = makeElementHasher(n.KeyCoder, n.WindowCoder)
 	return nil
 }
 
@@ -390,7 +589,10 @@ func (n *simpleGBK) StartBundle(ctx context.Context, id string, data DataContext
 func (n *simpleGBK) ProcessElement(ctx context.Context, elm *FullValue, _ ...ReStream) error {
 	key := elm.Elm
 	value := elm.Elm2
-	keyHash, err := n.hasher.Hash(key)
+
+	// Consider generalizing this to multiple windows.
+	// The test values are all single global window.
+	keyHash, err := n.hasher.Hash(key, elm.Windows[0])
 	if err != nil {
 		return err
 	}

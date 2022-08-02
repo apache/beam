@@ -19,33 +19,29 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import contextlib
 import logging
-import threading
-import time
 import unittest
-from builtins import range
 from collections import namedtuple
 
 import grpc
+import hamcrest as hc
 import mock
 
 from apache_beam.coders import VarIntCoder
+from apache_beam.internal.metrics.metric import Metrics as InternalMetrics
+from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statecache
-from apache_beam.runners.worker import statesampler
-from apache_beam.runners.worker.sdk_worker import CachingStateHandler
+from apache_beam.runners.worker.sdk_worker import BundleProcessorCache
+from apache_beam.runners.worker.sdk_worker import GlobalCachingStateHandler
 from apache_beam.runners.worker.sdk_worker import SdkWorker
 from apache_beam.utils import thread_pool_executor
-from apache_beam.utils.counters import CounterName
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -127,63 +123,154 @@ class SdkWorkerTest(unittest.TestCase):
   def test_fn_registration(self):
     self._check_fn_registration_multi_request((1, 4), (4, 4))
 
-  def _get_state_sampler_info_for_lull(self, lull_duration_s):
-    return statesampler.StateSamplerInfo(
-        CounterName('progress-msecs', 'stage_name', 'step_name'),
-        1,
-        lull_duration_s * 1e9,
-        threading.current_thread())
+  def test_inactive_bundle_processor_returns_empty_progress_response(self):
+    bundle_processor = mock.MagicMock()
+    bundle_processor_cache = BundleProcessorCache(None, None, {})
+    bundle_processor_cache.activate('instruction_id')
+    worker = SdkWorker(bundle_processor_cache)
+    split_request = beam_fn_api_pb2.InstructionRequest(
+        instruction_id='progress_instruction_id',
+        process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressRequest(
+            instruction_id='instruction_id'))
+    self.assertEqual(
+        worker.do_instruction(split_request),
+        beam_fn_api_pb2.InstructionResponse(
+            instruction_id='progress_instruction_id',
+            process_bundle_progress=beam_fn_api_pb2.
+            ProcessBundleProgressResponse()))
 
-  def test_log_lull_in_bundle_processor(self):
-    bundle_processor_cache = mock.MagicMock()
+    # Add a mock bundle processor as if it was running before it's released
+    bundle_processor_cache.active_bundle_processors['instruction_id'] = (
+        'descriptor_id', bundle_processor)
+    bundle_processor_cache.release('instruction_id')
+    self.assertEqual(
+        worker.do_instruction(split_request),
+        beam_fn_api_pb2.InstructionResponse(
+            instruction_id='progress_instruction_id',
+            process_bundle_progress=beam_fn_api_pb2.
+            ProcessBundleProgressResponse()))
+
+  def test_failed_bundle_processor_returns_failed_progress_response(self):
+    bundle_processor = mock.MagicMock()
+    bundle_processor_cache = BundleProcessorCache(None, None, {})
+    bundle_processor_cache.activate('instruction_id')
     worker = SdkWorker(bundle_processor_cache)
 
-    now = time.time()
-    log_full_thread_dump_fn_name = \
-        'apache_beam.runners.worker.sdk_worker.SdkWorker._log_full_thread_dump'
-    with mock.patch('logging.Logger.warning') as warn_mock:
-      with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
-        with mock.patch('time.time') as time_mock:
-          time_mock.return_value = now
-          sampler_info = self._get_state_sampler_info_for_lull(21 * 60)
-          worker._log_lull_sampler_info(sampler_info)
+    # Add a mock bundle processor as if it was running before it's discarded
+    bundle_processor_cache.active_bundle_processors['instruction_id'] = (
+        'descriptor_id', bundle_processor)
+    bundle_processor_cache.discard('instruction_id')
+    split_request = beam_fn_api_pb2.InstructionRequest(
+        instruction_id='progress_instruction_id',
+        process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressRequest(
+            instruction_id='instruction_id'))
+    hc.assert_that(
+        worker.do_instruction(split_request).error,
+        hc.contains_string(
+            'Bundle processing associated with instruction_id has failed'))
 
-          processing_template = warn_mock.call_args[0][1]
-          step_name_template = warn_mock.call_args[0][2]
-          traceback = warn_mock.call_args = warn_mock.call_args[0][3]
+  def test_inactive_bundle_processor_returns_empty_split_response(self):
+    bundle_processor = mock.MagicMock()
+    bundle_processor_cache = BundleProcessorCache(None, None, {})
+    bundle_processor_cache.activate('instruction_id')
+    worker = SdkWorker(bundle_processor_cache)
+    split_request = beam_fn_api_pb2.InstructionRequest(
+        instruction_id='split_instruction_id',
+        process_bundle_split=beam_fn_api_pb2.ProcessBundleSplitRequest(
+            instruction_id='instruction_id'))
+    self.assertEqual(
+        worker.do_instruction(split_request),
+        beam_fn_api_pb2.InstructionResponse(
+            instruction_id='split_instruction_id',
+            process_bundle_split=beam_fn_api_pb2.ProcessBundleSplitResponse()))
 
-          self.assertIn('progress-msecs', processing_template)
-          self.assertIn('step_name', step_name_template)
-          self.assertIn('test_log_lull_in_bundle_processor', traceback)
+    # Add a mock bundle processor as if it was running before it's released
+    bundle_processor_cache.active_bundle_processors['instruction_id'] = (
+        'descriptor_id', bundle_processor)
+    bundle_processor_cache.release('instruction_id')
+    self.assertEqual(
+        worker.do_instruction(split_request),
+        beam_fn_api_pb2.InstructionResponse(
+            instruction_id='split_instruction_id',
+            process_bundle_split=beam_fn_api_pb2.ProcessBundleSplitResponse()))
 
-          log_full_thread_dump.assert_called_once_with()
+  def get_responses(self, instruction_requests):
+    """Evaluates and returns {id: InstructionResponse} for the requests."""
+    test_controller = BeamFnControlServicer(instruction_requests)
 
-    with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
-      with mock.patch('time.time') as time_mock:
-        time_mock.return_value = now + 6 * 60  # 6 minutes
-        sampler_info = self._get_state_sampler_info_for_lull(21 * 60)
-        worker._log_lull_sampler_info(sampler_info)
-        self.assertFalse(
-            log_full_thread_dump.called,
-            'log_full_thread_dump should not be called because only 6 minutes '
-            'have passed since the last dump.')
+    server = grpc.server(thread_pool_executor.shared_unbounded_instance())
+    beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
+        test_controller, server)
+    test_port = server.add_insecure_port("[::]:0")
+    server.start()
 
-    with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
-      with mock.patch('time.time') as time_mock:
-        time_mock.return_value = now + 21 * 60  # 21 minutes
-        sampler_info = self._get_state_sampler_info_for_lull(10 * 60)
-        worker._log_lull_sampler_info(sampler_info)
-        self.assertFalse(
-            log_full_thread_dump.called,
-            'log_full_thread_dump should not be called because lull is only '
-            'for 10 minutes.')
+    harness = sdk_worker.SdkHarness(
+        "localhost:%s" % test_port, state_cache_size=100)
+    harness.run()
+    return test_controller.responses
 
-    with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
-      with mock.patch('time.time') as time_mock:
-        time_mock.return_value = now + 21 * 60  # 21 minutes
-        sampler_info = self._get_state_sampler_info_for_lull(21 * 60)
-        worker._log_lull_sampler_info(sampler_info)
-        log_full_thread_dump.assert_called_once_with()
+  def test_harness_monitoring_infos_and_metadata(self):
+    # Clear the process wide metric container.
+    MetricsEnvironment.process_wide_container().reset()
+    # Create a process_wide metric.
+    urn = 'my.custom.urn'
+    labels = {'key': 'value'}
+    InternalMetrics.counter(urn=urn, labels=labels, process_wide=True).inc(10)
+
+    harness_monitoring_infos_request = beam_fn_api_pb2.InstructionRequest(
+        instruction_id="monitoring_infos",
+        harness_monitoring_infos=beam_fn_api_pb2.HarnessMonitoringInfosRequest(
+        ))
+
+    responses = self.get_responses([harness_monitoring_infos_request])
+
+    expected_monitoring_info = monitoring_infos.int64_counter(
+        urn, 10, labels=labels)
+    monitoring_data = (
+        responses['monitoring_infos'].harness_monitoring_infos.monitoring_data)
+
+    # Request the full MonitoringInfo metadata for the returned short_ids.
+    short_ids = list(monitoring_data.keys())
+    monitoring_infos_metadata_request = beam_fn_api_pb2.InstructionRequest(
+        instruction_id="monitoring_infos_metadata",
+        monitoring_infos=beam_fn_api_pb2.MonitoringInfosMetadataRequest(
+            monitoring_info_id=short_ids))
+
+    responses = self.get_responses([monitoring_infos_metadata_request])
+
+    # Request the full MonitoringInfo metadata to be returned now.
+    expected_monitoring_info.ClearField("payload")
+
+    # Verify that one of the returned monitoring infos is our expected
+    # monitoring info.
+    short_id_to_mi = (
+        responses['monitoring_infos_metadata'].monitoring_infos.monitoring_info)
+    found = False
+    for mi in short_id_to_mi.values():
+      # Clear the timestamp before comparing
+      mi.ClearField("start_time")
+      if mi == expected_monitoring_info:
+        found = True
+    self.assertTrue(found, str(responses['monitoring_infos_metadata']))
+
+  def test_failed_bundle_processor_returns_failed_split_response(self):
+    bundle_processor = mock.MagicMock()
+    bundle_processor_cache = BundleProcessorCache(None, None, {})
+    bundle_processor_cache.activate('instruction_id')
+    worker = SdkWorker(bundle_processor_cache)
+
+    # Add a mock bundle processor as if it was running before it's discarded
+    bundle_processor_cache.active_bundle_processors['instruction_id'] = (
+        'descriptor_id', bundle_processor)
+    bundle_processor_cache.discard('instruction_id')
+    split_request = beam_fn_api_pb2.InstructionRequest(
+        instruction_id='split_instruction_id',
+        process_bundle_split=beam_fn_api_pb2.ProcessBundleSplitRequest(
+            instruction_id='instruction_id'))
+    hc.assert_that(
+        worker.do_instruction(split_request).error,
+        hc.contains_string(
+            'Bundle processing associated with instruction_id has failed'))
 
 
 class CachingStateHandlerTest(unittest.TestCase):
@@ -208,7 +295,7 @@ class CachingStateHandlerTest(unittest.TestCase):
 
     underlying_state = FakeUnderlyingState()
     state_cache = statecache.StateCache(100)
-    caching_state_hander = sdk_worker.CachingStateHandler(
+    caching_state_hander = GlobalCachingStateHandler(
         state_cache, underlying_state)
 
     state1 = beam_fn_api_pb2.StateKey(
@@ -344,8 +431,7 @@ class CachingStateHandlerTest(unittest.TestCase):
 
     underlying_state_handler = self.UnderlyingStateHandler()
     state_cache = statecache.StateCache(100)
-    handler = sdk_worker.CachingStateHandler(
-        state_cache, underlying_state_handler)
+    handler = GlobalCachingStateHandler(state_cache, underlying_state_handler)
 
     def get():
       return handler.blocking_get(state, coder.get_impl())
@@ -375,8 +461,7 @@ class CachingStateHandlerTest(unittest.TestCase):
   def test_continuation_token(self):
     underlying_state_handler = self.UnderlyingStateHandler()
     state_cache = statecache.StateCache(100)
-    handler = sdk_worker.CachingStateHandler(
-        state_cache, underlying_state_handler)
+    handler = GlobalCachingStateHandler(state_cache, underlying_state_handler)
 
     coder = VarIntCoder()
 
@@ -404,10 +489,12 @@ class CachingStateHandlerTest(unittest.TestCase):
     underlying_state_handler.set_continuations(True)
     underlying_state_handler.set_values([45, 46, 47], coder)
     with handler.process_instruction_id('bundle', [cache_token]):
-      self.assertEqual(get_type(), CachingStateHandler.ContinuationIterable)
+      self.assertEqual(
+          get_type(), GlobalCachingStateHandler.ContinuationIterable)
       self.assertEqual(get(), [45, 46, 47])
       append(48, 49)
-      self.assertEqual(get_type(), CachingStateHandler.ContinuationIterable)
+      self.assertEqual(
+          get_type(), GlobalCachingStateHandler.ContinuationIterable)
       self.assertEqual(get(), [45, 46, 47, 48, 49])
       clear()
       self.assertEqual(get_type(), list)
@@ -425,7 +512,7 @@ class CachingStateHandlerTest(unittest.TestCase):
 
 class ShortIdCacheTest(unittest.TestCase):
   def testShortIdAssignment(self):
-    TestCase = namedtuple('TestCase', ['expectedShortId', 'info'])
+    TestCase = namedtuple('TestCase', ['expected_short_id', 'info'])
     test_cases = [
         TestCase(*args) for args in [
             (
@@ -510,14 +597,14 @@ class ShortIdCacheTest(unittest.TestCase):
 
     for case in test_cases:
       self.assertEqual(
-          case.expectedShortId,
-          cache.getShortId(case.info),
+          case.expected_short_id,
+          cache.get_short_id(case.info),
           "Got incorrect short id for monitoring info:\n%s" % case.info)
 
     # Retrieve all of the monitoring infos by short id, and verify that the
     # metadata (everything but the payload) matches the originals
-    actual_recovered_infos = cache.getInfos(
-        case.expectedShortId for case in test_cases)
+    actual_recovered_infos = cache.get_infos(
+        case.expected_short_id for case in test_cases).values()
     for recoveredInfo, case in zip(actual_recovered_infos, test_cases):
       self.assertEqual(
           monitoringInfoMetadata(case.info),
@@ -526,8 +613,8 @@ class ShortIdCacheTest(unittest.TestCase):
     # Retrieve short ids one more time in reverse
     for case in reversed(test_cases):
       self.assertEqual(
-          case.expectedShortId,
-          cache.getShortId(case.info),
+          case.expected_short_id,
+          cache.get_short_id(case.info),
           "Got incorrect short id on second retrieval for monitoring info:\n%s"
           % case.info)
 

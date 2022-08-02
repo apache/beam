@@ -50,10 +50,21 @@
 //
 //   --output=[YOUR_LOCAL_FILE | YOUR_REMOTE_FILE]
 //
-// The input file defaults to a public data set containing the text of of King
+// The input file defaults to a public data set containing the text of King
 // Lear, by William Shakespeare. You can override it and choose your own input
 // with --input.
 package main
+
+// beam-playground:
+//   name: WordCount
+//   description: An example that counts words in Shakespeare's works.
+//   multifile: false
+//   pipeline_options: --output output.txt
+//   context_line: 120
+//   categories:
+//     - Combiners
+//     - Options
+//     - Quickstart
 
 import (
 	"context"
@@ -63,10 +74,11 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 // Concept #2: Defining your own configuration options. Pipeline options can
@@ -101,20 +113,39 @@ var (
 // output any number of elements. It operates on a PCollection of type string and
 // returns a PCollection of type string. Also, using named function transforms allows
 // for easy reuse, modular testing, and an improved monitoring experience.
+//
+// DoFns must be registered with Beam in order to be executed in ParDos. This is
+// done automatically by the starcgen code generator, or it can be done manually
+// by calling beam.RegisterFunction in an init() call.
+func init() {
+	register.DoFn3x0[context.Context, string, func(string)](&extractFn{})
+	register.Emitter1[string]()
+}
 
 var (
-	wordRE  = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
-	empty   = beam.NewCounter("extract", "emptyLines")
-	lineLen = beam.NewDistribution("extract", "lineLenDistro")
+	wordRE          = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+	empty           = beam.NewCounter("extract", "emptyLines")
+	smallWordLength = flag.Int("small_word_length", 9, "length of small words (default: 9)")
+	smallWords      = beam.NewCounter("extract", "smallWords")
+	lineLen         = beam.NewDistribution("extract", "lineLenDistro")
 )
 
-// extractFn is a DoFn that emits the words in a given line.
-func extractFn(ctx context.Context, line string, emit func(string)) {
+// extractFn is a DoFn that emits the words in a given line and keeps a count for small words.
+type extractFn struct {
+	SmallWordLength int `json:"smallWordLength"`
+}
+
+func (f *extractFn) ProcessElement(ctx context.Context, line string, emit func(string)) {
 	lineLen.Update(ctx, int64(len(line)))
 	if len(strings.TrimSpace(line)) == 0 {
 		empty.Inc(ctx, 1)
 	}
 	for _, word := range wordRE.FindAllString(line, -1) {
+		// increment the counter for small words if length of words is
+		// less than small_word_length
+		if len(word) < f.SmallWordLength {
+			smallWords.Inc(ctx, 1)
+		}
 		emit(word)
 	}
 }
@@ -142,7 +173,7 @@ func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
 	s = s.Scope("CountWords")
 
 	// Convert lines of text into individual words.
-	col := beam.ParDo(s, extractFn, lines)
+	col := beam.ParDo(s, &extractFn{SmallWordLength: *smallWordLength}, lines)
 
 	// Count the number of times each word occurs.
 	return stats.Count(s, col)

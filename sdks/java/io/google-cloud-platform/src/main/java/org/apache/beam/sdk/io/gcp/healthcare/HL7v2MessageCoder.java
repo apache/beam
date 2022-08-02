@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.google.api.services.healthcare.v1beta1.model.Message;
+import com.google.api.services.healthcare.v1.model.Message;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -57,6 +57,7 @@ public class HL7v2MessageCoder extends CustomCoder<HL7v2Message> {
   }
 
   @Override
+  @SuppressWarnings("nullness") // Message is not annotated to allow nulls, but it does everywhere
   public HL7v2Message decode(InputStream inStream) throws CoderException, IOException {
     Message msg = new Message();
     msg.setName(STRING_CODER.decode(inStream));

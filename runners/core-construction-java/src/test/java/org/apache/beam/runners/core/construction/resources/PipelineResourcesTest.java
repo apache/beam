@@ -23,15 +23,16 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Rule;
 import org.junit.Test;
@@ -76,9 +77,8 @@ public class PipelineResourcesTest {
   public void testFailOnNonExistingPaths() throws IOException {
     String nonexistentFilePath = tmpFolder.getRoot().getPath() + "/nonexistent/file";
     String existingFilePath = tmpFolder.newFile("existingFile").getAbsolutePath();
-    String temporaryLocation = tmpFolder.newFolder().getAbsolutePath();
-
     List<String> filesToStage = Arrays.asList(nonexistentFilePath, existingFilePath);
+    String temporaryLocation = tmpFolder.newFolder().getAbsolutePath();
 
     assertThrows(
         "To-be-staged file does not exist: ",
@@ -89,10 +89,8 @@ public class PipelineResourcesTest {
   @Test
   public void testPackagingDirectoryResourceToJarFile() throws IOException {
     String directoryPath = tmpFolder.newFolder().getAbsolutePath();
+    List<String> filesToStage = Arrays.asList(directoryPath);
     String temporaryLocation = tmpFolder.newFolder().getAbsolutePath();
-
-    List<String> filesToStage = new ArrayList<>();
-    filesToStage.add(directoryPath);
 
     List<String> result = PipelineResources.prepareFilesForStaging(filesToStage, temporaryLocation);
 
@@ -102,8 +100,7 @@ public class PipelineResourcesTest {
 
   @Test
   public void testIfThrowsWhenThereIsNoTemporaryFolderForJars() throws IOException {
-    List<String> filesToStage = new ArrayList<>();
-    filesToStage.add(tmpFolder.newFolder().getAbsolutePath());
+    List<String> filesToStage = Arrays.asList(tmpFolder.newFolder().getAbsolutePath());
 
     IllegalArgumentException exception =
         assertThrows(
@@ -112,5 +109,70 @@ public class PipelineResourcesTest {
 
     assertEquals(
         "Please provide temporary location for storing the jar files.", exception.getMessage());
+  }
+
+  @Test
+  public void testPrepareFilesForStagingFromOptions() throws IOException {
+    String nonexistentFilePath = tmpFolder.getRoot().getPath() + "/nonexistent/file";
+    String existingFilePath = tmpFolder.newFile("existingFile").getAbsolutePath();
+    List<String> filesToStage = Arrays.asList(nonexistentFilePath, existingFilePath);
+    String temporaryLocation = tmpFolder.newFolder().getAbsolutePath();
+
+    FileStagingOptions options = PipelineOptionsFactory.create().as(FileStagingOptions.class);
+    options.setFilesToStage(filesToStage);
+    options.setTempLocation(temporaryLocation);
+
+    assertThrows(
+        "To-be-staged file does not exist: ",
+        IllegalStateException.class,
+        () -> PipelineResources.prepareFilesForStaging(filesToStage, temporaryLocation));
+  }
+
+  @Test
+  public void testPackagingDirectoryResourceFromOptions() throws IOException {
+    String directoryPath = tmpFolder.newFolder().getAbsolutePath();
+    List<String> filesToStage = Arrays.asList(directoryPath);
+    String temporaryLocation = tmpFolder.newFolder().getAbsolutePath();
+
+    FileStagingOptions options = PipelineOptionsFactory.create().as(FileStagingOptions.class);
+    options.setFilesToStage(filesToStage);
+    options.setTempLocation(temporaryLocation);
+
+    PipelineResources.prepareFilesForStaging(options);
+    List<String> result = options.getFilesToStage();
+
+    assertEquals(1, result.size());
+    assertTrue(new File(result.get(0)).exists());
+    assertTrue(result.get(0).matches(".*\\.jar"));
+  }
+
+  @Test
+  public void testIfThrowsWhenThereIsNoTemporaryFolderForJarsFromOptions() throws IOException {
+    List<String> filesToStage = Arrays.asList(tmpFolder.newFolder().getAbsolutePath());
+
+    FileStagingOptions options = PipelineOptionsFactory.create().as(FileStagingOptions.class);
+    options.setFilesToStage(filesToStage);
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> PipelineResources.prepareFilesForStaging(filesToStage, null));
+
+    assertEquals(
+        "Please provide temporary location for storing the jar files.", exception.getMessage());
+  }
+
+  @Test
+  public void testPrepareFilesForStagingUndefinedFilesToStage() throws IOException {
+    String temporaryLocation = tmpFolder.newFolder().getAbsolutePath();
+
+    FileStagingOptions options = PipelineOptionsFactory.create().as(FileStagingOptions.class);
+    options.setTempLocation(temporaryLocation);
+
+    PipelineResources.prepareFilesForStaging(options);
+    List<String> result = options.getFilesToStage();
+
+    assertNotNull(result);
+    assertTrue(result.size() > 0);
   }
 }

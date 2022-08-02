@@ -21,10 +21,10 @@ import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -32,7 +32,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.testing.WindowFnTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -56,7 +55,7 @@ public class FixedWindowsTest {
     assertEquals(
         expected,
         runWindowFn(
-            FixedWindows.of(new Duration(10)), Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L, 100L)));
+            FixedWindows.of(Duration.millis(10)), Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L, 100L)));
   }
 
   @Test
@@ -68,7 +67,7 @@ public class FixedWindowsTest {
     assertEquals(
         expected,
         runWindowFn(
-            FixedWindows.of(new Duration(10)).withOffset(new Duration(5)),
+            FixedWindows.of(Duration.millis(10)).withOffset(Duration.millis(5)),
             Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L, 100L)));
   }
 
@@ -109,7 +108,8 @@ public class FixedWindowsTest {
     Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp();
     FixedWindows windowFn = FixedWindows.of(Duration.standardHours(1));
 
-    IntervalWindow truncatedWindow = windowFn.assignWindow(endOfGlobalWindow.minus(1));
+    IntervalWindow truncatedWindow =
+        windowFn.assignWindow(endOfGlobalWindow.minus(Duration.millis(1)));
 
     assertThat(truncatedWindow.maxTimestamp(), equalTo(endOfGlobalWindow));
   }
@@ -143,26 +143,24 @@ public class FixedWindowsTest {
 
   @Test
   public void testEquality() {
-    assertTrue(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(10))));
-    assertTrue(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(10))));
-    assertTrue(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(10))));
+    assertTrue(
+        FixedWindows.of(Duration.millis(10)).isCompatible(FixedWindows.of(Duration.millis(10))));
+    assertTrue(
+        FixedWindows.of(Duration.millis(10)).isCompatible(FixedWindows.of(Duration.millis(10))));
+    assertTrue(
+        FixedWindows.of(Duration.millis(10)).isCompatible(FixedWindows.of(Duration.millis(10))));
 
-    assertFalse(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(20))));
-    assertFalse(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(20))));
+    assertFalse(
+        FixedWindows.of(Duration.millis(10)).isCompatible(FixedWindows.of(Duration.millis(20))));
+    assertFalse(
+        FixedWindows.of(Duration.millis(10)).isCompatible(FixedWindows.of(Duration.millis(20))));
   }
 
   @Test
   public void testVerifyCompatibility() throws IncompatibleWindowException {
-    FixedWindows.of(new Duration(10)).verifyCompatibility(FixedWindows.of(new Duration(10)));
+    FixedWindows.of(Duration.millis(10)).verifyCompatibility(FixedWindows.of(Duration.millis(10)));
     thrown.expect(IncompatibleWindowException.class);
-    FixedWindows.of(new Duration(10)).verifyCompatibility(FixedWindows.of(new Duration(20)));
-  }
-
-  @Test
-  public void testValidOutputTimes() throws Exception {
-    for (long timestamp : Arrays.asList(200, 800, 700)) {
-      WindowFnTestUtils.validateGetOutputTimestamp(FixedWindows.of(new Duration(500)), timestamp);
-    }
+    FixedWindows.of(Duration.millis(10)).verifyCompatibility(FixedWindows.of(Duration.millis(20)));
   }
 
   @Test

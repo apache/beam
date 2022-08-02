@@ -57,8 +57,12 @@ EXCLUDED_GENERATED_FILES=(
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_client.py"
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_messages.py"
 "apache_beam/coders/proto2_coder_test_messages_pb2.py"
-apache_beam/portability/api/*pb2*.py
 )
+
+# more portable than shopt -s globstar
+while IFS= read -d $'\0' -r file ; do
+    EXCLUDED_GENERATED_FILES+=("$file")
+done < <(find apache_beam/portability/api -type f -name "*pb2*.py" -print0)
 
 FILES_TO_IGNORE=""
 for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
@@ -88,7 +92,6 @@ ISORT_EXCLUDED=(
   "iobase_test.py"
   "fast_coders_test.py"
   "slow_coders_test.py"
-  "vcfio.py"
   "tfdv_analyze_and_validate.py"
   "preprocess.py"
   "model.py"

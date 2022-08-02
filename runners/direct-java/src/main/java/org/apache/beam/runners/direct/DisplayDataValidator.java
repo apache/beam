@@ -27,6 +27,9 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
  * Validate correct implementation of {@link DisplayData} by evaluating {@link
  * HasDisplayData#populateDisplayData(DisplayData.Builder)} during pipeline construction.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class DisplayDataValidator {
   // Do not instantiate
   private DisplayDataValidator() {}

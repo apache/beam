@@ -26,11 +26,11 @@ import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getConfig
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getExpectedRecords;
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getReaderContext;
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.insertTestData;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -57,11 +57,11 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Watch;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
-import org.apache.hadoop.hive.ql.CommandNeedRetryException;
 import org.apache.hive.hcatalog.data.DefaultHCatRecord;
 import org.apache.hive.hcatalog.data.HCatRecord;
 import org.apache.hive.hcatalog.data.transfer.ReaderContext;
@@ -292,6 +292,31 @@ public class HCatalogIOTest implements Serializable {
         .expand(null);
   }
 
+  /** Regression test for BEAM-10694. */
+  @Test
+  public void testReadTransformCanBeSerializedMultipleTimes() throws Exception {
+    ReaderContext context = getReaderContext(getConfigPropertiesAsMap(service.getHiveConf()));
+    HCatalogIO.Read spec =
+        HCatalogIO.read()
+            .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
+            .withContext(context)
+            .withTable(TEST_TABLE);
+    SerializableUtils.clone(SerializableUtils.clone(spec));
+  }
+
+  /** Regression test for BEAM-10694. */
+  @Test
+  public void testSourceCanBeSerializedMultipleTimes() throws Exception {
+    ReaderContext context = getReaderContext(getConfigPropertiesAsMap(service.getHiveConf()));
+    HCatalogIO.Read spec =
+        HCatalogIO.read()
+            .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
+            .withContext(context)
+            .withTable(TEST_TABLE);
+    BoundedHCatalogSource source = new BoundedHCatalogSource(spec);
+    SerializableUtils.clone(SerializableUtils.clone(source));
+  }
+
   /** Test of Read using SourceTestUtils.readFromSource(..). */
   @Test
   @NeedsTestData
@@ -343,7 +368,7 @@ public class HCatalogIOTest implements Serializable {
     service.executeQuery("create table " + TEST_TABLE + "(mycol1 string, mycol2 int)");
   }
 
-  private void reCreateTestTableForUnboundedReads() throws CommandNeedRetryException {
+  private void reCreateTestTableForUnboundedReads() {
     service.executeQuery("drop table " + TEST_TABLE);
     service.executeQuery(
         "create table "

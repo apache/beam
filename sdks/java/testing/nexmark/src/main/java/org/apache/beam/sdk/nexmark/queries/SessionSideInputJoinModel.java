@@ -36,6 +36,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering
 import org.joda.time.Instant;
 
 /** A direct implementation of {@link SessionSideInputJoin}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SessionSideInputJoinModel extends NexmarkQueryModel<Bid> {
 
   /** Simulator for SESSION_SIDE_INPUT_JOIN query. */

@@ -19,7 +19,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 )
 
 const bufCap = 64

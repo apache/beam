@@ -17,9 +17,10 @@ package grpcx
 
 import (
 	"context"
+	"math"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"google.golang.org/grpc"
 )
 
@@ -33,7 +34,7 @@ func DefaultDial(ctx context.Context, endpoint string, timeout time.Duration) (*
 	defer cancel()
 
 	cc, err := grpc.DialContext(ctx, endpoint, grpc.WithInsecure(), grpc.WithBlock(),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(50<<20)))
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(math.MaxInt32)))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to dial server at %v", endpoint)
 	}

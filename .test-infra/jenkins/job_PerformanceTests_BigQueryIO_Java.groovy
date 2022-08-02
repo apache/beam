@@ -119,14 +119,14 @@ private void createPostCommitJob(jobConfig) {
     description(jobConfig.description)
     common.setTopLevelMainJobProperties(delegate)
     common.enablePhraseTriggeringFromPullRequest(delegate, jobConfig.title, jobConfig.triggerPhrase)
-    common.setAutoJob(delegate, 'H */6 * * *')
+    common.setAutoJob(delegate, 'H H/6 * * *')
     publishers {
       archiveJunit('**/build/test-results/**/*.xml')
     }
     InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
       influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-      influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+      influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,
     ]
     jobConfig.properties.putAll(additionalPipelineArgs)
 

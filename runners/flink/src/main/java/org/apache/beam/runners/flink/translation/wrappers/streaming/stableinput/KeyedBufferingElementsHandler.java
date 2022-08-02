@@ -28,6 +28,9 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 
 /** A keyed implementation of a {@link BufferingElementsHandler}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class KeyedBufferingElementsHandler implements BufferingElementsHandler {
 
   static KeyedBufferingElementsHandler create(

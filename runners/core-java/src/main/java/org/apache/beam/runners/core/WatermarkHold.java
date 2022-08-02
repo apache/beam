@@ -19,6 +19,7 @@ package org.apache.beam.runners.core;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
@@ -49,6 +50,9 @@ import org.joda.time.Instant;
  *
  * @param <W> The kind of {@link BoundedWindow} the hold is for.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class WatermarkHold<W extends BoundedWindow> implements Serializable {
   /** Return tag for state containing the output watermark hold used for elements. */
   public static <W extends BoundedWindow>
@@ -69,7 +73,11 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       StateTags.makeSystemTagInternal(
           StateTags.watermarkStateInternal("extra", TimestampCombiner.EARLIEST));
 
+  // [https://github.com/apache/beam/issues/18014] Seems likely these should all be transient or
+  // this class should not be Serializable
+  @SuppressFBWarnings("SE_BAD_FIELD")
   private final TimerInternals timerInternals;
+
   private final WindowingStrategy<?, W> windowingStrategy;
   private final StateTag<WatermarkHoldState> elementHoldTag;
 
@@ -106,10 +114,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * output time function.
    */
   private Instant shift(Instant timestamp, W window) {
-    Instant shifted =
-        windowingStrategy
-            .getTimestampCombiner()
-            .assign(window, windowingStrategy.getWindowFn().getOutputTime(timestamp, window));
+    Instant shifted = windowingStrategy.getTimestampCombiner().assign(window, timestamp);
     // Don't call checkState(), to avoid calling BoundedWindow.formatTimestamp() every time
     if (shifted.isBefore(timestamp)) {
       throw new IllegalStateException(
@@ -270,6 +275,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
   }
 
   /** Prefetch watermark holds in preparation for merging. */
+  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT") // just prefetch calls to readLater
   public void prefetchOnMerge(MergingStateAccessor<?, W> context) {
     Map<W, WatermarkHoldState> map = context.accessInEachMergingWindow(elementHoldTag);
     WatermarkHoldState result = context.access(elementHoldTag);
@@ -298,6 +304,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * all of the existing holds. For example, if the new window implies a later watermark hold, then
    * earlier holds may be released.
    */
+  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT") // just prefetch calls to readLater
   public void onMerge(ReduceFn<?, ?, ?, W>.OnMergeContext context) {
     WindowTracing.debug(
         "WatermarkHold.onMerge: for key:{}; window:{}; inputWatermark:{}; " + "outputWatermark:{}",

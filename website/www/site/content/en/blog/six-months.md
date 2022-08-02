@@ -31,8 +31,8 @@ Looking just at raw numbers for those first six months, that’s:
 * 48,238 lines of preexisting code donated by Cloudera, dataArtisans, and Google.
 * 761 pull requests from 45 contributors.
 * 498 Jira issues opened and 245 resolved.
-* 1 incubating release (and another 1 in progress). 
-* 4,200 hours of automated tests. 
+* 1 incubating release (and another 1 in progress).
+* 4,200 hours of automated tests.
 * 161 subscribers / 606 messages on user@.
 * 217 subscribers / 1205 messages on dev@.
 * 277 stars and 174 forks on GitHub.

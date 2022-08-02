@@ -32,6 +32,9 @@ import ru.yandex.clickhouse.util.ClickHouseRowBinaryStream;
 
 /** Writes Rows and field values using {@link ClickHouseRowBinaryStream}. */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ClickHouseWriter {
   private static final Instant EPOCH_INSTANT = new Instant(0L);
 

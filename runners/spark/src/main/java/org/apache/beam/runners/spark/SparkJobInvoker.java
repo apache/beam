@@ -26,7 +26,7 @@ import org.apache.beam.runners.jobsubmission.JobInvoker;
 import org.apache.beam.runners.jobsubmission.PortablePipelineJarCreator;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -34,6 +34,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Creates a job invocation to manage the Spark runner's execution of a portable pipeline. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SparkJobInvoker extends JobInvoker {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkJobInvoker.class);
@@ -46,7 +49,7 @@ public class SparkJobInvoker extends JobInvoker {
   }
 
   private SparkJobInvoker(SparkJobServerDriver.SparkServerConfiguration configuration) {
-    super("spark-runner-job-invoker");
+    super("spark-runner-job-invoker-%d");
     this.configuration = configuration;
   }
 

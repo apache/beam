@@ -22,10 +22,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -33,6 +35,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
@@ -50,10 +53,13 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -65,6 +71,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -84,6 +91,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,6 +118,10 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.SOURCE_SINK)
 @AutoValue
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public abstract class WriteFiles<UserT, DestinationT, OutputT>
     extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteFiles.class);
@@ -129,7 +142,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   // We could consider making this a parameter.
   private static final int SPILLED_RECORD_SHARDING_FACTOR = 10;
 
+  // The record count and buffering duration to trigger flushing records to a tmp file. Mainly used
+  // for writing unbounded data to avoid generating too many small files.
+  private static final int FILE_TRIGGERING_RECORD_COUNT = 100000;
+  private static final Duration FILE_TRIGGERING_RECORD_BUFFERING_DURATION =
+      Duration.standardSeconds(5);
+
   static final int UNKNOWN_SHARDNUM = -1;
+  static final int DUMMY_SHARDNUM = 0;
   private @Nullable WriteOperation<DestinationT, OutputT> writeOperation;
 
   /**
@@ -146,6 +166,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setWindowedWrites(false)
         .setMaxNumWritersPerBundle(DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
         .setSideInputs(sink.getDynamicDestinations().getSideInputs())
+        .setSkipIfEmpty(false)
         .build();
   }
 
@@ -162,6 +183,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract boolean getWindowedWrites();
 
   abstract int getMaxNumWritersPerBundle();
+
+  abstract boolean getSkipIfEmpty();
 
   abstract List<PCollectionView<?>> getSideInputs();
 
@@ -184,6 +207,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setMaxNumWritersPerBundle(
         int maxNumWritersPerBundle);
+
+    abstract Builder<UserT, DestinationT, OutputT> setSkipIfEmpty(boolean skipIfEmpty);
 
     abstract Builder<UserT, DestinationT, OutputT> setSideInputs(
         List<PCollectionView<?>> sideInputs);
@@ -232,6 +257,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public WriteFiles<UserT, DestinationT, OutputT> withMaxNumWritersPerBundle(
       int maxNumWritersPerBundle) {
     return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
+  }
+
+  /** Set this sink to skip writing any files if the PCollection is empty. */
+  public WriteFiles<UserT, DestinationT, OutputT> withSkipIfEmpty(boolean skipIfEmpty) {
+    return toBuilder().setSkipIfEmpty(skipIfEmpty).build();
   }
 
   public WriteFiles<UserT, DestinationT, OutputT> withSideInputs(
@@ -297,6 +327,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     return toBuilder().setMaxNumWritersPerBundle(-1).build();
   }
 
+  public WriteFiles<UserT, DestinationT, OutputT> withSkipIfEmpty() {
+    return toBuilder().setSkipIfEmpty(true).build();
+  }
+
   @Override
   public void validate(PipelineOptions options) {
     getSink().validate(options);
@@ -309,18 +343,21 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           getWindowedWrites(),
           "Must use windowed writes when applying %s to an unbounded PCollection",
           WriteFiles.class.getSimpleName());
-      // The reason for this is https://issues.apache.org/jira/browse/BEAM-1438
-      // and similar behavior in other runners.
-      checkArgument(
-          getComputeNumShards() != null || getNumShardsProvider() != null,
-          "When applying %s to an unbounded PCollection, "
-              + "must specify number of output shards explicitly",
-          WriteFiles.class.getSimpleName());
+      // Sharding used to be required due to https://issues.apache.org/jira/browse/BEAM-1438 and
+      // similar behavior in other runners. Some runners may support runner determined sharding now.
+      // Check merging window here due to https://github.com/apache/beam/issues/20928.
+      if (input.getWindowingStrategy().needsMerge()) {
+        checkArgument(
+            getComputeNumShards() != null || getNumShardsProvider() != null,
+            "When applying %s to an unbounded PCollection with merging windows,"
+                + " must specify number of output shards explicitly",
+            WriteFiles.class.getSimpleName());
+      }
     }
     this.writeOperation = getSink().createWriteOperation();
-    this.writeOperation.setWindowedWrites(getWindowedWrites());
-
-    if (!getWindowedWrites()) {
+    if (getWindowedWrites()) {
+      this.writeOperation.setWindowedWrites();
+    } else {
       // Re-window the data into the global window and remove any existing triggers.
       input =
           input.apply(
@@ -348,21 +385,34 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     PCollectionView<Integer> numShardsView =
         (getComputeNumShards() == null) ? null : input.apply(getComputeNumShards());
 
-    PCollection<FileResult<DestinationT>> tempFileResults =
-        (getComputeNumShards() == null && getNumShardsProvider() == null)
-            ? input.apply(
-                "WriteUnshardedBundlesToTempFiles",
-                new WriteUnshardedBundlesToTempFiles(destinationCoder, fileResultCoder))
-            : input.apply(
-                "WriteShardedBundlesToTempFiles",
-                new WriteShardedBundlesToTempFiles(
-                    destinationCoder, fileResultCoder, numShardsView));
+    boolean fixedSharding = getComputeNumShards() != null || getNumShardsProvider() != null;
+    PCollection<List<FileResult<DestinationT>>> tempFileResults;
+    if (fixedSharding) {
+      tempFileResults =
+          input
+              .apply(
+                  "WriteShardedBundlesToTempFiles",
+                  new WriteShardedBundlesToTempFiles(
+                      destinationCoder, fileResultCoder, numShardsView))
+              .apply("GatherTempFileResults", new GatherResults<>(fileResultCoder));
+    } else {
+      if (input.isBounded() == IsBounded.BOUNDED) {
+        tempFileResults =
+            input
+                .apply(
+                    "WriteUnshardedBundlesToTempFiles",
+                    new WriteUnshardedBundlesToTempFiles(destinationCoder, fileResultCoder))
+                .apply("GatherTempFileResults", new GatherResults<>(fileResultCoder));
+      } else {
+        tempFileResults =
+            input.apply(
+                "WriteAutoShardedBundlesToTempFiles",
+                new WriteAutoShardedBundlesToTempFiles(destinationCoder, fileResultCoder));
+      }
+    }
 
-    return tempFileResults
-        .apply("GatherTempFileResults", new GatherResults<>(fileResultCoder))
-        .apply(
-            "FinalizeTempFileBundles",
-            new FinalizeTempFileBundles(numShardsView, destinationCoder));
+    return tempFileResults.apply(
+        "FinalizeTempFileBundles", new FinalizeTempFileBundles(numShardsView, destinationCoder));
   }
 
   @Override
@@ -473,7 +523,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                         public void process(ProcessContext c) {
                           c.output(c.element().withShard(UNKNOWN_SHARDNUM));
                         }
-                      }));
+                      }))
+              .setCoder(fileResultCoder);
       return PCollectionList.of(writtenBundleFiles)
           .and(writtenSpilledFiles)
           .apply(Flatten.pCollections())
@@ -675,6 +726,128 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
+  private class WriteAutoShardedBundlesToTempFiles
+      extends PTransform<PCollection<UserT>, PCollection<List<FileResult<DestinationT>>>> {
+    private final Coder<DestinationT> destinationCoder;
+    private final Coder<FileResult<DestinationT>> fileResultCoder;
+
+    private WriteAutoShardedBundlesToTempFiles(
+        Coder<DestinationT> destinationCoder, Coder<FileResult<DestinationT>> fileResultCoder) {
+      this.destinationCoder = destinationCoder;
+      this.fileResultCoder = fileResultCoder;
+    }
+
+    @Override
+    public PCollection<List<FileResult<DestinationT>>> expand(PCollection<UserT> input) {
+      // Auto-sharding is achieved via GroupIntoBatches.WithShardedKey which shards, groups and at
+      // the same time batches the input records. The sharding behavior depends on runners. The
+      // batching is per window and we also emit the batches if there are a certain number of
+      // records buffered or they have been buffered for a certain time, controlled by
+      // FILE_TRIGGERING_RECORD_COUNT and BUFFERING_DURATION respectively.
+      //
+      // TODO(https://github.com/apache/beam/issues/20928): The implementation doesn't currently
+      // work with merging windows.
+      PCollection<KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>> shardedInput =
+          input
+              .apply(
+                  "KeyedByDestinationHash",
+                  ParDo.of(
+                      new DoFn<UserT, KV<Integer, UserT>>() {
+                        @ProcessElement
+                        public void processElement(@Element UserT element, ProcessContext context)
+                            throws Exception {
+                          getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
+                          DestinationT destination =
+                              getDynamicDestinations().getDestination(context.element());
+                          context.output(
+                              KV.of(hashDestination(destination, destinationCoder), element));
+                        }
+                      }))
+              .setCoder(KvCoder.of(VarIntCoder.of(), input.getCoder()))
+              .apply(
+                  "ShardAndBatch",
+                  GroupIntoBatches.<Integer, UserT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                      .withMaxBufferingDuration(FILE_TRIGGERING_RECORD_BUFFERING_DURATION)
+                      .withShardedKey())
+              .setCoder(
+                  KvCoder.of(
+                      org.apache.beam.sdk.util.ShardedKey.Coder.of(VarIntCoder.of()),
+                      IterableCoder.of(input.getCoder())));
+
+      // Write grouped elements to temp files.
+      PCollection<FileResult<DestinationT>> tempFiles =
+          shardedInput
+              .apply(
+                  "AddDummyShard",
+                  MapElements.via(
+                      new SimpleFunction<
+                          KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>,
+                          KV<ShardedKey<Integer>, Iterable<UserT>>>() {
+                        @Override
+                        public KV<ShardedKey<Integer>, Iterable<UserT>> apply(
+                            KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>
+                                input) {
+                          // Add dummy shard since it is required by WriteShardsIntoTempFilesFn. It
+                          // will be dropped after we generate the temp files.
+                          return KV.of(
+                              ShardedKey.of(input.getKey().getKey(), DUMMY_SHARDNUM),
+                              input.getValue());
+                        }
+                      }))
+              .setCoder(
+                  KvCoder.of(
+                      ShardedKeyCoder.of(VarIntCoder.of()), IterableCoder.of(input.getCoder())))
+              .apply(
+                  "WriteShardsIntoTempFiles",
+                  ParDo.of(new WriteShardsIntoTempFilesFn()).withSideInputs(getSideInputs()))
+              .setCoder(fileResultCoder)
+              .apply(
+                  "DropShardNum",
+                  ParDo.of(
+                      new DoFn<FileResult<DestinationT>, FileResult<DestinationT>>() {
+                        @ProcessElement
+                        public void process(ProcessContext c) {
+                          c.output(c.element().withShard(UNKNOWN_SHARDNUM));
+                        }
+                      }))
+              .setCoder(fileResultCoder);
+
+      // Group temp file results by destinations again to gather all the results in the same window.
+      // This is needed since we don't have shard idx associated with each temp file so have to rely
+      // on the indexing within a bundle.
+      return tempFiles
+          .apply(
+              "KeyedByDestination",
+              WithKeys.of(
+                  new SimpleFunction<FileResult<DestinationT>, DestinationT>() {
+                    @Override
+                    public DestinationT apply(FileResult<DestinationT> input) {
+                      return input.getDestination();
+                    }
+                  }))
+          .setCoder(KvCoder.of(destinationCoder, fileResultCoder))
+          .apply(GroupByKey.create())
+          .apply(
+              "ExtractValuesToList",
+              ParDo.of(
+                  new DoFn<
+                      KV<DestinationT, Iterable<FileResult<DestinationT>>>,
+                      List<FileResult<DestinationT>>>() {
+                    @ProcessElement
+                    public void processElement(
+                        @Element KV<DestinationT, Iterable<FileResult<DestinationT>>> element,
+                        ProcessContext c) {
+                      List<FileResult<DestinationT>> result = new ArrayList<>();
+                      for (FileResult<DestinationT> e : element.getValue()) {
+                        result.add(e);
+                      }
+                      c.output(result);
+                    }
+                  }))
+          .setCoder(ListCoder.of(fileResultCoder));
+    }
+  }
+
   private class RandomShardingFunction implements ShardingFunction<UserT, DestinationT> {
     private final Coder<DestinationT> destinationCoder;
 
@@ -728,7 +901,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         shardCount = context.sideInput(numShardsView);
       } else {
         checkNotNull(getNumShardsProvider());
-        shardCount = getNumShardsProvider().get();
+        shardCount =
+            checkNotNull(getNumShardsProvider().get(), "Must have non-null number of shards.");
       }
       checkArgument(
           shardCount > 0,
@@ -745,6 +919,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   private class WriteShardsIntoTempFilesFn
       extends DoFn<KV<ShardedKey<Integer>, Iterable<UserT>>, FileResult<DestinationT>> {
+    private transient @Nullable List<CompletionStage<Void>> closeFutures = null;
+    private transient @Nullable List<KV<Instant, FileResult<DestinationT>>> deferredOutput = null;
+
+    @StartBundle
+    public void startBundle() {
+      closeFutures = new ArrayList<>();
+      deferredOutput = new ArrayList<>();
+    }
+
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
@@ -773,21 +956,48 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
       // Close all writers.
       for (Map.Entry<DestinationT, Writer<DestinationT, OutputT>> entry : writers.entrySet()) {
-        Writer<DestinationT, OutputT> writer = entry.getValue();
-        try {
-          // Close the writer; if this throws let the error propagate.
-          writer.close();
-        } catch (Exception e) {
-          // If anything goes wrong, make sure to delete the temporary file.
-          writer.cleanup();
-          throw e;
-        }
         int shard = c.element().getKey().getShardNumber();
         checkArgument(
             shard != UNKNOWN_SHARDNUM,
             "Shard should have been set, but is unset for element %s",
             c.element());
-        c.output(new FileResult<>(writer.getOutputFile(), shard, window, c.pane(), entry.getKey()));
+        Writer<DestinationT, OutputT> writer = entry.getValue();
+        deferredOutput.add(
+            KV.of(
+                c.timestamp(),
+                new FileResult<>(writer.getOutputFile(), shard, window, c.pane(), entry.getKey())));
+        closeWriterInBackground(writer);
+      }
+    }
+
+    private void closeWriterInBackground(Writer<DestinationT, OutputT> writer) {
+      // Close in parallel so flushing of buffered writes to files for many windows happens in
+      // parallel.
+      closeFutures.add(
+          MoreFutures.runAsync(
+              () -> {
+                try {
+                  // Close the writer; if this throws let the error propagate.
+                  writer.close();
+                } catch (Exception e) {
+                  // If anything goes wrong, make sure to delete the temporary file.
+                  writer.cleanup();
+                  throw e;
+                }
+              }));
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) throws Exception {
+      try {
+        MoreFutures.get(MoreFutures.allAsList(closeFutures));
+        // If all writers were closed without exception, output the results to the next stage.
+        for (KV<Instant, FileResult<DestinationT>> result : deferredOutput) {
+          c.output(result.getValue(), result.getKey(), result.getValue().getWindow());
+        }
+      } finally {
+        deferredOutput = null;
+        closeFutures = null;
       }
     }
   }
@@ -841,6 +1051,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         }
         List<FileResult<DestinationT>> fileResults = Lists.newArrayList(c.element());
         LOG.info("Finalizing {} file results", fileResults.size());
+        if (fileResults.isEmpty() && getSkipIfEmpty()) {
+          return;
+        }
         DestinationT defaultDest = getDynamicDestinations().getDefaultDestination();
         List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames =
             fileResults.isEmpty()

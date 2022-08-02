@@ -37,16 +37,63 @@ those generated rows in the table.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
+import logging
 
 import apache_beam as beam
+from apache_beam.internal.metrics.metric import ServiceCallMetric
+from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import Metrics
+from apache_beam.metrics import monitoring_infos
 from apache_beam.transforms.display import DisplayDataItem
+
+_LOGGER = logging.getLogger(__name__)
 
 try:
   from google.cloud.bigtable import Client
+  from google.cloud.bigtable.batcher import MutationsBatcher
+
+  FLUSH_COUNT = 1000
+  MAX_ROW_BYTES = 5242880  # 5MB
+
+  class _MutationsBatcher(MutationsBatcher):
+    def __init__(
+        self, table, flush_count=FLUSH_COUNT, max_row_bytes=MAX_ROW_BYTES):
+      super().__init__(table, flush_count, max_row_bytes)
+      self.rows = []
+
+    def set_flush_callback(self, callback_fn):
+      self.callback_fn = callback_fn
+
+    def flush(self):
+      if len(self.rows) != 0:
+        status_list = self.table.mutate_rows(self.rows)
+        self.callback_fn(status_list)
+
+        # If even one request fails we retry everything. BigTable mutations are
+        # idempotent so this should be correct.
+        # TODO(https://github.com/apache/beam/issues/21396): make this more
+        # efficient by retrying only re-triable failed requests.
+        for status in status_list:
+          if not status:
+            # BigTable client may return 'None' instead of a valid status in
+            # some cases due to
+            # https://github.com/googleapis/python-bigtable/issues/485
+            raise Exception(
+                'Failed to write a batch of %r records' % len(self.rows))
+          elif status.code != 0:
+            raise Exception(
+                'Failed to write a batch of %r records due to %r' % (
+                    len(self.rows),
+                    ServiceCallMetric.bigtable_error_code_to_grpc_status_string(
+                        status.code)))
+
+        self.total_mutation_count = 0
+        self.total_size = 0
+        self.rows = []
+
 except ImportError:
-  pass
+  _LOGGER.warning(
+      'ImportError: from google.cloud.bigtable import Client', exc_info=True)
 
 __all__ = ['WriteToBigTable']
 
@@ -67,7 +114,7 @@ class _BigTableWriteFn(beam.DoFn):
       instance_id(str): GCP Instance to write the Rows
       table_id(str): GCP Table to write the `DirectRows`
     """
-    super(_BigTableWriteFn, self).__init__()
+    super().__init__()
     self.beam_options = {
         'project_id': project_id,
         'instance_id': instance_id,
@@ -75,6 +122,7 @@ class _BigTableWriteFn(beam.DoFn):
     }
     self.table = None
     self.batcher = None
+    self.service_call_metric = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
 
   def __getstate__(self):
@@ -84,14 +132,44 @@ class _BigTableWriteFn(beam.DoFn):
     self.beam_options = options
     self.table = None
     self.batcher = None
+    self.service_call_metric = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
+
+  def write_mutate_metrics(self, status_list):
+    for status in status_list:
+      code = status.code if status else None
+      grpc_status_string = (
+          ServiceCallMetric.bigtable_error_code_to_grpc_status_string(code))
+      self.service_call_metric.call(grpc_status_string)
+
+  def start_service_call_metrics(self, project_id, instance_id, table_id):
+    resource = resource_identifiers.BigtableTable(
+        project_id, instance_id, table_id)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'BigTable',
+        # TODO(JIRA-11985): Add Ptransform label.
+        monitoring_infos.METHOD_LABEL: 'google.bigtable.v2.MutateRows',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.BIGTABLE_PROJECT_ID_LABEL: (
+            self.beam_options['project_id']),
+        monitoring_infos.INSTANCE_ID_LABEL: self.beam_options['instance_id'],
+        monitoring_infos.TABLE_ID_LABEL: self.beam_options['table_id']
+    }
+    return ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
 
   def start_bundle(self):
     if self.table is None:
       client = Client(project=self.beam_options['project_id'])
       instance = client.instance(self.beam_options['instance_id'])
       self.table = instance.table(self.beam_options['table_id'])
-    self.batcher = self.table.mutations_batcher()
+    self.service_call_metric = self.start_service_call_metrics(
+        self.beam_options['project_id'],
+        self.beam_options['instance_id'],
+        self.beam_options['table_id'])
+    self.batcher = _MutationsBatcher(self.table)
+    self.batcher.set_flush_callback(self.write_mutate_metrics)
 
   def process(self, row):
     self.written.inc()
@@ -133,7 +211,7 @@ class WriteToBigTable(beam.PTransform):
       instance_id(str): GCP Instance to write the Rows
       table_id(str): GCP Table to write the `DirectRows`
     """
-    super(WriteToBigTable, self).__init__()
+    super().__init__()
     self.beam_options = {
         'project_id': project_id,
         'instance_id': instance_id,

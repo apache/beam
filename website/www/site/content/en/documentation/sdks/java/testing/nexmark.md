@@ -147,8 +147,8 @@ When running via Gradle, the following two parameters control the execution:
 
     -P nexmark.runner
 	The Gradle project name of the runner, such as ":runners:direct-java" or
-	":runners:flink:1.10. The project names can be found in the root
-        `settings.gradle`.
+	":runners:flink:1.13. The project names can be found in the root
+        `settings.gradle.kts`.
 
 Test data is deterministically synthesized on demand. The test
 data may be synthesized in the same pipeline as the query itself,
@@ -220,12 +220,12 @@ Available suites are:
     --manageResources=false --monitorJobs=true \
     --sparkMaster=local \
     -Dspark.ui.enabled=false -DSPARK_LOCAL_IP=localhost -Dsun.io.serialization.extendedDebugInfo=true
-	
+
 ### Kafka source/sink configuration parameters
 
 Set Kafka host/ip (for example, "localhost:9092"):
 
-    --bootstrapServers=<kafka host/ip> 
+    --bootstrapServers=<kafka host/ip>
 
 Write results into Kafka topic:
 
@@ -238,7 +238,7 @@ Set topic name which will be used for benchmark results:
 Write or/and read events into/from Kafka topic:
 
     --sourceType=KAFKA
-	
+
 Set topic name which will be used for benchmark events:
 
 	--kafkaTopic=<topic name>
@@ -349,7 +349,7 @@ These tables contain statuses of the queries runs in the different runners. Goog
     <tr>
       <th>Query</th>
       <th>Direct</th>
-      <th>Spark <a href="https://issues.apache.org/jira/browse/BEAM-2847">BEAM-2847</a></th>
+      <th>Spark <a href="https://github.com/apache/beam/issues/18416">Issue 18416</a></th>
       <th>Flink</th>
     </tr>
     <tr>
@@ -373,7 +373,7 @@ These tables contain statuses of the queries runs in the different runners. Goog
     <tr>
       <td>3</td>
       <td>ok</td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM-2176">BEAM-2176</a>, <a href="https://issues.apache.org/jira/browse/BEAM-3961">BEAM-3961</a></td>
+      <td><a href="https://github.com/apache/beam/issues/18074">Issue 18074</a>, <a href="https://issues.apache.org/jira/browse/BEAM-3961">BEAM-3961</a></td>
       <td>ok</td>
     </tr>
     <tr>
@@ -494,7 +494,7 @@ configure logging.
 Batch Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:spark" \
+        -Pnexmark.runner=":runners:spark:2" \
         -Pnexmark.args="
             --runner=SparkRunner
             --suite=SMOKE
@@ -506,7 +506,7 @@ Batch Mode:
 Streaming Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:spark" \
+        -Pnexmark.runner=":runners:spark:2" \
         -Pnexmark.args="
             --runner=SparkRunner
             --suite=SMOKE
@@ -520,7 +520,7 @@ Streaming Mode:
 Batch Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:flink:1.10" \
+        -Pnexmark.runner=":runners:flink:1.13" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE
@@ -533,7 +533,7 @@ Batch Mode:
 Streaming Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:flink:1.10" \
+        -Pnexmark.runner=":runners:flink:1.13" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE
@@ -622,7 +622,7 @@ Below dashboards are used as a CI mechanism to detect no-regression on the Beam 
     - Some are designed towards sub-second latency, others support auto-scaling
 
 ### Dashboards content
-At each commit on master, Nexmark suites are run and plots are created on the graphs.
+At each commit on master, Nexmark suites are run and plots are created on the graphs. All metrics dashboards are hosted at [metrics.beam.apache.org](http://metrics.beam.apache.org/).
 
 There are 2 kinds of dashboards:
 - one for performances (run times of the queries)
@@ -632,30 +632,10 @@ There are dashboards for these runners (others to come):
 - spark
 - flink
 - direct runner
+- Dataflow
 
 Each dashboard contains:
 - graphs in batch mode
 - graphs in streaming mode
 - graphs for all the queries.
-
-### Performance dashboards links
-
-[Nexmark performance direct runner](https://apache-beam-testing.appspot.com/explore?dashboard=5084698770407424)
-
-[Nexmark performance flink runner](https://apache-beam-testing.appspot.com/explore?dashboard=5699257587728384)
-
-[Nexmark performance spark runner](https://apache-beam-testing.appspot.com/explore?dashboard=5138380291571712)
-
-[Nexmark performance dataflow runner](https://apache-beam-testing.appspot.com/explore?dashboard=5670405876482048)
-
-
-### Output size dashboards links
-
-[Nexmark output size direct runner](https://apache-beam-testing.appspot.com/explore?dashboard=5099379773931520)
-
-[Nexmark output size flink runner](https://apache-beam-testing.appspot.com/explore?dashboard=5731568492478464)
-
-[Nexmark output size spark runner](https://apache-beam-testing.appspot.com/explore?dashboard=5163657986048000)
-
-[Nexmark output size dataflow runner](https://apache-beam-testing.appspot.com/explore?dashboard=5647201107705856)
 

@@ -25,6 +25,7 @@ import com.google.cloud.spanner.KeyRange;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
+import java.math.BigDecimal;
 
 /** Estimates the logical size of {@link com.google.cloud.spanner.Mutation}. */
 class MutationSizeEstimator {
@@ -112,9 +113,19 @@ class MutationSizeEstimator {
       case TIMESTAMP:
         return 12;
       case STRING:
+      case PG_NUMERIC:
         return v.isNull() ? 0 : v.getString().length();
       case BYTES:
         return v.isNull() ? 0 : v.getBytes().length();
+      case NUMERIC:
+        // see
+        // https://cloud.google.com/spanner/docs/working-with-numerics#handling_numeric_when_creating_a_client_library_or_driver
+        // Numeric/BigDecimal are stored in protos as String. It is likely that they
+        // are also stored in the Spanner database as String, so this gives an approximation for
+        // mutation value size.
+        return v.isNull() ? 0 : v.getNumeric().toString().length();
+      case JSON:
+        return v.isNull() ? 0 : v.getJson().length();
       default:
         throw new IllegalArgumentException("Unsupported type " + v.getType());
     }
@@ -132,6 +143,7 @@ class MutationSizeEstimator {
       case FLOAT64:
         return 8L * v.getFloat64Array().size();
       case STRING:
+      case PG_NUMERIC:
         long totalLength = 0;
         for (String s : v.getStringArray()) {
           if (s == null) {
@@ -153,6 +165,29 @@ class MutationSizeEstimator {
         return 12L * v.getDateArray().size();
       case TIMESTAMP:
         return 12L * v.getTimestampArray().size();
+      case NUMERIC:
+        totalLength = 0;
+        for (BigDecimal n : v.getNumericArray()) {
+          if (n == null) {
+            continue;
+          }
+          // see
+          // https://cloud.google.com/spanner/docs/working-with-numerics#handling_numeric_when_creating_a_client_library_or_driver
+          // Numeric/BigDecimal are stored in protos as String. It is likely that they
+          // are also stored in the Spanner database as String, so this gives an approximation for
+          // mutation value size.
+          totalLength += n.toString().length();
+        }
+        return totalLength;
+      case JSON:
+        totalLength = 0;
+        for (String s : v.getJsonArray()) {
+          if (s == null) {
+            continue;
+          }
+          totalLength += s.length();
+        }
+        return totalLength;
       default:
         throw new IllegalArgumentException("Unsupported type " + v.getType());
     }

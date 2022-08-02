@@ -25,6 +25,9 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /** doc. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class TranslationUtils {
   private static final Logger LOG = Logger.getLogger(TranslationUtils.class.getName());
 

@@ -32,6 +32,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * during the migration.
  */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class CounterName {
 
   /** Returns a {@link CounterName} with the given name. */

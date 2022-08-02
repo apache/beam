@@ -149,7 +149,7 @@ class EmployeeInputFormat extends InputFormat<Text, Employee> {
 
     @Override
     public boolean nextKeyValue() {
-      if ((recordsRead++) >= split.getLength()) {
+      if (recordsRead++ >= split.getLength()) {
         return false;
       }
       employeeListIndex++;

@@ -32,6 +32,9 @@ import redis.clients.jedis.Protocol;
  * server or cluster.
  */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class RedisConnectionConfiguration implements Serializable {
 
   abstract ValueProvider<String> host();

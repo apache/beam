@@ -26,7 +26,6 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
-import org.apache.beam.sdk.io.fs.MatchResult.Metadata.Builder;
 
 /** A {@link Coder} for {@link Metadata} that includes {@link Metadata#lastModifiedMillis()}. */
 @Experimental(Kind.FILESYSTEM)
@@ -50,7 +49,7 @@ public class MetadataCoderV2 extends AtomicCoder<Metadata> {
 
   @Override
   public Metadata decode(InputStream is) throws IOException {
-    Builder builder = V1_CODER.decodeBuilder(is);
+    Metadata.Builder builder = V1_CODER.decodeBuilder(is);
     long lastModifiedMillis = LONG_CODER.decode(is);
     return builder.setLastModifiedMillis(lastModifiedMillis).build();
   }

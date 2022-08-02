@@ -66,6 +66,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Experimental
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class DLPReidentifyText
     extends PTransform<
         PCollection<KV<String, String>>, PCollection<KV<String, ReidentifyContentResponse>>> {
@@ -176,11 +179,8 @@ public abstract class DLPReidentifyText
   @Override
   public PCollection<KV<String, ReidentifyContentResponse>> expand(
       PCollection<KV<String, String>> input) {
-    return input
-        .apply(ParDo.of(new MapStringToDlpRow(getColumnDelimiter())))
-        .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(getBatchSizeBytes())))
-        .apply(
-            "DLPReidentify",
+    ParDo.SingleOutput<KV<String, Iterable<Table.Row>>, KV<String, ReidentifyContentResponse>>
+        reidentifyParDo =
             ParDo.of(
                 new ReidentifyText(
                     getProjectId(),
@@ -188,7 +188,14 @@ public abstract class DLPReidentifyText
                     getReidentifyTemplateName(),
                     getInspectConfig(),
                     getReidentifyConfig(),
-                    getHeaderColumns())));
+                    getHeaderColumns()));
+    if (getHeaderColumns() != null) {
+      reidentifyParDo = reidentifyParDo.withSideInputs(getHeaderColumns());
+    }
+    return input
+        .apply(ParDo.of(new MapStringToDlpRow(getColumnDelimiter())))
+        .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(getBatchSizeBytes())))
+        .apply("DLPReidentify", reidentifyParDo);
   }
 
   /** Performs the calls to Cloud DLP service on GCP. */

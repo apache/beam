@@ -51,7 +51,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
-import org.joda.time.Instant;
 import org.joda.time.LocalDate;
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,7 +60,7 @@ import org.junit.experimental.categories.Category;
 public class AvroSchemaTest {
   /** A test POJO that corresponds to our AVRO schema. */
   public static class AvroSubPojo {
-    @AvroName("bool_non_nullable")
+    @AvroName("BOOL_NON_NULLABLE")
     public boolean boolNonNullable;
 
     @AvroName("int")
@@ -255,7 +254,7 @@ public class AvroSchemaTest {
 
   private static final Schema SUBSCHEMA =
       Schema.builder()
-          .addField("bool_non_nullable", FieldType.BOOLEAN)
+          .addField("BOOL_NON_NULLABLE", FieldType.BOOLEAN)
           .addNullableField("int", FieldType.INT32)
           .build();
   private static final FieldType SUB_TYPE = FieldType.row(SUBSCHEMA).withNullable(true);
@@ -274,7 +273,7 @@ public class AvroSchemaTest {
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
           .addField("date", FieldType.DATETIME)
           .addField("timestampMillis", FieldType.DATETIME)
-          .addField("testEnum", FieldType.logicalType(TEST_ENUM_TYPE))
+          .addField("TestEnum", FieldType.logicalType(TEST_ENUM_TYPE))
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE))
           .addNullableField("map", FieldType.map(FieldType.STRING, SUB_TYPE))
@@ -321,7 +320,7 @@ public class AvroSchemaTest {
           ImmutableMap.of("k1", AVRO_NESTED_SPECIFIC_RECORD, "k2", AVRO_NESTED_SPECIFIC_RECORD));
   private static final GenericRecord AVRO_NESTED_GENERIC_RECORD =
       new GenericRecordBuilder(TestAvroNested.SCHEMA$)
-          .set("bool_non_nullable", true)
+          .set("BOOL_NON_NULLABLE", true)
           .set("int", 42)
           .build();
   private static final GenericRecord AVRO_GENERIC_RECORD =
@@ -340,7 +339,7 @@ public class AvroSchemaTest {
                       null, BYTE_ARRAY, org.apache.avro.Schema.createFixed("fixed4", "", "", 4)))
           .set("date", (int) Days.daysBetween(new LocalDate(1970, 1, 1), DATE).getDays())
           .set("timestampMillis", DATE_TIME.getMillis())
-          .set("testEnum", TestEnum.abc)
+          .set("TestEnum", TestEnum.abc)
           .set("row", AVRO_NESTED_GENERIC_RECORD)
           .set("array", ImmutableList.of(AVRO_NESTED_GENERIC_RECORD, AVRO_NESTED_GENERIC_RECORD))
           .set(
@@ -454,8 +453,6 @@ public class AvroSchemaTest {
 
   @Test
   public void testRowToPojo() {
-
-    LocalDate test = new LocalDate(((Instant) ROW_FOR_POJO.getValue(8)).getMillis());
     SerializableFunction<Row, AvroPojo> fromRow =
         new AvroRecordSchema().fromRowFunction(TypeDescriptor.of(AvroPojo.class));
     assertEquals(AVRO_POJO, fromRow.apply(ROW_FOR_POJO));

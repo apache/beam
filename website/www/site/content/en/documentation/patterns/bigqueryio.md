@@ -25,11 +25,11 @@ The samples on this page show you common patterns for use with BigQueryIO.
 {{< language-switcher java py >}}
 
 ## BigQueryIO deadletter pattern
-In production systems, it is useful to implement the deadletter pattern with BigQueryIO outputting any elements which had errors during processing by BigQueryIO into another PCollection for further processing. 
-The samples below print the errors, but in a production system they can be sent to a deadletter table for later correction.  
+In production systems, it is useful to implement the deadletter pattern with BigQueryIO outputting any elements which had errors during processing by BigQueryIO into another PCollection for further processing.
+The samples below print the errors, but in a production system they can be sent to a deadletter table for later correction.
 
 {{< paragraph class="language-java" >}}
-When using `STREAMING_INSERTS`  you can use the `WriteResult` object to access a `PCollection` with the `TableRows` that failed to be inserted into BigQuery. 
+When using `STREAMING_INSERTS`  you can use the `WriteResult` object to access a `PCollection` with the `TableRows` that failed to be inserted into BigQuery.
 If you also set the `withExtendedErrorInfo` property , you will be able to access a `PCollection<BigQueryInsertError>` from the `WriteResult`. The `PCollection` will then include a reference to the table, the data row and the `InsertErrors`. Which errors are added to the deadletter queue is determined via the `InsertRetryPolicy`.
 {{< /paragraph >}}
 

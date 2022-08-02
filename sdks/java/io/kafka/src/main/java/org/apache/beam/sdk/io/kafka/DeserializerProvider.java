@@ -27,7 +27,7 @@ import org.apache.kafka.common.serialization.Deserializer;
 
 /** Provides a configured {@link Deserializer} instance and its associated {@link Coder}. */
 @Experimental(Kind.SOURCE_SINK)
-interface DeserializerProvider<T> extends Serializable {
+public interface DeserializerProvider<T> extends Serializable {
 
   Deserializer<T> getDeserializer(Map<String, ?> configs, boolean isKey);
 

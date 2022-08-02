@@ -31,6 +31,9 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.aws.coders.AwsCoders;
 
 /** Coders for SNS {@link PublishResult}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class PublishResultCoders {
 
   private static final Coder<String> MESSAGE_ID_CODER = StringUtf8Coder.of();

@@ -20,16 +20,16 @@ package org.apache.beam.runners.dataflow.worker.windmill;
 import java.util.function.Function;
 import org.apache.beam.sdk.fn.stream.AdvancingPhaser;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 
 /**
  * Uses {@link PipelineOptions} to configure which underlying {@link StreamObserver} implementation
  * to use.
  */
 public abstract class StreamObserverFactory {
-  public static StreamObserverFactory direct() {
-    return new Direct();
+  public static StreamObserverFactory direct(long deadlineSeconds) {
+    return new Direct(deadlineSeconds);
   }
 
   public abstract <ReqT, RespT> StreamObserver<RespT> from(
@@ -37,7 +37,11 @@ public abstract class StreamObserverFactory {
       StreamObserver<ReqT> responseObserver);
 
   private static class Direct extends StreamObserverFactory {
-    Direct() {}
+    private final long deadlineSeconds;
+
+    Direct(long deadlineSeconds) {
+      this.deadlineSeconds = deadlineSeconds;
+    }
 
     @Override
     public <ReqT, RespT> StreamObserver<RespT> from(
@@ -49,7 +53,7 @@ public abstract class StreamObserverFactory {
               clientFactory.apply(
                   new ForwardingClientResponseObserver<ReqT, RespT>(
                       inboundObserver, phaser::arrive, phaser::forceTermination));
-      return new DirectStreamObserver<>(phaser, outboundObserver);
+      return new DirectStreamObserver<>(phaser, outboundObserver, deadlineSeconds);
     }
   }
 }

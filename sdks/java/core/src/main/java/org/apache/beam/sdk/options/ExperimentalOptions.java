@@ -28,10 +28,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * experiments.
  */
 @Experimental
-@Hidden
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public interface ExperimentalOptions extends PipelineOptions {
 
   String STATE_CACHE_SIZE = "state_cache_size";
+
+  String STATE_SAMPLING_PERIOD_MILLIS = "state_sampling_period_millis";
 
   @Description(
       "[Experimental] Apache Beam provides a number of experimental features that can "

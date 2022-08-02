@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -45,13 +43,13 @@ public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
     }
-    new DataOutputStream(outStream).writeInt(value);
+    BitConverters.writeBigEndianInt(value, outStream);
   }
 
   @Override
   public Integer decode(InputStream inStream) throws IOException, CoderException {
     try {
-      return new DataInputStream(inStream).readInt();
+      return BitConverters.readBigEndianInt(inStream);
     } catch (EOFException | UTFDataFormatException exn) {
       // These exceptions correspond to decoding problems, so change
       // what kind of exception they're branded as.

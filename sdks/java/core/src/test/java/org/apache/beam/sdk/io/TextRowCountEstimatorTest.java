@@ -29,14 +29,11 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Tests for {@link org.apache.beam.sdk.io.TextRowCountEstimator}. */
 @RunWith(JUnit4.class)
 public class TextRowCountEstimatorTest {
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
-  private static final Logger LOG = LoggerFactory.getLogger(TextRowCountEstimatorTest.class);
 
   @Test
   public void testNonEmptyFiles() throws Exception {
@@ -68,7 +65,7 @@ public class TextRowCountEstimatorTest {
   public void testEmptyFolder() throws Exception {
     TextRowCountEstimator textRowCountEstimator =
         TextRowCountEstimator.builder().setFilePattern(temporaryFolder.getRoot() + "/**").build();
-    Double rows = textRowCountEstimator.estimateRowCount(PipelineOptionsFactory.create());
+    textRowCountEstimator.estimateRowCount(PipelineOptionsFactory.create());
   }
 
   @Test

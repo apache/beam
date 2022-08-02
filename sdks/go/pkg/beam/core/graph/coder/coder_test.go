@@ -20,9 +20,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 type MyType struct{}
@@ -123,10 +123,16 @@ func TestValidDecoderForms(t *testing.T) {
 	}
 }
 
+type namedTypeForTest struct {
+	A, B int64
+	C    string
+}
+
 func TestCoder_String(t *testing.T) {
 	ints := NewVarInt()
 	bytes := NewBytes()
 	bools := NewBool()
+	doubles := NewDouble()
 	global := NewGlobalWindow()
 	interval := NewIntervalWindow()
 	cusString, err := NewCustomCoder("customString", reflectx.String, func(string) []byte { return nil }, func([]byte) string { return "" })
@@ -163,6 +169,9 @@ func TestCoder_String(t *testing.T) {
 		want: "KV<bytes,varint>",
 		c:    NewKV([]*Coder{bytes, ints}),
 	}, {
+		want: "N<bytes>",
+		c:    NewN(bytes),
+	}, {
 		want: "CoGBK<bytes,varint,bytes>",
 		c:    NewCoGBK([]*Coder{bytes, ints, bytes}),
 	}, {
@@ -171,6 +180,21 @@ func TestCoder_String(t *testing.T) {
 	}, {
 		want: "CoGBK<bytes,varint,string[customString]>",
 		c:    NewCoGBK([]*Coder{bytes, ints, custom}),
+	}, {
+		want: "PW<bytes>!IWC",
+		c:    NewPW(bytes, interval),
+	}, {
+		want: "T<varint>!GWC",
+		c:    NewT(ints, global),
+	}, {
+		want: "I<double>[[]float64]",
+		c:    NewI(doubles),
+	}, {
+		want: "R[*coder.namedTypeForTest]",
+		c:    NewR(typex.New(reflect.TypeOf((*namedTypeForTest)(nil)))),
+	}, {
+		want: "window!GWC",
+		c:    &Coder{Kind: Window, Window: global},
 	},
 	}
 	for _, test := range tests {
@@ -256,6 +280,10 @@ func TestCoder_Equals(t *testing.T) {
 		want: true,
 		a:    NewKV([]*Coder{custom1, ints}),
 		b:    NewKV([]*Coder{customSame, ints}),
+	}, {
+		want: true,
+		a:    NewN(custom1),
+		b:    NewN(customSame),
 	}, {
 		want: true,
 		a:    NewCoGBK([]*Coder{custom1, ints, customSame}),
@@ -491,6 +519,60 @@ func TestNewKV(t *testing.T) {
 			}
 			if test.want != nil && !test.want.Equals(got) {
 				t.Fatalf("NewKV(%v) = %v, want %v", test.cs, got, test.want)
+			}
+		})
+	}
+}
+
+func TestNewNullable(t *testing.T) {
+	bytes := NewBytes()
+
+	tests := []struct {
+		name        string
+		component   *Coder
+		shouldpanic bool
+		want        *Coder
+	}{
+		{
+			name:        "nil",
+			component:   nil,
+			shouldpanic: true,
+		},
+		{
+			name:        "empty",
+			component:   &Coder{},
+			shouldpanic: true,
+		},
+		{
+			name:        "bytes",
+			component:   bytes,
+			shouldpanic: false,
+			want: &Coder{
+				Kind:       Nullable,
+				T:          typex.New(typex.NullableType, bytes.T),
+				Components: []*Coder{bytes},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			if test.shouldpanic {
+				defer func() {
+					if p := recover(); p != nil {
+						t.Log(p)
+						return
+					}
+					t.Fatalf("NewNullable(%v): want panic", test.component)
+				}()
+			}
+			got := NewN(test.component)
+			if !IsNullable(got) {
+				t.Errorf("IsNullable(%v) = false, want true", got)
+			}
+			if test.want != nil && !test.want.Equals(got) {
+				t.Fatalf("NewNullable(%v) = %v, want %v", test.component, got, test.want)
 			}
 		})
 	}

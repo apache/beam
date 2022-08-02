@@ -31,6 +31,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A wrapper to allow Hadoop {@link Configuration}s to be serialized using Java's standard
  * serialization mechanisms.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SerializableConfiguration implements Externalizable {
   private static final long serialVersionUID = 0L;
 
@@ -59,7 +62,11 @@ public class SerializableConfiguration implements Externalizable {
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
     String className = in.readUTF();
     try {
-      conf = (Configuration) Class.forName(className).getDeclaredConstructor().newInstance();
+      conf =
+          Class.forName(className)
+              .asSubclass(Configuration.class)
+              .getDeclaredConstructor()
+              .newInstance();
       conf.readFields(in);
     } catch (InstantiationException
         | IllegalAccessException
@@ -81,6 +88,17 @@ public class SerializableConfiguration implements Externalizable {
       }
       return job;
     }
+  }
+
+  /** Returns a new configuration instance using provided flags. */
+  public static SerializableConfiguration fromMap(Map<String, String> entries) {
+    Configuration hadoopConfiguration = new Configuration();
+
+    for (Map.Entry<String, String> entry : entries.entrySet()) {
+      hadoopConfiguration.set(entry.getKey(), entry.getValue());
+    }
+
+    return new SerializableConfiguration(hadoopConfiguration);
   }
 
   /** Returns new populated {@link Configuration} object. */

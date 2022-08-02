@@ -1,0 +1,106 @@
+{{/*
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+*/}}
+{{ $cap_view := .Get "cap-view" }}
+{{ $cap_data := index $.Site.Data.capability_matrix (.Get "cap-data") }}
+{{ if eq (.Get "cap-data") "capability-matrix-snapshot" }}
+    {{ $cap_data = index $.Site.Data.capability_matrix_snapshot (.Get "cap-data") }}
+{{ end }}
+
+
+<div class="information-container">
+    <div>
+        <h5>How to read the tables</h5>
+        <table class="read-tables">
+            <tr>
+                <th></th>
+                <th class="border-left">Tools we are comparing</th>
+            </tr>
+            <tr class="border-top">
+                <td class="border-right">Properties</td>
+                <td style="border-left: 3px solid #ff6d05">
+                    Does this tool have this property?<span>Yes/Partially/No/Unverified</span>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div class="second-container">
+        <h5>What do those signs mean?</h5>
+        <div class="row">
+            <div class="box white">&#x2713;</div>
+            <div>Yes</div>
+        </div>
+        <div class="row">
+            <div class="box partial">~</div>
+            <div>Partially</div>
+        </div>
+        <div class="row">
+            <div class="box partial">?</div>
+            <div>Unverified</div>
+        </div>
+        <div class="row">
+            <div class="box gray">&#x2715;</div>
+            <div>No</div>
+        </div>
+    </div>
+</div>
+{{ range $category := $cap_data.categories }}
+    <h4>{{ $category.description }}</h4>
+    <div class="table-container">
+        <div class="table-left">
+            <table>
+                <tr>
+                    <th></th>
+                </tr>
+                {{ range $row := $category.rows }}
+                    <tr>
+                        <th>{{ $row.name }}</th>
+                    </tr>
+                {{ end }}
+            </table>
+        </div>
+        <div class="table-right">
+            <div id="{{ $category.description | urlize }}" class="table-headers">
+                <table>
+                    <tr>
+                        {{ range $column := $cap_data.columns }}
+                            <th>{{ $column.name }}</th>
+                        {{ end }}
+                    </tr>
+                </table>
+            </div>
+            <div id="{{ $category.description | urlize }}" class="table-center">
+                <table>
+                    {{ range $row := $category.rows }}
+                        <tr>
+                            {{ range $val := $row.values }}
+                                <td style='background-color:#{{ if eq $val.l1 "Yes" }}{{ index $category "color-y" }}{{ else if eq $val.l1 "Partially" }}{{ index $category "color-p" }}{{ else }}{{ index $category "color-n" }}{{ end }};border-color:#{{ if eq $val.l1 "Yes" }}{{ index $category "color-yb" }}{{ else if eq $val.l1 "Partially" }}{{ index $category "color-pb" }}{{ else }}{{ index $category "color-nb" }}{{ end }}'>
+                                    {{ partial "documentation/capability-matrix-row" (dict "type" $cap_view "val" $val) }}
+                                </td>
+                            {{ end }}
+                        </tr>
+                    {{ end }}
+                </table>
+            </div>
+        </div>
+    </div>
+    <a id="table-link" href="/documentation/runners/capability-matrix/{{ $category.description | urlize }}/">{{ T "capability-go-big" }}</a>
+{{ end }}
+
+<script>
+    $('.table-headers').scroll(function(e){
+        $('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
+    });
+    $('.table-center').scroll(function(e){
+        $('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
+    });
+
+</script>

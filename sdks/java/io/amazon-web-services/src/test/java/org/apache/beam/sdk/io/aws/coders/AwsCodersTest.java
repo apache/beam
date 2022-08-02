@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.aws.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import com.amazonaws.ResponseMetadata;
 import com.amazonaws.http.HttpResponse;

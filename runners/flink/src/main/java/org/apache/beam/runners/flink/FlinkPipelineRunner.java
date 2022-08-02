@@ -23,6 +23,7 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -42,9 +43,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.sdk.options.PortablePipelineOptions.RetrievalServiceType;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -55,6 +54,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Runs a Pipeline on Flink via {@link FlinkRunner}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class FlinkPipelineRunner implements PortablePipelineRunner {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkPipelineRunner.class);
 
@@ -120,13 +122,8 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
 
   private PortablePipelineResult createPortablePipelineResult(
       JobExecutionResult result, PipelineOptions options) {
-    // The package of DetachedJobExecutionResult has been changed in 1.10.
-    // Refer to https://github.com/apache/flink/commit/c36b35e6876ecdc717dade653e8554f9d8b543c9 for
-    // details.
     String resultClassName = result.getClass().getCanonicalName();
-    if (resultClassName.equals(
-            "org.apache.flink.client.program.DetachedEnvironment.DetachedJobExecutionResult")
-        || resultClassName.equals("org.apache.flink.core.execution.DetachedJobExecutionResult")) {
+    if (resultClassName.equals("org.apache.flink.core.execution.DetachedJobExecutionResult")) {
       LOG.info("Pipeline submitted in Detached mode");
       // no metricsPusher because metrics are not supported in detached mode
       return new FlinkPortableRunnerResult.Detached();
@@ -170,13 +167,16 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     Pipeline pipeline = PortablePipelineJarUtils.getPipelineFromClasspath(baseJobName);
     Struct originalOptions = PortablePipelineJarUtils.getPipelineOptionsFromClasspath(baseJobName);
 
-    // Flink pipeline jars distribute and retrieve artifacts via the classpath.
-    PortablePipelineOptions portablePipelineOptions =
-        PipelineOptionsTranslation.fromProto(originalOptions).as(PortablePipelineOptions.class);
-    portablePipelineOptions.setRetrievalServiceType(RetrievalServiceType.CLASSLOADER);
-    String retrievalToken = PortablePipelineJarUtils.getArtifactManifestUri(baseJobName);
+    // The retrieval token is only required by the legacy artifact service, which the Flink runner
+    // no longer uses.
+    String retrievalToken =
+        ArtifactApi.CommitManifestResponse.Constants.NO_ARTIFACTS_STAGED_TOKEN
+            .getValueDescriptor()
+            .getOptions()
+            .getExtension(RunnerApi.beamConstant);
 
-    FlinkPipelineOptions flinkOptions = portablePipelineOptions.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions flinkOptions =
+        PipelineOptionsTranslation.fromProto(originalOptions).as(FlinkPipelineOptions.class);
     String invocationId =
         String.format("%s_%s", flinkOptions.getJobName(), UUID.randomUUID().toString());
 

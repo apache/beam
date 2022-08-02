@@ -51,6 +51,9 @@ import org.joda.time.format.ISODateTimeFormat;
  *
  * <p>Components specify their display data by implementing the {@link HasDisplayData} interface.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DisplayData implements Serializable {
   private static final DisplayData EMPTY = new DisplayData(Maps.newHashMap());
   private static final DateTimeFormatter TIMESTAMP_FORMATTER = ISODateTimeFormat.dateTime();
@@ -160,11 +163,11 @@ public class DisplayData implements Serializable {
      * }
      * }</pre>
      *
-     * <p>Using {@code include(path, subcomponent)} will associate each of the registered items with
-     * the namespace of the {@code subcomponent} being registered, with the specified path element
+     * <p>Using {@code include(path, subComponent)} will associate each of the registered items with
+     * the namespace of the {@code subComponent} being registered, with the specified path element
      * relative to the current path. To register display data in the current path and namespace,
      * such as from a base class implementation, use {@code
-     * subcomponent.populateDisplayData(builder)} instead.
+     * subComponent.populateDisplayData(builder)} instead.
      *
      * @see HasDisplayData#populateDisplayData(DisplayData.Builder)
      */
@@ -208,16 +211,16 @@ public class DisplayData implements Serializable {
   public abstract static class Item implements Serializable {
 
     /** The path for the display item within a component hierarchy. */
-    @Nullable
     @JsonIgnore
+    @Nullable
     public abstract Path getPath();
 
     /**
      * The namespace for the display item. The namespace defaults to the component which the display
      * item belongs to.
      */
-    @Nullable
     @JsonGetter("namespace")
+    @Nullable
     public abstract Class<?> getNamespace();
 
     /**
@@ -294,7 +297,7 @@ public class DisplayData implements Serializable {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       return String.format("%s%s:%s=%s", getPath(), getNamespace().getName(), getKey(), getValue());
     }
   }
@@ -408,7 +411,7 @@ public class DisplayData implements Serializable {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       return String.format("%s:%s=%s", getNamespace(), getKey(), getValue());
     }
 
@@ -475,7 +478,7 @@ public class DisplayData implements Serializable {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       return String.format("%s%s:%s", getPath(), getNamespace(), getKey());
     }
   }
@@ -755,8 +758,13 @@ public class DisplayData implements Serializable {
       }
       if (namespace.isSynthetic() && namespace.getSimpleName().contains("$$Lambda")) {
         try {
-          namespace =
-              Class.forName(namespace.getCanonicalName().replaceFirst("\\$\\$Lambda.*", ""));
+          String className = namespace.getCanonicalName();
+          // A local class, local interface, or anonymous class does not have a canonical name.
+          // https://docs.oracle.com/javase/specs/jls/se17/html/jls-6.html#jls-6.7
+          if (className == null) {
+            className = namespace.getName();
+          }
+          namespace = Class.forName(className.replaceFirst("\\$\\$Lambda.*", ""));
         } catch (Exception e) {
           throw new PopulateDisplayDataException(
               "Failed to get the enclosing class of lambda " + subComponent, e);

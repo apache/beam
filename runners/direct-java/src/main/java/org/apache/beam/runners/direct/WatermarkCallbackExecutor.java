@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ComparisonChain;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -49,6 +50,9 @@ import org.joda.time.Instant;
  * followed by a call to {@link #fireForWatermark(AppliedPTransform, Instant)} for the same
  * transform with the current value of the watermark.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class WatermarkCallbackExecutor {
   /** Create a new {@link WatermarkCallbackExecutor}. */
   public static WatermarkCallbackExecutor create(Executor executor) {
@@ -159,7 +163,8 @@ class WatermarkCallbackExecutor {
         BoundedWindow window, WindowingStrategy<?, W> strategy, Runnable callback) {
       // Fire one milli past the end of the window. This ensures that all window expiration
       // timers are delivered first
-      Instant firingAfter = window.maxTimestamp().plus(strategy.getAllowedLateness()).plus(1L);
+      Instant firingAfter =
+          window.maxTimestamp().plus(strategy.getAllowedLateness()).plus(Duration.millis(1L));
       return new WatermarkCallback(firingAfter, callback);
     }
 

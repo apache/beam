@@ -19,8 +19,6 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import java.io.Serializable;
 import java.util.Collection;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -123,27 +121,6 @@ public abstract class WindowFn<T, W extends BoundedWindow> implements Serializab
    * that can be produced by this {@link WindowFn}.
    */
   public abstract WindowMappingFn<W> getDefaultWindowMappingFn();
-
-  /**
-   * Returns the output timestamp to use for data depending on the given {@code inputTimestamp} in
-   * the specified {@code window}.
-   *
-   * <p>The result of this method must be between {@code inputTimestamp} and {@code
-   * window.maxTimestamp()} (inclusive on both sides).
-   *
-   * <p>This function must be monotonic across input timestamps. Specifically, if {@code A < B},
-   * then {@code getOutputTime(A, window) <= getOutputTime(B, window)}.
-   *
-   * <p>For a {@link WindowFn} that doesn't produce overlapping windows, this can (and typically
-   * should) just return {@code inputTimestamp}. In the presence of overlapping windows, it is
-   * suggested that the result in later overlapping windows is past the end of earlier windows so
-   * that the later windows don't prevent the watermark from progressing past the end of the earlier
-   * window.
-   */
-  @Experimental(Kind.OUTPUT_TIME)
-  public Instant getOutputTime(Instant inputTimestamp, W window) {
-    return inputTimestamp;
-  }
 
   /** Returns true if this {@code WindowFn} never needs to merge any windows. */
   public boolean isNonMerging() {

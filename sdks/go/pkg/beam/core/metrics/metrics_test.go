@@ -18,8 +18,12 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 // bID is a bundleId to use in the tests, if nothing more specific is needed.
@@ -301,6 +305,221 @@ func TestNameCollisions(t *testing.T) {
 				}
 
 			})
+	}
+}
+
+func TestMergeCounters(t *testing.T) {
+	realKey := StepKey{Name: "real"}
+	tests := []struct {
+		name                 string
+		attempted, committed map[StepKey]int64
+		want                 []CounterResult
+	}{
+		{
+			name: "merge",
+			attempted: map[StepKey]int64{
+				realKey: 5,
+			},
+			committed: map[StepKey]int64{
+				realKey: 7,
+			},
+			want: []CounterResult{{Attempted: 5, Committed: 7, Key: realKey}},
+		}, {
+			name: "attempted only",
+			attempted: map[StepKey]int64{
+				realKey: 5,
+			},
+			committed: map[StepKey]int64{},
+			want:      []CounterResult{{Attempted: 5, Key: realKey}},
+		}, {
+			name:      "committed only",
+			attempted: map[StepKey]int64{},
+			committed: map[StepKey]int64{
+				realKey: 7,
+			},
+			want: []CounterResult{{Committed: 7, Key: realKey}},
+		},
+	}
+	less := func(a, b CounterResult) bool {
+		return a.Key.Name < b.Key.Name
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := MergeCounters(test.attempted, test.committed)
+			if d := cmp.Diff(test.want, got, cmpopts.SortSlices(less)); d != "" {
+				t.Errorf("MergeCounters(%+v, %+v) = %+v, want %+v\ndiff:\n%v", test.attempted, test.committed, got, test.want, d)
+			}
+		})
+	}
+}
+
+func TestMergeDistributions(t *testing.T) {
+	realKey := StepKey{Name: "real"}
+	distA := DistributionValue{Count: 2, Sum: 5, Min: 1, Max: 4}
+	distB := DistributionValue{Count: 3, Sum: 5, Min: 1, Max: 2}
+	tests := []struct {
+		name                 string
+		attempted, committed map[StepKey]DistributionValue
+		want                 []DistributionResult
+	}{
+		{
+			name: "merge",
+			attempted: map[StepKey]DistributionValue{
+				realKey: distA,
+			},
+			committed: map[StepKey]DistributionValue{
+				realKey: distB,
+			},
+			want: []DistributionResult{{Attempted: distA, Committed: distB, Key: realKey}},
+		}, {
+			name: "attempted only",
+			attempted: map[StepKey]DistributionValue{
+				realKey: distA,
+			},
+			committed: map[StepKey]DistributionValue{},
+			want:      []DistributionResult{{Attempted: distA, Key: realKey}},
+		}, {
+			name:      "committed only",
+			attempted: map[StepKey]DistributionValue{},
+			committed: map[StepKey]DistributionValue{
+				realKey: distB,
+			},
+			want: []DistributionResult{{Committed: distB, Key: realKey}},
+		},
+	}
+	less := func(a, b DistributionResult) bool {
+		return a.Key.Name < b.Key.Name
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := MergeDistributions(test.attempted, test.committed)
+			if d := cmp.Diff(test.want, got, cmpopts.SortSlices(less)); d != "" {
+				t.Errorf("MergeDistributions(%+v, %+v) = %+v, want %+v\ndiff:\n%v", test.attempted, test.committed, got, test.want, d)
+			}
+		})
+	}
+}
+
+func TestMergeGauges(t *testing.T) {
+	realKey := StepKey{Name: "real"}
+	now := time.Now()
+	later := now.Add(time.Hour)
+	gaugeA := GaugeValue{Value: 2, Timestamp: now}
+	gaugeB := GaugeValue{Value: 3, Timestamp: later}
+	tests := []struct {
+		name                 string
+		attempted, committed map[StepKey]GaugeValue
+		want                 []GaugeResult
+	}{
+		{
+			name: "merge",
+			attempted: map[StepKey]GaugeValue{
+				realKey: gaugeA,
+			},
+			committed: map[StepKey]GaugeValue{
+				realKey: gaugeB,
+			},
+			want: []GaugeResult{{Attempted: gaugeA, Committed: gaugeB, Key: realKey}},
+		}, {
+			name: "attempted only",
+			attempted: map[StepKey]GaugeValue{
+				realKey: gaugeA,
+			},
+			committed: map[StepKey]GaugeValue{},
+			want:      []GaugeResult{{Attempted: gaugeA, Key: realKey}},
+		}, {
+			name:      "committed only",
+			attempted: map[StepKey]GaugeValue{},
+			committed: map[StepKey]GaugeValue{
+				realKey: gaugeB,
+			},
+			want: []GaugeResult{{Committed: gaugeB, Key: realKey}},
+		},
+	}
+	less := func(a, b DistributionResult) bool {
+		return a.Key.Name < b.Key.Name
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := MergeGauges(test.attempted, test.committed)
+			if d := cmp.Diff(test.want, got, cmpopts.SortSlices(less)); d != "" {
+				t.Errorf("MergeGauges(%+v, %+v) = %+v, want %+v\ndiff:\n%v", test.attempted, test.committed, got, test.want, d)
+			}
+		})
+	}
+}
+
+func TestMsecQueryResult(t *testing.T) {
+	realKey := StepKey{Step: "sumFn"}
+	msecA := MsecValue{Start: 0, Process: 0, Finish: 0, Total: 0}
+	msecB := MsecValue{Start: 200 * time.Millisecond, Process: 0, Finish: 0, Total: 200 * time.Millisecond}
+	msecR := MsecResult{Attempted: msecA, Committed: msecB, Key: realKey}
+	res := Results{msecs: []MsecResult{msecR}}
+
+	tests := []struct {
+		name        string
+		queryResult Results
+		query       string
+		want        QueryResults
+	}{
+		{
+			name:        "present",
+			queryResult: res,
+			query:       "sumFn",
+			want:        QueryResults{msecs: []MsecResult{msecR}},
+		}, {
+			name:        "not present",
+			queryResult: res,
+			query:       "countFn",
+			want:        QueryResults{},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := res.Query(func(sr SingleResult) bool {
+				return strings.Contains(sr.Transform(), test.query)
+			})
+			if len(got.Msecs()) != len(test.want.Msecs()) {
+				t.Errorf("(Results).Query(by Transform %v) = %v, want = %v", test.query, got.Msecs(), test.want.Msecs())
+			}
+		})
+	}
+}
+
+func TestPcolQueryResult(t *testing.T) {
+	realKey := StepKey{Step: "sumFn"}
+	pcolA := PColValue{}
+	pcolB := PColValue{ElementCount: 1, SampledByteSize: DistributionValue{1, 1, 1, 1}}
+	pcolR := PColResult{Attempted: pcolA, Committed: pcolB, Key: realKey}
+	res := Results{pCols: []PColResult{pcolR}}
+
+	tests := []struct {
+		name        string
+		queryResult Results
+		query       string
+		want        QueryResults
+	}{
+		{
+			name:        "present",
+			queryResult: res,
+			query:       "sumFn",
+			want:        QueryResults{pCols: []PColResult{pcolR}},
+		}, {
+			name:        "not present",
+			queryResult: res,
+			query:       "countFn",
+			want:        QueryResults{},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := res.Query(func(sr SingleResult) bool {
+				return strings.Contains(sr.Transform(), test.query)
+			})
+			if len(got.PCols()) != len(test.want.PCols()) {
+				t.Errorf("(Results).Query(by Transform %v) = %v, want = %v", test.query, got.PCols(), test.want.PCols())
+			}
+		})
 	}
 }
 

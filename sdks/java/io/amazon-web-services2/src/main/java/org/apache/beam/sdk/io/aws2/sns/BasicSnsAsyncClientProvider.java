@@ -17,41 +17,46 @@
  */
 package org.apache.beam.sdk.io.aws2.sns;
 
+import static org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory.defaultFactory;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.net.URI;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sns.SnsAsyncClient;
-import software.amazon.awssdk.services.sns.SnsAsyncClientBuilder;
 
 /** Basic implementation of {@link SnsAsyncClientProvider} used by default in {@link SnsIO}. */
 class BasicSnsAsyncClientProvider implements SnsAsyncClientProvider {
-  private final AwsCredentialsProvider awsCredentialsProvider;
-  private final String region;
-  private final @Nullable URI serviceEndpoint;
+  private final ClientConfiguration config;
 
   BasicSnsAsyncClientProvider(
-      AwsCredentialsProvider awsCredentialsProvider, String region, @Nullable URI serviceEndpoint) {
-    checkArgument(awsCredentialsProvider != null, "awsCredentialsProvider can not be null");
+      AwsCredentialsProvider credentialsProvider, String region, @Nullable URI endpoint) {
+    checkArgument(credentialsProvider != null, "awsCredentialsProvider can not be null");
     checkArgument(region != null, "region can not be null");
-    this.awsCredentialsProvider = awsCredentialsProvider;
-    this.region = region;
-    this.serviceEndpoint = serviceEndpoint;
+    config = ClientConfiguration.create(credentialsProvider, Region.of(region), endpoint);
   }
 
   @Override
   public SnsAsyncClient getSnsAsyncClient() {
-    SnsAsyncClientBuilder builder =
-        SnsAsyncClient.builder()
-            .credentialsProvider(awsCredentialsProvider)
-            .region(Region.of(region));
+    return defaultFactory().create(SnsAsyncClient.builder(), config, null).build();
+  }
 
-    if (serviceEndpoint != null) {
-      builder.endpointOverride(serviceEndpoint);
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
     }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    BasicSnsAsyncClientProvider that = (BasicSnsAsyncClientProvider) o;
+    return config.equals(that.config);
+  }
 
-    return builder.build();
+  @Override
+  public int hashCode() {
+    return config.hashCode();
   }
 }

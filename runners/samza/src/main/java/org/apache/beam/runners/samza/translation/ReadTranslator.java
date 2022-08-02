@@ -18,6 +18,7 @@
 package org.apache.beam.runners.samza.translation;
 
 import java.util.Map;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.adapter.BoundedSourceSystem;
 import org.apache.beam.runners.samza.adapter.UnboundedSourceSystem;
@@ -25,7 +26,6 @@ import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.SamzaCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -54,9 +54,9 @@ public class ReadTranslator<T> implements TransformTranslator<PTransform<PBegin,
     final PCollection<T> output = ctx.getOutput(transform);
     final Coder<WindowedValue<T>> coder = SamzaCoders.of(output);
     final Source<?> source =
-        transform instanceof Read.Unbounded
-            ? ((Read.Unbounded) transform).getSource()
-            : ((Read.Bounded) transform).getSource();
+        transform instanceof SplittableParDo.PrimitiveBoundedRead
+            ? ((SplittableParDo.PrimitiveBoundedRead) transform).getSource()
+            : ((SplittableParDo.PrimitiveUnboundedRead) transform).getSource();
     final String id = ctx.getIdForPValue(output);
 
     // Create system descriptor

@@ -24,6 +24,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIt
 import org.junit.experimental.categories.Category;
 
 /** A utility class for querying annotations. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class Annotations {
 
   /** Annotation predicates. */

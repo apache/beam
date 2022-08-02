@@ -22,8 +22,8 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/map/pardoonetomany/Task.java
   visible: true
   placeholders:
-  - offset: 1777
-    length: 299
+  - offset: 2025
+    length: 306
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/map/pardoonetomany/TaskTest.java
   visible: false

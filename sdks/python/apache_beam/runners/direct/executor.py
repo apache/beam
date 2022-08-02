@@ -19,16 +19,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import itertools
 import logging
-import sys
+import queue
 import threading
 import traceback
-from builtins import object
-from builtins import range
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -36,9 +32,6 @@ from typing import FrozenSet
 from typing import Optional
 from typing import Set
 from weakref import WeakValueDictionary
-
-from future.moves import queue
-from future.utils import raise_
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.runners.worker import statesampler
@@ -74,7 +67,7 @@ class _ExecutorService(object):
         self,
         queue,  # type: queue.Queue[_ExecutorService.CallableTask]
         index):
-      super(_ExecutorService._ExecutorServiceWorker, self).__init__()
+      super().__init__()
       self.queue = queue
       self._index = index
       self._default_name = 'ExecutorServiceWorker-' + str(index)
@@ -195,14 +188,14 @@ class _SerialEvaluationState(_TransformEvaluationState):
   _GroupByKeyOnly.
   """
   def __init__(self, executor_service, scheduled):
-    super(_SerialEvaluationState, self).__init__(executor_service, scheduled)
+    super().__init__(executor_service, scheduled)
     self.serial_queue = collections.deque()
     self.currently_evaluating = None
     self._lock = threading.Lock()
 
   def complete(self, completed_work):
     self._update_currently_evaluating(None, completed_work)
-    super(_SerialEvaluationState, self).complete(completed_work)
+    super().complete(completed_work)
 
   def schedule(self, new_work):
     self._update_currently_evaluating(new_work, None)
@@ -217,7 +210,7 @@ class _SerialEvaluationState(_TransformEvaluationState):
       if self.serial_queue and not self.currently_evaluating:
         next_work = self.serial_queue.pop()
         self.currently_evaluating = next_work
-        super(_SerialEvaluationState, self).schedule(next_work)
+        super().schedule(next_work)
 
 
 class _TransformExecutorServices(object):
@@ -484,14 +477,15 @@ class _ExecutorServiceParallelExecutor(object):
     update = self.visible_updates.take()
     try:
       if update.exception:
-        t, v, tb = update.exc_info
-        raise_(t, v, tb)
+        raise update.exception
     finally:
       self.executor_service.shutdown()
       self.executor_service.await_completion()
 
   def request_shutdown(self):
     self.executor_service.shutdown()
+    self.executor_service.await_completion()
+    self.evaluation_context.shutdown()
 
   def schedule_consumers(self, committed_bundle):
     # type: (_Bundle) -> None
@@ -580,10 +574,6 @@ class _ExecutorServiceParallelExecutor(object):
       self.committed_bundle = committed_bundle
       self.unprocessed_bundle = unprocessed_bundle
       self.exception = exception
-      self.exc_info = sys.exc_info()
-      if self.exc_info[1] is not exception:
-        # Not the right exception.
-        self.exc_info = (exception, None, None)
 
   class _VisibleExecutorUpdate(object):
     """An update of interest to the user.
@@ -591,10 +581,9 @@ class _ExecutorServiceParallelExecutor(object):
     Used for awaiting the completion to decide whether to return normally or
     raise an exception.
     """
-    def __init__(self, exc_info=(None, None, None)):
-      self.finished = exc_info[0] is not None
-      self.exception = exc_info[1] or exc_info[0]
-      self.exc_info = exc_info
+    def __init__(self, exception=None):
+      self.finished = exception is not None
+      self.exception = exception
 
   class _MonitorTask(_ExecutorService.CallableTask):
     """MonitorTask continuously runs to ensure that pipeline makes progress."""
@@ -622,7 +611,7 @@ class _ExecutorServiceParallelExecutor(object):
                 'A task failed with exception: %s', update.exception)
             self._executor.visible_updates.offer(
                 _ExecutorServiceParallelExecutor._VisibleExecutorUpdate(
-                    update.exc_info))
+                    update.exception))
           update = self._executor.all_updates.poll()
         self._executor.evaluation_context.schedule_pending_unblocked_tasks(
             self._executor.executor_service)
@@ -630,8 +619,7 @@ class _ExecutorServiceParallelExecutor(object):
       except Exception as e:  # pylint: disable=broad-except
         _LOGGER.error('Monitor task died due to exception.\n %s', e)
         self._executor.visible_updates.offer(
-            _ExecutorServiceParallelExecutor._VisibleExecutorUpdate(
-                sys.exc_info()))
+            _ExecutorServiceParallelExecutor._VisibleExecutorUpdate(e))
       finally:
         if not self._should_shutdown():
           self._executor.executor_service.submit(self)

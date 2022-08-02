@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sorter;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.UUID;
 import org.apache.beam.sdk.extensions.sorter.ExternalSorter.Options.SorterType;
@@ -48,13 +48,10 @@ public class ExternalSorterBenchmark {
     for (int i = 0; i < N; i++) {
       sorter.add(
           KV.of(
-              UUID.randomUUID().toString().getBytes(Charset.defaultCharset()),
-              UUID.randomUUID().toString().getBytes(Charset.defaultCharset())));
+              UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8),
+              UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8)));
     }
-    int i = 0;
-    for (KV<byte[], byte[]> ignored : sorter.sort()) {
-      i++;
-    }
+    for (KV<byte[], byte[]> ignored : sorter.sort()) {}
     long end = System.currentTimeMillis();
     System.out.println(
         String.format("%s: %fs", sorter.getClass().getSimpleName(), (end - start) / 1000.0));

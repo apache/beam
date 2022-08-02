@@ -20,8 +20,6 @@ package org.apache.beam.runners.core.triggers;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import org.apache.beam.runners.core.MergingStateAccessor;
-import org.apache.beam.runners.core.StateAccessor;
 import org.apache.beam.runners.core.StateMerging;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
@@ -46,7 +44,10 @@ import org.joda.time.format.PeriodFormatter;
  * <p>This class is for internal use only and may change at any time.
  */
 // This class should be inlined to subclasses and deleted, simplifying them too
-// https://issues.apache.org/jira/browse/BEAM-1486
+// https://github.com/apache/beam/issues/18117
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStateMachine {
 
   protected static final List<SerializableFunction<Instant, Instant>> IDENTITY = ImmutableList.of();
@@ -153,8 +154,8 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
   }
 
   @Override
-  public void prefetchOnElement(StateAccessor<?> state) {
-    state.access(DELAYED_UNTIL_TAG).readLater();
+  public void prefetchOnElement(PrefetchContext c) {
+    c.state().access(DELAYED_UNTIL_TAG).readLater();
   }
 
   @Override
@@ -174,9 +175,8 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
   }
 
   @Override
-  public void prefetchOnMerge(MergingStateAccessor<?, ?> state) {
-    super.prefetchOnMerge(state);
-    StateMerging.prefetchCombiningValues(state, DELAYED_UNTIL_TAG);
+  public void prefetchOnMerge(MergingPrefetchContext c) {
+    StateMerging.prefetchCombiningValues(c.state(), DELAYED_UNTIL_TAG);
   }
 
   @Override
@@ -209,8 +209,8 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
   }
 
   @Override
-  public void prefetchShouldFire(StateAccessor<?> state) {
-    state.access(DELAYED_UNTIL_TAG).readLater();
+  public void prefetchShouldFire(PrefetchContext c) {
+    c.state().access(DELAYED_UNTIL_TAG).readLater();
   }
 
   @Override
@@ -294,7 +294,9 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
     @Override
     public Instant apply(Instant point) {
       long millisSinceStart = new Duration(offset, point).getMillis() % size.getMillis();
-      return millisSinceStart == 0 ? point : point.plus(size).minus(millisSinceStart);
+      return millisSinceStart == 0
+          ? point
+          : point.plus(size).minus(Duration.millis(millisSinceStart));
     }
 
     @Override

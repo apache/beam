@@ -61,6 +61,9 @@ import org.slf4j.LoggerFactory;
  * (HEC) endpoint.
  */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 abstract class HttpEventPublisher {
 
   private static final Logger LOG = LoggerFactory.getLogger(HttpEventPublisher.class);

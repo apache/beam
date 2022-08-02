@@ -20,11 +20,13 @@ package org.apache.beam.runners.core;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Map;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -87,5 +89,6 @@ public abstract class SplittableProcessElementInvoker<
       DoFnInvoker<InputT, OutputT> invoker,
       WindowedValue<InputT> element,
       RestrictionTracker<RestrictionT, PositionT> tracker,
-      WatermarkEstimator<WatermarkEstimatorStateT> watermarkEstimator);
+      WatermarkEstimator<WatermarkEstimatorStateT> watermarkEstimator,
+      Map<String, PCollectionView<?>> sideInputMapping);
 }

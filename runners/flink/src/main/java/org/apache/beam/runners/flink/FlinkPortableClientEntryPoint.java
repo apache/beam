@@ -18,7 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import java.io.File;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Arrays;
@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
  * protos offline. Allows the driver program to access actual execution environment and services, on
  * par with code executed by SDK workers.
  *
- * <p>The entry point starts the job server and provides the endpoint to the the driver program.
+ * <p>The entry point starts the job server and provides the endpoint to the driver program.
  *
  * <p>The external driver program constructs the Beam pipeline and submits it to the job service.
  *
@@ -67,6 +67,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Finally Flink launches the job.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class FlinkPortableClientEntryPoint {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkPortableClientEntryPoint.class);
   private static final String JOB_ENDPOINT_FLAG = "--job_endpoint";
@@ -185,7 +188,7 @@ public class FlinkPortableClientEntryPoint {
       String msg =
           String.format(
               "Failed to start job with driver program: %s %s output: %s",
-              executable, args, new String(output, Charset.defaultCharset()));
+              executable, args, new String(output, StandardCharsets.UTF_8));
       throw new RuntimeException(msg, e);
     }
   }

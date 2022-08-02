@@ -31,7 +31,7 @@ Transforms are implemented in Java and are available
 
 Install [Java Development kit (JDK) version 8](https://www.oracle.com/java/technologies/javase-downloads.html)
 in your system and make sure that `JAVA_HOME` environment variable points to
-your JDK installation. Make sure that `java` command is available in 
+your JDK installation. Make sure that `java` command is available in
 the environment.
 
 ```sh
@@ -51,7 +51,7 @@ setting up a Kafka cluster. One option is to setup the Kafka cluster in
 for step by step instructions on  setting up a single node Kafka cluster in GCE.
 When using Dataflow consider starting the Kafka cluster in the region where
 Dataflow pipeline will be running. See
-[here](https://cloud.google.com/dataflow/docs/concepts/regional-endpoints) 
+[here](https://cloud.google.com/dataflow/docs/concepts/regional-endpoints)
 for more details regarding the selecting a GCP region for Dataflow.
 
 Let's assume that that IP address of one of the [bootstrap servers](https://kafka.apache.org/quickstart)
@@ -65,14 +65,14 @@ export BOOTSTRAP_SERVER="123.45.67.89:123:9092"
 
 Perform Beam runner specific setup.
 
-ℹ️ Note that cross-language transforms require 
+ℹ️ Note that cross-language transforms require
 portable implementations of Spark/Flink/Direct runners. Dataflow requires
 [runner V2](https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2).
-See [here](https://beam.apache.org/documentation/runners/dataflow/) for 
+See [here](https://beam.apache.org/documentation/runners/dataflow/) for
 instructions for setting up Dataflow.
 
-Setup a virtual environment for running Beam Python programs. See 
-[here](https://beam.apache.org/get-started/quickstart-py/) for prerequisites. 
+Setup a virtual environment for running Beam Python programs. See
+[here](https://beam.apache.org/get-started/quickstart-py/) for prerequisites.
 Dataflow requires the `gcp` tag when installing Beam.
 
 ```sh
@@ -81,9 +81,9 @@ source env/bin/activate
 pip install 'apache-beam[gcp]'
 ```
 
-Run the Beam pipeline. You can either use the default Kafka topic name or 
-specify a Kafka topic name. Following command assumes Dataflow. See 
-[here](https://beam.apache.org/get-started/quickstart-py/) for instructions on 
+Run the Beam pipeline. You can either use the default Kafka topic name or
+specify a Kafka topic name. Following command assumes Dataflow. See
+[here](https://beam.apache.org/get-started/quickstart-py/) for instructions on
 running Beam Python programs on other runners.
 
 ℹ️ Note that this exemple is not available in Beam versions before 2.24.0 hence
@@ -93,7 +93,7 @@ provided in the section *Running the Example from a Beam Git Clone*.
 ```sh
 export PROJECT="$(gcloud config get-value project)"
 export TEMP_LOCATION="gs://MY-BUCKET/temp"
-export REGION="us-central1" 
+export REGION="us-central1"
 export JOB_NAME="kafka-taxi-`date +%Y%m%d-%H%M%S`"
 export NUM_WORKERS="5"
 
@@ -104,15 +104,14 @@ python -m apache_beam.examples.kafkataxi.kafka_taxi \
   --region $REGION \
   --num_workers $NUM_WORKERS \
   --job_name $JOB_NAME \
-  --bootstrap_servers $BOOTSTRAP_SERVER \
-  --experiments=use_runner_v2
+  --bootstrap_servers $BOOTSTRAP_SERVER
 ```
 
 ## *(Optional)*  Running the Example from a Beam Git Clone
 
 Running this example from a Beam Git clone requires some additional steps.
 
-Checkout a clone of the Beam Git repo. See 
+Checkout a clone of the Beam Git repo. See
 [here](https://beam.apache.org/contribute/) for prerequisites.
 
 Assume your Github username to be `GITHUB_USERNAME`.
@@ -129,28 +128,29 @@ Build IO expansion service jar.
 ```
 
 Push a java SDK Harness container to [Docker](https://www.docker.com/get-started)
-Hub. See 
-[here](https://beam.apache.org/documentation/runtime/environments/) for 
+Hub. See
+[here](https://beam.apache.org/documentation/runtime/environments/) for
 prerequisites and additional information.
 
 ```sh
 export DOCKER_ROOT="Your Docker Repository Root"
-./gradlew :sdks:java:container:docker -Pdocker-repository-root=$DOCKER_ROOT -Pdocker-tag=latest
-docker push $DOCKER_ROOT/beam_java_sdk:latest
+./gradlew :sdks:java:container:java8:docker -Pdocker-repository-root=$DOCKER_ROOT -Pdocker-tag=latest
+docker push $DOCKER_ROOT/beam_java8_sdk:latest
 ```
 
 For portable Flink/Spark in local mode, instead of above command just build the
 Java SDK harness container locally using the default values for repository root
 and the docker tag.
 
-Activate your Python virtual environment.  This example uses `venv`. See 
+Activate your Python virtual environment.  This example uses `venv`. See
 [here](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips) for
 instructions regarding setting up other types of Python virtual environments.
 
 ```sh
 cd ..  # Creating the virtual environment in the top level work directory.
-python -m venv env
-source env/bin/activate
+python3 -m venv env
+source ./env/bin/activate
+pip install --upgrade pip setuptools wheel
 ```
 
 Install Beam and dependencies and build a Beam distribution.
@@ -162,15 +162,15 @@ pip install -e '.[gcp]'
 python setup.py sdist
 ```
 
-Run the Beam pipeline. You can either use the default Kafka topic name or specify 
-a Kafka topic name. Following command assumes Dataflow. See 
-[here](https://beam.apache.org/get-started/quickstart-py/) for instructions on 
+Run the Beam pipeline. You can either use the default Kafka topic name or specify
+a Kafka topic name. Following command assumes Dataflow. See
+[here](https://beam.apache.org/get-started/quickstart-py/) for instructions on
 running Beam Python programs on other runners.
 
 ```sh
 export PROJECT="$(gcloud config get-value project)"
 export TEMP_LOCATION="gs://MY-BUCKET/temp"
-export REGION="us-central1" 
+export REGION="us-central1"
 export JOB_NAME="kafka-taxi-`date +%Y%m%d-%H%M%S`"
 export NUM_WORKERS="5"
 export PYTHON_DISTRIBUTION="dist/'Name of Python distribution'"
@@ -184,6 +184,5 @@ python -m apache_beam.examples.kafkataxi.kafka_taxi \
   --num_workers $NUM_WORKERS \
   --job_name $JOB_NAME \
   --bootstrap_servers $BOOTSTRAP_SERVER \
-  --sdk_harness_container_image_overrides ".*java.*,${DOCKER_ROOT}/beam_java_sdk:latest" \
-  --experiments=use_runner_v2
+  --sdk_harness_container_image_overrides ".*java.*,${DOCKER_ROOT}/beam_java8_sdk:latest"
 ```

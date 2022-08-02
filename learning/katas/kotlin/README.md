@@ -19,7 +19,7 @@
 
 ### How to Setup
 Please follow the below steps in order to setup the project properly:
-* Using IntelliJ Education (or IntelliJ with EduTools plugin), select "Open" and select this 
+* Using IntelliJ Education (or IntelliJ with EduTools plugin), select "Open" and select this
 directory (learning/katas/kotlin)
 * "Import Gradle project" when prompted, and configure the Gradle setup
 * Wait for Gradle build to finish
@@ -27,5 +27,5 @@ directory (learning/katas/kotlin)
 * Open the "Project" tool window, and select the "Course" view
 * Your project is ready
 
-For further instructions on how the IntelliJ Education works, you can refer 
+For further instructions on how the IntelliJ Education works, you can refer
 [here](https://www.jetbrains.com/help/education/educator-start-guide.html?section=Kotlin).

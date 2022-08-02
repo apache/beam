@@ -19,12 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import io
 import os
 import shutil
-from builtins import zip
 from typing import BinaryIO  # pylint: disable=unused-import
 
 from apache_beam.io.filesystem import BeamIOError
@@ -124,7 +121,7 @@ class LocalFileSystem(FileSystem):
     try:
       for f in list_files(dir_or_prefix):
         try:
-          yield FileMetadata(f, os.path.getsize(f))
+          yield FileMetadata(f, os.path.getsize(f), os.path.getmtime(f))
         except OSError:
           # Files may disappear, such as when listing /tmp.
           pass
@@ -162,9 +159,7 @@ class LocalFileSystem(FileSystem):
 
     Returns: file handle with a close function for the user to use
     """
-    if not os.path.exists(os.path.dirname(path)):
-      # TODO(Py3): Add exist_ok parameter.
-      os.makedirs(os.path.dirname(path))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     return self._path_open(path, 'wb', mime_type, compression_type)
 
   def open(
@@ -315,6 +310,22 @@ class LocalFileSystem(FileSystem):
     if not self.exists(path):
       raise BeamIOError('Path does not exist: %s' % path)
     return str(os.path.getsize(path))
+
+  def metadata(self, path):
+    """Fetch metadata fields of a file on the FileSystem.
+
+    Args:
+      path: string path of a file.
+
+    Returns:
+      :class:`~apache_beam.io.filesystem.FileMetadata`.
+
+    Raises:
+      ``BeamIOError``: if path isn't a file or doesn't exist.
+    """
+    if not self.exists(path):
+      raise BeamIOError('Path does not exist: %s' % path)
+    return FileMetadata(path, os.path.getsize(path), os.path.getmtime(path))
 
   def delete(self, paths):
     """Deletes files or directories at the provided paths.

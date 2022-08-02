@@ -27,38 +27,142 @@ exploration much faster and easier. It provides nice features including
 
 1.  Graphical representation
 
-    When a pipeline is executed on a Jupyter notebook, it instantly displays the
-    pipeline as a directed acyclic graph. Sampled PCollection results will be
-    added to the graph as the pipeline execution proceeds.
-
-2.  Fetching PCollections as list
-
-    PCollections can be fetched as a list from the pipeline result. This unique
-    feature of
-    [InteractiveRunner](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/interactive/interactive_runner.py)
-    makes it much easier to integrate Beam pipeline into data analysis.
+    Visualize the Pipeline DAG:
 
     ```python
-    p = beam.Pipeline(interactive_runner.InteractiveRunner())
-    pcoll = p | SomePTransform | AnotherPTransform
-    result = p.run().wait_until_finish()
-    pcoll_list = result.get(pcoll)  # This returns a list!
+    import apache_beam.runners.interactive.interactive_beam as ib
+    from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
+
+    p = beam.Pipeline(InteractiveRunner())
+    # ... add transforms
+    ib.show_graph(pipeline)
     ```
 
-3.  Faster re-execution
-
-    [InteractiveRunner](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/interactive/interactive_runner.py)
-    caches PCollection results of pipeline executed previously and re-uses it
-    when the same pipeline is submitted again.
+    Visualize elements in a PCollection:
 
     ```python
-    p = beam.Pipeline(interactive_runner.InteractiveRunner())
-    pcoll = p | SomePTransform | AnotherPTransform
-    result = p.run().wait_until_finish()
-
-    pcoll2 = pcoll | YetAnotherPTransform
-    result = p.run().wait_until_finish()  # <- only executes YetAnotherPTransform
+    pcoll = p | beam.Create([1, 2, 3])
+    # include_window_info displays windowing information
+    # visualize_data visualizes data with https://pair-code.github.io/facets/
+    ib.show(pcoll, include_window_info=True, visualize_data=True)
     ```
+    More details see the docstrings of `interactive_beam` module.
+
+2.  Support of streaming record/replay and dynamic visualization
+
+    For streaming pipelines, Interactive Beam records a subset of unbounded
+    sources in the pipeline automatically so that they can be replayed for
+    pipeline changes during prototyping.
+
+    There are a few knobs to tune the source recording:
+
+    ```python
+    # Set the amount of time recording data from unbounded sources.
+    ib.options.recording_duration = '10m'
+
+    # Set the recording size limit to 1 GB.
+    ib.options.recording_size_limit = 1e9
+
+    # Visualization is dynamic as data streamed in real time.
+    # n=100 indicates that displays at most 100 elements.
+    # duration=60 indicates that displays at most 60 seconds worth of unbounded
+    # source generated data.
+    ib.show(pcoll, include_window_info=True, n=100, duration=60)
+
+    # duration can also be strings.
+    ib.show(pcoll, include_window_info=True, duration='1m')
+
+    # If neither n nor duration is provided, the display is indefinitely until
+    # the current machine's recording usage hits the threadshold set by
+    # ib.options.
+    ib.show(pcoll, include_window_info=True)
+    ```
+    More details see the docstrings of `interactive_beam` module.
+
+3.  Fetching PCollections as pandas.DataFrame
+
+    PCollections can be collected as a pandas.DataFrame:
+
+    ```python
+    pcoll_df = ib.collect(pcoll)  # This returns a pandas.DataFrame!
+    ```
+
+4.  Faster execution and re-execution
+
+    Interactive Beam analyzes the pipeline graph depending on what PCollection
+    you want to inspect and builds a pipeline fragment to only compute
+    necessary data.
+
+    ```python
+    pcoll = p | PTransformA | PTransformB
+    pcoll2 = p | PTransformC | PTransformD
+
+    ib.collect(pcoll)  # <- only executes PTransformA and PTransformB
+    ib.collect(pcoll2)  # <- only executes PTransformC and PTransformD
+    ```
+
+    Interactive Beam caches PCollection inspected previously and re-uses it
+    when the data is still in scope.
+
+    ```python
+    pcoll = p | PTransformA
+    # pcoll2 depends on pcoll
+    pcoll2 = pcoll | PTransformB
+    ib.collect(pcoll2)  # <- caches data for both pcoll and pcoll2
+
+    pcoll3 = pcoll2 | PTransformC
+    ib.collect(pcoll3)  # <- reuses data of pcoll2 and only executes PTransformC
+
+    pcoll4 = pcoll | PTransformD
+    ib.collect(pcoll4)  # <- reuses data of pcoll and only executes PTransformD
+    ```
+
+5. Supports global and local scopes
+
+   Interactive Beam automatically watches the `__main__` scope for pipeline and
+   PCollection definitions to implicitly do magic under the hood.
+
+   ```python
+   # In a script or in a notebook
+   p = beam.Pipeline(InteractiveRunner())
+   pcoll = beam | SomeTransform
+   pcoll2 = pcoll | SomeOtherTransform
+
+   # p, pcoll and pcoll2 are all known to Interactive Beam.
+   ib.collect(pcoll)
+   ib.collect(pcoll2)
+   ib.show_graph(p)
+   ```
+
+   You have to explicitly watch pipelines and PCollections in your local scope.
+   Otherwise, Interactive Beam doesn't know about them and won't handle them
+   with interactive features.
+
+   ```python
+   def a_func():
+     p = beam.Pipeline(InteractiveRunner())
+     pcoll = beam | SomeTransform
+     pcoll2 = pcoll | SomeOtherTransform
+
+     # Watch everything defined locally before this line.
+     ib.watch(locals())
+     # Or explicitly watch them.
+     ib.watch({
+         'p': p,
+         'pcoll': pcoll,
+         'pcoll2': pcoll2})
+
+     # p, pcoll and pcoll2 are all known to Interactive Beam.
+     ib.collect(pcoll)
+     ib.collect(pcoll2)
+     ib.show_graph(p)
+
+     return p, pcoll, pcoll2
+
+   # Or return them to main scope
+   p, pcoll, pcoll2 = a_func()
+   ib.collect(pcoll)  # Also works!
+   ```
 
 ## Status
 
@@ -84,24 +188,13 @@ a quick reference). For a more general and complete getting started guide, see
 *   Install [GraphViz](https://www.graphviz.org/download/) with your favorite
     system package manager.
 
--   Install [JupyterLab](https://jupyter.org/install.html). You can use
-    either **conda** or **pip**.
-
-    * conda
-        ```bash
-        conda install -c conda-forge jupyterlab
-        ```
-    * pip
-        ```bash
-        pip install jupyterlab
-        ```
-
--   Install, create and activate your [venv](https://docs.python.org/3/library/venv.html).
+*   Install, create and activate your [venv](https://docs.python.org/3/library/venv.html).
     (optional but recommended)
 
     ```bash
     python3 -m venv /path/to/beam_venv_dir
     source /path/to/beam_venv_dir/bin/activate
+    pip install --upgrade pip setuptools wheel
     ```
 
     If you are using shells other than bash (e.g. fish, csh), check
@@ -114,6 +207,18 @@ a quick reference). For a more general and complete getting started guide, see
     which python  # This sould point to beam_venv_dir/bin/python
     ```
 
+*   Install [JupyterLab](https://jupyter.org/install.html). You can use
+    either **conda** or **pip**.
+
+    * conda
+        ```bash
+        conda install -c conda-forge jupyterlab
+        ```
+    * pip
+        ```bash
+        pip install jupyterlab
+        ```
+
 *   Set up Apache Beam Python. **Make sure the virtual environment is activated
     when you run `setup.py`**
 
@@ -123,7 +228,7 @@ a quick reference). For a more general and complete getting started guide, see
     python setup.py install
     ```
 
--   Install an IPython kernel for the virtual environment you've just created.
+*   Install an IPython kernel for the virtual environment you've just created.
     **Make sure the virtual environment is activate when you do this.** You can
     skip this step if not using venv.
 
@@ -139,7 +244,7 @@ a quick reference). For a more general and complete getting started guide, see
     jupyter kernelspec list
     ```
 
--   Extend JupyterLab through labextension. **Note**: labextension is different from nbextension
+*   Extend JupyterLab through labextension. **Note**: labextension is different from nbextension
     from pre-lab jupyter notebooks.
 
     All jupyter labextensions need nodejs
@@ -243,6 +348,12 @@ credential settings.
     p = beam.Pipeline(runner=runner)
     ```
 
+*   Alternatively, you may configure a cache directory to be used by all interactive pipelines through using the `cache_root` option under interactive_beam. If the cache directory is specified this way, no additional parameters are required to be passed in during pipeline instantiation.
+
+*   ```python
+    ib.options.cache_root = 'gs://bucket-name/dir'
+    ```
+
 ### Portability across Execution Platforms
 
 The platform where the pipeline is executed is decided by the underlying runner
@@ -260,6 +371,23 @@ You can choose to run Interactive Beam on Flink with the following settings.
 
     ```python
     p = beam.Pipeline(interactive_runner.InteractiveRunner(underlying_runner=flink_runner.FlinkRunner()))
+    ```
+
+*   Alternatively, if the runtime environment is configured with a Google Cloud project, you can run Interactive Beam with Flink on Cloud Dataproc. To do so, configure the pipeline with a Google Cloud project. If using dev versioned Beam built from source code, it is necessary to specify an `environment_config` option to configure a containerized Beam SDK (you can choose a released container or build one yourself).
+
+*   ```python
+    ib.options.cache_root = 'gs://bucket-name/dir'
+    options = PipelineOptions([
+    # The project can be attained simply from running the following commands:
+    # import google.auth
+    # project = google.auth.default()[1]
+    '--project={}'.format(project),
+    # The following environment_config only needs to be used when using a development kernel.
+    # Users do not need to use the 2.35.0 SDK, but the chosen release must be compatible with
+    # the Flink version used by the Dataproc image used by Interactive Beam. The current Flink
+    # version used is 1.12.5.
+    '--environment_config=apache/beam_python3.7_sdk:2.35.0',
+    ])
     ```
 
 **Note**: This guide and

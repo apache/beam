@@ -100,9 +100,9 @@ For more information on changes in 2.10.0, check out the
 According to git shortlog, the following people contributed
 to the 2.10.0 release. Thank you to all contributors!
 
-Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Anton Kedin, Rui Wang, 
+Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Anton Kedin, Rui Wang,
 Andrew Brampton Andrew Pilloud, Ankur Goenka, Antonio D'souza, Bingfeng Shu,
-Boyuan Zhang, brucearctor, Cade Markegard, Chaim Turkel, Chamikara Jayalath, 
+Boyuan Zhang, brucearctor, Cade Markegard, Chaim Turkel, Chamikara Jayalath,
 Charles Chen, Colm O hEigeartaigh, Cory, Craig Chambers, Cristian, Daniel
 Mills, Daniel Oliveira, David Cavazos, David Hrbacek, David Moravek, Dawid
 Wysakowicz, djhworld, Dustin Rhodes, Etienne Chauchot, Fabien Rousseau, Garrett

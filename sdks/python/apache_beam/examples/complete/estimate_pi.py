@@ -26,15 +26,10 @@ we multiply our counts ratio by four to estimate π.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import argparse
 import json
 import logging
 import random
-from builtins import object
-from builtins import range
 from typing import Any
 from typing import Iterable
 from typing import Tuple
@@ -88,7 +83,7 @@ def combine_results(results):
 class JsonCoder(object):
   """A JSON coder used to format the final result."""
   def encode(self, x):
-    return json.dumps(x)
+    return json.dumps(x).encode('utf-8')
 
 
 class EstimatePiTransform(beam.PTransform):

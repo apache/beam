@@ -85,6 +85,9 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SplunkIO {
 
   /**
@@ -147,7 +150,7 @@ public class SplunkIO {
               .withUrl(url())
               .withInputBatchCount(batchCount())
               .withDisableCertificateValidation(disableCertificateValidation())
-              .withToken((token()));
+              .withToken(token());
 
       SplunkEventWriter writer = builder.build();
       LOG.info("SplunkEventWriter configured");
@@ -242,7 +245,7 @@ public class SplunkIO {
           disableCertificateValidation != null,
           "withDisableCertificateValidation(disableCertificateValidation) called with null input.");
       return toBuilder()
-          .setDisableCertificateValidation(StaticValueProvider.of((disableCertificateValidation)))
+          .setDisableCertificateValidation(StaticValueProvider.of(disableCertificateValidation))
           .build();
     }
 

@@ -19,11 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import concurrent
 import logging
-import sys
 import time
 
 from hamcrest.core.base_matcher import BaseMatcher
@@ -63,13 +60,16 @@ class BigqueryMatcher(BaseMatcher):
   Fetch Bigquery data with given query, compute a hash string and compare
   with expected checksum.
   """
-  def __init__(self, project, query, checksum):
+  def __init__(self, project, query, checksum, timeout_secs=0):
     """Initialize BigQueryMatcher object.
     Args:
       project: The name (string) of the project.
       query: The query (string) to perform.
       checksum: SHA-1 hash generated from a sorted list of lines
         read from expected output.
+      timeout_secs: Duration to retry query until checksum matches. This
+        is useful for DF streaming pipelines or BQ streaming inserts. The
+        default (0) never retries.
     """
     if bigquery is None:
       raise ImportError('Bigquery dependencies are not installed.')
@@ -82,9 +82,16 @@ class BigqueryMatcher(BaseMatcher):
     self.query = query
     self.expected_checksum = checksum
     self.checksum = None
+    self.timeout_secs = timeout_secs
 
   def _matches(self, _):
-    if self.checksum is None:
+    @retry.with_exponential_backoff(
+        num_retries=1000,
+        initial_delay_secs=0.5,
+        max_delay_secs=30,
+        stop_after_secs=self.timeout_secs,
+    )
+    def get_checksum():
       response = self._query_with_retry()
       _LOGGER.info(
           'Read from given query (%s), total rows %d',
@@ -92,6 +99,17 @@ class BigqueryMatcher(BaseMatcher):
           len(response))
       self.checksum = compute_hash(response)
       _LOGGER.info('Generate checksum: %s', self.checksum)
+      if self.checksum != self.expected_checksum:
+        # This exception is never raised beyond the enclosing method.
+        raise ValueError(
+            'Checksums do not match. Expected: %s, got: %s' %
+            (self.expected_checksum, self.checksum))
+
+    if self.checksum is None:
+      try:
+        get_checksum()
+      except ValueError:
+        pass
 
     return self.checksum == self.expected_checksum
 
@@ -130,8 +148,7 @@ class BigqueryFullResultMatcher(BigqueryMatcher):
       query: The query (string) to perform.
       data: List of tuples with the expected data.
     """
-    super(BigqueryFullResultMatcher,
-          self).__init__(project, query, 'unused_checksum')
+    super().__init__(project, query, 'unused_checksum')
     self.expected_data = data
     self.actual_data = None
 
@@ -173,8 +190,7 @@ class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
   DEFAULT_TIMEOUT = 5 * 60
 
   def __init__(self, project, query, data, timeout=DEFAULT_TIMEOUT):
-    super(BigqueryFullResultStreamingMatcher,
-          self).__init__(project, query, data)
+    super().__init__(project, query, data)
     self.timeout = timeout
 
   def _get_query_result(self):
@@ -185,10 +201,7 @@ class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
         return response
       _LOGGER.debug('Query result contains %d rows' % len(response))
       time.sleep(1)
-    if sys.version_info >= (3, ):
-      raise TimeoutError('Timeout exceeded for matcher.')  # noqa: F821
-    else:
-      raise RuntimeError('Timeout exceeded for matcher.')
+    raise TimeoutError('Timeout exceeded for matcher.')  # noqa: F821
 
 
 class BigQueryTableMatcher(BaseMatcher):

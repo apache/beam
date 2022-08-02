@@ -28,18 +28,16 @@ For an example implementation of :class:`FileBasedSource` see
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from typing import Callable
-
-from past.builtins import long
-from past.builtins import unicode
+from typing import Tuple
+from typing import Union
 
 from apache_beam.internal import pickler
 from apache_beam.io import concat_source
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.options.value_provider import StaticValueProvider
@@ -106,13 +104,13 @@ class FileBasedSource(iobase.BoundedSource):
         result.
     """
 
-    if not isinstance(file_pattern, ((str, unicode), ValueProvider)):
+    if not isinstance(file_pattern, (str, ValueProvider)):
       raise TypeError(
           '%s: file_pattern must be of type string'
           ' or ValueProvider; got %r instead' %
           (self.__class__.__name__, file_pattern))
 
-    if isinstance(file_pattern, (str, unicode)):
+    if isinstance(file_pattern, str):
       file_pattern = StaticValueProvider(str, file_pattern)
     self._pattern = file_pattern
 
@@ -251,11 +249,11 @@ class _SingleFileSource(iobase.BoundedSource):
       stop_offset,
       min_bundle_size=0,
       splittable=True):
-    if not isinstance(start_offset, (int, long)):
+    if not isinstance(start_offset, int):
       raise TypeError(
           'start_offset must be a number. Received: %r' % start_offset)
     if stop_offset != range_trackers.OffsetRangeTracker.OFFSET_INFINITY:
-      if not isinstance(stop_offset, (int, long)):
+      if not isinstance(stop_offset, int):
         raise TypeError(
             'stop_offset must be a number. Received: %r' % stop_offset)
       if start_offset >= stop_offset:
@@ -348,9 +346,14 @@ class _ExpandIntoRanges(DoFn):
     self._splittable = splittable
     self._compression_type = compression_type
 
-  def process(self, element, *args, **kwargs):
-    match_results = FileSystems.match([element])
-    for metadata in match_results[0].metadata_list:
+  def process(self, element: Union[str, FileMetadata], *args,
+              **kwargs) -> Tuple[FileMetadata, OffsetRange]:
+    if isinstance(element, FileMetadata):
+      metadata_list = [element]
+    else:
+      match_results = FileSystems.match([element])
+      metadata_list = match_results[0].metadata_list
+    for metadata in metadata_list:
       splittable = (
           self._splittable and _determine_splittability_from_compression_type(
               metadata.path, self._compression_type))
@@ -366,20 +369,32 @@ class _ExpandIntoRanges(DoFn):
 
 
 class _ReadRange(DoFn):
-  def __init__(self, source_from_file):
-    # type: (Callable[[str], iobase.BoundedSource]) -> None
+  def __init__(
+      self,
+      source_from_file,  # type: Union[str, iobase.BoundedSource]
+      with_filename=False  # type: bool
+    ) -> None:
     self._source_from_file = source_from_file
+    self._with_filename = with_filename
 
   def process(self, element, *args, **kwargs):
     metadata, range = element
     source = self._source_from_file(metadata.path)
     # Following split() operation has to be performed to create a proper
     # _SingleFileSource. Otherwise what we have is a ConcatSource that contains
-    # a single _SingleFileSource. ConcatSource.read() expects a RangeTraker for
+    # a single _SingleFileSource. ConcatSource.read() expects a RangeTracker for
     # sub-source range and reads full sub-sources (not byte ranges).
-    source = list(source.split(float('inf')))[0].source
+    source_list = list(source.split(float('inf')))
+    # Handle the case of an empty source.
+    if not source_list:
+      return
+    source = source_list[0].source
+
     for record in source.read(range.new_tracker()):
-      yield record
+      if self._with_filename:
+        yield (metadata.path, record)
+      else:
+        yield record
 
 
 class ReadAllFiles(PTransform):
@@ -389,13 +404,13 @@ class ReadAllFiles(PTransform):
   PTransform authors who wishes to implement file-based Read transforms that
   read a PCollection of files.
   """
-
   def __init__(self,
                splittable,  # type: bool
                compression_type,
                desired_bundle_size,  # type: int
                min_bundle_size,  # type: int
                source_from_file,  # type: Callable[[str], iobase.BoundedSource]
+               with_filename=False  # type: bool
               ):
     """
     Args:
@@ -416,21 +431,42 @@ class ReadAllFiles(PTransform):
                         paths passed to this will be for individual files, not
                         for file patterns even if the ``PCollection`` of files
                         processed by the transform consist of file patterns.
+      with_filename: If True, returns a Key Value with the key being the file
+        name and the value being the actual data. If False, it only returns
+        the data.
     """
     self._splittable = splittable
     self._compression_type = compression_type
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._source_from_file = source_from_file
+    self._with_filename = with_filename
+    # TODO(BEAM-14497) always reshuffle once gbk always trigger works.
+    self._is_reshuffle = True
+
+  def _disable_reshuffle(self):
+    # TODO(BEAM-14497) Remove this private method once gbk always trigger works.
+    #
+    # Currently Reshuffle() holds elements until the stage is completed. When
+    # ReadRange is needed instantly after match (like read continuously), the
+    # reshard is temporarily disabled. However, the read then does not scale and
+    # is deemed experimental.
+    self._is_reshuffle = False
+    return self
 
   def expand(self, pvalue):
-    return (
+    pvalue = (
         pvalue
         | 'ExpandIntoRanges' >> ParDo(
             _ExpandIntoRanges(
                 self._splittable,
                 self._compression_type,
                 self._desired_bundle_size,
-                self._min_bundle_size))
-        | 'Reshard' >> Reshuffle()
-        | 'ReadRange' >> ParDo(_ReadRange(self._source_from_file)))
+                self._min_bundle_size)))
+    if self._is_reshuffle:
+      pvalue = pvalue | 'Reshard' >> Reshuffle()
+    return (
+        pvalue
+        | 'ReadRange' >> ParDo(
+            _ReadRange(
+                self._source_from_file, with_filename=self._with_filename)))

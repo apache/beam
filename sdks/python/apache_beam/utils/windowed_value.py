@@ -25,16 +25,19 @@ This module is experimental. No backwards-compatibility guarantees.
 # editing this file as WindowedValues are created for every element for
 # every step in a Beam pipeline.
 
-#cython: profile=True
+# cython: profile=True
+# cython: language_level=3
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-from builtins import object
+import collections
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Callable
+from typing import Iterable
+from typing import List
 from typing import Optional
+from typing import Sequence
 from typing import Tuple
 
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
@@ -121,14 +124,17 @@ class PaneInfo(object):
 
   @property
   def index(self):
+    # type: () -> int
     return self._index
 
   @property
   def nonspeculative_index(self):
+    # type: () -> int
     return self._nonspeculative_index
 
   @property
   def encoded_byte(self):
+    # type: () -> int
     return self._encoded_byte
 
   def __repr__(self):
@@ -144,14 +150,14 @@ class PaneInfo(object):
   def __eq__(self, other):
     if self is other:
       return True
-    return (
-        self.is_first == other.is_first and self.is_last == other.is_last and
-        self.timing == other.timing and self.index == other.index and
-        self.nonspeculative_index == other.nonspeculative_index)
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
+    if isinstance(other, PaneInfo):
+      return (
+          self.is_first == other.is_first and self.is_last == other.is_last and
+          self.timing == other.timing and self.index == other.index and
+          self.nonspeculative_index == other.nonspeculative_index)
+
+    return NotImplemented
 
   def __hash__(self):
     return hash((
@@ -167,6 +173,7 @@ class PaneInfo(object):
 
 
 def _construct_well_known_pane_infos():
+  # type: () -> List[PaneInfo]
   pane_infos = []
   for timing in (PaneInfoTiming.EARLY,
                  PaneInfoTiming.ON_TIME,
@@ -177,7 +184,9 @@ def _construct_well_known_pane_infos():
     pane_infos.append(PaneInfo(True, False, timing, 0, nonspeculative_index))
     pane_infos.append(PaneInfo(False, True, timing, -1, nonspeculative_index))
     pane_infos.append(PaneInfo(False, False, timing, -1, nonspeculative_index))
-  result = [None] * (max(p.encoded_byte for p in pane_infos) + 1)
+  result = [None] * (
+      max(p.encoded_byte for p in pane_infos) + 1
+  )  # type: List[PaneInfo]  # type: ignore[list-item]
   for pane_info in pane_infos:
     result[pane_info.encoded_byte] = pane_info
   return result
@@ -202,13 +211,13 @@ class WindowedValue(object):
       the pane that contained this value.  If None, will be set to
       PANE_INFO_UNKNOWN.
   """
-
-  def __init__(self,
-               value,
-               timestamp,  # type: TimestampTypes
-               windows,  # type: Tuple[BoundedWindow, ...]
-               pane_info=PANE_INFO_UNKNOWN
-              ):
+  def __init__(
+      self,
+      value,
+      timestamp,  # type: TimestampTypes
+      windows,  # type: Tuple[BoundedWindow, ...]
+      pane_info=PANE_INFO_UNKNOWN  # type: PaneInfo
+  ):
     # type: (...) -> None
     # For performance reasons, only timestamp_micros is stored by default
     # (as a C int). The Timestamp object is created on demand below.
@@ -241,20 +250,18 @@ class WindowedValue(object):
         self.pane_info)
 
   def __eq__(self, other):
-    return (
-        type(self) == type(other) and
-        self.timestamp_micros == other.timestamp_micros and
-        self.value == other.value and self.windows == other.windows and
-        self.pane_info == other.pane_info)
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
+    if isinstance(other, WindowedValue):
+      return (
+          type(self) == type(other) and
+          self.timestamp_micros == other.timestamp_micros and
+          self.value == other.value and self.windows == other.windows and
+          self.pane_info == other.pane_info)
+    return NotImplemented
 
   def __hash__(self):
     return ((hash(self.value) & 0xFFFFFFFFFFFFFFF) + 3 *
             (self.timestamp_micros & 0xFFFFFFFFFFFFFF) + 7 *
-            (hash(self.windows) & 0xFFFFFFFFFFFFF) + 11 *
+            (hash(tuple(self.windows)) & 0xFFFFFFFFFFFFF) + 11 *
             (hash(self.pane_info) & 0xFFFFFFFFFFFFF))
 
   def with_value(self, new_value):
@@ -273,6 +280,8 @@ class WindowedValue(object):
 
 
 # TODO(robertwb): Move this to a static method.
+
+
 def create(value, timestamp_micros, windows, pane_info=PANE_INFO_UNKNOWN):
   wv = WindowedValue.__new__(WindowedValue)
   wv.value = value
@@ -280,6 +289,100 @@ def create(value, timestamp_micros, windows, pane_info=PANE_INFO_UNKNOWN):
   wv.windows = windows
   wv.pane_info = pane_info
   return wv
+
+
+class WindowedBatch(object):
+  """A batch of N windowed values, each having a value, a timestamp and set of
+  windows."""
+  def with_values(self, new_values):
+    # type: (Any) -> WindowedBatch
+
+    """Creates a new WindowedBatch with the same timestamps and windows as this.
+
+    This is the fasted way to create a new WindowedValue.
+    """
+    raise NotImplementedError
+
+  def as_windowed_values(self, explode_fn: Callable) -> Iterable[WindowedValue]:
+    raise NotImplementedError
+
+  @staticmethod
+  def from_windowed_values(
+      windowed_values: Sequence[WindowedValue], *,
+      produce_fn: Callable) -> Iterable['WindowedBatch']:
+    return HomogeneousWindowedBatch.from_windowed_values(
+        windowed_values, produce_fn=produce_fn)
+
+
+class HomogeneousWindowedBatch(WindowedBatch):
+  """A WindowedBatch with Homogeneous event-time information, represented
+  internally as a WindowedValue.
+  """
+  def __init__(self, wv):
+    self._wv = wv
+
+  @staticmethod
+  def of(values, timestamp, windows, pane_info):
+    return HomogeneousWindowedBatch(
+        WindowedValue(values, timestamp, windows, pane_info))
+
+  @property
+  def values(self):
+    return self._wv.value
+
+  @property
+  def timestamp(self):
+    return self._wv.timestamp
+
+  @property
+  def pane_info(self):
+    return self._wv.pane_info
+
+  @property
+  def windows(self):
+    return self._wv.windows
+
+  @windows.setter
+  def windows(self, value):
+    self._wv.windows = value
+
+  def with_values(self, new_values):
+    # type: (Any) -> WindowedBatch
+    return HomogeneousWindowedBatch(self._wv.with_value(new_values))
+
+  def as_windowed_values(self, explode_fn: Callable) -> Iterable[WindowedValue]:
+    for value in explode_fn(self._wv.value):
+      yield self._wv.with_value(value)
+
+  def as_empty_windowed_value(self):
+    """Get a single WindowedValue with identical windowing information to this
+    HomogeneousWindowedBatch, but with value=None. Useful for re-using APIs that
+    pull windowing information from a WindowedValue."""
+    return self._wv.with_value(None)
+
+  def __eq__(self, other):
+    if isinstance(other, HomogeneousWindowedBatch):
+      return self._wv == other._wv
+    return NotImplemented
+
+  def __hash__(self):
+    return hash(self._wv)
+
+  @staticmethod
+  def from_batch_and_windowed_value(
+      *, batch, windowed_value: WindowedValue) -> 'WindowedBatch':
+    return HomogeneousWindowedBatch(windowed_value.with_value(batch))
+
+  @staticmethod
+  def from_windowed_values(
+      windowed_values: Sequence[WindowedValue], *,
+      produce_fn: Callable) -> Iterable['WindowedBatch']:
+    grouped = collections.defaultdict(lambda: [])
+    for wv in windowed_values:
+      grouped[wv.with_value(None)].append(wv.value)
+
+    for key, values in grouped.items():
+      yield HomogeneousWindowedBatch(key.with_value(produce_fn(values)))
 
 
 try:
@@ -342,9 +445,6 @@ class _IntervalWindowBase(object):
         type(self) == type(other) and
         self._start_micros == other._start_micros and
         self._end_micros == other._end_micros)
-
-  def __ne__(self, other):
-    return not self == other
 
   def __repr__(self):
     return '[%s, %s)' % (float(self.start), float(self.end))

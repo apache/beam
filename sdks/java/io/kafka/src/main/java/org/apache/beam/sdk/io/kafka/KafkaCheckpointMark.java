@@ -39,6 +39,7 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
   @AvroIgnore
   private Optional<KafkaUnboundedReader<?, ?>> reader; // Present when offsets need to be committed.
 
+  @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
   private KafkaCheckpointMark() {} // for Avro
 
   public KafkaCheckpointMark(
@@ -77,6 +78,7 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
     private long nextOffset;
     private long watermarkMillis = MIN_WATERMARK_MILLIS;
 
+    @SuppressWarnings("initialization")
     private PartitionMark() {} // for Avro
 
     public PartitionMark(String topic, int partition, long offset, long watermarkMillis) {

@@ -18,9 +18,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 
 def groupbykey(test=None):
   # [START groupbykey]
@@ -42,6 +39,7 @@ def groupbykey(test=None):
             ('winter', '🍆'),
         ])
         | 'Group counts per produce' >> beam.GroupByKey()
+        | beam.MapTuple(lambda k, vs: (k, sorted(vs)))  # sort and format
         | beam.Map(print))
     # [END groupbykey]
     if test:

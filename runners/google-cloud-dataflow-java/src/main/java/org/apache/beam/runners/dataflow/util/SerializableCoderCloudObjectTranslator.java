@@ -24,6 +24,9 @@ import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.coders.SerializableCoder;
 
 /** A {@link CloudObjectTranslator} for {@link SerializableCoder}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 class SerializableCoderCloudObjectTranslator implements CloudObjectTranslator<SerializableCoder> {
   private static final String TYPE_FIELD = "type";
 

@@ -48,6 +48,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** This is the builder used by {@link Group} to build up a composed {@link CombineFn}. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 class SchemaAggregateFn {
   static Inner create() {
     return new AutoValue_SchemaAggregateFn_Inner.Builder()
@@ -68,7 +72,7 @@ class SchemaAggregateFn {
       private final CombineFn<FieldT, AccumT, OutputT> fn;
       // The TupleTag identifying this aggregation element in the composed combine fn.
       private final TupleTag<Object> combineTag;
-      // The schema corresponding to the the subset of input fields being aggregated.
+      // The schema corresponding to the subset of input fields being aggregated.
       private final @Nullable Schema inputSubSchema;
       private final @Nullable FieldAccessDescriptor flattenedFieldAccessDescriptor;
       // The flattened version of inputSubSchema.
@@ -201,11 +205,12 @@ class SchemaAggregateFn {
                       fieldAggregation.combineTag);
         } else {
           composedCombineFn =
-              composedCombineFn.with(
-                  extractFunction,
-                  extractOutputCoder,
-                  fieldAggregation.fn,
-                  fieldAggregation.combineTag);
+              ((ComposedCombineFn) composedCombineFn)
+                  .with(
+                      extractFunction,
+                      extractOutputCoder,
+                      fieldAggregation.fn,
+                      fieldAggregation.combineTag);
         }
       }
 
@@ -295,12 +300,10 @@ class SchemaAggregateFn {
     /** Extract multiple fields from an input {@link Row}. */
     private static class ExtractFieldsFunction extends SimpleFunction<Row, Row> {
       private final RowSelector rowSelector;
-      private final FieldAggregation fieldAggregation;
 
       private ExtractFieldsFunction(Schema inputSchema, FieldAggregation fieldAggregation) {
         rowSelector =
             new RowSelectorContainer(inputSchema, fieldAggregation.fieldsToAggregate, true);
-        this.fieldAggregation = fieldAggregation;
       }
 
       @Override

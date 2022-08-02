@@ -1,7 +1,7 @@
 ---
 type: languages
 title: "Beam Calcite SQL lexical structure"
-aliases: 
+aliases:
   - /documentation/dsls/sql/lexical/
   - /documentation/dsls/sql/calcite/lexical/
 ---

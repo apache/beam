@@ -47,23 +47,21 @@ Typical usage::
 # pytype: skip-file
 # mypy: disallow-untyped-defs
 
-from __future__ import absolute_import
-
 import abc
 import logging
 import os
 import re
 import shutil
-import sys
 import tempfile
-from builtins import object
-from builtins import zip
+import unicodedata
 from collections import defaultdict
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Dict
 from typing import FrozenSet
 from typing import Iterable
 from typing import List
+from typing import Mapping
 from typing import Optional
 from typing import Sequence
 from typing import Set
@@ -71,8 +69,7 @@ from typing import Tuple
 from typing import Type
 from typing import Union
 
-from future.utils import with_metaclass
-from past.builtins import unicode
+from google.protobuf import message
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -85,13 +82,14 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
-from apache_beam.transforms.core import RunnerAPIPTransformHolder
-from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
-from apache_beam.transforms.sideinputs import SIDE_INPUT_REGEX
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.resources import merge_resource_hints
+from apache_beam.transforms.resources import resource_hints_from_options
 from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
@@ -99,10 +97,10 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils import subprocess_server
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.interactive_utils import alter_label_if_ipython
+from apache_beam.utils.interactive_utils import is_in_ipython
 
 if TYPE_CHECKING:
   from types import TracebackType
-  from apache_beam.portability.api import beam_runner_api_pb2
   from apache_beam.runners.pipeline_context import PipelineContext
   from apache_beam.runners.runner import PipelineResult
   from apache_beam.transforms import environments
@@ -221,12 +219,16 @@ class Pipeline(object):
     # If a transform is applied and the full label is already in the set
     # then the transform will have to be cloned with a new label.
     self.applied_labels = set()  # type: Set[str]
-
+    # Hints supplied via pipeline options are considered the outermost hints.
+    self._root_transform().resource_hints = resource_hints_from_options(options)
     # Create a ComponentIdMap for assigning IDs to components. Ensures that any
     # components that receive an ID during pipeline construction (for example in
     # ExternalTransform), will receive the same component ID when generating the
     # full pipeline proto.
     self.component_id_map = ComponentIdMap()
+
+    # Records whether this pipeline contains any external transforms.
+    self.contains_external_transforms = False
 
 
   @property  # type: ignore[misc]  # decorated property not supported
@@ -237,6 +239,11 @@ class Pipeline(object):
   def options(self):
     # type: () -> PipelineOptions
     return self._options
+
+  @property
+  def allow_unsafe_triggers(self):
+    # type: () -> bool
+    return self._options.view_as(TypeOptions).allow_unsafe_triggers
 
   def _current_transform(self):
     # type: () -> AppliedPTransform
@@ -266,7 +273,7 @@ class Pipeline(object):
     output_replacements = {
     }  # type: Dict[AppliedPTransform, List[Tuple[pvalue.PValue, Optional[str]]]]
     input_replacements = {
-    }  # type: Dict[AppliedPTransform, Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
+    }  # type: Dict[AppliedPTransform, Mapping[str, Union[pvalue.PBegin, pvalue.PCollection]]]
     side_input_replacements = {
     }  # type: Dict[AppliedPTransform, List[pvalue.AsSideInput]]
 
@@ -280,16 +287,24 @@ class Pipeline(object):
         # type: (AppliedPTransform) -> None
         if override.matches(original_transform_node):
           assert isinstance(original_transform_node, AppliedPTransform)
-          replacement_transform = override.get_replacement_transform(
-              original_transform_node.transform)
+          replacement_transform = (
+              override.get_replacement_transform_for_applied_ptransform(
+                  original_transform_node))
           if replacement_transform is original_transform_node.transform:
             return
+          replacement_transform.side_inputs = tuple(
+              original_transform_node.transform.side_inputs)
 
           replacement_transform_node = AppliedPTransform(
               original_transform_node.parent,
               replacement_transform,
               original_transform_node.full_label,
-              original_transform_node.inputs)
+              original_transform_node.main_inputs)
+
+          # TODO(https://github.com/apache/beam/issues/21178): Merge rather
+          # than override.
+          replacement_transform_node.resource_hints = (
+              original_transform_node.resource_hints)
 
           # Transform execution could depend on order in which nodes are
           # considered. Hence we insert the replacement transform node to same
@@ -307,19 +322,13 @@ class Pipeline(object):
             roots[roots.index(original_transform_node)] = (
                 replacement_transform_node)
 
-          inputs = replacement_transform_node.inputs
-          # TODO:  Support replacing PTransforms with multiple inputs.
+          inputs = override.get_replacement_inputs(original_transform_node)
           if len(inputs) > 1:
-            raise NotImplementedError(
-                'PTransform overriding is only supported for PTransforms that '
-                'have a single input. Tried to replace input of '
-                'AppliedPTransform %r that has %d inputs' %
-                (original_transform_node, len(inputs)))
+            transform_input = inputs
           elif len(inputs) == 1:
-            input_node = inputs[0]
+            transform_input = inputs[0]
           elif len(inputs) == 0:
-            input_node = pvalue.PBegin(self.pipeline)
-
+            transform_input = pvalue.PBegin(self.pipeline)
           try:
             # We have to add the new AppliedTransform to the stack before
             # expand() and pop it out later to make sure that parts get added
@@ -333,7 +342,7 @@ class Pipeline(object):
             # conflicts with labels of the children of the original.
             self.pipeline._remove_labels_recursively(original_transform_node)
 
-            new_output = replacement_transform.expand(input_node)
+            new_output = replacement_transform.expand(transform_input)
             assert isinstance(
                 new_output, (dict, pvalue.PValue, pvalue.DoOutputsTuple))
 
@@ -386,6 +395,12 @@ class Pipeline(object):
 
     self.visit(TransformUpdater(self))
 
+    # Ensure no type information is lost.
+    for old, new in output_map.items():
+      if new.element_type == typehints.Any:
+        # TODO(robertwb): Perhaps take the intersection?
+        new.element_type = old.element_type
+
     # Adjusting inputs and outputs
     class InputOutputUpdater(PipelineVisitor):  # pylint: disable=used-before-assignment
       """"A visitor that records input and output values to be replaced.
@@ -432,11 +447,11 @@ class Pipeline(object):
                 output_replacements[transform_node].append((tag, replacement))
 
         if replace_input:
-          new_input = [
-              input if not input in output_map else output_map[input]
-              for input in transform_node.inputs
-          ]
-          input_replacements[transform_node] = new_input
+          new_inputs = {
+              tag: input if not input in output_map else output_map[input]
+              for (tag, input) in transform_node.main_inputs.items()
+          }
+          input_replacements[transform_node] = new_inputs
 
         if replace_side_inputs:
           new_side_inputs = []
@@ -450,15 +465,15 @@ class Pipeline(object):
 
     self.visit(InputOutputUpdater(self))
 
-    for transform in output_replacements:
-      for tag, output in output_replacements[transform]:
+    for transform, output_replacement in output_replacements.items():
+      for tag, output in output_replacement:
         transform.replace_output(output, tag=tag)
 
-    for transform in input_replacements:
-      transform.inputs = input_replacements[transform]
+    for transform, input_replacement in input_replacements.items():
+      transform.replace_inputs(input_replacement)
 
-    for transform in side_input_replacements:
-      transform.side_inputs = side_input_replacements[transform]
+    for transform, side_input_replacement in side_input_replacements.items():
+      transform.replace_side_inputs(side_input_replacement)
 
   def _check_replacement(self, override):
     # type: (PTransformOverride) -> None
@@ -503,26 +518,51 @@ class Pipeline(object):
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
 
+    # Records whether this pipeline contains any cross-language transforms.
+    self.contains_external_transforms = (
+        ExternalTransformFinder.contains_external_transforms(self))
+
     try:
       if test_runner_api == 'AUTO':
         # Don't pay the cost of a round-trip if we're going to be going through
         # the FnApi anyway...
+        is_fnapi_compatible = self.runner.is_fnapi_compatible() or (
+            # DirectRunner uses the Fn API for batch only
+            self.runner.__class__.__name__ == 'SwitchingDirectRunner' and
+            not self._options.view_as(StandardOptions).streaming)
+
+        # Multi-language pipelines that contain external pipeline segments may
+        # not be able to create a Python pipeline object graph. Hence following
+        # runner API check should be skipped for such pipelines.
+
+        # The InteractiveRunner relies on a constant pipeline reference, skip
+        # it.
         test_runner_api = (
-            not self.runner.is_fnapi_compatible() and (
-                self.runner.__class__.__name__ != 'SwitchingDirectRunner' or
-                self._options.view_as(StandardOptions).streaming))
+            not is_fnapi_compatible and
+            not self.contains_external_transforms and
+            self.runner.__class__.__name__ != 'InteractiveRunner')
 
       # When possible, invoke a round trip through the runner API.
       if test_runner_api and self._verify_runner_api_compatible():
         return Pipeline.from_runner_api(
             self.to_runner_api(use_fake_coders=True),
             self.runner,
-            self._options,
-            allow_proto_holders=True).run(False)
+            self._options).run(False)
+
+      if (self._options.view_as(TypeOptions).runtime_type_check and
+          self._options.view_as(TypeOptions).performance_runtime_type_check):
+        raise RuntimeError(
+            'You cannot turn on runtime_type_check '
+            'and performance_runtime_type_check simultaneously. '
+            'Pick one or the other.')
 
       if self._options.view_as(TypeOptions).runtime_type_check:
         from apache_beam.typehints import typecheck
         self.visit(typecheck.TypeCheckVisitor())
+
+      if self._options.view_as(TypeOptions).performance_runtime_type_check:
+        from apache_beam.typehints import typecheck
+        self.visit(typecheck.PerformanceTypeCheckVisitor())
 
       if self._options.view_as(SetupOptions).save_main_session:
         # If this option is chosen, verify we can pickle the main session early.
@@ -533,7 +573,9 @@ class Pipeline(object):
           shutil.rmtree(tmpdir)
       return self.runner.run_pipeline(self, self._options)
     finally:
-      shutil.rmtree(self.local_tempdir, ignore_errors=True)
+      if not is_in_ipython():
+        shutil.rmtree(self.local_tempdir, ignore_errors=True)
+      # else interactive beam handles the cleanup.
 
   def __enter__(self):
     # type: () -> Pipeline
@@ -616,8 +658,8 @@ class Pipeline(object):
     if label:
       # Fix self.label as it is inspected by some PTransform operations
       # (e.g. to produce error messages for type hint violations).
+      old_label, transform.label = transform.label, label
       try:
-        old_label, transform.label = transform.label, label
         return self.apply(transform, pvalueish)
       finally:
         transform.label = old_label
@@ -640,15 +682,18 @@ class Pipeline(object):
 
     pvalueish, inputs = transform._extract_input_pvalues(pvalueish)
     try:
-      inputs = tuple(inputs)
-      for leaf_input in inputs:
-        if not isinstance(leaf_input, pvalue.PValue):
-          raise TypeError
+      if not isinstance(inputs, dict):
+        inputs = {str(ix): input for (ix, input) in enumerate(inputs)}
     except TypeError:
       raise NotImplementedError(
           'Unable to extract PValue inputs from %s; either %s does not accept '
           'inputs of this format, or it does not properly override '
           '_extract_input_pvalues' % (pvalueish, transform))
+    for t, leaf_input in inputs.items():
+      if not isinstance(leaf_input, pvalue.PValue) or not isinstance(t, str):
+        raise NotImplementedError(
+            '%s does not properly override _extract_input_pvalues, '
+            'returned %s from %s' % (transform, inputs, pvalueish))
 
     current = AppliedPTransform(
         self._current_transform(), transform, full_label, inputs)
@@ -675,7 +720,8 @@ class Pipeline(object):
         if result.producer is None:
           result.producer = current
 
-        self._infer_result_type(transform, inputs, result)
+        # TODO(BEAM-1833): Pass full tuples dict.
+        self._infer_result_type(transform, tuple(inputs.values()), result)
 
         assert isinstance(result.producer.inputs, tuple)
         # The DoOutputsTuple adds the PCollection to the outputs when accessed
@@ -722,27 +768,32 @@ class Pipeline(object):
         (not result_pcollection.element_type
          # TODO(robertwb): Ideally we'd do intersection here.
          or result_pcollection.element_type == typehints.Any)):
-      # Single-input, single-output inference.
+      # {Single, multi}-input, single-output inference.
+      input_element_types_tuple = tuple(i.element_type for i in inputs)
       input_element_type = (
-          inputs[0].element_type if len(inputs) == 1 else typehints.Any)
+          input_element_types_tuple[0] if len(input_element_types_tuple) == 1
+          else typehints.Union[input_element_types_tuple])
       type_hints = transform.get_type_hints()
       declared_output_type = type_hints.simple_output_type(transform.label)
       if declared_output_type:
         input_types = type_hints.input_types
         if input_types and input_types[0]:
           declared_input_type = input_types[0][0]
-          result_pcollection.element_type = typehints.bind_type_variables(
+          result_element_type = typehints.bind_type_variables(
               declared_output_type,
               typehints.match_type_variables(
                   declared_input_type, input_element_type))
         else:
-          result_pcollection.element_type = declared_output_type
+          result_element_type = declared_output_type
       else:
-        result_pcollection.element_type = transform.infer_output_type(
-            input_element_type)
+        result_element_type = transform.infer_output_type(input_element_type)
+      # Any remaining type variables have no bindings higher than this scope.
+      result_pcollection.element_type = typehints.bind_type_variables(
+          result_element_type, {'*': typehints.Any})
     elif isinstance(result_pcollection, pvalue.DoOutputsTuple):
-      # Single-input, multi-output inference.
-      # TODO(BEAM-4132): Add support for tagged type hints.
+      # {Single, multi}-input, multi-output inference.
+      # TODO(https://github.com/apache/beam/issues/18957): Add support for
+      #   tagged type hints.
       #   https://github.com/apache/beam/pull/9810#discussion_r338765251
       for pcoll in result_pcollection:
         if pcoll.element_type is None:
@@ -800,7 +851,6 @@ class Pipeline(object):
 
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
-    from apache_beam.portability.api import beam_runner_api_pb2
     if context is None:
       context = pipeline_context.PipelineContext(
           use_fake_coders=use_fake_coders,
@@ -816,6 +866,10 @@ class Pipeline(object):
     # general shapes, potential conflicts will have to be resolved.
     # We also only handle single-input, and (for fixing the output) single
     # output, which is sufficient.
+    # Also marks such values as requiring deterministic key coders.
+    deterministic_key_coders = not self._options.view_as(
+        TypeOptions).allow_non_deterministic_key_coders
+
     class ForceKvInputTypes(PipelineVisitor):
       def enter_composite_transform(self, transform_node):
         # type: (AppliedPTransform) -> None
@@ -829,18 +883,29 @@ class Pipeline(object):
           pcoll = transform_node.inputs[0]
           pcoll.element_type = typehints.coerce_to_kv_type(
               pcoll.element_type, transform_node.full_label)
+          pcoll.requires_deterministic_key_coder = (
+              deterministic_key_coders and transform_node.full_label)
           if len(transform_node.outputs) == 1:
             # The runner often has expectations about the output types as well.
             output, = transform_node.outputs.values()
             if not output.element_type:
               output.element_type = transform_node.transform.infer_output_type(
                   pcoll.element_type)
+            if (isinstance(output.element_type,
+                           typehints.TupleHint.TupleConstraint) and
+                len(output.element_type.tuple_types) == 2 and
+                pcoll.element_type.tuple_types[0] ==
+                output.element_type.tuple_types[0]):
+              output.requires_deterministic_key_coder = (
+                  deterministic_key_coders and transform_node.full_label)
         for side_input in transform_node.transform.side_inputs:
           if side_input.requires_keyed_input():
             side_input.pvalue.element_type = typehints.coerce_to_kv_type(
                 side_input.pvalue.element_type,
                 transform_node.full_label,
                 side_input_producer=side_input.pvalue.producer.full_label)
+            side_input.pvalue.requires_deterministic_key_coder = (
+                deterministic_key_coders and transform_node.full_label)
 
     self.visit(ForceKvInputTypes())
 
@@ -853,10 +918,48 @@ class Pipeline(object):
         requirements=context.requirements())
     proto.components.transforms[root_transform_id].unique_name = (
         root_transform_id)
+    self.merge_compatible_environments(proto)
     if return_context:
       return proto, context  # type: ignore  # too complicated for now
     else:
       return proto
+
+  @staticmethod
+  def merge_compatible_environments(proto):
+    """Tries to minimize the number of distinct environments by merging
+    those that are compatible (currently defined as identical).
+
+    Mutates proto as contexts may have references to proto.components.
+    """
+    env_map = {}
+    canonical_env = {}
+    files_by_hash = {}
+    for env_id, env in proto.components.environments.items():
+      # First deduplicate any file dependencies by their hash.
+      for dep in env.dependencies:
+        if dep.type_urn == common_urns.artifact_types.FILE.urn:
+          file_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
+              dep.type_payload)
+          if file_payload.sha256:
+            if file_payload.sha256 in files_by_hash:
+              file_payload.path = files_by_hash[file_payload.sha256]
+              dep.type_payload = file_payload.SerializeToString()
+            else:
+              files_by_hash[file_payload.sha256] = file_payload.path
+      # Next check if we've ever seen this environment before.
+      normalized = env.SerializeToString(deterministic=True)
+      if normalized in canonical_env:
+        env_map[env_id] = canonical_env[normalized]
+      else:
+        canonical_env[normalized] = env_id
+    for old_env, new_env in env_map.items():
+      for transform in proto.components.transforms.values():
+        if transform.environment_id == old_env:
+          transform.environment_id = new_env
+      for windowing_strategy in proto.components.windowing_strategies.values():
+        if windowing_strategy.environment_id == old_env:
+          windowing_strategy.environment_id = new_env
+      del proto.components.environments[old_env]
 
   @staticmethod
   def from_runner_api(
@@ -864,7 +967,6 @@ class Pipeline(object):
       runner,  # type: PipelineRunner
       options,  # type: PipelineOptions
       return_context=False,  # type: bool
-      allow_proto_holders=False  # type: bool
   ):
     # type: (...) -> Pipeline
 
@@ -872,11 +974,12 @@ class Pipeline(object):
     p = Pipeline(runner=runner, options=options)
     from apache_beam.runners import pipeline_context
     context = pipeline_context.PipelineContext(
-        proto.components,
-        allow_proto_holders=allow_proto_holders,
-        requirements=proto.requirements)
-    root_transform_id, = proto.root_transform_ids
-    p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]
+        proto.components, requirements=proto.requirements)
+    if proto.root_transform_ids:
+      root_transform_id, = proto.root_transform_ids
+      p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]
+    else:
+      p.transforms_stack = [AppliedPTransform(None, None, '', None)]
     # TODO(robertwb): These are only needed to continue construction. Omit?
     p.applied_labels = {
         t.unique_name
@@ -895,7 +998,7 @@ class Pipeline(object):
     for id in proto.components.transforms:
       transform = context.transforms.get_by_id(id)
       if not transform.inputs and transform.transform.__class__ in has_pbegin:
-        transform.inputs = (pvalue.PBegin(p), )
+        transform.main_inputs = {'None': pvalue.PBegin(p)}
 
     if return_context:
       return p, context  # type: ignore  # too complicated for now
@@ -940,6 +1043,40 @@ class PipelineVisitor(object):
     pass
 
 
+class ExternalTransformFinder(PipelineVisitor):
+  """Looks for any external transforms in the pipeline and if found records
+  it.
+  """
+  def __init__(self):
+    self._contains_external_transforms = False
+
+  @staticmethod
+  def contains_external_transforms(pipeline):
+    visitor = ExternalTransformFinder()
+    pipeline.visit(visitor)
+    return visitor._contains_external_transforms
+
+  def _perform_exernal_transform_test(self, transform):
+    if not transform:
+      return
+    from apache_beam.transforms import ExternalTransform
+    if isinstance(transform, ExternalTransform):
+      self._contains_external_transforms = True
+
+  def visit_transform(self, transform_node):
+    # type: (AppliedPTransform) -> None
+    self._perform_exernal_transform_test(transform_node.transform)
+
+  def enter_composite_transform(self, transform_node):
+    # type: (AppliedPTransform) -> None
+    # Python SDK object graph may represent an external transform that is a leaf
+    # of the pipeline graph as a composite without sub-transforms.
+    # Note that this visitor is just used to identify pipelines with external
+    # transforms. A Runner API pipeline proto generated from the Pipeline object
+    # will include external sub-transform.
+    self._perform_exernal_transform_test(transform_node.transform)
+
+
 class AppliedPTransform(object):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -951,9 +1088,9 @@ class AppliedPTransform(object):
       parent,  # type:  Optional[AppliedPTransform]
       transform,  # type: Optional[ptransform.PTransform]
       full_label,  # type: str
-      inputs,  # type: Optional[Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
+      main_inputs,  # type: Optional[Mapping[str, Union[pvalue.PBegin, pvalue.PCollection]]]
       environment_id=None,  # type: Optional[str]
-      input_tags_to_preserve=None,  # type: Dict[pvalue.PCollection, str]
+      annotations=None, # type: Optional[Dict[str, bytes]]
   ):
     # type: (...) -> None
     self.parent = parent
@@ -964,13 +1101,42 @@ class AppliedPTransform(object):
     # reusing PTransform instances in different contexts (apply() calls) without
     # any interference. This is particularly useful for composite transforms.
     self.full_label = full_label
-    self.inputs = inputs or ()
+    self.main_inputs = dict(main_inputs or {})
 
     self.side_inputs = tuple() if transform is None else transform.side_inputs
     self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
     self.parts = []  # type: List[AppliedPTransform]
     self.environment_id = environment_id if environment_id else None  # type: Optional[str]
-    self.input_tags_to_preserve = input_tags_to_preserve or {}
+    # We may need to merge the hints with environment-provided hints here
+    # once environment is a first-class citizen in Beam graph and we have
+    # access to actual environment, not just an id.
+    self.resource_hints = dict(
+        transform.get_resource_hints()) if transform else {
+        }  # type: Dict[str, bytes]
+
+    if annotations is None and transform:
+
+      def annotation_to_bytes(key, a: Any) -> bytes:
+        if isinstance(a, bytes):
+          return a
+        elif isinstance(a, str):
+          return a.encode('ascii')
+        elif isinstance(a, message.Message):
+          return a.SerializeToString()
+        else:
+          raise TypeError(
+              'Unknown annotation type %r (type %s) for %s' % (a, type(a), key))
+
+      annotations = {
+          key: annotation_to_bytes(key, a)
+          for key,
+          a in transform.annotations().items()
+      }
+    self.annotations = annotations
+
+  @property
+  def inputs(self):
+    return tuple(self.main_inputs.values())
 
   def __repr__(self):
     # type: () -> str
@@ -1000,6 +1166,27 @@ class AppliedPTransform(object):
     else:
       raise TypeError("Unexpected output type: %s" % output)
 
+    # Importing locally to prevent circular dependency issues.
+    from apache_beam.transforms import external
+    if isinstance(self.transform, external.ExternalTransform):
+      self.transform.replace_named_outputs(self.named_outputs())
+
+  def replace_inputs(self, main_inputs):
+    self.main_inputs = main_inputs
+
+    # Importing locally to prevent circular dependency issues.
+    from apache_beam.transforms import external
+    if isinstance(self.transform, external.ExternalTransform):
+      self.transform.replace_named_inputs(self.named_inputs())
+
+  def replace_side_inputs(self, side_inputs):
+    self.side_inputs = side_inputs
+
+    # Importing locally to prevent circular dependency issues.
+    from apache_beam.transforms import external
+    if isinstance(self.transform, external.ExternalTransform):
+      self.transform.replace_named_inputs(self.named_inputs())
+
   def add_output(
       self,
       output,  # type: Union[pvalue.DoOutputsTuple, pvalue.PValue]
@@ -1017,6 +1204,7 @@ class AppliedPTransform(object):
   def add_part(self, part):
     # type: (AppliedPTransform) -> None
     assert isinstance(part, AppliedPTransform)
+    part._merge_outer_resource_hints()
     self.parts.append(part)
 
   def is_composite(self):
@@ -1089,34 +1277,35 @@ class AppliedPTransform(object):
 
   def named_inputs(self):
     # type: () -> Dict[str, pvalue.PValue]
-    # TODO(BEAM-1833): Push names up into the sdk construction.
-    main_inputs = {
-        str(ix): input
-        for ix,
-        input in enumerate(self.inputs)
-        if isinstance(input, pvalue.PCollection)
-    }
-    side_inputs = {(SIDE_INPUT_PREFIX + '%s') % ix: si.pvalue
-                   for (ix, si) in enumerate(self.side_inputs)}
-    return dict(main_inputs, **side_inputs)
+    if self.transform is None:
+      assert not self.main_inputs and not self.side_inputs
+      return {}
+    else:
+      named_inputs = self.transform._named_inputs(
+          self.main_inputs, self.side_inputs)
+      if not self.parts:
+        for name, pc_out in self.outputs.items():
+          if pc_out.producer is not self:
+            named_inputs[f'__implicit_input_{name}'] = pc_out
+      return named_inputs
 
   def named_outputs(self):
     # type: () -> Dict[str, pvalue.PCollection]
-    return {
-        try_unicode(tag): output
-        for tag,
-        output in self.outputs.items()
-        if isinstance(output, pvalue.PCollection)
-    }
+    if self.transform is None:
+      assert not self.outputs
+      return {}
+    else:
+      return self.transform._named_outputs(self.outputs)
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.PTransform
-    # External tranforms require more splicing than just setting the spec.
+    # External transforms require more splicing than just setting the spec.
     from apache_beam.transforms import external
     if isinstance(self.transform, external.ExternalTransform):
+      # TODO(https://github.com/apache/beam/issues/18371): Support resource
+      # hints in XLang transforms. In particular, make sure hints on composites
+      # are properly propagated.
       return self.transform.to_runner_api_transform(context, self.full_label)
-
-    from apache_beam.portability.api import beam_runner_api_pb2
 
     def transform_to_runner_api(
         transform,  # type: Optional[ptransform.PTransform]
@@ -1142,13 +1331,8 @@ class AppliedPTransform(object):
     transform_urn = transform_spec.urn if transform_spec else None
     if (not environment_id and
         (transform_urn not in Pipeline.runner_implemented_transforms())):
-      environment_id = context.default_environment_id()
-
-    def _maybe_preserve_tag(new_tag, pc, input_tags_to_preserve):
-      # TODO(BEAM-1833): remove this after we update Python SDK and
-      # DataflowRunner to construct pipelines using runner API.
-      return input_tags_to_preserve[
-          pc] if pc in input_tags_to_preserve else new_tag
+      environment_id = context.get_environment_id_for_resource_hints(
+          self.resource_hints)
 
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
@@ -1158,9 +1342,9 @@ class AppliedPTransform(object):
             for part in self.parts
         ],
         inputs={
-            _maybe_preserve_tag(tag, pc, self.input_tags_to_preserve):
-            context.pcollections.get_id(pc)
-            for (tag, pc) in sorted(self.named_inputs().items())
+            tag: context.pcollections.get_id(pc)
+            for tag,
+            pc in sorted(self.named_inputs().items())
         },
         outputs={
             tag: context.pcollections.get_id(out)
@@ -1168,8 +1352,10 @@ class AppliedPTransform(object):
             out in sorted(self.named_outputs().items())
         },
         environment_id=environment_id,
-        # TODO(BEAM-366): Add display_data.
-        display_data=None)
+        annotations=self.annotations,
+        # TODO(https://github.com/apache/beam/issues/18012): Add display_data.
+        display_data=DisplayData.create_from(self.transform).to_proto()
+        if self.transform else None)
 
   @staticmethod
   def from_runner_api(
@@ -1180,7 +1366,6 @@ class AppliedPTransform(object):
 
     if common_urns.primitives.PAR_DO.urn == proto.spec.urn:
       # Preserving side input tags.
-      from apache_beam.portability.api import beam_runner_api_pb2
       pardo_payload = (
           proto_utils.parse_Bytes(
               proto.spec.payload, beam_runner_api_pb2.ParDoPayload))
@@ -1189,73 +1374,34 @@ class AppliedPTransform(object):
       pardo_payload = None
       side_input_tags = []
 
-    main_inputs = [
-        context.pcollections.get_by_id(id) for tag,
-        id in proto.inputs.items() if tag not in side_input_tags
-    ]
-
-    def is_python_side_input(tag):
-      # type: (str) -> bool
-      # As per named_inputs() above.
-      return re.match(SIDE_INPUT_REGEX, tag)
-
-    uses_python_sideinput_tags = (
-        is_python_side_input(side_input_tags[0]) if side_input_tags else False)
+    main_inputs = {
+        tag: context.pcollections.get_by_id(id)
+        for (tag, id) in proto.inputs.items() if tag not in side_input_tags
+    }
 
     transform = ptransform.PTransform.from_runner_api(proto, context)
-    if uses_python_sideinput_tags:
-      # Ordering is important here.
-      # TODO(BEAM-9635): use key, value pairs instead of depending on tags with
-      # index as a suffix.
-      indexed_side_inputs = [
-          (get_sideinput_index(tag), context.pcollections.get_by_id(id))
-          for tag,
-          id in proto.inputs.items() if tag in side_input_tags
-      ]
-      side_inputs = [si for _, si in sorted(indexed_side_inputs)]
-    else:
-      # These must be set in the same order for subsequent zip to work.
-      side_inputs = []
-      transform_side_inputs = []
+    if transform and proto.environment_id:
+      resource_hints = context.environments.get_by_id(
+          proto.environment_id).resource_hints()
+      if resource_hints:
+        transform._resource_hints = dict(resource_hints)
 
-      for tag, id in proto.inputs.items():
-        if tag in side_input_tags:
-          pc = context.pcollections.get_by_id(id)
-          side_inputs.append(pc)
-          assert pardo_payload  # This must be a ParDo with side inputs.
-          side_input_from_pardo = pardo_payload.side_inputs[tag]
-
-          # TODO(BEAM-1833): use 'pvalue.SideInputData.from_runner_api' here
-          # when that is updated to better represent runner API.
-          if (common_urns.side_inputs.MULTIMAP.urn ==
-              side_input_from_pardo.access_pattern.urn):
-            transform_side_inputs.append(pvalue.AsMultiMap(pc))
-          elif (common_urns.side_inputs.ITERABLE.urn ==
-                side_input_from_pardo.access_pattern.urn):
-            transform_side_inputs.append(pvalue.AsIter(pc))
-          else:
-            raise ValueError(
-                'Unsupported side input access pattern %r' %
-                side_input_from_pardo.access_pattern.urn)
-      if transform:
-        transform.side_inputs = transform_side_inputs
-
-    if isinstance(transform, RunnerAPIPTransformHolder):
-      # For external transforms that are ParDos, we have to preserve input tags.
-      input_tags_to_preserve = {
-          context.pcollections.get_by_id(id): tag
-          for (tag, id) in proto.inputs.items()
-      }
-    else:
-      input_tags_to_preserve = {}
+    # Ordering is important here.
+    # TODO(https://github.com/apache/beam/issues/20136): use key, value pairs
+    # instead of depending on tags with index as a suffix.
+    indexed_side_inputs = [
+        (get_sideinput_index(tag), context.pcollections.get_by_id(id)) for tag,
+        id in proto.inputs.items() if tag in side_input_tags
+    ]
+    side_inputs = [si for _, si in sorted(indexed_side_inputs)]
 
     result = AppliedPTransform(
         parent=None,
         transform=transform,
         full_label=proto.unique_name,
-        inputs=main_inputs,
-        environment_id=proto.environment_id,
-        input_tags_to_preserve=input_tags_to_preserve)
+        main_inputs=main_inputs,
+        environment_id=None,
+        annotations=proto.annotations)
 
     if result.transform and result.transform.side_inputs:
       for si, pcoll in zip(result.transform.side_inputs, side_inputs):
@@ -1265,7 +1411,7 @@ class AppliedPTransform(object):
     for transform_id in proto.subtransforms:
       part = context.transforms.get_by_id(transform_id)
       part.parent = result
-      result.parts.append(part)
+      result.add_part(part)
     result.outputs = {
         None if tag == 'None' else tag: context.pcollections.get_by_id(id)
         for tag,
@@ -1273,9 +1419,6 @@ class AppliedPTransform(object):
     }
     # This annotation is expected by some runners.
     if proto.spec.urn == common_urns.primitives.PAR_DO.urn:
-      # TODO(BEAM-9168): Figure out what to do for RunnerAPIPTransformHolder.
-      assert isinstance(result.transform, (ParDo, RunnerAPIPTransformHolder)),\
-        type(result.transform)
       result.transform.output_tags = set(proto.outputs.keys()).difference(
           {'None'})
     if not result.parts:
@@ -1286,9 +1429,17 @@ class AppliedPTransform(object):
           pc.tag = None if tag == 'None' else tag
     return result
 
+  def _merge_outer_resource_hints(self):
+    if (self.parent is not None and self.parent.resource_hints):
+      self.resource_hints = merge_resource_hints(
+          outer_hints=self.parent.resource_hints,
+          inner_hints=self.resource_hints)
+    if self.resource_hints:
+      for part in self.parts:
+        part._merge_outer_resource_hints()
 
-class PTransformOverride(with_metaclass(abc.ABCMeta,
-                                        object)):  # type: ignore[misc]
+
+class PTransformOverride(metaclass=abc.ABCMeta):
   """For internal use only; no backwards-compatibility guarantees.
 
   Gives a matcher and replacements for matching PTransforms.
@@ -1317,7 +1468,25 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
     """
     raise NotImplementedError
 
-  @abc.abstractmethod
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
+    # type: (AppliedPTransform) -> ptransform.PTransform
+
+    """Provides a runner specific override for a given `AppliedPTransform`.
+
+    Args:
+      applied_ptransform: `AppliedPTransform` containing the `PTransform` to be
+        replaced.
+
+    Returns:
+      A `PTransform` that will be the replacement for the `PTransform` inside
+      the `AppliedPTransform` given as an argument.
+    """
+    # Returns a PTransformReplacement
+    return self.get_replacement_transform(applied_ptransform.transform)
+
+  @deprecated(
+      since='2.24', current='get_replacement_transform_for_applied_ptransform')
   def get_replacement_transform(self, ptransform):
     # type: (Optional[ptransform.PTransform]) -> ptransform.PTransform
 
@@ -1332,6 +1501,22 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
     """
     # Returns a PTransformReplacement
     raise NotImplementedError
+
+  def get_replacement_inputs(self, applied_ptransform):
+    # type: (AppliedPTransform) -> Iterable[pvalue.PValue]
+
+    """Provides inputs that will be passed to the replacement PTransform.
+
+    Args:
+      applied_ptransform: Original AppliedPTransform containing the PTransform
+        to be replaced.
+
+    Returns:
+      An iterable of PValues that will be passed to the expand() method of the
+      replacement PTransform.
+    """
+    return tuple(applied_ptransform.inputs) + tuple(
+        side_input.pvalue for side_input in applied_ptransform.side_inputs)
 
 
 class ComponentIdMap(object):
@@ -1351,22 +1536,14 @@ class ComponentIdMap(object):
 
     return self._obj_to_id[obj]
 
+  def _normalize(self, str_value):
+    str_value = unicodedata.normalize('NFC', str_value)
+    return re.sub(r'[^a-zA-Z0-9-_]+', '-', str_value)
+
   def _unique_ref(self, obj=None, obj_type=None, label=None):
+    # Normalize, trim, and uniqify.
+    prefix = self._normalize(
+        '%s_%s_%s' %
+        (self.namespace, obj_type.__name__, label or type(obj).__name__))[0:100]
     self._counters[obj_type] += 1
-    return "%s_%s_%s_%d" % (
-        self.namespace,
-        obj_type.__name__,
-        label or type(obj).__name__,
-        self._counters[obj_type])
-
-
-if sys.version_info >= (3, ):
-  try_unicode = str
-
-else:
-
-  def try_unicode(s):
-    try:
-      return unicode(s)
-    except UnicodeDecodeError:
-      return str(s).decode('ascii', 'replace')
+    return '%s_%d' % (prefix, self._counters[obj_type])

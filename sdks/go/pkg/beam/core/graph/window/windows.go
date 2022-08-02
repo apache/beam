@@ -18,8 +18,8 @@ package window
 import (
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 var (
@@ -35,6 +35,9 @@ func (GlobalWindow) MaxTimestamp() typex.EventTime {
 	return mtime.EndOfGlobalWindowTime
 }
 
+// Equals returns a boolean indicating if the window is equal to
+// a given window. This is true for global windows if the provided
+// window is also a global window.
 func (GlobalWindow) Equals(o typex.Window) bool {
 	_, ok := o.(GlobalWindow)
 	return ok
@@ -54,6 +57,10 @@ func (w IntervalWindow) MaxTimestamp() typex.EventTime {
 	return typex.EventTime(mtime.Time(w.End).Milliseconds() - 1)
 }
 
+// Equals returns a boolean indicating if the window is equal to
+// a given window. This is true for interval windows if the provided
+// window is an interval window and they share the start and end
+// timestamps.
 func (w IntervalWindow) Equals(o typex.Window) bool {
 	ow, ok := o.(IntervalWindow)
 	return ok && w.Start == ow.Start && w.End == ow.End

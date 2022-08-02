@@ -35,7 +35,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type of the values being transcoded
  */
-public class NullableCoder<T> extends StructuredCoder<T> {
+public class NullableCoder<T> extends StructuredCoder<@Nullable T> {
   public static <T> NullableCoder<T> of(Coder<T> valueCoder) {
     if (valueCoder instanceof NullableCoder) {
       return (NullableCoder<T>) valueCoder;
@@ -75,7 +75,7 @@ public class NullableCoder<T> extends StructuredCoder<T> {
   }
 
   @Override
-  public T decode(InputStream inStream) throws IOException, CoderException {
+  public @Nullable T decode(InputStream inStream) throws IOException, CoderException {
     return decode(inStream, Context.NESTED);
   }
 
@@ -181,7 +181,7 @@ public class NullableCoder<T> extends StructuredCoder<T> {
   }
 
   @Override
-  public TypeDescriptor<T> getEncodedTypeDescriptor() {
-    return valueCoder.getEncodedTypeDescriptor();
+  public TypeDescriptor<@Nullable T> getEncodedTypeDescriptor() {
+    return (TypeDescriptor<@Nullable T>) valueCoder.getEncodedTypeDescriptor();
   }
 }

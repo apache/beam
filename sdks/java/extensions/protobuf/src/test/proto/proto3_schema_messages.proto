@@ -100,6 +100,34 @@ message OuterOneOf {
   }
 }
 
+message ReversedOneOf {
+  string place1 = 6;
+    oneof oneof_reversed {
+        int32 oneof_int32 = 5;
+        bool oneof_bool = 4;
+        string oneof_string = 3;
+        Primitive oneof_primitive = 2;
+    }
+    int32 place2 = 1;
+}
+
+message NonContiguousOneOf {
+  string place1 = 76;
+    oneof oneof_non_contiguous_one {
+        int32 oneof_one_int32 = 55;
+        bool oneof_one_bool = 1;
+        string oneof_one_string = 189;
+        Primitive oneof_one_primitive = 22;
+    }
+    int32 place2 = 33;
+    oneof oneof_non_contiguous_two {
+        string oneof_two_first_string = 981;
+        int32 oneof_two_int32 = 2;
+        string oneof_two_second_string = 44;
+    }
+    int32 place3 = 63;
+}
+
 message EnumMessage {
   enum Enum {
     ZERO  = 0;
@@ -166,4 +194,19 @@ message OptionMessage {
         (proto3_schema_options.field_option_repeated_message) = {
             single_int64: 88
         }];
+}
+
+message SelfNested {
+  SelfNested nested = 1;
+}
+
+message FirstCircularNested {
+  SecondCircularNested nested = 1;
+}
+
+message SecondCircularNested {
+  FirstCircularNested nested = 1;
+}
+
+message Empty {
 }

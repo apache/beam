@@ -29,6 +29,9 @@ import org.slf4j.LoggerFactory;
  * is the first request (does not have upload_id parameter in the request). Only logs if debug level
  * is enabled.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class UploadIdResponseInterceptor implements HttpResponseInterceptor {
 
   private static final Logger LOG = LoggerFactory.getLogger(UploadIdResponseInterceptor.class);

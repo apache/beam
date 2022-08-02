@@ -27,8 +27,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
 
 // fakeStateClient replicates the call and response protocol
@@ -215,7 +215,7 @@ func TestStateChannel(t *testing.T) {
 				send: make(chan *fnpb.StateRequest),
 			}
 			ctx, cancelFn := context.WithCancel(context.Background())
-			c := makeStateChannel(ctx, cancelFn, "id", client)
+			c := makeStateChannel(ctx, "id", client, cancelFn)
 			forceRecreateCalled := false
 			var forceRecreateError error
 			c.forceRecreate = func(_ string, err error) {

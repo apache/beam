@@ -79,12 +79,13 @@ import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -98,11 +99,12 @@ import org.joda.time.Duration;
  * {@link Node} containing an {@link
  * org.apache.beam.runners.core.construction.graph.ExecutableStage}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {
-  private static final String DATA_INPUT_URN = "beam:runner:source:v1";
 
-  private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
   private static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   public static final String COMBINE_PER_KEY_URN =
@@ -215,7 +217,7 @@ public class CreateExecutableStageNodeFunction
 
       String coderId = "generatedCoder" + idGenerator.getId();
       String windowingStrategyId;
-      try (ByteString.Output output = ByteString.newOutput()) {
+      try (ByteStringOutputStream output = new ByteStringOutputStream()) {
         try {
           Coder<?> javaCoder =
               CloudObjects.coderFromCloudObject(CloudObject.fromSpec(instructionOutput.getCodec()));
@@ -256,7 +258,8 @@ public class CreateExecutableStageNodeFunction
                   .setSpec(RunnerApi.FunctionSpec.newBuilder().setPayload(output.toByteString()))
                   .build());
           // For non-java coder, hope it's GlobalWindows by default.
-          // TODO(BEAM-6231): Actually discover the right windowing strategy.
+          // TODO(https://github.com/apache/beam/issues/19363): Actually discover the right
+          // windowing strategy.
           windowingStrategyId = globalWindowingStrategyId;
         }
       } catch (IOException e) {
@@ -267,7 +270,8 @@ public class CreateExecutableStageNodeFunction
             e);
       }
 
-      // TODO(BEAM-6275): Set correct IsBounded on generated PCollections
+      // TODO(https://github.com/apache/beam/issues/19297): Set correct IsBounded on generated
+      // PCollections
       String pcollectionId = node.getPcollectionId();
       RunnerApi.PCollection pCollection =
           RunnerApi.PCollection.newBuilder()

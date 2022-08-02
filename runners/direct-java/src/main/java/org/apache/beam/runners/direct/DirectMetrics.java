@@ -45,6 +45,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Implementation of {@link MetricResults} for the Direct Runner. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class DirectMetrics extends MetricResults {
 
   private interface MetricAggregation<UpdateT, ResultT> {

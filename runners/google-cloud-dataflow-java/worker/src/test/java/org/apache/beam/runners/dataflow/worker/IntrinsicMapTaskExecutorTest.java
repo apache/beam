@@ -27,10 +27,10 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.clo
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.splitRequestToApproximateSplitRequest;
 import static org.apache.beam.runners.dataflow.worker.counters.CounterName.named;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
@@ -139,7 +139,6 @@ public class IntrinsicMapTaskExecutorTest {
 
   @Test
   public void testExecuteMapTaskExecutor() throws Exception {
-    List<String> log = new ArrayList<>();
 
     Operation o1 = Mockito.mock(Operation.class);
     Operation o2 = Mockito.mock(Operation.class);

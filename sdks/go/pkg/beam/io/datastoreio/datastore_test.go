@@ -16,10 +16,147 @@
 package datastoreio
 
 import (
+	"context"
+	"errors"
+	"reflect"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/datastore"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"google.golang.org/api/option"
 )
+
+// fake client type implements datastoreio.clientType
+type fakeClient struct {
+	runCounter   int
+	closeCounter int
+}
+
+func (client *fakeClient) Run(context.Context, *datastore.Query) *datastore.Iterator {
+	client.runCounter += 1
+	// return an empty iterator
+	return new(datastore.Iterator)
+}
+
+func (client *fakeClient) Close() error {
+	client.closeCounter += 1
+	return nil
+}
+
+// mock type for query
+type Foo struct {
+}
+
+type Bar struct {
+}
+
+func Test_query(t *testing.T) {
+	testCases := []struct {
+		v           interface{}
+		shard       int
+		expectRun   int
+		expectClose int
+	}{
+		// case 1: shard=1, without split query
+		{Foo{}, 1, 1, 1},
+		// case 2: shard=2 (>1), with split query
+		{Bar{}, 2, 2, 2},
+	}
+	for _, tc := range testCases {
+		// setup a fake newClient caller
+		client := fakeClient{}
+		newClient := func(ctx context.Context,
+			projectID string,
+			opts ...option.ClientOption) (clientType, error) {
+			return &client, nil
+		}
+
+		itemType := reflect.TypeOf(tc.v)
+		itemKey := runtime.RegisterType(itemType)
+
+		p, s := beam.NewPipelineWithRoot()
+		query(s, "project", "Item", tc.shard, itemType, itemKey, newClient)
+
+		ptest.RunAndValidate(t, p)
+
+		if got, want := client.runCounter, tc.expectRun; got != want {
+			t.Errorf("got number of datastore.Client.Run call: %v, wanted %v",
+				got, want)
+		}
+		if got, want := client.closeCounter, tc.expectClose; got != want {
+			t.Errorf("got number of datastore.Client.Close call: %v, wanted %v",
+				got, want)
+		}
+	}
+}
+
+func Test_query_Bad(t *testing.T) {
+	testCases := []struct {
+		v            interface{}
+		itemType     reflect.Type
+		itemKey      string
+		expectErrStr string
+		newClientErr error
+	}{
+		// mismatch typeKey parameter
+		{
+			Foo{},
+			reflect.TypeOf(Foo{}),
+			"MismatchType",
+			"No type registered MismatchType",
+			nil,
+		},
+		// newClient caller returns error
+		{
+			Foo{},
+			reflect.TypeOf(Foo{}),
+			runtime.RegisterType(reflect.TypeOf(Foo{})),
+			"fake client error",
+			errors.New("fake client error"),
+		},
+	}
+	for _, tc := range testCases {
+		client := fakeClient{}
+		newClient := func(ctx context.Context,
+			projectID string,
+			opts ...option.ClientOption) (clientType, error) {
+			return &client, tc.newClientErr
+		}
+
+		p, s := beam.NewPipelineWithRoot()
+		query(s, "project", "Item", 1, tc.itemType, tc.itemKey, newClient)
+		err := ptest.Run(p)
+
+		if got, want := err.Error(), tc.expectErrStr; !strings.Contains(got, want) {
+			t.Errorf("got error: %v\nwanted error: %v", got, want)
+		}
+	}
+}
+
+func Test_splitQueryFn_Setup(t *testing.T) {
+	s := splitQueryFn{"project", "kind", 1, nil}
+	err := s.Setup()
+	if nil != err {
+		t.Errorf("failed to call Setup, got error: %v", err)
+	}
+	if nil == s.newClientFunc {
+		t.Error("failed to setup newClientFunc.")
+	}
+}
+
+func Test_queryFn_Setup(t *testing.T) {
+	s := queryFn{"project", "kind", "type", nil}
+	err := s.Setup()
+	if nil != err {
+		t.Errorf("failed to call Setup, got error: %v", err)
+	}
+	if nil == s.newClientFunc {
+		t.Error("failed to setup newClientFunc.")
+	}
+}
 
 func Test_keyLessThan(t *testing.T) {
 	tsts := []struct {
@@ -47,9 +184,9 @@ func Test_keyLessThan(t *testing.T) {
 			expect: false,
 		},
 		{
-			name:   "a.a<b",
-			a:      datastore.NameKey("A", "a", nil),
-			b:      datastore.NameKey("A", "a", datastore.NameKey("A", "b", nil)),
+			name:   "a.a<a",
+			a:      datastore.NameKey("A", "a", datastore.NameKey("A", "a", nil)),
+			b:      datastore.NameKey("A", "a", nil),
 			expect: true,
 		},
 		{

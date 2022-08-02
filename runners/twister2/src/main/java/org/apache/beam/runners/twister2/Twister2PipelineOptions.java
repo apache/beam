@@ -19,14 +19,15 @@ package org.apache.beam.runners.twister2;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import edu.iu.dsc.tws.tset.env.TSetEnvironment;
-import java.util.List;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 
 /** Twister2PipelineOptions. */
-public interface Twister2PipelineOptions extends PipelineOptions, StreamingOptions {
+public interface Twister2PipelineOptions
+    extends PipelineOptions, StreamingOptions, FileStagingOptions {
 
   @Description("set parallelism for Twister2 processor")
   @Default.Integer(1)
@@ -45,12 +46,6 @@ public interface Twister2PipelineOptions extends PipelineOptions, StreamingOptio
   String getClusterType();
 
   void setClusterType(String name);
-
-  @Description(
-      "Jar-Files to send to all workers and put on the classpath. The default value is all files from the classpath.")
-  List<String> getFilesToStage();
-
-  void setFilesToStage(List<String> value);
 
   @Description("Job file zip")
   String getJobFileZip();

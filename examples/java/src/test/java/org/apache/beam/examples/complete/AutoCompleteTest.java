@@ -121,7 +121,7 @@ public class AutoCompleteTest implements Serializable {
 
     PCollection<KV<String, List<CompletionCandidate>>> output =
         input
-            .apply(Window.into(SlidingWindows.of(new Duration(2))))
+            .apply(Window.into(SlidingWindows.of(Duration.millis(2))))
             .apply(new ComputeTopCompletions(2, recursive));
 
     PAssert.that(output)
@@ -146,7 +146,7 @@ public class AutoCompleteTest implements Serializable {
     List<CompletionCandidate> all = new ArrayList<>();
     for (String s : entries) {
       String[] countValue = s.split(":", -1);
-      all.add(new CompletionCandidate(countValue[0], Integer.valueOf(countValue[1])));
+      all.add(new CompletionCandidate(countValue[0], Integer.parseInt(countValue[1])));
     }
     return all;
   }

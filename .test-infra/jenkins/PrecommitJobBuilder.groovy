@@ -57,11 +57,11 @@ class PrecommitJobBuilder {
     definePhraseJob additionalCustomization
   }
 
-  /** Create a pre-commit job which runs on a daily schedule. */
+  /** Create a pre-commit job which runs on a regular schedule. */
   private void defineCronJob(Closure additionalCustomization) {
     def job = createBaseJob 'Cron'
     job.with {
-      description buildDescription('on a daily schedule.')
+      description buildDescription('on a regular schedule.')
       commonJobProperties.setAutoJob delegate
     }
     job.with additionalCustomization
@@ -77,7 +77,7 @@ class PrecommitJobBuilder {
       '^gradle.properties$',
       '^gradlew$',
       '^gradle.bat$',
-      '^settings.gradle$'
+      '^settings.gradle.kts$'
     ]
     if (triggerPathPatterns) {
       triggerPathPatterns.addAll defaultPathTriggers

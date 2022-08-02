@@ -60,6 +60,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link FnApiWindowMappingFn}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class FnApiWindowMappingFnTest {
   private static final ApiServiceDescriptor DATA_SERVICE =
       ApiServiceDescriptor.newBuilder().setUrl("test://data").build();

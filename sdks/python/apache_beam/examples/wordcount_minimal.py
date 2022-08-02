@@ -46,13 +46,23 @@ pipeline. You can see the results in your output bucket in the GCS browser.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
+# beam-playground:
+#   name: WordCountMinimal
+#   description: An example that counts words in Shakespeare's works.
+#   multifile: false
+#   pipeline_options: --output output.txt
+#   context_line: 74
+#   categories:
+#     - IO
+#     - Core Transforms
+#     - Flatten
+#     - Options
+#     - Combiners
+#     - Quickstart
 
 import argparse
 import logging
 import re
-
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -61,7 +71,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
 
-def run(argv=None, save_main_session=True):
+def main(argv=None, save_main_session=True):
   """Main entry point; defines and runs the wordcount pipeline."""
 
   parser = argparse.ArgumentParser()
@@ -111,8 +121,8 @@ def run(argv=None, save_main_session=True):
     counts = (
         lines
         | 'Split' >> (
-            beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x)).
-            with_output_types(unicode))
+            beam.FlatMap(
+                lambda x: re.findall(r'[A-Za-z\']+', x)).with_output_types(str))
         | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
         | 'GroupAndSum' >> beam.CombinePerKey(sum))
 
@@ -130,4 +140,4 @@ def run(argv=None, save_main_session=True):
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  run()
+  main()

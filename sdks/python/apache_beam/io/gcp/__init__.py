@@ -14,26 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from __future__ import absolute_import
-
-import sys
 
 # Important: the MIME library in the Python 3.x standard library used by
 # apitools causes uploads containing '\r\n' to be corrupted, unless we
 # patch the BytesGenerator class to write contents verbatim.
-if sys.version_info[0] == 3:
-  try:
-    # pylint: disable=wrong-import-order, wrong-import-position
-    # pylint: disable=ungrouped-imports
-    import apitools.base.py.transfer as transfer
-    import email.generator as email_generator
+try:
+  # pylint: disable=wrong-import-order, wrong-import-position
+  # pylint: disable=ungrouped-imports
+  import email.generator as email_generator
+  from apitools.base.py import transfer
 
-    class _WrapperNamespace(object):
-      class BytesGenerator(email_generator.BytesGenerator):
-        def _write_lines(self, lines):
-          self.write(lines)
+  class _WrapperNamespace(object):
+    class BytesGenerator(email_generator.BytesGenerator):
+      def _write_lines(self, lines):
+        self.write(lines)
 
-    transfer.email_generator = _WrapperNamespace
-  except ImportError:
-    # We may not have the GCP dependencies installed, so we pass in this case.
-    pass
+  transfer.email_generator = _WrapperNamespace
+except ImportError:
+  # We may not have the GCP dependencies installed, so we pass in this case.
+  pass

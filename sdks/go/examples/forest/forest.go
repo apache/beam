@@ -27,14 +27,28 @@
 // orders.
 package main
 
+// beam-playground:
+//   name: Forest
+//   description: An example that shows that pipeline construction is normal Go
+//     code -- the pipeline "forest" is created recursively and uses a global
+//     variable -- and that a pipeline may contain non-connected parts. The pipeline
+//     generated has the shape of a forest where the output of each singleton leaf
+//     is flattened together over several rounds. This is most clearly seen via a
+//     visual representation of the pipeline, such as the one produced by the 'dot' runner.
+//   multifile: false
+//   context_line: 59
+//   categories:
+//     - Flatten
+//     - Branching
+
 import (
 	"context"
 	"flag"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
 
 var (

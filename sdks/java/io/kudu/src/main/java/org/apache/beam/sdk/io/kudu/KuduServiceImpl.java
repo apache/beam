@@ -45,6 +45,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An implementation of the {@link KuduService} that uses a Kudu instance. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class KuduServiceImpl<T> implements KuduService<T> {
   private static final Logger LOG = LoggerFactory.getLogger(KuduServiceImpl.class);
 

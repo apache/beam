@@ -138,6 +138,9 @@ import org.apache.beam.sdk.values.PCollection;
  * Its API is subject to change in future versions of Beam.
  */
 @Experimental
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public final class TDigestQuantiles {
 
   /**

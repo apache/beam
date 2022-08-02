@@ -107,21 +107,12 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
 
   public void prefetchForValue(W window, StateAccessor<?> state) {
     prefetchIsClosed(state);
-    rootTrigger
-        .getSpec()
-        .prefetchOnElement(contextFactory.createStateAccessor(window, rootTrigger));
-  }
-
-  public void prefetchOnFire(W window, StateAccessor<?> state) {
-    prefetchIsClosed(state);
-    rootTrigger.getSpec().prefetchOnFire(contextFactory.createStateAccessor(window, rootTrigger));
+    rootTrigger.invokePrefetchOnElement(contextFactory.createPrefetchContext(window, rootTrigger));
   }
 
   public void prefetchShouldFire(W window, StateAccessor<?> state) {
     prefetchIsClosed(state);
-    rootTrigger
-        .getSpec()
-        .prefetchShouldFire(contextFactory.createStateAccessor(window, rootTrigger));
+    rootTrigger.invokePrefetchShouldFire(contextFactory.createPrefetchContext(window, rootTrigger));
   }
 
   /** Run the trigger logic to deal with a new value. */
@@ -142,10 +133,8 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
         value.readLater();
       }
     }
-    rootTrigger
-        .getSpec()
-        .prefetchOnMerge(
-            contextFactory.createMergingStateAccessor(window, mergingWindows, rootTrigger));
+    rootTrigger.invokePrefetchOnMerge(
+        contextFactory.createMergingPrefetchContext(window, mergingWindows, rootTrigger));
   }
 
   /** Run the trigger merging logic as part of executing the specified merge. */

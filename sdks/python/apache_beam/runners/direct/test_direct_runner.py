@@ -19,9 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
@@ -42,7 +39,7 @@ class TestDirectRunner(DirectRunner):
     # send this option to remote executors.
     test_options.on_success_matcher = None
 
-    self.result = super(TestDirectRunner, self).run_pipeline(pipeline, options)
+    self.result = super().run_pipeline(pipeline, options)
 
     try:
       if not is_streaming:

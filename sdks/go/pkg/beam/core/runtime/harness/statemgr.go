@@ -23,10 +23,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -36,18 +37,31 @@ type ScopedStateReader struct {
 	mgr    *StateChannelManager
 	instID instructionID
 
-	opened []io.Closer // track open readers to force close all
 	closed bool
 	mu     sync.Mutex
+
+	cache *statecache.SideInputCache
 }
 
 // NewScopedStateReader returns a ScopedStateReader for the given instruction.
 func NewScopedStateReader(mgr *StateChannelManager, instID instructionID) *ScopedStateReader {
-	return &ScopedStateReader{mgr: mgr, instID: instID}
+	return &ScopedStateReader{mgr: mgr, instID: instID, cache: nil}
 }
 
-// OpenSideInput opens a byte stream for reading iterable side input.
-func (s *ScopedStateReader) OpenSideInput(ctx context.Context, id exec.StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error) {
+// NewScopedStateReaderWithCache returns a ScopedState reader for the given instruction with a pointer to a SideInputCache.
+func NewScopedStateReaderWithCache(mgr *StateChannelManager, instID instructionID, cache *statecache.SideInputCache) *ScopedStateReader {
+	return &ScopedStateReader{mgr: mgr, instID: instID, cache: cache}
+}
+
+// OpenIterableSideInput opens a byte stream for reading iterable side input
+func (s *ScopedStateReader) OpenIterableSideInput(ctx context.Context, id exec.StreamID, sideInputID string, w []byte) (io.ReadCloser, error) {
+	return s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
+		return newIterableSideInputReader(ch, id, sideInputID, s.instID, w)
+	})
+}
+
+// OpenMultiMapSideInput opens a byte stream for reading multimap side input.
+func (s *ScopedStateReader) OpenMultiMapSideInput(ctx context.Context, id exec.StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error) {
 	return s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
 		return newSideInputReader(ch, id, sideInputID, s.instID, key, w)
 	})
@@ -58,6 +72,11 @@ func (s *ScopedStateReader) OpenIterable(ctx context.Context, id exec.StreamID, 
 	return s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
 		return newRunnerReader(ch, s.instID, key)
 	})
+}
+
+// GetSideInputCache returns a pointer to the SideInputCache being used by the SDK harness.
+func (s *ScopedStateReader) GetSideInputCache() exec.SideCache {
+	return s.cache
 }
 
 func (s *ScopedStateReader) openReader(ctx context.Context, id exec.StreamID, readerFn func(*StateChannel) *stateKeyReader) (*stateKeyReader, error) {
@@ -72,7 +91,6 @@ func (s *ScopedStateReader) openReader(ctx context.Context, id exec.StreamID, re
 		return nil, errors.Errorf("instruction %v no longer processing", s.instID)
 	}
 	ret := readerFn(ch)
-	s.opened = append(s.opened, ret)
 	s.mu.Unlock()
 	return ret, nil
 }
@@ -94,10 +112,6 @@ func (s *ScopedStateReader) Close() error {
 	s.mu.Lock()
 	s.closed = true
 	s.mgr = nil
-	for _, r := range s.opened {
-		r.Close() // force close all opened readers
-	}
-	s.opened = nil
 	s.mu.Unlock()
 	return nil
 }
@@ -126,6 +140,24 @@ func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, 
 			},
 		},
 	}
+	return &stateKeyReader{
+		instID: instID,
+		key:    key,
+		ch:     ch,
+	}
+}
+
+func newIterableSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID instructionID, w []byte) *stateKeyReader {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_IterableSideInput_{
+			IterableSideInput: &fnpb.StateKey_IterableSideInput{
+				TransformId: id.PtransformID,
+				SideInputId: sideInputID,
+				Window:      w,
+			},
+		},
+	}
+
 	return &stateKeyReader{
 		instID: instID,
 		key:    key,
@@ -176,11 +208,15 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 		}
 		resp, err := localChannel.Send(req)
 		if err != nil {
+			r.Close()
 			return 0, err
 		}
 		get := resp.GetGet()
 		if get == nil { // no data associated with this segment.
 			r.eof = true
+			if err := r.Close(); err != nil {
+				return 0, err
+			}
 			return 0, io.EOF
 		}
 		r.token = get.GetContinuationToken()
@@ -198,6 +234,9 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 		// If no data was copied, and this is the last segment anyway, return EOF now.
 		// This prevent spurious zero elements.
 		r.buf = nil
+		if err := r.Close(); err != nil {
+			return 0, err
+		}
 		return 0, io.EOF
 	case len(r.buf) == n:
 		r.buf = nil
@@ -287,7 +326,7 @@ func (c *StateChannel) terminateStreamOnError(err error) {
 
 func newStateChannel(ctx context.Context, port exec.Port) (*StateChannel, error) {
 	ctx, cancelFn := context.WithCancel(ctx)
-	cc, err := dial(ctx, port.URL, 15*time.Second)
+	cc, err := dial(ctx, port.URL, "state", 15*time.Second)
 	if err != nil {
 		cancelFn()
 		return nil, errors.Wrapf(err, "failed to connect to state service %v", port.URL)
@@ -298,10 +337,13 @@ func newStateChannel(ctx context.Context, port exec.Port) (*StateChannel, error)
 		cancelFn()
 		return nil, errors.Wrapf(err, "failed to create state client %v", port.URL)
 	}
-	return makeStateChannel(ctx, cancelFn, port.URL, client), nil
+	return makeStateChannel(ctx, port.URL, client, func() {
+		cc.Close()
+		cancelFn()
+	}), nil
 }
 
-func makeStateChannel(ctx context.Context, cancelFn context.CancelFunc, id string, client stateClient) *StateChannel {
+func makeStateChannel(ctx context.Context, id string, client stateClient, cancelFn context.CancelFunc) *StateChannel {
 	ret := &StateChannel{
 		id:        id,
 		client:    client,
@@ -373,7 +415,7 @@ func (c *StateChannel) write(ctx context.Context) {
 		for err == nil {
 			// Per GRPC stream documentation, if there's an EOF, we must call Recv
 			// until a non-nil error is returned, to ensure resources are cleaned up.
-			// https://godoc.org/google.golang.org/grpc#ClientConn.NewStream
+			// https://pkg.go.dev/google.golang.org/grpc#ClientConn.NewStream
 			_, err = c.client.Recv()
 		}
 	}

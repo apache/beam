@@ -58,15 +58,32 @@ function clean_up(){
 }
 trap clean_up EXIT
 
-RELEASE_BRANCH=release-${RELEASE_VER}
-WORKING_BRANCH=release-${RELEASE_VER}-RC${RC_NUM}_validations
+setup_bashrc=0
+function set_bashrc(){
+    [[ $setup_bashrc -eq 0 ]] || return
+    # [BEAM-4518]
+    FIXED_WINDOW_DURATION=20
+    cp ~/.bashrc ~/$BACKUP_BASHRC
+    echo "export USER_GCP_PROJECT=${USER_GCP_PROJECT}" >> ~/.bashrc
+    echo "export USER_GCS_BUCKET=${USER_GCS_BUCKET}" >> ~/.bashrc
+    echo "export SHARED_PUBSUB_TOPIC=${SHARED_PUBSUB_TOPIC}" >> ~/.bashrc
+    echo "export GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}" >> ~/.bashrc
+    echo "export RELEASE_VER=${RELEASE_VER}" >> ~/.bashrc
+    echo "export FIXED_WINDOW_DURATION=${FIXED_WINDOW_DURATION}" >> ~/.bashrc
+    echo "export LOCAL_BEAM_DIR=${LOCAL_BEAM_DIR}" >> ~/.bashrc
+    setup_bashrc=1
+}
+
+RC_TAG="v${RELEASE_VER}-RC${RC_NUM}"
+RELEASE_BRANCH="releasev${RELEASE_VER}"
+WORKING_BRANCH=v${RELEASE_VER}-RC${RC_NUM}_validations
 GIT_REPO_URL=https://github.com/apache/beam.git
 PYTHON_RC_DOWNLOAD_URL=https://dist.apache.org/repos/dist/dev/beam
 HUB_VERSION=2.12.0
 HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
 BACKUP_BASHRC=.bashrc_backup_$(date +"%Y%m%d%H%M%S")
 BACKUP_M2=settings_backup_$(date +"%Y%m%d%H%M%S").xml
-declare -a PYTHON_VERSIONS_TO_VALIDATE=("python2.7" "python3.5")
+declare -a PYTHON_VERSIONS_TO_VALIDATE=("python3.8")
 
 echo ""
 echo "====================Checking Environment & Variables================="
@@ -81,7 +98,9 @@ echo "All environment and workflow configurations from RC_VALIDATE_CONFIGS:"
 for i in "${RC_VALIDATE_CONFIGS[@]}"; do
   echo "$i = ${!i}"
 done
-echo "[Confirmation Required] Are they all provided and correctly set? [y|N]"
+echo "TODO(https://github.com/apache/beam/issues/21237): parts of this script launch background processes with gnome-terminal,"
+echo "It may not work well over ssh or within a tmux session. Using 'ssh -Y' may help."
+echo "[Confirmation Required] Would you like to proceed with current settings? [y|N]"
 read confirmation
 if [[ $confirmation != "y" ]]; then
   echo "Please rerun this script and make sure you have the right configurations."
@@ -103,9 +122,9 @@ else
   echo "* Creating local Beam workspace: ${LOCAL_BEAM_DIR}"
   mkdir -p ${LOCAL_BEAM_DIR}
   echo "* Cloning Beam repo"
-  git clone ${GIT_REPO_URL} ${LOCAL_BEAM_DIR}
+  git clone --branch ${RC_TAG} ${GIT_REPO_URL} ${LOCAL_BEAM_DIR}
   cd ${LOCAL_BEAM_DIR}
-  git checkout -b ${WORKING_BRANCH} origin/${RELEASE_BRANCH} --quiet
+  git checkout -b ${WORKING_BRANCH} ${RC_TAG} --quiet
   echo "* Setting up git config"
   # Set upstream repo url with access token included.
   USER_REPO_URL=https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_USERNAME}/beam.git
@@ -157,130 +176,34 @@ if [[ -z `which gcloud` ]]; then
 fi
 gcloud --version
 
-echo "-----------------Checking Bigquery CLI-----------------"
-if [[ ! -f ~/.bigqueryrc ]]; then
-  echo "-----------------Initialing Bigquery CLI-----------------"
-  bq init
-fi
-bq version
+echo "-----Initializing gcloud default and application-default credentials-----"
+gcloud auth login
+gcloud auth application-default login
 
 echo "-----------------Checking gnome-terminal-----------------"
 if [[ -z `which gnome-terminal` ]]; then
   echo "You don't have gnome-terminal installed."
-  if [[ "$INSTALL_GNOME_TERMINAL" != true ]]; then
-    sudo apt-get upgrade
+  if [[ "$INSTALL_GNOME_TERMINAL" = true ]]; then
     sudo apt-get install gnome-terminal
   else
-    echo "gnome-terminal is not installed. Validation on Python Leaderboard & GameStates will be skipped."
+    echo "gnome-terminal is not installed. Can't run validation on Python Leaderboard & GameStates. Exiting."
     exit
   fi
 fi
 gnome-terminal --version
 
-
-echo ""
-echo ""
-echo "====================Starting Java Quickstart======================="
-echo "[Current task] Java quickstart with direct runner"
-if [[ "$java_quickstart_direct" = true ]]; then
-  echo "*************************************************************"
-  echo "* Running Java Quickstart with DirectRunner"
-  echo "*************************************************************"
-  ./gradlew :runners:direct-java:runQuickstartJavaDirect \
-  -Prepourl=${REPO_URL} \
-  -Pver=${RELEASE_VER}
-else
-  echo "* Skip Java quickstart with direct runner"
-fi
-
-echo "[Current task] Java quickstart with Flink local runner"
-if [[ "$java_quickstart_flink_local" = true ]]; then
-  echo "*************************************************************"
-  echo "* Running Java Quickstart with Flink local runner"
-  echo "*************************************************************"
-  ./gradlew :runners:flink:1.10:runQuickstartJavaFlinkLocal \
-  -Prepourl=${REPO_URL} \
-  -Pver=${RELEASE_VER}
-else
-  echo "* Skip Java quickstart with Flink local runner"
-fi
-
-echo "[Current task] Java quickstart with Spark local runner"
-if [[ "$java_quickstart_spark_local" = true ]]; then
-  echo "*************************************************************"
-  echo "* Running Java Quickstart with Spark local runner"
-  echo "*************************************************************"
-  ./gradlew :runners:spark:runQuickstartJavaSpark \
-  -Prepourl=${REPO_URL} \
-  -Pver=${RELEASE_VER}
-else
-  echo "* Skip Java quickstart with Spark local runner"
-fi
-
-echo "[Current task] Java quickstart with Dataflow runner"
-if [[ "$java_quickstart_dataflow" = true && ! -z `which gcloud` ]]; then
-  echo "*************************************************************"
-  echo "* Running Java Quickstart with DataflowRunner"
-  echo "*************************************************************"
-  ./gradlew :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow \
-  -Prepourl=${REPO_URL} \
-  -Pver=${RELEASE_VER} \
-  -PgcpProject=${USER_GCP_PROJECT} \
-  -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
-else
-  echo "* Skip Java quickstart with Dataflow runner. Google Cloud SDK is required."
-fi
-
-echo ""
-echo "====================Starting Java Mobile Game====================="
-if [[ ("$java_mobile_game_direct" = true || "$java_mobile_game_dataflow" = true) \
-      && ! -z `which gcloud` ]]; then
-  MOBILE_GAME_DATASET=${USER}_java_validations_$(date +%m%d)_$RANDOM
-  MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-java-topic-$(date +%m%d)_$RANDOM
-  echo "Using GCP project: ${USER_GCP_PROJECT}"
-  echo "Will create BigQuery dataset: ${MOBILE_GAME_DATASET}"
-  echo "Will create Pubsub topic: ${MOBILE_GAME_PUBSUB_TOPIC}"
-
-  echo "-----------------Creating BigQuery Dataset-----------------"
-  bq mk --project_id=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
-
-  echo "-----------------Creating Pubsub Topic-----------------"
-  gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
-
-  if [[ "$java_mobile_game_direct" = true ]]; then
-    echo "**************************************************************************"
-    echo "* Java mobile game on DirectRunner: UserScore, HourlyTeamScore, Leaderboard"
-    echo "**************************************************************************"
-    ./gradlew :runners:direct-java:runMobileGamingJavaDirect \
-    -Prepourl=${REPO_URL} \
-    -Pver=${RELEASE_VER} \
-    -PgcpProject=${USER_GCP_PROJECT} \
-    -PbqDataset=${MOBILE_GAME_DATASET} \
-    -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
-    -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
+echo "-----------------Checking kubectl-----------------"
+if [[ -z `which kubectl` ]]; then
+  echo "You don't have kubectl installed."
+  if [[ "$INSTALL_KUBECTL" = true ]]; then
+    sudo apt-get install kubectl
   else
-   echo "* Skip Java Mobile Game on DirectRunner."
+    echo "kubectl is not installed. Can't run validation on Python cross-language Kafka taxi. Exiting."
+    exit
   fi
-
-  if [[ "$java_mobile_game_dataflow" = true ]]; then
-    echo "**************************************************************************"
-    echo "* Java mobile game on DataflowRunner: UserScore, HourlyTeamScore, Leaderboard"
-    echo "**************************************************************************"
-    ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
-    -Prepourl=${REPO_URL} \
-    -Pver=${RELEASE_VER} \
-    -PgcpProject=${USER_GCP_PROJECT} \
-    -PbqDataset=${MOBILE_GAME_DATASET} \
-    -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
-    -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
-  else
-    echo "* Skip Java Mobile Game on DataflowRunner."
-  fi
-
-  echo "-----------------Cleaning up BigQuery & Pubsub-----------------"
-  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
-  gcloud pubsub topics delete projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC}
 fi
+kubectl version
+
 
 echo ""
 echo "====================Starting Python Quickstart and MobileGame==================="
@@ -293,7 +216,7 @@ if [[ "$python_quickstart_mobile_game" = true && ! -z `which hub` ]]; then
   git commit -m "Add empty file in order to create PR" --quiet
   git push -f ${GITHUB_USERNAME} --quiet
   # Create a test PR
-  PR_URL=$(hub pull-request -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run Python RC Validation Tests
+  PR_URL=$(hub pull-request -b apache:${RELEASE_BRANCH} -h apache:${RC_TAG} -F- <<<"[DO NOT MERGE] Run Python RC Validation Tests
 
   Run Python ReleaseCandidate")
   echo "Created $PR_URL"
@@ -303,9 +226,10 @@ if [[ "$python_quickstart_mobile_game" = true && ! -z `which hub` ]]; then
   echo ""
   echo "[NOTE] If there is no jenkins job started, please comment on $PR_URL with: Run Python ReleaseCandidate"
 else
-  echo "* Skip Python Quickstart and MobileGame. Hub is required."
+  echo "* Skipping Python Quickstart and MobileGame. Hub is required."
 fi
 
+# TODO(https://github.com/apache/beam/issues/21193) Run the remaining tests on Jenkins.
 echo ""
 echo "====================Starting Python Leaderboard & GameStates Validations==============="
 if [[ ("$python_leaderboard_direct" = true \
@@ -324,10 +248,6 @@ if [[ ("$python_leaderboard_direct" = true \
 
   echo "--------------------------Verifying Hashes------------------------------------"
   sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
-
-  `which pip` install --upgrade pip
-  `which pip` install --upgrade setuptools
-  `which pip` install --upgrade virtualenv
 
   echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
     cd ~
@@ -358,16 +278,7 @@ if [[ ("$python_leaderboard_direct" = true \
     echo "</settings>" >> settings.xml
 
   echo "-----------------------Setting up Shell Env Vars------------------------------"
-    # [BEAM-4518]
-    FIXED_WINDOW_DURATION=20
-    cp ~/.bashrc ~/$BACKUP_BASHRC
-    echo "export USER_GCP_PROJECT=${USER_GCP_PROJECT}" >> ~/.bashrc
-    echo "export USER_GCS_BUCKET=${USER_GCS_BUCKET}" >> ~/.bashrc
-    echo "export SHARED_PUBSUB_TOPIC=${SHARED_PUBSUB_TOPIC}" >> ~/.bashrc
-    echo "export GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}" >> ~/.bashrc
-    echo "export RELEASE_VER=${RELEASE_VER}" >> ~/.bashrc
-    echo "export FIXED_WINDOW_DURATION=${FIXED_WINDOW_DURATION}" >> ~/.bashrc
-    echo "export LOCAL_BEAM_DIR=${LOCAL_BEAM_DIR}" >> ~/.bashrc
+    set_bashrc
 
   echo "----------------------Starting Pubsub Java Injector--------------------------"
   cd ${LOCAL_BEAM_DIR}
@@ -402,8 +313,9 @@ if [[ ("$python_leaderboard_direct" = true \
   do
     rm -rf ./beam_env_${py_version}
     echo "--------------Setting up virtualenv with $py_version interpreter----------------"
-    virtualenv beam_env_${py_version} -p $py_version
-    . beam_env_${py_version}/bin/activate
+    $py_version -m venv beam_env_${py_version}
+    . ./beam_env_${py_version}/bin/activate
+    pip install --upgrade pip setuptools wheel
 
     echo "--------------------------Installing Python SDK-------------------------------"
     pip install apache-beam-${RELEASE_VER}.zip[gcp]
@@ -440,7 +352,7 @@ if [[ ("$python_leaderboard_direct" = true \
       bq head -n 10 ${LEADERBOARD_DIRECT_DATASET}.leader_board_teams
       echo "***************************************************************"
     else
-      echo "* Skip Python Leaderboard with DirectRunner"
+      echo "* Skipping Python Leaderboard with DirectRunner"
     fi
 
     echo "----------------Starting Leaderboard with DataflowRunner---------------------"
@@ -478,7 +390,7 @@ if [[ ("$python_leaderboard_direct" = true \
       bq head -n 10 ${LEADERBOARD_DF_DATASET}.leader_board_teams
       echo "***************************************************************"
     else
-      echo "* Skip Python Leaderboard with DataflowRunner"
+      echo "* Skipping Python Leaderboard with DataflowRunner"
     fi
 
     echo "------------------Starting GameStats with DirectRunner-----------------------"
@@ -514,7 +426,7 @@ if [[ ("$python_leaderboard_direct" = true \
       bq head -n 10 ${GAMESTATS_DIRECT_DATASET}.game_stats_sessions
       echo "***************************************************************"
     else
-      echo "* Skip Python GameStats with DirectRunner"
+      echo "* Skipping Python GameStats with DirectRunner"
     fi
 
     echo "-------------------Starting GameStats with DataflowRunner--------------------"
@@ -553,9 +465,164 @@ if [[ ("$python_leaderboard_direct" = true \
       bq head -n 10 ${GAMESTATS_DF_DATASET}.game_stats_sessions
       echo "***************************************************************"
     else
-      echo "* Skip Python GameStats with DataflowRunner"
+      echo "* Skipping Python GameStats with DataflowRunner"
     fi
   done # Loop over Python versions.
 else
-  echo "* Skip Python Leaderboard & GameStates Validations"
+  echo "* Skipping Python Leaderboard & GameStates Validations"
 fi
+
+echo ""
+echo "====================Starting Python Cross-language Validations==============="
+if [[ ("$python_xlang_kafka_taxi_dataflow" = true
+      || "$python_xlang_sql_taxi_dataflow" = true) \
+      && ! -z `which gnome-terminal` && ! -z `which kubectl` ]]; then
+  cd ${LOCAL_BEAM_DIR}
+
+  echo "---------------------Downloading Python Staging RC----------------------------"
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
+  if [[ ! -f apache-beam-${RELEASE_VER}.zip ]]; then
+    { echo "Fail to download Python Staging RC files." ;exit 1; }
+  fi
+
+  echo "--------------------------Verifying Hashes------------------------------------"
+  sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
+
+  `which pip` install --upgrade pip
+  `which pip` install --upgrade setuptools
+
+  echo "-----------------------Setting up Shell Env Vars------------------------------"
+  set_bashrc
+
+  echo "-----------------------Setting up Kafka Cluster on GKE------------------------"
+  CLUSTER_NAME=xlang-kafka-cluster-$RANDOM
+  if [[ "$python_xlang_kafka_taxi_dataflow" = true ]]; then
+    gcloud container clusters create --project=${USER_GCP_PROJECT} --region=${USER_GCP_REGION} --no-enable-ip-alias $CLUSTER_NAME
+    kubectl apply -R -f ${LOCAL_BEAM_DIR}/.test-infra/kubernetes/kafka-cluster
+    echo "* Please wait for 10 mins to let a Kafka cluster be launched on GKE."
+    echo "* Sleeping for 10 mins"
+    sleep 10m
+  else
+    echo "* Skipping Kafka cluster setup"
+  fi
+
+  # Run Python XLang pipelines under multiple versions of Python
+  cd ${LOCAL_BEAM_DIR}
+  for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
+  do
+    rm -rf ./beam_env_${py_version}
+    echo "--------------Setting up virtualenv with $py_version interpreter----------------"
+    $py_version -m venv beam_env_${py_version}
+    . ./beam_env_${py_version}/bin/activate
+    pip install --upgrade pip setuptools wheel
+    ln -s ${LOCAL_BEAM_DIR}/sdks beam_env_${py_version}/lib/sdks
+
+    echo "--------------------------Installing Python SDK-------------------------------"
+    pip install apache-beam-${RELEASE_VER}.zip[gcp]
+
+    echo "----------------Starting XLang Kafka Taxi with DataflowRunner---------------------"
+    if [[ "$python_xlang_kafka_taxi_dataflow" = true ]]; then
+      BOOTSTRAP_SERVERS="$(kubectl get svc outside-0 -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):32400"
+      echo "BOOTSTRAP_SERVERS=${BOOTSTRAP_SERVERS}"
+      KAFKA_TAXI_DF_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
+      KAFKA_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-io-expansion-service/${RELEASE_VER}/beam-sdks-java-io-expansion-service-${RELEASE_VER}.jar
+
+      bq mk --project_id=${USER_GCP_PROJECT} ${KAFKA_TAXI_DF_DATASET}
+      echo "export BOOTSTRAP_SERVERS=${BOOTSTRAP_SERVERS}" >> ~/.bashrc
+      echo "export KAFKA_TAXI_DF_DATASET=${KAFKA_TAXI_DF_DATASET}" >> ~/.bashrc
+
+      echo "This is a streaming job. This task will be launched in a separate terminal."
+      gnome-terminal -x sh -c \
+      "echo '*****************************************************';
+       echo '* Running Python XLang Kafka Taxi with DataflowRunner';
+       echo '*****************************************************';
+      . ${LOCAL_BEAM_DIR}/beam_env_${py_version}/bin/activate
+      python -m apache_beam.examples.kafkataxi.kafka_taxi \
+      --project=${USER_GCP_PROJECT} \
+      --region=${USER_GCP_REGION} \
+      --topic beam-runnerv2 \
+      --bootstrap_servers ${BOOTSTRAP_SERVERS} \
+      --bq_dataset ${KAFKA_TAXI_DF_DATASET} \
+      --runner DataflowRunner \
+      --num_workers 5 \
+      --temp_location=${USER_GCS_BUCKET}/temp/ \
+      --with_metadata \
+      --beam_services=\"{\\\"sdks:java:io:expansion-service:shadowJar\\\": \\\"${KAFKA_EXPANSION_SERVICE_JAR}\\\"}\" \
+      --sdk_location apache-beam-${RELEASE_VER}.zip; \
+      exec bash"
+
+      echo "***************************************************************"
+      echo "* Please wait for at least 20 mins to let Dataflow job be launched and results get populated."
+      echo "* Sleeping for 20 mins"
+      sleep 20m
+      echo "* How to verify results:"
+      echo "* 1. Goto your Dataflow job console and check whether there is any error."
+      echo "* 2. Check whether ${KAFKA_TAXI_DF_DATASET}.xlang_kafka_taxi has data, retrieving BigQuery data as below: "
+      test_output=$(bq head -n 10 ${KAFKA_TAXI_DF_DATASET}.xlang_kafka_taxi)
+      echo "$test_output"
+      if ! grep -q "passenger_count" <<< "$test_output"; then
+        echo "Couldn't find expected output. Please confirm the output by visiting the console manually."
+        exit 1
+      fi
+      echo "***************************************************************"
+    else
+      echo "* Skipping Python XLang Kafka Taxi with DataflowRunner"
+    fi
+
+    echo "----------------Starting XLang SQL Taxi with DataflowRunner---------------------"
+    if [[ "$python_xlang_sql_taxi_dataflow" = true ]]; then
+      SQL_TAXI_TOPIC=${USER}_python_validations_$(date +%m%d)_$RANDOM
+      SQL_TAXI_SUBSCRIPTION=${USER}_python_validations_$(date +%m%d)_$RANDOM
+      SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${RELEASE_VER}/beam-sdks-java-extensions-sql-expansion-service-${RELEASE_VER}.jar
+
+      gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${SQL_TAXI_TOPIC}
+      gcloud pubsub subscriptions create --project=${USER_GCP_PROJECT} --topic=${SQL_TAXI_TOPIC} ${SQL_TAXI_SUBSCRIPTION}
+      echo "export SQL_TAXI_TOPIC=${SQL_TAXI_TOPIC}" >> ~/.bashrc
+
+      echo "This is a streaming job. This task will be launched in a separate terminal."
+      gnome-terminal -x sh -c \
+      "echo '***************************************************';
+       echo '* Running Python XLang SQL Taxi with DataflowRunner';
+       echo '***************************************************';
+      . ${LOCAL_BEAM_DIR}/beam_env_${py_version}/bin/activate
+      python -m apache_beam.examples.sql_taxi \
+      --project=${USER_GCP_PROJECT} \
+      --region=${USER_GCP_REGION} \
+      --runner DataflowRunner \
+      --num_workers 5 \
+      --temp_location=${USER_GCS_BUCKET}/temp/ \
+      --output_topic projects/${USER_GCP_PROJECT}/topics/${SQL_TAXI_TOPIC} \
+      --beam_services=\"{\\\":sdks:java:extensions:sql:expansion-service:shadowJar\\\": \\\"${SQL_EXPANSION_SERVICE_JAR}\\\"}\" \
+      --sdk_location apache-beam-${RELEASE_VER}.zip; \
+      exec bash"
+
+      echo "***************************************************************"
+      echo "* Please wait for at least 20 mins to let Dataflow job be launched and results get populated."
+      echo "* Sleeping for 20 mins"
+      sleep 20m
+      echo "* How to verify results:"
+      echo "* 1. Goto your Dataflow job console and check whether there is any error."
+      echo "* 2. Check whether your ${SQL_TAXI_SUBSCRIPTION} subscription has data below:"
+      # run twice since the first execution would return 0 messages
+      gcloud pubsub subscriptions pull --project=${USER_GCP_PROJECT} --limit=5 ${SQL_TAXI_SUBSCRIPTION}
+      test_output=$(gcloud pubsub subscriptions pull --project=${USER_GCP_PROJECT} --limit=5 ${SQL_TAXI_SUBSCRIPTION})
+      echo "$test_output"
+      if ! grep -q "ride_status" <<< "$test_output"; then
+        echo "Couldn't find expected output. Please confirm the output by visiting the console manually."
+        exit 1
+      fi
+      echo "***************************************************************"
+    else
+      echo "* Skipping Python XLang SQL Taxi with DataflowRunner"
+    fi
+  done # Loop over Python versions.
+else
+  echo "* Skipping Python Cross-language Validations"
+fi
+echo "*************************************************************"
+echo " NOTE: Streaming pipelines are not automatically canceled.   "
+echo " Please manually cancel any remaining test pipelines and     "
+echo " clean up the resources (BigQuery dataset, PubSub topics and "
+echo " subscriptions, GKE cluster, etc.) after verification.       "
+echo "*************************************************************"

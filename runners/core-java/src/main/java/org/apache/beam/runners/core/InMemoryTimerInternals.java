@@ -34,6 +34,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** {@link TimerInternals} with all watermarks and processing clock simulated in-memory. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class InMemoryTimerInternals implements TimerInternals {
 
   /** The current set timers by namespace and ID. */
@@ -59,6 +62,9 @@ public class InMemoryTimerInternals implements TimerInternals {
 
   /** Current synchronized processing time. */
   private Instant synchronizedProcessingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
+
+  /** Class.getSimpleName() cached to avoid allocations for tracing. */
+  private static final String SIMPLE_NAME = InMemoryTimerInternals.class.getSimpleName();
 
   @Override
   public @Nullable Instant currentOutputWatermarkTime() {
@@ -122,17 +128,12 @@ public class InMemoryTimerInternals implements TimerInternals {
   @Deprecated
   @Override
   public void setTimer(TimerData timerData) {
-    WindowTracing.trace("{}.setTimer: {}", getClass().getSimpleName(), timerData);
+    WindowTracing.trace("{}.setTimer: {}", SIMPLE_NAME, timerData);
 
-    @Nullable
-    TimerData existing =
-        existingTimers.get(
-            timerData.getNamespace(), timerData.getTimerId() + '+' + timerData.getTimerFamilyId());
+    @Nullable String colKey = timerData.getTimerId() + '+' + timerData.getTimerFamilyId();
+    TimerData existing = existingTimers.get(timerData.getNamespace(), colKey);
     if (existing == null) {
-      existingTimers.put(
-          timerData.getNamespace(),
-          timerData.getTimerId() + '+' + timerData.getTimerFamilyId(),
-          timerData);
+      existingTimers.put(timerData.getNamespace(), colKey, timerData);
       timersForDomain(timerData.getDomain()).add(timerData);
     } else {
       checkArgument(
@@ -146,16 +147,14 @@ public class InMemoryTimerInternals implements TimerInternals {
         NavigableSet<TimerData> timers = timersForDomain(timerData.getDomain());
         timers.remove(existing);
         timers.add(timerData);
-        existingTimers.put(
-            timerData.getNamespace(),
-            timerData.getTimerId() + '+' + timerData.getTimerFamilyId(),
-            timerData);
+        existingTimers.put(timerData.getNamespace(), colKey, timerData);
       }
     }
   }
 
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+  public void deleteTimer(
+      StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
     throw new UnsupportedOperationException("Canceling a timer by ID is not yet supported.");
   }
 
@@ -213,7 +212,7 @@ public class InMemoryTimerInternals implements TimerInternals {
         newInputWatermark);
     WindowTracing.trace(
         "{}.advanceInputWatermark: from {} to {}",
-        getClass().getSimpleName(),
+        SIMPLE_NAME,
         inputWatermarkTime,
         newInputWatermark);
     inputWatermarkTime = newInputWatermark;
@@ -226,7 +225,7 @@ public class InMemoryTimerInternals implements TimerInternals {
     if (newOutputWatermark.isAfter(inputWatermarkTime)) {
       WindowTracing.trace(
           "{}.advanceOutputWatermark: clipping output watermark from {} to {}",
-          getClass().getSimpleName(),
+          SIMPLE_NAME,
           newOutputWatermark,
           inputWatermarkTime);
       adjustedOutputWatermark = inputWatermarkTime;
@@ -241,7 +240,7 @@ public class InMemoryTimerInternals implements TimerInternals {
         adjustedOutputWatermark);
     WindowTracing.trace(
         "{}.advanceOutputWatermark: from {} to {}",
-        getClass().getSimpleName(),
+        SIMPLE_NAME,
         outputWatermarkTime,
         adjustedOutputWatermark);
     outputWatermarkTime = adjustedOutputWatermark;
@@ -256,10 +255,7 @@ public class InMemoryTimerInternals implements TimerInternals {
         processingTime,
         newProcessingTime);
     WindowTracing.trace(
-        "{}.advanceProcessingTime: from {} to {}",
-        getClass().getSimpleName(),
-        processingTime,
-        newProcessingTime);
+        "{}.advanceProcessingTime: from {} to {}", SIMPLE_NAME, processingTime, newProcessingTime);
     processingTime = newProcessingTime;
   }
 
@@ -274,7 +270,7 @@ public class InMemoryTimerInternals implements TimerInternals {
         newSynchronizedProcessingTime);
     WindowTracing.trace(
         "{}.advanceProcessingTime: from {} to {}",
-        getClass().getSimpleName(),
+        SIMPLE_NAME,
         synchronizedProcessingTime,
         newSynchronizedProcessingTime);
     synchronizedProcessingTime = newSynchronizedProcessingTime;
@@ -285,10 +281,7 @@ public class InMemoryTimerInternals implements TimerInternals {
     TimerData timer = removeNextTimer(inputWatermarkTime, TimeDomain.EVENT_TIME);
     if (timer != null) {
       WindowTracing.trace(
-          "{}.removeNextEventTimer: firing {} at {}",
-          getClass().getSimpleName(),
-          timer,
-          inputWatermarkTime);
+          "{}.removeNextEventTimer: firing {} at {}", SIMPLE_NAME, timer, inputWatermarkTime);
     }
     return timer;
   }
@@ -298,10 +291,7 @@ public class InMemoryTimerInternals implements TimerInternals {
     TimerData timer = removeNextTimer(processingTime, TimeDomain.PROCESSING_TIME);
     if (timer != null) {
       WindowTracing.trace(
-          "{}.removeNextProcessingTimer: firing {} at {}",
-          getClass().getSimpleName(),
-          timer,
-          processingTime);
+          "{}.removeNextProcessingTimer: firing {} at {}", SIMPLE_NAME, timer, processingTime);
     }
     return timer;
   }
@@ -313,7 +303,7 @@ public class InMemoryTimerInternals implements TimerInternals {
     if (timer != null) {
       WindowTracing.trace(
           "{}.removeNextSynchronizedProcessingTimer: firing {} at {}",
-          getClass().getSimpleName(),
+          SIMPLE_NAME,
           timer,
           synchronizedProcessingTime);
     }

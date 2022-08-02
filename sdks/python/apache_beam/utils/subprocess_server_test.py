@@ -19,30 +19,17 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
+import glob
 import os
 import re
 import shutil
 import socketserver
+import subprocess
 import tempfile
 import threading
 import unittest
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
-
 from apache_beam.utils import subprocess_server
-
-
-# TODO(Py3): Use tempfile.TemporaryDirectory
-class TemporaryDirectory:
-  def __enter__(self):
-    self._path = tempfile.mkdtemp()
-    return self._path
-
-  def __exit__(self, *args):
-    shutil.rmtree(self._path, ignore_errors=True)
 
 
 class JavaJarServerTest(unittest.TestCase):
@@ -51,12 +38,20 @@ class JavaJarServerTest(unittest.TestCase):
         'https://repo.maven.apache.org/maven2/org/apache/beam/'
         'beam-sdks-java-fake/VERSION/beam-sdks-java-fake-VERSION.jar',
         subprocess_server.JavaJarServer.path_to_beam_jar(
-            'sdks:java:fake:fatJar', version='VERSION'))
+            ':sdks:java:fake:fatJar', version='VERSION'))
     self.assertEqual(
         'https://repo.maven.apache.org/maven2/org/apache/beam/'
         'beam-sdks-java-fake/VERSION/beam-sdks-java-fake-A-VERSION.jar',
         subprocess_server.JavaJarServer.path_to_beam_jar(
-            'sdks:java:fake:fatJar', appendix='A', version='VERSION'))
+            ':sdks:java:fake:fatJar', appendix='A', version='VERSION'))
+    self.assertEqual(
+        'https://repo.maven.apache.org/maven2/org/apache/beam/'
+        'beam-sdks-java-fake/VERSION/beam-sdks-java-fake-A-VERSION.jar',
+        subprocess_server.JavaJarServer.path_to_beam_jar(
+            ':gradle:target:doesnt:matter',
+            appendix='A',
+            version='VERSION',
+            artifact_id='beam-sdks-java-fake'))
 
   def test_gradle_jar_dev(self):
     with self.assertRaisesRegex(
@@ -69,7 +64,7 @@ class JavaJarServerTest(unittest.TestCase):
                                'beam-sdks-java-fake-VERSION-SNAPSHOT.jar')) +
         ' not found.'):
       subprocess_server.JavaJarServer.path_to_beam_jar(
-          'sdks:java:fake:fatJar', version='VERSION.dev')
+          ':sdks:java:fake:fatJar', version='VERSION.dev')
     with self.assertRaisesRegex(
         Exception,
         re.escape(os.path.join('sdks',
@@ -80,7 +75,21 @@ class JavaJarServerTest(unittest.TestCase):
                                'beam-sdks-java-fake-A-VERSION-SNAPSHOT.jar')) +
         ' not found.'):
       subprocess_server.JavaJarServer.path_to_beam_jar(
-          'sdks:java:fake:fatJar', appendix='A', version='VERSION.dev')
+          ':sdks:java:fake:fatJar', appendix='A', version='VERSION.dev')
+    with self.assertRaisesRegex(
+        Exception,
+        re.escape(os.path.join('sdks',
+                               'java',
+                               'fake',
+                               'build',
+                               'libs',
+                               'fake-artifact-id-A-VERSION-SNAPSHOT.jar')) +
+        ' not found.'):
+      subprocess_server.JavaJarServer.path_to_beam_jar(
+          ':sdks:java:fake:fatJar',
+          appendix='A',
+          version='VERSION.dev',
+          artifact_id='fake-artifact-id')
 
   def test_beam_services(self):
     with subprocess_server.JavaJarServer.beam_services({':some:target': 'foo'}):
@@ -102,11 +111,59 @@ class JavaJarServerTest(unittest.TestCase):
     t.daemon = True
     t.start()
 
-    with TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
       subprocess_server.JavaJarServer.local_jar(
           'http://localhost:%s/path/to/file.jar' % port, temp_dir)
       with open(os.path.join(temp_dir, 'file.jar')) as fin:
         self.assertEqual(fin.read(), 'data')
+
+  @unittest.skipUnless(shutil.which('javac'), 'missing java jdk')
+  def test_classpath_jar(self):
+    with tempfile.TemporaryDirectory() as temp_dir:
+      try:
+        # Avoid having to prefix everything in our test strings.
+        oldwd = os.getcwd()
+        os.chdir(temp_dir)
+
+        with open('Main.java', 'w') as fout:
+          fout.write(
+              """
+public class Main {
+  public static void main(String[] args) { Other.greet(); }
+}
+          """)
+
+        with open('Other.java', 'w') as fout:
+          fout.write(
+              """
+public class Other {
+  public static void greet() { System.out.println("You got me!"); }
+}
+          """)
+
+        os.mkdir('jars')
+        # Using split just for readability/copyability.
+        subprocess.check_call('javac Main.java Other.java'.split())
+        subprocess.check_call('jar cfe jars/Main.jar Main Main.class'.split())
+        subprocess.check_call('jar cf jars/Other.jar Other.class'.split())
+        # Make sure the java and class files don't get picked up.
+        for path in glob.glob('*.*'):
+          os.unlink(path)
+
+        # These should fail.
+        self.assertNotEqual(
+            subprocess.call('java -jar jars/Main.jar'.split()), 0)
+        self.assertNotEqual(
+            subprocess.call('java -jar jars/Other.jar'.split()), 0)
+
+        os.mkdir('beam_temp')
+        composite_jar = subprocess_server.JavaJarServer.make_classpath_jar(
+            'jars/Main.jar', ['jars/Other.jar'], cache_dir='beam_temp')
+        # This, however, should work.
+        subprocess.check_call(f'java -jar {composite_jar}'.split())
+
+      finally:
+        os.chdir(oldwd)
 
 
 if __name__ == '__main__':

@@ -31,6 +31,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>A query transform may request a faked side input to join with ids.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class NexmarkQueryTransform<T extends KnownSize>
     extends PTransform<PCollection<Event>, PCollection<T>> {
 

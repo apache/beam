@@ -23,9 +23,6 @@ backwards compatibility guarantees.
 NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-
 # BigQuery types as listed in
 # https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
 # with aliases (RECORD, BOOLEAN, FLOAT, INTEGER) as defined in
@@ -67,7 +64,7 @@ BIG_QUERY_TO_AVRO_TYPES = {
 
 def get_record_schema_from_dict_table_schema(
     schema_name, table_schema, namespace="apache_beam.io.gcp.bigquery"):
-  # type: (Text, Dict[Text, Any], Text) -> Dict[Text, Any]
+  # type: (Text, Dict[Text, Any], Text) -> Dict[Text, Any] # noqa: F821
 
   """Convert a table schema into an Avro schema.
 
@@ -94,7 +91,7 @@ def get_record_schema_from_dict_table_schema(
 
 
 def table_field_to_avro_field(table_field, namespace):
-  # type: (Dict[Text, Any], str) -> Dict[Text, Any]
+  # type: (Dict[Text, Any], str) -> Dict[Text, Any] # noqa: F821
 
   """Convert a BigQuery field to an avro field.
 

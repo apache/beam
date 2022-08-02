@@ -50,6 +50,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * temporary unused storage.
  */
 @NotThreadSafe
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class RandomAccessData {
   /**
    * A {@link Coder} which encodes the valid parts of this stream. This follows the same encoding

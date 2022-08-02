@@ -93,6 +93,9 @@ import scala.runtime.AbstractFunction1;
  * bounds the types of state and output to be the same, a (state, output) tuple is used, filtering
  * the state (and output if no firing) in the following steps.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkGroupAlsoByWindowViaWindowSet.class);
@@ -371,7 +374,6 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     private final TimerInternals.TimerDataCoderV2 timerDataCoder;
     private final WindowingStrategy<?, W> windowingStrategy;
     private final SerializablePipelineOptions options;
-    private final IterableCoder<WindowedValue<InputT>> itrWvCoder;
     private final String logPrefix;
     private final Coder<WindowedValue<KV<K, Iterable<InputT>>>> wvKvIterCoder;
 
@@ -388,7 +390,6 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       this.timerDataCoder = timerDataCoderOf(windowingStrategy);
       this.windowingStrategy = windowingStrategy;
       this.options = options;
-      this.itrWvCoder = IterableCoder.of(wvCoder);
       this.logPrefix = logPrefix;
       this.wvKvIterCoder =
           windowedValueKeyValueCoderOf(

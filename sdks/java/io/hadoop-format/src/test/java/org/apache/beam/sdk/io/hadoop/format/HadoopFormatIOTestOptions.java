@@ -73,4 +73,10 @@ public interface HadoopFormatIOTestOptions extends TestPipelineOptions {
   String getElasticPassword();
 
   void setElasticPassword(String elasticPassword);
+
+  @Description("Whether to use testcontainers")
+  @Default.Boolean(false)
+  Boolean isWithTestcontainers();
+
+  void setWithTestcontainers(Boolean withTestcontainers);
 }

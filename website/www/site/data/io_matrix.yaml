@@ -34,7 +34,7 @@ categories:
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/avroio
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/avroio
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/avroio
       - transform: TextIO
         description: PTransforms for reading and writing text files.
         implementations:
@@ -46,7 +46,7 @@ categories:
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/textio
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/textio
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio
       - transform: TFRecordIO
         description: PTransforms for reading and writing [TensorFlow TFRecord](https://www.tensorflow.org/tutorials/load_data/tfrecord) files.
         implementations:
@@ -84,12 +84,6 @@ categories:
           - language: java
             name: org.apache.beam.sdk.io.thrift.ThriftIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/thrift/ThriftIO.html
-      - transform: VcfIO
-        description: A source for reading from [VCF files](https://samtools.github.io/hts-specs/VCFv4.2.pdf) (version 4.x).
-        implementations:
-          - language: py
-            name: apache_beam.io.vcfio
-            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.vcfio.html
       - transform: S3IO
         description: A source for reading from and writing to [Amazon S3](https://aws.amazon.com/s3/).
         implementations:
@@ -125,7 +119,7 @@ categories:
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.gcsfilesystem.html
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs
       - transform: LocalFileSystem
         description: "`FileSystem` implementation for accessing files on disk."
         implementations:
@@ -137,19 +131,19 @@ categories:
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.localfilesystem.html
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local
       - transform: S3FileSystem
         description: "`FileSystem` implementation for [Amazon S3](https://aws.amazon.com/s3/)."
         implementations:
           - language: java
-            name: org.apache.beam.sdk.io.aws.s3.S3FileSystemRegistrar
-            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hdfs/package-summary.html
+            name: org.apache.beam.sdk.io.aws2.s3.S3FileSystemRegistrar
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/s3/S3FileSystemRegistrar.html
       - transform: In-memory
         description: "`FileSystem` implementation in memory; useful for testing."
         implementations:
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/memfs
   - name: Messaging
     description: These I/O connectors typically involve working with unbounded sources that come from messaging sources.
     rows:
@@ -157,8 +151,8 @@ categories:
         description: PTransforms for reading from and writing to [Kinesis](https://aws.amazon.com/kinesis/) streams.
         implementations:
           - language: java
-            name: org.apache.beam.sdk.io.kinesis.KinesisIO
-            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kinesis/KinesisIO.html
+            name: org.apache.beam.sdk.io.aws2.kinesis.KinesisIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/kinesis/KinesisIO.html
       - transform: AmqpIO
         description: AMQP 1.0 protocol using the Apache QPid Proton-J library
         implementations:
@@ -188,7 +182,7 @@ categories:
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.external.gcp.pubsub.html
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/pubsubio
       - transform: JmsIO
         description: An unbounded source for [JMS](https://www.oracle.com/java/technologies/java-message-service.html) destinations (queues or topics).
         implementations:
@@ -206,13 +200,10 @@ categories:
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.rabbitmq.RabbitMqIO
-            url: https://github.com/apache/beam/blob/master/sdks/java/io/rabbitmq/src/main/java/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.java
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.html
       - transform: SqsIO
         description: An unbounded source for [Amazon Simple Queue Service (SQS)](https://aws.amazon.com/sqs/).
         implementations:
-          - language: java
-            name: org.apache.beam.sdk.io.aws.sqs.SqsIO
-            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/sqs/SqsIO.html
           - language: java
             name: org.apache.beam.sdk.io.aws2.sqs.SqsIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sqs/SqsIO.html
@@ -220,11 +211,14 @@ categories:
         description: PTransforms for writing to [Amazon Simple Notification Service (SNS)](https://aws.amazon.com/sns/).
         implementations:
           - language: java
-            name: org.apache.beam.sdk.io.aws.sns.SnsIO
-            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/sns/SnsIO.html
-          - language: java
             name: org.apache.beam.sdk.io.aws2.sns.SnsIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sns/SnsIO.html
+      - transform: Pub/Sub Lite
+        description: I/O transforms for reading from Google Pub/Sub Lite.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.pubsublite.PubSubLiteIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/pubsublite/PubsubLiteIO.html
   - name: Database
     description: These I/O connectors are used to connect to database systems.
     rows:
@@ -259,7 +253,7 @@ categories:
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.kudu
-            url: https://github.com/apache/beam/blob/master/sdks/java/io/kudu/src/main/java/org/apache/beam/sdk/io/kudu/KuduIO.java
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kudu/KuduIO.html
       - transform: SolrIO
         description: Transforms for reading and writing data from/to [Solr](https://lucene.apache.org/solr/).
         implementations:
@@ -284,9 +278,9 @@ categories:
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigquery.html
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio
       - transform: BigTableIO
-        description: Read from and write to [Google Cloud Bigtable](https://cloud.google.com/bigtable/).
+        description: Read from (only for Java SDK) and write to [Google Cloud Bigtable](https://cloud.google.com/bigtable/).
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.gcp.bigtable.BigtableIO
@@ -303,6 +297,16 @@ categories:
           - language: py
             name: apache_beam.io.gcp.datastore.v1new.datastoreio
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.datastore.v1new.datastoreio.html
+      - transform: SnowflakeIO
+        description: Experimental Transforms for reading from and writing to [Snowflake](https://www.snowflake.com/).
+        docs: /documentation/io/built-in/snowflake
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.snowflake.SnowflakeIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/snowflake/SnowflakeIO.html
+          - language: py
+            name: apache_beam.io.snowflake
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.snowflake.html
       - transform: SpannerIO
         description: Experimental Transforms for reading from and writing to [Google Cloud Spanner](https://cloud.google.com/spanner).
         implementations:
@@ -340,9 +344,6 @@ categories:
         description: Read from and write to [Amazon DynamoDB](https://aws.amazon.com/dynamodb/).
         implementations:
           - language: java
-            name: org.apache.beam.sdk.io.aws.dynamodb.DynamoDBIO
-            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/dynamodb/DynamoDBIO.html
-          - language: java
             name: org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/dynamodb/DynamoDBIO.html
       - transform: ClickHouseIO
@@ -356,7 +357,22 @@ categories:
         implementations:
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/databaseio
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/databaseio
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/databaseio
+      - transform: InfluxDB
+        description: IO to read and write from InfluxDB.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.influxdb.InfluxDbIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/influxdb/InfluxDbIO.html
+      - transform: Firestore IO
+        description: FirestoreIO provides an API for reading from and writing to Google Cloud Firestore.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.gcp.healthcare.FirestoreIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/firestore/FirestoreIO.html
+      - transform: Neo4j
+        implementations:
+          - language: java
   - name: Miscellaneous
     description: Miscellaneous I/O sources.
     rows:
@@ -381,3 +397,15 @@ categories:
           - language: java
             name: org.apache.beam.sdk.io.splunk.SplunkIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/splunk/SplunkIO.html
+      - transform: FhirIO
+        description: Provides an API for reading and writing resources to Google Cloud Healthcare Fhir API.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.gcp.healthcare.FhirIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/FhirIO.html
+      - transform: HL7v2IO
+        description: Provides an API for reading from and writing to Google Cloud Healthcare HL7v2 API.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/HL7v2IO.html

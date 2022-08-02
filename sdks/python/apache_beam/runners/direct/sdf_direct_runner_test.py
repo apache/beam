@@ -19,13 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import os
 import unittest
-from builtins import range
 
 import apache_beam as beam
 from apache_beam import Create
@@ -150,7 +146,7 @@ class ExpandStrings(DoFn):
 
 class SDFDirectRunnerTest(unittest.TestCase):
   def setUp(self):
-    super(SDFDirectRunnerTest, self).setUp()
+    super().setUp()
     # Importing following for DirectRunner SDF implemenation for testing.
     from apache_beam.runners.direct import transform_evaluator
     self._old_default_max_num_outputs = (

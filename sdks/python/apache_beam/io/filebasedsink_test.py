@@ -20,19 +20,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import glob
 import logging
 import os
 import shutil
-import sys
 import tempfile
 import unittest
-from builtins import range
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 
@@ -87,7 +81,7 @@ class _TestCaseWithTempDirCleanUp(unittest.TestCase):
 class MyFileBasedSink(filebasedsink.FileBasedSink):
   def open(self, temp_path):
     # TODO: Fix main session pickling.
-    # file_handle = super(MyFileBasedSink, self).open(temp_path)
+    # file_handle = super().open(temp_path)
     file_handle = filebasedsink.FileBasedSink.open(self, temp_path)
     file_handle.write(b'[start]')
     return file_handle
@@ -100,17 +94,11 @@ class MyFileBasedSink(filebasedsink.FileBasedSink):
   def close(self, file_handle):
     file_handle.write(b'[end]')
     # TODO: Fix main session pickling.
-    # file_handle = super(MyFileBasedSink, self).close(file_handle)
+    # file_handle = super().close(file_handle)
     file_handle = filebasedsink.FileBasedSink.close(self, file_handle)
 
 
 class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def _common_init(self, sink):
     # Manually invoke the generic Sink API.
     init_token = sink.initialize_write()

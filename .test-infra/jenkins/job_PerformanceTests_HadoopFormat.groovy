@@ -24,7 +24,7 @@ String jobName = "beam_PerformanceTests_HadoopFormat"
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
-  common.setAutoJob(delegate, 'H */6 * * *')
+  common.setAutoJob(delegate, 'H H/6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java HadoopFormatIO Performance Test',
@@ -48,7 +48,7 @@ job(jobName) {
     bigQueryTable        : 'hadoopformatioit_results',
     influxMeasurement    : 'hadoopformatioit_results',
     influxDatabase       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influxHost           : InfluxDBCredentialsHelper.InfluxDBHostname,
+    influxHost           : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     postgresUsername     : 'postgres',
     postgresPassword     : 'uuinkks',
     postgresDatabaseName : 'postgres',

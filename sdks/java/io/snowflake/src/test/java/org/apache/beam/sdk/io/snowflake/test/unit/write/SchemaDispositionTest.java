@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import net.snowflake.client.jdbc.SnowflakeSQLException;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeColumn;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.data.datetime.SnowflakeDate;
@@ -36,10 +35,11 @@ import org.apache.beam.sdk.io.snowflake.data.structured.SnowflakeObject;
 import org.apache.beam.sdk.io.snowflake.data.structured.SnowflakeVariant;
 import org.apache.beam.sdk.io.snowflake.data.text.SnowflakeText;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
-import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServices;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
-import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServiceImpl;
+import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServicesImpl;
+import org.apache.beam.sdk.io.snowflake.test.TestSnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -55,30 +55,29 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class SchemaDispositionTest {
-  private static final String FAKE_TABLE = "FAKE_TABLE";
   private static final String BUCKET_NAME = "BUCKET/";
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException exceptionRule = ExpectedException.none();
 
-  private static SnowflakePipelineOptions options;
+  private static TestSnowflakePipelineOptions options;
   private static SnowflakeIO.DataSourceConfiguration dc;
   private static String stagingBucketName;
   private static String storageIntegrationName;
 
-  private static SnowflakeService snowflakeService;
+  private static SnowflakeServices snowflakeServices;
 
   @BeforeClass
   public static void setupAll() {
-    PipelineOptionsFactory.register(SnowflakePipelineOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(SnowflakePipelineOptions.class);
+    PipelineOptionsFactory.register(TestSnowflakePipelineOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(TestSnowflakePipelineOptions.class);
     options.setStagingBucketName(BUCKET_NAME);
     options.setServerName("NULL.snowflakecomputing.com");
 
     stagingBucketName = options.getStagingBucketName();
     storageIntegrationName = options.getStorageIntegrationName();
 
-    snowflakeService = new FakeSnowflakeServiceImpl();
+    snowflakeServices = new FakeSnowflakeServicesImpl();
 
     dc =
         SnowflakeIO.DataSourceConfiguration.create(new FakeSnowflakeBasicDataSource())
@@ -128,7 +127,7 @@ public class SchemaDispositionTest {
                 .withFileNameTemplate("output")
                 .withUserDataMapper(TestUtils.getLStringCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
@@ -166,7 +165,7 @@ public class SchemaDispositionTest {
                 .withFileNameTemplate("output")
                 .withUserDataMapper(getCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
@@ -206,7 +205,7 @@ public class SchemaDispositionTest {
                 .withFileNameTemplate("output")
                 .withUserDataMapper(getCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 

@@ -351,4 +351,43 @@ public class SchemaTest {
     Schema schema4 = Schema.builder().addInt32Field("foo").build();
     assertFalse(schema1.typesEqual(schema4)); // schema1 and schema4 differ by types
   }
+
+  @Test
+  public void testIllegalIndexOf() {
+    Schema schema = Schema.builder().addStringField("foo").build();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Cannot find field bar in schema " + schema);
+
+    schema.indexOf("bar");
+  }
+
+  @Test
+  public void testIllegalNameOf() {
+    Schema schema = Schema.builder().addStringField("foo").build();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Cannot find field 1");
+
+    schema.nameOf(1);
+  }
+
+  @Test
+  public void testFieldTypeToString() {
+    assertEquals("STRING NOT NULL", FieldType.STRING.toString());
+    assertEquals("INT64", FieldType.INT64.withNullable(true).toString());
+    assertEquals("ARRAY<INT32 NOT NULL> NOT NULL", FieldType.array(FieldType.INT32).toString());
+    assertEquals(
+        "MAP<INT16 NOT NULL, FLOAT> NOT NULL",
+        FieldType.map(FieldType.INT16, FieldType.FLOAT.withNullable(true)).toString());
+    assertEquals(
+        "ROW<field1 BYTES NOT NULL, time DATETIME>",
+        FieldType.row(
+                Schema.builder()
+                    .addByteArrayField("field1")
+                    .addField("time", FieldType.DATETIME.withNullable(true))
+                    .build())
+            .withNullable(true)
+            .toString());
+  }
 }

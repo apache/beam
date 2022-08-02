@@ -22,8 +22,8 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/groupbykey/Task.java
   visible: true
   placeholders:
-  - offset: 2025
-    length: 162
+  - offset: 2239
+    length: 169
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/groupbykey/TaskTest.java
   visible: false

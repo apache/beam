@@ -32,8 +32,11 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Correctness tests of {@link TopPerKey}. */
+@RunWith(JUnit4.class)
 public class TopPerKeyTest extends AbstractOperatorTest {
 
   @Test

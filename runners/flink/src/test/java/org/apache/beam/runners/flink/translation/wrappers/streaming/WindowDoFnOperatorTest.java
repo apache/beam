@@ -32,13 +32,13 @@ import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator.MultiOutputOutputManagerFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -64,6 +64,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link WindowDoFnOperator}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class WindowDoFnOperatorTest {
 
   @Test
@@ -152,8 +155,11 @@ public class WindowDoFnOperatorTest {
     assertThat(Iterables.size(timerInternals.pendingTimersById.keys()), is(1));
 
     assertThat(testHarness.numKeyedStateEntries(), is(6));
+    // close bundle
+    testHarness.setProcessingTime(
+        testHarness.getProcessingTime()
+            + 2 * FlinkPipelineOptions.defaults().getMaxBundleTimeMills());
     assertThat(windowDoFnOperator.getCurrentOutputWatermark(), is(1L));
-    assertThat(timerInternals.getMinOutputTimestampMs(), is(Long.MAX_VALUE));
 
     // close window
     testHarness.processWatermark(100L);
@@ -162,8 +168,12 @@ public class WindowDoFnOperatorTest {
     assertThat(Iterables.size(timerInternals.pendingTimersById.keys()), is(0));
 
     assertThat(testHarness.numKeyedStateEntries(), is(3));
+
+    // close bundle
+    testHarness.setProcessingTime(
+        testHarness.getProcessingTime()
+            + 2 * FlinkPipelineOptions.defaults().getMaxBundleTimeMills());
     assertThat(windowDoFnOperator.getCurrentOutputWatermark(), is(100L));
-    assertThat(timerInternals.getMinOutputTimestampMs(), is(Long.MAX_VALUE));
 
     testHarness.processWatermark(200L);
 
@@ -202,7 +212,7 @@ public class WindowDoFnOperatorTest {
     Coder<IntervalWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
     SingletonKeyedWorkItemCoder<Long, Long> workItemCoder =
         SingletonKeyedWorkItemCoder.of(VarLongCoder.of(), VarLongCoder.of(), windowCoder);
-    FullWindowedValueCoder<SingletonKeyedWorkItem<Long, Long>> inputCoder =
+    FullWindowedValueCoder<KeyedWorkItem<Long, Long>> inputCoder =
         WindowedValue.getFullCoder(workItemCoder, windowCoder);
     FullWindowedValueCoder<KV<Long, Long>> outputCoder =
         WindowedValue.getFullCoder(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()), windowCoder);
@@ -213,13 +223,17 @@ public class WindowDoFnOperatorTest {
         (Coder) inputCoder,
         outputTag,
         emptyList(),
-        new MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
+        new MultiOutputOutputManagerFactory<>(
+            outputTag,
+            outputCoder,
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
         windowingStrategy,
         emptyMap(),
         emptyList(),
-        PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+        FlinkPipelineOptions.defaults(),
         VarLongCoder.of(),
-        new WorkItemKeySelector(VarLongCoder.of()));
+        new WorkItemKeySelector(
+            VarLongCoder.of(), new SerializablePipelineOptions(FlinkPipelineOptions.defaults())));
   }
 
   private KeyedOneInputStreamOperatorTestHarness<

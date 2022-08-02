@@ -70,7 +70,7 @@ public class FhirIOReadIT {
     this.version = version;
     long testTime = System.currentTimeMillis();
     this.fhirStoreName =
-        "FHIR_store_" + version + "_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
+        "FHIR_store_" + version + "_write_it_" + testTime + "_" + new SecureRandom().nextInt(32);
     this.project =
         TestPipeline.testingPipelineOptions()
             .as(HealthcareStoreTestPipelineOptions.class)
@@ -83,7 +83,7 @@ public class FhirIOReadIT {
             + "-notifications-"
             + testTime
             + "-"
-            + (new SecureRandom().nextInt(32));
+            + new SecureRandom().nextInt(32);
     this.pubsubSubscription = pubsubTopic.replaceAll("topic", "subscription");
     pipelineOptions = TestPipeline.testingPipelineOptions().as(TestPubsubOptions.class);
   }
@@ -101,7 +101,7 @@ public class FhirIOReadIT {
     pubsub.createSubscription(topicPath, subscriptionPath, 60);
     client.createFhirStore(healthcareDataset, fhirStoreName, version, pubsubTopic);
 
-    // Execute bundles to trigger FHIR notificiations to input topic
+    // Execute bundles to trigger FHIR notifications to input topic
     FhirIOTestUtil.executeFhirBundles(
         client,
         healthcareDataset + "/fhirStores/" + fhirStoreName,
@@ -109,7 +109,7 @@ public class FhirIOReadIT {
   }
 
   @After
-  public void deleteFHIRtore() throws IOException {
+  public void deleteFhirStore() throws IOException {
     HealthcareApiClient client = new HttpHealthcareApiClient();
     client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreName);
     TopicPath topicPath = PubsubClient.topicPathFromPath(pubsubTopic);
@@ -137,7 +137,7 @@ public class FhirIOReadIT {
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();
-    signal.waitForSuccess(Duration.standardSeconds(30));
+    signal.waitForSuccess(Duration.standardMinutes(5));
 
     // A runner may not support cancel
     try {

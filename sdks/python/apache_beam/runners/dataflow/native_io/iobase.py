@@ -22,10 +22,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Optional
 
@@ -337,7 +334,7 @@ class _NativeWrite(ptransform.PTransform):
     Args:
       sink: Sink to use for the write
     """
-    super(_NativeWrite, self).__init__()
+    super().__init__()
     self.sink = sink
 
   def expand(self, pcoll):

@@ -21,36 +21,33 @@ The staging service here can be backed by any beam filesystem.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import concurrent.futures
-import contextlib
 import hashlib
 import os
 import queue
 import sys
 import tempfile
 import threading
-import typing
 from io import BytesIO
+from typing import Any
+from typing import BinaryIO  # pylint: disable=unused-import
 from typing import Callable
+from typing import Dict
+from typing import List
+from typing import MutableMapping
+from typing import Optional
+from typing import Tuple
+from urllib.request import urlopen
 
 import grpc
-from future.moves.urllib.request import urlopen
 
 from apache_beam.io import filesystems
+from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import proto_utils
-
-if typing.TYPE_CHECKING:
-  from typing import BinaryIO  # pylint: disable=ungrouped-imports
-  from typing import Iterable
-  from typing import MutableMapping
 
 
 class ArtifactRetrievalService(
@@ -60,7 +57,7 @@ class ArtifactRetrievalService(
 
   def __init__(
       self,
-      file_reader,  # type: Callable[[str], BinaryIO],
+      file_reader,  # type: Callable[[str], BinaryIO]
       chunk_size=None,
   ):
     self._file_reader = file_reader
@@ -79,8 +76,7 @@ class ArtifactRetrievalService(
     elif request.artifact.type_urn == common_urns.artifact_types.URL.urn:
       payload = proto_utils.parse_Bytes(
           request.artifact.type_payload, beam_runner_api_pb2.ArtifactUrlPayload)
-      # TODO(Py3): Remove the unneeded contextlib wrapper.
-      read_handle = contextlib.closing(urlopen(payload.url))
+      read_handle = urlopen(payload.url)
     elif request.artifact.type_urn == common_urns.artifact_types.EMBEDDED.urn:
       payload = proto_utils.parse_Bytes(
           request.artifact.type_payload,
@@ -104,7 +100,8 @@ class ArtifactStagingService(
       file_writer,  # type: Callable[[str, Optional[str]], Tuple[BinaryIO, str]]
     ):
     self._lock = threading.Lock()
-    self._jobs_to_stage = {}
+    self._jobs_to_stage = {
+    }  # type: Dict[str, Tuple[Dict[Any, List[beam_runner_api_pb2.ArtifactInformation]], threading.Event]]
     self._file_writer = file_writer
 
   def register_job(
@@ -263,11 +260,13 @@ class BeamFilesystemHandler(object):
     self._root = root
 
   def file_reader(self, path):
-    return filesystems.FileSystems.open(path)
+    return filesystems.FileSystems.open(
+        path, compression_type=CompressionTypes.UNCOMPRESSED)
 
   def file_writer(self, name=None):
     full_path = filesystems.FileSystems.join(self._root, name)
-    return filesystems.FileSystems.create(full_path), full_path
+    return filesystems.FileSystems.create(
+        full_path, compression_type=CompressionTypes.UNCOMPRESSED), full_path
 
 
 def resolve_artifacts(artifacts, service, dest_dir):
@@ -289,6 +288,7 @@ def maybe_store_artifact(artifact, service, dest_dir):
   elif artifact.type_urn == common_urns.artifact_types.FILE.urn:
     payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
         artifact.type_payload)
+    # pylint: disable=condition-evals-to-constant
     if os.path.exists(
         payload.path) and payload.sha256 and payload.sha256 == sha256(
             payload.path) and False:
@@ -351,6 +351,3 @@ class _QueueIter(object):
       raise self._queue.get()
     else:
       return item
-
-  if sys.version_info < (3, ):
-    next = __next__

@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 
@@ -56,7 +54,7 @@ class GenerateSequence(ExternalTransform):
       elements_per_period=None,
       max_read_time=None,
       expansion_service=None):
-    super(GenerateSequence, self).__init__(
+    super().__init__(
         self.URN,
         ImplicitSchemaPayloadBuilder({
             'start': start,

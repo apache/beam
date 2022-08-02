@@ -21,11 +21,11 @@ import (
 
 	"encoding/json"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 var (
@@ -44,7 +44,7 @@ func Partition(s Scope, n int, fn interface{}, col PCollection) []PCollection {
 	s = s.Scope(fmt.Sprintf("Partition(%v)", n))
 
 	if n < 1 {
-		panic(fmt.Sprintf("n must be > 0"))
+		panic("n must be > 0")
 	}
 	var emit reflect.Type
 	var in []reflect.Type

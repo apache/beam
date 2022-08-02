@@ -26,6 +26,9 @@ import java.util.Collections;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 
 /** An executor for a source operation which does not perform any splits. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class NoOpSourceOperationExecutor implements SourceOperationExecutor {
 
   private final SourceOperationRequest request;

@@ -39,9 +39,6 @@ import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.TimerSpec;
@@ -63,6 +60,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
+import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -91,6 +91,10 @@ import org.slf4j.LoggerFactory;
  * is called for a stage.
  */
 @ThreadSafe
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DefaultJobBundleFactory implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultJobBundleFactory.class);
   private static final IdGenerator factoryIdGenerator = IdGenerators.incrementingLongs();
@@ -200,11 +204,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                   notification -> {
                     WrappedSdkHarnessClient client = notification.getValue();
                     final int refCount;
+                    // We need to use a lock here to ensure we are not causing the environment to
+                    // be removed if beforehand a StageBundleFactory has retrieved it but not yet
+                    // issued ref() on it.
+                    refLock.lock();
                     try {
-                      // We need to use a lock here to ensure we are not causing the environment to
-                      // be removed if beforehand a StageBundleFactory has retrieved it but not yet
-                      // issued ref() on it.
-                      refLock.lock();
                       refCount = client.unref();
                     } finally {
                       refLock.unlock();
@@ -433,7 +437,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
     private final ExecutableStage executableStage;
     private final int environmentIndex;
-    private final Map<WrappedSdkHarnessClient, PreparedClient> preparedClients =
+    private final IdentityHashMap<WrappedSdkHarnessClient, PreparedClient> preparedClients =
         new IdentityHashMap<>();
     private volatile PreparedClient currentClient;
 
@@ -454,7 +458,9 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         OutputReceiverFactory outputReceiverFactory,
         TimerReceiverFactory timerReceiverFactory,
         StateRequestHandler stateRequestHandler,
-        BundleProgressHandler progressHandler)
+        BundleProgressHandler progressHandler,
+        BundleFinalizationHandler finalizationHandler,
+        BundleCheckpointHandler checkpointHandler)
         throws Exception {
       // TODO: Consider having BundleProcessor#newBundle take in an OutputReceiverFactory rather
       // than constructing the receiver map here. Every bundle factory will need this.
@@ -468,8 +474,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         currentCache = availableCaches.take();
         // Lock because the environment expiration can remove the ref for the client
         // which would close the underlying environment before we can ref it.
+        currentCache.lock.lock();
         try {
-          currentCache.lock.lock();
           client = currentCache.cache.getUnchecked(executableStage.getEnvironment());
           client.ref();
         } finally {
@@ -488,8 +494,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         currentCache = environmentCaches.get(environmentIndex);
         // Lock because the environment expiration can remove the ref for the client which would
         // close the underlying environment before we can ref it.
+        currentCache.lock.lock();
         try {
-          currentCache.lock.lock();
           client = currentCache.cache.getUnchecked(executableStage.getEnvironment());
           client.ref();
         } finally {
@@ -514,7 +520,9 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
               getOutputReceivers(currentClient.processBundleDescriptor, outputReceiverFactory),
               getTimerReceivers(currentClient.processBundleDescriptor, timerReceiverFactory),
               stateRequestHandler,
-              progressHandler);
+              progressHandler,
+              finalizationHandler,
+              checkpointHandler);
       return new RemoteBundle() {
         @Override
         public String getId() {
@@ -559,6 +567,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     @Override
     public ExecutableProcessBundleDescriptor getProcessBundleDescriptor() {
       return currentClient.processBundleDescriptor;
+    }
+
+    @Override
+    public InstructionRequestHandler getInstructionRequestHandler() {
+      return currentClient.wrappedClient.getClient().getInstructionRequestHandler();
     }
 
     @Override

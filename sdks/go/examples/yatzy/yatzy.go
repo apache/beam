@@ -18,18 +18,28 @@
 // non-deterministic and produce different pipelines on each invocation.
 package main
 
+// beam-playground:
+//   name: Yatzy
+//   description: An examples shows that pipeline construction is normal Go code.
+//     It can even be non-deterministic and produce different pipelines on each invocation.
+//   multifile: false
+//   context_line: 50
+//   categories:
+//     - IO
+//     - Side Input
+
 import (
 	"context"
 	"flag"
 	"fmt"
 	"math/rand"
-	"reflect"
 	"sort"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 var (
@@ -38,7 +48,9 @@ var (
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*minFn)(nil)).Elem())
+	register.Function1x1(incFn)
+	register.Function7x0(evalFn)
+	register.DoFn1x1[int, int](&minFn{})
 }
 
 // roll is a composite PTransform for a construction-time dice roll. The value

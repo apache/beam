@@ -27,7 +27,6 @@ import static java.sql.JDBCType.NUMERIC;
 import static java.sql.JDBCType.NVARCHAR;
 import static java.sql.JDBCType.VARBINARY;
 import static java.sql.JDBCType.VARCHAR;
-import static java.sql.JDBCType.valueOf;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
@@ -46,13 +45,16 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.TimeZone;
+import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
@@ -61,6 +63,9 @@ import org.joda.time.chrono.ISOChronology;
 
 /** Provides utility functions for working with Beam {@link Schema} types. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class SchemaUtil {
   /**
    * Interface implemented by functions that extract values of different types from a JDBC
@@ -92,6 +97,7 @@ class SchemaUtil {
   private static final ResultSetFieldExtractor DATE_EXTRACTOR = createDateExtractor();
   private static final ResultSetFieldExtractor TIME_EXTRACTOR = createTimeExtractor();
   private static final ResultSetFieldExtractor TIMESTAMP_EXTRACTOR = createTimestampExtractor();
+  private static final ResultSetFieldExtractor OBJECT_EXTRACTOR = createObjectExtractor();
 
   /**
    * Interface implemented by functions that create Beam {@link
@@ -102,7 +108,8 @@ class SchemaUtil {
     Schema.Field create(int index, ResultSetMetaData md) throws SQLException;
   }
 
-  private static BeamFieldConverter jdbcTypeToBeamFieldConverter(JDBCType jdbcType) {
+  private static BeamFieldConverter jdbcTypeToBeamFieldConverter(
+      JDBCType jdbcType, String className) {
     switch (jdbcType) {
       case ARRAY:
         return beamArrayField();
@@ -154,6 +161,16 @@ class SchemaUtil {
         return beamLogicalField(VARBINARY.getName(), LogicalTypes.VariableLengthBytes::of);
       case VARCHAR:
         return beamLogicalField(VARCHAR.getName(), LogicalTypes.VariableLengthString::of);
+      case BLOB:
+        return beamFieldOfType(FieldType.BYTES);
+      case CLOB:
+        return beamFieldOfType(FieldType.STRING);
+      case OTHER:
+      case JAVA_OBJECT:
+        if (UUID.class.getName().equals(className)) {
+          return beamFieldOfType(LogicalTypes.JDBC_UUID_TYPE);
+        }
+        return beamFieldOfType(LogicalTypes.OTHER_AS_STRING_TYPE);
       default:
         throw new UnsupportedOperationException(
             "Converting " + jdbcType + " to Beam schema type is not supported");
@@ -165,8 +182,9 @@ class SchemaUtil {
     Schema.Builder schemaBuilder = Schema.builder();
 
     for (int i = 1; i <= md.getColumnCount(); i++) {
-      JDBCType jdbcType = valueOf(md.getColumnType(i));
-      BeamFieldConverter fieldConverter = jdbcTypeToBeamFieldConverter(jdbcType);
+      JDBCType jdbcType = JDBCType.valueOf(md.getColumnType(i));
+      String className = md.getColumnClassName(i);
+      BeamFieldConverter fieldConverter = jdbcTypeToBeamFieldConverter(jdbcType, className);
       schemaBuilder.addField(fieldConverter.create(i, md));
     }
 
@@ -194,10 +212,19 @@ class SchemaUtil {
     };
   }
 
-  /** Converts numeric fields with specified precision and scale. */
+  /**
+   * Converts numeric fields with specified precision and scale to {@link
+   * LogicalTypes.FixedPrecisionNumeric}. If a precision of numeric field is not specified, then
+   * converts such field to {@link FieldType#DECIMAL}.
+   */
   private static BeamFieldConverter beamLogicalNumericField(String identifier) {
     return (index, md) -> {
       int precision = md.getPrecision(index);
+      if (precision == Integer.MAX_VALUE || precision == -1) {
+        // If a precision is not specified, the column stores values as given (e.g. in Oracle DB)
+        return Schema.Field.of(md.getColumnLabel(index), FieldType.DECIMAL)
+            .withNullable(md.isNullable(index) == ResultSetMetaData.columnNullable);
+      }
       int scale = md.getScale(index);
       Schema.FieldType fieldType =
           Schema.FieldType.logicalType(
@@ -209,8 +236,10 @@ class SchemaUtil {
   /** Converts array fields. */
   private static BeamFieldConverter beamArrayField() {
     return (index, md) -> {
-      JDBCType elementJdbcType = valueOf(md.getColumnTypeName(index));
-      BeamFieldConverter elementFieldConverter = jdbcTypeToBeamFieldConverter(elementJdbcType);
+      JDBCType elementJdbcType = JDBCType.valueOf(md.getColumnTypeName(index));
+      String elementClassName = md.getColumnClassName(index);
+      BeamFieldConverter elementFieldConverter =
+          jdbcTypeToBeamFieldConverter(elementJdbcType, elementClassName);
 
       String label = md.getColumnLabel(index);
       Schema.FieldType elementBeamType = elementFieldConverter.create(index, md).getType();
@@ -235,7 +264,7 @@ class SchemaUtil {
       default:
         if (!RESULTSET_FIELD_EXTRACTORS.containsKey(typeName)) {
           throw new UnsupportedOperationException(
-              "BeamRowMapper does not have support for fields of type " + fieldType.toString());
+              "BeamRowMapper does not have support for fields of type " + fieldType);
         }
         return RESULTSET_FIELD_EXTRACTORS.get(typeName);
     }
@@ -263,6 +292,10 @@ class SchemaUtil {
   private static <InputT, BaseT> ResultSetFieldExtractor createLogicalTypeExtractor(
       final Schema.LogicalType<InputT, BaseT> fieldType) {
     String logicalTypeName = fieldType.getIdentifier();
+
+    if (Objects.equals(fieldType, LogicalTypes.JDBC_UUID_TYPE.getLogicalType())) {
+      return OBJECT_EXTRACTOR;
+    }
     JDBCType underlyingType = JDBCType.valueOf(logicalTypeName);
     switch (underlyingType) {
       case DATE:
@@ -312,6 +345,11 @@ class SchemaUtil {
     };
   }
 
+  /** Convert SQL OTHER type to Beam Object. */
+  private static ResultSetFieldExtractor createObjectExtractor() {
+    return ResultSet::getObject;
+  }
+
   /**
    * A {@link org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper} implementation that converts JDBC
    * results into Beam {@link Row} objects.
@@ -338,7 +376,12 @@ class SchemaUtil {
     public Row mapRow(ResultSet rs) throws Exception {
       Row.Builder rowBuilder = Row.withSchema(schema);
       for (int i = 0; i < schema.getFieldCount(); i++) {
-        rowBuilder.addValue(fieldExtractors.get(i).extract(rs, i + 1));
+        Object value = fieldExtractors.get(i).extract(rs, i + 1);
+        if (rs.wasNull()) {
+          rowBuilder.addValue(null);
+        } else {
+          rowBuilder.addValue(value);
+        }
       }
       return rowBuilder.build();
     }

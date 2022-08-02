@@ -76,13 +76,14 @@ public interface TimerInternals {
    * manage timers for different time domains in very different ways, thus the {@link TimeDomain} is
    * a required parameter.
    */
-  void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain);
+  void deleteTimer(
+      StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain);
 
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+  /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
   @Deprecated
   void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId);
 
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+  /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
   @Deprecated
   void deleteTimer(TimerData timerKey);
 
@@ -185,6 +186,8 @@ public interface TimerInternals {
 
     public abstract TimeDomain getDomain();
 
+    public abstract boolean getDeleted();
+
     // When adding a new field, make sure to add it to the compareTo() method.
 
     /** Construct a {@link TimerData} for the given parameters. */
@@ -195,7 +198,7 @@ public interface TimerInternals {
         Instant outputTimestamp,
         TimeDomain domain) {
       return new AutoValue_TimerInternals_TimerData(
-          timerId, "", namespace, timestamp, outputTimestamp, domain);
+          timerId, "", namespace, timestamp, outputTimestamp, domain, false);
     }
 
     /**
@@ -210,7 +213,7 @@ public interface TimerInternals {
         Instant outputTimestamp,
         TimeDomain domain) {
       return new AutoValue_TimerInternals_TimerData(
-          timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
+          timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain, false);
     }
 
     /**
@@ -228,6 +231,17 @@ public interface TimerInternals {
       return of(timerId, namespace, timestamp, outputTimestamp, domain);
     }
 
+    public TimerData deleted() {
+      return new AutoValue_TimerInternals_TimerData(
+          getTimerId(),
+          getTimerFamilyId(),
+          getNamespace(),
+          getTimestamp(),
+          getOutputTimestamp(),
+          getDomain(),
+          true);
+    }
+
     /**
      * {@inheritDoc}.
      *
@@ -242,16 +256,28 @@ public interface TimerInternals {
       }
       ComparisonChain chain =
           ComparisonChain.start()
+              .compare(this.getDeleted(), that.getDeleted())
               .compare(this.getTimestamp(), that.getTimestamp())
               .compare(this.getOutputTimestamp(), that.getOutputTimestamp())
               .compare(this.getDomain(), that.getDomain())
               .compare(this.getTimerId(), that.getTimerId())
               .compare(this.getTimerFamilyId(), that.getTimerFamilyId());
-      if (chain.result() == 0 && !this.getNamespace().equals(that.getNamespace())) {
+      int compResult = chain.result();
+      if (compResult == 0 && !this.getNamespace().equals(that.getNamespace())) {
         // Obtaining the stringKey may be expensive; only do so if required
-        chain = chain.compare(getNamespace().stringKey(), that.getNamespace().stringKey());
+        compResult = this.getNamespace().stringKey().compareTo(that.getNamespace().stringKey());
       }
-      return chain.result();
+      return compResult;
+    }
+
+    public String stringKey() {
+      return getNamespace().stringKey()
+          + "/"
+          + getDomain().toString()
+          + "/"
+          + getTimerFamilyId()
+          + ":"
+          + getTimerId();
     }
   }
 

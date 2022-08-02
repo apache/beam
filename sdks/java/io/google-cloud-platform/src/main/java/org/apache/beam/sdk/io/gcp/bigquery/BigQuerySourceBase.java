@@ -18,10 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.FileSystems.match;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -39,6 +37,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -74,32 +73,37 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   protected final String stepUuid;
   protected final BigQueryServices bqServices;
 
-  private transient List<BoundedSource<T>> cachedSplitResult;
+  private transient @Nullable List<BoundedSource<T>> cachedSplitResult = null;
   private SerializableFunction<SchemaAndRecord, T> parseFn;
   private Coder<T> coder;
+  private final boolean useAvroLogicalTypes;
 
   BigQuerySourceBase(
       String stepUuid,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn) {
-    this.stepUuid = checkNotNull(stepUuid, "stepUuid");
-    this.bqServices = checkNotNull(bqServices, "bqServices");
-    this.coder = checkNotNull(coder, "coder");
-    this.parseFn = checkNotNull(parseFn, "parseFn");
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      boolean useAvroLogicalTypes) {
+    this.stepUuid = checkArgumentNotNull(stepUuid, "stepUuid");
+    this.bqServices = checkArgumentNotNull(bqServices, "bqServices");
+    this.coder = checkArgumentNotNull(coder, "coder");
+    this.parseFn = checkArgumentNotNull(parseFn, "parseFn");
+    this.useAvroLogicalTypes = useAvroLogicalTypes;
   }
 
   protected static class ExtractResult {
     public final TableSchema schema;
     public final List<ResourceId> extractedFiles;
-    public List<MatchResult.Metadata> metadata = null;
+    public @Nullable List<MatchResult.Metadata> metadata = null;
 
     public ExtractResult(TableSchema schema, List<ResourceId> extractedFiles) {
       this(schema, extractedFiles, null);
     }
 
     public ExtractResult(
-        TableSchema schema, List<ResourceId> extractedFiles, List<MatchResult.Metadata> metadata) {
+        TableSchema schema,
+        List<ResourceId> extractedFiles,
+        @Nullable List<MatchResult.Metadata> metadata) {
       this.schema = schema;
       this.extractedFiles = extractedFiles;
       this.metadata = metadata;
@@ -109,32 +113,35 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   protected ExtractResult extractFiles(PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     TableReference tableToExtract = getTableToExtract(bqOptions);
-    BigQueryServices.DatasetService datasetService = bqServices.getDatasetService(bqOptions);
-    Table table = datasetService.getTable(tableToExtract);
-    if (table == null) {
-      throw new IOException(
-          String.format(
-              "Cannot start an export job since table %s does not exist",
-              BigQueryHelpers.toTableSpec(tableToExtract)));
-    }
+    try (BigQueryServices.DatasetService datasetService = bqServices.getDatasetService(bqOptions)) {
+      Table table = datasetService.getTable(tableToExtract);
+      if (table == null) {
+        throw new IOException(
+            String.format(
+                "Cannot start an export job since table %s does not exist",
+                BigQueryHelpers.toTableSpec(tableToExtract)));
+      }
 
-    TableSchema schema = table.getSchema();
-    JobService jobService = bqServices.getJobService(bqOptions);
-    String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
-    final String extractDestinationDir =
-        resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
-    String bqLocation =
-        BigQueryHelpers.getDatasetLocation(
-            datasetService, tableToExtract.getProjectId(), tableToExtract.getDatasetId());
-    List<ResourceId> tempFiles =
-        executeExtract(
-            extractJobId,
-            tableToExtract,
-            jobService,
-            bqOptions.getProject(),
-            extractDestinationDir,
-            bqLocation);
-    return new ExtractResult(schema, tempFiles);
+      TableSchema schema = table.getSchema();
+      JobService jobService = bqServices.getJobService(bqOptions);
+      String extractJobId =
+          BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.EXPORT);
+      final String extractDestinationDir =
+          resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
+      String bqLocation =
+          BigQueryHelpers.getDatasetLocation(
+              datasetService, tableToExtract.getProjectId(), tableToExtract.getDatasetId());
+      List<ResourceId> tempFiles =
+          executeExtract(
+              extractJobId,
+              tableToExtract,
+              jobService,
+              bqOptions.getProject(),
+              extractDestinationDir,
+              bqLocation,
+              useAvroLogicalTypes);
+      return new ExtractResult(schema, tempFiles);
+    }
   }
 
   @Override
@@ -159,7 +166,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
         }
       }
       cleanupTempResource(options.as(BigQueryOptions.class));
-      cachedSplitResult = checkNotNull(createSources(res.extractedFiles, res.schema, res.metadata));
+      cachedSplitResult = createSources(res.extractedFiles, res.schema, res.metadata);
     }
     return cachedSplitResult;
   }
@@ -189,7 +196,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       JobService jobService,
       String executingProject,
       String extractDestinationDir,
-      String bqLocation)
+      String bqLocation,
+      boolean useAvroLogicalTypes)
       throws InterruptedException, IOException {
 
     JobReference jobRef =
@@ -200,11 +208,24 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
         new JobConfigurationExtract()
             .setSourceTable(table)
             .setDestinationFormat("AVRO")
+            .setUseAvroLogicalTypes(useAvroLogicalTypes)
             .setDestinationUris(ImmutableList.of(destinationUri));
 
-    LOG.info("Starting BigQuery extract job: {}", jobId);
-    jobService.startExtractJob(jobRef, extract);
-    Job extractJob = jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
+    Job extractJob;
+    try {
+      LOG.info("Starting BigQuery extract job: {}", jobId);
+      jobService.startExtractJob(jobRef, extract);
+      extractJob = jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
+    } catch (IOException exn) {
+      // The error messages thrown in this case are generic and misleading, so leave this breadcrumb
+      // in case it's the root cause.
+      LOG.warn(
+          "Error extracting table: {} "
+              + "Note that external tables cannot be exported: "
+              + "https://cloud.google.com/bigquery/docs/external-tables#external_table_limitations",
+          exn);
+      throw exn;
+    }
     if (BigQueryHelpers.parseStatus(extractJob) != Status.SUCCEEDED) {
       throw new IOException(
           String.format(
@@ -218,16 +239,16 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     return BigQueryIO.getExtractFilePaths(extractDestinationDir, extractJob);
   }
 
-  private static class TableSchemaFunction implements Serializable, Function<String, TableSchema> {
-    @Nullable
+  private static class TableSchemaFunction
+      implements Serializable, Function<@Nullable String, @Nullable TableSchema> {
     @Override
-    public TableSchema apply(@Nullable String input) {
+    public @Nullable TableSchema apply(@Nullable String input) {
       return BigQueryHelpers.fromJsonString(input, TableSchema.class);
     }
   }
 
   List<BoundedSource<T>> createSources(
-      List<ResourceId> files, TableSchema schema, List<MatchResult.Metadata> metadata)
+      List<ResourceId> files, TableSchema schema, @Nullable List<MatchResult.Metadata> metadata)
       throws IOException, InterruptedException {
 
     final String jsonSchema = BigQueryIO.JSON_FACTORY.toString(schema);

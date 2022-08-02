@@ -18,8 +18,6 @@
 """Test for WorkerIdInterceptor"""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import logging
 import unittest

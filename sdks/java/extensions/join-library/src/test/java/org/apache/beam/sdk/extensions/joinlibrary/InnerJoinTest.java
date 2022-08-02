@@ -33,9 +33,9 @@ import org.junit.Test;
 
 /** This test Inner Join functionality. */
 public class InnerJoinTest {
-  private List<KV<String, Long>> leftListOfKv;
-  private List<KV<String, String>> rightListOfKv;
-  private List<KV<String, KV<Long, String>>> expectedResult;
+  private List<KV<String, Long>> leftListOfKv = new ArrayList<>();
+  private List<KV<String, String>> rightListOfKv = new ArrayList<>();
+  private List<KV<String, KV<Long, String>>> expectedResult = new ArrayList<>();
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
@@ -146,6 +146,7 @@ public class InnerJoinTest {
     p.run();
   }
 
+  @SuppressWarnings("nullness")
   @Test(expected = NullPointerException.class)
   public void testJoinLeftCollectionNull() {
     p.enableAbandonedNodeEnforcement(false);
@@ -156,6 +157,7 @@ public class InnerJoinTest {
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))));
   }
 
+  @SuppressWarnings("nullness")
   @Test(expected = NullPointerException.class)
   public void testJoinRightCollectionNull() {
     p.enableAbandonedNodeEnforcement(false);

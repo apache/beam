@@ -26,10 +26,7 @@ AsSingleton, AsIter, AsList and AsDict in apache_beam.pvalue.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import re
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -57,6 +54,9 @@ def default_window_mapping_fn(target_window_fn):
   # type: (window.WindowFn) -> WindowMappingFn
   if target_window_fn == window.GlobalWindows():
     return _global_window_mapping_fn
+
+  if isinstance(target_window_fn, window.Sessions):
+    raise RuntimeError("Sessions is not allowed in side inputs")
 
   def map_via_end(source_window):
     # type: (window.BoundedWindow) -> window.BoundedWindow

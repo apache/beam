@@ -19,9 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-from builtins import object
 from typing import Optional
 
 from apache_beam.runners import common

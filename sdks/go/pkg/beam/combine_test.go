@@ -15,11 +15,19 @@
 
 package beam_test
 
+// beam-playground:
+//   name: CombineTest
+//   description: Unit-test for the Combine example.
+//   multifile: false
+//   context_line: 34
+//   categories:
+//     - Combiners
+
 import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
 // foolFn is a no-op CombineFn.

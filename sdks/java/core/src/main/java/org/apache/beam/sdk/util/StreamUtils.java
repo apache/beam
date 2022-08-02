@@ -26,6 +26,9 @@ import org.apache.beam.sdk.annotations.Internal;
 
 /** Utility functions for stream operations. */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class StreamUtils {
 
   private StreamUtils() {}

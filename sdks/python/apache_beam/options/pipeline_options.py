@@ -19,13 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import json
 import logging
-from builtins import list
-from builtins import object
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -34,6 +30,7 @@ from typing import Optional
 from typing import Type
 from typing import TypeVar
 
+import apache_beam as beam
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
@@ -51,11 +48,17 @@ __all__ = [
     'ProfilingOptions',
     'SetupOptions',
     'TestOptions',
+    'S3Options'
 ]
 
 PipelineOptionsT = TypeVar('PipelineOptionsT', bound='PipelineOptions')
 
 _LOGGER = logging.getLogger(__name__)
+
+# Map defined with option names to flag names for boolean options
+# that have a destination(dest) in parser.add_argument() different
+# from the flag name and whose default value is `None`.
+_FLAG_THAT_SETS_FALSE_VALUE = {'use_public_ips': 'no_use_public_ips'}
 
 
 def _static_value_provider_of(value_type):
@@ -127,7 +130,7 @@ class _BeamArgumentParser(argparse.ArgumentParser):
   def error(self, message):
     if message.startswith('ambiguous option: '):
       return
-    super(_BeamArgumentParser, self).error(message)
+    super().error(message)
 
 
 class PipelineOptions(HasDisplayData):
@@ -182,7 +185,15 @@ class PipelineOptions(HasDisplayData):
       flags: An iterable of command line arguments to be used. If not specified
         then sys.argv will be used as input for parsing arguments.
 
-      **kwargs: Add overrides for arguments passed in flags.
+      **kwargs: Add overrides for arguments passed in flags. For overrides
+                of arguments, please pass the `option names` instead of
+                flag names.
+                Option names: These are defined as dest in the
+                parser.add_argument() for each flag. Passing flags
+                like {no_use_public_ips: True}, for which the dest is
+                defined to a different flag name in the parser,
+                would be discarded. Instead, pass the dest of
+                the flag (dest of no_use_public_ips is use_public_ips).
     """
     # Initializing logging configuration in case the user did not set it up.
     logging.basicConfig()
@@ -239,9 +250,22 @@ class PipelineOptions(HasDisplayData):
     """
     flags = []
     for k, v in options.items():
+      # Note: If a boolean flag is True in the dictionary,
+      # implicitly the method assumes the boolean flag is
+      # specified as a command line argument. If the
+      # boolean flag is False, this method simply discards them.
+      # Eg: {no_auth: True} is similar to python your_file.py --no_auth
+      # {no_auth: False} is similar to python your_file.py.
       if isinstance(v, bool):
         if v:
           flags.append('--%s' % k)
+        elif k in _FLAG_THAT_SETS_FALSE_VALUE:
+          # Capture overriding flags, which have a different dest
+          # from the flag name defined in the parser.add_argument
+          # Eg: no_use_public_ips, which has the dest=use_public_ips
+          # different from flag name
+          flag_that_disables_the_option = (_FLAG_THAT_SETS_FALSE_VALUE[k])
+          flags.append('--%s' % flag_that_disables_the_option)
       elif isinstance(v, list):
         for i in v:
           flags.append('--%s=%s' % (k, i))
@@ -278,8 +302,9 @@ class PipelineOptions(HasDisplayData):
       Dictionary of all args and values.
     """
 
-    # TODO(BEAM-1319): PipelineOption sub-classes in the main session might be
-    # repeated. Pick last unique instance of each subclass to avoid conflicts.
+    # TODO(https://github.com/apache/beam/issues/18197): PipelineOption
+    # sub-classes in the main session might be repeated. Pick last unique
+    # instance of each subclass to avoid conflicts.
     subset = {}
     parser = _BeamArgumentParser()
     for cls in PipelineOptions.__subclasses__():
@@ -295,6 +320,9 @@ class PipelineOptions(HasDisplayData):
       while i < len(unknown_args):
         # Treat all unary flags as booleans, and all binary argument values as
         # strings.
+        if not unknown_args[i].startswith('-'):
+          i += 1
+          continue
         if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
           split = unknown_args[i].split('=', 1)
           if len(split) == 1:
@@ -305,7 +333,7 @@ class PipelineOptions(HasDisplayData):
         else:
           parser.add_argument(unknown_args[i], type=str)
           i += 2
-      parsed_args = parser.parse_args(self._flags)
+      parsed_args, _ = parser.parse_known_args(self._flags)
     else:
       if unknown_args:
         _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
@@ -323,12 +351,15 @@ class PipelineOptions(HasDisplayData):
         del result[k]
 
     if overrides:
-      _LOGGER.warning("Discarding invalid overrides: %s", overrides)
+      if retain_unknown_options:
+        result.update(overrides)
+      else:
+        _LOGGER.warning("Discarding invalid overrides: %s", overrides)
 
     return result
 
   def display_data(self):
-    return self.get_all_options(True)
+    return self.get_all_options(drop_default=True, retain_unknown_options=True)
 
   def view_as(self, cls):
     # type: (Type[PipelineOptionsT]) -> PipelineOptionsT
@@ -355,6 +386,7 @@ class PipelineOptions(HasDisplayData):
 
     """
     view = cls(self._flags)
+
     for option_name in view._visible_option_list():
       # Initialize values of keys defined by a cls.
       #
@@ -393,7 +425,7 @@ class PipelineOptions(HasDisplayData):
 
   def __setattr__(self, name, value):
     if name in ('_flags', '_all_options', '_visible_options'):
-      super(PipelineOptions, self).__setattr__(name, value)
+      super().__setattr__(name, value)
     elif name in self._visible_option_list():
       self._all_options[name] = value
     else:
@@ -412,19 +444,48 @@ class StandardOptions(PipelineOptions):
 
   DEFAULT_RUNNER = 'DirectRunner'
 
+  ALL_KNOWN_RUNNERS = (
+      'apache_beam.runners.dataflow.dataflow_runner.DataflowRunner',
+      'apache_beam.runners.direct.direct_runner.BundleBasedDirectRunner',
+      'apache_beam.runners.direct.direct_runner.DirectRunner',
+      'apache_beam.runners.direct.direct_runner.SwitchingDirectRunner',
+      'apache_beam.runners.interactive.interactive_runner.InteractiveRunner',
+      'apache_beam.runners.portability.flink_runner.FlinkRunner',
+      'apache_beam.runners.portability.portable_runner.PortableRunner',
+      'apache_beam.runners.portability.spark_runner.SparkRunner',
+      'apache_beam.runners.test.TestDirectRunner',
+      'apache_beam.runners.test.TestDataflowRunner',
+  )
+
+  KNOWN_RUNNER_NAMES = [path.split('.')[-1] for path in ALL_KNOWN_RUNNERS]
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--runner',
         help=(
             'Pipeline runner used to execute the workflow. Valid values are '
-            'DirectRunner, DataflowRunner.'))
+            'one of %s, or the fully qualified name of a PipelineRunner '
+            'subclass. If unspecified, defaults to %s.' %
+            (', '.join(cls.KNOWN_RUNNER_NAMES), cls.DEFAULT_RUNNER)))
     # Whether to enable streaming mode.
     parser.add_argument(
         '--streaming',
         default=False,
         action='store_true',
         help='Whether to enable streaming mode.')
+
+    parser.add_argument(
+        '--resource_hint',
+        '--resource_hints',
+        dest='resource_hints',
+        action='append',
+        default=[],
+        help=(
+            'Resource hint to set in the pipeline execution environment.'
+            'Hints specified via this option override hints specified '
+            'at transform level. Interpretation of hints is defined by '
+            'Beam runners.'))
 
 
 class CrossLanguageOptions(PipelineOptions):
@@ -445,6 +506,22 @@ class CrossLanguageOptions(PipelineOptions):
             'artifacts (e.g. jar files) expansion endpoints (e.g. host:port).'))
 
 
+def additional_option_ptransform_fn():
+  beam.transforms.ptransform.ptransform_fn_typehints_enabled = True
+
+
+# Optional type checks that aren't enabled by default.
+additional_type_checks = {
+    'ptransform_fn': additional_option_ptransform_fn,
+}  # type: Dict[str, Callable[[], None]]
+
+
+def enable_all_additional_type_checks():
+  """Same as passing --type_check_additional=all."""
+  for f in additional_type_checks.values():
+    f()
+
+
 class TypeOptions(PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -455,6 +532,12 @@ class TypeOptions(PipelineOptions):
         choices=['ALL_REQUIRED', 'DEFAULT_TO_ANY'],
         help='The level of exhaustive manual type-hint '
         'annotation required')
+    parser.add_argument(
+        '--type_check_additional',
+        default='',
+        help='Comma separated list of additional type checking features to '
+        'enable. Options: all, ptransform_fn. For details see:'
+        'https://beam.apache.org/documentation/sdks/python-type-safety/')
     parser.add_argument(
         '--no_pipeline_type_check',
         dest='pipeline_type_check',
@@ -468,6 +551,50 @@ class TypeOptions(PipelineOptions):
         help='Enable type checking at pipeline execution '
         'time. NOTE: only supported with the '
         'DirectRunner')
+    parser.add_argument(
+        '--performance_runtime_type_check',
+        default=False,
+        action='store_true',
+        help='Enable faster type checking via sampling at pipeline execution '
+        'time. NOTE: only supported with portable runners '
+        '(including the DirectRunner)')
+    parser.add_argument(
+        '--allow_non_deterministic_key_coders',
+        default=False,
+        action='store_true',
+        help='Use non-deterministic coders (such as pickling) for key-grouping '
+        'operations such as GropuByKey.  This is unsafe, as runners may group '
+        'keys based on their encoded bytes, but is available for backwards '
+        'compatibility. See BEAM-11719.')
+    parser.add_argument(
+        '--allow_unsafe_triggers',
+        default=False,
+        action='store_true',
+        help='Allow the use of unsafe triggers. Unsafe triggers have the '
+        'potential to cause data loss due to finishing and/or never having '
+        'their condition met. Some operations, such as GroupByKey, disallow '
+        'this. This exists for cases where such loss is acceptable and for '
+        'backwards compatibility. See BEAM-9487.')
+
+  def validate(self, unused_validator):
+    errors = []
+    if beam.version.__version__ >= '3':
+      errors.append(
+          'Update --type_check_additional default to include all '
+          'available additional checks at Beam 3.0 release time.')
+    keys = self.type_check_additional.split(',')
+
+    for key in keys:
+      if not key:
+        continue
+      elif key == 'all':
+        enable_all_additional_type_checks()
+      elif key in additional_type_checks:
+        additional_type_checks[key]()
+      else:
+        errors.append('Unrecognized --type_check_additional feature: %s' % key)
+
+    return errors
 
 
 class DirectOptions(PipelineOptions):
@@ -497,6 +624,13 @@ class DirectOptions(PipelineOptions):
         default='in_memory',
         choices=['in_memory', 'multi_threading', 'multi_processing'],
         help='Workers running environment.')
+    parser.add_argument(
+        '--direct_embed_docker_python',
+        default=False,
+        action='store_true',
+        dest='direct_embed_docker_python',
+        help='DirectRunner uses the embedded Python environment when '
+        'the default Python docker environment is specified.')
 
 
 class GoogleCloudOptions(PipelineOptions):
@@ -597,10 +731,48 @@ class GoogleCloudOptions(PipelineOptions):
         help='Set a Google Cloud KMS key name to be used in '
         'Dataflow state operations (GBK, Streaming).')
     parser.add_argument(
+        '--create_from_snapshot',
+        default=None,
+        help='The snapshot from which the job should be created.')
+    parser.add_argument(
         '--flexrs_goal',
         default=None,
         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
         help='Set the Flexible Resource Scheduling mode')
+    parser.add_argument(
+        '--dataflow_service_option',
+        '--dataflow_service_options',
+        dest='dataflow_service_options',
+        action='append',
+        default=None,
+        help=(
+            'Options to configure the Dataflow service. These '
+            'options decouple service side feature availbility '
+            'from the Apache Beam release cycle.'
+            'Note: If set programmatically, must be set as a '
+            'list of strings'))
+    parser.add_argument(
+        '--enable_hot_key_logging',
+        default=False,
+        action='store_true',
+        help='When true, will enable the direct logging of any detected hot '
+        'keys into Cloud Logging. Warning: this will log the literal key as an '
+        'unobfuscated string.')
+    parser.add_argument(
+        '--enable_artifact_caching',
+        default=False,
+        action='store_true',
+        help='When true, artifacts will be cached across job submissions in '
+        'the GCS staging bucket')
+    parser.add_argument(
+        '--impersonate_service_account',
+        default=None,
+        help='All API requests will be made as the given service account or '
+        'target service account in an impersonation delegation chain '
+        'instead of the currently selected account. You can specify '
+        'either a single service account as the impersonator, or a '
+        'comma-separated list of service accounts to create an '
+        'impersonation delegation chain.')
 
   def _create_default_gcs_bucket(self):
     try:
@@ -637,6 +809,12 @@ class GoogleCloudOptions(PipelineOptions):
         errors.append(
             '--dataflow_job_file and --template_location '
             'are mutually exclusive.')
+
+    # Validate that dataflow_service_options is a list
+    if self.dataflow_service_options:
+      errors.extend(
+          validator.validate_repeatable_argument_passed_as_list(
+              self, 'dataflow_service_options'))
 
     return errors
 
@@ -766,9 +944,20 @@ class WorkerOptions(PipelineOptions):
         default=None,
         help=(
             'Docker registry location of container image to use for the '
-            'worker harness. Default is the container for the version of the '
-            'SDK. Note: currently, only approved Google Cloud Dataflow '
-            'container images may be used here.'))
+            'worker harness. If not set, an appropriate approved Google Cloud '
+            'Dataflow image will be used based on the version of the '
+            'SDK. Note: This flag is deprecated and only supports '
+            'approved Google Cloud Dataflow container images. To provide a '
+            'custom container image, use sdk_container_image instead.'))
+    parser.add_argument(
+        '--sdk_container_image',
+        default=None,
+        help=(
+            'Docker registry location of container image to use for the '
+            'worker harness. If not set, an appropriate approved Google Cloud '
+            'Dataflow image will be used based on the version of the '
+            'SDK. If set for a non-portable pipeline, only official '
+            'Google Cloud Dataflow container images may be used here.'))
     parser.add_argument(
         '--sdk_harness_container_image_overrides',
         action='append',
@@ -780,6 +969,28 @@ class WorkerOptions(PipelineOptions):
             'separated by a comma where first value gives a regex to '
             'identify the container image to override and the second value '
             'gives the replacement container image.'))
+    parser.add_argument(
+        '--default_sdk_harness_log_level',
+        default=None,
+        help=(
+            'Controls the default log level of all loggers without a log level '
+            'override. Values can be either a labeled level or a number '
+            '(See https://docs.python.org/3/library/logging.html#levels). '
+            'Default log level is INFO.'))
+    parser.add_argument(
+        '--sdk_harness_log_level_overrides',
+        action='append',
+        default=None,
+        help=(
+            'Controls the log levels for specifically named loggers. The '
+            'expected format is a json string: \'{"module":"log_level",...}\'. '
+            'For example, by specifying the value \'{"a.b.c":"DEBUG"}\', '
+            'the logger underneath the module "a.b.c" will be configured to '
+            'output logs at the DEBUG level. Similarly, by specifying the '
+            'value \'{"a.b.c":"WARNING"}\' all loggers underneath the "a.b.c" '
+            'module will be configured to output logs at the WARNING level. '
+            'Also, note that when multiple overrides are specified, the exact '
+            'name followed by the closest parent takes precedence.'))
     parser.add_argument(
         '--use_public_ips',
         default=None,
@@ -806,9 +1017,10 @@ class WorkerOptions(PipelineOptions):
 
   def validate(self, validator):
     errors = []
+    errors.extend(validator.validate_sdk_container_image_options(self))
+
     if validator.is_service_runner():
-      errors.extend(
-          validator.validate_optional_argument_positive(self, 'num_workers'))
+      errors.extend(validator.validate_num_workers(self))
       errors.extend(validator.validate_worker_region_zone(self))
     return errors
 
@@ -858,6 +1070,14 @@ class DebugOptions(PipelineOptions):
         return experiment.split('=', 1)[1]
     return default
 
+  def validate(self, validator):
+    errors = []
+    if self.experiments:
+      errors.extend(
+          validator.validate_repeatable_argument_passed_as_list(
+              self, 'experiments'))
+    return errors
+
 
 class ProfilingOptions(PipelineOptions):
   @classmethod
@@ -904,7 +1124,20 @@ class SetupOptions(PipelineOptions):
         default=None,
         help=(
             'Path to a folder to cache the packages specified in '
-            'the requirements file using the --requirements_file option.'))
+            'the requirements file using the --requirements_file option.'
+            'If you want to skip populating requirements cache, please '
+            'specify --requirements_cache="skip".'))
+    parser.add_argument(
+        '--requirements_cache_only_sources',
+        action='store_true',
+        help=(
+            'Enable this flag to populate requirements cache only '
+            'with Source distributions(sdists) of the dependencies '
+            'mentioned in the --requirements_file'
+            'Note: (BEAM-4032): This flag may significantly slow down '
+            'the pipeline submission. It is added to preserve the requirements'
+            ' cache behavior prior to 2.37.0 and will likely be removed in '
+            'future releases.'))
     parser.add_argument(
         '--setup_file',
         default=None,
@@ -919,7 +1152,7 @@ class SetupOptions(PipelineOptions):
             'custom code.'))
     parser.add_argument(
         '--beam_plugin',
-        '--beam_plugin',
+        '--beam_plugins',
         dest='beam_plugins',
         action='append',
         default=None,
@@ -930,6 +1163,13 @@ class SetupOptions(PipelineOptions):
             'currently an experimental flag and provides no stability. '
             'Multiple --beam_plugin options can be specified if more than '
             'one plugin is needed.'))
+    parser.add_argument(
+        '--pickle_library',
+        default='default',
+        help=(
+            'Chooses which pickle library to use. Options are dill, '
+            'cloudpickle or default.'),
+        choices=['cloudpickle', 'default', 'dill'])
     parser.add_argument(
         '--save_main_session',
         default=False,
@@ -966,6 +1206,40 @@ class SetupOptions(PipelineOptions):
             'staged in the staging area (--staging_location option) and the '
             'workers will install them in same order they were specified on '
             'the command line.'))
+    parser.add_argument(
+        '--prebuild_sdk_container_engine',
+        help=(
+            'Prebuild sdk worker container image before job submission. If '
+            'enabled, SDK invokes the boot sequence in SDK worker '
+            'containers to install all pipeline dependencies in the '
+            'container, and uses the prebuilt image in the pipeline '
+            'environment. This may speed up pipeline execution. To enable, '
+            'select the Docker build engine: local_docker using '
+            'locally-installed Docker or cloud_build for using Google Cloud '
+            'Build (requires a GCP project with Cloud Build API enabled). You '
+            'can also subclass SdkContainerImageBuilder and use that to build '
+            'in other environments.'))
+    parser.add_argument(
+        '--prebuild_sdk_container_base_image',
+        default=None,
+        help=('Deprecated. Use --sdk_container_image instead.'))
+    parser.add_argument(
+        '--cloud_build_machine_type',
+        default=None,
+        help=(
+            'If specified, use the machine type explicitly when prebuilding'
+            'SDK container image on Google Cloud Build.'))
+    parser.add_argument(
+        '--docker_registry_push_url',
+        default=None,
+        help=(
+            'Docker registry url to use for tagging and pushing the prebuilt '
+            'sdk worker container image.'))
+
+  def validate(self, validator):
+    errors = []
+    errors.extend(validator.validate_container_prebuilding_options(self))
+    return errors
 
 
 class PortableOptions(PipelineOptions):
@@ -989,7 +1263,8 @@ class PortableOptions(PipelineOptions):
             'and port, e.g. localhost:8098. If none is specified, the '
             'artifact endpoint sent from the job server is used.'))
     parser.add_argument(
-        '--job-server-timeout',
+        '--job_server_timeout',
+        '--job-server-timeout',  # For backwards compatibility.
         default=60,
         type=int,
         help=(
@@ -1016,7 +1291,20 @@ class PortableOptions(PipelineOptions):
             'form {"os": "<OS>", "arch": "<ARCHITECTURE>", "command": '
             '"<process to execute>", "env":{"<Environment variables 1>": '
             '"<ENV_VAL>"} }. All fields in the json are optional except '
-            'command.'))
+            'command.\n\nPrefer using --environment_options instead.'))
+    parser.add_argument(
+        '--environment_option',
+        '--environment_options',
+        dest='environment_options',
+        action='append',
+        default=None,
+        help=(
+            'Environment configuration for running the user code. '
+            'Recognized options depend on --environment_type.\n '
+            'For DOCKER: docker_container_image (optional)\n '
+            'For PROCESS: process_command (required), process_variables '
+            '(optional, comma-separated)\n '
+            'For EXTERNAL: external_service_address (required)'))
     parser.add_argument(
         '--sdk_worker_parallelism',
         default=1,
@@ -1037,6 +1325,26 @@ class PortableOptions(PipelineOptions):
             'Create an executable jar at this path rather than running '
             'the pipeline.'))
 
+  def validate(self, validator):
+    return validator.validate_environment_options(self)
+
+  def add_environment_option(self, option):
+    # pylint: disable=access-member-before-definition
+    if self.environment_options is None:
+      self.environment_options = []
+    if option not in self.environment_options:
+      self.environment_options.append(option)
+
+  def lookup_environment_option(self, key, default=None):
+    if not self.environment_options:
+      return default
+    elif key in self.environment_options:
+      return True
+    for option in self.environment_options:
+      if option.startswith(key + '='):
+        return option.split('=', 1)[1]
+    return default
+
 
 class JobServerOptions(PipelineOptions):
   """Options for starting a Beam job server. Roughly corresponds to
@@ -1053,23 +1361,40 @@ class JobServerOptions(PipelineOptions):
     parser.add_argument(
         '--job_port',
         default=0,
+        type=int,
         help='Port to use for the job service. 0 to use a '
         'dynamic port.')
     parser.add_argument(
         '--artifact_port',
         default=0,
+        type=int,
         help='Port to use for artifact staging. 0 to use a '
         'dynamic port.')
     parser.add_argument(
         '--expansion_port',
         default=0,
+        type=int,
         help='Port to use for artifact staging. 0 to use a '
         'dynamic port.')
+    parser.add_argument(
+        '--job_server_java_launcher',
+        default='java',
+        help='The Java Application Launcher executable file to use for '
+        'starting a Java job server. If unset, `java` from the '
+        'environment\'s $PATH is used.')
+    parser.add_argument(
+        '--job_server_jvm_properties',
+        '--job_server_jvm_property',
+        dest='job_server_jvm_properties',
+        action='append',
+        default=[],
+        help='JVM properties to pass to a Java job server.')
 
 
 class FlinkRunnerOptions(PipelineOptions):
 
-  PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9', '1.10']
+  # These should stay in sync with gradle.properties.
+  PUBLISHED_FLINK_VERSIONS = ['1.12', '1.13', '1.14', '1.15']
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -1110,7 +1435,8 @@ class SparkRunnerOptions(PipelineOptions):
         'the execution.')
     parser.add_argument(
         '--spark_job_server_jar',
-        help='Path or URL to a Beam Spark jobserver jar.')
+        help='Path or URL to a Beam Spark job server jar. '
+        'Overrides --spark_version.')
     parser.add_argument(
         '--spark_submit_uber_jar',
         default=False,
@@ -1121,7 +1447,13 @@ class SparkRunnerOptions(PipelineOptions):
     parser.add_argument(
         '--spark_rest_url',
         help='URL for the Spark REST endpoint. '
-        'Only required when using spark_submit_uber_jar.')
+        'Only required when using spark_submit_uber_jar. '
+        'For example, http://hostname:6066')
+    parser.add_argument(
+        '--spark_version',
+        default='2',
+        choices=['2', '3'],
+        help='Spark major version to use.')
 
 
 class TestOptions(PipelineOptions):
@@ -1211,3 +1543,44 @@ class OptionsContext(object):
       for name, value in override.items():
         setattr(options, name, value)
     return options
+
+
+class S3Options(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    # These options are passed to the S3 IO Client
+    parser.add_argument(
+        '--s3_access_key_id',
+        default=None,
+        help='The secret key to use when creating the s3 client.')
+    parser.add_argument(
+        '--s3_secret_access_key',
+        default=None,
+        help='The secret key to use when creating the s3 client.')
+    parser.add_argument(
+        '--s3_session_token',
+        default=None,
+        help='The session token to use when creating the s3 client.')
+    parser.add_argument(
+        '--s3_endpoint_url',
+        default=None,
+        help='The complete URL to use for the constructed s3 client.')
+    parser.add_argument(
+        '--s3_region_name',
+        default=None,
+        help='The name of the region associated with the s3 client.')
+    parser.add_argument(
+        '--s3_api_version',
+        default=None,
+        help='The API version to use with the s3 client.')
+    parser.add_argument(
+        '--s3_verify',
+        default=None,
+        help='Whether or not to verify SSL certificates with the s3 client.')
+    parser.add_argument(
+        '--s3_disable_ssl',
+        default=False,
+        action='store_true',
+        help=(
+            'Whether or not to use SSL with the s3 client. '
+            'By default, SSL is used.'))

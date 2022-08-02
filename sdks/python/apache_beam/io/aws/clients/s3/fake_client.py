@@ -17,10 +17,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import time
+
+import pytz
 
 from apache_beam.io.aws.clients.s3 import messages
 
@@ -41,8 +41,8 @@ class FakeFile(object):
   def get_metadata(self):
     last_modified_datetime = None
     if self.last_modified:
-      last_modified_datetime = datetime.datetime.utcfromtimestamp(
-          self.last_modified)
+      last_modified_datetime = datetime.datetime.fromtimestamp(
+          self.last_modified, pytz.utc)
 
     return messages.Item(
         self.etag,

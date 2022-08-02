@@ -18,8 +18,6 @@
 """Unit tests for BigQuery sources and sinks."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import decimal
 import json
@@ -32,34 +30,42 @@ import time
 import unittest
 import uuid
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
+import pytest
 import pytz
-from nose.plugins.attrib import attr
+import requests
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
+from apache_beam.io.gcp import bigquery as beam_bq
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
-from apache_beam.io.gcp.bigquery import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
+from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
+from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.io.gcp.tests import utils
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
 from apache_beam.options import value_provider
-from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
@@ -70,19 +76,35 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
+
 try:
   from apitools.base.py.exceptions import HttpError
+  from google.cloud import bigquery as gcp_bigquery
+  from google.api_core import exceptions
 except ImportError:
+  gcp_bigquery = None
   HttpError = None
+  exceptions = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+def _load_or_default(filename):
+  try:
+    with open(filename) as f:
+      return json.load(f)
+  except:  # pylint: disable=bare-except
+    return {}
+
+
+@unittest.skipIf(
+    HttpError is None or gcp_bigquery is None,
+    'GCP dependencies are not installed')
 class TestTableRowJsonCoder(unittest.TestCase):
   def test_row_as_table_row(self):
     schema_definition = [('s', 'STRING'), ('i', 'INTEGER'), ('f', 'FLOAT'),
@@ -168,7 +190,8 @@ class TestTableRowJsonCoder(unittest.TestCase):
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQuerySource(unittest.TestCase):
   def test_display_data_item_on_validate_true(self):
-    source = beam.io.BigQuerySource('dataset.table', validate=True)
+    source = beam.io.BigQuerySource(
+        'dataset.table', validate=True, use_dataflow_native_source=True)
 
     dd = DisplayData.create_from(source)
     expected_items = [
@@ -178,7 +201,8 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_table_reference_display_data(self):
-    source = beam.io.BigQuerySource('dataset.table')
+    source = beam.io.BigQuerySource(
+        'dataset.table', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -186,7 +210,8 @@ class TestBigQuerySource(unittest.TestCase):
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
-    source = beam.io.BigQuerySource('project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'project:dataset.table', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -194,7 +219,8 @@ class TestBigQuerySource(unittest.TestCase):
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
-    source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'xyz.com:project:dataset.table', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -203,27 +229,32 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_parse_table_reference(self):
-    source = beam.io.BigQuerySource('dataset.table')
+    source = beam.io.BigQuerySource(
+        'dataset.table', use_dataflow_native_source=True)
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-    source = beam.io.BigQuerySource('project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'project:dataset.table', use_dataflow_native_source=True)
     self.assertEqual(source.table_reference.projectId, 'project')
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-    source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'xyz.com:project:dataset.table', use_dataflow_native_source=True)
     self.assertEqual(source.table_reference.projectId, 'xyz.com:project')
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-    source = beam.io.BigQuerySource(query='my_query')
+    source = beam.io.BigQuerySource(
+        query='my_query', use_dataflow_native_source=True)
     self.assertEqual(source.query, 'my_query')
     self.assertIsNone(source.table_reference)
     self.assertTrue(source.use_legacy_sql)
 
   def test_query_only_display_data(self):
-    source = beam.io.BigQuerySource(query='my_query')
+    source = beam.io.BigQuerySource(
+        query='my_query', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -232,25 +263,36 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_specify_query_sql_format(self):
-    source = beam.io.BigQuerySource(query='my_query', use_standard_sql=True)
+    source = beam.io.BigQuerySource(
+        query='my_query',
+        use_standard_sql=True,
+        use_dataflow_native_source=True)
     self.assertEqual(source.query, 'my_query')
     self.assertFalse(source.use_legacy_sql)
 
   def test_specify_query_flattened_records(self):
-    source = beam.io.BigQuerySource(query='my_query', flatten_results=False)
+    source = beam.io.BigQuerySource(
+        query='my_query',
+        flatten_results=False,
+        use_dataflow_native_source=True)
     self.assertFalse(source.flatten_results)
 
   def test_specify_query_unflattened_records(self):
-    source = beam.io.BigQuerySource(query='my_query', flatten_results=True)
+    source = beam.io.BigQuerySource(
+        query='my_query', flatten_results=True, use_dataflow_native_source=True)
     self.assertTrue(source.flatten_results)
 
   def test_specify_query_without_table(self):
-    source = beam.io.BigQuerySource(query='my_query')
+    source = beam.io.BigQuerySource(
+        query='my_query', use_dataflow_native_source=True)
     self.assertEqual(source.query, 'my_query')
     self.assertIsNone(source.table_reference)
 
   def test_date_partitioned_table_name(self):
-    source = beam.io.BigQuerySource('dataset.table$20030102', validate=True)
+    source = beam.io.BigQuerySource(
+        'dataset.table$20030102',
+        validate=True,
+        use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', True),
@@ -266,7 +308,8 @@ class TestJsonToDictCoder(unittest.TestCase):
     def _fill_schema(fields):
       for field in fields:
         table_field = bigquery.TableFieldSchema()
-        table_field.name, table_field.type, nested_fields = field
+        table_field.name, table_field.type, table_field.mode, nested_fields, \
+          = field
         if nested_fields:
           table_field.fields = list(_fill_schema(nested_fields))
         yield table_field
@@ -278,10 +321,13 @@ class TestJsonToDictCoder(unittest.TestCase):
   def test_coder_is_pickable(self):
     try:
       schema = self._make_schema([
-          ('record', 'RECORD', [
-              ('float', 'FLOAT', []),
-          ]),
-          ('integer', 'INTEGER', []),
+          (
+              'record',
+              'RECORD',
+              'NULLABLE', [
+                  ('float', 'FLOAT', 'NULLABLE', []),
+              ]),
+          ('integer', 'INTEGER', 'NULLABLE', []),
       ])
       coder = _JsonToDictCoder(schema)
       pickler.loads(pickler.dumps(coder))
@@ -291,8 +337,8 @@ class TestJsonToDictCoder(unittest.TestCase):
   def test_values_are_converted(self):
     input_row = b'{"float": "10.5", "string": "abc"}'
     expected_row = {'float': 10.5, 'string': 'abc'}
-    schema = self._make_schema([('float', 'FLOAT', []),
-                                ('string', 'STRING', [])])
+    schema = self._make_schema([('float', 'FLOAT', 'NULLABLE', []),
+                                ('string', 'STRING', 'NULLABLE', [])])
     coder = _JsonToDictCoder(schema)
 
     actual = coder.decode(input_row)
@@ -301,8 +347,8 @@ class TestJsonToDictCoder(unittest.TestCase):
   def test_null_fields_are_preserved(self):
     input_row = b'{"float": "10.5"}'
     expected_row = {'float': 10.5, 'string': None}
-    schema = self._make_schema([('float', 'FLOAT', []),
-                                ('string', 'STRING', [])])
+    schema = self._make_schema([('float', 'FLOAT', 'NULLABLE', []),
+                                ('string', 'STRING', 'NULLABLE', [])])
     coder = _JsonToDictCoder(schema)
 
     actual = coder.decode(input_row)
@@ -312,10 +358,43 @@ class TestJsonToDictCoder(unittest.TestCase):
     input_row = b'{"record": {"float": "55.5"}, "integer": 10}'
     expected_row = {'record': {'float': 55.5}, 'integer': 10}
     schema = self._make_schema([
-        ('record', 'RECORD', [
-            ('float', 'FLOAT', []),
-        ]),
-        ('integer', 'INTEGER', []),
+        (
+            'record',
+            'RECORD',
+            'NULLABLE', [
+                ('float', 'FLOAT', 'NULLABLE', []),
+            ]),
+        ('integer', 'INTEGER', 'NULLABLE', []),
+    ])
+    coder = _JsonToDictCoder(schema)
+
+    actual = coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
+  def test_record_and_repeatable_field_is_properly_converted(self):
+    input_row = b'{"record": [{"float": "55.5"}, {"float": "65.5"}], ' \
+                b'"integer": 10}'
+    expected_row = {'record': [{'float': 55.5}, {'float': 65.5}], 'integer': 10}
+    schema = self._make_schema([
+        (
+            'record',
+            'RECORD',
+            'REPEATED', [
+                ('float', 'FLOAT', 'NULLABLE', []),
+            ]),
+        ('integer', 'INTEGER', 'NULLABLE', []),
+    ])
+    coder = _JsonToDictCoder(schema)
+
+    actual = coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
+  def test_repeatable_field_is_properly_converted(self):
+    input_row = b'{"repeated": ["55.5", "65.5"], "integer": "10"}'
+    expected_row = {'repeated': [55.5, 65.5], 'integer': 10}
+    schema = self._make_schema([
+        ('repeated', 'FLOAT', 'REPEATED', []),
+        ('integer', 'INTEGER', 'NULLABLE', []),
     ])
     coder = _JsonToDictCoder(schema)
 
@@ -325,34 +404,193 @@ class TestJsonToDictCoder(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestReadFromBigQuery(unittest.TestCase):
-  def test_exception_is_raised_when_gcs_location_cannot_be_specified(self):
-    with self.assertRaises(ValueError):
-      p = beam.Pipeline()
-      _ = p | beam.io.ReadFromBigQuery(
-          project='project', dataset='dataset', table='table')
+  @classmethod
+  def setUpClass(cls):
+    class UserDefinedOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument('--gcs_location')
 
-  @mock.patch('apache_beam.io.gcp.bigquery_tools.BigQueryWrapper')
-  def test_fallback_to_temp_location(self, BigQueryWrapper):
-    pipeline_options = beam.pipeline.PipelineOptions()
-    pipeline_options.view_as(GoogleCloudOptions).temp_location = 'gs://bucket'
-    try:
-      p = beam.Pipeline(options=pipeline_options)
-      _ = p | beam.io.ReadFromBigQuery(
-          project='project', dataset='dataset', table='table')
-    except ValueError:
-      self.fail('ValueError was raised unexpectedly')
+    cls.UserDefinedOptions = UserDefinedOptions
 
-  def test_gcs_location_validation_works_properly(self):
-    with self.assertRaises(ValueError) as context:
-      p = beam.Pipeline()
-      _ = p | beam.io.ReadFromBigQuery(
-          project='project',
-          dataset='dataset',
-          table='table',
-          validate=True,
-          gcs_location='fs://bad_location')
+  def tearDown(self):
+    # Reset runtime options to avoid side-effects caused by other tests.
+    RuntimeValueProvider.set_runtime_options(None)
+
+  def test_get_destination_uri_empty_runtime_vp(self):
+    with self.assertRaisesRegex(ValueError,
+                                '^ReadFromBigQuery requires a GCS '
+                                'location to be provided'):
+      # Don't provide any runtime values.
+      RuntimeValueProvider.set_runtime_options({})
+      options = self.UserDefinedOptions()
+
+      bigquery_export_destination_uri(
+          options.gcs_location, None, uuid.uuid4().hex)
+
+  def test_get_destination_uri_none(self):
+    with self.assertRaisesRegex(ValueError,
+                                '^ReadFromBigQuery requires a GCS '
+                                'location to be provided'):
+      bigquery_export_destination_uri(None, None, uuid.uuid4().hex)
+
+  def test_get_destination_uri_runtime_vp(self):
+    # Provide values at job-execution time.
+    RuntimeValueProvider.set_runtime_options({'gcs_location': 'gs://bucket'})
+    options = self.UserDefinedOptions()
+    unique_id = uuid.uuid4().hex
+
+    uri = bigquery_export_destination_uri(options.gcs_location, None, unique_id)
     self.assertEqual(
-        'Invalid GCS location: fs://bad_location', str(context.exception))
+        uri, 'gs://bucket/' + unique_id + '/bigquery-table-dump-*.json')
+
+  def test_get_destination_uri_static_vp(self):
+    unique_id = uuid.uuid4().hex
+    uri = bigquery_export_destination_uri(
+        StaticValueProvider(str, 'gs://bucket'), None, unique_id)
+    self.assertEqual(
+        uri, 'gs://bucket/' + unique_id + '/bigquery-table-dump-*.json')
+
+  def test_get_destination_uri_fallback_temp_location(self):
+    # Don't provide any runtime values.
+    RuntimeValueProvider.set_runtime_options({})
+    options = self.UserDefinedOptions()
+
+    with self.assertLogs('apache_beam.io.gcp.bigquery_read_internal',
+                         level='DEBUG') as context:
+      bigquery_export_destination_uri(
+          options.gcs_location, 'gs://bucket', uuid.uuid4().hex)
+    self.assertEqual(
+        context.output,
+        [
+            'DEBUG:apache_beam.io.gcp.bigquery_read_internal:gcs_location is '
+            'empty, using temp_location instead'
+        ])
+
+  @mock.patch.object(BigQueryWrapper, '_delete_table')
+  @mock.patch.object(BigQueryWrapper, '_delete_dataset')
+  @mock.patch('apache_beam.io.gcp.internal.clients.bigquery.BigqueryV2')
+  def test_temp_dataset_is_configurable(
+      self, api, delete_dataset, delete_table):
+    temp_dataset = bigquery.DatasetReference(
+        projectId='temp-project', datasetId='bq_dataset')
+    bq = BigQueryWrapper(client=api, temp_dataset_id=temp_dataset.datasetId)
+    gcs_location = 'gs://gcs_location'
+
+    c = beam.io.gcp.bigquery._CustomBigQuerySource(
+        query='select * from test_table',
+        gcs_location=gcs_location,
+        method=beam.io.ReadFromBigQuery.Method.EXPORT,
+        validate=True,
+        pipeline_options=beam.options.pipeline_options.PipelineOptions(),
+        job_name='job_name',
+        step_name='step_name',
+        project='execution_project',
+        **{'temp_dataset': temp_dataset})
+
+    c._setup_temporary_dataset(bq)
+    api.datasets.assert_not_called()
+
+    # User provided temporary dataset should not be deleted but the temporary
+    # table created by Beam should be deleted.
+    bq.clean_up_temporary_dataset(temp_dataset.projectId)
+    delete_dataset.assert_not_called()
+    delete_table.assert_called_with(
+        temp_dataset.projectId, temp_dataset.datasetId, mock.ANY)
+
+  @parameterized.expand([
+      param(
+          exception_type=exceptions.Forbidden if exceptions else None,
+          error_message='accessDenied'),
+      param(
+          exception_type=exceptions.ServiceUnavailable if exceptions else None,
+          error_message='backendError'),
+  ])
+  def test_create_temp_dataset_exception(self, exception_type, error_message):
+
+    with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                           'Insert'),\
+      mock.patch.object(BigQueryWrapper,
+                        'get_or_create_dataset') as mock_insert, \
+      mock.patch('time.sleep'), \
+      self.assertRaises(Exception) as exc,\
+      beam.Pipeline() as p:
+
+      mock_insert.side_effect = exception_type(error_message)
+
+      _ = p | ReadFromBigQuery(
+          project='apache-beam-testing',
+          query='SELECT * FROM `project.dataset.table`',
+          gcs_location='gs://temp_location')
+
+    mock_insert.assert_called()
+    self.assertIn(error_message, exc.exception.args[0])
+
+  @parameterized.expand([
+      param(
+          exception_type=exceptions.BadRequest if exceptions else None,
+          error_message='invalidQuery'),
+      param(
+          exception_type=exceptions.NotFound if exceptions else None,
+          error_message='notFound'),
+      param(
+          exception_type=exceptions.Forbidden if exceptions else None,
+          error_message='responseTooLarge')
+  ])
+  def test_query_job_exception(self, exception_type, error_message):
+
+    with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
+                           'estimate_size') as mock_estimate,\
+      mock.patch.object(BigQueryWrapper,
+                        'get_query_location') as mock_query_location,\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                        'Insert') as mock_query_job,\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService, 'Get'), \
+      mock.patch('time.sleep'), \
+      self.assertRaises(Exception) as exc, \
+      beam.Pipeline() as p:
+
+      mock_estimate.return_value = None
+      mock_query_location.return_value = None
+      mock_query_job.side_effect = exception_type(error_message)
+
+      _ = p | ReadFromBigQuery(
+          query='SELECT * FROM `project.dataset.table`',
+          gcs_location='gs://temp_location')
+
+    mock_query_job.assert_called()
+    self.assertIn(error_message, exc.exception.args[0])
+
+  @parameterized.expand([
+      param(
+          exception_type=exceptions.BadRequest if exceptions else None,
+          error_message='invalid'),
+      param(
+          exception_type=exceptions.Forbidden if exceptions else None,
+          error_message='accessDenied')
+  ])
+  def test_read_export_exception(self, exception_type, error_message):
+
+    with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
+                           'estimate_size') as mock_estimate,\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService, 'Get'),\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                        'Insert') as mock_query_job, \
+      mock.patch('time.sleep'), \
+      self.assertRaises(Exception) as exc,\
+      beam.Pipeline() as p:
+
+      mock_estimate.return_value = None
+      mock_query_job.side_effect = exception_type(error_message)
+
+      _ = p | ReadFromBigQuery(
+          project='apache-beam-testing',
+          method=ReadFromBigQuery.Method.EXPORT,
+          table='project:dataset.table',
+          gcs_location="gs://temp_location")
+
+    mock_query_job.assert_called()
+    self.assertIn(error_message, exc.exception.args[0])
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -563,8 +801,7 @@ class TestWriteToBigQuery(unittest.TestCase):
     self.assertEqual(expected_dict_schema, dict_schema)
 
   def test_schema_autodetect_not_allowed_with_avro_file_loads(self):
-    with TestPipeline(
-        additional_pipeline_args=["--experiments=use_beam_bq_sink"]) as p:
+    with TestPipeline() as p:
       pc = p | beam.Impulse()
 
       with self.assertRaisesRegex(ValueError, '^A schema must be provided'):
@@ -593,8 +830,7 @@ class TestWriteToBigQuery(unittest.TestCase):
     """
     FULL_OUTPUT_TABLE = 'test_project:output_table'
 
-    p = TestPipeline(
-        additional_pipeline_args=["--experiments=use_beam_bq_sink"])
+    p = TestPipeline()
 
     # Used for testing side input parameters.
     table_record_pcv = beam.pvalue.AsDict(
@@ -651,6 +887,434 @@ class TestWriteToBigQuery(unittest.TestCase):
     self.assertEqual(
         original_side_input_data.view_fn, deserialized_side_input_data.view_fn)
 
+  def test_streaming_triggering_frequency_without_auto_sharding(self):
+    def noop(table, **kwargs):
+      return []
+
+    client = mock.Mock()
+    client.insert_rows_json = mock.Mock(side_effect=noop)
+    opt = StandardOptions()
+    opt.streaming = True
+    with self.assertRaises(ValueError,
+                           msg="triggering_frequency with STREAMING_INSERTS" +
+                           "can only be used with with_auto_sharding=True"):
+      with beam.Pipeline(runner='BundleBasedDirectRunner', options=opt) as p:
+        _ = (
+            p
+            | beam.Create([{
+                'columnA': 'value1'
+            }])
+            | WriteToBigQuery(
+                table='project:dataset.table',
+                schema={
+                    'fields': [{
+                        'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                    }]
+                },
+                create_disposition='CREATE_NEVER',
+                triggering_frequency=1,
+                with_auto_sharding=False,
+                test_client=client))
+
+  def test_streaming_triggering_frequency_with_auto_sharding(self):
+    def noop(table, **kwargs):
+      return []
+
+    client = mock.Mock()
+    client.insert_rows_json = mock.Mock(side_effect=noop)
+    opt = StandardOptions()
+    opt.streaming = True
+    with beam.Pipeline(runner='BundleBasedDirectRunner', options=opt) as p:
+      _ = (
+          p
+          | beam.Create([{
+              'columnA': 'value1'
+          }])
+          | WriteToBigQuery(
+              table='project:dataset.table',
+              schema={
+                  'fields': [{
+                      'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                  }]
+              },
+              create_disposition='CREATE_NEVER',
+              triggering_frequency=1,
+              with_auto_sharding=True,
+              test_client=client))
+
+  @parameterized.expand([
+      param(
+          exception_type=exceptions.Forbidden if exceptions else None,
+          error_message='accessDenied'),
+      param(
+          exception_type=exceptions.ServiceUnavailable if exceptions else None,
+          error_message='backendError')
+  ])
+  def test_load_job_exception(self, exception_type, error_message):
+
+    with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                     'Insert') as mock_load_job,\
+      mock.patch('apache_beam.io.gcp.internal.clients'
+                 '.storage.storage_v1_client.StorageV1.ObjectsService'),\
+      mock.patch('time.sleep'),\
+      self.assertRaises(Exception) as exc,\
+      beam.Pipeline() as p:
+
+      mock_load_job.side_effect = exception_type(error_message)
+
+      _ = (
+          p
+          | beam.Create([{
+              'columnA': 'value1'
+          }])
+          | WriteToBigQuery(
+              table='project:dataset.table',
+              schema={
+                  'fields': [{
+                      'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                  }]
+              },
+              create_disposition='CREATE_NEVER',
+              custom_gcs_temp_location="gs://temp_location",
+              method='FILE_LOADS'))
+
+    mock_load_job.assert_called()
+    self.assertIn(error_message, exc.exception.args[0])
+
+  @parameterized.expand([
+      param(
+          exception_type=exceptions.ServiceUnavailable if exceptions else None,
+          error_message='backendError'),
+      param(
+          exception_type=exceptions.InternalServerError if exceptions else None,
+          error_message='internalError'),
+  ])
+  def test_copy_load_job_exception(self, exception_type, error_message):
+
+    from apache_beam.io.gcp import bigquery_file_loads
+
+    old_max_file_size = bigquery_file_loads._DEFAULT_MAX_FILE_SIZE
+    old_max_partition_size = bigquery_file_loads._MAXIMUM_LOAD_SIZE
+    old_max_files_per_partition = bigquery_file_loads._MAXIMUM_SOURCE_URIS
+    bigquery_file_loads._DEFAULT_MAX_FILE_SIZE = 15
+    bigquery_file_loads._MAXIMUM_LOAD_SIZE = 30
+    bigquery_file_loads._MAXIMUM_SOURCE_URIS = 1
+
+    with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                        'Insert') as mock_insert_copy_job, \
+      mock.patch.object(BigQueryWrapper,
+                        'perform_load_job') as mock_load_job, \
+      mock.patch.object(BigQueryWrapper,
+                        'wait_for_bq_job'), \
+      mock.patch('apache_beam.io.gcp.internal.clients'
+        '.storage.storage_v1_client.StorageV1.ObjectsService'), \
+      mock.patch('time.sleep'), \
+      self.assertRaises(Exception) as exc, \
+      beam.Pipeline() as p:
+
+      mock_insert_copy_job.side_effect = exception_type(error_message)
+
+      dummy_job_reference = beam.io.gcp.internal.clients.bigquery.JobReference()
+      dummy_job_reference.jobId = 'job_id'
+      dummy_job_reference.location = 'US'
+      dummy_job_reference.projectId = 'apache-beam-testing'
+
+      mock_load_job.return_value = dummy_job_reference
+
+      _ = (
+          p
+          | beam.Create([{
+              'columnA': 'value1'
+          }, {
+              'columnA': 'value2'
+          }, {
+              'columnA': 'value3'
+          }])
+          | WriteToBigQuery(
+              table='project:dataset.table',
+              schema={
+                  'fields': [{
+                      'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                  }]
+              },
+              create_disposition='CREATE_NEVER',
+              custom_gcs_temp_location="gs://temp_location",
+              method='FILE_LOADS'))
+
+    bigquery_file_loads._DEFAULT_MAX_FILE_SIZE = old_max_file_size
+    bigquery_file_loads._MAXIMUM_LOAD_SIZE = old_max_partition_size
+    bigquery_file_loads._MAXIMUM_SOURCE_URIS = old_max_files_per_partition
+
+    self.assertEqual(4, mock_insert_copy_job.call_count)
+    self.assertIn(error_message, exc.exception.args[0])
+
+
+@unittest.skipIf(
+    HttpError is None or exceptions is None,
+    'GCP dependencies are not installed')
+class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
+
+  # Using https://cloud.google.com/bigquery/docs/error-messages and
+  # https://googleapis.dev/python/google-api-core/latest/_modules/google
+  #    /api_core/exceptions.html
+  # to determine error types and messages to try for retriables.
+  @parameterized.expand([
+      param(
+          exception_type=exceptions.Forbidden if exceptions else None,
+          error_reason='rateLimitExceeded'),
+      param(
+          exception_type=exceptions.DeadlineExceeded if exceptions else None,
+          error_reason='somereason'),
+      param(
+          exception_type=exceptions.ServiceUnavailable if exceptions else None,
+          error_reason='backendError'),
+      param(
+          exception_type=exceptions.InternalServerError if exceptions else None,
+          error_reason='internalError'),
+      param(
+          exception_type=exceptions.InternalServerError if exceptions else None,
+          error_reason='backendError'),
+  ])
+  @mock.patch('time.sleep')
+  @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
+  def test_insert_all_retries_if_structured_retriable(
+      self,
+      mock_send,
+      unused_mock_sleep,
+      exception_type=None,
+      error_reason=None):
+    # In this test, a BATCH pipeline will retry the known RETRIABLE errors.
+    mock_send.side_effect = [
+        exception_type(
+            'some retriable exception', errors=[{
+                'reason': error_reason
+            }]),
+        exception_type(
+            'some retriable exception', errors=[{
+                'reason': error_reason
+            }]),
+        exception_type(
+            'some retriable exception', errors=[{
+                'reason': error_reason
+            }]),
+        exception_type(
+            'some retriable exception', errors=[{
+                'reason': error_reason
+            }]),
+    ]
+
+    with self.assertRaises(Exception) as exc:
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create([{
+                'columnA': 'value1'
+            }])
+            | WriteToBigQuery(
+                table='project:dataset.table',
+                schema={
+                    'fields': [{
+                        'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                    }]
+                },
+                create_disposition='CREATE_NEVER',
+                method='STREAMING_INSERTS'))
+    self.assertEqual(4, mock_send.call_count)
+    self.assertIn('some retriable exception', exc.exception.args[0])
+
+  # Using https://googleapis.dev/python/google-api-core/latest/_modules/google
+  #   /api_core/exceptions.html
+  # to determine error types and messages to try for retriables.
+  @parameterized.expand([
+      param(
+          exception_type=requests.exceptions.ConnectionError,
+          error_message='some connection error'),
+      param(
+          exception_type=requests.exceptions.Timeout,
+          error_message='some timeout error'),
+      param(
+          exception_type=ConnectionError,
+          error_message='some py connection error'),
+      param(
+          exception_type=exceptions.BadGateway if exceptions else None,
+          error_message='some badgateway error'),
+  ])
+  @mock.patch('time.sleep')
+  @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
+  def test_insert_all_retries_if_unstructured_retriable(
+      self,
+      mock_send,
+      unused_mock_sleep,
+      exception_type=None,
+      error_message=None):
+    # In this test, a BATCH pipeline will retry the unknown RETRIABLE errors.
+    mock_send.side_effect = [
+        exception_type(error_message),
+        exception_type(error_message),
+        exception_type(error_message),
+        exception_type(error_message),
+    ]
+
+    with self.assertRaises(Exception) as exc:
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create([{
+                'columnA': 'value1'
+            }])
+            | WriteToBigQuery(
+                table='project:dataset.table',
+                schema={
+                    'fields': [{
+                        'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                    }]
+                },
+                create_disposition='CREATE_NEVER',
+                method='STREAMING_INSERTS'))
+    self.assertEqual(4, mock_send.call_count)
+    self.assertIn(error_message, exc.exception.args[0])
+
+  # Using https://googleapis.dev/python/google-api-core/latest/_modules/google
+  #   /api_core/exceptions.html
+  # to determine error types and messages to try for retriables.
+  @parameterized.expand([
+      param(
+          exception_type=retry.PermanentException,
+          error_args=('nonretriable', )),
+      param(
+          exception_type=exceptions.BadRequest if exceptions else None,
+          error_args=(
+              'forbidden morbidden', [{
+                  'reason': 'nonretriablereason'
+              }])),
+      param(
+          exception_type=exceptions.BadRequest if exceptions else None,
+          error_args=('BAD REQUEST!', [{
+              'reason': 'nonretriablereason'
+          }])),
+      param(
+          exception_type=exceptions.MethodNotAllowed if exceptions else None,
+          error_args=(
+              'method not allowed!', [{
+                  'reason': 'nonretriablereason'
+              }])),
+      param(
+          exception_type=exceptions.MethodNotAllowed if exceptions else None,
+          error_args=('method not allowed!', 'args')),
+      param(
+          exception_type=exceptions.Unknown if exceptions else None,
+          error_args=('unknown!', 'args')),
+      param(
+          exception_type=exceptions.Aborted if exceptions else None,
+          error_args=('abortet!', 'abort')),
+  ])
+  @mock.patch('time.sleep')
+  @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
+  def test_insert_all_unretriable_errors(
+      self, mock_send, unused_mock_sleep, exception_type=None, error_args=None):
+    # In this test, a BATCH pipeline will retry the unknown RETRIABLE errors.
+    mock_send.side_effect = [
+        exception_type(*error_args),
+        exception_type(*error_args),
+        exception_type(*error_args),
+        exception_type(*error_args),
+    ]
+
+    with self.assertRaises(Exception):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create([{
+                'columnA': 'value1'
+            }])
+            | WriteToBigQuery(
+                table='project:dataset.table',
+                schema={
+                    'fields': [{
+                        'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                    }]
+                },
+                create_disposition='CREATE_NEVER',
+                method='STREAMING_INSERTS'))
+    self.assertEqual(1, mock_send.call_count)
+
+  # Using https://googleapis.dev/python/google-api-core/latest/_modules/google
+  #    /api_core/exceptions.html
+  # to determine error types and messages to try for retriables.
+  @parameterized.expand([
+      param(
+          exception_type=retry.PermanentException,
+          error_args=('nonretriable', )),
+      param(
+          exception_type=exceptions.BadRequest if exceptions else None,
+          error_args=(
+              'forbidden morbidden', [{
+                  'reason': 'nonretriablereason'
+              }])),
+      param(
+          exception_type=exceptions.BadRequest if exceptions else None,
+          error_args=('BAD REQUEST!', [{
+              'reason': 'nonretriablereason'
+          }])),
+      param(
+          exception_type=exceptions.MethodNotAllowed if exceptions else None,
+          error_args=(
+              'method not allowed!', [{
+                  'reason': 'nonretriablereason'
+              }])),
+      param(
+          exception_type=exceptions.MethodNotAllowed if exceptions else None,
+          error_args=('method not allowed!', 'args')),
+      param(
+          exception_type=exceptions.Unknown if exceptions else None,
+          error_args=('unknown!', 'args')),
+      param(
+          exception_type=exceptions.Aborted if exceptions else None,
+          error_args=('abortet!', 'abort')),
+      param(
+          exception_type=requests.exceptions.ConnectionError,
+          error_args=('some connection error', )),
+      param(
+          exception_type=requests.exceptions.Timeout,
+          error_args=('some timeout error', )),
+      param(
+          exception_type=ConnectionError,
+          error_args=('some py connection error', )),
+      param(
+          exception_type=exceptions.BadGateway if exceptions else None,
+          error_args=('some badgateway error', )),
+  ])
+  @mock.patch('time.sleep')
+  @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
+  def test_insert_all_unretriable_errors_streaming(
+      self, mock_send, unused_mock_sleep, exception_type=None, error_args=None):
+    # In this test, a STREAMING pipeline will retry ALL errors, and never throw
+    # an exception.
+    mock_send.side_effect = [
+        exception_type(*error_args),
+        exception_type(*error_args),
+        []  # Errors thrown twice, and then succeeded
+    ]
+
+    opt = StandardOptions()
+    opt.streaming = True
+    with beam.Pipeline(runner='BundleBasedDirectRunner', options=opt) as p:
+      _ = (
+          p
+          | beam.Create([{
+              'columnA': 'value1'
+          }])
+          | WriteToBigQuery(
+              table='project:dataset.table',
+              schema={
+                  'fields': [{
+                      'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                  }]
+              },
+              create_disposition='CREATE_NEVER',
+              method='STREAMING_INSERTS'))
+    self.assertEqual(3, mock_send.call_count)
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):
@@ -659,8 +1323,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
             projectId='project_id', datasetId='dataset_id', tableId='table_id'))
-    client.tabledata.InsertAll.return_value = \
-      bigquery.TableDataInsertAllResponse(insertErrors=[])
+    client.insert_rows_json.return_value = []
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
@@ -674,15 +1337,14 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     fn.process(('project_id:dataset_id.table_id', {'month': 1}))
 
     # InsertRows not called as batch size is not hit yet
-    self.assertFalse(client.tabledata.InsertAll.called)
+    self.assertFalse(client.insert_rows_json.called)
 
   def test_dofn_client_process_flush_called(self):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
             projectId='project_id', datasetId='dataset_id', tableId='table_id'))
-    client.tabledata.InsertAll.return_value = (
-        bigquery.TableDataInsertAllResponse(insertErrors=[]))
+    client.insert_rows_json.return_value = []
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
@@ -697,15 +1359,14 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid1')))
     fn.process(('project_id:dataset_id.table_id', ({'month': 2}, 'insertid2')))
     # InsertRows called as batch size is hit
-    self.assertTrue(client.tabledata.InsertAll.called)
+    self.assertTrue(client.insert_rows_json.called)
 
   def test_dofn_client_finish_bundle_flush_called(self):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
             projectId='project_id', datasetId='dataset_id', tableId='table_id'))
-    client.tabledata.InsertAll.return_value = \
-      bigquery.TableDataInsertAllResponse(insertErrors=[])
+    client.insert_rows_json.return_value = []
     create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
@@ -724,11 +1385,11 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 
     self.assertTrue(client.tables.Get.called)
     # InsertRows not called as batch size is not hit
-    self.assertFalse(client.tabledata.InsertAll.called)
+    self.assertFalse(client.insert_rows_json.called)
 
     fn.finish_bundle()
     # InsertRows called in finish bundle
-    self.assertTrue(client.tabledata.InsertAll.called)
+    self.assertTrue(client.insert_rows_json.called)
 
   def test_dofn_client_no_records(self):
     client = mock.Mock()
@@ -755,20 +1416,52 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     # InsertRows not called in finish bundle as no records
     self.assertFalse(client.tabledata.InsertAll.called)
 
+  def test_with_batched_input(self):
+    client = mock.Mock()
+    client.tables.Get.return_value = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+    client.insert_rows_json.return_value = []
+    create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+
+    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+        batch_size=10,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        kms_key=None,
+        with_batched_input=True,
+        test_client=client)
+
+    fn.start_bundle()
+
+    # Destination is a tuple of (destination, schema) to ensure the table is
+    # created.
+    fn.process((
+        'project_id:dataset_id.table_id',
+        [({
+            'month': 1
+        }, 'insertid3'), ({
+            'month': 2
+        }, 'insertid2'), ({
+            'month': 3
+        }, 'insertid1')]))
+
+    # InsertRows called since the input is already batched.
+    self.assertTrue(client.insert_rows_json.called)
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
-  def test_failure_has_same_insert_ids(self):
+  @mock.patch('time.sleep')
+  def test_failure_has_same_insert_ids(self, unused_mock_sleep):
     tempdir = '%s%s' % (self._new_tempdir(), os.sep)
     file_name_1 = os.path.join(tempdir, 'file1')
     file_name_2 = os.path.join(tempdir, 'file2')
 
-    def store_callback(arg):
-      insert_ids = [r.insertId for r in arg.tableDataInsertAllRequest.rows]
-      colA_values = [
-          r.json.additionalProperties[0].value.string_value
-          for r in arg.tableDataInsertAllRequest.rows
-      ]
+    def store_callback(table, **kwargs):
+      insert_ids = [r for r in kwargs['row_ids']]
+      colA_values = [r['columnA'] for r in kwargs['json_rows']]
       json_output = {'insertIds': insert_ids, 'colA_values': colA_values}
       # The first time we try to insert, we save those insertions in
       # file insert_calls1.
@@ -780,12 +1473,10 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
         with open(file_name_2, 'w') as f:
           json.dump(json_output, f)
 
-      res = mock.Mock()
-      res.insertErrors = []
-      return res
+      return []
 
     client = mock.Mock()
-    client.tabledata.InsertAll = mock.Mock(side_effect=store_callback)
+    client.insert_rows_json = mock.Mock(side_effect=store_callback)
 
     # Using the bundle based direct runner to avoid pickling problems
     # with mocks.
@@ -800,28 +1491,270 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               'columnA': 'value5', 'columnB': 'value6'
           }])
           | _StreamToBigQuery(
-              'project:dataset.table', [], [],
-              'anyschema',
-              None,
-              'CREATE_NEVER',
-              None,
-              None,
-              None, [],
+              table_reference='project:dataset.table',
+              table_side_inputs=[],
+              schema_side_inputs=[],
+              schema='anyschema',
+              batch_size=None,
+              triggering_frequency=None,
+              create_disposition='CREATE_NEVER',
+              write_disposition=None,
+              kms_key=None,
+              retry_strategy=None,
+              additional_bq_parameters=[],
+              ignore_insert_ids=False,
+              ignore_unknown_columns=False,
+              with_auto_sharding=False,
               test_client=client))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
       self.assertEqual(json.load(f1), json.load(f2))
 
+  @parameterized.expand([
+      param(retry_strategy=RetryStrategy.RETRY_ALWAYS),
+      param(retry_strategy=RetryStrategy.RETRY_NEVER),
+      param(retry_strategy=RetryStrategy.RETRY_ON_TRANSIENT_ERROR),
+  ])
+  def test_failure_in_some_rows_does_not_duplicate(self, retry_strategy=None):
+    with mock.patch('time.sleep'):
+      # In this test we simulate a failure to write out two out of three rows.
+      # Row 0 and row 2 fail to be written on the first attempt, and then
+      # succeed on the next attempt (if there is one).
+      tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+      file_name_1 = os.path.join(tempdir, 'file1_partial')
+      file_name_2 = os.path.join(tempdir, 'file2_partial')
 
+      def store_callback(table, **kwargs):
+        insert_ids = [r for r in kwargs['row_ids']]
+        colA_values = [r['columnA'] for r in kwargs['json_rows']]
+
+        # The first time this function is called, all rows are included
+        # so we need to filter out 'failed' rows.
+        json_output_1 = {
+            'insertIds': [insert_ids[1]], 'colA_values': [colA_values[1]]
+        }
+        # The second time this function is called, only rows 0 and 2 are incl
+        # so we don't need to filter any of them. We just write them all out.
+        json_output_2 = {'insertIds': insert_ids, 'colA_values': colA_values}
+
+        # The first time we try to insert, we save those insertions in
+        # file insert_calls1.
+        if not os.path.exists(file_name_1):
+          with open(file_name_1, 'w') as f:
+            json.dump(json_output_1, f)
+          return [
+              {
+                  'index': 0,
+                  'errors': [{
+                      'reason': 'i dont like this row'
+                  }, {
+                      'reason': 'its bad'
+                  }]
+              },
+              {
+                  'index': 2,
+                  'errors': [{
+                      'reason': 'i het this row'
+                  }, {
+                      'reason': 'its no gud'
+                  }]
+              },
+          ]
+        else:
+          with open(file_name_2, 'w') as f:
+            json.dump(json_output_2, f)
+            return []
+
+      client = mock.Mock()
+      client.insert_rows_json = mock.Mock(side_effect=store_callback)
+
+      # The expected rows to be inserted according to the insert strategy
+      if retry_strategy == RetryStrategy.RETRY_NEVER:
+        result = ['value3']
+      else:  # RETRY_ALWAYS and RETRY_ON_TRANSIENT_ERRORS should insert all rows
+        result = ['value1', 'value3', 'value5']
+
+      # Using the bundle based direct runner to avoid pickling problems
+      # with mocks.
+      with beam.Pipeline(runner='BundleBasedDirectRunner') as p:
+        bq_write_out = (
+            p
+            | beam.Create([{
+                'columnA': 'value1', 'columnB': 'value2'
+            }, {
+                'columnA': 'value3', 'columnB': 'value4'
+            }, {
+                'columnA': 'value5', 'columnB': 'value6'
+            }])
+            | _StreamToBigQuery(
+                table_reference='project:dataset.table',
+                table_side_inputs=[],
+                schema_side_inputs=[],
+                schema='anyschema',
+                batch_size=None,
+                triggering_frequency=None,
+                create_disposition='CREATE_NEVER',
+                write_disposition=None,
+                kms_key=None,
+                retry_strategy=retry_strategy,
+                additional_bq_parameters=[],
+                ignore_insert_ids=False,
+                ignore_unknown_columns=False,
+                with_auto_sharding=False,
+                test_client=client))
+
+        failed_values = (
+            bq_write_out[beam_bq.BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
+            | beam.Map(lambda x: x[1]['columnA']))
+
+        assert_that(
+            failed_values,
+            equal_to(list({'value1', 'value3', 'value5'}.difference(result))))
+
+      data1 = _load_or_default(file_name_1)
+      data2 = _load_or_default(file_name_2)
+
+      self.assertListEqual(
+          sorted(data1.get('colA_values', []) + data2.get('colA_values', [])),
+          result)
+      self.assertEqual(len(data1['colA_values']), 1)
+
+  @parameterized.expand([
+      param(retry_strategy=RetryStrategy.RETRY_ALWAYS),
+      param(retry_strategy=RetryStrategy.RETRY_NEVER),
+      param(retry_strategy=RetryStrategy.RETRY_ON_TRANSIENT_ERROR),
+  ])
+  def test_permanent_failure_in_some_rows_does_not_duplicate(
+      self, unused_sleep_mock=None, retry_strategy=None):
+    with mock.patch('time.sleep'):
+
+      def store_callback(table, **kwargs):
+        return [
+            {
+                'index': 0,
+                'errors': [{
+                    'reason': 'invalid'
+                }, {
+                    'reason': 'its bad'
+                }]
+            },
+        ]
+
+      client = mock.Mock()
+      client.insert_rows_json = mock.Mock(side_effect=store_callback)
+
+      # The expected rows to be inserted according to the insert strategy
+      if retry_strategy == RetryStrategy.RETRY_NEVER:
+        inserted_rows = ['value3', 'value5']
+      else:  # RETRY_ALWAYS and RETRY_ON_TRANSIENT_ERRORS should insert all rows
+        inserted_rows = ['value3', 'value5']
+
+      # Using the bundle based direct runner to avoid pickling problems
+      # with mocks.
+      with beam.Pipeline(runner='BundleBasedDirectRunner') as p:
+        bq_write_out = (
+            p
+            | beam.Create([{
+                'columnA': 'value1', 'columnB': 'value2'
+            }, {
+                'columnA': 'value3', 'columnB': 'value4'
+            }, {
+                'columnA': 'value5', 'columnB': 'value6'
+            }])
+            | _StreamToBigQuery(
+                table_reference='project:dataset.table',
+                table_side_inputs=[],
+                schema_side_inputs=[],
+                schema='anyschema',
+                batch_size=None,
+                triggering_frequency=None,
+                create_disposition='CREATE_NEVER',
+                write_disposition=None,
+                kms_key=None,
+                retry_strategy=retry_strategy,
+                additional_bq_parameters=[],
+                ignore_insert_ids=False,
+                ignore_unknown_columns=False,
+                with_auto_sharding=False,
+                test_client=client,
+                max_retries=10))
+
+        failed_values = (
+            bq_write_out[beam_bq.BigQueryWriteFn.FAILED_ROWS]
+            | beam.Map(lambda x: x[1]['columnA']))
+
+        assert_that(
+            failed_values,
+            equal_to(
+                list({'value1', 'value3', 'value5'}.difference(inserted_rows))))
+
+  @parameterized.expand([
+      param(with_auto_sharding=False),
+      param(with_auto_sharding=True),
+  ])
+  def test_batch_size_with_auto_sharding(self, with_auto_sharding):
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    file_name_1 = os.path.join(tempdir, 'file1')
+    file_name_2 = os.path.join(tempdir, 'file2')
+
+    def store_callback(table, **kwargs):
+      insert_ids = [r for r in kwargs['row_ids']]
+      colA_values = [r['columnA'] for r in kwargs['json_rows']]
+      json_output = {'insertIds': insert_ids, 'colA_values': colA_values}
+      # Expect two batches of rows will be inserted. Store them separately.
+      if not os.path.exists(file_name_1):
+        with open(file_name_1, 'w') as f:
+          json.dump(json_output, f)
+      else:
+        with open(file_name_2, 'w') as f:
+          json.dump(json_output, f)
+
+      return []
+
+    client = mock.Mock()
+    client.insert_rows_json = mock.Mock(side_effect=store_callback)
+
+    # Using the bundle based direct runner to avoid pickling problems
+    # with mocks.
+    with beam.Pipeline(runner='BundleBasedDirectRunner') as p:
+      _ = (
+          p
+          | beam.Create([{
+              'columnA': 'value1', 'columnB': 'value2'
+          }, {
+              'columnA': 'value3', 'columnB': 'value4'
+          }, {
+              'columnA': 'value5', 'columnB': 'value6'
+          }])
+          | _StreamToBigQuery(
+              table_reference='project:dataset.table',
+              table_side_inputs=[],
+              schema_side_inputs=[],
+              schema='anyschema',
+              # Set a batch size such that the input elements will be inserted
+              # in 2 batches.
+              batch_size=2,
+              triggering_frequency=None,
+              create_disposition='CREATE_NEVER',
+              write_disposition=None,
+              kms_key=None,
+              retry_strategy=None,
+              additional_bq_parameters=[],
+              ignore_insert_ids=False,
+              ignore_unknown_columns=False,
+              with_auto_sharding=with_auto_sharding,
+              test_client=client))
+
+    with open(file_name_1) as f1, open(file_name_2) as f2:
+      out1 = json.load(f1)
+      self.assertEqual(out1['colA_values'], ['value1', 'value3'])
+      out2 = json.load(f2)
+      self.assertEqual(out2['colA_values'], ['value5'])
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_streaming_inserts_'
-
-  # Prevent nose from finding and running tests that were not
-  # specified in the Gradle file.
-  # See "More tests may be found" in:
-  # https://nose.readthedocs.io/en/latest/doc_tests/test_multiprocess
-  # /multiprocess.html#other-differences-in-test-running
-  _multiprocess_can_split_ = True
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -838,7 +1771,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     _LOGGER.info(
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_value_provider_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
@@ -886,8 +1819,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     ]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=hc.all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink')
+        on_success_matcher=hc.all_of(*pipeline_verifiers))
 
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create([row for row in _ELEMENTS if 'language' in row])
@@ -909,7 +1841,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
               additional_bq_parameters=lambda _: additional_bq_parameters,
               method='FILE_LOADS'))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_multiple_destinations_transform(self):
     streaming = self.test_pipeline.options.view_as(StandardOptions).streaming
     if streaming and isinstance(self.test_pipeline.runner, TestDataflowRunner):
@@ -967,8 +1899,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
       ]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=hc.all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink')
+        on_success_matcher=hc.all_of(*pipeline_verifiers))
 
     with beam.Pipeline(argv=args) as p:
       if streaming:
@@ -1007,8 +1938,14 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
               method='STREAMING_INSERTS'))
 
       assert_that(
-          r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS],
+          r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
+          | beam.Map(lambda elm: (elm[0], elm[1])),
           equal_to([(full_output_table_1, bad_record)]))
+
+      assert_that(
+          r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS],
+          equal_to([(full_output_table_1, bad_record)]),
+          label='FailedRowsMatch')
 
   def tearDown(self):
     request = bigquery.BigqueryDatasetsDeleteRequest(
@@ -1050,12 +1987,13 @@ class PubSubBigQueryIT(unittest.TestCase):
     from google.cloud import pubsub
     self.pub_client = pubsub.PublisherClient()
     self.input_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, self.INPUT_TOPIC + self.uuid))
+        name=self.pub_client.topic_path(
+            self.project, self.INPUT_TOPIC + self.uuid))
     self.sub_client = pubsub.SubscriberClient()
     self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(
+        name=self.sub_client.subscription_path(
             self.project, self.INPUT_SUB + self.uuid),
-        self.input_topic.name)
+        topic=self.input_topic.name)
 
     # Set up BQ
     self.dataset_ref = utils.create_bq_dataset(
@@ -1083,8 +2021,8 @@ class PubSubBigQueryIT(unittest.TestCase):
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*matchers),
         wait_until_finish_duration=self.WAIT_UNTIL_FINISH_DURATION,
-        experiments='use_beam_bq_sink',
-        streaming=True)
+        streaming=True,
+        allow_unsafe_triggers=True)
 
     def add_schema_info(element):
       yield {'number': element}
@@ -1104,18 +2042,17 @@ class PubSubBigQueryIT(unittest.TestCase):
           method=method,
           triggering_frequency=triggering_frequency)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_streaming_inserts(self):
     self._run_pubsub_bq_pipeline(WriteToBigQuery.Method.STREAMING_INSERTS)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_file_loads(self):
-    if isinstance(self.test_pipeline.runner, TestDataflowRunner):
-      self.skipTest('https://issuetracker.google.com/issues/118375066')
     self._run_pubsub_bq_pipeline(
         WriteToBigQuery.Method.FILE_LOADS, triggering_frequency=20)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
 
@@ -1135,18 +2072,23 @@ class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
     _LOGGER.info(
         'Created dataset %s in project %s', self.dataset_id, self.project)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_avro_file_load(self):
     # Construct elements such that they can be written via Avro but not via
     # JSON. See BEAM-8841.
+    from apache_beam.io.gcp import bigquery_file_loads
+    old_max_files = bigquery_file_loads._MAXIMUM_SOURCE_URIS
+    old_max_file_size = bigquery_file_loads._DEFAULT_MAX_FILE_SIZE
+    bigquery_file_loads._MAXIMUM_SOURCE_URIS = 1
+    bigquery_file_loads._DEFAULT_MAX_FILE_SIZE = 100
     elements = [
         {
-            'name': u'Negative infinity',
+            'name': 'Negative infinity',
             'value': -float('inf'),
             'timestamp': datetime.datetime(1970, 1, 1, tzinfo=pytz.utc),
         },
         {
-            'name': u'Not a number',
+            'name': 'Not a number',
             'value': float('nan'),
             'timestamp': datetime.datetime(2930, 12, 9, tzinfo=pytz.utc),
         },
@@ -1182,7 +2124,6 @@ class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
 
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink',
     )
 
     with beam.Pipeline(argv=args) as p:
@@ -1199,6 +2140,8 @@ class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
               method='FILE_LOADS',
               temp_file_format=bigquery_tools.FileFormat.AVRO,
           ))
+    bigquery_file_loads._MAXIMUM_SOURCE_URIS = old_max_files
+    bigquery_file_loads._DEFAULT_MAX_FILE_SIZE = old_max_file_size
 
   def tearDown(self):
     request = bigquery.BigqueryDatasetsDeleteRequest(

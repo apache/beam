@@ -31,6 +31,9 @@ import org.apache.beam.sdk.transforms.Reshuffle;
  * Utility methods for translating a {@link Reshuffle} to and from {@link RunnerApi}
  * representations.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class ReshuffleTranslation {
 
   static class ReshuffleTranslator implements TransformPayloadTranslator<Reshuffle<?, ?>> {

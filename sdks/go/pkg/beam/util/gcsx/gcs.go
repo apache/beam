@@ -25,12 +25,12 @@ import (
 	"path"
 
 	"cloud.google.com/go/storage"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"google.golang.org/api/option"
 )
 
 // NewClient creates a new GCS client with default application credentials, and supplied
-// OAuth scope. The OAuth scopes are defined in https://godoc.org/cloud.google.com/go/storage#pkg-constants.
+// OAuth scope. The OAuth scopes are defined in https://pkg.go.dev/cloud.google.com/go/storage#pkg-constants.
 func NewClient(ctx context.Context, scope string) (*storage.Client, error) {
 	return storage.NewClient(ctx, option.WithScopes(scope))
 }

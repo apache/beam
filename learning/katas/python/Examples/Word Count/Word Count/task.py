@@ -14,6 +14,14 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: WordCount
+#   description: Task from katas to create a pipeline that counts the number of words.
+#   multifile: false
+#   context_line: 29
+#   categories:
+#     - Combiners
+
 import apache_beam as beam
 
 from log_elements import LogElements
@@ -23,14 +31,13 @@ lines = [
     "banana orange banana papaya"
 ]
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-(p | beam.Create(lines)
+  (p | beam.Create(lines)
 
-   | beam.FlatMap(lambda sentence: sentence.split())
-   | beam.combiners.Count.PerElement()
-   | beam.MapTuple(lambda k, v: k + ":" + str(v))
+     | beam.FlatMap(lambda sentence: sentence.split())
+     | beam.combiners.Count.PerElement()
+     | beam.MapTuple(lambda k, v: k + ":" + str(v))
 
-   | LogElements())
+     | LogElements())
 
-p.run()

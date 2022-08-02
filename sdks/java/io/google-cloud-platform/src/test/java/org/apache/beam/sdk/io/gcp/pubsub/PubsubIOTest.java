@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
@@ -26,10 +27,11 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 
 import com.google.api.client.util.Clock;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -47,9 +49,14 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
+import org.apache.beam.sdk.extensions.protobuf.ProtoDomain;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.Read;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubTestClient.PubsubTestClientFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -57,11 +64,14 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -332,7 +342,7 @@ public class PubsubIOTest {
         return false;
       }
       GenericClass o = (GenericClass) other;
-      return Objects.equals(intField, o.intField)
+      return intField == o.intField
           && Objects.equals(stringField, o.stringField)
           && Objects.equals(timestamp, o.timestamp);
     }
@@ -341,6 +351,8 @@ public class PubsubIOTest {
   private transient PipelineOptions options;
   private static final SubscriptionPath SUBSCRIPTION =
       PubsubClient.subscriptionPathFromName("test-project", "testSubscription");
+  private static final TopicPath TOPIC =
+      PubsubClient.topicPathFromName("test-project", "testTopic");
   private static final Clock CLOCK = (Clock & Serializable) () -> 673L;
   transient TestPipeline readPipeline;
 
@@ -414,6 +426,142 @@ public class PubsubIOTest {
       clientFactory.close();
       clientFactory = null;
     }
+  }
+
+  @Test
+  public void testFailedParseWithDeadLetterConfigured() {
+    ByteString data = ByteString.copyFrom("Hello, World!".getBytes(StandardCharsets.UTF_8));
+    RuntimeException exception = new RuntimeException("Some error message");
+    ImmutableList<IncomingMessage> expectedReads =
+        ImmutableList.of(
+            IncomingMessage.of(
+                com.google.pubsub.v1.PubsubMessage.newBuilder().setData(data).build(),
+                1234L,
+                0,
+                UUID.randomUUID().toString(),
+                UUID.randomUUID().toString()));
+    ImmutableList<OutgoingMessage> expectedWrites =
+        ImmutableList.of(
+            OutgoingMessage.of(
+                com.google.pubsub.v1.PubsubMessage.newBuilder()
+                    .setData(data)
+                    .putAttributes("exceptionClassName", exception.getClass().getName())
+                    .putAttributes("exceptionMessage", exception.getMessage())
+                    .putAttributes("pubsubMessageId", "<null>")
+                    .build(),
+                1234L,
+                null));
+    clientFactory =
+        PubsubTestClient.createFactoryForPullAndPublish(
+            SUBSCRIPTION, TOPIC, CLOCK, 60, expectedReads, expectedWrites, ImmutableList.of());
+
+    PCollection<String> read =
+        readPipeline.apply(
+            PubsubIO.readStrings()
+                .fromSubscription(SUBSCRIPTION.getPath())
+                .withDeadLetterTopic(TOPIC.getPath())
+                .withClock(CLOCK)
+                .withClientFactory(clientFactory)
+                .withCoderAndParseFn(
+                    StringUtf8Coder.of(),
+                    SimpleFunction.fromSerializableFunctionWithOutputType(
+                        message -> {
+                          throw exception;
+                        },
+                        TypeDescriptors.strings())));
+
+    PAssert.that(read).empty();
+    readPipeline.run();
+  }
+
+  @Test
+  public void testProto() {
+    ProtoCoder<Primitive> coder = ProtoCoder.of(Primitive.class);
+    ImmutableList<Primitive> inputs =
+        ImmutableList.of(
+            Primitive.newBuilder().setPrimitiveInt32(42).build(),
+            Primitive.newBuilder().setPrimitiveBool(true).build(),
+            Primitive.newBuilder().setPrimitiveString("Hello, World!").build());
+    setupTestClient(inputs, coder);
+    PCollection<Primitive> read =
+        readPipeline.apply(
+            PubsubIO.readProtos(Primitive.class)
+                .fromSubscription(SUBSCRIPTION.getPath())
+                .withClock(CLOCK)
+                .withClientFactory(clientFactory));
+    PAssert.that(read).containsInAnyOrder(inputs);
+    readPipeline.run();
+  }
+
+  @Test
+  public void testProtoDynamicMessages() {
+    ProtoCoder<Primitive> coder = ProtoCoder.of(Primitive.class);
+    ImmutableList<Primitive> inputs =
+        ImmutableList.of(
+            Primitive.newBuilder().setPrimitiveInt32(42).build(),
+            Primitive.newBuilder().setPrimitiveBool(true).build(),
+            Primitive.newBuilder().setPrimitiveString("Hello, World!").build());
+    setupTestClient(inputs, coder);
+
+    ProtoDomain domain = ProtoDomain.buildFrom(Primitive.getDescriptor());
+    String name = Primitive.getDescriptor().getFullName();
+    PCollection<Primitive> read =
+        readPipeline
+            .apply(
+                PubsubIO.readProtoDynamicMessages(domain, name)
+                    .fromSubscription(SUBSCRIPTION.getPath())
+                    .withClock(CLOCK)
+                    .withClientFactory(clientFactory))
+            // DynamicMessage doesn't work well with PAssert, but if the content can be successfully
+            // converted back into the original Primitive, then that should be good enough to
+            // consider it a successful read.
+            .apply(
+                "Return To Primitive",
+                MapElements.into(TypeDescriptor.of(Primitive.class))
+                    .via(
+                        (DynamicMessage message) -> {
+                          try {
+                            return Primitive.parseFrom(message.toByteArray());
+                          } catch (InvalidProtocolBufferException e) {
+                            throw new RuntimeException("Could not return to Primitive", e);
+                          }
+                        }));
+
+    PAssert.that(read).containsInAnyOrder(inputs);
+    readPipeline.run();
+  }
+
+  @Test
+  public void testProtoDynamicMessagesFromDescriptor() {
+    ProtoCoder<Primitive> coder = ProtoCoder.of(Primitive.class);
+    ImmutableList<Primitive> inputs =
+        ImmutableList.of(
+            Primitive.newBuilder().setPrimitiveInt32(42).build(),
+            Primitive.newBuilder().setPrimitiveBool(true).build(),
+            Primitive.newBuilder().setPrimitiveString("Hello, World!").build());
+    setupTestClient(inputs, coder);
+
+    PCollection<Primitive> read =
+        readPipeline
+            .apply(
+                PubsubIO.readProtoDynamicMessages(Primitive.getDescriptor())
+                    .fromSubscription(SUBSCRIPTION.getPath())
+                    .withClock(CLOCK)
+                    .withClientFactory(clientFactory))
+            .apply(
+                "Return To Primitive",
+                MapElements.into(TypeDescriptor.of(Primitive.class))
+                    .via(
+                        (DynamicMessage message) -> {
+                          try {
+                            return Primitive.parseFrom(message.toByteArray());
+                          } catch (InvalidProtocolBufferException e) {
+                            throw new RuntimeException("Could not return to Primitive", e);
+                          }
+                        }));
+
+    PAssert.that(read).containsInAnyOrder(inputs);
+    readPipeline.run();
   }
 
   @Test

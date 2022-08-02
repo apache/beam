@@ -35,6 +35,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <V> the type of the values read from the shuffle
  */
 @VisibleForTesting
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class GroupingShuffleReaderWithFaultyBytesReadCounter<K, V> extends GroupingShuffleReader<K, V> {
   public GroupingShuffleReaderWithFaultyBytesReadCounter(
       PipelineOptions options,

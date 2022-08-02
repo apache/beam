@@ -19,15 +19,20 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkKeyUtils;
 import org.apache.beam.sdk.coders.Coder;
@@ -35,7 +40,9 @@ import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
@@ -47,23 +54,35 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineContextFactory;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultiset;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Instant;
 
 /**
@@ -72,24 +91,93 @@ import org.joda.time.Instant;
  * <p>Note: In the Flink streaming runner the key is always encoded using an {@link Coder} and
  * stored in a {@link ByteBuffer}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class FlinkStateInternals<K> implements StateInternals {
 
+  private static final StateNamespace globalWindowNamespace =
+      StateNamespaces.window(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE);
+
   private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
-  private Coder<K> keyCoder;
+  private final Coder<K> keyCoder;
+
+  private static class StateAndNamespaceDescriptor<T> {
+    static <T> StateAndNamespaceDescriptor<T> of(
+        StateDescriptor<?, ?> stateDescriptor, T namespace, TypeSerializer<T> namespaceSerializer) {
+      return new StateAndNamespaceDescriptor<>(stateDescriptor, namespace, namespaceSerializer);
+    }
+
+    private final StateDescriptor<?, ?> stateDescriptor;
+    private final T namespace;
+    private final TypeSerializer<T> namespaceSerializer;
+
+    private StateAndNamespaceDescriptor(
+        StateDescriptor<?, ?> stateDescriptor, T namespace, TypeSerializer<T> namespaceSerializer) {
+      this.stateDescriptor = stateDescriptor;
+      this.namespace = namespace;
+      this.namespaceSerializer = namespaceSerializer;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      StateAndNamespaceDescriptor<?> other = (StateAndNamespaceDescriptor<?>) o;
+      return Objects.equals(stateDescriptor, other.stateDescriptor);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(stateDescriptor);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("stateDescriptor", stateDescriptor)
+          .add("namespace", namespace)
+          .add("namespaceSerializer", namespaceSerializer)
+          .toString();
+    }
+  }
+
+  /**
+   * A set which contains all state descriptors created in the global window. Used for cleanup on
+   * final watermark.
+   */
+  private final Set<StateAndNamespaceDescriptor<?>> globalWindowStateDescriptors = new HashSet<>();
+
+  /** Watermark holds descriptors created for a specific window. */
+  private final HashMultimap<String, FlinkWatermarkHoldState> watermarkHoldsMap =
+      HashMultimap.create();
 
   // Watermark holds for all keys/windows of this partition, allows efficient lookup of the minimum
-  private final TreeMap<Long, Integer> watermarkHolds = new TreeMap<>();
+  private final TreeMultiset<Long> watermarkHolds = TreeMultiset.create();
   // State to persist combined watermark holds for all keys of this partition
-  private final MapStateDescriptor<String, Instant> watermarkHoldStateDescriptor =
-      new MapStateDescriptor<>(
-          "watermark-holds",
-          StringSerializer.INSTANCE,
-          new CoderTypeSerializer<>(InstantCoder.of()));
+  private final MapStateDescriptor<String, Instant> watermarkHoldStateDescriptor;
 
-  public FlinkStateInternals(KeyedStateBackend<ByteBuffer> flinkStateBackend, Coder<K> keyCoder)
+  private final SerializablePipelineOptions pipelineOptions;
+
+  public FlinkStateInternals(
+      KeyedStateBackend<ByteBuffer> flinkStateBackend,
+      Coder<K> keyCoder,
+      SerializablePipelineOptions pipelineOptions)
       throws Exception {
-    this.flinkStateBackend = flinkStateBackend;
-    this.keyCoder = keyCoder;
+    this.flinkStateBackend = Objects.requireNonNull(flinkStateBackend);
+    this.keyCoder = Objects.requireNonNull(keyCoder);
+    watermarkHoldStateDescriptor =
+        new MapStateDescriptor<>(
+            "watermark-holds",
+            StringSerializer.INSTANCE,
+            new CoderTypeSerializer<>(InstantCoder.of(), pipelineOptions));
+    this.pipelineOptions = pipelineOptions;
+
     restoreWatermarkHoldsView();
   }
 
@@ -98,7 +186,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     if (watermarkHolds.isEmpty()) {
       return Long.MAX_VALUE;
     } else {
-      return watermarkHolds.firstKey();
+      return watermarkHolds.firstEntry().getElement();
     }
   }
 
@@ -114,6 +202,31 @@ public class FlinkStateInternals<K> implements StateInternals {
     return address.getSpec().bind(address.getId(), new FlinkStateBinder(namespace, context));
   }
 
+  /**
+   * Allows to clear all state for the global watermark when the maximum watermark arrives. We do
+   * not clean up the global window state via timers which would lead to an unbounded number of keys
+   * and cleanup timers. Instead, the cleanup code below should be run when we finally receive the
+   * max watermark.
+   */
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public void clearGlobalState() {
+    try {
+      for (StateAndNamespaceDescriptor stateAndNamespace : globalWindowStateDescriptors) {
+        flinkStateBackend.applyToAllKeys(
+            stateAndNamespace.namespace,
+            stateAndNamespace.namespaceSerializer,
+            stateAndNamespace.stateDescriptor,
+            (key, state) -> state.clear());
+      }
+      watermarkHoldsMap.values().forEach(FlinkWatermarkHoldState::clear);
+      // Clear set to avoid repeating the cleanup
+      globalWindowStateDescriptors.clear();
+      watermarkHoldsMap.clear();
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to cleanup global state.", e);
+    }
+  }
+
   private class FlinkStateBinder implements StateBinder {
 
     private final StateNamespace namespace;
@@ -127,17 +240,31 @@ public class FlinkStateInternals<K> implements StateInternals {
     @Override
     public <T2> ValueState<T2> bindValue(
         String id, StateSpec<ValueState<T2>> spec, Coder<T2> coder) {
-      return new FlinkValueState<>(flinkStateBackend, id, namespace, coder);
+      FlinkValueState<T2> valueState =
+          new FlinkValueState<>(flinkStateBackend, id, namespace, coder, pipelineOptions);
+      collectGlobalWindowStateDescriptor(
+          valueState.flinkStateDescriptor,
+          valueState.namespace.stringKey(),
+          StringSerializer.INSTANCE);
+      return valueState;
     }
 
     @Override
     public <T2> BagState<T2> bindBag(String id, StateSpec<BagState<T2>> spec, Coder<T2> elemCoder) {
-      return new FlinkBagState<>(flinkStateBackend, id, namespace, elemCoder);
+      FlinkBagState<T2> bagState =
+          new FlinkBagState<>(flinkStateBackend, id, namespace, elemCoder, pipelineOptions);
+      collectGlobalWindowStateDescriptor(
+          bagState.flinkStateDescriptor, bagState.namespace.stringKey(), StringSerializer.INSTANCE);
+      return bagState;
     }
 
     @Override
     public <T2> SetState<T2> bindSet(String id, StateSpec<SetState<T2>> spec, Coder<T2> elemCoder) {
-      return new FlinkSetState<>(flinkStateBackend, id, namespace, elemCoder);
+      FlinkSetState<T2> setState =
+          new FlinkSetState<>(flinkStateBackend, id, namespace, elemCoder, pipelineOptions);
+      collectGlobalWindowStateDescriptor(
+          setState.flinkStateDescriptor, setState.namespace.stringKey(), StringSerializer.INSTANCE);
+      return setState;
     }
 
     @Override
@@ -146,7 +273,24 @@ public class FlinkStateInternals<K> implements StateInternals {
         StateSpec<MapState<KeyT, ValueT>> spec,
         Coder<KeyT> mapKeyCoder,
         Coder<ValueT> mapValueCoder) {
-      return new FlinkMapState<>(flinkStateBackend, id, namespace, mapKeyCoder, mapValueCoder);
+      FlinkMapState<KeyT, ValueT> mapState =
+          new FlinkMapState<>(
+              flinkStateBackend, id, namespace, mapKeyCoder, mapValueCoder, pipelineOptions);
+      collectGlobalWindowStateDescriptor(
+          mapState.flinkStateDescriptor, mapState.namespace.stringKey(), StringSerializer.INSTANCE);
+      return mapState;
+    }
+
+    @Override
+    public <T> OrderedListState<T> bindOrderedList(
+        String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
+      FlinkOrderedListState<T> flinkOrderedListState =
+          new FlinkOrderedListState<>(flinkStateBackend, id, namespace, elemCoder, pipelineOptions);
+      collectGlobalWindowStateDescriptor(
+          flinkOrderedListState.flinkStateDescriptor,
+          flinkOrderedListState.namespace.stringKey(),
+          StringSerializer.INSTANCE);
+      return flinkOrderedListState;
     }
 
     @Override
@@ -155,7 +299,14 @@ public class FlinkStateInternals<K> implements StateInternals {
         StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
         Coder<AccumT> accumCoder,
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
-      return new FlinkCombiningState<>(flinkStateBackend, id, combineFn, namespace, accumCoder);
+      FlinkCombiningState<Object, InputT, AccumT, OutputT> combiningState =
+          new FlinkCombiningState<>(
+              flinkStateBackend, id, combineFn, namespace, accumCoder, pipelineOptions);
+      collectGlobalWindowStateDescriptor(
+          combiningState.flinkStateDescriptor,
+          combiningState.namespace.stringKey(),
+          StringSerializer.INSTANCE);
+      return combiningState;
     }
 
     @Override
@@ -165,20 +316,45 @@ public class FlinkStateInternals<K> implements StateInternals {
             StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
             Coder<AccumT> accumCoder,
             CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-      return new FlinkCombiningStateWithContext<>(
-          flinkStateBackend,
-          id,
-          combineFn,
-          namespace,
-          accumCoder,
-          CombineContextFactory.createFromStateContext(stateContext));
+      FlinkCombiningStateWithContext<Object, InputT, AccumT, OutputT> combiningStateWithContext =
+          new FlinkCombiningStateWithContext<>(
+              flinkStateBackend,
+              id,
+              combineFn,
+              namespace,
+              accumCoder,
+              CombineContextFactory.createFromStateContext(stateContext),
+              pipelineOptions);
+      collectGlobalWindowStateDescriptor(
+          combiningStateWithContext.flinkStateDescriptor,
+          combiningStateWithContext.namespace.stringKey(),
+          StringSerializer.INSTANCE);
+      return combiningStateWithContext;
     }
 
     @Override
     public WatermarkHoldState bindWatermark(
         String id, StateSpec<WatermarkHoldState> spec, TimestampCombiner timestampCombiner) {
-      return new FlinkWatermarkHoldState(
-          flinkStateBackend, watermarkHoldStateDescriptor, id, namespace, timestampCombiner);
+      collectGlobalWindowStateDescriptor(
+          watermarkHoldStateDescriptor, VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE);
+      FlinkWatermarkHoldState state =
+          new FlinkWatermarkHoldState(
+              flinkStateBackend, watermarkHoldStateDescriptor, id, namespace, timestampCombiner);
+      collectWatermarkHolds(state);
+      return state;
+    }
+
+    private void collectWatermarkHolds(FlinkWatermarkHoldState state) {
+      watermarkHoldsMap.put(namespace.stringKey(), state);
+    }
+
+    /** Take note of state bound to the global window for cleanup in clearGlobalState(). */
+    private <T> void collectGlobalWindowStateDescriptor(
+        StateDescriptor<?, ?> descriptor, T namespaceKey, TypeSerializer<T> keySerializer) {
+      if (globalWindowNamespace.equals(namespace) || StateNamespaces.global().equals(namespace)) {
+        globalWindowStateDescriptors.add(
+            StateAndNamespaceDescriptor.of(descriptor, namespaceKey, keySerializer));
+      }
     }
   }
 
@@ -193,13 +369,15 @@ public class FlinkStateInternals<K> implements StateInternals {
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
         String stateId,
         StateNamespace namespace,
-        Coder<T> coder) {
+        Coder<T> coder,
+        SerializablePipelineOptions pipelineOptions) {
 
       this.namespace = namespace;
       this.stateId = stateId;
       this.flinkStateBackend = flinkStateBackend;
 
-      flinkStateDescriptor = new ValueStateDescriptor<>(stateId, new CoderTypeSerializer<>(coder));
+      flinkStateDescriptor =
+          new ValueStateDescriptor<>(stateId, new CoderTypeSerializer<>(coder, pipelineOptions));
     }
 
     @Override
@@ -265,7 +443,127 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
   }
 
-  private static class FlinkBagState<K, T> implements BagState<T> {
+  private static class FlinkOrderedListState<T> implements OrderedListState<T> {
+    private final StateNamespace namespace;
+    private final ListStateDescriptor<TimestampedValue<T>> flinkStateDescriptor;
+    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+
+    FlinkOrderedListState(
+        KeyedStateBackend<ByteBuffer> flinkStateBackend,
+        String stateId,
+        StateNamespace namespace,
+        Coder<T> coder,
+        SerializablePipelineOptions pipelineOptions) {
+      this.namespace = namespace;
+      this.flinkStateBackend = flinkStateBackend;
+      this.flinkStateDescriptor =
+          new ListStateDescriptor<>(
+              stateId, new CoderTypeSerializer<>(TimestampedValueCoder.of(coder), pipelineOptions));
+    }
+
+    @Override
+    public Iterable<TimestampedValue<T>> readRange(Instant minTimestamp, Instant limitTimestamp) {
+      return readAsMap().subMap(minTimestamp, limitTimestamp).values();
+    }
+
+    @Override
+    public void clearRange(Instant minTimestamp, Instant limitTimestamp) {
+      SortedMap<Instant, TimestampedValue<T>> sortedMap = readAsMap();
+      sortedMap.subMap(minTimestamp, limitTimestamp).clear();
+      try {
+        ListState<TimestampedValue<T>> partitionedState =
+            flinkStateBackend.getPartitionedState(
+                namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor);
+        partitionedState.update(Lists.newArrayList(sortedMap.values()));
+      } catch (Exception e) {
+        throw new RuntimeException("Error adding to bag state.", e);
+      }
+    }
+
+    @Override
+    public OrderedListState<T> readRangeLater(Instant minTimestamp, Instant limitTimestamp) {
+      return this;
+    }
+
+    @Override
+    public void add(TimestampedValue<T> value) {
+      try {
+        ListState<TimestampedValue<T>> partitionedState =
+            flinkStateBackend.getPartitionedState(
+                namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor);
+        partitionedState.add(value);
+      } catch (Exception e) {
+        throw new RuntimeException("Error adding to bag state.", e);
+      }
+    }
+
+    @Override
+    public ReadableState<Boolean> isEmpty() {
+      return new ReadableState<Boolean>() {
+        @Override
+        public Boolean read() {
+          try {
+            Iterable<TimestampedValue<T>> result =
+                flinkStateBackend
+                    .getPartitionedState(
+                        namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
+                    .get();
+            return result == null;
+          } catch (Exception e) {
+            throw new RuntimeException("Error reading state.", e);
+          }
+        }
+
+        @Override
+        public ReadableState<Boolean> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    @Nullable
+    public Iterable<TimestampedValue<T>> read() {
+      return readAsMap().values();
+    }
+
+    private SortedMap<Instant, TimestampedValue<T>> readAsMap() {
+      Iterable<TimestampedValue<T>> listValues;
+      try {
+        ListState<TimestampedValue<T>> partitionedState =
+            flinkStateBackend.getPartitionedState(
+                namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor);
+        listValues = MoreObjects.firstNonNull(partitionedState.get(), Collections.emptyList());
+      } catch (Exception e) {
+        throw new RuntimeException("Error reading state.", e);
+      }
+
+      SortedMap<Instant, TimestampedValue<T>> sortedMap = Maps.newTreeMap();
+      for (TimestampedValue<T> value : listValues) {
+        sortedMap.put(value.getTimestamp(), value);
+      }
+      return sortedMap;
+    }
+
+    @Override
+    public GroupingState<TimestampedValue<T>, Iterable<TimestampedValue<T>>> readLater() {
+      return this;
+    }
+
+    @Override
+    public void clear() {
+      try {
+        flinkStateBackend
+            .getPartitionedState(
+                namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
+            .clear();
+      } catch (Exception e) {
+        throw new RuntimeException("Error clearing state.", e);
+      }
+    }
+  }
+
+  private static class FlinkBagState<T> implements BagState<T> {
 
     private final StateNamespace namespace;
     private final String stateId;
@@ -277,14 +575,15 @@ public class FlinkStateInternals<K> implements StateInternals {
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
         String stateId,
         StateNamespace namespace,
-        Coder<T> coder) {
+        Coder<T> coder,
+        SerializablePipelineOptions pipelineOptions) {
 
       this.namespace = namespace;
       this.stateId = stateId;
       this.flinkStateBackend = flinkStateBackend;
       this.storesVoidValues = coder instanceof VoidCoder;
       this.flinkStateDescriptor =
-          new ListStateDescriptor<>(stateId, new CoderTypeSerializer<>(coder));
+          new ListStateDescriptor<>(stateId, new CoderTypeSerializer<>(coder, pipelineOptions));
     }
 
     @Override
@@ -389,7 +688,7 @@ public class FlinkStateInternals<K> implements StateInternals {
         return false;
       }
 
-      FlinkBagState<?, ?> that = (FlinkBagState<?, ?>) o;
+      FlinkBagState<?> that = (FlinkBagState<?>) o;
 
       return namespace.equals(that.namespace) && stateId.equals(that.stateId);
     }
@@ -416,7 +715,8 @@ public class FlinkStateInternals<K> implements StateInternals {
         String stateId,
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
-        Coder<AccumT> accumCoder) {
+        Coder<AccumT> accumCoder,
+        SerializablePipelineOptions pipelineOptions) {
 
       this.namespace = namespace;
       this.stateId = stateId;
@@ -424,7 +724,8 @@ public class FlinkStateInternals<K> implements StateInternals {
       this.flinkStateBackend = flinkStateBackend;
 
       flinkStateDescriptor =
-          new ValueStateDescriptor<>(stateId, new CoderTypeSerializer<>(accumCoder));
+          new ValueStateDescriptor<>(
+              stateId, new CoderTypeSerializer<>(accumCoder, pipelineOptions));
     }
 
     @Override
@@ -579,7 +880,8 @@ public class FlinkStateInternals<K> implements StateInternals {
         CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder,
-        CombineWithContext.Context context) {
+        CombineWithContext.Context context,
+        SerializablePipelineOptions pipelineOptions) {
 
       this.namespace = namespace;
       this.stateId = stateId;
@@ -588,7 +890,8 @@ public class FlinkStateInternals<K> implements StateInternals {
       this.context = context;
 
       flinkStateDescriptor =
-          new ValueStateDescriptor<>(stateId, new CoderTypeSerializer<>(accumCoder));
+          new ValueStateDescriptor<>(
+              stateId, new CoderTypeSerializer<>(accumCoder, pipelineOptions));
     }
 
     @Override
@@ -864,28 +1167,46 @@ public class FlinkStateInternals<K> implements StateInternals {
         String stateId,
         StateNamespace namespace,
         Coder<KeyT> mapKeyCoder,
-        Coder<ValueT> mapValueCoder) {
+        Coder<ValueT> mapValueCoder,
+        SerializablePipelineOptions pipelineOptions) {
       this.namespace = namespace;
       this.stateId = stateId;
       this.flinkStateBackend = flinkStateBackend;
       this.flinkStateDescriptor =
           new MapStateDescriptor<>(
               stateId,
-              new CoderTypeSerializer<>(mapKeyCoder),
-              new CoderTypeSerializer<>(mapValueCoder));
+              new CoderTypeSerializer<>(mapKeyCoder, pipelineOptions),
+              new CoderTypeSerializer<>(mapValueCoder, pipelineOptions));
     }
 
     @Override
     public ReadableState<ValueT> get(final KeyT input) {
-      try {
-        return ReadableStates.immediate(
-            flinkStateBackend
-                .getPartitionedState(
-                    namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
-                .get(input));
-      } catch (Exception e) {
-        throw new RuntimeException("Error get from state.", e);
-      }
+      return getOrDefault(input, null);
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<ValueT> getOrDefault(
+        KeyT key, @Nullable ValueT defaultValue) {
+      return new ReadableState<ValueT>() {
+        @Override
+        public @Nullable ValueT read() {
+          try {
+            ValueT value =
+                flinkStateBackend
+                    .getPartitionedState(
+                        namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
+                    .get(key);
+            return (value != null) ? value : defaultValue;
+          } catch (Exception e) {
+            throw new RuntimeException("Error get from state.", e);
+          }
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<ValueT> readLater() {
+          return this;
+        }
+      };
     }
 
     @Override
@@ -901,7 +1222,8 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public ReadableState<ValueT> putIfAbsent(final KeyT key, final ValueT value) {
+    public ReadableState<ValueT> computeIfAbsent(
+        final KeyT key, Function<? super KeyT, ? extends ValueT> mappingFunction) {
       try {
         ValueT current =
             flinkStateBackend
@@ -913,7 +1235,7 @@ public class FlinkStateInternals<K> implements StateInternals {
           flinkStateBackend
               .getPartitionedState(
                   namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
-              .put(key, value);
+              .put(key, mappingFunction.apply(key));
         }
         return ReadableStates.immediate(current);
       } catch (Exception e) {
@@ -1006,6 +1328,25 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<
+            @UnknownKeyFor @NonNull @Initialized Boolean>
+        isEmpty() {
+      ReadableState<Iterable<KeyT>> keys = this.keys();
+      return new ReadableState<Boolean>() {
+        @Override
+        public @Nullable Boolean read() {
+          return Iterables.isEmpty(keys.read());
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<Boolean> readLater() {
+          keys.readLater();
+          return this;
+        }
+      };
+    }
+
+    @Override
     public void clear() {
       try {
         flinkStateBackend
@@ -1050,13 +1391,14 @@ public class FlinkStateInternals<K> implements StateInternals {
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
         String stateId,
         StateNamespace namespace,
-        Coder<T> coder) {
+        Coder<T> coder,
+        SerializablePipelineOptions pipelineOptions) {
       this.namespace = namespace;
       this.stateId = stateId;
       this.flinkStateBackend = flinkStateBackend;
       this.flinkStateDescriptor =
           new MapStateDescriptor<>(
-              stateId, new CoderTypeSerializer<>(coder), new BooleanSerializer());
+              stateId, new CoderTypeSerializer<>(coder, pipelineOptions), new BooleanSerializer());
     }
 
     @Override
@@ -1190,18 +1532,12 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
   }
 
-  private void addWatermarkHoldUsage(Instant watermarkHold) {
-    watermarkHolds.merge(watermarkHold.getMillis(), 1, Integer::sum);
+  public void addWatermarkHoldUsage(Instant watermarkHold) {
+    watermarkHolds.add(watermarkHold.getMillis());
   }
 
-  private void removeWatermarkHoldUsage(Instant watermarkHold) {
-    watermarkHolds.compute(
-        watermarkHold.getMillis(),
-        (hold, usage) -> {
-          Objects.requireNonNull(usage);
-          // Returning null here will delete the entry
-          return usage == 1 ? null : usage - 1;
-        });
+  public void removeWatermarkHoldUsage(Instant watermarkHold) {
+    watermarkHolds.remove(watermarkHold.getMillis());
   }
 
   /** Restores a view of the watermark holds of all keys of this partition. */
@@ -1223,9 +1559,12 @@ public class FlinkStateInternals<K> implements StateInternals {
   public static class EarlyBinder implements StateBinder {
 
     private final KeyedStateBackend keyedStateBackend;
+    private final SerializablePipelineOptions pipelineOptions;
 
-    public EarlyBinder(KeyedStateBackend keyedStateBackend) {
+    public EarlyBinder(
+        KeyedStateBackend keyedStateBackend, SerializablePipelineOptions pipelineOptions) {
       this.keyedStateBackend = keyedStateBackend;
+      this.pipelineOptions = pipelineOptions;
     }
 
     @Override
@@ -1233,7 +1572,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       try {
         keyedStateBackend.getOrCreateKeyedState(
             StringSerializer.INSTANCE,
-            new ValueStateDescriptor<>(id, new CoderTypeSerializer<>(coder)));
+            new ValueStateDescriptor<>(id, new CoderTypeSerializer<>(coder, pipelineOptions)));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -1246,7 +1585,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       try {
         keyedStateBackend.getOrCreateKeyedState(
             StringSerializer.INSTANCE,
-            new ListStateDescriptor<>(id, new CoderTypeSerializer<>(elemCoder)));
+            new ListStateDescriptor<>(id, new CoderTypeSerializer<>(elemCoder, pipelineOptions)));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -1260,7 +1599,9 @@ public class FlinkStateInternals<K> implements StateInternals {
         keyedStateBackend.getOrCreateKeyedState(
             StringSerializer.INSTANCE,
             new MapStateDescriptor<>(
-                id, new CoderTypeSerializer<>(elemCoder), VoidSerializer.INSTANCE));
+                id,
+                new CoderTypeSerializer<>(elemCoder, pipelineOptions),
+                VoidSerializer.INSTANCE));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -1278,11 +1619,27 @@ public class FlinkStateInternals<K> implements StateInternals {
             StringSerializer.INSTANCE,
             new MapStateDescriptor<>(
                 id,
-                new CoderTypeSerializer<>(mapKeyCoder),
-                new CoderTypeSerializer<>(mapValueCoder)));
+                new CoderTypeSerializer<>(mapKeyCoder, pipelineOptions),
+                new CoderTypeSerializer<>(mapValueCoder, pipelineOptions)));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
+      return null;
+    }
+
+    @Override
+    public <T> OrderedListState<T> bindOrderedList(
+        String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
+      try {
+        keyedStateBackend.getOrCreateKeyedState(
+            StringSerializer.INSTANCE,
+            new ListStateDescriptor<>(
+                id,
+                new CoderTypeSerializer<>(TimestampedValueCoder.of(elemCoder), pipelineOptions)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+
       return null;
     }
 
@@ -1295,7 +1652,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       try {
         keyedStateBackend.getOrCreateKeyedState(
             StringSerializer.INSTANCE,
-            new ValueStateDescriptor<>(id, new CoderTypeSerializer<>(accumCoder)));
+            new ValueStateDescriptor<>(id, new CoderTypeSerializer<>(accumCoder, pipelineOptions)));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -1312,7 +1669,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       try {
         keyedStateBackend.getOrCreateKeyedState(
             StringSerializer.INSTANCE,
-            new ValueStateDescriptor<>(id, new CoderTypeSerializer<>(accumCoder)));
+            new ValueStateDescriptor<>(id, new CoderTypeSerializer<>(accumCoder, pipelineOptions)));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -1328,7 +1685,7 @@ public class FlinkStateInternals<K> implements StateInternals {
             new MapStateDescriptor<>(
                 "watermark-holds",
                 StringSerializer.INSTANCE,
-                new CoderTypeSerializer<>(InstantCoder.of())));
+                new CoderTypeSerializer<>(InstantCoder.of(), pipelineOptions)));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

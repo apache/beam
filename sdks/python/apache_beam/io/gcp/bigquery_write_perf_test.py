@@ -51,8 +51,6 @@ This setup will result in a table of 1MB size.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 
 from apache_beam import Map
@@ -70,7 +68,7 @@ from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 class BigQueryWritePerfTest(LoadTest):
   def __init__(self):
-    super(BigQueryWritePerfTest, self).__init__()
+    super().__init__()
     self.output_dataset = self.pipeline.get_option('output_dataset')
     self.output_table = self.pipeline.get_option('output_table')
 

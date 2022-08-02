@@ -21,6 +21,9 @@ import java.util.List;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /** Parameters to the sub-process, has tuple of ordinal position and the value. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SubProcessCommandLineArgs {
 
   // Parameters to pass to the sub-process

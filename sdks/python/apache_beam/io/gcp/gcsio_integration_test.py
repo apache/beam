@@ -39,13 +39,11 @@ To run these tests manually:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 import uuid
 
-from nose.plugins.attrib import attr
+import pytest
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -61,8 +59,8 @@ class GcsIOIntegrationTest(unittest.TestCase):
 
   INPUT_FILE = 'gs://dataflow-samples/shakespeare/kinglear.txt'
   # Larger than 1MB to test maxBytesRewrittenPerCall.
-  INPUT_FILE_LARGE = (
-      'gs://dataflow-samples/wikipedia_edits/wiki_data-000000000000.json')
+  # Also needs to be in a different region than the dest to take effect.
+  INPUT_FILE_LARGE = 'gs://apache-beam-samples-us-east1/wikipedia_edits/wiki_data-000000000000.json'  # pylint: disable=line-too-long
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -113,17 +111,17 @@ class GcsIOIntegrationTest(unittest.TestCase):
     self.gcsio.copy(src, dst, kms_key_name, **extra_kwargs)
     self._verify_copy(src, dst, kms_key_name)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_copy(self):
     self._test_copy("test_copy")
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_copy_kms(self):
     if self.kms_key_name is None:
       raise unittest.SkipTest('--kms_key_name not specified')
     self._test_copy("test_copy_kms", self.kms_key_name)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_copy_rewrite_token(self):
     # Tests a multi-part copy (rewrite) operation. This is triggered by a
     # combination of 3 conditions:
@@ -142,7 +140,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
         max_bytes_rewritten_per_call=50 * 1024 * 1024,
         src=self.INPUT_FILE_LARGE)
     # Verify that there was a multi-part rewrite.
-    self.assertTrue(any([not r.done for r in rewrite_responses]))
+    self.assertTrue(any(not r.done for r in rewrite_responses))
 
   def _test_copy_batch(
       self,
@@ -166,17 +164,17 @@ class GcsIOIntegrationTest(unittest.TestCase):
     for _src, _dst in src_dst_pairs:
       self._verify_copy(_src, _dst, kms_key_name)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_copy_batch(self):
     self._test_copy_batch("test_copy_batch")
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_copy_batch_kms(self):
     if self.kms_key_name is None:
       raise unittest.SkipTest('--kms_key_name not specified')
     self._test_copy_batch("test_copy_batch_kms", self.kms_key_name)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_copy_batch_rewrite_token(self):
     # Tests a multi-part copy (rewrite) operation. This is triggered by a
     # combination of 3 conditions:
@@ -195,7 +193,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
         max_bytes_rewritten_per_call=50 * 1024 * 1024,
         src=self.INPUT_FILE_LARGE)
     # Verify that there was a multi-part rewrite.
-    self.assertTrue(any([not r.done for r in rewrite_responses]))
+    self.assertTrue(any(not r.done for r in rewrite_responses))
 
 
 if __name__ == '__main__':

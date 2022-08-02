@@ -50,7 +50,7 @@ public class HadoopFileSystemRegistrar implements FileSystemRegistrar {
   private static final String CONFIG_KEY_DFS_NAMESERVICES = "dfs.nameservices";
 
   @Override
-  public Iterable<FileSystem> fromOptions(@Nonnull PipelineOptions options) {
+  public Iterable<FileSystem<?>> fromOptions(@Nonnull PipelineOptions options) {
     final List<Configuration> configurations =
         options.as(HadoopFileSystemOptions.class).getHdfsConfiguration();
     if (configurations == null) {
@@ -63,7 +63,7 @@ public class HadoopFileSystemRegistrar implements FileSystemRegistrar {
             "The %s currently only supports at most a single Hadoop configuration.",
             HadoopFileSystemRegistrar.class.getSimpleName()));
 
-    final ImmutableList.Builder<FileSystem> builder = ImmutableList.builder();
+    final ImmutableList.Builder<FileSystem<?>> builder = ImmutableList.builder();
     final Set<String> registeredSchemes = new HashSet<>();
 
     // this will only do zero or one loop

@@ -32,6 +32,9 @@ import org.apache.hadoop.hive.ql.stats.StatsUtils;
 import org.apache.hive.hcatalog.common.HCatUtil;
 
 /** Utility classes to enable meta store conf/client creation. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class HCatalogUtils {
 
   private static final int DESIRED_BUNDLE_SIZE_BYTES = 134217728; // 128 MB

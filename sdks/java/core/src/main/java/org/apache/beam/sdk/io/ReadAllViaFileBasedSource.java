@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -44,25 +46,48 @@ import org.apache.beam.sdk.values.PCollection;
 @Experimental(Kind.SOURCE_SINK)
 public class ReadAllViaFileBasedSource<T>
     extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
+
+  protected static final boolean DEFAULT_USES_RESHUFFLE = true;
   private final long desiredBundleSizeBytes;
   private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
   private final Coder<T> coder;
+  private final ReadFileRangesFnExceptionHandler exceptionHandler;
+  private final boolean usesReshuffle;
 
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<T> coder) {
+    this(
+        desiredBundleSizeBytes,
+        createSource,
+        coder,
+        DEFAULT_USES_RESHUFFLE,
+        new ReadFileRangesFnExceptionHandler());
+  }
+
+  public ReadAllViaFileBasedSource(
+      long desiredBundleSizeBytes,
+      SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
+      Coder<T> coder,
+      boolean usesReshuffle,
+      ReadFileRangesFnExceptionHandler exceptionHandler) {
     this.desiredBundleSizeBytes = desiredBundleSizeBytes;
     this.createSource = createSource;
     this.coder = coder;
+    this.usesReshuffle = usesReshuffle;
+    this.exceptionHandler = exceptionHandler;
   }
 
   @Override
   public PCollection<T> expand(PCollection<ReadableFile> input) {
-    return input
-        .apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)))
-        .apply("Reshuffle", Reshuffle.viaRandomKey())
-        .apply("Read ranges", ParDo.of(new ReadFileRangesFn<>(createSource)))
+    PCollection<KV<ReadableFile, OffsetRange>> ranges =
+        input.apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)));
+    if (usesReshuffle) {
+      ranges = ranges.apply("Reshuffle", Reshuffle.viaRandomKey());
+    }
+    return ranges
+        .apply("Read ranges", ParDo.of(new ReadFileRangesFn<T>(createSource, exceptionHandler)))
         .setCoder(coder);
   }
 
@@ -89,13 +114,19 @@ public class ReadAllViaFileBasedSource<T>
 
   private static class ReadFileRangesFn<T> extends DoFn<KV<ReadableFile, OffsetRange>, T> {
     private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
+    private final ReadFileRangesFnExceptionHandler exceptionHandler;
 
     private ReadFileRangesFn(
-        SerializableFunction<String, ? extends FileBasedSource<T>> createSource) {
+        SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
+        ReadFileRangesFnExceptionHandler exceptionHandler) {
       this.createSource = createSource;
+      this.exceptionHandler = exceptionHandler;
     }
 
     @ProcessElement
+    @SuppressFBWarnings(
+        value = "RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE",
+        justification = "https://github.com/spotbugs/spotbugs/issues/756")
     public void process(ProcessContext c) throws IOException {
       ReadableFile file = c.element().getKey();
       OffsetRange range = c.element().getValue();
@@ -109,7 +140,23 @@ public class ReadAllViaFileBasedSource<T>
         for (boolean more = reader.start(); more; more = reader.advance()) {
           c.output(reader.getCurrent());
         }
+      } catch (RuntimeException e) {
+        if (exceptionHandler.apply(file, range, e)) {
+          throw e;
+        }
       }
+    }
+  }
+
+  /** A class to handle errors which occur during file reads. */
+  public static class ReadFileRangesFnExceptionHandler implements Serializable {
+
+    /*
+     * Applies the desired handler logic to the given exception and returns
+     * if the exception should be thrown.
+     */
+    public boolean apply(ReadableFile file, OffsetRange range, Exception e) {
+      return true;
     }
   }
 }

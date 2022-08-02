@@ -22,8 +22,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.File;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -42,36 +41,32 @@ public class AvroTableProviderTest {
   @Rule public TestPipeline readPipeline = TestPipeline.create();
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-  private static final String AVRO_FIELD_NAMES = "(name VARCHAR, age BIGINT, country VARCHAR)";
+  private static final String FIELD_NAMES = "(name VARCHAR, age BIGINT, country VARCHAR)";
 
   private static final Schema OUTPUT_ROW_SCHEMA =
       Schema.builder().addInt64Field("age").addStringField("country").build();
 
   @Test
-  public void testReadAndWriteAvroTable() {
+  public void testWriteAndReadTable() {
     File destinationFile = new File(tempFolder.getRoot(), "person-info.avro");
 
-    BeamSqlEnv env = BeamSqlEnv.inMemory(new AvroTableProvider());
-    env.executeDdl(
+    String query = "INSERT INTO PersonInfo VALUES ('Alan', 22, 'England'), ('John', 42, 'USA')";
+    String ddl =
         String.format(
             "CREATE EXTERNAL TABLE PersonInfo %s TYPE avro LOCATION '%s'",
-            AVRO_FIELD_NAMES, destinationFile.getAbsolutePath()));
+            FIELD_NAMES, destinationFile.getAbsolutePath());
 
-    BeamSqlRelUtils.toPCollection(
-        writePipeline,
-        env.parseQuery(
-            "INSERT INTO PersonInfo VALUES ('Alan', 22, 'England'), ('John', 42, 'USA')"));
+    writePipeline.apply(SqlTransform.query(query).withDdlString(ddl));
 
     writePipeline.run().waitUntilFinish();
 
-    PCollection<Row> rows =
-        BeamSqlRelUtils.toPCollection(
-            readPipeline, env.parseQuery("SELECT age, country FROM PersonInfo where age > 25"));
+    String readQuery = "SELECT age, country FROM PersonInfo WHERE age > 25";
 
+    PCollection<Row> rows = readPipeline.apply(SqlTransform.query(readQuery).withDdlString(ddl));
     PAssert.that(rows)
         .containsInAnyOrder(Row.withSchema(OUTPUT_ROW_SCHEMA).addValues(42L, "USA").build());
 
     PipelineResult.State state = readPipeline.run().waitUntilFinish();
-    assertEquals(state, State.DONE);
+    assertEquals(State.DONE, state);
   }
 }

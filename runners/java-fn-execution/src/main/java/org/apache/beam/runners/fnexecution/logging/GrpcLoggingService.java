@@ -23,13 +23,16 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogControl;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
-import org.apache.beam.runners.fnexecution.FnService;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.sdk.fn.server.FnService;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An implementation of the Beam Fn Logging Service over gRPC. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class GrpcLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBase
     implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcLoggingService.class);

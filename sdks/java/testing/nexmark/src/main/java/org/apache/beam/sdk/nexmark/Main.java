@@ -41,10 +41,8 @@ import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -70,6 +68,10 @@ import org.joda.time.Instant;
  * href="https://web.archive.org/web/20100620010601/http://datalab.cs.pdx.edu/niagaraST/NEXMark/">
  * Nexmark website</a>
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Main {
 
   private static class Result {
@@ -145,7 +147,7 @@ public class Main {
         appendPerf(options.getPerfFilename(), configuration, perf);
         actual.put(configuration, perf);
         // Summarize what we've run so far.
-        saveSummary(null, configurations, actual, baseline, start, options);
+        saveSummary(null, configurations, actual, baseline, start);
       }
 
       final ImmutableMap<String, String> schema =
@@ -156,14 +158,6 @@ public class Main {
               .put("numResults", "integer")
               .build();
 
-      if (options.getExportSummaryToBigQuery()) {
-        savePerfsToBigQuery(
-            BigQueryResultsPublisher.create(options.getBigQueryDataset(), schema),
-            options,
-            actual,
-            start);
-      }
-
       if (options.getExportSummaryToInfluxDB()) {
         final long timestamp = start.getMillis() / 1000; // seconds
         savePerfsToInfluxDB(options, schema, actual, timestamp);
@@ -172,7 +166,7 @@ public class Main {
     } finally {
       if (options.getMonitorJobs()) {
         // Report overall performance.
-        saveSummary(options.getSummaryFilename(), configurations, actual, baseline, start, options);
+        saveSummary(options.getSummaryFilename(), configurations, actual, baseline, start);
         saveJavascript(options.getJavascriptFilename(), configurations, actual, baseline, start);
       }
 
@@ -183,29 +177,13 @@ public class Main {
     }
   }
 
-  @VisibleForTesting
-  static void savePerfsToBigQuery(
-      BigQueryResultsPublisher publisher,
-      NexmarkOptions options,
-      Map<NexmarkConfiguration, NexmarkPerf> perfs,
-      Instant start) {
-
-    for (Map.Entry<NexmarkConfiguration, NexmarkPerf> entry : perfs.entrySet()) {
-      String queryName =
-          NexmarkUtils.fullQueryName(
-              options.getQueryLanguage(), entry.getKey().query.getNumberOrName());
-      String tableName = NexmarkUtils.tableName(options, queryName, 0L, null);
-
-      publisher.publish(entry.getValue(), tableName, start.getMillis());
-    }
-  }
-
   private static void savePerfsToInfluxDB(
       final NexmarkOptions options,
       final Map<String, String> schema,
       final Map<NexmarkConfiguration, NexmarkPerf> results,
       final long timestamp) {
     final InfluxDBSettings settings = getInfluxSettings(options);
+    final Map<String, String> tags = options.getInfluxTags();
     final String runner = options.getRunner().getSimpleName();
     final List<Map<String, Object>> schemaResults =
         results.entrySet().stream()
@@ -218,7 +196,7 @@ public class Main {
                         runner,
                         produceMeasurement(options, entry)))
             .collect(toList());
-    InfluxDBPublisher.publishNexmarkResults(schemaResults, settings);
+    InfluxDBPublisher.publishNexmarkResults(schemaResults, settings, tags);
   }
 
   private static InfluxDBSettings getInfluxSettings(final NexmarkOptions options) {
@@ -324,8 +302,7 @@ public class Main {
       Iterable<NexmarkConfiguration> configurations,
       Map<NexmarkConfiguration, NexmarkPerf> actual,
       @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline,
-      Instant start,
-      NexmarkOptions options) {
+      Instant start) {
 
     List<String> lines = new ArrayList<>();
 

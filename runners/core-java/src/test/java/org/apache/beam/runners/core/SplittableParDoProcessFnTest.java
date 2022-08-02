@@ -20,6 +20,7 @@ package org.apache.beam.runners.core;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -27,7 +28,6 @@ import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
@@ -136,6 +136,7 @@ public class SplittableParDoProcessFnTest {
 
     private InMemoryTimerInternals timerInternals;
     private TestInMemoryStateInternals<String> stateInternals;
+    private InMemoryBundleFinalizer bundleFinalizer;
 
     ProcessFnTester(
         Instant currentProcessingTime,
@@ -157,12 +158,14 @@ public class SplittableParDoProcessFnTest {
                   inputCoder,
                   restrictionCoder,
                   watermarkEstimatorStateCoder,
-                  windowingStrategy);
+                  windowingStrategy,
+                  Collections.emptyMap());
       this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
       this.stateInternals = new TestInMemoryStateInternals<>("dummy");
       processFn.setStateInternalsFactory(key -> stateInternals);
       processFn.setTimerInternalsFactory(key -> timerInternals);
+      processFn.setSideInputReader(NullSideInputReader.empty());
       processFn.setProcessElementInvoker(
           new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
               fn,
@@ -186,7 +189,8 @@ public class SplittableParDoProcessFnTest {
               },
               Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
               maxOutputsPerBundle,
-              maxBundleDuration));
+              maxBundleDuration,
+              () -> bundleFinalizer));
       // Do not clone since ProcessFn references non-serializable DoFnTester itself
       // through the state/timer/output callbacks.
       this.tester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);

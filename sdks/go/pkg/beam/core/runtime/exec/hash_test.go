@@ -18,18 +18,23 @@ package exec
 import (
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
+	"hash/maphash"
 	"reflect"
 	"strings"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/coderx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func BenchmarkPrimitives(b *testing.B) {
 	var value FullValue
-	myHash := fnv.New64a()
+	myHash := &maphash.Hash{}
+	wfn := window.NewGlobalWindows()
+	we := MakeWindowEncoder(wfn.Coder())
 	b.Run("int", func(b *testing.B) {
 		test := interface{}(int(42424242))
 		b.Run("native", func(b *testing.B) {
@@ -44,8 +49,9 @@ func BenchmarkPrimitives(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn)}
-		dedicated := &numberHasher{}
+		encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn), we: we}
+		// Route through constructor to init cache.
+		dedicated := newNumberHasher(myHash, we)
 		hashbench(b, test, encoded, dedicated)
 	})
 	b.Run("float32", func(b *testing.B) {
@@ -62,8 +68,9 @@ func BenchmarkPrimitives(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn)}
-		dedicated := &numberHasher{}
+		encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn), we: we}
+		// Route through constructor to init cache.
+		dedicated := newNumberHasher(myHash, we)
 		hashbench(b, test, encoded, dedicated)
 	})
 
@@ -90,8 +97,8 @@ func BenchmarkPrimitives(b *testing.B) {
 				if err != nil {
 					b.Fatal(err)
 				}
-				encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn)}
-				dedicated := &stringHasher{hash: myHash}
+				encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn), we: we}
+				dedicated := &stringHasher{hash: myHash, we: we}
 				hashbench(b, test, encoded, dedicated)
 			})
 		}
@@ -107,8 +114,9 @@ func BenchmarkPrimitives(b *testing.B) {
 		for _, test := range tests {
 			typ := reflect.TypeOf(test)
 			b.Run(fmt.Sprint(typ.String()), func(b *testing.B) {
-				encoded := &customEncodedHasher{hash: myHash, coder: &jsonEncoder{}}
-				hashbench(b, test, encoded, nil)
+				encoded := &customEncodedHasher{hash: myHash, coder: &jsonEncoder{}, we: we}
+				dedicated := &rowHasher{hash: myHash, coder: MakeElementEncoder(coder.NewR(typex.New(typ))), we: we}
+				hashbench(b, test, encoded, dedicated)
 			})
 		}
 	})
@@ -122,6 +130,7 @@ func (*jsonEncoder) Encode(t reflect.Type, element interface{}) ([]byte, error) 
 
 func hashbench(b *testing.B, test interface{}, encoded, dedicated elementHasher) {
 	var value FullValue
+	gw := window.SingleGlobalWindow[0]
 	b.Run("interface", func(b *testing.B) {
 		m := make(map[interface{}]FullValue)
 		for i := 0; i < b.N; i++ {
@@ -133,7 +142,7 @@ func hashbench(b *testing.B, test interface{}, encoded, dedicated elementHasher)
 	b.Run("encodedHash", func(b *testing.B) {
 		m := make(map[uint64]FullValue)
 		for i := 0; i < b.N; i++ {
-			k, err := encoded.Hash(test)
+			k, err := encoded.Hash(test, gw)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -147,7 +156,7 @@ func hashbench(b *testing.B, test interface{}, encoded, dedicated elementHasher)
 	b.Run("dedicatedHash", func(b *testing.B) {
 		m := make(map[uint64]FullValue)
 		for i := 0; i < b.N; i++ {
-			k, err := dedicated.Hash(test)
+			k, err := dedicated.Hash(test, gw)
 			if err != nil {
 				b.Fatal(err)
 			}

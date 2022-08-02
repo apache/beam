@@ -17,13 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
-import org.apache.beam.runners.dataflow.worker.util.ScalableBloomFilter.Builder;
 import org.apache.beam.runners.dataflow.worker.util.ScalableBloomFilter.ScalableBloomFilterCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -39,7 +38,7 @@ public class ScalableBloomFilterTest {
 
   @Test
   public void testBuilder() throws Exception {
-    Builder builder = ScalableBloomFilter.withMaximumSizeBytes(MAX_SIZE);
+    ScalableBloomFilter.Builder builder = ScalableBloomFilter.withMaximumSizeBytes(MAX_SIZE);
     assertTrue("Expected Bloom filter to have been modified.", builder.put(BUFFER));
 
     // Re-adding should skip and not record the insertion.
@@ -55,7 +54,7 @@ public class ScalableBloomFilterTest {
 
   @Test
   public void testBuilderWithMaxSize() throws Exception {
-    Builder builder = ScalableBloomFilter.withMaximumSizeBytes(MAX_SIZE);
+    ScalableBloomFilter.Builder builder = ScalableBloomFilter.withMaximumSizeBytes(MAX_SIZE);
 
     int maxValue = insertAndVerifyContents(builder, (int) (MAX_SIZE * 1.1));
 
@@ -68,10 +67,12 @@ public class ScalableBloomFilterTest {
 
   @Test
   public void testScalableBloomFilterCoder() throws Exception {
-    Builder builderA = ScalableBloomFilter.withMaximumNumberOfInsertionsForOptimalBloomFilter(16);
+    ScalableBloomFilter.Builder builderA =
+        ScalableBloomFilter.withMaximumNumberOfInsertionsForOptimalBloomFilter(16);
     builderA.put(BUFFER);
     ScalableBloomFilter filterA = builderA.build();
-    Builder builderB = ScalableBloomFilter.withMaximumNumberOfInsertionsForOptimalBloomFilter(16);
+    ScalableBloomFilter.Builder builderB =
+        ScalableBloomFilter.withMaximumNumberOfInsertionsForOptimalBloomFilter(16);
     builderB.put(BUFFER);
     ScalableBloomFilter filterB = builderB.build();
 
@@ -87,7 +88,8 @@ public class ScalableBloomFilterTest {
    * Inserts elements {@code 0, 1, ...} until the internal bloom filters have been modified {@code
    * maxNumberOfInsertions} times. Returns the largest value inserted.
    */
-  private int insertAndVerifyContents(Builder builder, int maxNumberOfInsertions) {
+  private int insertAndVerifyContents(
+      ScalableBloomFilter.Builder builder, int maxNumberOfInsertions) {
     ByteBuffer byteBuffer = ByteBuffer.allocate(4);
     int value = -1;
     while (maxNumberOfInsertions > 0) {

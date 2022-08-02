@@ -21,10 +21,7 @@ For internal use only. No backwards compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import time
-from builtins import object
 
 from apache_beam.utils.timestamp import Timestamp
 

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -70,7 +70,7 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
 
     CustomTimestampPolicyWithLimitedDelay<String, String> policy =
         new CustomTimestampPolicyWithLimitedDelay<>(
-            (record -> new Instant(record.getTimestamp())), maxDelay, Optional.empty());
+            record -> new Instant(record.getTimestamp()), maxDelay, Optional.empty());
 
     Instant now = Instant.now();
 

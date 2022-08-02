@@ -18,10 +18,11 @@
 package org.apache.beam.runners.core.construction;
 
 import java.io.IOException;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -55,7 +56,7 @@ public class PipelineTranslation {
       final Pipeline pipeline,
       final SdkComponents components,
       boolean useDeprecatedViewTransforms) {
-    final Collection<String> rootIds = new HashSet<>();
+    final List<String> rootIds = new ArrayList<>();
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
           private final ListMultimap<Node, AppliedPTransform<?, ?, ?>> children =

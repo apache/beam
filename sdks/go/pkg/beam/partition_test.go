@@ -15,12 +15,20 @@
 
 package beam_test
 
+// beam-playground:
+//   name: PartitionTest
+//   description: Unit-test for the Partition example.
+//   multifile: false
+//   context_line: 34
+//   categories:
+//     - Core Transforms
+
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
 func init() {

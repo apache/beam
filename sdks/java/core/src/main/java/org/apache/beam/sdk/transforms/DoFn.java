@@ -53,6 +53,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -98,6 +99,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * Returns the {@code PipelineOptions} specified with the {@link
      * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
+    @Pure
     public abstract PipelineOptions getPipelineOptions();
   }
 
@@ -107,6 +109,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * Returns the {@code PipelineOptions} specified with the {@link
      * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
+    @Pure
     public abstract PipelineOptions getPipelineOptions();
 
     /**
@@ -141,6 +144,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * Returns the {@code PipelineOptions} specified with the {@link
      * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
+    @Pure
     public abstract PipelineOptions getPipelineOptions();
 
     /**
@@ -240,6 +244,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * <p>The element will not be changed -- it is safe to cache, etc. without copying.
      * Implementation of {@link DoFn.ProcessElement} method should not mutate the element.
      */
+    @Pure
     public abstract InputT element();
 
     /**
@@ -248,6 +253,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * @throws IllegalArgumentException if this is not a side input
      * @see ParDo.SingleOutput#withSideInputs
      */
+    @Pure
     public abstract <T> T sideInput(PCollectionView<T> view);
 
     /**
@@ -255,6 +261,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      *
      * <p>See {@link Window} for more information.
      */
+    @Pure
     public abstract Instant timestamp();
 
     /**
@@ -264,6 +271,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * <p>Generally all data is in a single, uninteresting pane unless custom triggering and/or late
      * data has been explicitly requested. See {@link Window} for more information.
      */
+    @Pure
     public abstract PaneInfo pane();
   }
 
@@ -287,6 +295,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   public abstract class OnWindowExpirationContext extends WindowedContext {
 
     /** Returns the window in which the window expiration is firing. */
+    @Pure
     public abstract BoundedWindow window();
   }
 
@@ -300,7 +309,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * @deprecated This method permits a {@link DoFn} to emit elements behind the watermark. These
    *     elements are considered late, and if behind the {@link Window#withAllowedLateness(Duration)
    *     allowed lateness} of a downstream {@link PCollection} may be silently dropped. See
-   *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
+   *     https://github.com/apache/beam/issues/18065 for details on a replacement.
    */
   @Deprecated
   public Duration getAllowedTimestampSkew() {
@@ -670,7 +679,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *       representation of work. See {@link GetSize} and {@link RestrictionTracker.HasProgress}
    *       for further details.
    *   <li>It <i>should</i> define a {@link SplitRestriction} method. This method enables runners to
-   *       perform bulk splitting initially allowing for a rapid increase in parallelism. See {@link
+   *       perform bulk splitting initially allowing for a rapid increase in parallelism. If it is
+   *       not defined, there is no initial split happening by default. Note that initial split is a
+   *       different concept from the split during element processing time. See {@link
    *       RestrictionTracker#trySplit} for details about splitting when the current element and
    *       restriction are actively being processed.
    *   <li>It <i>may</i> define a {@link TruncateRestriction} method to choose how to truncate a
@@ -848,8 +859,8 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *       commits the output of this bundle. See <a
    *       href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
    *       Finalize Bundles</a> for further details.
-   *   <li>TODO(BEAM-1287): Add support for an {@link OutputReceiver} and {@link
-   *       MultiOutputReceiver} that can output to a window.
+   *   <li>TODO(https://github.com/apache/beam/issues/18203): Add support for an {@link
+   *       OutputReceiver} and {@link MultiOutputReceiver} that can output to a window.
    * </ul>
    *
    * <p>Note that {@link FinishBundle @FinishBundle} is invoked before the runner commits the output
@@ -870,7 +881,10 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * crash, hardware failure, etc.) or unnecessary (e.g. the pipeline is shutting down and the
    * process is about to be killed anyway, so all transient resources will be released automatically
    * by the OS). In these cases, the call may not happen. It will also not be retried, because in
-   * such situations the DoFn instance no longer exists, so there's no instance to retry it on.
+   * such situations the DoFn instance no longer exists, so there's no instance to retry it on. In
+   * portable execution(with {@code --experiments=beam_fn_api}), the exception thrown calling {@link
+   * Teardown} will not fail the bundle execution. Instead, an error message will be shown on sdk
+   * harness log.
    *
    * <p>Thus, all work that depends on input elements, and all externally important side effects,
    * must be performed in the {@link ProcessElement} or {@link FinishBundle} methods.
@@ -936,7 +950,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface GetInitialRestriction {}
 
   /**
@@ -971,7 +984,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *       options for the current pipeline.
    * </ul>
    *
-   * <p>Returns a double representing the size of the current element and restriction.
+   * <p>Returns a non-negative double representing the size of the current element and restriction.
    *
    * <p>Splittable {@link DoFn}s should only provide this method if the default {@link
    * RestrictionTracker.HasProgress} implementation within the {@link RestrictionTracker} is an
@@ -992,7 +1005,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface GetSize {}
 
   /**
@@ -1009,7 +1021,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface GetRestrictionCoder {}
 
   /**
@@ -1055,7 +1066,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface SplitRestriction {}
 
   /**
@@ -1108,7 +1118,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface TruncateRestriction {}
 
   /**
@@ -1146,7 +1155,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface NewTracker {}
 
   /**
@@ -1187,7 +1195,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface GetInitialWatermarkEstimatorState {}
 
   /**
@@ -1204,7 +1211,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface GetWatermarkEstimatorStateCoder {}
 
   /**
@@ -1249,7 +1255,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface NewWatermarkEstimator {}
 
   /**
@@ -1260,7 +1265,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.PARAMETER)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface WatermarkEstimatorState {}
 
   /**
@@ -1272,7 +1276,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.TYPE)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface BoundedPerElement {}
 
   /**
@@ -1284,7 +1287,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.TYPE)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface UnboundedPerElement {}
 
   // This can't be put into ProcessContinuation itself due to the following problem:
@@ -1299,7 +1301,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * <p>If the {@link ProcessElement} call completes because of a failed {@code tryClaim()} call on
    * the {@link RestrictionTracker}, then the call MUST return {@link #stop()}.
    */
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   @AutoValue
   public abstract static class ProcessContinuation {
     /** Indicates that there is no more work to be done for the current element. */

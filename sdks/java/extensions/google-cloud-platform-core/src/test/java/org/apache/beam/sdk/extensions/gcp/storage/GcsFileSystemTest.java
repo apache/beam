@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.gcp.storage;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isNull;
@@ -141,17 +141,6 @@ public class GcsFileSystemTest {
         .thenReturn(modelObjects);
 
     // Test patterns.
-    {
-      GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file*");
-      List<String> expectedFiles =
-          ImmutableList.of(
-              "gs://testbucket/testdirectory/file1name",
-              "gs://testbucket/testdirectory/file2name",
-              "gs://testbucket/testdirectory/file3name");
-
-      assertThat(expectedFiles, contains(toFilenames(gcsFileSystem.expand(pattern)).toArray()));
-    }
-
     {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file*");
       List<String> expectedFiles =

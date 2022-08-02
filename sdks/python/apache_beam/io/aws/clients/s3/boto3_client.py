@@ -17,9 +17,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from apache_beam.io.aws.clients.s3 import messages
+from apache_beam.options import pipeline_options
+from apache_beam.utils import retry
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
@@ -30,16 +30,56 @@ except ImportError:
   boto3 = None
 
 
+def get_http_error_code(exc):
+  if hasattr(exc, 'response'):
+    return exc.response.get('ResponseMetadata', {}).get('HTTPStatusCode')
+  return None
+
+
 class Client(object):
   """
   Wrapper for boto3 library
   """
-  def __init__(self):
+  def __init__(self, options):
     assert boto3 is not None, 'Missing boto3 requirement'
-    self.client = boto3.client('s3')
+    if isinstance(options, pipeline_options.PipelineOptions):
+      s3_options = options.view_as(pipeline_options.S3Options)
+      access_key_id = s3_options.s3_access_key_id
+      secret_access_key = s3_options.s3_secret_access_key
+      session_token = s3_options.s3_session_token
+      endpoint_url = s3_options.s3_endpoint_url
+      use_ssl = not s3_options.s3_disable_ssl
+      region_name = s3_options.s3_region_name
+      api_version = s3_options.s3_api_version
+      verify = s3_options.s3_verify
+    else:
+      access_key_id = options.get('s3_access_key_id')
+      secret_access_key = options.get('s3_secret_access_key')
+      session_token = options.get('s3_session_token')
+      endpoint_url = options.get('s3_endpoint_url')
+      use_ssl = not options.get('s3_disable_ssl', False)
+      region_name = options.get('s3_region_name')
+      api_version = options.get('s3_api_version')
+      verify = options.get('s3_verify')
+
+    session = boto3.session.Session()
+    self.client = session.client(
+        service_name='s3',
+        region_name=region_name,
+        api_version=api_version,
+        use_ssl=use_ssl,
+        verify=verify,
+        endpoint_url=endpoint_url,
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
+        aws_session_token=session_token)
+
+    self._download_request = None
+    self._download_stream = None
+    self._download_pos = 0
 
   def get_object_metadata(self, request):
-    r"""Retrieves an object's metadata.
+    """Retrieves an object's metadata.
 
     Args:
       request: (GetRequest) input message
@@ -52,9 +92,7 @@ class Client(object):
     try:
       boto_response = self.client.head_object(**kwargs)
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
-      raise messages.S3ClientError(message, code)
+      raise messages.S3ClientError(str(e), get_http_error_code(e))
 
     item = messages.Item(
         boto_response['ETag'],
@@ -65,25 +103,63 @@ class Client(object):
 
     return item
 
+  def get_stream(self, request, start):
+    """Opens a stream object starting at the given position.
+
+    Args:
+      request: (GetRequest) request
+      start: (int) start offset
+    Returns:
+      (Stream) Boto3 stream object.
+    """
+
+    if self._download_request and (
+        start != self._download_pos or
+        request.bucket != self._download_request.bucket or
+        request.object != self._download_request.object):
+      self._download_stream.close()
+      self._download_stream = None
+
+    # noinspection PyProtectedMember
+    if not self._download_stream or self._download_stream._raw_stream.closed:
+      try:
+        self._download_stream = self.client.get_object(
+            Bucket=request.bucket,
+            Key=request.object,
+            Range='bytes={}-'.format(start))['Body']
+        self._download_request = request
+        self._download_pos = start
+      except Exception as e:
+        raise messages.S3ClientError(str(e), get_http_error_code(e))
+
+    return self._download_stream
+
+  @retry.with_exponential_backoff()
   def get_range(self, request, start, end):
     r"""Retrieves an object's contents.
 
       Args:
         request: (GetRequest) request
+        start: (int) start offset
+        end: (int) end offset (exclusive)
       Returns:
         (bytes) The response message.
       """
-    try:
-      boto_response = self.client.get_object(
-          Bucket=request.bucket,
-          Key=request.object,
-          Range='bytes={}-{}'.format(start, end - 1))
-    except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
-      raise messages.S3ClientError(message, code)
-
-    return boto_response['Body'].read()  # A bytes object
+    for i in range(2):
+      try:
+        stream = self.get_stream(request, start)
+        data = stream.read(end - start)
+        self._download_pos += len(data)
+        return data
+      except Exception as e:
+        self._download_stream = None
+        self._download_request = None
+        if i == 0:
+          # Read errors are likely with long-lived connections, retry immediately if a read fails once
+          continue
+        if isinstance(e, messages.S3ClientError):
+          raise e
+        raise messages.S3ClientError(str(e), get_http_error_code(e))
 
   def list(self, request):
     r"""Retrieves a list of objects matching the criteria.
@@ -101,9 +177,7 @@ class Client(object):
     try:
       boto_response = self.client.list_objects_v2(**kwargs)
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
-      raise messages.S3ClientError(message, code)
+      raise messages.S3ClientError(str(e), get_http_error_code(e))
 
     if boto_response['KeyCount'] == 0:
       message = 'Tried to list nonexistent S3 path: s3://%s/%s' % (
@@ -141,9 +215,7 @@ class Client(object):
           ContentType=request.mime_type)
       response = messages.UploadResponse(boto_response['UploadId'])
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
-      raise messages.S3ClientError(message, code)
+      raise messages.S3ClientError(str(e), get_http_error_code(e))
     return response
 
   def upload_part(self, request):
@@ -165,9 +237,7 @@ class Client(object):
           boto_response['ETag'], request.part_number)
       return response
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
-      raise messages.S3ClientError(message, code)
+      raise messages.S3ClientError(str(e), get_http_error_code(e))
 
   def complete_multipart_upload(self, request):
     r"""Completes a multipart upload to S3
@@ -185,9 +255,7 @@ class Client(object):
           UploadId=request.upload_id,
           MultipartUpload=parts)
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
-      raise messages.S3ClientError(message, code)
+      raise messages.S3ClientError(str(e), get_http_error_code(e))
 
   def delete(self, request):
     r"""Deletes given object from bucket
@@ -198,11 +266,8 @@ class Client(object):
     """
     try:
       self.client.delete_object(Bucket=request.bucket, Key=request.object)
-
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
-      raise messages.S3ClientError(message, code)
+      raise messages.S3ClientError(str(e), get_http_error_code(e))
 
   def delete_batch(self, request):
 
@@ -218,9 +283,7 @@ class Client(object):
     try:
       aws_response = self.client.delete_objects(**aws_request)
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = int(e.response['ResponseMetadata']['HTTPStatusCode'])
-      raise messages.S3ClientError(message, code)
+      raise messages.S3ClientError(str(e), get_http_error_code(e))
 
     deleted = [obj['Key'] for obj in aws_response.get('Deleted', [])]
 
@@ -238,6 +301,4 @@ class Client(object):
       copy_src = {'Bucket': request.src_bucket, 'Key': request.src_key}
       self.client.copy(copy_src, request.dest_bucket, request.dest_key)
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
-      raise messages.S3ClientError(message, code)
+      raise messages.S3ClientError(str(e), get_http_error_code(e))

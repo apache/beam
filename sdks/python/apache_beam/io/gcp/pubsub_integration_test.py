@@ -20,14 +20,13 @@ Integration test for Google Cloud Pub/Sub.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
+import time
 import unittest
 import uuid
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.io.gcp import pubsub_it_pipeline
 from apache_beam.io.gcp.pubsub import PubsubMessage
@@ -44,7 +43,7 @@ OUTPUT_SUB = 'psit_subscription_output'
 
 # How long TestXXXRunner will wait for pubsub_it_pipeline to run before
 # cancelling it.
-TEST_PIPELINE_DURATION_MS = 3 * 60 * 1000
+TEST_PIPELINE_DURATION_MS = 8 * 60 * 1000
 # How long PubSubMessageMatcher will wait for the correct set of messages to
 # appear.
 MESSAGE_MATCHER_TIMEOUT_S = 5 * 60
@@ -55,9 +54,10 @@ class PubSubIntegrationTest(unittest.TestCase):
   ID_LABEL = 'id'
   TIMESTAMP_ATTRIBUTE = 'timestamp'
   INPUT_MESSAGES = {
-      # TODO(BEAM-4275): DirectRunner doesn't support reading or writing
-      # label_ids, nor writing timestamp attributes. Once these features exist,
-      # TestDirectRunner and TestDataflowRunner should behave identically.
+      # TODO(https://github.com/apache/beam/issues/18939): DirectRunner doesn't
+      # support reading or writing label_ids, nor writing timestamp attributes.
+      # Once these features exist, TestDirectRunner and TestDataflowRunner
+      # should behave identically.
       'TestDirectRunner': [
           PubsubMessage(b'data001', {}),
           # For those elements that have the TIMESTAMP_ATTRIBUTE attribute, the
@@ -141,17 +141,22 @@ class PubSubIntegrationTest(unittest.TestCase):
     from google.cloud import pubsub
     self.pub_client = pubsub.PublisherClient()
     self.input_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, INPUT_TOPIC + self.uuid))
+        name=self.pub_client.topic_path(self.project, INPUT_TOPIC + self.uuid))
     self.output_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, OUTPUT_TOPIC + self.uuid))
+        name=self.pub_client.topic_path(self.project, OUTPUT_TOPIC + self.uuid))
 
     self.sub_client = pubsub.SubscriberClient()
     self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project, INPUT_SUB + self.uuid),
-        self.input_topic.name)
+        name=self.sub_client.subscription_path(
+            self.project, INPUT_SUB + self.uuid),
+        topic=self.input_topic.name)
     self.output_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project, OUTPUT_SUB + self.uuid),
-        self.output_topic.name)
+        name=self.sub_client.subscription_path(
+            self.project, OUTPUT_SUB + self.uuid),
+        topic=self.output_topic.name)
+    # Add a 30 second sleep after resource creation to ensure subscriptions will
+    # receive messages.
+    time.sleep(30)
 
   def tearDown(self):
     test_utils.cleanup_subscriptions(
@@ -196,7 +201,8 @@ class PubSubIntegrationTest(unittest.TestCase):
 
     # Generate input data and inject to PubSub.
     for msg in self.INPUT_MESSAGES[self.runner_name]:
-      self.pub_client.publish(self.input_topic.name, msg.data, **msg.attributes)
+      self.pub_client.publish(
+          self.input_topic.name, msg.data, **msg.attributes).result()
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
@@ -206,11 +212,11 @@ class PubSubIntegrationTest(unittest.TestCase):
         id_label=self.ID_LABEL,
         timestamp_attribute=self.TIMESTAMP_ATTRIBUTE)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_streaming_data_only(self):
     self._test_streaming(with_attributes=False)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_streaming_with_attributes(self):
     self._test_streaming(with_attributes=True)
 

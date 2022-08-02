@@ -26,7 +26,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryPredi
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -50,6 +49,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Filter<InputT> extends Operator<InputT> implements CompositeOperator<InputT, InputT> {
 
   /**
@@ -121,7 +124,7 @@ public class Filter<InputT> extends Operator<InputT> implements CompositeOperato
     }
 
     @Override
-    public PCollection<InputT> output(OutputHint... outputHints) {
+    public PCollection<InputT> output() {
       final Filter<InputT> filter = new Filter<>(name, predicate, input.getTypeDescriptor());
       return OperatorTransform.apply(filter, PCollectionList.of(input));
     }

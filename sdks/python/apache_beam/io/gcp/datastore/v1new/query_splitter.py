@@ -22,15 +22,6 @@ For internal use only. No backwards compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
-from builtins import range
-from builtins import round
-
-from past.builtins import long
-from past.builtins import unicode
-
 from apache_beam.io.gcp.datastore.v1new import types
 from apache_beam.options.value_provider import ValueProvider
 
@@ -144,10 +135,10 @@ class IdOrName(object):
    """
   def __init__(self, id_or_name):
     self.id_or_name = id_or_name
-    if isinstance(id_or_name, (str, unicode)):
+    if isinstance(id_or_name, str):
       self.id = None
       self.name = id_or_name
-    elif isinstance(id_or_name, (int, long)):
+    elif isinstance(id_or_name, int):
       self.id = id_or_name
       self.name = None
     else:
@@ -155,7 +146,7 @@ class IdOrName(object):
 
   def __lt__(self, other):
     if not isinstance(other, IdOrName):
-      return super(IdOrName, self).__lt__(other)
+      return super().__lt__(other)
 
     if self.id is not None:
       if other.id is None:
@@ -170,7 +161,7 @@ class IdOrName(object):
 
   def __eq__(self, other):
     if not isinstance(other, IdOrName):
-      return super(IdOrName, self).__eq__(other)
+      return super().__eq__(other)
     return self.id == other.id and self.name == other.name
 
   def __hash__(self):

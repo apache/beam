@@ -70,6 +70,9 @@ import org.joda.time.Instant;
  * will be present in the resulting {@link PCollection}.
  */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Long>> {
   abstract long getFrom();
 
@@ -134,7 +137,7 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
     public static final String URN = "beam:external:java:generate_sequence:v1";
 
     @Override
-    public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+    public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
       return ImmutableMap.of(URN, AutoValue_GenerateSequence.Builder.class);
     }
 

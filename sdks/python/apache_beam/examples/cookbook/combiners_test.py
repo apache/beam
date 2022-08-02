@@ -25,7 +25,13 @@ checked directly on the last PCollection produced.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
+# beam-playground:
+#   name: CombinersTest
+#   description: Unit-test to showcase combiners.
+#   multifile: false
+#   context_line: 47
+#   categories:
+#     - Combiners
 
 import logging
 import unittest

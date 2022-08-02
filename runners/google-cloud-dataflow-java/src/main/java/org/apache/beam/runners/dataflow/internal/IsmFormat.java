@@ -99,6 +99,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * the number of shard index records followed by that many shard index records. See {@link
  * IsmShardCoder} for further details as to its encoding scheme.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class IsmFormat {
   private static final int HASH_SEED = 1225801234;
   private static final HashFunction HASH_FUNCTION = Hashing.murmur3_32(HASH_SEED);
@@ -409,9 +412,8 @@ public class IsmFormat {
         return false;
       }
       IsmRecordCoder<?> that = (IsmRecordCoder<?>) other;
-      return Objects.equals(this.numberOfShardKeyCoders, that.numberOfShardKeyCoders)
-          && Objects.equals(
-              this.numberOfMetadataShardKeyCoders, that.numberOfMetadataShardKeyCoders)
+      return this.numberOfShardKeyCoders == that.numberOfShardKeyCoders
+          && this.numberOfMetadataShardKeyCoders == that.numberOfMetadataShardKeyCoders
           && Objects.equals(this.keyComponentCoders, that.keyComponentCoders)
           && Objects.equals(this.valueCoder, that.valueCoder);
     }

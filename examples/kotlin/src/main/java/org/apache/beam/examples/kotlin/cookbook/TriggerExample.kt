@@ -41,7 +41,6 @@ import org.apache.beam.sdk.transforms.windowing.*
 import org.apache.beam.sdk.values.KV
 import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.PCollectionList
-import org.checkerframework.checker.nullness.qual.Nullable
 import org.joda.time.Duration
 import org.joda.time.Instant
 
@@ -100,7 +99,7 @@ import java.util.concurrent.TimeUnit
  * "ON_TIME") and freeway = "5" ORDER BY window DESC, processing_time`
  *
  *
- * To see the the difference between accumulation mode and discarding mode, `SELECT * FROM
+ * To see the difference between accumulation mode and discarding mode, `SELECT * FROM
  * <enter_table_name> WHERE (timing = "LATE" or timing = "ON_TIME") AND (trigger_type =
  * "withAllowedLateness" or trigger_type = "sequential") and freeway = "5" ORDER BY window DESC,
  * processing_time`

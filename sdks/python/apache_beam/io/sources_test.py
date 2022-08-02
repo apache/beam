@@ -18,11 +18,8 @@
 """Unit tests for the sources framework."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import os
-import sys
 import tempfile
 import unittest
 
@@ -92,12 +89,6 @@ class LineSource(iobase.BoundedSource):
 
 
 class SourcesTest(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def _create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
       f.write(contents)

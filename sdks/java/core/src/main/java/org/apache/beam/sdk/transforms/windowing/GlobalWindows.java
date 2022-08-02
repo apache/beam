@@ -22,7 +22,6 @@ import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.Coder;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Instant;
 
 /**
  * A {@link WindowFn} that assigns all data to the same window.
@@ -30,6 +29,9 @@ import org.joda.time.Instant;
  * <p>This is the {@link WindowFn} used for data coming from a source, before a {@link Window}
  * transform has been applied.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
 
   private static final Collection<GlobalWindow> GLOBAL_WINDOWS =
@@ -72,11 +74,6 @@ public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
     public GlobalWindow getSideInputWindow(BoundedWindow mainWindow) {
       return GlobalWindow.INSTANCE;
     }
-  }
-
-  @Override
-  public Instant getOutputTime(Instant inputTimestamp, GlobalWindow window) {
-    return inputTimestamp;
   }
 
   @Override

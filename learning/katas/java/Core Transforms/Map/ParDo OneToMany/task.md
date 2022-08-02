@@ -19,7 +19,7 @@
 ParDo OneToMany
 ---------------
 
-**Kata:** Please write a ParDo that maps each input sentence into words tokenized by whitespace 
+**Kata:** Please write a ParDo that maps each input sentence into words tokenized by whitespace
 (" ").
 
 <div class="hint">

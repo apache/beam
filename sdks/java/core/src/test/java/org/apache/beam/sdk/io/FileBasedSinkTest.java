@@ -19,13 +19,14 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.WriteFiles.UNKNOWN_SHARDNUM;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets.UTF_8;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -63,6 +64,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
+import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -71,6 +73,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link FileBasedSink}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class FileBasedSinkTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -99,7 +104,8 @@ public class FileBasedSinkTest {
   public void testWriter() throws Exception {
     String testUid = "testId";
     ResourceId expectedTempFile =
-        getBaseTempDirectory().resolve(testUid, StandardResolveOptions.RESOLVE_FILE);
+        getBaseTempDirectory()
+            .resolve(Writer.spreadUid(testUid), StandardResolveOptions.RESOLVE_FILE);
     List<String> values = Arrays.asList("sympathetic vulture", "boresome hummingbird");
     List<String> expected = new ArrayList<>();
     expected.add(SimpleSink.SimpleWriter.HEADER);
@@ -166,6 +172,8 @@ public class FileBasedSinkTest {
   /** Finalize copies temporary files to output files and removes any temporary files. */
   @Test
   public void testFinalize() throws Exception {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20471
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     List<File> files = generateTemporaryFilesForFinalize(3);
     runFinalize(buildWriteOperation(), files);
   }
@@ -173,6 +181,8 @@ public class FileBasedSinkTest {
   /** Finalize can be called repeatedly. */
   @Test
   public void testFinalizeMultipleCalls() throws Exception {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20482
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     List<File> files = generateTemporaryFilesForFinalize(3);
     SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
     runFinalize(writeOp, files);
@@ -182,6 +192,8 @@ public class FileBasedSinkTest {
   /** Finalize can be called when some temporary files do not exist and output files exist. */
   @Test
   public void testFinalizeWithIntermediateState() throws Exception {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20479
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
     List<File> files = generateTemporaryFilesForFinalize(3);
     runFinalize(writeOp, files);
@@ -241,9 +253,9 @@ public class FileBasedSinkTest {
       assertFalse(temporaryFiles.get(i).exists());
     }
 
-    assertFalse(new File(writeOp.tempDirectory.get().toString()).exists());
+    assertFalse(new File(writeOp.getTempDirectory().toString()).exists());
     // Test that repeated requests of the temp directory return a stable result.
-    assertEquals(writeOp.tempDirectory.get(), writeOp.tempDirectory.get());
+    assertEquals(writeOp.getTempDirectory(), writeOp.getTempDirectory());
   }
 
   /**
@@ -517,7 +529,9 @@ public class FileBasedSinkTest {
             .createWriteOperation();
     final Writer<Void, String> writer = writeOp.createWriter();
     final ResourceId expectedFile =
-        writeOp.tempDirectory.get().resolve(testUid, StandardResolveOptions.RESOLVE_FILE);
+        writeOp
+            .getTempDirectory()
+            .resolve(Writer.spreadUid(testUid), StandardResolveOptions.RESOLVE_FILE);
 
     final List<String> expected = new ArrayList<>();
     expected.add("header");

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core.construction.renderer;
 
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -25,6 +27,9 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.values.PValue;
 
 /** A DOT renderer for BEAM {@link Pipeline} DAG. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
   public static String toDotString(Pipeline pipeline) {
     final PipelineDotRenderer visitor = new PipelineDotRenderer();
@@ -39,7 +44,6 @@ public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
   }
 
   private final StringBuilder dotBuilder = new StringBuilder();
-  private final Map<TransformHierarchy.Node, Integer> nodeToId = new HashMap<>();
   private final Map<PValue, Integer> valueToProducerNodeId = new HashMap<>();
 
   private int indent;
@@ -108,7 +112,8 @@ public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
     indent -= 4;
   }
 
-  private void writeLine(String format, Object... args) {
+  @FormatMethod
+  private void writeLine(@FormatString String format, Object... args) {
     if (indent != 0) {
       dotBuilder.append(String.format("%-" + indent + "s", ""));
     }
@@ -118,9 +123,5 @@ public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
 
   private static String escapeString(String x) {
     return x.replace("\"", "\\\"");
-  }
-
-  private static String shortenTag(String tag) {
-    return tag.replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1");
   }
 }

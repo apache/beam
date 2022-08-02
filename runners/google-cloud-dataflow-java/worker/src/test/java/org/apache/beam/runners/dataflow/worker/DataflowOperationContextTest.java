@@ -81,8 +81,6 @@ public class DataflowOperationContextTest {
 
     private DataflowExecutionStateRegistry stateRegistry = new BatchModeExecutionStateRegistry();
 
-    @Mock private ScopedProfiler scopedProfiler;
-
     @Mock private ProfileScope emptyScope;
     @Mock private ProfileScope profileScope;
 
@@ -219,9 +217,8 @@ public class DataflowOperationContextTest {
               null /* metricsContainer */,
               ScopedProfiler.INSTANCE.emptyScope(),
               clock) {
-            @Nullable
             @Override
-            public CounterUpdate extractUpdate(boolean isFinalUpdate) {
+            public @Nullable CounterUpdate extractUpdate(boolean isFinalUpdate) {
               // not being used for extracting updates
               return null;
             }

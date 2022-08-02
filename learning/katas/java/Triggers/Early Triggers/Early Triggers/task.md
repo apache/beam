@@ -19,12 +19,12 @@
 Early Triggers
 --------------
 
-Triggers allow Beam to emit early results, before all the data in a given window has arrived. For 
-example, emitting after a certain amount of time elapses, or after a certain number of elements 
+Triggers allow Beam to emit early results, before all the data in a given window has arrived. For
+example, emitting after a certain amount of time elapses, or after a certain number of elements
 arrives.
 
-**Kata:** Given that events are being generated every second and a fixed window of 1-day duration, 
-please implement an early trigger that emits the number of events count immediately after new 
+**Kata:** Given that events are being generated every second and a fixed window of 1-day duration,
+please implement an early trigger that emits the number of events count immediately after new
 element is processed.
 
 <div class="hint">

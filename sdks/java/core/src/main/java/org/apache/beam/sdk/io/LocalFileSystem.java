@@ -47,6 +47,7 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -80,6 +81,9 @@ import org.slf4j.LoggerFactory;
  *   <li>file:///C:/Users/beam/Documents/pom.xml
  * </ul>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class LocalFileSystem extends FileSystem<LocalResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
@@ -159,8 +163,14 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   }
 
   @Override
-  protected void rename(List<LocalResourceId> srcResourceIds, List<LocalResourceId> destResourceIds)
+  protected void rename(
+      List<LocalResourceId> srcResourceIds,
+      List<LocalResourceId> destResourceIds,
+      MoveOptions... moveOptions)
       throws IOException {
+    if (moveOptions.length > 0) {
+      throw new UnsupportedOperationException("Support for move options is not yet implemented.");
+    }
     checkArgument(
         srcResourceIds.size() == destResourceIds.size(),
         "Number of source files %s must equal number of destination files %s",
@@ -195,13 +205,23 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         Files.delete(resourceId.getPath());
       } catch (NoSuchFileException e) {
         LOG.info(
-            "Ignoring failed deletion of file {} which already does not exist: {}", resourceId, e);
+            "Ignoring failed deletion of file {} which already does not exist.", resourceId, e);
       }
     }
   }
 
   @Override
   protected LocalResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
+    if (isDirectory) {
+      if (!singleResourceSpec.endsWith(File.separator)) {
+        singleResourceSpec += File.separator;
+      }
+    } else {
+      checkArgument(
+          !singleResourceSpec.endsWith(File.separator),
+          "Expected file path but received directory path [%s].",
+          singleResourceSpec);
+    }
     Path path = Paths.get(singleResourceSpec);
     return LocalResourceId.fromPath(path, isDirectory);
   }
@@ -264,7 +284,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     final PathMatcher matcher =
         java.nio.file.FileSystems.getDefault().getPathMatcher("glob:" + pathToMatch);
 
-    // TODO: Avoid iterating all files: https://issues.apache.org/jira/browse/BEAM-1309
+    // TODO: Avoid iterating all files: https://github.com/apache/beam/issues/18193
     Iterable<File> files = fileTraverser().depthFirstPreOrder(parent);
     Iterable<File> matchedFiles =
         StreamSupport.stream(files.spliterator(), false)

@@ -19,18 +19,22 @@ package org.apache.beam.sdk.extensions.sql.impl.rule;
 
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleOperand;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilder;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelHintsPropagator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RelBuilder;
 
 /**
  * This is a class to catch the built join and check if it is a legal join before passing it to the
  * actual RelOptRuleCall.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class JoinRelOptRuleCall extends RelOptRuleCall {
   private final RelOptRuleCall originalCall;
   private final JoinChecker checker;
@@ -47,6 +51,14 @@ public class JoinRelOptRuleCall extends RelOptRuleCall {
   public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv) {
     if (checker.check(rel)) {
       originalCall.transformTo(rel, equiv);
+    }
+  }
+
+  @Override
+  public void transformTo(
+      RelNode relNode, Map<RelNode, RelNode> map, RelHintsPropagator relHintsPropagator) {
+    if (checker.check(relNode)) {
+      originalCall.transformTo(relNode, map, relHintsPropagator);
     }
   }
 

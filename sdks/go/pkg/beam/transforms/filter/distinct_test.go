@@ -15,12 +15,21 @@
 
 package filter_test
 
+// beam-playground:
+//   name: DistinctTest
+//   description: Unit-test for the Distinct example.
+//   multifile: false
+//   context_line: 35
+//   categories:
+//     - Filtering
+//     - Core Transforms
+
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/filter"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
 )
 
 type s struct {

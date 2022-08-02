@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Static.RESOURCE;
+import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Static.RESOURCE;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -27,44 +27,61 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMultimap;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.CallImplementor;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.NullPolicy;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.ReflectiveCallNotNullImplementor;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.RexImpTable;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.RexToLixTranslator;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.function.SemiStrict;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.function.Strict;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expression;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ImplementableFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ScalarFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableMultimap;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.CallImplementor;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.NullPolicy;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.ReflectiveCallNotNullImplementor;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.RexImpTable;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.RexToLixTranslator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.function.SemiStrict;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.function.Strict;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Expression;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Expressions;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ImplementableFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ScalarFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperatorBinding;
 
 /**
  * Beam-customized version from {@link
- * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.impl.ScalarFunctionImpl} , to
+ * org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.impl.ScalarFunctionImpl} , to
  * address BEAM-5921.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
     implements ScalarFunction, ImplementableFunction {
 
   private final CallImplementor implementor;
+  private final String jarPath;
 
-  /** Private constructor. */
-  private ScalarFunctionImpl(Method method, CallImplementor implementor) {
+  protected ScalarFunctionImpl(Method method, CallImplementor implementor, String jarPath) {
     super(method);
     this.implementor = implementor;
+    this.jarPath = jarPath;
+  }
+
+  protected ScalarFunctionImpl(Method method, CallImplementor implementor) {
+    this(method, implementor, "");
   }
 
   /**
-   * Creates {@link org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function} for
+   * Optional Beam filesystem path to the jar containing the bytecode for this function. Empty if
+   * the function is assumed to already be on the classpath.
+   */
+  public String getJarPath() {
+    return jarPath;
+  }
+
+  /**
+   * Creates {@link org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function} for
    * each method in a given class.
    */
   public static ImmutableMultimap<String, Function> createAll(Class<?> clazz) {
@@ -83,21 +100,14 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
   }
 
   /**
-   * Creates {@link org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function} from
-   * given class.
+   * Creates {@link org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function} from
+   * given method. When {@code eval} method does not suit, {@code null} is returned.
    *
-   * <p>If a method of the given name is not found or it does not suit, returns {@code null}.
-   *
-   * @param clazz class that is used to implement the function
-   * @param methodName Method name (typically "eval")
-   * @return created {@link ScalarFunction} or null
+   * @param method method that is used to implement the function
+   * @return created {@link Function} or null
    */
-  public static Function create(Class<?> clazz, String methodName) {
-    final Method method = findMethod(clazz, methodName);
-    if (method == null) {
-      return null;
-    }
-    return create(method);
+  public static Function create(Method method) {
+    return create(method, "");
   }
 
   /**
@@ -105,9 +115,16 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
    * given method. When {@code eval} method does not suit, {@code null} is returned.
    *
    * @param method method that is used to implement the function
+   * @param jarPath Path to jar that contains the method.
    * @return created {@link Function} or null
    */
-  public static Function create(Method method) {
+  public static Function create(Method method, String jarPath) {
+    validateMethod(method);
+    CallImplementor implementor = createImplementor(method);
+    return new ScalarFunctionImpl(method, implementor, jarPath);
+  }
+
+  protected static void validateMethod(Method method) {
     if (!Modifier.isStatic(method.getModifiers())) {
       Class clazz = method.getDeclaringClass();
       if (!classHasPublicZeroArgsConstructor(clazz)) {
@@ -117,14 +134,11 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
     if (method.getExceptionTypes().length != 0) {
       throw new RuntimeException(method.getName() + " must not throw checked exception");
     }
-
-    CallImplementor implementor = createImplementor(method);
-    return new ScalarFunctionImpl(method, implementor);
   }
 
   @Override
   public RelDataType getReturnType(RelDataTypeFactory typeFactory) {
-    return CalciteUtils.sqlTypeWithAutoCast(typeFactory, method.getReturnType());
+    return CalciteUtils.sqlTypeWithAutoCast(typeFactory, method.getGenericReturnType());
   }
 
   @Override
@@ -150,7 +164,8 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
 
       final List<Expression> translated = new ArrayList<>();
       for (int i = 0; i < expressions.size(); i++) {
-        // TODO: [BEAM-8255] Add support for user defined function with var-arg
+        // TODO: [https://github.com/apache/beam/issues/19825] Add support for user defined function
+        // with var-arg
         // Ex: types: [String[].class], expression: [param1, param2, ...]
         translated.add(translate(types.get(i), expressions.get(i)));
       }
@@ -187,7 +202,7 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
     }
   }
 
-  private static CallImplementor createImplementor(Method method) {
+  protected static CallImplementor createImplementor(Method method) {
     final NullPolicy nullPolicy = getNullPolicy(method);
     return RexImpTable.createImplementor(
         new ScalarReflectiveCallNotNullImplementor(method), nullPolicy, false);
@@ -242,21 +257,6 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
       }
     }
     return false;
-  }
-
-  /*
-   * Finds a method in a given class by name.
-   * @param clazz class to search method in
-   * @param name name of the method to find
-   * @return the first method with matching name or null when no method found
-   */
-  static Method findMethod(Class<?> clazz, String name) {
-    for (Method method : clazz.getMethods()) {
-      if (method.getName().equals(name) && !method.isBridge()) {
-        return method;
-      }
-    }
-    return null;
   }
 }
 

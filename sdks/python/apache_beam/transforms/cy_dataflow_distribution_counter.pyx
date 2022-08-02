@@ -15,6 +15,7 @@
 #
 
 # cython: profile=True
+# cython: language_level=3
 
 """ For internal use only. No backwards compatibility guarantees."""
 
@@ -73,6 +74,16 @@ cdef class DataflowDistributionCounter(object):
     self.sum += element
     cdef int64_t bucket_index = self._fast_calculate_bucket_index(element)
     self.buckets[bucket_index] += 1
+
+  cpdef bint add_input_n(self, int64_t element, int64_t n) except -1:
+    if element < 0:
+      raise ValueError('Distribution counters support only non-negative value')
+    self.min = min(self.min, element)
+    self.max = max(self.max, element)
+    self.count += n
+    self.sum += element*n
+    cdef int64_t bucket_index = self._fast_calculate_bucket_index(element)
+    self.buckets[bucket_index] += n
 
   cdef int64_t _fast_calculate_bucket_index(self, int64_t element):
     """Calculate the bucket index for the given element.
@@ -133,6 +144,10 @@ cdef class DataflowDistributionCounter(object):
     cdef calculate_bucket_index cannot be called directly from def.
     """
     return self._fast_calculate_bucket_index(element)
+
+  cpdef tuple extract_output(self):
+    mean = self.sum // self.count if self.count else float('nan')
+    return mean, self.sum, self.count, self.min, self.max
 
   cpdef merge(self, accumulators):
     raise NotImplementedError()

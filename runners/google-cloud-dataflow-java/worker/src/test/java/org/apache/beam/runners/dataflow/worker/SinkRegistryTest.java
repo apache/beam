@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
@@ -50,7 +51,7 @@ public class SinkRegistryTest {
                 options,
                 BatchModeExecutionContext.forTesting(options, "testStage"),
                 TestOperationContext.create());
-    Assert.assertThat(sink.getUnderlyingSink(), new IsInstanceOf(AvroByteSink.class));
+    assertThat(sink.getUnderlyingSink(), new IsInstanceOf(AvroByteSink.class));
   }
 
   @Test
@@ -70,7 +71,7 @@ public class SinkRegistryTest {
               TestOperationContext.create());
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(), CoreMatchers.containsString("Unable to create a Sink"));
+      assertThat(exn.toString(), CoreMatchers.containsString("Unable to create a Sink"));
     }
   }
 }

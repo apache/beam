@@ -54,6 +54,16 @@ public interface TestPipelineOptions extends PipelineOptions {
 
   void setTestTimeoutSeconds(Long value);
 
+  @Default.Boolean(true)
+  @org.apache.beam.sdk.options.Description(
+      "If the pipeline should block awaiting completion of the pipeline. If set to true, "
+          + "a call to Pipeline#run() will block until all PTransforms are complete. Otherwise, "
+          + "the Pipeline will execute asynchronously. If set to false, use "
+          + "PipelineResult#waitUntilFinish() to block until the Pipeline is complete.")
+  boolean isBlockOnRun();
+
+  void setBlockOnRun(boolean value);
+
   /** Factory for {@link PipelineResult} matchers which always pass. */
   class AlwaysPassMatcherFactory
       implements DefaultValueFactory<SerializableMatcher<PipelineResult>> {

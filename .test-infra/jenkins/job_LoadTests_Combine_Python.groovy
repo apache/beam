@@ -23,21 +23,21 @@ import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def loadTestConfigurations = { datasetName ->
+def loadTestConfigurations = { datasetName, mode ->
   [
     [
       title          : 'Combine Python Load test: 2GB 10 byte records',
       test           : 'apache_beam.testing.load_tests.combine_test',
       runner         : CommonTestProperties.Runner.DATAFLOW,
       pipelineOptions: [
-        job_name             : 'load-tests-python-dataflow-batch-combine-1-' + now,
+        job_name             : "load-tests-python-dataflow-${mode}-combine-1-${now}",
         project              : 'apache-beam-testing',
         region               : 'us-central1',
         temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
         publish_to_big_query : true,
         metrics_dataset      : datasetName,
-        metrics_table        : 'python_dataflow_batch_combine_1',
-        influx_measurement   : 'python_batch_combine_1',
+        metrics_table        : "python_dataflow_${mode}_combine_1",
+        influx_measurement   : "python_${mode}_combine_1",
         input_options        : '\'{' +
         '"num_records": 200000000,' +
         '"key_size": 1,' +
@@ -52,14 +52,14 @@ def loadTestConfigurations = { datasetName ->
       test           : 'apache_beam.testing.load_tests.combine_test',
       runner         : CommonTestProperties.Runner.DATAFLOW,
       pipelineOptions: [
-        job_name             : 'load-tests-python-dataflow-batch-combine-4-' + now,
+        job_name             : "load-tests-python-dataflow-${mode}-combine-4-${now}",
         project              : 'apache-beam-testing',
         region               : 'us-central1',
         temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
         publish_to_big_query : true,
         metrics_dataset      : datasetName,
-        metrics_table        : 'python_dataflow_batch_combine_4',
-        influx_measurement   : 'python_batch_combine_4',
+        metrics_table        : "python_dataflow_${mode}_combine_4",
+        influx_measurement   : "python_${mode}_combine_4",
         input_options        : '\'{' +
         '"num_records": 5000000,' +
         '"key_size": 10,' +
@@ -75,14 +75,14 @@ def loadTestConfigurations = { datasetName ->
       test           : 'apache_beam.testing.load_tests.combine_test',
       runner         : CommonTestProperties.Runner.DATAFLOW,
       pipelineOptions: [
-        job_name             : 'load-tests-python-dataflow-batch-combine-5-' + now,
+        job_name             : "load-tests-python-dataflow-${mode}-combine-5-${now}",
         project              : 'apache-beam-testing',
         region               : 'us-central1',
         temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
         publish_to_big_query : true,
         metrics_dataset      : datasetName,
-        metrics_table        : 'python_dataflow_batch_combine_5',
-        influx_measurement   : 'python_batch_combine_5',
+        metrics_table        : "python_dataflow_${mode}_combine_5",
+        influx_measurement   : "python_${mode}_combine_5",
         input_options        : '\'{' +
         '"num_records": 2500000,' +
         '"key_size": 10,' +
@@ -93,33 +93,60 @@ def loadTestConfigurations = { datasetName ->
         top_count            : 20,
       ]
     ],
-  ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+  ]
+  .each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+  .each{ test -> (mode != 'streaming') ?: addStreamingOptions(test) }
 }
 
-def batchLoadTestJob = { scope, triggeringContext ->
-  scope.description('Runs Python Combine load tests on Dataflow runner in batch mode')
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 120)
+def addStreamingOptions(test){
+  test.pipelineOptions << [streaming: null,
+    // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+    experiments: "use_runner_v2,shuffle_mode=appliance"
+  ]
+}
+
+def loadTestJob = { scope, triggeringContext, jobType ->
+  scope.description("Runs Python Combine load tests on Dataflow runner in ${jobType} mode")
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 720)
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  for (testConfiguration in loadTestConfigurations(datasetName)) {
-    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON_37, testConfiguration.pipelineOptions, testConfiguration.test)
+  for (testConfiguration in loadTestConfigurations(datasetName, jobType)) {
+    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON, testConfiguration.pipelineOptions, testConfiguration.test)
   }
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Python_Combine_Dataflow_Batch',
-    'Run Python Load Tests Combine Dataflow Batch',
+    'Run Load Tests Python Combine Dataflow Batch',
     'Load Tests Python Combine Dataflow Batch suite',
     this
     ) {
       additionalPipelineArgs = [:]
-      batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, "batch")
     }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Dataflow_Batch', 'H 15 * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
-  batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, "batch")
+}
+
+PhraseTriggeringPostCommitBuilder.postCommitJob(
+    'beam_LoadTests_Python_Combine_Dataflow_Streaming',
+    'Run Load Tests Python Combine Dataflow Streaming',
+    'Load Tests Python Combine Dataflow Streaming suite',
+    this
+    ) {
+      additionalPipelineArgs = [:]
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, "streaming")
+    }
+
+CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Dataflow_Streaming', 'H 15 * * *', this) {
+  additionalPipelineArgs = [
+    influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
+  ]
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, "streaming")
 }

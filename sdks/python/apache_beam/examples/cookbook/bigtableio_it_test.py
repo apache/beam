@@ -15,10 +15,8 @@
 # limitations under the License.
 #
 
-"""Unittest for GCP Bigtable testing."""
+"""Integration tests for bigtableio."""
 # pytype: skip-file
-
-from __future__ import absolute_import
 
 import datetime
 import logging
@@ -29,6 +27,7 @@ import uuid
 from typing import TYPE_CHECKING
 from typing import List
 
+import pytest
 import pytz
 
 import apache_beam as beam
@@ -70,7 +69,7 @@ class GenerateTestRows(beam.PTransform):
   """
   def __init__(self, number, project_id=None, instance_id=None, table_id=None):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(WriteToBigTable, self).__init__()
+    # super().__init__()
     beam.PTransform.__init__(self)
     self.number = number
     self.rand = random.choice(string.ascii_letters + string.digits)
@@ -141,7 +140,9 @@ class BigtableIOWriteTest(unittest.TestCase):
           self.cluster_id,
           self.LOCATION_ID,
           default_storage_type=self.STORAGE_TYPE)
-      self.instance.create(clusters=[cluster])
+      operation = self.instance.create(clusters=[cluster])
+      operation.result(timeout=10)
+
     self.table = self.instance.table(self.table_id)
 
     if not self.table.exists():
@@ -173,6 +174,7 @@ class BigtableIOWriteTest(unittest.TestCase):
     if self.instance.exists():
       self.instance.delete()
 
+  @pytest.mark.it_postcommit
   def test_bigtable_write(self):
     number = self.number
     pipeline_args = self.test_pipeline.options_list
@@ -181,8 +183,8 @@ class BigtableIOWriteTest(unittest.TestCase):
     with beam.Pipeline(options=pipeline_options) as pipeline:
       config_data = {
           'project_id': self.project,
-          'instance_id': self.instance,
-          'table_id': self.table
+          'instance_id': self.instance_id,
+          'table_id': self.table_id
       }
       _ = (
           pipeline

@@ -19,25 +19,32 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getDefaultLocalParallelism;
 
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -45,6 +52,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Utilities for Flink execution environments. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class FlinkExecutionEnvironments {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkExecutionEnvironments.class);
@@ -53,9 +63,11 @@ public class FlinkExecutionEnvironments {
    * If the submitted job is a batch processing job, this method creates the adequate Flink {@link
    * org.apache.flink.api.java.ExecutionEnvironment} depending on the user-specified options.
    */
-  public static ExecutionEnvironment createBatchExecutionEnvironment(
-      FlinkPipelineOptions options, List<String> filesToStage) {
-    return createBatchExecutionEnvironment(options, filesToStage, null);
+  public static ExecutionEnvironment createBatchExecutionEnvironment(FlinkPipelineOptions options) {
+    return createBatchExecutionEnvironment(
+        options,
+        MoreObjects.firstNonNull(options.getFilesToStage(), Collections.emptyList()),
+        options.getFlinkConfDir());
   }
 
   static ExecutionEnvironment createBatchExecutionEnvironment(
@@ -71,11 +83,17 @@ public class FlinkExecutionEnvironments {
     // depending on the master, create the right environment.
     if ("[local]".equals(flinkMasterHostPort)) {
       setManagedMemoryByFraction(flinkConfiguration);
+      disableClassLoaderLeakCheck(flinkConfiguration);
       flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment(flinkConfiguration);
     } else if ("[collection]".equals(flinkMasterHostPort)) {
       flinkBatchEnv = new CollectionEnvironment();
     } else if ("[auto]".equals(flinkMasterHostPort)) {
       flinkBatchEnv = ExecutionEnvironment.getExecutionEnvironment();
+      if (flinkBatchEnv instanceof LocalEnvironment) {
+        disableClassLoaderLeakCheck(flinkConfiguration);
+        flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment(flinkConfiguration);
+        flinkBatchEnv.setParallelism(getDefaultLocalParallelism());
+      }
     } else {
       int defaultPort = flinkConfiguration.getInteger(RestOptions.PORT);
       HostAndPort hostAndPort =
@@ -125,18 +143,20 @@ public class FlinkExecutionEnvironments {
     return flinkBatchEnv;
   }
 
+  @VisibleForTesting
+  static StreamExecutionEnvironment createStreamExecutionEnvironment(FlinkPipelineOptions options) {
+    return createStreamExecutionEnvironment(
+        options,
+        MoreObjects.firstNonNull(options.getFilesToStage(), Collections.emptyList()),
+        options.getFlinkConfDir());
+  }
+
   /**
    * If the submitted job is a stream processing job, this method creates the adequate Flink {@link
    * org.apache.flink.streaming.api.environment.StreamExecutionEnvironment} depending on the
    * user-specified options.
    */
   public static StreamExecutionEnvironment createStreamExecutionEnvironment(
-      FlinkPipelineOptions options, List<String> filesToStage) {
-    return createStreamExecutionEnvironment(options, filesToStage, null);
-  }
-
-  @VisibleForTesting
-  static StreamExecutionEnvironment createStreamExecutionEnvironment(
       FlinkPipelineOptions options, List<String> filesToStage, @Nullable String confDir) {
 
     LOG.info("Creating a Streaming Environment.");
@@ -144,16 +164,23 @@ public class FlinkExecutionEnvironments {
     // Although Flink uses Rest, it expects the address not to contain a http scheme
     String masterUrl = stripHttpSchema(options.getFlinkMaster());
     Configuration flinkConfiguration = getFlinkConfiguration(confDir);
-    final StreamExecutionEnvironment flinkStreamEnv;
+    StreamExecutionEnvironment flinkStreamEnv;
 
     // depending on the master, create the right environment.
     if ("[local]".equals(masterUrl)) {
       setManagedMemoryByFraction(flinkConfiguration);
+      disableClassLoaderLeakCheck(flinkConfiguration);
       flinkStreamEnv =
           StreamExecutionEnvironment.createLocalEnvironment(
               getDefaultLocalParallelism(), flinkConfiguration);
     } else if ("[auto]".equals(masterUrl)) {
       flinkStreamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+      if (flinkStreamEnv instanceof LocalStreamEnvironment) {
+        disableClassLoaderLeakCheck(flinkConfiguration);
+        flinkStreamEnv =
+            StreamExecutionEnvironment.createLocalEnvironment(
+                getDefaultLocalParallelism(), flinkConfiguration);
+      }
     } else {
       int defaultPort = flinkConfiguration.getInteger(RestOptions.PORT);
       HostAndPort hostAndPort = HostAndPort.fromString(masterUrl).withDefaultPort(defaultPort);
@@ -208,6 +235,21 @@ public class FlinkExecutionEnvironments {
       flinkStreamEnv.getConfig().setExecutionRetryDelay(retryDelay);
     }
 
+    configureCheckpointing(options, flinkStreamEnv);
+
+    applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
+
+    if (options.getAutoWatermarkInterval() != null) {
+      flinkStreamEnv.getConfig().setAutoWatermarkInterval(options.getAutoWatermarkInterval());
+    }
+
+    configureStateBackend(options, flinkStreamEnv);
+
+    return flinkStreamEnv;
+  }
+
+  private static void configureCheckpointing(
+      FlinkPipelineOptions options, StreamExecutionEnvironment flinkStreamEnv) {
     // A value of -1 corresponds to disabled checkpointing (see CheckpointConfig in Flink).
     // If the value is not -1, then the validity checks are applied.
     // By default, checkpointing is disabled.
@@ -259,27 +301,47 @@ public class FlinkExecutionEnvironments {
         options.setShutdownSourcesAfterIdleMs(0L);
       }
     }
+  }
 
-    applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
+  private static void configureStateBackend(
+      FlinkPipelineOptions options, StreamExecutionEnvironment env) {
+    final StateBackend stateBackend;
+    if (options.getStateBackend() != null) {
+      final String storagePath = options.getStateBackendStoragePath();
+      Preconditions.checkArgument(
+          storagePath != null,
+          "State backend was set to '%s' but no storage path was provided.",
+          options.getStateBackend());
 
-    if (options.getAutoWatermarkInterval() != null) {
-      flinkStreamEnv.getConfig().setAutoWatermarkInterval(options.getAutoWatermarkInterval());
-    }
-
-    // State backend
-    if (options.getStateBackendFactory() != null) {
-      final StateBackend stateBackend =
+      if (options.getStateBackend().equalsIgnoreCase("rocksdb")) {
+        try {
+          stateBackend = new RocksDBStateBackend(storagePath);
+        } catch (Exception e) {
+          throw new RuntimeException(
+              "Could not create RocksDB state backend. Make sure it is included in the path.", e);
+        }
+      } else if (options.getStateBackend().equalsIgnoreCase("filesystem")) {
+        stateBackend = new FsStateBackend(storagePath);
+      } else {
+        throw new IllegalArgumentException(
+            String.format(
+                "Unknown state backend '%s'. Use 'rocksdb' or 'filesystem' or configure via Flink config file.",
+                options.getStateBackend()));
+      }
+    } else if (options.getStateBackendFactory() != null) {
+      // Legacy way of setting the state backend
+      stateBackend =
           InstanceBuilder.ofType(FlinkStateBackendFactory.class)
               .fromClass(options.getStateBackendFactory())
               .build()
               .createStateBackend(options);
-      flinkStreamEnv.setStateBackend(stateBackend);
+    } else {
+      stateBackend = null;
     }
-
-    return flinkStreamEnv;
+    if (stateBackend != null) {
+      env.setStateBackend(stateBackend);
+    }
   }
-
-  private void configureCheckpointingOptions() {}
 
   /**
    * Removes the http:// or https:// schema from a url string. This is commonly used with the
@@ -315,7 +377,7 @@ public class FlinkExecutionEnvironments {
   }
 
   private static Configuration getFlinkConfiguration(@Nullable String flinkConfDir) {
-    return flinkConfDir == null
+    return flinkConfDir == null || flinkConfDir.isEmpty()
         ? GlobalConfiguration.loadConfiguration()
         : GlobalConfiguration.loadConfiguration(flinkConfDir);
   }
@@ -332,6 +394,16 @@ public class FlinkExecutionEnvironments {
       long freeHeapMemory = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag();
       long managedMemorySize = (long) (freeHeapMemory * managedMemoryFraction);
       config.setString("taskmanager.memory.managed.size", String.valueOf(managedMemorySize));
+    }
+  }
+
+  /**
+   * Disables classloader.check-leaked-classloader unless set by the user. See
+   * https://github.com/apache/beam/issues/20783.
+   */
+  private static void disableClassLoaderLeakCheck(final Configuration config) {
+    if (!config.containsKey("classloader.check-leaked-classloader")) {
+      config.setBoolean("classloader.check-leaked-classloader", false);
     }
   }
 }

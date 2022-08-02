@@ -26,7 +26,7 @@ The Samza Runner and Samza are suitable for large scale, stateful streaming jobs
 * First class support for local state (with RocksDB store). This allows fast state access for high frequency streaming jobs.
 * Fault-tolerance with support for incremental checkpointing of state instead of full snapshots. This enables Samza to scale to applications with very large state.
 * A fully asynchronous processing engine that makes remote calls efficient.
-* Flexible deployment model for running the the applications in any hosting environment with Zookeeper.
+* Flexible deployment model for running the applications in any hosting environment with Zookeeper.
 * Features like canaries, upgrades and rollbacks that support extremely large deployments with minimal downtime.
 
 The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the currently supported capabilities of the Samza Runner.
@@ -79,7 +79,7 @@ The Samza Runner is built on Samza version greater than 1.0.
   <version>${samza.version}</version>
   <scope>runtime</scope>
 </dependency>
-    
+
 {{< /highlight >}}
 
 ## Executing a pipeline with Samza Runner
@@ -107,7 +107,7 @@ job.default.system=${job_default_system}
 
 For more details on the configuration, see [Samza Configuration Reference](https://samza.apache.org/learn/documentation/latest/jobs/configuration-table.html).
 
-The config file will be passed in by setting the command line arg `--configFilePath=/path/to/config.properties`. With that, you can run your main class of Beam pipeline in a Yarn Resource Manager, and the Samza Runner will submit a Yarn job under the hood. 
+The config file will be passed in by setting the command line arg `--configFilePath=/path/to/config.properties`. With that, you can run your main class of Beam pipeline in a Yarn Resource Manager, and the Samza Runner will submit a Yarn job under the hood.
 
 Check out our [Samza Beam example from Github](https://github.com/apache/samza-beam-examples)
 
@@ -159,6 +159,11 @@ When executing your pipeline with the Samza Runner, you can use the following pi
 <tr>
   <td><code>systemBufferSize</code></td>
   <td>The maximum number of messages to buffer for a given system.</td>
+  <td><code>5000</code></td>
+</tr>
+<tr>
+  <td><code>eventTimerBufferSize</code></td>
+  <td>The maximum number of event-time timers to buffer in memory for a PTransform</td>
   <td><code>5000</code></td>
 </tr>
 <tr>

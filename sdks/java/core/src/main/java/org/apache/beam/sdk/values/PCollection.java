@@ -76,6 +76,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type of the elements of this {@link PCollection}
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class PCollection<T> extends PValueBase implements PValue {
 
   /**
@@ -121,7 +124,13 @@ public class PCollection<T> extends PValueBase implements PValue {
    * override this to enable better {@code Coder} inference.
    */
   public @Nullable TypeDescriptor<T> getTypeDescriptor() {
-    return typeDescriptor;
+    if (typeDescriptor != null) {
+      return typeDescriptor;
+    }
+    if (coderOrFailure.coder != null) {
+      return coderOrFailure.coder.getEncodedTypeDescriptor();
+    }
+    return null;
   }
 
   /**

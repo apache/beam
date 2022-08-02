@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.coders;
 
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -53,6 +56,9 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.ClassUtils;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
@@ -102,6 +108,9 @@ import org.joda.time.DateTimeZone;
  *
  * @param <T> the type of elements handled by this coder
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AvroCoder<T> extends CustomCoder<T> {
 
   /**
@@ -110,9 +119,19 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(TypeDescriptor<T> type) {
+    return of(type, true);
+  }
+
+  /**
+   * Returns an {@code AvroCoder} instance for the provided element type, respecting whether to use
+   * Avro's Reflect* or Specific* suite for encoding and decoding.
+   *
+   * @param <T> the element type
+   */
+  public static <T> AvroCoder<T> of(TypeDescriptor<T> type, boolean useReflectApi) {
     @SuppressWarnings("unchecked")
     Class<T> clazz = (Class<T>) type.getRawType();
-    return of(clazz);
+    return of(clazz, useReflectApi);
   }
 
   /**
@@ -121,7 +140,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> clazz) {
-    return new AvroCoder<>(clazz, new ReflectData(clazz.getClassLoader()).getSchema(clazz));
+    return of(clazz, true);
   }
 
   /**
@@ -133,6 +152,18 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   /**
+   * Returns an {@code AvroCoder} instance for the given class, respecting whether to use Avro's
+   * Reflect* or Specific* suite for encoding and decoding.
+   *
+   * @param <T> the element type
+   */
+  public static <T> AvroCoder<T> of(Class<T> type, boolean useReflectApi) {
+    ClassLoader cl = type.getClassLoader();
+    SpecificData data = useReflectApi ? new ReflectData(cl) : new SpecificData(cl);
+    return of(type, data.getSchema(type), useReflectApi);
+  }
+
+  /**
    * Returns an {@code AvroCoder} instance for the provided element type using the provided Avro
    * schema.
    *
@@ -141,7 +172,17 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> type, Schema schema) {
-    return new AvroCoder<>(type, schema);
+    return of(type, schema, true);
+  }
+
+  /**
+   * Returns an {@code AvroCoder} instance for the given class and schema, respecting whether to use
+   * Avro's Reflect* or Specific* suite for encoding and decoding.
+   *
+   * @param <T> the element type
+   */
+  public static <T> AvroCoder<T> of(Class<T> type, Schema schema, boolean useReflectApi) {
+    return new AvroCoder<>(type, schema, useReflectApi);
   }
 
   /**
@@ -178,6 +219,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   private final Class<T> type;
+  private final boolean useReflectApi;
   private final SerializableSchemaSupplier schemaSupplier;
   private final TypeDescriptor<T> typeDescriptor;
 
@@ -210,6 +252,10 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * serialization and hence is able to encode the {@link Schema} object directly.
    */
   private static class SerializableSchemaSupplier implements Serializable, Supplier<Schema> {
+    // writeReplace makes this object serializable. This is a limitation of FindBugs as discussed
+    // here:
+    // http://stackoverflow.com/questions/26156523/is-writeobject-not-neccesary-using-the-serialization-proxy-pattern
+    @SuppressFBWarnings("SE_BAD_FIELD")
     private final Schema schema;
 
     private SerializableSchemaSupplier(Schema schema) {
@@ -259,7 +305,12 @@ public class AvroCoder<T> extends CustomCoder<T> {
   private final Supplier<ReflectData> reflectData;
 
   protected AvroCoder(Class<T> type, Schema schema) {
+    this(type, schema, false);
+  }
+
+  protected AvroCoder(Class<T> type, Schema schema, boolean useReflectApi) {
     this.type = type;
+    this.useReflectApi = useReflectApi;
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
     typeDescriptor = TypeDescriptor.of(type);
     nonDeterministicReasons = new AvroDeterminismChecker().check(TypeDescriptor.of(type), schema);
@@ -278,10 +329,13 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
           @Override
           public DatumReader<T> initialValue() {
-            return myCoder.getType().equals(GenericRecord.class)
-                ? new GenericDatumReader<>(myCoder.getSchema())
-                : new ReflectDatumReader<>(
-                    myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
+            if (myCoder.getType().equals(GenericRecord.class)) {
+              return new GenericDatumReader<>(myCoder.getSchema());
+            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType()) && !useReflectApi) {
+              return new SpecificDatumReader<>(myCoder.getType());
+            }
+            return new ReflectDatumReader<>(
+                myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
           }
         };
 
@@ -291,9 +345,12 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
           @Override
           public DatumWriter<T> initialValue() {
-            return myCoder.getType().equals(GenericRecord.class)
-                ? new GenericDatumWriter<>(myCoder.getSchema())
-                : new ReflectDatumWriter<>(myCoder.getSchema(), myCoder.reflectData.get());
+            if (myCoder.getType().equals(GenericRecord.class)) {
+              return new GenericDatumWriter<>(myCoder.getSchema());
+            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType()) && !useReflectApi) {
+              return new SpecificDatumWriter<>(myCoder.getType());
+            }
+            return new ReflectDatumWriter<>(myCoder.getSchema(), myCoder.reflectData.get());
           }
         };
   }
@@ -301,6 +358,10 @@ public class AvroCoder<T> extends CustomCoder<T> {
   /** Returns the type this coder encodes/decodes. */
   public Class<T> getType() {
     return type;
+  }
+
+  public boolean useReflectApi() {
+    return useReflectApi;
   }
 
   @Override
@@ -364,7 +425,8 @@ public class AvroCoder<T> extends CustomCoder<T> {
     private Set<Schema> activeSchemas = new HashSet<>();
 
     /** Report an error in the current context. */
-    private void reportError(String context, String fmt, Object... args) {
+    @FormatMethod
+    private void reportError(String context, @FormatString String fmt, Object... args) {
       String message = String.format(fmt, args);
       reasons.add(context + ": " + message);
     }
@@ -428,7 +490,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
         return;
       }
 
-      // If the the record isn't a true class, but rather a GenericRecord, SpecificRecord, etc.
+      // If the record isn't a true class, but rather a GenericRecord, SpecificRecord, etc.
       // with a specified schema, then we need to make the decision based on the generated
       // implementations.
       if (isSubtypeOf(type, IndexedRecord.class)) {
@@ -711,12 +773,13 @@ public class AvroCoder<T> extends CustomCoder<T> {
     }
     AvroCoder<?> that = (AvroCoder<?>) other;
     return Objects.equals(this.schemaSupplier.get(), that.schemaSupplier.get())
-        && Objects.equals(this.typeDescriptor, that.typeDescriptor);
+        && Objects.equals(this.typeDescriptor, that.typeDescriptor)
+        && this.useReflectApi == that.useReflectApi;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(schemaSupplier.get(), typeDescriptor);
+    return Objects.hash(schemaSupplier.get(), typeDescriptor, useReflectApi);
   }
 
   /**

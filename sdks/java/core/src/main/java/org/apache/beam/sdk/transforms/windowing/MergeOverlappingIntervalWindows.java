@@ -30,6 +30,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>A utility function for merging overlapping {@link IntervalWindow IntervalWindows}.
  */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MergeOverlappingIntervalWindows {
 
   /** Merge overlapping {@link IntervalWindow}s. */

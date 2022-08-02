@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import unittest
 
 from hamcrest import assert_that as hc_assert_that
@@ -81,7 +79,7 @@ EVERYTHING_COUNTER = {
 
 def _create_metric_result(data_dict):
   step = data_dict['step'] if 'step' in data_dict else ''
-  labels = data_dict['labels'] if 'labels' in data_dict else dict()
+  labels = data_dict['labels'] if 'labels' in data_dict else {}
   values = {}
   for key in ['attempted', 'committed']:
     if key in data_dict:

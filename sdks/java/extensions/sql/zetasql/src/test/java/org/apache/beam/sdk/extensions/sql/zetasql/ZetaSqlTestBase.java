@@ -26,10 +26,11 @@ import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Contexts;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.Contexts;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.FrameworkConfig;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Common setup for ZetaSQL tests. */
@@ -51,6 +52,16 @@ public abstract class ZetaSqlTestBase {
     testBoundedTableMap.put("table_with_struct_two", TestInput.TABLE_WITH_STRUCT_TWO);
     testBoundedTableMap.put("table_with_array", TestInput.TABLE_WITH_ARRAY);
     testBoundedTableMap.put("table_with_array_for_unnest", TestInput.TABLE_WITH_ARRAY_FOR_UNNEST);
+    testBoundedTableMap.put("table_with_array_of_struct", TestInput.TABLE_WITH_ARRAY_OF_STRUCT);
+    testBoundedTableMap.put("table_with_struct_of_struct", TestInput.TABLE_WITH_STRUCT_OF_STRUCT);
+    testBoundedTableMap.put(
+        "table_with_struct_of_struct_of_array", TestInput.TABLE_WITH_STRUCT_OF_STRUCT_OF_ARRAY);
+    testBoundedTableMap.put(
+        "table_with_array_of_struct_of_struct", TestInput.TABLE_WITH_ARRAY_OF_STRUCT_OF_STRUCT);
+    testBoundedTableMap.put(
+        "table_with_struct_of_array_of_struct", TestInput.TABLE_WITH_STRUCT_OF_ARRAY_OF_STRUCT);
+    testBoundedTableMap.put(
+        "table_with_array_of_struct_of_array", TestInput.TABLE_WITH_ARRAY_OF_STRUCT_OF_ARRAY);
     testBoundedTableMap.put("table_for_case_when", TestInput.TABLE_FOR_CASE_WHEN);
     testBoundedTableMap.put("aggregate_test_table_two", TestInput.AGGREGATE_TABLE_TWO);
     testBoundedTableMap.put("table_empty", TestInput.TABLE_EMPTY);
@@ -60,6 +71,7 @@ public abstract class ZetaSqlTestBase {
     testBoundedTableMap.put("table_with_date", TestInput.TABLE_WITH_DATE);
     testBoundedTableMap.put("table_with_time", TestInput.TABLE_WITH_TIME);
     testBoundedTableMap.put("table_with_numeric", TestInput.TABLE_WITH_NUMERIC);
+    testBoundedTableMap.put("table_with_datetime", TestInput.TABLE_WITH_DATETIME);
     testBoundedTableMap.put(
         "table_with_struct_ts_string", TestInput.TABLE_WITH_STRUCT_TIMESTAMP_STRING);
     testBoundedTableMap.put("streaming_sql_test_table_a", TestInput.STREAMING_SQL_TABLE_A);
@@ -77,7 +89,7 @@ public abstract class ZetaSqlTestBase {
             .defaultSchema(jdbcConnection.getCurrentSchemaPlus())
             .traitDefs(ImmutableList.of(ConventionTraitDef.INSTANCE))
             .context(Contexts.of(jdbcConnection.config()))
-            .ruleSets(ZetaSQLQueryPlanner.getZetaSqlRuleSets())
+            .ruleSets(ZetaSQLQueryPlanner.getZetaSqlRuleSets().toArray(new RuleSet[0]))
             .costFactory(BeamCostModel.FACTORY)
             .typeSystem(jdbcConnection.getTypeFactory().getTypeSystem())
             .build();

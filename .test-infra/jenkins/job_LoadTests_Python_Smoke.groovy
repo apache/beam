@@ -67,5 +67,5 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     this
     ) {
       def datasetName = loadTestsBuilder.getBigQueryDataset('load_test_SMOKE', CommonTestProperties.TriggeringContext.PR)
-      loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON_37, smokeTestConfigurations(datasetName), "GBK", "smoke")
+      loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, smokeTestConfigurations(datasetName), "GBK", "smoke")
     }

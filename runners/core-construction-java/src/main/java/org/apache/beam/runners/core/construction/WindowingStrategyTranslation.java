@@ -24,11 +24,13 @@ import java.io.Serializable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.MergeStatus;
 import org.apache.beam.model.pipeline.v1.RunnerApi.OutputTime;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.FixedWindowsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.GlobalWindowsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.SessionWindowsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.SlidingWindowsPayload;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -41,10 +43,10 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Durations;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Timestamps;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.util.Timestamps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.joda.time.Duration;
 
@@ -281,10 +283,12 @@ public class WindowingStrategyTranslation implements Serializable {
    */
   public static RunnerApi.WindowingStrategy toProto(
       WindowingStrategy<?, ?> windowingStrategy, SdkComponents components) throws IOException {
-    FunctionSpec windowFnSpec = toProto(windowingStrategy.getWindowFn(), components);
+    WindowFn<?, ?> windowFn = windowingStrategy.getWindowFn();
+
+    FunctionSpec windowFnSpec = toProto(windowFn, components);
     String environmentId =
         Strings.isNullOrEmpty(windowingStrategy.getEnvironmentId())
-            ? components.getOnlyEnvironmentId()
+            ? components.getEnvironmentIdFor(ResourceHints.create())
             : windowingStrategy.getEnvironmentId();
 
     RunnerApi.WindowingStrategy.Builder windowingStrategyProto =
@@ -295,10 +299,15 @@ public class WindowingStrategyTranslation implements Serializable {
             .setAllowedLateness(windowingStrategy.getAllowedLateness().getMillis())
             .setTrigger(TriggerTranslation.toProto(windowingStrategy.getTrigger()))
             .setWindowFn(windowFnSpec)
-            .setAssignsToOneWindow(windowingStrategy.getWindowFn().assignsToOneWindow())
+            .setAssignsToOneWindow(windowFn.assignsToOneWindow())
+            .setMergeStatus(
+                windowFn.isNonMerging()
+                    ? MergeStatus.Enum.NON_MERGING
+                    : (windowingStrategy.isAlreadyMerged()
+                        ? MergeStatus.Enum.ALREADY_MERGED
+                        : MergeStatus.Enum.NEEDS_MERGE))
             .setOnTimeBehavior(toProto(windowingStrategy.getOnTimeBehavior()))
-            .setWindowCoderId(
-                components.registerCoder(windowingStrategy.getWindowFn().windowCoder()))
+            .setWindowCoderId(components.registerCoder(windowFn.windowCoder()))
             .setEnvironmentId(environmentId);
 
     return windowingStrategyProto.build();

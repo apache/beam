@@ -71,6 +71,9 @@ import org.slf4j.LoggerFactory;
  * of a given timer is run.
  */
 @RunWith(Parameterized.class)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// released (2.11.0)
+@SuppressWarnings("unused")
 public class PortableTimersExecutionTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(PortableTimersExecutionTest.class);

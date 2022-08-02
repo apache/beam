@@ -48,7 +48,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap.Builder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /**
@@ -56,12 +55,16 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * Coder} {@link CloudObjectTranslator Cloud Object Translators}.
  */
 @AutoService(CoderCloudObjectTranslatorRegistrar.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class DefaultCoderCloudObjectTranslatorRegistrar
     implements CoderCloudObjectTranslatorRegistrar {
   private static final List<CloudObjectTranslator<? extends Coder>> DEFAULT_TRANSLATORS =
       ImmutableList.of(
           CloudObjectTranslators.globalWindow(),
           CloudObjectTranslators.intervalWindow(),
+          CloudObjectTranslators.customWindow(),
           CloudObjectTranslators.bytes(),
           CloudObjectTranslators.varInt(),
           CloudObjectTranslators.lengthPrefix(),
@@ -71,6 +74,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           new AvroCoderCloudObjectTranslator(),
           new SerializableCoderCloudObjectTranslator(),
           new SchemaCoderCloudObjectTranslator(),
+          new RowCoderCloudObjectTranslator(),
           CloudObjectTranslators.iterableLike(CollectionCoder.class),
           CloudObjectTranslators.iterableLike(ListCoder.class),
           CloudObjectTranslators.iterableLike(SetCoder.class),
@@ -124,7 +128,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
   @Override
   public Map<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>
       classesToTranslators() {
-    Builder<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>> builder =
+    ImmutableMap.Builder<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>> builder =
         ImmutableMap.builder();
     for (CloudObjectTranslator<? extends Coder> defaultTranslator : DEFAULT_TRANSLATORS) {
       builder.put(defaultTranslator.getSupportedClass(), defaultTranslator);

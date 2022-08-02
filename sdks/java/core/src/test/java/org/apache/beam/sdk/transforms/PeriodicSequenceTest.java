@@ -23,6 +23,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesImpulse;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
+import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
+import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -51,6 +53,8 @@ public class PeriodicSequenceTest {
     NeedsRunner.class,
     UsesImpulse.class,
     UsesStatefulParDo.class,
+    UsesUnboundedPCollections.class,
+    UsesUnboundedSplittableParDo.class
   })
   public void testOutputsProperElements() {
     Instant instant = Instant.now();
@@ -59,7 +63,7 @@ public class PeriodicSequenceTest {
     long duration = 500;
     Duration interval = Duration.millis(250);
     long intervalMillis = interval.getMillis();
-    Instant stopTime = startTime.plus(duration);
+    Instant stopTime = startTime.plus(Duration.millis(duration));
 
     PCollection<KV<Instant, Instant>> result =
         p.apply(
@@ -71,7 +75,7 @@ public class PeriodicSequenceTest {
     ArrayList<KV<Instant, Instant>> expectedResults =
         new ArrayList<>((int) (duration / intervalMillis + 1));
     for (long i = 0; i <= duration; i += intervalMillis) {
-      Instant el = startTime.plus(i);
+      Instant el = startTime.plus(Duration.millis(i));
       expectedResults.add(KV.of(el, el));
     }
 

@@ -24,15 +24,50 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.description.field.FieldDescription;
+import net.bytebuddy.description.method.MethodDescription;
+import net.bytebuddy.description.modifier.Visibility;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import net.bytebuddy.description.type.TypeList;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
+import net.bytebuddy.implementation.ExceptionMethod;
+import net.bytebuddy.implementation.FixedValue;
+import net.bytebuddy.implementation.Implementation;
+import net.bytebuddy.implementation.Implementation.Context;
+import net.bytebuddy.implementation.MethodDelegation;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
+import net.bytebuddy.implementation.bytecode.Throw;
+import net.bytebuddy.implementation.bytecode.assign.Assigner;
+import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
+import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
+import net.bytebuddy.implementation.bytecode.constant.TextConstant;
+import net.bytebuddy.implementation.bytecode.member.FieldAccess;
+import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import net.bytebuddy.jar.asm.Label;
+import net.bytebuddy.jar.asm.MethodVisitor;
+import net.bytebuddy.jar.asm.Opcodes;
+import net.bytebuddy.jar.asm.Type;
+import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.GetSize;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
@@ -69,48 +104,19 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.ByteBuddy;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.field.FieldDescription;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.method.MethodDescription;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.modifier.Visibility;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.type.TypeDescription;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.type.TypeList;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.DynamicType;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.ExceptionMethod;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.FixedValue;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.Implementation;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.Implementation.Context;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.MethodDelegation;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.StackManipulation;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.Throw;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.assign.Assigner;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.assign.TypeCasting;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.constant.TextConstant;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.FieldAccess;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.Label;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.MethodVisitor;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.Opcodes;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.Type;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Dynamically generates a {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
+  public static final String SETUP_CONTEXT_PARAMETER_METHOD = "setupContext";
   public static final String START_BUNDLE_CONTEXT_PARAMETER_METHOD = "startBundleContext";
   public static final String FINISH_BUNDLE_CONTEXT_PARAMETER_METHOD = "finishBundleContext";
   public static final String PROCESS_CONTEXT_PARAMETER_METHOD = "processContext";
@@ -162,9 +168,13 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * A cache of constructors of generated {@link DoFnInvoker} classes, keyed by {@link DoFn} class.
    * Needed because generating an invoker class is expensive, and to avoid generating an excessive
    * number of classes consuming PermGen memory.
+   *
+   * <p>Note that special care must be taken to enumerate this object as concurrent hash maps are <a
+   * href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/package-summary.html#Weakly>weakly
+   * consistent</a>.
    */
   private final Map<Class<?>, Constructor<?>> byteBuddyInvokerConstructorCache =
-      new LinkedHashMap<>();
+      new ConcurrentHashMap<>();
 
   private ByteBuddyDoFnInvokerFactory() {}
 
@@ -223,7 +233,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         DoFnInvoker.ArgumentProvider<InputT, OutputT> arguments) {
       @Nullable
       OnTimerInvoker onTimerInvoker =
-          (timerFamilyId.isEmpty())
+          timerFamilyId.isEmpty()
               ? onTimerInvokers.get(timerId)
               : onTimerFamilyInvokers.get(timerFamilyId);
 
@@ -285,19 +295,18 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * <p>These are cached such that at most one {@link DoFnInvoker} class exists for a given {@link
    * DoFn} class.
    */
-  private synchronized Constructor<?> getByteBuddyInvokerConstructor(DoFnSignature signature) {
+  private Constructor<?> getByteBuddyInvokerConstructor(DoFnSignature signature) {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
-    Constructor<?> constructor = byteBuddyInvokerConstructorCache.get(fnClass);
-    if (constructor == null) {
-      Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature);
-      try {
-        constructor = invokerClass.getConstructor(fnClass);
-      } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
-        throw new RuntimeException(e);
-      }
-      byteBuddyInvokerConstructorCache.put(fnClass, constructor);
-    }
-    return constructor;
+    return byteBuddyInvokerConstructorCache.computeIfAbsent(
+        fnClass,
+        clazz -> {
+          Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature);
+          try {
+            return invokerClass.getConstructor(clazz);
+          } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
+            throw new RuntimeException(e);
+          }
+        });
   }
 
   /** Default implementation of {@link DoFn.SplitRestriction}, for delegation by bytebuddy. */
@@ -425,6 +434,14 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         return 1.0;
       }
     }
+
+    public static double validateSize(double size) {
+      if (size < 0) {
+        throw new IllegalArgumentException(
+            String.format("Expected size >= 0 but received %s.", size));
+      }
+      return size;
+    }
   }
 
   /** Generates a {@link DoFnInvoker} class for the given {@link DoFnSignature}. */
@@ -464,7 +481,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             .intercept(
                 delegateMethodWithExtraParametersOrNoop(clazzDescription, signature.finishBundle()))
             .method(ElementMatchers.named("invokeSetup"))
-            .intercept(delegateOrNoop(clazzDescription, signature.setup()))
+            .intercept(delegateMethodWithExtraParametersOrNoop(clazzDescription, signature.setup()))
             .method(ElementMatchers.named("invokeTeardown"))
             .intercept(delegateOrNoop(clazzDescription, signature.teardown()))
             .method(ElementMatchers.named("invokeOnWindowExpiration"))
@@ -595,7 +612,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     if (signature == null) {
       return MethodDelegation.to(DefaultGetSize.class);
     } else {
-      return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);
+      return new GetSizeDelegation(doFnType, signature);
     }
   }
 
@@ -604,14 +621,6 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       TypeDescription doFnType, DoFnSignature.DoFnMethod method) {
     return (method == null)
         ? FixedValue.originType()
-        : new DoFnMethodDelegation(doFnType, method.targetMethod());
-  }
-
-  /** Delegates to the given method if available, or does nothing. */
-  private static Implementation delegateOrThrow(
-      TypeDescription doFnType, DoFnSignature.DoFnMethod method) {
-    return (method == null)
-        ? ExceptionMethod.throwing(UnsupportedOperationException.class)
         : new DoFnMethodDelegation(doFnType, method.targetMethod());
   }
 
@@ -628,14 +637,6 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     return (method == null)
         ? ExceptionMethod.throwing(UnsupportedOperationException.class)
         : new DoFnMethodWithExtraParametersDelegation(doFnType, method);
-  }
-
-  /** Delegates to the given method if available, or throws UnsupportedOperationException. */
-  private static Implementation delegateWithDowncastOrThrow(
-      TypeDescription doFnType, DoFnSignature.DoFnMethod method) {
-    return (method == null)
-        ? ExceptionMethod.throwing(UnsupportedOperationException.class)
-        : new DowncastingParametersMethodDelegation(doFnType, method.targetMethod());
   }
 
   /**
@@ -680,7 +681,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
          * @param instrumentedMethod The {@link DoFnInvoker} method for which we're generating code.
          */
         @Override
-        public Size apply(
+        public ByteCodeAppender.Size apply(
             MethodVisitor methodVisitor,
             Context implementationContext,
             MethodDescription instrumentedMethod) {
@@ -726,7 +727,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                   afterDelegation(instrumentedMethod));
 
           StackManipulation.Size size = manipulation.apply(methodVisitor, implementationContext);
-          return new Size(size.getMaximalSize(), numLocals);
+          return new ByteCodeAppender.Size(size.getMaximalSize(), numLocals);
         }
       };
     }
@@ -857,7 +858,6 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     return parameter.match(
         new Cases<StackManipulation>() {
-
           @Override
           public StackManipulation dispatch(StartBundleContextParameter p) {
             return new StackManipulation.Compound(
@@ -1110,13 +1110,10 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       }
     }
 
-    private final DoFnSignature.ProcessElementMethod signature;
-
     /** Implementation of {@link MethodDelegation} for the {@link ProcessElement} method. */
     private ProcessElementDelegation(
         TypeDescription doFnType, DoFnSignature.ProcessElementMethod signature) {
       super(doFnType, signature);
-      this.signature = signature;
     }
 
     @Override
@@ -1127,6 +1124,35 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       } else {
         return MethodReturn.of(targetMethod.getReturnType().asErasure());
       }
+    }
+  }
+
+  /**
+   * Implements the invoker's {@link DoFnInvoker#invokeGetSize} method by delegating to the {@link
+   * GetSize} method.
+   */
+  private static final class GetSizeDelegation extends DoFnMethodWithExtraParametersDelegation {
+    private static final MethodDescription VALIDATE_SIZE_METHOD;
+
+    static {
+      try {
+        VALIDATE_SIZE_METHOD =
+            new MethodDescription.ForLoadedMethod(
+                DefaultGetSize.class.getMethod("validateSize", double.class));
+      } catch (NoSuchMethodException e) {
+        throw new RuntimeException("Failed to locate DefaultGetSize.validateSize()");
+      }
+    }
+
+    /** Implementation of {@link MethodDelegation} for the {@link GetSize} method. */
+    private GetSizeDelegation(TypeDescription doFnType, DoFnSignature.GetSizeMethod signature) {
+      super(doFnType, signature);
+    }
+
+    @Override
+    protected StackManipulation afterDelegation(MethodDescription instrumentedMethod) {
+      return new StackManipulation.Compound(
+          MethodInvocation.invoke(VALIDATE_SIZE_METHOD), MethodReturn.DOUBLE);
     }
   }
 
@@ -1214,8 +1240,8 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
 
     @Override
-    public Size apply(MethodVisitor mv, Context context) {
-      Size size = new Size(0, 0);
+    public StackManipulation.Size apply(MethodVisitor mv, Context context) {
+      StackManipulation.Size size = new StackManipulation.Size(0, 0);
 
       mv.visitLabel(wrapStart);
 
@@ -1229,7 +1255,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       if (returnVarIndex != null) {
         Type returnType = Type.getReturnType(targetMethod.getDescriptor());
         mv.visitVarInsn(returnType.getOpcode(Opcodes.ISTORE), returnVarIndex);
-        size = size.aggregate(new Size(-1, 0)); // Reduces the size of the stack
+        size = size.aggregate(new StackManipulation.Size(-1, 0)); // Reduces the size of the stack
       }
       mv.visitJumpInsn(Opcodes.GOTO, catchBlockEnd);
       mv.visitLabel(tryBlockEnd);
@@ -1254,7 +1280,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       if (returnVarIndex != null) {
         Type returnType = Type.getReturnType(targetMethod.getDescriptor());
         mv.visitVarInsn(returnType.getOpcode(Opcodes.ILOAD), returnVarIndex);
-        size = size.aggregate(new Size(1, 0)); // Increases the size of the stack
+        size = size.aggregate(new StackManipulation.Size(1, 0)); // Increases the size of the stack
       }
       mv.visitLabel(wrapEnd);
       if (returnVarIndex != null) {

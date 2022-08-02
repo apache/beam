@@ -31,6 +31,9 @@ import org.apache.beam.sdk.transforms.PTransform;
  * Utility methods for translating a {@link GroupByKey} to and from {@link RunnerApi}
  * representations.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class GroupByKeyTranslation {
 
   static class GroupByKeyTranslator implements TransformPayloadTranslator<GroupByKey<?, ?>> {

@@ -32,7 +32,7 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/java/elementwise/partition">Partition</a></td><td>Routes each input element to a specific output collection based on some partition
   function.</td></tr>
   <tr><td><a href="/documentation/transforms/java/elementwise/regex">Regex</a></td><td>Filters input string elements based on a regex. May also transform them based on the matching groups.</td></tr>
-  <tr><td><a href="/documentation/transforms/java/elementwise/reify">Reify</a></td><td>Transforms for converting between explicit and implicit form of various Beam values.</td></tr> 
+  <tr><td><a href="/documentation/transforms/java/elementwise/reify">Reify</a></td><td>Transforms for converting between explicit and implicit form of various Beam values.</td></tr>
   <tr><td><a href="/documentation/transforms/java/elementwise/tostring">ToString</a></td><td>Transforms every element in an input collection to a string.</td></tr>
   <tr><td><a href="/documentation/transforms/java/elementwise/withkeys">WithKeys</a></td><td>Produces a collection containing each element from the input collection converted to a key-value pair, with a key selected by applying a function to the input element.</td></tr>
   <tr><td><a href="/documentation/transforms/java/elementwise/withtimestamps">WithTimestamps</a></td><td>Applies a function to determine a timestamp to each element in the output collection,
@@ -42,22 +42,22 @@ limitations under the License.
 
 
 
-## Aggregation 
+## Aggregation
 <table class="table-bordered table-striped">
   <tr><th>Transform</th><th>Description</th></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/approximatequantiles">ApproximateQuantiles</a></td><td>Uses an approximation algorithm to estimate the data distribution within each aggregation using a specified number of quantiles.</td></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/approximateunique">ApproximateUnique</a></td><td>Uses an approximation algorithm to estimate the number of unique elements within each aggregation.</td></tr>
-  <tr><td><a href="/documentation/transforms/java/aggregation/cogroupbykey/">CoGroupByKey</a></td><td>Similar to <code>GroupByKey</code>, but groups values associated with each key into a batch of a given size</td></tr>  
+  <tr><td><a href="/documentation/transforms/java/aggregation/cogroupbykey/">CoGroupByKey</a></td><td>Similar to <code>GroupByKey</code>, but groups values associated with each key into a batch of a given size</td></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/combine">Combine</a></td><td>Transforms to combine elements according to a provided <code>CombineFn</code>.</td></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/combinewithcontext">CombineWithContext</a></td><td>An extended version of Combine which allows accessing side-inputs and other context.</td></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/count">Count</a></td><td>Counts the number of elements within each aggregation.</td></tr>
-  <tr><td><a href="/documentation/transforms/java/aggregation/distinct">Distinct</a></td><td>Produces a collection containing distinct elements from the input collection.</td></tr>  
-  <tr><td><a href="/documentation/transforms/java/aggregation/groupbykey">GroupByKey</a></td><td>Takes a keyed collection of elements and produces a collection where each element 
+  <tr><td><a href="/documentation/transforms/java/aggregation/distinct">Distinct</a></td><td>Produces a collection containing distinct elements from the input collection.</td></tr>
+  <tr><td><a href="/documentation/transforms/java/aggregation/groupbykey">GroupByKey</a></td><td>Takes a keyed collection of elements and produces a collection where each element
   consists of a key and all values associated with that key.</td></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/groupintobatches">GroupIntoBatches</a></td><td>Batches values associated with keys into <code>Iterable</code> batches of some size. Each batch contains elements associated with a specific key.</td></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/hllcount">HllCount</a></td><td>Estimates the number of distinct elements and creates re-aggregatable sketches using the HyperLogLog++ algorithm.</td></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/latest">Latest</a></td><td>Selects the latest element within each aggregation according to the implicit timestamp.</td></tr>
-  <tr><td><a href="/documentation/transforms/java/aggregation/max">Max</a></td><td>Outputs the maximum element within each aggregation.</td></tr>  
+  <tr><td><a href="/documentation/transforms/java/aggregation/max">Max</a></td><td>Outputs the maximum element within each aggregation.</td></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/mean">Mean</a></td><td>Computes the average within each aggregation.</td></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/min">Min</a></td><td>Outputs the minimum element within each aggregation.</td></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/sample">Sample</a></td><td>Randomly select some number of elements from each aggregation.</td></tr>

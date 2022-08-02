@@ -20,15 +20,18 @@ package org.apache.beam.runners.core;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers;
 import org.apache.beam.sdk.fn.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -56,6 +59,11 @@ import org.joda.time.Instant;
  * DoFn.ProcessElement} call either outputs at least a given number of elements (in total over all
  * outputs), or runs for the given duration.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness",
+  "keyfor"
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
     extends SplittableProcessElementInvoker<
@@ -67,6 +75,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
   private final ScheduledExecutorService executor;
   private final int maxNumOutputs;
   private final Duration maxDuration;
+  private final Supplier<BundleFinalizer> bundleFinalizer;
 
   /**
    * Creates a new invoker from components.
@@ -91,7 +100,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       SideInputReader sideInputReader,
       ScheduledExecutorService executor,
       int maxNumOutputs,
-      Duration maxDuration) {
+      Duration maxDuration,
+      Supplier<BundleFinalizer> bundleFinalizer) {
     this.fn = fn;
     this.pipelineOptions = pipelineOptions;
     this.output = output;
@@ -99,6 +109,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     this.executor = executor;
     this.maxNumOutputs = maxNumOutputs;
     this.maxDuration = maxDuration;
+    this.bundleFinalizer = bundleFinalizer;
   }
 
   @Override
@@ -106,7 +117,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       DoFnInvoker<InputT, OutputT> invoker,
       final WindowedValue<InputT> element,
       final RestrictionTracker<RestrictionT, PositionT> tracker,
-      final WatermarkEstimator<WatermarkEstimatorStateT> watermarkEstimator) {
+      final WatermarkEstimator<WatermarkEstimatorStateT> watermarkEstimator,
+      final Map<String, PCollectionView<?>> sideInputMapping) {
     final ProcessContext processContext = new ProcessContext(element, tracker, watermarkEstimator);
 
     DoFn.ProcessContinuation cont =
@@ -121,6 +133,15 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               public DoFn<InputT, OutputT>.ProcessContext processContext(
                   DoFn<InputT, OutputT> doFn) {
                 return processContext;
+              }
+
+              @Override
+              public Object sideInput(String tagId) {
+                PCollectionView<?> view = sideInputMapping.get(tagId);
+                if (view == null) {
+                  throw new IllegalArgumentException("calling getSideInput() with unknown view");
+                }
+                return processContext.sideInput(view);
               }
 
               @Override
@@ -178,6 +199,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               @Override
               public PipelineOptions pipelineOptions() {
                 return pipelineOptions;
+              }
+
+              @Override
+              public BundleFinalizer bundleFinalizer() {
+                return bundleFinalizer.get();
               }
 
               // Unsupported methods below.

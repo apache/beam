@@ -47,7 +47,7 @@ PCollection<KV<String, Integer>> meanPerKey =
      input.apply(Mean.perKey());
 {{< /highlight >}}
 
-## Related transforms 
+## Related transforms
 * [Max](/documentation/transforms/java/aggregation/max)
   for computing maximum values in a collection
 * [Min](/documentation/transforms/java/aggregation/min)

@@ -20,14 +20,14 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/provision"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -46,17 +46,21 @@ type JobOptions struct {
 
 	// RetainDocker is an option to pass to the runner.
 	RetainDocker bool
+
+	Parallelism int
 }
 
 // Prepare prepares a job to the given job service. It returns the preparation id
 // artifact staging endpoint, and staging token if successful.
 func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pipepb.Pipeline, opt *JobOptions) (id, endpoint, stagingToken string, err error) {
 	hooks.SerializeHooksToOptions()
+	beam.PipelineOptions.LoadOptionsFromFlags(nil)
 	raw := runtime.RawOptionsWrapper{
 		Options:      beam.PipelineOptions.Export(),
 		AppName:      opt.Name,
 		Experiments:  append(opt.Experiments, "beam_fn_api"),
 		RetainDocker: opt.RetainDocker,
+		Parallelism:  opt.Parallelism,
 	}
 
 	options, err := provision.OptionsToProto(raw)
@@ -70,7 +74,7 @@ func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pipepb.Pipel
 	}
 	resp, err := client.Prepare(ctx, req)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "failed to connect to job service: %v")
+		return "", "", "", errors.Wrap(err, "failed to connect to job service")
 	}
 	return resp.GetPreparationId(), resp.GetArtifactStagingEndpoint().GetUrl(), resp.GetStagingSessionToken(), nil
 }

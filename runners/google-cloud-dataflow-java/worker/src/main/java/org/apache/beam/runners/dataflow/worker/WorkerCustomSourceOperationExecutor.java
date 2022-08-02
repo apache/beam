@@ -31,6 +31,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An executor for a source operation, defined by a {@code SourceOperationRequest}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class WorkerCustomSourceOperationExecutor implements SourceOperationExecutor {
   private static final Logger LOG =
       LoggerFactory.getLogger(WorkerCustomSourceOperationExecutor.class);

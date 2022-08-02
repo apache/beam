@@ -22,16 +22,20 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLimitOffsetScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByScan;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollation;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollations;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalSort;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollation;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollations;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalSort;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexDynamicParam;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts LIMIT without ORDER BY. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class LimitOffsetScanToLimitConverter extends RelConverter<ResolvedLimitOffsetScan> {
 
   LimitOffsetScanToLimitConverter(ConversionContext context) {
@@ -64,7 +68,11 @@ class LimitOffsetScanToLimitConverter extends RelConverter<ResolvedLimitOffsetSc
                 input.getRowType().getFieldList(),
                 ImmutableMap.of());
 
-    if (RexLiteral.isNullLiteral(offset) || RexLiteral.isNullLiteral(fetch)) {
+    // offset or fetch being RexDynamicParam means it is NULL (the only param supported currently)
+    if (offset instanceof RexDynamicParam
+        || RexLiteral.isNullLiteral(offset)
+        || fetch instanceof RexDynamicParam
+        || RexLiteral.isNullLiteral(fetch)) {
       throw new UnsupportedOperationException("Limit requires non-null count and offset");
     }
 

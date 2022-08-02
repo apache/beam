@@ -27,7 +27,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
+import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAnalyticFunctions;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -39,18 +41,17 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.AggregateCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Window;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelFieldCollation;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.AggregateCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Window;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /**
@@ -70,6 +71,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  *   <li>Only Aggregate Analytic Functions are available.
  * </ul>
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class BeamWindowRel extends Window implements BeamRelNode {
   public BeamWindowRel(
       RelOptCluster cluster,
@@ -201,7 +206,7 @@ public class BeamWindowRel extends Window implements BeamRelNode {
   }
 
   @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
     NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
     return inputStat;
   }
@@ -213,7 +218,7 @@ public class BeamWindowRel extends Window implements BeamRelNode {
    * this cost computation has no impact in the query execution plan.
    */
   @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
     NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
     float multiplier = 1f + 0.125f;
     return BeamCostModel.FACTORY.makeCost(
@@ -291,10 +296,26 @@ public class BeamWindowRel extends Window implements BeamRelNode {
             aggRange = getRange(indexRange, sortedRowsAsList.get(idx));
           }
           Object accumulator = fieldAgg.combineFn.createAccumulator();
-          final int aggFieldIndex = fieldAgg.inputFields.get(0);
+          // if not inputs are needed, put a mock Field index
+          final int aggFieldIndex =
+              fieldAgg.inputFields.isEmpty() ? -1 : fieldAgg.inputFields.get(0);
+          long count = 0;
           for (Row aggRow : aggRange) {
-            accumulator =
-                fieldAgg.combineFn.addInput(accumulator, aggRow.getBaseValue(aggFieldIndex));
+            if (fieldAgg.combineFn instanceof BeamBuiltinAnalyticFunctions.PositionAwareCombineFn) {
+              BeamBuiltinAnalyticFunctions.PositionAwareCombineFn fn =
+                  (BeamBuiltinAnalyticFunctions.PositionAwareCombineFn) fieldAgg.combineFn;
+              accumulator =
+                  fn.addInput(
+                      accumulator,
+                      getOrderByValue(aggRow),
+                      count,
+                      (long) idx,
+                      (long) sortedRowsAsList.size());
+            } else {
+              accumulator =
+                  fieldAgg.combineFn.addInput(accumulator, aggRow.getBaseValue(aggFieldIndex));
+            }
+            count++;
           }
           Object result = fieldAgg.combineFn.extractOutput(accumulator);
           Row processingRow = sortedRowsAsList.get(idx);

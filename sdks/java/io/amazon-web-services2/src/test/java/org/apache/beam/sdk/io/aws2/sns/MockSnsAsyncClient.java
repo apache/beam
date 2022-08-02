@@ -36,11 +36,14 @@ final class MockSnsAsyncClient extends MockSnsAsyncBaseClient {
 
   @Override
   public CompletableFuture<PublishResponse> publish(PublishRequest publishRequest) {
-    SdkHttpResponse sdkHttpResponse = SdkHttpResponse.builder().statusCode(statusCode).build();
-    PublishResponse.Builder builder = PublishResponse.builder();
-    builder.messageId(UUID.randomUUID().toString());
-    builder.sdkHttpResponse(sdkHttpResponse).build();
-    PublishResponse response = builder.build();
-    return CompletableFuture.completedFuture(response);
+    return CompletableFuture.supplyAsync(
+        () -> {
+          SdkHttpResponse sdkHttpResponse =
+              SdkHttpResponse.builder().statusCode(statusCode).build();
+          PublishResponse.Builder builder = PublishResponse.builder();
+          builder.messageId(UUID.randomUUID().toString());
+          builder.sdkHttpResponse(sdkHttpResponse).build();
+          return builder.build();
+        });
   }
 }

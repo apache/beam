@@ -30,6 +30,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Creates a {@link NativeReader} from a Dataflow API source definition, presented as a {@link
  * CloudObject}.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public interface ReaderFactory {
 
   /**

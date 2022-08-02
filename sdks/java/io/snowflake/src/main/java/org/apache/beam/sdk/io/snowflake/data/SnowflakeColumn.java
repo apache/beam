@@ -20,6 +20,9 @@ package org.apache.beam.sdk.io.snowflake.data;
 import java.io.Serializable;
 
 /** POJO describing single Column within Snowflake Table. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SnowflakeColumn implements Serializable {
   private SnowflakeDataType dataType;
   private String name;

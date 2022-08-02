@@ -120,7 +120,7 @@ per key aggregation by a stream processing engine fundamentally involves state
 and timers.
 
 However, _your_ code is just a declarative expression of the aggregation
-operator.  The runner can choose a variety of ways to execute your operator. 
+operator.  The runner can choose a variety of ways to execute your operator.
 I went over this in detail in [my prior post focused on state alone](/blog/2017/02/13/stateful-processing.html). Since you do not
 observe elements in any defined order, nor manipulate mutable state or timers
 directly, I call this neither stateful nor timely processing.
@@ -193,7 +193,7 @@ new DoFn<Event, EnrichedEvent>() {
   @StateId("count")
   private final StateSpec<ValueState<Integer>> countState = StateSpecs.value();
 
-  … TBD … 
+  … TBD …
 }
 {{< /highlight >}}
 
@@ -248,7 +248,7 @@ new DoFn<Event, EnrichedEvent>() {
     }
   }
 
-  … TBD … 
+  … TBD …
 }
 {{< /highlight >}}
 
@@ -307,7 +307,7 @@ some point in event time when any further input for the window is considered
 too late and is discarded. At this point, we say that the window has "expired".
 Since no further input can arrive to access the state for that window, the
 state is also discarded. For our example, we need to ensure that all leftover
-events are output when the window expires. 
+events are output when the window expires.
 
 ### Event Time Timers
 
@@ -429,9 +429,9 @@ is intuitively simple: you want to wait a certain amount of time and then
 receive a call back.
 
 To put the finishing touches on our example, we will set a processing time
-timer as soon as any data is buffered. We track whether or not the timer has
-been set so we don't continually reset it. When an element arrives, if the
-timer has not been set, then we set it for the current moment plus
+timer as soon as any data is buffered. Note that we set the timer only when
+the current buffer is empty, so that we don't continually reset the timer.
+When the first element arrives, we set the timer for the current moment plus
 `MAX_BUFFER_DURATION`. After the allotted processing time has passed, a
 callback will fire and enrich and emit any buffered elements.
 
@@ -453,7 +453,6 @@ new DoFn<Event, EnrichedEvent>() {
       @TimerId("stale") Timer staleTimer,
       @TimerId("expiry") Timer expiryTimer) {
 
-    boolean staleTimerSet = firstNonNull(staleSetState.read(), false);
     if (firstNonNull(countState.read(), 0) == 0) {
       staleTimer.offset(MAX_BUFFER_DURATION).setRelative();
     }
@@ -526,7 +525,7 @@ Recapping the entirety of the logic:
  - As events arrive at `@ProcessElement` they are buffered in state.
  - If the size of the buffer exceeds a maximum, the events are enriched and output.
  - If the buffer fills too slowly and the events get stale before the maximum is reached,
-   a timer causes a callback which enriches the buffered events and outputs. 
+   a timer causes a callback which enriches the buffered events and outputs.
  - Finally, as any window is expiring, any events buffered in that window are
    processed and output prior to the state for that window being discarded.
 
@@ -549,7 +548,7 @@ similar features before outside of Beam.
 
 ### Event Time Windowing "Just Works"
 
-One of the raisons d'etre for Beam is correct processing of out-of-order event
+One of the raisons d'être for Beam is correct processing of out-of-order event
 data, which is almost all event data. Beam's solution to out-of-order data is
 event time windowing, where windows in event time yield correct results no
 matter what windowing a user chooses or what order the events come in.

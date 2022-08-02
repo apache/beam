@@ -19,11 +19,12 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import java.nio.ByteBuffer;
 import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 /**
@@ -32,23 +33,25 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
  * comparisons/hashing happen on the encoded form.
  */
 public class WorkItemKeySelector<K, V>
-    implements KeySelector<WindowedValue<SingletonKeyedWorkItem<K, V>>, ByteBuffer>,
+    implements KeySelector<WindowedValue<KeyedWorkItem<K, V>>, ByteBuffer>,
         ResultTypeQueryable<ByteBuffer> {
 
   private final Coder<K> keyCoder;
+  private final SerializablePipelineOptions pipelineOptions;
 
-  public WorkItemKeySelector(Coder<K> keyCoder) {
+  public WorkItemKeySelector(Coder<K> keyCoder, SerializablePipelineOptions pipelineOptions) {
     this.keyCoder = keyCoder;
+    this.pipelineOptions = pipelineOptions;
   }
 
   @Override
-  public ByteBuffer getKey(WindowedValue<SingletonKeyedWorkItem<K, V>> value) throws Exception {
+  public ByteBuffer getKey(WindowedValue<KeyedWorkItem<K, V>> value) throws Exception {
     K key = value.getValue().key();
     return FlinkKeyUtils.encodeKey(key, keyCoder);
   }
 
   @Override
   public TypeInformation<ByteBuffer> getProducedType() {
-    return new GenericTypeInfo<>(ByteBuffer.class);
+    return new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of(), pipelineOptions.get());
   }
 }

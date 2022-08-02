@@ -30,6 +30,9 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for representing input-specific objects using Dataflow model protos. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SourceTranslationUtils {
   public static NativeReader.Progress cloudProgressToReaderProgress(
       @Nullable ApproximateReportedProgress cloudProgress) {

@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 
@@ -29,6 +30,10 @@ import org.apache.beam.sdk.values.PValue;
  * This class generates an ID for each {@link PValue} during a topological traversal of the BEAM
  * {@link Pipeline}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class PViewToIdMapper extends Pipeline.PipelineVisitor.Defaults {
   private final Map<PValue, String> idMap = new HashMap<>();
   private int nextId;
@@ -43,7 +48,7 @@ public class PViewToIdMapper extends Pipeline.PipelineVisitor.Defaults {
 
   @Override
   public void visitValue(PValue value, TransformHierarchy.Node producer) {
-    final String valueDesc = value.toString().replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1");
+    final String valueDesc = pValueToString(value).replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1");
 
     final String samzaSafeValueDesc = valueDesc.replaceAll("[^A-Za-z0-9_-]", "_");
 
@@ -60,5 +65,19 @@ public class PViewToIdMapper extends Pipeline.PipelineVisitor.Defaults {
 
   public Map<PValue, String> getIdMap() {
     return Collections.unmodifiableMap(idMap);
+  }
+
+  /**
+   * This method is created to replace the {@link org.apache.beam.sdk.values.PValueBase#toString()}
+   * with the old implementation that doesn't contain the hashcode.
+   */
+  private static String pValueToString(PValue value) {
+    String name;
+    try {
+      name = value.getName();
+    } catch (IllegalStateException e) {
+      name = "<unnamed>";
+    }
+    return name + " [" + NameUtils.approximateSimpleName(value.getClass()) + "]";
   }
 }

@@ -20,7 +20,7 @@
 Code: beam/sdks/python/apache_beam/examples/complete/game/leader_board.py
 Usage:
 
-  python setup.py nosetests --test-pipeline-options=" \
+    pytest --test-pipeline-options=" \
       --runner=TestDataflowRunner \
       --project=... \
       --region=... \
@@ -33,16 +33,13 @@ Usage:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import time
 import unittest
 import uuid
-from builtins import range
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples.complete.game import leader_board
 from apache_beam.io.gcp.tests import utils
@@ -79,13 +76,14 @@ class LeaderBoardIT(unittest.TestCase):
 
     self.pub_client = pubsub.PublisherClient()
     self.input_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, self.INPUT_TOPIC + _unique_id))
+        name=self.pub_client.topic_path(
+            self.project, self.INPUT_TOPIC + _unique_id))
 
     self.sub_client = pubsub.SubscriberClient()
     self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(
+        name=self.sub_client.subscription_path(
             self.project, self.INPUT_SUB + _unique_id),
-        self.input_topic.name)
+        topic=self.input_topic.name)
 
     # Set up BigQuery environment
     self.dataset_ref = utils.create_bq_dataset(
@@ -107,7 +105,13 @@ class LeaderBoardIT(unittest.TestCase):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
     test_utils.cleanup_topics(self.pub_client, [self.input_topic])
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
+  @pytest.mark.examples_postcommit
+  # TODO(https://github.com/apache/beam/issues/21300) This example only works
+  # in Dataflow, remove mark to enable for other runners when fixed
+  @pytest.mark.sickbay_direct
+  @pytest.mark.sickbay_spark
+  @pytest.mark.sickbay_flink
   def test_leader_board_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
 
@@ -133,6 +137,7 @@ class LeaderBoardIT(unittest.TestCase):
         self.project, teams_query, self.DEFAULT_EXPECTED_CHECKSUM)
 
     extra_opts = {
+        'allow_unsafe_triggers': True,
         'subscription': self.input_sub.name,
         'dataset': self.dataset_ref.dataset_id,
         'topic': self.input_topic.name,

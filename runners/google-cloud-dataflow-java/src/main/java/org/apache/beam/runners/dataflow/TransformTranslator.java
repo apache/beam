@@ -38,6 +38,9 @@ import org.apache.beam.sdk.values.TupleTag;
  * A {@link TransformTranslator} knows how to translate a particular subclass of {@link PTransform}
  * for the Cloud Dataflow service. It does so by mutating the {@link TranslationContext}.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public interface TransformTranslator<TransformT extends PTransform> {
   void translate(TransformT transform, TranslationContext context);
 
@@ -46,11 +49,6 @@ public interface TransformTranslator<TransformT extends PTransform> {
    * including reading and writing the values of {@link PCollection}s and side inputs.
    */
   interface TranslationContext {
-    default boolean isFnApi() {
-      List<String> experiments = getPipelineOptions().getExperiments();
-      return experiments != null && experiments.contains("beam_fn_api");
-    }
-
     default boolean isStreamingEngine() {
       List<String> experiments = getPipelineOptions().getExperiments();
       return experiments != null
@@ -62,12 +60,14 @@ public interface TransformTranslator<TransformT extends PTransform> {
     DataflowPipelineOptions getPipelineOptions();
 
     /** Returns the input of the currently being translated transform. */
-    <InputT extends PInput> Map<TupleTag<?>, PValue> getInputs(PTransform<InputT, ?> transform);
+    <InputT extends PInput> Map<TupleTag<?>, PCollection<?>> getInputs(
+        PTransform<InputT, ?> transform);
 
     <InputT extends PValue> InputT getInput(PTransform<InputT, ?> transform);
 
     /** Returns the output of the currently being translated transform. */
-    <OutputT extends POutput> Map<TupleTag<?>, PValue> getOutputs(PTransform<?, OutputT> transform);
+    <OutputT extends POutput> Map<TupleTag<?>, PCollection<?>> getOutputs(
+        PTransform<?, OutputT> transform);
 
     <OutputT extends PValue> OutputT getOutput(PTransform<?, OutputT> transform);
 

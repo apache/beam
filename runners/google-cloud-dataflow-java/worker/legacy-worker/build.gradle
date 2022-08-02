@@ -45,15 +45,14 @@ def getWorkerRelocatedPath = { String suffix ->
 def sdk_provided_dependencies = [
         google_api_services_dataflow,
         library.java.avro,
-        library.java.google_api_client,
         library.java.google_http_client,
-        library.java.google_http_client_jackson,
+        library.java.google_http_client_gson,
         library.java.jackson_annotations,
         library.java.jackson_core,
         library.java.jackson_databind,
         library.java.joda_time,
         library.java.slf4j_api,
-        library.java.vendored_grpc_1_26_0,
+        library.java.vendored_grpc_1_43_2,
 ]
 
 def sdk_provided_shaded_project_dependencies = [
@@ -72,11 +71,9 @@ def excluded_dependencies = [
         "com.google.auto.value:auto-value",          // Provided scope added from applyJavaNature
         "org.codehaus.jackson:jackson-core-asl",     // Exclude an old version of jackson-core-asl introduced by google-http-client-jackson
         "org.objenesis:objenesis",                   // Transitive dependency introduced from Beam
-        "org.tukaani:xz",                            // Transitive dependency introduced from Beam
         library.java.commons_compress,               // Transitive dependency introduced from Beam
         library.java.error_prone_annotations,        // Provided scope added in worker
-        library.java.hamcrest_core,                  // Test only
-        library.java.hamcrest_library,               // Test only
+        library.java.hamcrest,                       // Test only
         library.java.junit,                          // Test only
         library.java.jsonassert                      // Test only
 ]
@@ -84,16 +81,17 @@ def excluded_dependencies = [
 applyJavaNature(
         archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
         publish: false,
-        enableChecker:false,
+        classesTriggerCheckerBugs: [
+          'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
+          'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
+        ],
         exportJavadoc: false,
         enableSpotbugs: false /* TODO(BEAM-5658): enable spotbugs */,
         shadowJarValidationExcludes: [
             "org/apache/beam/runners/dataflow/worker/**",
             "org/apache/beam/repackaged/beam_runners_google_cloud_dataflow_java_legacy_worker/**",
-            // TODO(BEAM-6137): Move DataflowRunnerHarness class under org.apache.beam.runners.dataflow.worker namespace
+            // TODO(https://github.com/apache/beam/issues/19114): Move DataflowRunnerHarness class under org.apache.beam.runners.dataflow.worker namespace
             "com/google/cloud/dataflow/worker/DataflowRunnerHarness.class",
-            // TODO(BEAM-6136): Enable relocation for conscrypt
-            "org/conscrypt/**",
             // Allow slf4j implementation worker for logging during pipeline execution
             "org/slf4j/impl/**"
         ],
@@ -136,11 +134,6 @@ applyJavaNature(
     }
     relocate("org.apache.beam.sdk.fn", getWorkerRelocatedPath("org.apache.beam.sdk.fn"))
     relocate("org.apache.beam.repackaged.beam_sdks_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_sdks_java_fn_execution"))
-
-    // TODO(BEAM-6136): Enable relocation for conscrypt
-    dependencies {
-        include(dependency("org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"))
-    }
 
     dependencies {
         // We have to include jetty-server/jetty-servlet and all of its transitive dependencies
@@ -190,42 +183,64 @@ compileTestJava {
 }
 
 dependencies {
+    implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+
     // Note that any dependency that is modified here should also be modified within
     // runners/google-cloud-dataflow-java/worker/build.gradle using the rules provided
     // there.
     sdk_provided_dependencies.each {
         provided(it)
+        testImplementation(it)
     }
     sdk_provided_shaded_project_dependencies.each {
         provided project(path: it, configuration: "shadow")
     }
     sdk_provided_project_dependencies.each {
-        provided project(it)
+        provided project(path: it)
+        testImplementation project(path: it)
     }
 
-    compile project(path: ":model:fn-execution", configuration: "shadow")
-    compile project(":runners:core-construction-java")
-    compile project(":runners:core-java")
-    compile project(":runners:java-fn-execution")
-    compile project(":sdks:java:fn-execution")
-    compile project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
+    implementation project(path: ":model:fn-execution", configuration: "shadow")
+    implementation project(path: ":model:pipeline", configuration: "shadow")
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(":runners:core-construction-java")
+    implementation project(":runners:core-java")
+    implementation project(":runners:java-fn-execution")
+    implementation project(":sdks:java:fn-execution")
+    implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
     shadow library.java.vendored_guava_26_0_jre
-    compile "org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"
-    compile "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
-    compile "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
-    provided library.java.error_prone_annotations
-    runtime library.java.slf4j_jdk14
+
+    implementation library.java.google_auth_library_credentials
+    implementation library.java.proto_google_common_protos
+
+    // Conscrypt shouldn't be included here because Conscrypt won't work when being shaded.
+    // (Context: https://github.com/apache/beam/pull/13846)
+    // Conscrypt will be added to runtime dependencies by GrpcVendoring so compileOnly works for now.
+    compileOnly "org.conscrypt:conscrypt-openjdk-uber:2.5.1"
+
+    implementation "javax.servlet:javax.servlet-api:3.1.0"
+    implementation "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
+    implementation "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
+    implementation library.java.avro
+    implementation library.java.jackson_annotations
+    implementation library.java.jackson_core
+    implementation library.java.jackson_databind
+    implementation library.java.joda_time
+    implementation library.java.slf4j_api
+    implementation "io.opencensus:opencensus-api:0.31.0"
+    implementation library.java.vendored_grpc_1_43_2
+    implementation library.java.error_prone_annotations
+    permitUnusedDeclared library.java.error_prone_annotations
+    runtimeOnly library.java.slf4j_jdk14
 
     // Any test dependency which intersects with our relocation rules above needs to be relocated
-    // as well and placed within the testCompile configuration. Otherwise we can place it within
+    // as well and placed within the testImplementation configuration. Otherwise we can place it within
     // the shadowTest configuration.
-    testCompile project(path: ":runners:core-java", configuration: "testRuntime")
-    shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+    testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+    shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
     shadowTest project(path: ":runners:direct-java", configuration: "shadow")
     shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
     shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-    shadowTest library.java.hamcrest_core
-    shadowTest library.java.hamcrest_library
     shadowTest library.java.jsonassert
     shadowTest library.java.junit
     shadowTest library.java.mockito_core
@@ -233,7 +248,9 @@ dependencies {
 
 project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
     ext.outFile = project.file("${project.reportsDir}/${name}.out")
-    inputs.files project.configurations.shadow.artifacts.files
+    inputs.files(project.configurations.shadow.artifacts.files)
+        .withPropertyName("shadowArtifactsFiles")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.files outFile
     doLast {
         project.configurations.shadow.artifacts.files.each {
@@ -250,8 +267,8 @@ project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
 
 tasks.check.dependsOn project.tasks.validateShadedJarContainsSlf4jJdk14
 
-//TODO(BEAM-5657): checktyle task should be enabled in the future.
+//TODO(https://github.com/apache/beam/issues/19115): checktyle task should be enabled in the future.
 checkstyleMain.enabled = false
 checkstyleTest.enabled = false
-//TODO(BEAM-5659): javadoc task should be enabled in the future.
+//TODO(https://github.com/apache/beam/issues/19119): javadoc task should be enabled in the future.
 javadoc.enabled = false

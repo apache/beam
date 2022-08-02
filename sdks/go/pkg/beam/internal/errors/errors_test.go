@@ -57,6 +57,9 @@ func TestWrap(t *testing.T) {
 		}, {
 			err:  Wrap(Wrap(New(base), msg1), msg2),
 			want: errorStructure{{ERROR, msg2}, {ERROR, msg1}, {ERROR, base}},
+		}, {
+			err:  Wrap(nil, msg1),
+			want: nil,
 		},
 	}
 	for _, test := range tests {
@@ -76,6 +79,13 @@ func TestWrapf(t *testing.T) {
 	}
 }
 
+func TestWrapf_NilErr(t *testing.T) {
+	err := Wrapf(nil, "%s %d", "ten", 10)
+	if err != nil {
+		t.Errorf(`Wrapf(nil, "%%s %%d", "ten", 10). Want: nil, Got: %q`, err)
+	}
+}
+
 func TestContext(t *testing.T) {
 	tests := []struct {
 		err  error
@@ -90,6 +100,9 @@ func TestContext(t *testing.T) {
 		}, {
 			err:  Wrap(WithContext(WithContext(Wrap(New(base), msg1), ctx1), ctx2), msg2),
 			want: errorStructure{{ERROR, msg2}, {CONTEXT, ctx2}, {CONTEXT, ctx1}, {ERROR, msg1}, {ERROR, base}},
+		}, {
+			err:  WithContext(nil, ctx1),
+			want: nil,
 		},
 	}
 	for _, test := range tests {
@@ -97,6 +110,13 @@ func TestContext(t *testing.T) {
 		if !equalStructure(got, test.want) {
 			t.Errorf("Incorrect structure. Want: %+v, Got: %+v", test.want, got)
 		}
+	}
+}
+
+func TestWithContextf_NilErr(t *testing.T) {
+	err := WithContextf(nil, "%s %d", "ten", 10)
+	if err != nil {
+		t.Errorf(`WithContextf(nil, "%%s %%d", "ten", 10). Want: nil, Got: %q`, err)
 	}
 }
 
@@ -129,6 +149,9 @@ func TestTopLevelMsg(t *testing.T) {
 		}, {
 			err:  Wrap(SetTopLevelMsg(WithContext(SetTopLevelMsg(New(base), top1), ctx1), top2), msg1),
 			want: top2,
+		}, {
+			err:  SetTopLevelMsg(nil, top1),
+			want: "",
 		},
 	}
 	for _, test := range tests {
@@ -147,10 +170,51 @@ func TestSetTopLevelMsgf(t *testing.T) {
 	}
 }
 
+func TestSetTopLevelMsgf_NilErr(t *testing.T) {
+	want := ""
+	err := SetTopLevelMsgf(nil, "%s %d", "ten", 10)
+	if getTop(err) != want {
+		t.Errorf("Incorrect formatting. Want: %q, Got: %q", want, getTop(err))
+	}
+}
+
+func TestError(t *testing.T) {
+	tests := []struct {
+		err  error
+		want string
+	}{
+		{
+			err:  Wrap(New(base), msg1),
+			want: "message 1\n\tcaused by:\nbase",
+		},
+		{
+			err:  SetTopLevelMsg(New(base), top1),
+			want: "top level message 1\nFull error:\nbase",
+		},
+		{
+			err:  SetTopLevelMsg(Wrap(Wrap(New(base), msg1), msg2), top1),
+			want: "top level message 1\nFull error:\nmessage 2\n\tcaused by:\nmessage 1\n\tcaused by:\nbase",
+		},
+	}
+
+	for _, test := range tests {
+		if be, ok := test.err.(*beamError); ok {
+			if got, want := be.Error(), test.want; got != want {
+				t.Errorf("Incorrect formatting. Want: %q, Got: %q", want, got)
+			}
+		} else {
+			t.Errorf("Error should be type *beamError, got: %q", test.err)
+		}
+	}
+}
+
 // getStructure extracts the structure of an error, outputting a slice that
 // represents the nested messages in that error in the order they are output
 // and with the type of message (context or error) described.
 func getStructure(e error) errorStructure {
+	if e == nil {
+		return nil
+	}
 	var structure errorStructure
 
 	for {
@@ -175,6 +239,10 @@ func getStructure(e error) errorStructure {
 }
 
 func equalStructure(left errorStructure, right errorStructure) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+
 	if len(left) != len(right) {
 		return false
 	}

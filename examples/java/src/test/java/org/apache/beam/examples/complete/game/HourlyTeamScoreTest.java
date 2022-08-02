@@ -47,6 +47,9 @@ import org.junit.runners.JUnit4;
  * ideas: https://beam.apache.org/documentation/pipelines/test-your-pipeline/
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class HourlyTeamScoreTest implements Serializable {
 
   static final String[] GAME_EVENTS_ARRAY =

@@ -23,8 +23,8 @@ The Beam SDKs provide language-specific ways to simplify how you provide your Do
 
 FlatMap can be used to simplify DoFn that maps an element to multiple elements (one to many).
 
-**Kata:** Implement a function that maps each input sentence into words tokenized by 
-whitespace (" ") using 
+**Kata:** Implement a function that maps each input sentence into words tokenized by
+whitespace (" ") using
 [FlatMap](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlatMap).
 
 <div class="hint">

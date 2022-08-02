@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.calcite.v1_28_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,8 +39,8 @@ public class TestUtils {
   /** A {@code DoFn} to convert a {@code BeamSqlRow} to a comparable {@code String}. */
   public static class BeamSqlRow2StringDoFn extends DoFn<Row, String> {
     @ProcessElement
-    public void processElement(ProcessContext ctx) {
-      ctx.output(ctx.element().toString());
+    public void processElement(@Element Row row, OutputReceiver<String> o) {
+      o.output(row.toString(false));
     }
   }
 
@@ -48,7 +48,7 @@ public class TestUtils {
   public static List<String> beamSqlRows2Strings(List<Row> rows) {
     List<String> strs = new ArrayList<>();
     for (Row row : rows) {
-      strs.add(row.toString());
+      strs.add(row.toString(false));
     }
 
     return strs;

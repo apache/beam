@@ -44,6 +44,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>Return {@link CompletableFuture} only to the <i>producer</i> of a future value.
  * </ul>
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class MoreFutures {
 
   /**

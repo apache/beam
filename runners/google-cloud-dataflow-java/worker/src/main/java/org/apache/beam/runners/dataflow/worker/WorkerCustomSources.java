@@ -47,6 +47,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -60,7 +61,7 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.ValueWithRecordId;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -77,6 +78,10 @@ import org.slf4j.LoggerFactory;
  * <p>Provides a bridge between the high-level {@code Source} API and the low-level {@code
  * CloudSource} class.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class WorkerCustomSources {
   private static final String SERIALIZED_SOURCE = "serialized_source";
   @VisibleForTesting static final String SERIALIZED_SOURCE_SPLITS = "serialized_source_splits";
@@ -431,7 +436,7 @@ public class WorkerCustomSources {
 
       context.setActiveReader(reader);
 
-      return new UnboundedReaderIterator<>(reader, context, started);
+      return new UnboundedReaderIterator<>(reader, context, started, options);
     }
 
     @Override
@@ -632,9 +637,8 @@ public class WorkerCustomSources {
       reader.close();
     }
 
-    @Nullable
     @VisibleForTesting
-    static ReportedParallelism longToParallelism(long value) {
+    static @Nullable ReportedParallelism longToParallelism(long value) {
       if (value >= 0) {
         return new ReportedParallelism().setValue(Double.valueOf(value));
       } else {
@@ -751,34 +755,34 @@ public class WorkerCustomSources {
     }
   }
 
-  // Commit at least once every 10 seconds or 10k records.  This keeps the watermark advancing
-  // smoothly, and ensures that not too much work will have to be reprocessed in the event of
-  // a crash.
-  @VisibleForTesting static int maxUnboundedBundleSize = 10000;
-
-  @VisibleForTesting
-  static final Duration MAX_UNBOUNDED_BUNDLE_READ_TIME = Duration.standardSeconds(10);
-  // Backoff starting at 100ms, for approximately 1s total. 100+150+225+337.5~=1000.
-  private static final FluentBackoff BACKOFF_FACTORY =
-      FluentBackoff.DEFAULT.withMaxRetries(4).withInitialBackoff(Duration.millis(100));
-
   private static class UnboundedReaderIterator<T>
       extends NativeReader.NativeReaderIterator<WindowedValue<ValueWithRecordId<T>>> {
     private final UnboundedSource.UnboundedReader<T> reader;
     private final StreamingModeExecutionContext context;
     private final boolean started;
     private final Instant endTime;
-    private int elemsRead;
+    private final int maxElems;
+    private final FluentBackoff backoffFactory;
+    private int elemsRead = 0;
 
     private UnboundedReaderIterator(
         UnboundedSource.UnboundedReader<T> reader,
         StreamingModeExecutionContext context,
-        boolean started) {
+        boolean started,
+        PipelineOptions options) {
       this.reader = reader;
       this.context = context;
-      this.endTime = Instant.now().plus(MAX_UNBOUNDED_BUNDLE_READ_TIME);
-      this.elemsRead = 0;
       this.started = started;
+      DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
+      this.endTime =
+          Instant.now()
+              .plus(Duration.standardSeconds(debugOptions.getUnboundedReaderMaxReadTimeSec()));
+      this.maxElems = debugOptions.getUnboundedReaderMaxElements();
+      this.backoffFactory =
+          FluentBackoff.DEFAULT
+              .withInitialBackoff(Duration.millis(10))
+              .withMaxCumulativeBackoff(
+                  Duration.millis(debugOptions.getUnboundedReaderMaxWaitForElementsMs()));
     }
 
     @Override
@@ -803,14 +807,16 @@ public class WorkerCustomSources {
 
     @Override
     public boolean advance() throws IOException {
-      if (elemsRead >= maxUnboundedBundleSize
-          || Instant.now().isAfter(endTime)
-          || context.isSinkFullHintSet()) {
-        return false;
-      }
-
-      BackOff backoff = BACKOFF_FACTORY.backoff();
+      // Limits are placed on how much data we allow to return, how long we process the input
+      // before checkpointing and how long we block for input to be available.  This ensures
+      // that there are regular checkpoints and that state does not become too large.
+      BackOff backoff = backoffFactory.backoff();
       while (true) {
+        if (elemsRead >= maxElems
+            || Instant.now().isAfter(endTime)
+            || context.isSinkFullHintSet()) {
+          return false;
+        }
         try {
           if (reader.advance()) {
             elemsRead++;

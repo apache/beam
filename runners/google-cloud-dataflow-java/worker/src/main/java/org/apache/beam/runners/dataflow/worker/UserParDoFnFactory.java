@@ -46,6 +46,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A {@link ParDoFnFactory} to create instances of user {@link GroupAlsoByWindowFn} according to
  * specifications from the Dataflow service.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class UserParDoFnFactory implements ParDoFnFactory {
   static UserParDoFnFactory createDefault() {
     return new UserParDoFnFactory(new UserDoFnExtractor(), SimpleDoFnRunnerFactory.INSTANCE);
@@ -90,7 +94,8 @@ class UserParDoFnFactory implements ParDoFnFactory {
     DoFnInstanceManager instanceManager =
         fnCache.get(
             operationContext.nameContext().systemName(),
-            () -> DoFnInstanceManagers.cloningPool(doFnExtractor.getDoFnInfo(cloudUserFn)));
+            () ->
+                DoFnInstanceManagers.cloningPool(doFnExtractor.getDoFnInfo(cloudUserFn), options));
 
     DoFnInfo<?, ?> doFnInfo = instanceManager.peek();
 

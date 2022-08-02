@@ -21,10 +21,10 @@ FlatMapElements
 
 The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.
 
-FlatMapElements can be used to simplify a DoFn that maps an element to multiple elements (one to 
+FlatMapElements can be used to simplify a DoFn that maps an element to multiple elements (one to
 many).
 
-**Kata:** Implement a function that maps each input sentence into words tokenized by whitespace 
+**Kata:** Implement a function that maps each input sentence into words tokenized by whitespace
 (" ") using [FlatMapElements.into(...).via(...)](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/FlatMapElements.html).
 
 <div class="hint">

@@ -34,6 +34,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Translation context used to lazily store Spark data sets during portable pipeline translation and
  * compute them after translation.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SparkTranslationContext {
   private final JavaSparkContext jsc;
   final JobInfo jobInfo;
@@ -53,6 +57,10 @@ public class SparkTranslationContext {
 
   public JavaSparkContext getSparkContext() {
     return jsc;
+  }
+
+  public SerializablePipelineOptions getSerializableOptions() {
+    return serializablePipelineOptions;
   }
 
   /** Add output of transform to context. */

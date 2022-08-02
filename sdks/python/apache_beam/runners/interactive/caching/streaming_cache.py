@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import os
 import shutil
@@ -26,26 +24,23 @@ import tempfile
 import time
 import traceback
 from collections import OrderedDict
+# We don't have an explicit pathlib dependency because this code only works with
+# the interactive target installed which has an indirect dependency on pathlib
+# through ipython>=5.9.0.
+from pathlib import Path
 
 from google.protobuf.message import DecodeError
 
 import apache_beam as beam
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam import coders
+from apache_beam.portability.api import beam_interactive_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive.cache_manager import CacheManager
 from apache_beam.runners.interactive.cache_manager import SafeFastPrimitivesCoder
+from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.testing.test_stream import OutputFormat
 from apache_beam.testing.test_stream import ReverseTestStream
 from apache_beam.utils import timestamp
-
-# We don't have an explicit pathlib dependency because this code only works with
-# the interactive target installed which has an indirect dependency on pathlib
-# and pathlib2 through ipython>=5.9.0.
-try:
-  from pathlib import Path
-except ImportError:
-  from pathlib2 import Path  # python 2 backport
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,9 +58,9 @@ class StreamingCacheSink(beam.PTransform):
   transforms are writing to the same file. This PTransform is assumed to only
   run correctly with the DirectRunner.
 
-  TODO(BEAM-9447): Generalize this to more source/sink types aside from file
-  based. Also, generalize to cases where there might be multiple workers
-  writing to the same sink.
+  TODO(https://github.com/apache/beam/issues/20002): Generalize this to more
+  source/sink types aside from file based. Also, generalize to cases where
+  there might be multiple workers writing to the same sink.
   """
   def __init__(
       self,
@@ -148,20 +143,18 @@ class StreamingCacheSource:
   This class is used to read from file and send its to the TestStream via the
   StreamingCacheManager.Reader.
   """
-  def __init__(
-      self,
-      cache_dir,
-      labels,
-      is_cache_complete=None,
-      coder=SafeFastPrimitivesCoder()):
+  def __init__(self, cache_dir, labels, is_cache_complete=None, coder=None):
+    if not coder:
+      coder = SafeFastPrimitivesCoder()
+
+    if not is_cache_complete:
+      is_cache_complete = lambda _: True
+
     self._cache_dir = cache_dir
     self._coder = coder
     self._labels = labels
     self._path = os.path.join(self._cache_dir, *self._labels)
-    self._is_cache_complete = (
-        is_cache_complete if is_cache_complete else lambda _: True)
-
-    from apache_beam.runners.interactive.pipeline_instrument import CacheKey
+    self._is_cache_complete = is_cache_complete
     self._pipeline_id = CacheKey.from_str(labels[-1]).pipeline_id
 
   def _wait_until_file_exists(self, timeout_secs=30):
@@ -172,7 +165,6 @@ class StreamingCacheSource:
     while not os.path.exists(self._path):
       time.sleep(1)
       if time.time() - start > timeout_secs:
-        from apache_beam.runners.interactive.pipeline_instrument import CacheKey
         pcollection_var = CacheKey.from_str(self._labels[-1]).var
         raise RuntimeError(
             'Timed out waiting for cache file for PCollection `{}` to be '
@@ -193,7 +185,8 @@ class StreamingCacheSource:
 
       # Check if we are at EOF or if we have an incomplete line.
       if not line or (line and line[-1] != b'\n'[0]):
-        if not tail:
+        # Read at least the first line to get the header.
+        if not tail and pos != 0:
           break
 
         # Complete reading only when the cache is complete.
@@ -207,7 +200,10 @@ class StreamingCacheSource:
         # The first line at pos = 0 is always the header. Read the line without
         # the new line.
         to_decode = line[:-1]
-        proto_cls = TestStreamFileHeader if pos == 0 else TestStreamFileRecord
+        if pos == 0:
+          proto_cls = beam_interactive_api_pb2.TestStreamFileHeader
+        else:
+          proto_cls = beam_interactive_api_pb2.TestStreamFileRecord
         msg = self._try_parse_as(proto_cls, to_decode)
         if msg:
           yield msg
@@ -241,11 +237,16 @@ class StreamingCacheSource:
         yield e
 
 
+# TODO(victorhc): Add support for cache_dir locations that are on GCS
 class StreamingCache(CacheManager):
   """Abstraction that holds the logic for reading and writing to cache.
   """
   def __init__(
-      self, cache_dir, is_cache_complete=None, sample_resolution_sec=0.1):
+      self,
+      cache_dir,
+      is_cache_complete=None,
+      sample_resolution_sec=0.1,
+      saved_pcoders=None):
     self._sample_resolution_sec = sample_resolution_sec
     self._is_cache_complete = is_cache_complete
 
@@ -253,7 +254,7 @@ class StreamingCache(CacheManager):
       self._cache_dir = cache_dir
     else:
       self._cache_dir = tempfile.mkdtemp(
-          prefix='interactive-temp-', dir=os.environ.get('TEST_TMPDIR', None))
+          prefix='ib-', dir=os.environ.get('TEST_TMPDIR', None))
 
     # List of saved pcoders keyed by PCollection path. It is OK to keep this
     # list in memory because once FileBasedCacheManager object is
@@ -265,12 +266,18 @@ class StreamingCache(CacheManager):
     # However, if we are to implement better cache persistence, one needs
     # to take care of keeping consistency between the cached PCollection
     # and its PCoder type.
-    self._saved_pcoders = {}
+    self._saved_pcoders = saved_pcoders or {}
     self._default_pcoder = SafeFastPrimitivesCoder()
 
     # The sinks to capture data from capturable sources.
     # Dict([str, StreamingCacheSink])
     self._capture_sinks = {}
+    self._capture_keys = set()
+
+  def size(self, *labels):
+    if self.exists(*labels):
+      return os.path.getsize(os.path.join(self._cache_dir, *labels))
+    return 0
 
   @property
   def capture_size(self):
@@ -280,21 +287,31 @@ class StreamingCache(CacheManager):
   def capture_paths(self):
     return list(self._capture_sinks.keys())
 
+  @property
+  def capture_keys(self):
+    return self._capture_keys
+
   def exists(self, *labels):
-    path = os.path.join(self._cache_dir, *labels)
-    return os.path.exists(path)
+    if labels and any(labels):
+      path = os.path.join(self._cache_dir, *labels)
+      return os.path.exists(path)
+    return False
 
   # TODO(srohde): Modify this to return the correct version.
-  def read(self, *labels):
-    """Returns a generator to read all records from file.
+  def read(self, *labels, **args):
+    """Returns a generator to read all records from file."""
+    tail = args.pop('tail', False)
 
-    Does not tail.
-    """
-    if not self.exists(*labels):
+    # Only immediately return when the file doesn't exist when the user wants a
+    # snapshot of the cache (when tail is false).
+    if not self.exists(*labels) and not tail:
       return iter([]), -1
 
     reader = StreamingCacheSource(
-        self._cache_dir, labels, self._is_cache_complete).read(tail=False)
+        self._cache_dir,
+        labels,
+        self._is_cache_complete,
+        self.load_pcoder(*labels)).read(tail=tail)
 
     # Return an empty iterator if there is nothing in the file yet. This can
     # only happen when tail is False.
@@ -304,7 +321,7 @@ class StreamingCache(CacheManager):
       return iter([]), -1
     return StreamingCache.Reader([header], [reader]).read(), 1
 
-  def read_multiple(self, labels):
+  def read_multiple(self, labels, tail=True):
     """Returns a generator to read all records from file.
 
     Does tail until the cache is complete. This is because it is used in the
@@ -312,9 +329,9 @@ class StreamingCache(CacheManager):
     pipeline runtime which needs to block.
     """
     readers = [
-        StreamingCacheSource(self._cache_dir, l,
-                             self._is_cache_complete).read(tail=True)
-        for l in labels
+        StreamingCacheSource(
+            self._cache_dir, l, self._is_cache_complete,
+            self.load_pcoder(*l)).read(tail=tail) for l in labels
     ]
     headers = [next(r) for r in readers]
     return StreamingCache.Reader(headers, readers).read()
@@ -328,11 +345,24 @@ class StreamingCache(CacheManager):
       os.makedirs(directory)
     with open(filepath, 'ab') as f:
       for v in values:
-        if isinstance(v, (TestStreamFileHeader, TestStreamFileRecord)):
+        if isinstance(v,
+                      (beam_interactive_api_pb2.TestStreamFileHeader,
+                       beam_interactive_api_pb2.TestStreamFileRecord)):
           val = v.SerializeToString()
         else:
-          val = v
-        f.write(self._default_pcoder.encode(val) + b'\n')
+          raise TypeError(
+              'Values given to streaming cache should be either '
+              'TestStreamFileHeader or TestStreamFileRecord.')
+        f.write(self.load_pcoder(*labels).encode(val) + b'\n')
+
+  def clear(self, *labels):
+    directory = os.path.join(self._cache_dir, *labels[:-1])
+    filepath = os.path.join(directory, labels[-1])
+    self._capture_keys.discard(labels[-1])
+    if os.path.exists(filepath):
+      os.remove(filepath)
+      return True
+    return False
 
   def source(self, *labels):
     """Returns the StreamingCacheManager source.
@@ -351,24 +381,42 @@ class StreamingCache(CacheManager):
     """
     filename = labels[-1]
     cache_dir = os.path.join(self._cache_dir, *labels[:-1])
-    sink = StreamingCacheSink(cache_dir, filename, self._sample_resolution_sec)
+    sink = StreamingCacheSink(
+        cache_dir,
+        filename,
+        self._sample_resolution_sec,
+        self.load_pcoder(*labels))
     if is_capture:
       self._capture_sinks[sink.path] = sink
+      self._capture_keys.add(filename)
     return sink
 
   def save_pcoder(self, pcoder, *labels):
-    self._saved_pcoders[os.path.join(*labels)] = pcoder
+    self._saved_pcoders[os.path.join(self._cache_dir, *labels)] = pcoder
 
   def load_pcoder(self, *labels):
-    return (
-        self._default_pcoder if self._default_pcoder is not None else
-        self._saved_pcoders[os.path.join(*labels)])
+    saved_pcoder = self._saved_pcoders.get(
+        os.path.join(self._cache_dir, *labels), None)
+    if saved_pcoder is None or isinstance(saved_pcoder,
+                                          coders.FastPrimitivesCoder):
+      return self._default_pcoder
+    return saved_pcoder
 
   def cleanup(self):
+
     if os.path.exists(self._cache_dir):
-      shutil.rmtree(self._cache_dir)
+
+      def on_fail_to_cleanup(function, path, excinfo):
+        _LOGGER.warning(
+            'Failed to clean up temporary files: %s. You may'
+            'manually delete them if necessary. Error was: %s',
+            path,
+            excinfo)
+
+      shutil.rmtree(self._cache_dir, onerror=on_fail_to_cleanup)
     self._saved_pcoders = {}
     self._capture_sinks = {}
+    self._capture_keys = set()
 
   class Reader(object):
     """Abstraction that reads from PCollection readers.
@@ -487,8 +535,8 @@ class StreamingCache(CacheManager):
       """Advances the internal clock and returns an AdvanceProcessingTime event.
       """
       advancy_by = new_timestamp.micros - self._monotonic_clock.micros
-      e = TestStreamPayload.Event(
-          processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-              advance_duration=advancy_by))
+      e = beam_runner_api_pb2.TestStreamPayload.Event(
+          processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+          AdvanceProcessingTime(advance_duration=advancy_by))
       self._monotonic_clock = new_timestamp
       return e

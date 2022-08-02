@@ -30,6 +30,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,13 +39,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput.Builder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRequirements;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardUserStateTypes;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformTranslator;
 import org.apache.beam.sdk.Pipeline;
@@ -77,13 +79,16 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /** Utilities for interacting with {@link ParDo} instances and {@link ParDoPayload} protos. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class ParDoTranslation {
   /**
    * This requirement indicates the state_spec and time_spec fields of ParDo transform payloads must
@@ -114,6 +119,14 @@ public class ParDoTranslation {
    */
   public static final String REQUIRES_SPLITTABLE_DOFN_URN =
       "beam:requirement:pardo:splittable_dofn:v1";
+  /** This requirement indicates that the ParDo requires a callback on each window expiration. */
+  public static final String REQUIRES_ON_WINDOW_EXPIRATION_URN =
+      "beam:requirement:pardo:on_window_expiration:v1";
+
+  /** Represents a user state specification that supports a bag. */
+  public static final String BAG_USER_STATE = "beam:user_state:bag:v1";
+  /** Represents a user state specification that supports a multimap. */
+  public static final String MULTIMAP_USER_STATE = "beam:user_state:multimap:v1";
 
   static {
     checkState(
@@ -130,6 +143,11 @@ public class ParDoTranslation {
     checkState(
         REQUIRES_SPLITTABLE_DOFN_URN.equals(
             getUrn(StandardRequirements.Enum.REQUIRES_SPLITTABLE_DOFN)));
+    checkState(
+        REQUIRES_ON_WINDOW_EXPIRATION_URN.equals(
+            getUrn(StandardRequirements.Enum.REQUIRES_ON_WINDOW_EXPIRATION)));
+    checkState(BAG_USER_STATE.equals(getUrn(StandardUserStateTypes.Enum.BAG)));
+    checkState(MULTIMAP_USER_STATE.equals(getUrn(StandardUserStateTypes.Enum.MULTIMAP)));
   }
 
   /** The URN for an unknown Java {@link DoFn}. */
@@ -176,7 +194,7 @@ public class ParDoTranslation {
               .setUrn(PAR_DO_TRANSFORM_URN)
               .setPayload(payload.toByteString())
               .build());
-      builder.setEnvironmentId(components.getOnlyEnvironmentId());
+      builder.setEnvironmentId(components.getEnvironmentIdFor(appliedParDo.getResourceHints()));
 
       return builder.build();
     }
@@ -279,8 +297,7 @@ public class ParDoTranslation {
           }
 
           @Override
-          public Map<String, RunnerApi.TimerFamilySpec> translateTimerFamilySpecs(
-              SdkComponents newComponents) {
+          public ParDoLikeTimerFamilySpecs translateTimerFamilySpecs(SdkComponents newComponents) {
             Map<String, RunnerApi.TimerFamilySpec> timerFamilySpecs = new HashMap<>();
 
             for (Map.Entry<String, TimerDeclaration> timer :
@@ -304,14 +321,34 @@ public class ParDoTranslation {
                       windowCoder);
               timerFamilySpecs.put(timerFamily.getKey(), spec);
             }
-            return timerFamilySpecs;
+
+            String onWindowExpirationTimerFamilySpec = null;
+            if (signature.onWindowExpiration() != null) {
+              RunnerApi.TimerFamilySpec spec =
+                  RunnerApi.TimerFamilySpec.newBuilder()
+                      .setTimeDomain(translateTimeDomain(TimeDomain.EVENT_TIME))
+                      .setTimerFamilyCoderId(
+                          registerCoderOrThrow(components, Timer.Coder.of(keyCoder, windowCoder)))
+                      .build();
+              for (int i = 0; i < Integer.MAX_VALUE; ++i) {
+                onWindowExpirationTimerFamilySpec = "onWindowExpiration" + i;
+                if (!timerFamilySpecs.containsKey(onWindowExpirationTimerFamilySpec)) {
+                  break;
+                }
+              }
+              timerFamilySpecs.put(onWindowExpirationTimerFamilySpec, spec);
+            }
+
+            return ParDoLikeTimerFamilySpecs.create(
+                timerFamilySpecs, onWindowExpirationTimerFamilySpec);
           }
 
           @Override
           public boolean isStateful() {
             return !signature.stateDeclarations().isEmpty()
                 || !signature.timerDeclarations().isEmpty()
-                || !signature.timerFamilyDeclarations().isEmpty();
+                || !signature.timerFamilyDeclarations().isEmpty()
+                || signature.onWindowExpiration() != null;
           }
 
           @Override
@@ -542,6 +579,7 @@ public class ParDoTranslation {
                 .setReadModifyWriteSpec(
                     RunnerApi.ReadModifyWriteStateSpec.newBuilder()
                         .setCoderId(registerCoderOrThrow(components, valueCoder)))
+                .setProtocol(FunctionSpec.newBuilder().setUrn(BAG_USER_STATE))
                 .build();
           }
 
@@ -551,6 +589,19 @@ public class ParDoTranslation {
                 .setBagSpec(
                     RunnerApi.BagStateSpec.newBuilder()
                         .setElementCoderId(registerCoderOrThrow(components, elementCoder)))
+                .setProtocol(FunctionSpec.newBuilder().setUrn(BAG_USER_STATE))
+                .build();
+          }
+
+          @Override
+          public RunnerApi.StateSpec dispatchOrderedList(Coder<?> elementCoder) {
+            return builder
+                .setOrderedListSpec(
+                    RunnerApi.OrderedListStateSpec.newBuilder()
+                        .setElementCoderId(registerCoderOrThrow(components, elementCoder)))
+                // TODO(https://github.com/apache/beam/issues/20486): Update with correct protocol
+                // once the protocol is defined and
+                // the SDK harness uses it.
                 .build();
           }
 
@@ -562,6 +613,7 @@ public class ParDoTranslation {
                     RunnerApi.CombiningStateSpec.newBuilder()
                         .setAccumulatorCoderId(registerCoderOrThrow(components, accumCoder))
                         .setCombineFn(CombineTranslation.toProto(combineFn, components)))
+                .setProtocol(FunctionSpec.newBuilder().setUrn(BAG_USER_STATE))
                 .build();
           }
 
@@ -572,6 +624,7 @@ public class ParDoTranslation {
                     RunnerApi.MapStateSpec.newBuilder()
                         .setKeyCoderId(registerCoderOrThrow(components, keyCoder))
                         .setValueCoderId(registerCoderOrThrow(components, valueCoder)))
+                .setProtocol(FunctionSpec.newBuilder().setUrn(MULTIMAP_USER_STATE))
                 .build();
           }
 
@@ -581,6 +634,7 @@ public class ParDoTranslation {
                 .setSetSpec(
                     RunnerApi.SetStateSpec.newBuilder()
                         .setElementCoderId(registerCoderOrThrow(components, elementCoder)))
+                .setProtocol(FunctionSpec.newBuilder().setUrn(MULTIMAP_USER_STATE))
                 .build();
           }
         });
@@ -634,7 +688,7 @@ public class ParDoTranslation {
     }
   }
 
-  private static String registerCoderOrThrow(SdkComponents components, Coder coder) {
+  public static String registerCoderOrThrow(SdkComponents components, Coder coder) {
     try {
       return components.registerCoder(coder);
     } catch (IOException exc) {
@@ -654,14 +708,17 @@ public class ParDoTranslation {
         .build();
   }
 
-  private static RunnerApi.TimeDomain.Enum translateTimeDomain(TimeDomain timeDomain) {
+  public static RunnerApi.TimeDomain.Enum translateTimeDomain(TimeDomain timeDomain) {
     switch (timeDomain) {
       case EVENT_TIME:
         return RunnerApi.TimeDomain.Enum.EVENT_TIME;
       case PROCESSING_TIME:
         return RunnerApi.TimeDomain.Enum.PROCESSING_TIME;
       case SYNCHRONIZED_PROCESSING_TIME:
-        return RunnerApi.TimeDomain.Enum.SYNCHRONIZED_PROCESSING_TIME;
+        throw new IllegalArgumentException(
+            String.format(
+                "%s is not permitted for user timers",
+                TimeDomain.SYNCHRONIZED_PROCESSING_TIME.name()));
       default:
         throw new IllegalArgumentException("Unknown time domain");
     }
@@ -709,7 +766,7 @@ public class ParDoTranslation {
   }
 
   public static SideInput translateView(PCollectionView<?> view, SdkComponents components) {
-    Builder builder = SideInput.newBuilder();
+    RunnerApi.SideInput.Builder builder = SideInput.newBuilder();
     builder.setAccessPattern(
         FunctionSpec.newBuilder().setUrn(view.getViewFn().getMaterialization().getUrn()).build());
     builder.setViewFn(translateViewFn(view.getViewFn(), components));
@@ -755,6 +812,22 @@ public class ParDoTranslation {
         .build();
   }
 
+  @AutoValue
+  public abstract static class ParDoLikeTimerFamilySpecs {
+
+    public static ParDoLikeTimerFamilySpecs create(
+        Map<String, RunnerApi.TimerFamilySpec> timerFamilySpecs,
+        @Nullable String onWindowExpirationTimerFamilySpec) {
+      return new AutoValue_ParDoTranslation_ParDoLikeTimerFamilySpecs(
+          timerFamilySpecs, onWindowExpirationTimerFamilySpec);
+    }
+
+    abstract Map<String, RunnerApi.TimerFamilySpec> timerFamilySpecs();
+
+    @Nullable
+    abstract String onWindowExpirationTimerFamilySpec();
+  }
+
   /** These methods drive to-proto translation from Java and from rehydrated ParDos. */
   public interface ParDoLike {
     FunctionSpec translateDoFn(SdkComponents newComponents);
@@ -764,7 +837,7 @@ public class ParDoTranslation {
     Map<String, RunnerApi.StateSpec> translateStateSpecs(SdkComponents components)
         throws IOException;
 
-    Map<String, RunnerApi.TimerFamilySpec> translateTimerFamilySpecs(SdkComponents newComponents);
+    ParDoLikeTimerFamilySpecs translateTimerFamilySpecs(SdkComponents newComponents);
 
     boolean isStateful();
 
@@ -798,15 +871,24 @@ public class ParDoTranslation {
       components.addRequirement(REQUIRES_TIME_SORTED_INPUT_URN);
     }
 
-    return ParDoPayload.newBuilder()
-        .setDoFn(parDo.translateDoFn(components))
-        .putAllStateSpecs(parDo.translateStateSpecs(components))
-        .putAllTimerFamilySpecs(parDo.translateTimerFamilySpecs(components))
-        .putAllSideInputs(parDo.translateSideInputs(components))
-        .setRequiresStableInput(parDo.isRequiresStableInput())
-        .setRequiresTimeSortedInput(parDo.isRequiresTimeSortedInput())
-        .setRestrictionCoderId(parDo.translateRestrictionCoderId(components))
-        .setRequestsFinalization(parDo.requestsFinalization())
-        .build();
+    ParDoLikeTimerFamilySpecs timerFamilySpecs = parDo.translateTimerFamilySpecs(components);
+    ParDoPayload.Builder builder =
+        ParDoPayload.newBuilder()
+            .setDoFn(parDo.translateDoFn(components))
+            .putAllStateSpecs(parDo.translateStateSpecs(components))
+            .putAllTimerFamilySpecs(timerFamilySpecs.timerFamilySpecs())
+            .putAllSideInputs(parDo.translateSideInputs(components))
+            .setRequiresStableInput(parDo.isRequiresStableInput())
+            .setRequiresTimeSortedInput(parDo.isRequiresTimeSortedInput())
+            .setRestrictionCoderId(parDo.translateRestrictionCoderId(components))
+            .setRequestsFinalization(parDo.requestsFinalization());
+
+    if (timerFamilySpecs.onWindowExpirationTimerFamilySpec() != null) {
+      components.addRequirement(REQUIRES_ON_WINDOW_EXPIRATION_URN);
+      builder.setOnWindowExpirationTimerFamilySpec(
+          timerFamilySpecs.onWindowExpirationTimerFamilySpec());
+    }
+
+    return builder.build();
   }
 }

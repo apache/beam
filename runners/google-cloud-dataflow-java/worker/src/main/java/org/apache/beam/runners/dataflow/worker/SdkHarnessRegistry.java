@@ -18,10 +18,10 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Registry used to manage all the connections (Control, Data, State) from SdkHarness */

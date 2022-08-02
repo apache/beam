@@ -22,17 +22,21 @@ import com.google.zetasql.FunctionProtos.TableValuedFunctionProto;
 import com.google.zetasql.TableValuedFunction.FixedOutputSchemaTVF;
 import com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind;
 import com.google.zetasql.resolvedast.ResolvedNode;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedFunctionArgument;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLiteral;
-import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedTVFArgument;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedTVFScan;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalTableFunctionScan;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalTableFunctionScan;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
 
 /** Converts TVFScan. */
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
 
   TVFScanConverter(ConversionContext context) {
@@ -48,7 +52,8 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
                 input,
                 zetaNode.getTvf(),
                 zetaNode.getArgumentList(),
-                zetaNode.getArgumentList().get(0).getScan() != null
+                zetaNode.getArgumentList().size() > 0
+                        && zetaNode.getArgumentList().get(0).getScan() != null
                     ? zetaNode.getArgumentList().get(0).getScan().getColumnList()
                     : Collections.emptyList());
     RelNode tableFunctionScan =
@@ -71,7 +76,7 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
       inputs.add(context.getUserDefinedTableValuedFunctions().get(zetaNode.getTvf().getNamePath()));
     }
 
-    for (ResolvedTVFArgument argument : zetaNode.getArgumentList()) {
+    for (ResolvedFunctionArgument argument : zetaNode.getArgumentList()) {
       if (argument.getScan() != null) {
         inputs.add(argument.getScan());
       }
@@ -85,8 +90,9 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
       for (int i = 0; i < tableValuedFunctionProto.getSignature().getArgumentList().size(); i++) {
         String argumentName =
             tableValuedFunctionProto.getSignature().getArgument(i).getOptions().getArgumentName();
-        if (zetaNode.getArgumentList().get(i).nodeKind() == ResolvedNodeKind.RESOLVED_TVFARGUMENT) {
-          ResolvedTVFArgument resolvedTVFArgument = zetaNode.getArgumentList().get(i);
+        if (zetaNode.getArgumentList().get(i).nodeKind()
+            == ResolvedNodeKind.RESOLVED_FUNCTION_ARGUMENT) {
+          ResolvedFunctionArgument resolvedTVFArgument = zetaNode.getArgumentList().get(i);
           if (resolvedTVFArgument.getExpr().nodeKind() == ResolvedNodeKind.RESOLVED_LITERAL) {
             ResolvedLiteral literal = (ResolvedLiteral) resolvedTVFArgument.getExpr();
             context.addToFunctionArgumentRefMapping(

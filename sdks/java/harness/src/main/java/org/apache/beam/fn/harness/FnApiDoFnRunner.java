@@ -31,23 +31,24 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
+import java.util.NavigableSet;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
-import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
+import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
-import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient.TimerHandler;
-import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
-import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
+import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker;
+import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.Modifications;
+import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.TimerInfo;
 import org.apache.beam.fn.harness.state.SideInputSpec;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
-import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -61,13 +62,14 @@ import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers.ClaimObserver;
 import org.apache.beam.sdk.fn.splittabledofn.WatermarkEstimators;
@@ -104,6 +106,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
@@ -112,8 +115,9 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -121,16 +125,23 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.format.PeriodFormat;
 
 /**
  * A {@link DoFnRunner} specific to integrating with the Fn Api. This is to remove the layers of
  * abstraction caused by StateInternals/TimerInternals since they model state and timer concepts
  * differently.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "keyfor"
+})
 public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> {
   /** A registrar which provides a factory to handle Java {@link DoFn}s. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
@@ -155,44 +166,47 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public final FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>
-        createRunnerForPTransform(
-            PipelineOptions pipelineOptions,
-            BeamFnDataClient beamFnDataClient,
-            BeamFnStateClient beamFnStateClient,
-            BeamFnTimerClient beamFnTimerClient,
-            String pTransformId,
-            PTransform pTransform,
-            Supplier<String> processBundleInstructionId,
-            Map<String, PCollection> pCollections,
-            Map<String, RunnerApi.Coder> coders,
-            Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-            PCollectionConsumerRegistry pCollectionConsumerRegistry,
-            PTransformFunctionRegistry startFunctionRegistry,
-            PTransformFunctionRegistry finishFunctionRegistry,
-            Consumer<ThrowingRunnable> tearDownFunctions,
-            Consumer<ProgressRequestCallback> addProgressRequestCallback,
-            BundleSplitListener splitListener,
-            BundleFinalizer bundleFinalizer) {
+        createRunnerForPTransform(Context context) {
 
       FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> runner =
           new FnApiDoFnRunner<>(
-              pipelineOptions,
-              beamFnStateClient,
-              beamFnTimerClient,
-              pTransformId,
-              pTransform,
-              processBundleInstructionId,
-              pCollections,
-              coders,
-              windowingStrategies,
-              pCollectionConsumerRegistry,
-              startFunctionRegistry,
-              finishFunctionRegistry,
-              tearDownFunctions,
-              addProgressRequestCallback,
-              splitListener,
-              bundleFinalizer);
+              context.getPipelineOptions(),
+              context.getShortIdMap(),
+              context.getBeamFnStateClient(),
+              context.getPTransformId(),
+              context.getPTransform(),
+              context.getProcessBundleInstructionIdSupplier(),
+              context.getCacheTokensSupplier(),
+              context.getBundleCacheSupplier(),
+              context.getProcessWideCache(),
+              context.getPCollections(),
+              context.getCoders(),
+              context.getWindowingStrategies(),
+              context::addStartBundleFunction,
+              context::addFinishBundleFunction,
+              context::addResetFunction,
+              context::addTearDownFunction,
+              context::getPCollectionConsumer,
+              context::addPCollectionConsumer,
+              context::addOutgoingTimersEndpoint,
+              context::addBundleProgressReporter,
+              context.getSplitListener(),
+              context.getBundleFinalizer());
 
+      for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> entry :
+          runner.timerFamilyInfos.entrySet()) {
+        String localName = entry.getKey();
+        TimeDomain timeDomain = entry.getValue().getKey();
+        Coder<Timer<Object>> coder = entry.getValue().getValue();
+        if (!localName.equals("")
+            && localName.equals(runner.parDoPayload.getOnWindowExpirationTimerFamilySpec())) {
+          context.addIncomingTimerEndpoint(
+              localName, coder, timer -> runner.processOnWindowExpiration(timer));
+        } else {
+          context.addIncomingTimerEndpoint(
+              localName, coder, timer -> runner.processTimer(localName, timeDomain, timer));
+        }
+      }
       return runner;
     }
   }
@@ -200,23 +214,20 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   private final PipelineOptions pipelineOptions;
-  private final BeamFnStateClient beamFnStateClient;
   private final String pTransformId;
   private final PTransform pTransform;
-  private final Supplier<String> processBundleInstructionId;
   private final RehydratedComponents rehydratedComponents;
   private final DoFn<InputT, OutputT> doFn;
   private final DoFnSignature doFnSignature;
   private final TupleTag<OutputT> mainOutputTag;
   private final Coder<?> inputCoder;
-  private final SchemaCoder<InputT> schemaCoder;
+
   private final Coder<?> keyCoder;
   private final SchemaCoder<OutputT> mainOutputSchemaCoder;
   private final Coder<? extends BoundedWindow> windowCoder;
   private final WindowingStrategy<InputT, ?> windowingStrategy;
   private final Map<TupleTag<?>, SideInputSpec> tagToSideInputSpecMap;
   private final Map<TupleTag<?>, Coder<?>> outputCoders;
-  private final BeamFnTimerClient beamFnTimerClient;
   private final Map<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfos;
   private final ParDoPayload parDoPayload;
   private final ListMultimap<String, FnDataReceiver<WindowedValue<?>>> localNameToConsumer;
@@ -226,12 +237,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private final String mainInputId;
   private final FnApiStateAccessor<?> stateAccessor;
-  private Map<String, BeamFnTimerClient.TimerHandler<?>> timerHandlers;
+  private final Map<String, FnDataReceiver<?>> outboundTimerReceivers;
+  private final @Nullable FnApiTimerBundleTracker timerBundleTracker;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
   private final ProcessBundleContextBase processContext;
-  private OnTimerContext onTimerContext;
+  private final OnTimerContext<?> onTimerContext;
+  private final OnWindowExpirationContext<?> onWindowExpirationContext;
   private final FinishBundleArgumentProvider finishBundleArgumentProvider;
+  private final Duration allowedLateness;
+  private final String workCompletedShortId;
+  private final String workRemainingShortId;
 
   /**
    * Used to guarantee a consistent view of this {@link FnApiDoFnRunner} while setting up for {@link
@@ -247,23 +263,52 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   /** Only valid during {@code processElement...} methods, null otherwise. */
   private WindowedValue<InputT> currentElement;
 
-  /** Only valid during {@link #processElementForSizedElementAndRestriction}. */
-  private ListIterator<BoundedWindow> currentWindowIterator;
+  private Object currentKey;
+
+  /**
+   * Only valud during {@link
+   * #processElementForWindowObservingSizedElementAndRestriction(WindowedValue)} and {@link
+   * #processElementForWindowObservingTruncateRestriction(WindowedValue)}.
+   */
+  private List<BoundedWindow> currentWindows;
+
+  /**
+   * Only valud during {@link
+   * #processElementForWindowObservingSizedElementAndRestriction(WindowedValue)} and {@link
+   * #processElementForWindowObservingTruncateRestriction(WindowedValue)}.
+   */
+  private int windowStopIndex;
+
+  /**
+   * Only valud during {@link
+   * #processElementForWindowObservingSizedElementAndRestriction(WindowedValue)} and {@link
+   * #processElementForWindowObservingTruncateRestriction(WindowedValue)}.
+   */
+  private int windowCurrentIndex;
 
   /**
    * Only valid during {@link #processElementForPairWithRestriction}, {@link
-   * #processElementForSplitRestriction}, and {@link #processElementForSizedElementAndRestriction},
-   * null otherwise.
+   * #processElementForSplitRestriction}, and {@link
+   * #processElementForWindowObservingSizedElementAndRestriction}, null otherwise.
    */
   private RestrictionT currentRestriction;
 
   /**
    * Only valid during {@link #processElementForSplitRestriction}, and {@link
-   * #processElementForSizedElementAndRestriction}, null otherwise.
+   * #processElementForWindowObservingSizedElementAndRestriction}, null otherwise.
    */
   private WatermarkEstimatorStateT currentWatermarkEstimatorState;
 
-  /** Only valid during {@link #processElementForSizedElementAndRestriction}, null otherwise. */
+  /**
+   * Only valid during {@link #processElementForWindowObservingSizedElementAndRestriction} and
+   * {@link #processElementForWindowObservingTruncateRestriction}.
+   */
+  private Instant initialWatermark;
+
+  /**
+   * Only valid during {@link #processElementForWindowObservingSizedElementAndRestriction}, null
+   * otherwise.
+   */
   private WatermarkEstimators.WatermarkAndStateObserver<WatermarkEstimatorStateT>
       currentWatermarkEstimator;
 
@@ -273,10 +318,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
    */
   private BoundedWindow currentWindow;
 
-  /** Only valid during {@link #processElementForSizedElementAndRestriction}, null otherwise. */
+  /**
+   * Only valid during {@link #processElementForWindowObservingSizedElementAndRestriction}, null
+   * otherwise.
+   */
   private RestrictionTracker<RestrictionT, PositionT> currentTracker;
 
-  /** Only valid during {@link #processTimer}, null otherwise. */
+  /**
+   * Only valid during {@link #processTimer} and {@link #processOnWindowExpiration}, null otherwise.
+   */
   private Timer<?> currentTimer;
 
   /** Only valid during {@link #processTimer}, null otherwise. */
@@ -284,27 +334,31 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   FnApiDoFnRunner(
       PipelineOptions pipelineOptions,
+      ShortIdMap shortIds,
       BeamFnStateClient beamFnStateClient,
-      BeamFnTimerClient beamFnTimerClient,
       String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
+      Supplier<List<BeamFnApi.ProcessBundleRequest.CacheToken>> cacheTokens,
+      Supplier<Cache<?, ?>> bundleCache,
+      Cache<?, ?> processWideCache,
       Map<String, PCollection> pCollections,
       Map<String, RunnerApi.Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-      PCollectionConsumerRegistry pCollectionConsumerRegistry,
-      PTransformFunctionRegistry startFunctionRegistry,
-      PTransformFunctionRegistry finishFunctionRegistry,
-      Consumer<ThrowingRunnable> tearDownFunctions,
-      Consumer<ProgressRequestCallback> addProgressRequestCallback,
+      Consumer<ThrowingRunnable> addStartFunction,
+      Consumer<ThrowingRunnable> addFinishFunction,
+      Consumer<ThrowingRunnable> addResetFunction,
+      Consumer<ThrowingRunnable> addTearDownFunction,
+      Function<String, FnDataReceiver<WindowedValue<?>>> getPCollectionConsumer,
+      BiConsumer<String, FnDataReceiver> addPCollectionConsumer,
+      BiFunction<String, Coder<Timer<Object>>, FnDataReceiver<Timer<Object>>>
+          getOutgoingTimersConsumer,
+      Consumer<BundleProgressReporter> addBundleProgressReporter,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer) {
     this.pipelineOptions = pipelineOptions;
-    this.beamFnStateClient = beamFnStateClient;
-    this.beamFnTimerClient = beamFnTimerClient;
     this.pTransformId = pTransformId;
     this.pTransform = pTransform;
-    this.processBundleInstructionId = processBundleInstructionId;
     ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMapBuilder =
         ImmutableMap.builder();
     try {
@@ -350,11 +404,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         this.keyCoder = ((KvCoder) inputCoder).getKeyCoder();
       } else {
         this.keyCoder = null;
-      }
-      if (inputCoder instanceof SchemaCoder) {
-        this.schemaCoder = ((SchemaCoder<InputT>) inputCoder);
-      } else {
-        this.schemaCoder = null;
       }
 
       windowingStrategy =
@@ -412,6 +461,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
       timerFamilyInfos = timerFamilyInfosBuilder.build();
 
+      this.mainInputId = ParDoTranslation.getMainInputName(pTransform);
+      this.allowedLateness =
+          rehydratedComponents
+              .getPCollection(pTransform.getInputsOrThrow(mainInputId))
+              .getWindowingStrategy()
+              .getAllowedLateness();
+
     } catch (IOException exn) {
       throw new IllegalArgumentException("Malformed ParDoPayload", exn);
     }
@@ -420,32 +476,28 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         localNameToConsumerBuilder = ImmutableListMultimap.builder();
     for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
       localNameToConsumerBuilder.putAll(
-          entry.getKey(), pCollectionConsumerRegistry.getMultiplexingConsumer(entry.getValue()));
+          entry.getKey(), getPCollectionConsumer.apply(entry.getValue()));
     }
     localNameToConsumer = localNameToConsumerBuilder.build();
     tagToSideInputSpecMap = tagToSideInputSpecMapBuilder.build();
     this.splitListener = splitListener;
     this.bundleFinalizer = bundleFinalizer;
+    this.onTimerContext = new OnTimerContext();
+    this.onWindowExpirationContext = new OnWindowExpirationContext<>();
 
-    try {
-      this.mainInputId = ParDoTranslation.getMainInputName(pTransform);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
     this.mainOutputConsumers =
         (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
             (Collection) localNameToConsumer.get(mainOutputTag.getId());
     this.doFnSchemaInformation = ParDoTranslation.getSchemaInformation(parDoPayload);
     this.sideInputMapping = ParDoTranslation.getSideInputMapping(parDoPayload);
-    this.doFnInvoker = DoFnInvokers.invokerFor(doFn);
-    this.doFnInvoker.invokeSetup();
+    this.doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn, pipelineOptions);
 
     this.startBundleArgumentProvider = new StartBundleArgumentProvider();
     // Register the appropriate handlers.
     switch (pTransform.getSpec().getUrn()) {
       case PTransformTranslation.PAR_DO_TRANSFORM_URN:
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        startFunctionRegistry.register(pTransformId, this::startBundle);
+        addStartFunction.accept(this::startBundle);
         break;
       case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
         // startBundle should not be invoked
@@ -512,23 +564,34 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             || !sideInputMapping.isEmpty()) {
           // Only forward split/progress when the only consumer is splittable.
           if (mainOutputConsumers.size() == 1
-              && Iterables.get(mainOutputConsumers, 0) instanceof HandlesSplits) {
+              && Iterables.getOnlyElement(mainOutputConsumers) instanceof HandlesSplits) {
             mainInputConsumer =
                 new SplittableFnDataReceiver() {
+                  private final HandlesSplits splitDelegate =
+                      (HandlesSplits) Iterables.getOnlyElement(mainOutputConsumers);
+
                   @Override
                   public void accept(WindowedValue input) throws Exception {
                     processElementForWindowObservingTruncateRestriction(input);
                   }
 
-                  // TODO(BEAM-10303): Split should work with window observing optimization.
                   @Override
-                  public SplitResult trySplit(double fractionOfRemainder) {
-                    return null;
+                  public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
+                    return trySplitForWindowObservingTruncateRestriction(
+                        fractionOfRemainder, splitDelegate);
                   }
 
-                  // TODO(BEAM-10303): Progress should work with window observing optimization.
                   @Override
                   public double getProgress() {
+                    Progress progress =
+                        FnApiDoFnRunner.this.getProgressFromWindowObservingTruncate(
+                            splitDelegate.getProgress());
+                    if (progress != null) {
+                      double totalWork = progress.getWorkCompleted() + progress.getWorkRemaining();
+                      if (totalWork > 0) {
+                        return progress.getWorkCompleted() / totalWork;
+                      }
+                    }
                     return 0;
                   }
                 };
@@ -541,11 +604,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         } else {
           // Only forward split/progress when the only consumer is splittable.
           if (mainOutputConsumers.size() == 1
-              && Iterables.get(mainOutputConsumers, 0) instanceof HandlesSplits) {
+              && Iterables.getOnlyElement(mainOutputConsumers) instanceof HandlesSplits) {
             mainInputConsumer =
                 new SplittableFnDataReceiver() {
                   private final HandlesSplits splitDelegate =
-                      (HandlesSplits) Iterables.get(mainOutputConsumers, 0);
+                      (HandlesSplits) Iterables.getOnlyElement(mainOutputConsumers);
 
                   @Override
                   public void accept(WindowedValue input) throws Exception {
@@ -553,7 +616,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   }
 
                   @Override
-                  public SplitResult trySplit(double fractionOfRemainder) {
+                  public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
                     return splitDelegate.trySplit(fractionOfRemainder);
                   }
 
@@ -601,14 +664,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       default:
         throw new IllegalStateException("Unknown urn: " + pTransform.getSpec().getUrn());
     }
-    pCollectionConsumerRegistry.register(
-        pTransform.getInputsOrThrow(mainInput), pTransformId, (FnDataReceiver) mainInputConsumer);
+    addPCollectionConsumer.accept(pTransform.getInputsOrThrow(mainInput), mainInputConsumer);
 
     this.finishBundleArgumentProvider = new FinishBundleArgumentProvider();
     switch (pTransform.getSpec().getUrn()) {
       case PTransformTranslation.PAR_DO_TRANSFORM_URN:
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        finishFunctionRegistry.register(pTransformId, this::finishBundle);
+        addFinishFunction.accept(this::finishBundle);
         break;
       case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
         // finishBundle should not be invoked
@@ -619,33 +681,55 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       default:
         // no-op
     }
-    tearDownFunctions.accept(this::tearDown);
+    addTearDownFunction.accept(this::tearDown);
 
+    workCompletedShortId =
+        shortIds.getOrCreateShortId(
+            new SimpleMonitoringInfoBuilder()
+                .setUrn(MonitoringInfoConstants.Urns.WORK_COMPLETED)
+                .setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE)
+                .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId)
+                .build());
+    workRemainingShortId =
+        shortIds.getOrCreateShortId(
+            new SimpleMonitoringInfoBuilder()
+                .setUrn(MonitoringInfoConstants.Urns.WORK_REMAINING)
+                .setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE)
+                .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId)
+                .build());
     switch (pTransform.getSpec().getUrn()) {
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        addProgressRequestCallback.accept(
-            new ProgressRequestCallback() {
+        addBundleProgressReporter.accept(
+            new BundleProgressReporter() {
+
               @Override
-              public List<MonitoringInfo> getMonitoringInfos() throws Exception {
+              public void updateIntermediateMonitoringData(Map<String, ByteString> monitoringData) {
                 Progress progress = getProgress();
                 if (progress == null) {
-                  return Collections.emptyList();
+                  return;
                 }
-                MonitoringInfo.Builder completedBuilder = MonitoringInfo.newBuilder();
-                completedBuilder.setUrn(MonitoringInfoConstants.Urns.WORK_COMPLETED);
-                completedBuilder.setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE);
-                completedBuilder.putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
-                completedBuilder.setPayload(encodeProgress(progress.getWorkCompleted()));
-                MonitoringInfo.Builder remainingBuilder = MonitoringInfo.newBuilder();
-                remainingBuilder.setUrn(MonitoringInfoConstants.Urns.WORK_REMAINING);
-                remainingBuilder.setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE);
-                remainingBuilder.putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
-                remainingBuilder.setPayload(encodeProgress(progress.getWorkRemaining()));
-                return ImmutableList.of(completedBuilder.build(), remainingBuilder.build());
+
+                ByteString encodedWorkCompleted, encodedWorkRemaining;
+                try {
+                  encodedWorkCompleted = encodeProgress(progress.getWorkCompleted());
+                  encodedWorkRemaining = encodeProgress(progress.getWorkRemaining());
+                } catch (IOException e) {
+                  throw new RuntimeException("Failed to encode progress", e);
+                }
+                monitoringData.put(workCompletedShortId, encodedWorkCompleted);
+                monitoringData.put(workRemainingShortId, encodedWorkRemaining);
               }
 
+              @Override
+              public void updateFinalMonitoringData(Map<String, ByteString> monitoringData) {
+                // No elements will be inflight when the progress completes.
+              }
+
+              @Override
+              public void reset() {}
+
               private ByteString encodeProgress(double value) throws IOException {
-                ByteString.Output output = ByteString.newOutput();
+                ByteStringOutputStream output = new ByteStringOutputStream();
                 IterableCoder.of(DoubleCoder.of()).encode(Arrays.asList(value), output);
                 return output.toByteString();
               }
@@ -655,47 +739,59 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         // no-op
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor =
         new FnApiStateAccessor(
             pipelineOptions,
             pTransformId,
             processBundleInstructionId,
+            cacheTokens,
+            bundleCache,
+            processWideCache,
             tagToSideInputSpecMap,
             beamFnStateClient,
             keyCoder,
             windowCoder,
-            () -> {
-              if (currentElement != null) {
-                checkState(
-                    currentElement.getValue() instanceof KV,
-                    "Accessing state in unkeyed context. Current element is not a KV: %s.",
-                    currentElement.getValue());
-                return ((KV) currentElement.getValue()).getKey();
-              } else if (currentTimer != null) {
-                return currentTimer.getUserKey();
-              }
-              return null;
-            },
+            this::getCurrentKey,
             () -> currentWindow);
+
+    // Register as a consumer for each timer.
+    this.outboundTimerReceivers = new HashMap<>();
+    if (timerFamilyInfos.isEmpty()) {
+      this.timerBundleTracker = null;
+    } else {
+      this.timerBundleTracker =
+          new FnApiTimerBundleTracker(
+              keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
+      addResetFunction.accept(timerBundleTracker::reset);
+
+      for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfo :
+          timerFamilyInfos.entrySet()) {
+        String localName = timerFamilyInfo.getKey();
+        Coder<Timer<Object>> timerCoder = timerFamilyInfo.getValue().getValue();
+        outboundTimerReceivers.put(
+            localName, getOutgoingTimersConsumer.apply(localName, timerCoder));
+      }
+    }
+  }
+
+  private Object getCurrentKey() {
+    if (currentKey != null) {
+      return currentKey;
+    }
+    // TODO: Maybe memoize the key?
+    if (currentElement != null) {
+      checkState(
+          currentElement.getValue() instanceof KV,
+          "Accessing state in unkeyed context. Current element is not a KV: %s.",
+          currentElement.getValue());
+      return ((KV) currentElement.getValue()).getKey();
+    } else if (currentTimer != null) {
+      return currentTimer.getUserKey();
+    }
+    return null;
   }
 
   private void startBundle() {
-    // Register as a consumer for each timer.
-    timerHandlers = new HashMap<>();
-    for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfo :
-        timerFamilyInfos.entrySet()) {
-      String localName = timerFamilyInfo.getKey();
-      TimeDomain timeDomain = timerFamilyInfo.getValue().getKey();
-      Coder<Timer<Object>> timerCoder = timerFamilyInfo.getValue().getValue();
-      timerHandlers.put(
-          localName,
-          beamFnTimerClient.register(
-              LogicalEndpoint.timer(processBundleInstructionId.get(), pTransformId, localName),
-              timerCoder,
-              (FnDataReceiver<Timer<Object>>) timer -> processTimer(localName, timeDomain, timer)));
-    }
-
     doFnInvoker.invokeStartBundle(startBundleArgumentProvider);
   }
 
@@ -741,7 +837,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentRestriction = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -772,7 +867,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentRestriction = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -800,7 +894,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentTracker = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -834,7 +927,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentTracker = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -866,88 +958,25 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentWatermarkEstimatorState = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
   private void processElementForWindowObservingTruncateRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
-    currentRestriction = elem.getValue().getKey().getValue().getKey();
-    currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
     try {
-      Iterator<BoundedWindow> windowIterator =
-          (Iterator<BoundedWindow>) elem.getWindows().iterator();
-      while (windowIterator.hasNext()) {
-        currentWindow = windowIterator.next();
-        currentTracker =
-            RestrictionTrackers.observe(
-                doFnInvoker.invokeNewTracker(processContext),
-                new ClaimObserver<PositionT>() {
-                  @Override
-                  public void onClaimed(PositionT position) {}
-
-                  @Override
-                  public void onClaimFailed(PositionT position) {}
-                });
-        TruncateResult<OutputT> truncatedRestriction =
-            doFnInvoker.invokeTruncateRestriction(processContext);
-        if (truncatedRestriction != null) {
-          processContext.output(truncatedRestriction.getTruncatedRestriction());
-        }
-      }
-    } finally {
-      currentTracker = null;
-      currentElement = null;
-      currentRestriction = null;
-      currentWatermarkEstimatorState = null;
-      currentWindow = null;
-    }
-
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
-    this.stateAccessor.finalizeState();
-  }
-
-  /** Internal class to hold the primary and residual roots when converted to an input element. */
-  @AutoValue
-  abstract static class WindowedSplitResult {
-    public static WindowedSplitResult forRoots(
-        WindowedValue primaryInFullyProcessedWindowsRoot,
-        WindowedValue primarySplitRoot,
-        WindowedValue residualSplitRoot,
-        WindowedValue residualInUnprocessedWindowsRoot) {
-      return new AutoValue_FnApiDoFnRunner_WindowedSplitResult(
-          primaryInFullyProcessedWindowsRoot,
-          primarySplitRoot,
-          residualSplitRoot,
-          residualInUnprocessedWindowsRoot);
-    }
-
-    public abstract @Nullable WindowedValue getPrimaryInFullyProcessedWindowsRoot();
-
-    public abstract WindowedValue getPrimarySplitRoot();
-
-    public abstract WindowedValue getResidualSplitRoot();
-
-    public abstract @Nullable WindowedValue getResidualInUnprocessedWindowsRoot();
-  }
-
-  private void processElementForWindowObservingSizedElementAndRestriction(
-      WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
-    currentElement = elem.withValue(elem.getValue().getKey().getKey());
-    try {
-      currentWindowIterator =
-          currentElement.getWindows() instanceof List
-              ? ((List) currentElement.getWindows()).listIterator()
-              : ImmutableList.<BoundedWindow>copyOf(elem.getWindows()).listIterator();
+      windowCurrentIndex = -1;
+      windowStopIndex = currentElement.getWindows().size();
+      currentWindows = ImmutableList.copyOf(currentElement.getWindows());
       while (true) {
         synchronized (splitLock) {
-          if (!currentWindowIterator.hasNext()) {
-            return;
+          windowCurrentIndex++;
+          if (windowCurrentIndex >= windowStopIndex) {
+            break;
           }
           currentRestriction = elem.getValue().getKey().getValue().getKey();
           currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
-          currentWindow = currentWindowIterator.next();
+          currentWindow = currentWindows.get(windowCurrentIndex);
           currentTracker =
               RestrictionTrackers.observe(
                   doFnInvoker.invokeNewTracker(processContext),
@@ -961,6 +990,101 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           currentWatermarkEstimator =
               WatermarkEstimators.threadSafe(
                   doFnInvoker.invokeNewWatermarkEstimator(processContext));
+          initialWatermark = currentWatermarkEstimator.getWatermarkAndState().getKey();
+        }
+        TruncateResult<OutputT> truncatedRestriction =
+            doFnInvoker.invokeTruncateRestriction(processContext);
+        if (truncatedRestriction != null) {
+          processContext.output(truncatedRestriction.getTruncatedRestriction());
+        }
+      }
+    } finally {
+      currentTracker = null;
+      currentElement = null;
+      currentRestriction = null;
+      currentWatermarkEstimatorState = null;
+      currentWatermarkEstimator = null;
+      currentWindow = null;
+      currentWindows = null;
+      initialWatermark = null;
+    }
+
+    this.stateAccessor.finalizeState();
+  }
+
+  /** Internal class to hold the primary and residual roots when converted to an input element. */
+  @AutoValue
+  @AutoValue.CopyAnnotations
+  abstract static class WindowedSplitResult {
+    public static WindowedSplitResult forRoots(
+        WindowedValue<?> primaryInFullyProcessedWindowsRoot,
+        WindowedValue<?> primarySplitRoot,
+        WindowedValue<?> residualSplitRoot,
+        WindowedValue<?> residualInUnprocessedWindowsRoot) {
+      return new AutoValue_FnApiDoFnRunner_WindowedSplitResult(
+          primaryInFullyProcessedWindowsRoot,
+          primarySplitRoot,
+          residualSplitRoot,
+          residualInUnprocessedWindowsRoot);
+    }
+
+    public abstract @Nullable WindowedValue<?> getPrimaryInFullyProcessedWindowsRoot();
+
+    public abstract @Nullable WindowedValue<?> getPrimarySplitRoot();
+
+    public abstract @Nullable WindowedValue<?> getResidualSplitRoot();
+
+    public abstract @Nullable WindowedValue<?> getResidualInUnprocessedWindowsRoot();
+  }
+
+  @AutoValue
+  @AutoValue.CopyAnnotations
+  abstract static class SplitResultsWithStopIndex {
+    public static SplitResultsWithStopIndex of(
+        WindowedSplitResult windowSplit,
+        HandlesSplits.SplitResult downstreamSplit,
+        int newWindowStopIndex) {
+      return new AutoValue_FnApiDoFnRunner_SplitResultsWithStopIndex(
+          windowSplit, downstreamSplit, newWindowStopIndex);
+    }
+
+    public abstract @Nullable WindowedSplitResult getWindowSplit();
+
+    public abstract HandlesSplits.@Nullable SplitResult getDownstreamSplit();
+
+    public abstract int getNewWindowStopIndex();
+  }
+
+  private void processElementForWindowObservingSizedElementAndRestriction(
+      WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
+    currentElement = elem.withValue(elem.getValue().getKey().getKey());
+    try {
+      windowCurrentIndex = -1;
+      windowStopIndex = currentElement.getWindows().size();
+      currentWindows = ImmutableList.copyOf(currentElement.getWindows());
+      while (true) {
+        synchronized (splitLock) {
+          windowCurrentIndex++;
+          if (windowCurrentIndex >= windowStopIndex) {
+            return;
+          }
+          currentRestriction = elem.getValue().getKey().getValue().getKey();
+          currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
+          currentWindow = currentWindows.get(windowCurrentIndex);
+          currentTracker =
+              RestrictionTrackers.observe(
+                  doFnInvoker.invokeNewTracker(processContext),
+                  new ClaimObserver<PositionT>() {
+                    @Override
+                    public void onClaimed(PositionT position) {}
+
+                    @Override
+                    public void onClaimFailed(PositionT position) {}
+                  });
+          currentWatermarkEstimator =
+              WatermarkEstimators.threadSafe(
+                  doFnInvoker.invokeNewWatermarkEstimator(processContext));
+          initialWatermark = currentWatermarkEstimator.getWatermarkAndState().getKey();
         }
 
         // It is important to ensure that {@code splitLock} is not held during #invokeProcessElement
@@ -994,10 +1118,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         currentElement = null;
         currentRestriction = null;
         currentWatermarkEstimatorState = null;
-        currentWindowIterator = null;
         currentWindow = null;
         currentTracker = null;
         currentWatermarkEstimator = null;
+        currentWindows = null;
+        initialWatermark = null;
       }
     }
   }
@@ -1009,7 +1134,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private abstract class SplittableFnDataReceiver
       implements HandlesSplits, FnDataReceiver<WindowedValue> {
     @Override
-    public SplitResult trySplit(double fractionOfRemainder) {
+    public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
       return trySplitForElementAndRestriction(fractionOfRemainder, Duration.ZERO);
     }
 
@@ -1029,142 +1154,368 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private Progress getProgress() {
     synchronized (splitLock) {
       if (currentTracker instanceof RestrictionTracker.HasProgress) {
-        return ((HasProgress) currentTracker).getProgress();
+        return scaleProgress(
+            ((HasProgress) currentTracker).getProgress(), windowCurrentIndex, windowStopIndex);
       }
     }
     return null;
   }
 
-  private HandlesSplits.SplitResult trySplitForElementAndRestriction(
-      double fractionOfRemainder, Duration resumeDelay) {
-    KV<Instant, WatermarkEstimatorStateT> watermarkAndState;
-    WindowedSplitResult windowedSplitResult;
+  private Progress getProgressFromWindowObservingTruncate(double elementCompleted) {
     synchronized (splitLock) {
-      // There is nothing to split if we are between element and restriction processing calls.
-      if (currentTracker == null) {
+      if (currentWindow != null) {
+        return scaleProgress(
+            Progress.from(elementCompleted, 1 - elementCompleted),
+            windowCurrentIndex,
+            windowStopIndex);
+      }
+    }
+    return null;
+  }
+
+  @VisibleForTesting
+  static Progress scaleProgress(Progress progress, int currentWindowIndex, int stopWindowIndex) {
+    double totalWorkPerWindow = progress.getWorkCompleted() + progress.getWorkRemaining();
+    double completed = totalWorkPerWindow * currentWindowIndex + progress.getWorkCompleted();
+    double remaining =
+        totalWorkPerWindow * (stopWindowIndex - currentWindowIndex - 1)
+            + progress.getWorkRemaining();
+    return Progress.from(completed, remaining);
+  }
+
+  private WindowedSplitResult calculateRestrictionSize(
+      WindowedSplitResult splitResult, String errorContext) {
+    double fullSize =
+        splitResult.getResidualInUnprocessedWindowsRoot() == null
+                && splitResult.getPrimaryInFullyProcessedWindowsRoot() == null
+            ? 0
+            : doFnInvoker.invokeGetSize(
+                new DelegatingArgumentProvider<InputT, OutputT>(processContext, errorContext) {
+                  @Override
+                  public Object restriction() {
+                    return currentRestriction;
+                  }
+
+                  @Override
+                  public RestrictionTracker<?, ?> restrictionTracker() {
+                    return doFnInvoker.invokeNewTracker(this);
+                  }
+                });
+    double primarySize =
+        splitResult.getPrimarySplitRoot() == null
+            ? 0
+            : doFnInvoker.invokeGetSize(
+                new DelegatingArgumentProvider<InputT, OutputT>(processContext, errorContext) {
+                  @Override
+                  public Object restriction() {
+                    return ((KV<?, KV<?, ?>>) splitResult.getPrimarySplitRoot().getValue())
+                        .getValue()
+                        .getKey();
+                  }
+
+                  @Override
+                  public RestrictionTracker<?, ?> restrictionTracker() {
+                    return doFnInvoker.invokeNewTracker(this);
+                  }
+                });
+    double residualSize =
+        splitResult.getResidualSplitRoot() == null
+            ? 0
+            : doFnInvoker.invokeGetSize(
+                new DelegatingArgumentProvider<InputT, OutputT>(processContext, errorContext) {
+                  @Override
+                  public Object restriction() {
+                    return ((KV<?, KV<?, ?>>) splitResult.getResidualSplitRoot().getValue())
+                        .getValue()
+                        .getKey();
+                  }
+
+                  @Override
+                  public RestrictionTracker<?, ?> restrictionTracker() {
+                    return doFnInvoker.invokeNewTracker(this);
+                  }
+                });
+    return WindowedSplitResult.forRoots(
+        splitResult.getPrimaryInFullyProcessedWindowsRoot() == null
+            ? null
+            : WindowedValue.of(
+                KV.of(splitResult.getPrimaryInFullyProcessedWindowsRoot().getValue(), fullSize),
+                splitResult.getPrimaryInFullyProcessedWindowsRoot().getTimestamp(),
+                splitResult.getPrimaryInFullyProcessedWindowsRoot().getWindows(),
+                splitResult.getPrimaryInFullyProcessedWindowsRoot().getPane()),
+        splitResult.getPrimarySplitRoot() == null
+            ? null
+            : WindowedValue.of(
+                KV.of(splitResult.getPrimarySplitRoot().getValue(), primarySize),
+                splitResult.getPrimarySplitRoot().getTimestamp(),
+                splitResult.getPrimarySplitRoot().getWindows(),
+                splitResult.getPrimarySplitRoot().getPane()),
+        splitResult.getResidualSplitRoot() == null
+            ? null
+            : WindowedValue.of(
+                KV.of(splitResult.getResidualSplitRoot().getValue(), residualSize),
+                splitResult.getResidualSplitRoot().getTimestamp(),
+                splitResult.getResidualSplitRoot().getWindows(),
+                splitResult.getResidualSplitRoot().getPane()),
+        splitResult.getResidualInUnprocessedWindowsRoot() == null
+            ? null
+            : WindowedValue.of(
+                KV.of(splitResult.getResidualInUnprocessedWindowsRoot().getValue(), fullSize),
+                splitResult.getResidualInUnprocessedWindowsRoot().getTimestamp(),
+                splitResult.getResidualInUnprocessedWindowsRoot().getWindows(),
+                splitResult.getResidualInUnprocessedWindowsRoot().getPane()));
+  }
+
+  private HandlesSplits.SplitResult trySplitForWindowObservingTruncateRestriction(
+      double fractionOfRemainder, HandlesSplits splitDelegate) {
+    WindowedSplitResult windowedSplitResult = null;
+    HandlesSplits.SplitResult downstreamSplitResult = null;
+    synchronized (splitLock) {
+      // There is nothing to split if we are between truncate processing calls.
+      if (currentWindow == null) {
         return null;
       }
 
-      // Make sure to get the output watermark before we split to ensure that the lower bound
-      // applies to the residual.
-      watermarkAndState = currentWatermarkEstimator.getWatermarkAndState();
-      SplitResult<RestrictionT> splitResult = currentTracker.trySplit(fractionOfRemainder);
+      SplitResultsWithStopIndex splitResult =
+          computeSplitForProcessOrTruncate(
+              currentElement,
+              currentRestriction,
+              currentWindow,
+              currentWindows,
+              currentWatermarkEstimatorState,
+              fractionOfRemainder,
+              null,
+              splitDelegate,
+              null,
+              windowCurrentIndex,
+              windowStopIndex);
       if (splitResult == null) {
         return null;
       }
-
-      // We have a successful self split, either runner initiated or via a self checkpoint.
-      // Convert the split taking into account the processed windows, the current window and the
-      // yet to be processed windows.
-      List<BoundedWindow> primaryFullyProcessedWindows =
-          ImmutableList.copyOf(
-              Iterables.limit(currentElement.getWindows(), currentWindowIterator.previousIndex()));
-      // Advances the iterator consuming the remaining windows.
-      List<BoundedWindow> residualUnprocessedWindows = ImmutableList.copyOf(currentWindowIterator);
-      // If the window has been observed then the splitAndSize method would have already
-      // output sizes for each window separately.
-      //
-      // TODO: Consider using the original size on the element instead of recomputing
-      // this here.
-      double fullSize =
-          primaryFullyProcessedWindows.isEmpty() && residualUnprocessedWindows.isEmpty()
-              ? 0
-              : doFnInvoker.invokeGetSize(
-                  new DelegatingArgumentProvider<InputT, OutputT>(
-                      processContext,
-                      PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN
-                          + "/GetPrimarySize") {
-                    @Override
-                    public Object restriction() {
-                      return currentRestriction;
-                    }
-
-                    @Override
-                    public RestrictionTracker<?, ?> restrictionTracker() {
-                      return doFnInvoker.invokeNewTracker(this);
-                    }
-                  });
-      double primarySize =
-          doFnInvoker.invokeGetSize(
-              new DelegatingArgumentProvider<InputT, OutputT>(
-                  processContext,
-                  PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN
-                      + "/GetPrimarySize") {
-                @Override
-                public Object restriction() {
-                  return splitResult.getPrimary();
-                }
-
-                @Override
-                public RestrictionTracker<?, ?> restrictionTracker() {
-                  return doFnInvoker.invokeNewTracker(this);
-                }
-              });
-      double residualSize =
-          doFnInvoker.invokeGetSize(
-              new DelegatingArgumentProvider<InputT, OutputT>(
-                  processContext,
-                  PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN
-                      + "/GetResidualSize") {
-                @Override
-                public Object restriction() {
-                  return splitResult.getResidual();
-                }
-
-                @Override
-                public RestrictionTracker<?, ?> restrictionTracker() {
-                  return doFnInvoker.invokeNewTracker(this);
-                }
-              });
+      windowStopIndex = splitResult.getNewWindowStopIndex();
       windowedSplitResult =
-          WindowedSplitResult.forRoots(
-              primaryFullyProcessedWindows.isEmpty()
-                  ? null
-                  : WindowedValue.of(
-                      KV.of(
-                          KV.of(
-                              currentElement.getValue(),
-                              KV.of(currentRestriction, currentWatermarkEstimatorState)),
-                          fullSize),
-                      currentElement.getTimestamp(),
-                      primaryFullyProcessedWindows,
-                      currentElement.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of(
-                          currentElement.getValue(),
-                          KV.of(splitResult.getPrimary(), currentWatermarkEstimatorState)),
-                      primarySize),
-                  currentElement.getTimestamp(),
-                  currentWindow,
-                  currentElement.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of(
-                          currentElement.getValue(),
-                          KV.of(splitResult.getResidual(), watermarkAndState.getValue())),
-                      residualSize),
-                  currentElement.getTimestamp(),
-                  currentWindow,
-                  currentElement.getPane()),
-              residualUnprocessedWindows.isEmpty()
-                  ? null
-                  : WindowedValue.of(
-                      KV.of(
-                          KV.of(
-                              currentElement.getValue(),
-                              KV.of(currentRestriction, currentWatermarkEstimatorState)),
-                          fullSize),
-                      currentElement.getTimestamp(),
-                      residualUnprocessedWindows,
-                      currentElement.getPane()));
+          calculateRestrictionSize(
+              splitResult.getWindowSplit(),
+              PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN + "/GetSize");
+      downstreamSplitResult = splitResult.getDownstreamSplit();
+    }
+    // Note that the assumption here is the fullInputCoder of the Truncate transform should be the
+    // the same as the SDF/Process transform.
+    Coder fullInputCoder = WindowedValue.getFullCoder(inputCoder, windowCoder);
+    return constructSplitResult(
+        windowedSplitResult,
+        downstreamSplitResult,
+        fullInputCoder,
+        initialWatermark,
+        null,
+        pTransformId,
+        mainInputId,
+        pTransform.getOutputsMap().keySet(),
+        null);
+  }
+
+  private static <WatermarkEstimatorStateT> WindowedSplitResult computeWindowSplitResult(
+      WindowedValue currentElement,
+      Object currentRestriction,
+      BoundedWindow currentWindow,
+      List<BoundedWindow> windows,
+      WatermarkEstimatorStateT currentWatermarkEstimatorState,
+      int toIndex,
+      int fromIndex,
+      int stopWindowIndex,
+      SplitResult<?> splitResult,
+      KV<Instant, WatermarkEstimatorStateT> watermarkAndState) {
+    List<BoundedWindow> primaryFullyProcessedWindows = windows.subList(0, toIndex);
+    List<BoundedWindow> residualUnprocessedWindows = windows.subList(fromIndex, stopWindowIndex);
+    WindowedSplitResult windowedSplitResult;
+
+    windowedSplitResult =
+        WindowedSplitResult.forRoots(
+            primaryFullyProcessedWindows.isEmpty()
+                ? null
+                : WindowedValue.of(
+                    KV.of(
+                        currentElement.getValue(),
+                        KV.of(currentRestriction, currentWatermarkEstimatorState)),
+                    currentElement.getTimestamp(),
+                    primaryFullyProcessedWindows,
+                    currentElement.getPane()),
+            splitResult == null
+                ? null
+                : WindowedValue.of(
+                    KV.of(
+                        currentElement.getValue(),
+                        KV.of(splitResult.getPrimary(), currentWatermarkEstimatorState)),
+                    currentElement.getTimestamp(),
+                    currentWindow,
+                    currentElement.getPane()),
+            splitResult == null
+                ? null
+                : WindowedValue.of(
+                    KV.of(
+                        currentElement.getValue(),
+                        KV.of(splitResult.getResidual(), watermarkAndState.getValue())),
+                    currentElement.getTimestamp(),
+                    currentWindow,
+                    currentElement.getPane()),
+            residualUnprocessedWindows.isEmpty()
+                ? null
+                : WindowedValue.of(
+                    KV.of(
+                        currentElement.getValue(),
+                        KV.of(currentRestriction, currentWatermarkEstimatorState)),
+                    currentElement.getTimestamp(),
+                    residualUnprocessedWindows,
+                    currentElement.getPane()));
+    return windowedSplitResult;
+  }
+
+  @VisibleForTesting
+  static <WatermarkEstimatorStateT> SplitResultsWithStopIndex computeSplitForProcessOrTruncate(
+      WindowedValue currentElement,
+      Object currentRestriction,
+      BoundedWindow currentWindow,
+      List<BoundedWindow> windows,
+      WatermarkEstimatorStateT currentWatermarkEstimatorState,
+      double fractionOfRemainder,
+      RestrictionTracker currentTracker,
+      HandlesSplits splitDelegate,
+      KV<Instant, WatermarkEstimatorStateT> watermarkAndState,
+      int currentWindowIndex,
+      int stopWindowIndex) {
+    // We should only have currentTracker or splitDelegate.
+    checkArgument((currentTracker != null) ^ (splitDelegate != null));
+    // When we have currentTracker, the watermarkAndState should not be null.
+    if (currentTracker != null) {
+      checkNotNull(watermarkAndState);
     }
 
+    WindowedSplitResult windowedSplitResult = null;
+    HandlesSplits.SplitResult downstreamSplitResult = null;
+    int newWindowStopIndex = stopWindowIndex;
+    // If we are not on the last window, try to compute the split which is on the current window or
+    // on a future window.
+    if (currentWindowIndex != stopWindowIndex - 1) {
+      // Compute the fraction of the remainder relative to the scaled progress.
+      Progress elementProgress;
+      if (currentTracker != null) {
+        if (currentTracker instanceof HasProgress) {
+          elementProgress = ((HasProgress) currentTracker).getProgress();
+        } else {
+          elementProgress = Progress.from(0, 1);
+        }
+      } else {
+        double elementCompleted = splitDelegate.getProgress();
+        elementProgress = Progress.from(elementCompleted, 1 - elementCompleted);
+      }
+      Progress scaledProgress = scaleProgress(elementProgress, currentWindowIndex, stopWindowIndex);
+      double scaledFractionOfRemainder = scaledProgress.getWorkRemaining() * fractionOfRemainder;
+
+      // The fraction is out of the current window and hence we will split at the closest window
+      // boundary.
+      if (scaledFractionOfRemainder >= elementProgress.getWorkRemaining()) {
+        newWindowStopIndex =
+            (int)
+                Math.min(
+                    stopWindowIndex - 1,
+                    currentWindowIndex
+                        + Math.max(
+                            1,
+                            Math.round(
+                                (elementProgress.getWorkCompleted() + scaledFractionOfRemainder)
+                                    / (elementProgress.getWorkCompleted()
+                                        + elementProgress.getWorkRemaining()))));
+        windowedSplitResult =
+            computeWindowSplitResult(
+                currentElement,
+                currentRestriction,
+                currentWindow,
+                windows,
+                currentWatermarkEstimatorState,
+                newWindowStopIndex,
+                newWindowStopIndex,
+                stopWindowIndex,
+                null,
+                watermarkAndState);
+      } else {
+        // Compute the element split with the scaled fraction.
+        SplitResult<?> elementSplit = null;
+        if (currentTracker != null) {
+          elementSplit =
+              currentTracker.trySplit(
+                  scaledFractionOfRemainder / elementProgress.getWorkRemaining());
+        } else {
+          downstreamSplitResult = splitDelegate.trySplit(scaledFractionOfRemainder);
+        }
+        newWindowStopIndex = currentWindowIndex + 1;
+        int toIndex =
+            (elementSplit == null && downstreamSplitResult == null)
+                ? newWindowStopIndex
+                : currentWindowIndex;
+        windowedSplitResult =
+            computeWindowSplitResult(
+                currentElement,
+                currentRestriction,
+                currentWindow,
+                windows,
+                currentWatermarkEstimatorState,
+                toIndex,
+                newWindowStopIndex,
+                stopWindowIndex,
+                elementSplit,
+                watermarkAndState);
+      }
+    } else {
+      // We are on the last window then compute the element split with given fraction.
+      SplitResult<?> elementSplitResult = null;
+      newWindowStopIndex = stopWindowIndex;
+      if (currentTracker != null) {
+        elementSplitResult = currentTracker.trySplit(fractionOfRemainder);
+      } else {
+        downstreamSplitResult = splitDelegate.trySplit(fractionOfRemainder);
+      }
+      if (elementSplitResult == null && downstreamSplitResult == null) {
+        return null;
+      }
+      windowedSplitResult =
+          computeWindowSplitResult(
+              currentElement,
+              currentRestriction,
+              currentWindow,
+              windows,
+              currentWatermarkEstimatorState,
+              currentWindowIndex,
+              stopWindowIndex,
+              stopWindowIndex,
+              elementSplitResult,
+              watermarkAndState);
+    }
+    return SplitResultsWithStopIndex.of(
+        windowedSplitResult, downstreamSplitResult, newWindowStopIndex);
+  }
+
+  @VisibleForTesting
+  static <WatermarkEstimatorStateT> HandlesSplits.SplitResult constructSplitResult(
+      WindowedSplitResult windowedSplitResult,
+      HandlesSplits.SplitResult downstreamElementSplit,
+      Coder fullInputCoder,
+      Instant initialWatermark,
+      KV<Instant, WatermarkEstimatorStateT> watermarkAndState,
+      String pTransformId,
+      String mainInputId,
+      Collection<String> outputIds,
+      Duration resumeDelay) {
+    // The element split cannot from both windowedSplitResult and downstreamElementSplit.
+    checkArgument(
+        (windowedSplitResult == null || windowedSplitResult.getResidualSplitRoot() == null)
+            || downstreamElementSplit == null);
     List<BundleApplication> primaryRoots = new ArrayList<>();
     List<DelayedBundleApplication> residualRoots = new ArrayList<>();
-    Coder fullInputCoder = WindowedValue.getFullCoder(inputCoder, windowCoder);
-    if (windowedSplitResult.getPrimaryInFullyProcessedWindowsRoot() != null) {
-      ByteString.Output primaryInOtherWindowsBytes = ByteString.newOutput();
+
+    // Encode window splits.
+    if (windowedSplitResult != null
+        && windowedSplitResult.getPrimaryInFullyProcessedWindowsRoot() != null) {
+      ByteStringOutputStream primaryInOtherWindowsBytes = new ByteStringOutputStream();
       try {
         fullInputCoder.encode(
             windowedSplitResult.getPrimaryInFullyProcessedWindowsRoot(),
@@ -1179,8 +1530,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .setElement(primaryInOtherWindowsBytes.toByteString());
       primaryRoots.add(primaryApplicationInOtherWindows.build());
     }
-    if (windowedSplitResult.getResidualInUnprocessedWindowsRoot() != null) {
-      ByteString.Output bytesOut = ByteString.newOutput();
+    if (windowedSplitResult != null
+        && windowedSplitResult.getResidualInUnprocessedWindowsRoot() != null) {
+      ByteStringOutputStream bytesOut = new ByteStringOutputStream();
       try {
         fullInputCoder.encode(windowedSplitResult.getResidualInUnprocessedWindowsRoot(), bytesOut);
       } catch (IOException e) {
@@ -1193,91 +1545,233 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .setElement(bytesOut.toByteString());
       // We don't want to change the output watermarks or set the checkpoint resume time since
       // that applies to the current window.
+      Map<String, org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp>
+          outputWatermarkMapForUnprocessedWindows = new HashMap<>();
+      if (!initialWatermark.equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
+        org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp outputWatermark =
+            org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp.newBuilder()
+                .setSeconds(initialWatermark.getMillis() / 1000)
+                .setNanos((int) (initialWatermark.getMillis() % 1000) * 1000000)
+                .build();
+        for (String outputId : outputIds) {
+          outputWatermarkMapForUnprocessedWindows.put(outputId, outputWatermark);
+        }
+      }
+      residualInUnprocessedWindowsRoot.putAllOutputWatermarks(
+          outputWatermarkMapForUnprocessedWindows);
       residualRoots.add(
           DelayedBundleApplication.newBuilder()
               .setApplication(residualInUnprocessedWindowsRoot)
               .build());
     }
 
-    ByteString.Output primaryBytes = ByteString.newOutput();
-    ByteString.Output residualBytes = ByteString.newOutput();
-    try {
-      fullInputCoder.encode(windowedSplitResult.getPrimarySplitRoot(), primaryBytes);
-      fullInputCoder.encode(windowedSplitResult.getResidualSplitRoot(), residualBytes);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    primaryRoots.add(
-        BundleApplication.newBuilder()
-            .setTransformId(pTransformId)
-            .setInputId(mainInputId)
-            .setElement(primaryBytes.toByteString())
-            .build());
-    BundleApplication.Builder residualApplication =
-        BundleApplication.newBuilder()
-            .setTransformId(pTransformId)
-            .setInputId(mainInputId)
-            .setElement(residualBytes.toByteString());
-
-    if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
-      for (String outputId : pTransform.getOutputsMap().keySet()) {
-        residualApplication.putOutputWatermarks(
-            outputId,
-            org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+    ByteStringOutputStream primaryBytes = new ByteStringOutputStream();
+    ByteStringOutputStream residualBytes = new ByteStringOutputStream();
+    // Encode element split from windowedSplitResult or from downstream element split. It's possible
+    // that there is no element split.
+    if (windowedSplitResult != null && windowedSplitResult.getResidualSplitRoot() != null) {
+      // When there is element split in windowedSplitResult, the resumeDelay should not be null.
+      checkNotNull(resumeDelay);
+      try {
+        fullInputCoder.encode(windowedSplitResult.getPrimarySplitRoot(), primaryBytes);
+        fullInputCoder.encode(windowedSplitResult.getResidualSplitRoot(), residualBytes);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      primaryRoots.add(
+          BundleApplication.newBuilder()
+              .setTransformId(pTransformId)
+              .setInputId(mainInputId)
+              .setElement(primaryBytes.toByteString())
+              .build());
+      BundleApplication.Builder residualApplication =
+          BundleApplication.newBuilder()
+              .setTransformId(pTransformId)
+              .setInputId(mainInputId)
+              .setElement(residualBytes.toByteString());
+      Map<String, org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp>
+          outputWatermarkMap = new HashMap<>();
+      if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
+        org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp outputWatermark =
+            org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp.newBuilder()
                 .setSeconds(watermarkAndState.getKey().getMillis() / 1000)
                 .setNanos((int) (watermarkAndState.getKey().getMillis() % 1000) * 1000000)
-                .build());
+                .build();
+        for (String outputId : outputIds) {
+          outputWatermarkMap.put(outputId, outputWatermark);
+        }
       }
+      residualApplication.putAllOutputWatermarks(outputWatermarkMap);
+      residualRoots.add(
+          DelayedBundleApplication.newBuilder()
+              .setApplication(residualApplication)
+              .setRequestedTimeDelay(Durations.fromMillis(resumeDelay.getMillis()))
+              .build());
+
+    } else if (downstreamElementSplit != null) {
+      primaryRoots.add(Iterables.getOnlyElement(downstreamElementSplit.getPrimaryRoots()));
+      residualRoots.add(Iterables.getOnlyElement(downstreamElementSplit.getResidualRoots()));
     }
-    residualRoots.add(
-        DelayedBundleApplication.newBuilder()
-            .setApplication(residualApplication)
-            .setRequestedTimeDelay(Durations.fromMillis(resumeDelay.getMillis()))
-            .build());
 
     return HandlesSplits.SplitResult.of(primaryRoots, residualRoots);
   }
 
+  private HandlesSplits.SplitResult trySplitForElementAndRestriction(
+      double fractionOfRemainder, Duration resumeDelay) {
+    KV<Instant, WatermarkEstimatorStateT> watermarkAndState;
+    WindowedSplitResult windowedSplitResult = null;
+    synchronized (splitLock) {
+      // There is nothing to split if we are between element and restriction processing calls.
+      if (currentTracker == null) {
+        return null;
+      }
+      // Make sure to get the output watermark before we split to ensure that the lower bound
+      // applies to the residual.
+      watermarkAndState = currentWatermarkEstimator.getWatermarkAndState();
+      SplitResultsWithStopIndex splitResult =
+          computeSplitForProcessOrTruncate(
+              currentElement,
+              currentRestriction,
+              currentWindow,
+              currentWindows,
+              currentWatermarkEstimatorState,
+              fractionOfRemainder,
+              currentTracker,
+              null,
+              watermarkAndState,
+              windowCurrentIndex,
+              windowStopIndex);
+      if (splitResult == null) {
+        return null;
+      }
+      windowStopIndex = splitResult.getNewWindowStopIndex();
+      // Populate the size of primary/residual.
+      windowedSplitResult =
+          calculateRestrictionSize(
+              splitResult.getWindowSplit(),
+              PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN
+                  + "/GetSize");
+    }
+    Coder fullInputCoder = WindowedValue.getFullCoder(inputCoder, windowCoder);
+    return constructSplitResult(
+        windowedSplitResult,
+        null,
+        fullInputCoder,
+        initialWatermark,
+        watermarkAndState,
+        pTransformId,
+        mainInputId,
+        pTransform.getOutputsMap().keySet(),
+        resumeDelay);
+  }
+
   private <K> void processTimer(
       String timerIdOrTimerFamilyId, TimeDomain timeDomain, Timer<K> timer) {
-    currentTimer = timer;
-    currentTimeDomain = timeDomain;
-    onTimerContext = new OnTimerContext<>(timer.getUserKey());
-    // The timerIdOrTimerFamilyId contains either a timerId from timer declaration or timerFamilyId
-    // from timer family declaration.
-    String timerId =
-        timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
-            ? ""
-            : timerIdOrTimerFamilyId;
-    String timerFamilyId =
-        timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
-            ? timerIdOrTimerFamilyId
-            : "";
+    checkNotNull(timerBundleTracker);
     try {
+      currentKey = timer.getUserKey();
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
-        doFnInvoker.invokeOnTimer(timerId, timerFamilyId, onTimerContext);
+        Modifications bundleModifications = timerBundleTracker.getBundleModifications();
+        Table<String, String, Timer<K>> modifiedTimerIds =
+            bundleModifications.getModifiedTimerIds();
+        NavigableSet<TimerInfo<K>> earlierTimers =
+            bundleModifications
+                .getModifiedTimersOrdered(timeDomain)
+                .headSet(TimerInfo.of(timer, "", timeDomain), true);
+        while (!earlierTimers.isEmpty()) {
+          TimerInfo<K> insertedTimer = earlierTimers.pollFirst();
+          if (timerModified(
+              modifiedTimerIds, insertedTimer.getTimerFamilyOrId(), insertedTimer.getTimer())) {
+            continue;
+          }
+
+          String timerId =
+              insertedTimer.getTimer().getDynamicTimerTag().isEmpty()
+                  ? insertedTimer.getTimerFamilyOrId()
+                  : insertedTimer.getTimer().getDynamicTimerTag();
+          String timerFamily =
+              insertedTimer.getTimer().getDynamicTimerTag().isEmpty()
+                  ? ""
+                  : insertedTimer.getTimerFamilyOrId();
+
+          // If this timer was created previously in the bundle as an overwrite of a previous timer,
+          // we must make sure
+          // to clear the old timer. Since we are firing the timer inline, the runner doesn't know
+          // that the old timer
+          // was overwritten, and will otherwise fire it - causing a spurious timer fire.
+          modifiedTimerIds.put(
+              insertedTimer.getTimerFamilyOrId(),
+              insertedTimer.getTimer().getDynamicTimerTag(),
+              Timer.cleared(
+                  insertedTimer.getTimer().getUserKey(),
+                  insertedTimer.getTimer().getDynamicTimerTag(),
+                  insertedTimer.getTimer().getWindows()));
+          // It's important to call processTimer after inserting the above deletion, otherwise the
+          // above line
+          // would overwrite any looping timer with a deletion.
+          processTimerDirect(
+              timerFamily, timerId, insertedTimer.getTimeDomain(), insertedTimer.getTimer());
+        }
+
+        if (!timerModified(modifiedTimerIds, timerIdOrTimerFamilyId, timer)) {
+          // The timerIdOrTimerFamilyId contains either a timerId from timer declaration or
+          // timerFamilyId
+          // from timer family declaration.
+          boolean isFamily = timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX);
+          String timerId = isFamily ? "" : timerIdOrTimerFamilyId;
+          String timerFamilyId = isFamily ? timerIdOrTimerFamilyId : "";
+          processTimerDirect(timerFamilyId, timerId, timeDomain, timer);
+        }
       }
     } finally {
+      currentKey = null;
       currentTimer = null;
       currentTimeDomain = null;
       currentWindow = null;
     }
   }
 
-  private void finishBundle() throws Exception {
-    for (TimerHandler timerHandler : timerHandlers.values()) {
-      timerHandler.awaitCompletion();
+  private <K> boolean timerModified(
+      Table<String, String, Timer<K>> modifiedTimerIds, String timerFamilyOrId, Timer<K> timer) {
+    @Nullable
+    Timer<K> modifiedTimer = modifiedTimerIds.get(timerFamilyOrId, timer.getDynamicTimerTag());
+    return modifiedTimer != null && !modifiedTimer.equals(timer);
+  }
+
+  private <K> void processTimerDirect(
+      String timerFamilyId, String timerId, TimeDomain timeDomain, Timer<K> timer) {
+    currentTimer = timer;
+    currentTimeDomain = timeDomain;
+    doFnInvoker.invokeOnTimer(timerId, timerFamilyId, onTimerContext);
+  }
+
+  private <K> void processOnWindowExpiration(Timer<K> timer) {
+    try {
+      currentKey = timer.getUserKey();
+      currentTimer = timer;
+      Iterator<BoundedWindow> windowIterator =
+          (Iterator<BoundedWindow>) timer.getWindows().iterator();
+      while (windowIterator.hasNext()) {
+        currentWindow = windowIterator.next();
+        doFnInvoker.invokeOnWindowExpiration(onWindowExpirationContext);
+      }
+    } finally {
+      currentKey = null;
+      currentTimer = null;
+      currentWindow = null;
     }
-    for (TimerHandler timerHandler : timerHandlers.values()) {
-      timerHandler.close();
+  }
+
+  private void finishBundle() throws Exception {
+    if (timerBundleTracker != null) {
+      timerBundleTracker.outputTimers(outboundTimerReceivers::get);
     }
 
     doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -1302,22 +1796,22 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private class FnApiTimer<K> implements org.apache.beam.sdk.state.Timer {
-    private final String timerId;
+    private final String timerIdOrFamily;
     private final K userKey;
     private final String dynamicTimerTag;
     private final TimeDomain timeDomain;
-    private final Duration allowedLateness;
     private final Instant fireTimestamp;
     private final Instant elementTimestampOrTimerHoldTimestamp;
     private final BoundedWindow boundedWindow;
     private final PaneInfo paneInfo;
 
-    private Instant outputTimestamp;
+    private @Nullable Instant outputTimestamp;
+    private boolean noOutputTimestamp;
     private Duration period = Duration.ZERO;
     private Duration offset = Duration.ZERO;
 
     FnApiTimer(
-        String timerId,
+        String timerIdOrFamily,
         K userKey,
         String dynamicTimerTag,
         BoundedWindow boundedWindow,
@@ -1325,12 +1819,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant elementTimestampOrTimerFireTimestamp,
         PaneInfo paneInfo,
         TimeDomain timeDomain) {
-      this.timerId = timerId;
+      this.timerIdOrFamily = timerIdOrFamily;
       this.userKey = userKey;
       this.dynamicTimerTag = dynamicTimerTag;
       this.elementTimestampOrTimerHoldTimestamp = elementTimestampOrTimerHoldTimestamp;
       this.boundedWindow = boundedWindow;
       this.paneInfo = paneInfo;
+      this.noOutputTimestamp = false;
       this.timeDomain = timeDomain;
 
       switch (timeDomain) {
@@ -1338,36 +1833,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           fireTimestamp = elementTimestampOrTimerFireTimestamp;
           break;
         case PROCESSING_TIME:
-          fireTimestamp = new Instant(DateTimeUtils.currentTimeMillis());
-          break;
-        case SYNCHRONIZED_PROCESSING_TIME:
+          // TODO: This should use an injected clock when using TestStream.
           fireTimestamp = new Instant(DateTimeUtils.currentTimeMillis());
           break;
         default:
-          throw new IllegalArgumentException(String.format("Unknown time domain %s", timeDomain));
-      }
-
-      try {
-        this.allowedLateness =
-            rehydratedComponents
-                .getPCollection(
-                    pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform)))
-                .getWindowingStrategy()
-                .getAllowedLateness();
-      } catch (IOException e) {
-        throw new IllegalArgumentException(
-            String.format("Unable to get allowed lateness for timer %s", timerId));
+          throw new IllegalArgumentException(
+              String.format("Unknown or unsupported time domain %s", timeDomain));
       }
     }
 
     @Override
     public void set(Instant absoluteTime) {
-      // Verifies that the time domain of this timer is acceptable for absolute timers.
-      if (!TimeDomain.EVENT_TIME.equals(timeDomain)) {
-        throw new IllegalArgumentException(
-            "Can only set relative timers in processing time domain. Use #setRelative()");
-      }
-
+      checkNotNull(timerBundleTracker);
       // Ensures that the target time is reasonable. For event time timers this means that the time
       // should be prior to window GC time.
       if (TimeDomain.EVENT_TIME.equals(timeDomain)) {
@@ -1379,12 +1856,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             absoluteTime,
             windowExpiry);
       }
-
-      output(absoluteTime);
+      timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getTimerForTime(absoluteTime));
     }
 
     @Override
     public void setRelative() {
+      checkNotNull(timerBundleTracker);
       Instant target;
       if (period.equals(Duration.ZERO)) {
         target = fireTimestamp.plus(offset);
@@ -1393,10 +1870,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         target =
             millisSinceStart == 0
                 ? fireTimestamp
-                : fireTimestamp.plus(period).minus(millisSinceStart);
+                : fireTimestamp.plus(period).minus(Duration.millis(millisSinceStart));
       }
       target = minTargetAndGcTime(target);
-      output(target);
+      timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getTimerForTime(target));
+    }
+
+    @Override
+    public void clear() {
+      checkNotNull(timerBundleTracker);
+      timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getClearedTimer());
     }
 
     @Override
@@ -1414,8 +1897,22 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public org.apache.beam.sdk.state.Timer withOutputTimestamp(Instant outputTime) {
       this.outputTimestamp = outputTime;
+      this.noOutputTimestamp = false;
       return this;
     }
+
+    @Override
+    public org.apache.beam.sdk.state.Timer withNoOutputTimestamp() {
+      this.outputTimestamp = null;
+      this.noOutputTimestamp = true;
+      return this;
+    }
+
+    @Override
+    public Instant getCurrentRelativeTime() {
+      return fireTimestamp;
+    }
+
     /**
      * For event time timers the target time should be prior to window GC time. So it returns
      * min(time to set, GC Time of window).
@@ -1430,65 +1927,84 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       return target;
     }
 
-    private void output(Instant scheduledTime) {
+    private Timer<K> getClearedTimer() {
+      return Timer.cleared(userKey, dynamicTimerTag, Collections.singletonList(boundedWindow));
+    }
+
+    @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
+    private Timer<K> getTimerForTime(Instant scheduledTime) {
       if (outputTimestamp != null) {
-        checkArgument(
-            !outputTimestamp.isBefore(elementTimestampOrTimerHoldTimestamp),
-            "output timestamp %s should be after input message timestamp or output timestamp of firing timers %s",
-            outputTimestamp,
-            elementTimestampOrTimerHoldTimestamp);
+        Instant lowerBound;
+        try {
+          lowerBound = elementTimestampOrTimerHoldTimestamp.minus(doFn.getAllowedTimestampSkew());
+        } catch (ArithmeticException e) {
+          lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+        if (outputTimestamp.isBefore(lowerBound)
+            || outputTimestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Cannot output timer with output timestamp %s. Output timestamps must be no "
+                      + "earlier than the timestamp of the current input (%s) minus the allowed skew "
+                      + "(%s) and no later than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for "
+                      + "details on changing the allowed skew.",
+                  outputTimestamp,
+                  elementTimestampOrTimerHoldTimestamp,
+                  doFn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
+                      ? doFn.getAllowedTimestampSkew()
+                      : PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
+                  BoundedWindow.TIMESTAMP_MAX_VALUE));
+        }
       }
 
       // Output timestamp is set to the delivery time if not initialized by an user.
-      if (outputTimestamp == null && TimeDomain.EVENT_TIME.equals(timeDomain)) {
+      if (!noOutputTimestamp
+          && outputTimestamp == null
+          && TimeDomain.EVENT_TIME.equals(timeDomain)) {
         outputTimestamp = scheduledTime;
       }
 
       // For processing timers
-      if (outputTimestamp == null) {
+      if (!noOutputTimestamp && outputTimestamp == null) {
         // For processing timers output timestamp will be:
         // 1) timestamp of input element
         // OR
         // 2) hold timestamp of firing timer.
         outputTimestamp = elementTimestampOrTimerHoldTimestamp;
       }
-
-      Instant windowExpiry = LateDataUtils.garbageCollectionTime(currentWindow, allowedLateness);
-      if (TimeDomain.EVENT_TIME.equals(timeDomain)) {
-        checkArgument(
-            !outputTimestamp.isAfter(scheduledTime),
-            "Attempted to set an event-time timer with an output timestamp of %s that is"
-                + " after the timer firing timestamp %s",
-            outputTimestamp,
-            scheduledTime);
-        checkArgument(
-            !scheduledTime.isAfter(windowExpiry),
-            "Attempted to set an event-time timer with a firing timestamp of %s that is"
-                + " after the expiration of window %s",
-            scheduledTime,
-            windowExpiry);
+      if (outputTimestamp != null) {
+        Instant windowExpiry = LateDataUtils.garbageCollectionTime(currentWindow, allowedLateness);
+        if (TimeDomain.EVENT_TIME.equals(timeDomain)) {
+          checkArgument(
+              !outputTimestamp.isAfter(scheduledTime),
+              "Attempted to set an event-time timer with an output timestamp of %s that is"
+                  + " after the timer firing timestamp %s",
+              outputTimestamp,
+              scheduledTime);
+          checkArgument(
+              !scheduledTime.isAfter(windowExpiry),
+              "Attempted to set an event-time timer with a firing timestamp of %s that is"
+                  + " after the expiration of window %s",
+              scheduledTime,
+              windowExpiry);
+        } else {
+          checkArgument(
+              !outputTimestamp.isAfter(windowExpiry),
+              "Attempted to set a processing-time timer with an output timestamp of %s that is"
+                  + " after the expiration of window %s",
+              outputTimestamp,
+              windowExpiry);
+        }
       } else {
-        checkArgument(
-            !outputTimestamp.isAfter(windowExpiry),
-            "Attempted to set a processing-time timer with an output timestamp of %s that is"
-                + " after the expiration of window %s",
-            outputTimestamp,
-            windowExpiry);
+        outputTimestamp = BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.millis(1));
       }
-
-      TimerHandler<K> consumer = (TimerHandler) timerHandlers.get(timerId);
-      try {
-        consumer.accept(
-            Timer.of(
-                userKey,
-                dynamicTimerTag,
-                Collections.singletonList(boundedWindow),
-                scheduledTime,
-                outputTimestamp,
-                paneInfo));
-      } catch (Throwable t) {
-        throw UserCodeException.wrap(t);
-      }
+      return Timer.of(
+          userKey,
+          dynamicTimerTag,
+          Collections.singletonList(boundedWindow),
+          scheduledTime,
+          outputTimestamp,
+          paneInfo);
     }
   }
 
@@ -1538,6 +2054,31 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
   }
 
+  @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
+  private void checkTimestamp(Instant timestamp) {
+    Instant lowerBound;
+    try {
+      lowerBound = currentElement.getTimestamp().minus(doFn.getAllowedTimestampSkew());
+    } catch (ArithmeticException e) {
+      lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
+
+    if (timestamp.isBefore(lowerBound) || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
+                  + "timestamp of the current input (%s) minus the allowed skew (%s) and no later "
+                  + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
+                  + "changing the allowed skew.",
+              timestamp,
+              currentElement.getTimestamp(),
+              doFn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
+                  ? doFn.getAllowedTimestampSkew()
+                  : PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
+              BoundedWindow.TIMESTAMP_MAX_VALUE));
+    }
+  }
+
   private class StartBundleArgumentProvider extends BaseArgumentProvider<InputT, OutputT> {
     private class Context extends DoFn<InputT, OutputT>.StartBundleContext {
       Context() {
@@ -1550,7 +2091,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final Context context = new Context();
+    private final StartBundleArgumentProvider.Context context =
+        new StartBundleArgumentProvider.Context();
 
     @Override
     public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
@@ -1601,7 +2143,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final Context context = new Context();
+    private final FinishBundleArgumentProvider.Context context =
+        new FinishBundleArgumentProvider.Context();
 
     @Override
     public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
@@ -1696,6 +2239,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      // TODO: Check that timestamp is valid once all runners can provide proper timestamps.
       outputTo(
           mainOutputConsumers,
           WindowedValue.of(output, timestamp, currentWindow, currentElement.getPane()));
@@ -1703,6 +2247,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      // TODO: Check that timestamp is valid once all runners can provide proper timestamps.
       Collection<FnDataReceiver<WindowedValue<T>>> consumers =
           (Collection) localNameToConsumer.get(tag.getId());
       if (consumers == null) {
@@ -1725,6 +2270,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     // OutputT == RestrictionT
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      checkTimestamp(timestamp);
       double size =
           doFnInvoker.invokeGetSize(
               new DelegatingArgumentProvider<InputT, OutputT>(
@@ -1771,6 +2317,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     // OutputT == RestrictionT
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      checkTimestamp(timestamp);
       double size =
           doFnInvoker.invokeGetSize(
               new DelegatingArgumentProvider<InputT, OutputT>(
@@ -1809,6 +2356,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private class NonWindowObservingProcessBundleContext extends ProcessBundleContextBase {
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      checkTimestamp(timestamp);
       outputTo(
           mainOutputConsumers,
           WindowedValue.of(
@@ -1817,6 +2365,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      checkTimestamp(timestamp);
       Collection<FnDataReceiver<WindowedValue<T>>> consumers =
           (Collection) localNameToConsumer.get(tag.getId());
       if (consumers == null) {
@@ -2012,15 +2561,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
   }
 
-  /** Provides arguments for a {@link DoFnInvoker} for {@link DoFn.OnTimer @OnTimer}. */
-  private class OnTimerContext<K> extends BaseArgumentProvider<InputT, OutputT> {
-    private final K key;
-
-    public OnTimerContext(K key) {
-      this.key = key;
-    }
-
-    private class Context extends DoFn<InputT, OutputT>.OnTimerContext {
+  /**
+   * Provides arguments for a {@link DoFnInvoker} for {@link
+   * DoFn.OnWindowExpiration @OnWindowExpiration}.
+   */
+  private class OnWindowExpirationContext<K> extends BaseArgumentProvider<InputT, OutputT> {
+    private class Context extends DoFn<InputT, OutputT>.OnWindowExpirationContext {
       private Context() {
         doFn.super();
       }
@@ -2045,11 +2591,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public void outputWithTimestamp(OutputT output, Instant timestamp) {
-        checkArgument(
-            !currentTimer.getHoldTimestamp().isAfter(timestamp),
-            "Output time %s can not be before timer timestamp %s.",
-            timestamp,
-            currentTimer.getHoldTimestamp());
+        checkOnWindowExpirationTimestamp(timestamp);
         outputTo(
             mainOutputConsumers,
             WindowedValue.of(output, timestamp, currentWindow, currentTimer.getPane()));
@@ -2070,11 +2612,162 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-        checkArgument(
-            !currentTimer.getHoldTimestamp().isAfter(timestamp),
-            "Output time %s can not be before timer timestamp %s.",
-            timestamp,
-            currentTimer.getHoldTimestamp());
+        checkOnWindowExpirationTimestamp(timestamp);
+        Collection<FnDataReceiver<WindowedValue<T>>> consumers =
+            (Collection) localNameToConsumer.get(tag.getId());
+        if (consumers == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(
+            consumers, WindowedValue.of(output, timestamp, currentWindow, currentTimer.getPane()));
+      }
+
+      @SuppressWarnings(
+          "deprecation") // Allowed Skew is deprecated for users, but must be respected
+      private void checkOnWindowExpirationTimestamp(Instant timestamp) {
+        Instant lowerBound;
+        try {
+          lowerBound = currentTimer.getHoldTimestamp().minus(doFn.getAllowedTimestampSkew());
+        } catch (ArithmeticException e) {
+          lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+        if (timestamp.isBefore(lowerBound)
+            || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
+                      + "timestamp of the timer (%s) minus the allowed skew (%s) and no later "
+                      + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
+                      + "changing the allowed skew.",
+                  timestamp,
+                  currentTimer.getHoldTimestamp(),
+                  doFn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
+                      ? doFn.getAllowedTimestampSkew()
+                      : PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
+                  BoundedWindow.TIMESTAMP_MAX_VALUE));
+        }
+      }
+    }
+
+    private final OnWindowExpirationContext.Context context =
+        new OnWindowExpirationContext.Context();
+
+    @Override
+    public BoundedWindow window() {
+      return currentWindow;
+    }
+
+    @Override
+    public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+      return currentTimer.getHoldTimestamp();
+    }
+
+    @Override
+    public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
+      return currentTimeDomain;
+    }
+
+    @Override
+    public K key() {
+      return (K) currentTimer.getUserKey();
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedReceiver(context, null);
+    }
+
+    @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.rowReceiver(context, null, mainOutputSchemaCoder);
+    }
+
+    @Override
+    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedMultiReceiver(context);
+    }
+
+    @Override
+    public State state(String stateId, boolean alwaysFetched) {
+      StateDeclaration stateDeclaration = doFnSignature.stateDeclarations().get(stateId);
+      checkNotNull(stateDeclaration, "No state declaration found for %s", stateId);
+      StateSpec<?> spec;
+      try {
+        spec = (StateSpec<?>) stateDeclaration.field().get(doFn);
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+      State state = spec.bind(stateId, stateAccessor);
+      if (alwaysFetched) {
+        return (State) ((ReadableState) state).readLater();
+      } else {
+        return state;
+      }
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
+      return pipelineOptions;
+    }
+
+    @Override
+    public String getErrorContext() {
+      return "FnApiDoFnRunner/OnWindowExpiration";
+    }
+  }
+
+  /** Provides arguments for a {@link DoFnInvoker} for {@link DoFn.OnTimer @OnTimer}. */
+  private class OnTimerContext<K> extends BaseArgumentProvider<InputT, OutputT> {
+
+    private class Context extends DoFn<InputT, OutputT>.OnTimerContext {
+      private Context() {
+        doFn.super();
+      }
+
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        return pipelineOptions;
+      }
+
+      @Override
+      public BoundedWindow window() {
+        return currentWindow;
+      }
+
+      @Override
+      public void output(OutputT output) {
+        checkTimerTimestamp(currentTimer.getHoldTimestamp());
+        outputTo(
+            mainOutputConsumers,
+            WindowedValue.of(
+                output, currentTimer.getHoldTimestamp(), currentWindow, currentTimer.getPane()));
+      }
+
+      @Override
+      public void outputWithTimestamp(OutputT output, Instant timestamp) {
+        checkTimerTimestamp(timestamp);
+        outputTo(
+            mainOutputConsumers,
+            WindowedValue.of(output, timestamp, currentWindow, currentTimer.getPane()));
+      }
+
+      @Override
+      public <T> void output(TupleTag<T> tag, T output) {
+        checkTimerTimestamp(currentTimer.getHoldTimestamp());
+        Collection<FnDataReceiver<WindowedValue<T>>> consumers =
+            (Collection) localNameToConsumer.get(tag.getId());
+        if (consumers == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(
+            consumers,
+            WindowedValue.of(
+                output, currentTimer.getHoldTimestamp(), currentWindow, currentTimer.getPane()));
+      }
+
+      @Override
+      public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+        checkTimerTimestamp(timestamp);
         Collection<FnDataReceiver<WindowedValue<T>>> consumers =
             (Collection) localNameToConsumer.get(tag.getId());
         if (consumers == null) {
@@ -2098,9 +2791,35 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       public Instant timestamp() {
         return currentTimer.getHoldTimestamp();
       }
+
+      @SuppressWarnings(
+          "deprecation") // Allowed Skew is deprecated for users, but must be respected
+      private void checkTimerTimestamp(Instant timestamp) {
+        Instant lowerBound;
+        try {
+          lowerBound = currentTimer.getHoldTimestamp().minus(doFn.getAllowedTimestampSkew());
+        } catch (ArithmeticException e) {
+          lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+        if (timestamp.isBefore(lowerBound)
+            || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
+                      + "timestamp of the timer (%s) minus the allowed skew (%s) and no later "
+                      + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
+                      + "changing the allowed skew.",
+                  timestamp,
+                  currentTimer.getHoldTimestamp(),
+                  doFn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
+                      ? doFn.getAllowedTimestampSkew()
+                      : PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
+                  BoundedWindow.TIMESTAMP_MAX_VALUE));
+        }
+      }
     }
 
-    private final Context context = new Context();
+    private final OnTimerContext.Context context = new OnTimerContext.Context();
 
     @Override
     public BoundedWindow window() {
@@ -2119,7 +2838,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public K key() {
-      return key;
+      return (K) currentTimer.getUserKey();
     }
 
     @Override
@@ -2210,8 +2929,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         return TimeDomain.EVENT_TIME;
       case PROCESSING_TIME:
         return TimeDomain.PROCESSING_TIME;
-      case SYNCHRONIZED_PROCESSING_TIME:
-        return TimeDomain.SYNCHRONIZED_PROCESSING_TIME;
       default:
         throw new IllegalArgumentException("Unknown time domain");
     }

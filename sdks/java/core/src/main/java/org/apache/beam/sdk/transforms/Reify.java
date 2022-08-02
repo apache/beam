@@ -36,6 +36,9 @@ import org.joda.time.Instant;
  * {@link PTransform PTransforms} for converting between explicit and implicit form of various Beam
  * values.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Reify {
   private static class ReifyView<K, V> extends PTransform<PCollection<K>, PCollection<KV<K, V>>> {
     private final PCollectionView<V> view;
@@ -92,7 +95,7 @@ public class Reify {
                     @ProcessElement
                     public void processElement(
                         @Element T element,
-                        @Timestamp Instant timestamp,
+                        @DoFn.Timestamp Instant timestamp,
                         BoundedWindow window,
                         PaneInfo pane,
                         OutputReceiver<ValueInSingleWindow<T>> r) {
@@ -117,7 +120,7 @@ public class Reify {
                     @ProcessElement
                     public void processElement(
                         @Element T element,
-                        @Timestamp Instant timestamp,
+                        @DoFn.Timestamp Instant timestamp,
                         OutputReceiver<TimestampedValue<T>> r) {
                       r.output(TimestampedValue.of(element, timestamp));
                     }
@@ -138,7 +141,7 @@ public class Reify {
                     @ProcessElement
                     public void processElement(
                         @Element KV<K, V> element,
-                        @Timestamp Instant timestamp,
+                        @DoFn.Timestamp Instant timestamp,
                         BoundedWindow window,
                         PaneInfo pane,
                         OutputReceiver<KV<K, ValueInSingleWindow<V>>> r) {
@@ -169,7 +172,7 @@ public class Reify {
                     @ProcessElement
                     public void processElement(
                         @Element KV<K, V> element,
-                        @Timestamp Instant timestamp,
+                        @DoFn.Timestamp Instant timestamp,
                         OutputReceiver<KV<K, TimestampedValue<V>>> r) {
                       r.output(
                           KV.of(

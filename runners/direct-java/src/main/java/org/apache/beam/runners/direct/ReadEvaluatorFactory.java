@@ -41,9 +41,8 @@ final class ReadEvaluatorFactory implements TransformEvaluatorFactory {
     unboundedFactory = new UnboundedReadEvaluatorFactory(context, options);
   }
 
-  @Nullable
   @Override
-  public <InputT> TransformEvaluator<InputT> forApplication(
+  public <InputT> @Nullable TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
     switch (ReadTranslation.sourceIsBounded(application)) {
       case BOUNDED:

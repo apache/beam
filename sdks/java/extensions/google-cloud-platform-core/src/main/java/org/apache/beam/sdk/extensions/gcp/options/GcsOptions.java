@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.gcp.options;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -78,15 +78,15 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   /**
    * The buffer size (in bytes) to use when uploading files to GCS. Please see the documentation for
-   * {@link AbstractGoogleAsyncWriteChannel#setUploadBufferSize} for more information on the
-   * restrictions and performance implications of this value.
+   * {@link AsyncWriteChannelOptions#getUploadChunkSize} for more information on the restrictions
+   * and performance implications of this value.
    */
   @Description(
       "The buffer size (in bytes) to use when uploading files to GCS. Please see the "
-          + "documentation for AbstractGoogleAsyncWriteChannel.setUploadBufferSize for more "
+          + "documentation for AsyncWriteChannelOptions.getUploadChunkSize for more "
           + "information on the restrictions and performance implications of this value.\n\n"
           + "https://github.com/GoogleCloudPlatform/bigdata-interop/blob/master/util/src/main/java/"
-          + "com/google/cloud/hadoop/util/AbstractGoogleAsyncWriteChannel.java")
+          + "com/google/cloud/hadoop/util/AsyncWriteChannelOptions.java")
   @Nullable
   Integer getGcsUploadBufferSizeBytes();
 

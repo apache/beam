@@ -42,13 +42,24 @@ and an output prefix on GCS::
 
 # pytype: skip-file
 
-from __future__ import absolute_import
+# beam-playground:
+#   name: WordCountDebugging
+#   description: An example that counts words in Shakespeare's works.
+#     includes regex filter("Flourish|stomach").
+#   multifile: false
+#   pipeline_options: --output output.txt
+#   context_line: 74
+#   categories:
+#     - Flatten
+#     - Debugging
+#     - Options
+#     - Combiners
+#     - Filtering
+#     - Quickstart
 
 import argparse
 import logging
 import re
-
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -64,7 +75,7 @@ class FilterTextFn(beam.DoFn):
   """A DoFn that filters for a specific key based on a regular expression."""
   def __init__(self, pattern):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(FilterTextFn, self).__init__()
+    # super().__init__()
     beam.DoFn.__init__(self)
     self.pattern = pattern
     # A custom metric can track values in your pipeline as it runs. Those
@@ -107,8 +118,8 @@ class CountWords(beam.PTransform):
     return (
         pcoll
         | 'split' >> (
-            beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x)).
-            with_output_types(unicode))
+            beam.FlatMap(
+                lambda x: re.findall(r'[A-Za-z\']+', x)).with_output_types(str))
         | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
         | 'group' >> beam.GroupByKey()
         | 'count' >> beam.Map(count_ones))

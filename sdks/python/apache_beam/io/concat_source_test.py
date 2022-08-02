@@ -18,12 +18,8 @@
 """Unit tests for the sources framework."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import unittest
-from builtins import range
 
 import apache_beam as beam
 from apache_beam.io import iobase
@@ -87,10 +83,6 @@ class RangeSource(iobase.BoundedSource):
         type(self) == type(other) and self._start == other._start and
         self._end == other._end and self._split_freq == other._split_freq)
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
 
 class ConcatSourceTest(unittest.TestCase):
   def test_range_source(self):
@@ -134,6 +126,14 @@ class ConcatSourceTest(unittest.TestCase):
     self.assertEqual(range_tracker.try_split((2, 11)), ((2, 11), 11. / 12))
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(10), True)
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(11), False)
+
+  def test_fraction_consumed_at_end(self):
+    source = ConcatSource([
+        RangeSource(0, 2),
+        RangeSource(2, 4),
+    ])
+    range_tracker = source.get_range_tracker((2, None), None)
+    self.assertEqual(range_tracker.fraction_consumed(), 1.0)
 
   def test_estimate_size(self):
     source = ConcatSource([

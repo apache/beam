@@ -28,6 +28,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Bunch of methods to assert type descriptors in operators. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class TypePropagationAssert {
 
   public static <KeyT, ValueT, OutputT> void assertOperatorTypeAwareness(

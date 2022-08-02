@@ -20,8 +20,9 @@ package org.apache.beam.runners.core.metrics;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Closeable;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,8 +37,7 @@ import org.joda.time.DateTimeUtils.MillisProvider;
 /** Monitors the execution of one or more execution threads. */
 public class ExecutionStateSampler {
 
-  private final ConcurrentSkipListSet<ExecutionStateTracker> activeTrackers =
-      new ConcurrentSkipListSet<>();
+  private final Set<ExecutionStateTracker> activeTrackers = ConcurrentHashMap.newKeySet();
 
   private static final MillisProvider SYSTEM_MILLIS_PROVIDER = System::currentTimeMillis;
 
@@ -65,9 +65,15 @@ public class ExecutionStateSampler {
     return new ExecutionStateSampler(checkNotNull(clock));
   }
 
-  private static final long PERIOD_MS = 200;
+  // The sampling period can be reset with flag --experiment state_sampling_period_millis=<value>.
+  private static long periodMs = 200;
 
   private @Nullable Future<Void> executionSamplerFuture = null;
+
+  /** Set the state sampler sampling period. */
+  public static void setSamplingPeriod(long samplingPeriodMillis) {
+    periodMs = samplingPeriodMillis;
+  }
 
   /** Reset the state sampler. */
   public void reset() {
@@ -78,8 +84,6 @@ public class ExecutionStateSampler {
    * Called to start the ExecutionStateSampler. Until the returned {@link Closeable} is closed, the
    * state sampler will periodically sample the current state of all the threads it has been asked
    * to manage.
-   *
-   * <p>
    */
   public void start() {
     start(
@@ -101,7 +105,7 @@ public class ExecutionStateSampler {
         executor.submit(
             () -> {
               lastSampleTimeMillis = clock.getMillis();
-              long targetTimeMillis = lastSampleTimeMillis + PERIOD_MS;
+              long targetTimeMillis = lastSampleTimeMillis + periodMs;
               while (!Thread.interrupted()) {
                 long currentTimeMillis = clock.getMillis();
                 long difference = targetTimeMillis - currentTimeMillis;
@@ -115,7 +119,7 @@ public class ExecutionStateSampler {
                   // Call doSampling if more than PERIOD_MS have passed.
                   doSampling(currentTimeMillis - lastSampleTimeMillis);
                   lastSampleTimeMillis = currentTimeMillis;
-                  targetTimeMillis = lastSampleTimeMillis + PERIOD_MS;
+                  targetTimeMillis = lastSampleTimeMillis + periodMs;
                 }
               }
               return null;
@@ -129,7 +133,7 @@ public class ExecutionStateSampler {
 
     executionSamplerFuture.cancel(true);
     try {
-      executionSamplerFuture.get(5 * PERIOD_MS, TimeUnit.MILLISECONDS);
+      executionSamplerFuture.get(5 * periodMs, TimeUnit.MILLISECONDS);
     } catch (CancellationException e) {
       // This was expected -- we were cancelling the thread.
     } catch (InterruptedException | TimeoutException e) {
@@ -142,19 +146,16 @@ public class ExecutionStateSampler {
     }
   }
 
+  /** Add the tracker to the sampling set. */
   void addTracker(ExecutionStateTracker tracker) {
     this.activeTrackers.add(tracker);
   }
 
-  /**
-   * Deregister tracker after MapTask completes.
-   *
-   * <p>This method needs to be synchronized to prevent race condition with sampling thread
-   */
-  synchronized void removeTracker(ExecutionStateTracker tracker) {
-    this.activeTrackers.remove(tracker);
+  /** Remove the tracker from the sampling set. */
+  void removeTracker(ExecutionStateTracker tracker) {
+    activeTrackers.remove(tracker);
 
-    // Attribute any remaining time since last sampling on deregisteration.
+    // Attribute any remaining time since the last sampling while removing the tracker.
     //
     // There is a race condition here; if sampling happens in the time between when we remove the
     // tracker from activeTrackers and read the lastSampleTicks value, the sampling time will
@@ -166,13 +167,9 @@ public class ExecutionStateSampler {
     }
   }
 
-  /**
-   * Attributing sampling time to trackers.
-   *
-   * <p>This method needs to be synchronized to prevent race condition with removing tracker
-   */
+  /** Attributing sampling time to trackers. */
   @VisibleForTesting
-  public synchronized void doSampling(long millisSinceLastSample) {
+  public void doSampling(long millisSinceLastSample) {
     for (ExecutionStateTracker tracker : activeTrackers) {
       tracker.takeSample(millisSinceLastSample);
     }

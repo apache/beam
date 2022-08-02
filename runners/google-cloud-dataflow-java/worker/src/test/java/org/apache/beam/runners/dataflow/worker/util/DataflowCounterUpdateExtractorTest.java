@@ -41,7 +41,6 @@ import com.google.api.services.dataflow.model.SplitInt64;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
-import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleReadCounter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -300,14 +299,11 @@ public class DataflowCounterUpdateExtractorTest {
 
   @Test
   public void testExtractShuffleReadCounter() {
-    CounterSet counterSet = new CounterSet();
     CounterName counterName =
         ShuffleReadCounter.generateCounterName(
             "originalShuffleStepName", "originalExecutingStepName");
     Counter<?, ?> counter = counterFactory.longSum(counterName);
-
-    CounterUpdate counterUpdate =
-        counter.extractUpdate(true, DataflowCounterUpdateExtractor.INSTANCE);
+    counter.extractUpdate(true, DataflowCounterUpdateExtractor.INSTANCE);
     hasStructuredName(counterName, "SUM");
   }
 }

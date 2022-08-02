@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 
@@ -41,6 +39,8 @@ class CodersTest(unittest.TestCase):
       'host': ['Brasil', 1], 'guest': ['Italy', 0]
   }]
 
+  EXPECTED_RESULT = [('Italy', 0), ('Brasil', 6), ('Germany', 3)]
+
   def test_compute_points(self):
     with TestPipeline() as p:
       records = p | 'create' >> beam.Create(self.SAMPLE_RECORDS)
@@ -48,8 +48,7 @@ class CodersTest(unittest.TestCase):
           records
           | 'points' >> beam.FlatMap(coders.compute_points)
           | beam.CombinePerKey(sum))
-      assert_that(
-          result, equal_to([('Italy', 0), ('Brasil', 6), ('Germany', 3)]))
+      assert_that(result, equal_to(self.EXPECTED_RESULT))
 
 
 if __name__ == '__main__':

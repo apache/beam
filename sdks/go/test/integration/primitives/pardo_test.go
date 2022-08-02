@@ -18,23 +18,31 @@ package primitives
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 func TestParDoMultiOutput(t *testing.T) {
-	if err := ptest.Run(ParDoMultiOutput()); err != nil {
-		t.Error(err)
-	}
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, ParDoMultiOutput())
 }
 
 func TestParDoSideInput(t *testing.T) {
-	if err := ptest.Run(ParDoSideInput()); err != nil {
-		t.Error(err)
-	}
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, ParDoSideInput())
 }
 
 func TestParDoKVSideInput(t *testing.T) {
-	if err := ptest.Run(ParDoKVSideInput()); err != nil {
-		t.Error(err)
-	}
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, ParDoKVSideInput())
+}
+
+func TestParDoMultiMapSideInput(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, ParDoMultiMapSideInput())
+}
+
+func TestParDoPipelineOptions(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, ParDoPipelineOptions())
 }

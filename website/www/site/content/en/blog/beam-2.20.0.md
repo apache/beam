@@ -2,10 +2,10 @@
 title:  "Apache Beam 2.20.0"
 date:   2020-04-15 00:00:01 -0800
 # Date above corrected but keep the old URL:
-aliases: 
+aliases:
   - /blog/2020/03/01/beam-2.20.0.html
   - /blog/2020/04/15/beam-2.20.0.html
-categories: 
+categories:
   - blog
 authors:
   - amaliujia

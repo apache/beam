@@ -149,16 +149,16 @@ of installing default plugins:
 ### Importing DSL jobs from a local git repository
 
 By default, Seed job imports DSL job definitions from the Apache Beam Github
-repository. But there is also a possibility to import these definitions from 
-your local git repository, which makes testing much easier because you don't 
-have to git push every time changes were made. 
+repository. But there is also a possibility to import these definitions from
+your local git repository, which makes testing much easier because you don't
+have to git push every time changes were made.
 
 1. Build Jenkins image using provided scripts.
 1. Provide an environment variable *BEAM_HOME* pointing to the beam root
    directory, for example: `export BEAM_HOME=~/my/beam/directory`.
 1. Run image using the following command: `docker run -d -p 127.0.0.1:8080:8080
    -v $BEAM_HOME:/var/jenkins_real_home/beam:ro beamjenkins`. The only difference is
-   the *-v* option which sets up a bind mount. 
+   the *-v* option which sets up a bind mount.
 1. Sign in to Jenkins.
     1. Go to the *sample_seed_job* and open its configuration. Scroll down to
        the **Source Code Management** section.

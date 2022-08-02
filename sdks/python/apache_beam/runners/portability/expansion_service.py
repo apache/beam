@@ -19,9 +19,6 @@
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import traceback
 
 from apache_beam import pipeline as beam_pipeline
@@ -39,6 +36,8 @@ class ExpansionServiceServicer(
   def __init__(self, options=None):
     self._options = options or beam_pipeline.PipelineOptions(
         environment_type=python_urns.EMBEDDED_PYTHON, sdk_location='container')
+    self._default_environment = (
+        portable_runner.PortableRunner._create_environment(self._options))
 
   def Expand(self, request, context=None):
     try:
@@ -54,8 +53,7 @@ class ExpansionServiceServicer(
 
       context = pipeline_context.PipelineContext(
           request.components,
-          default_environment=portable_runner.PortableRunner.
-          _create_environment(self._options),
+          default_environment=self._default_environment,
           namespace=request.namespace)
       producers = {
           pcoll_id: (context.transforms.get_by_id(t_id), pcoll_tag)
@@ -65,6 +63,17 @@ class ExpansionServiceServicer(
       }
       transform = with_pipeline(
           ptransform.PTransform.from_runner_api(request.transform, context))
+      if len(request.output_coder_requests) == 1:
+        output_coder = {
+            k: context.element_type_from_coder_id(v)
+            for k,
+            v in request.output_coder_requests.items()
+        }
+        transform = transform.with_output_types(list(output_coder.values())[0])
+      elif len(request.output_coder_requests) > 1:
+        raise ValueError(
+            'type annotation for multiple outputs is not allowed yet: %s' %
+            request.output_coder_requests)
       inputs = transform._pvaluish_from_dict({
           tag:
           with_pipeline(context.pcollections.get_by_id(pcoll_id), pcoll_id)

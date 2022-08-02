@@ -19,10 +19,10 @@
 Combine - BinaryCombineFn Lambda
 --------------------------------
 
-BinaryCombineFn is used for implementing combiners that are more easily expressed as binary 
+BinaryCombineFn is used for implementing combiners that are more easily expressed as binary
 operations.
 
-Since Beam v2.13.0, you can also use lambda or method reference in order to create the 
+Since Beam v2.13.0, you can also use lambda or method reference in order to create the
 BinaryCombineFn.
 
 **Kata:** Implement the summation of BigInteger using lambda or method reference.

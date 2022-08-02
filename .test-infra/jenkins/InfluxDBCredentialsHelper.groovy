@@ -17,7 +17,9 @@
  */
 
 class InfluxDBCredentialsHelper {
-  final static String InfluxDBHostname = 'http://10.128.0.96:8086'
+  final static String InfluxDBHost = '10.128.0.96'
+  final static String InfluxDBPort = '8086'
+  final static String InfluxDBHostUrl = 'http://' + InfluxDBHost + ':' + InfluxDBPort
   final static String InfluxDBDatabaseName = 'beam_test_metrics'
 
   /**

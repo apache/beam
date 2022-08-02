@@ -19,7 +19,7 @@
 
 ### How to Setup
 Please follow the below steps in order to setup the project properly:
-* Using PyCharm Education (or PyCharm with EduTools plugin), select "Create New Project" and select 
+* Using PyCharm Education (or PyCharm with EduTools plugin), select "Create New Project" and select
 this directory (learning/katas/python)
 * Select your project interpreter (e.g. virtualenv), then click "Create"
 * Click "Yes" to create project from existing sources when prompted
@@ -28,5 +28,5 @@ this directory (learning/katas/python)
 * Open the "Project" tool window, and select the "Course" view
 * Your project is ready
 
-For further instructions on how the PyCharm Education works, you can refer 
+For further instructions on how the PyCharm Education works, you can refer
 [here](https://www.jetbrains.com/help/education/educator-start-guide.html?section=Python).

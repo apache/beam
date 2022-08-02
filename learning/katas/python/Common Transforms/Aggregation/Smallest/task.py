@@ -14,14 +14,21 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: AggregationSmallest
+#   description: Task from katas to compute the smallest of elements.
+#   multifile: false
+#   context_line: 29
+#   categories:
+#     - Combiners
+
 import apache_beam as beam
 
 from log_elements import LogElements
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-(p | beam.Create(range(1, 11))
-   | beam.combiners.Top.Smallest(1)
-   | LogElements())
+  (p | beam.Create(range(1, 11))
+     | beam.combiners.Top.Smallest(1)
+     | LogElements())
 
-p.run()

@@ -179,6 +179,9 @@ import org.joda.time.Duration;
  * <p>For backwards compatibility, {@link TextIO} also supports the legacy {@link
  * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class TextIO {
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
 
@@ -265,8 +268,8 @@ public class TextIO {
         .setDelimiter(new char[] {'\n'})
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
-        .setNumShards(0)
         .setNoSpilling(false)
+        .setSkipIfEmpty(false)
         .build();
   }
 
@@ -347,15 +350,27 @@ public class TextIO {
     }
 
     /**
-     * See {@link MatchConfiguration#continuously}.
+     * See {@link MatchConfiguration#continuously(Duration, TerminationCondition, boolean)}.
      *
-     * <p>This works only in runners supporting {@link Kind#SPLITTABLE_DO_FN}.
+     * <p>This works only in runners supporting splittable {@link
+     * org.apache.beam.sdk.transforms.DoFn}.
      */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
+    public Read watchForNewFiles(
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
+      return withMatchConfiguration(
+          getMatchConfiguration()
+              .continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
+    /**
+     * Same as {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)} with {@code
+     * matchUpdatedFiles=false}.
+     */
     public Read watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
+      return watchForNewFiles(pollInterval, terminationCondition, false);
     }
 
     /**
@@ -493,12 +508,20 @@ public class TextIO {
       return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
+    /** Same as {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)}. */
+    public ReadAll watchForNewFiles(
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
+      return withMatchConfiguration(
+          getMatchConfiguration()
+              .continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
     /** Same as {@link Read#watchForNewFiles(Duration, TerminationCondition)}. */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
     public ReadAll watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
+      return watchForNewFiles(pollInterval, terminationCondition, false);
     }
 
     ReadAll withDelimiter(byte[] delimiter) {
@@ -621,7 +644,7 @@ public class TextIO {
     abstract @Nullable String getFooter();
 
     /** Requested number of shards. 0 for automatic. */
-    abstract int getNumShards();
+    abstract @Nullable ValueProvider<Integer> getNumShards();
 
     /** The shard template of each file written, combined with prefix and suffix. */
     abstract @Nullable String getShardTemplate();
@@ -646,6 +669,9 @@ public class TextIO {
 
     /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
     abstract boolean getNoSpilling();
+
+    /** Whether to skip writing any output files if the PCollection is empty. */
+    abstract boolean getSkipIfEmpty();
 
     /**
      * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
@@ -687,11 +713,14 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setFormatFunction(
           @Nullable SerializableFunction<UserT, String> formatFunction);
 
-      abstract Builder<UserT, DestinationT> setNumShards(int numShards);
+      abstract Builder<UserT, DestinationT> setNumShards(
+          @Nullable ValueProvider<Integer> numShards);
 
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
 
       abstract Builder<UserT, DestinationT> setNoSpilling(boolean noSpilling);
+
+      abstract Builder<UserT, DestinationT> setSkipIfEmpty(boolean noSpilling);
 
       abstract Builder<UserT, DestinationT> setWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory);
@@ -844,6 +873,21 @@ public class TextIO {
      */
     public TypedWrite<UserT, DestinationT> withNumShards(int numShards) {
       checkArgument(numShards >= 0);
+      if (numShards == 0) {
+        // If 0 shards are passed, then the user wants runner-determined
+        // sharding to kick in, thus we pass a null StaticValueProvider
+        // so that the runner-determined-sharding path will be activated.
+        return withNumShards(null);
+      } else {
+        return withNumShards(StaticValueProvider.of(numShards));
+      }
+    }
+
+    /**
+     * Like {@link #withNumShards(int)}. Specifying {@code null} means runner-determined sharding.
+     */
+    public TypedWrite<UserT, DestinationT> withNumShards(
+        @Nullable ValueProvider<Integer> numShards) {
       return toBuilder().setNumShards(numShards).build();
     }
 
@@ -924,6 +968,11 @@ public class TextIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
+    /** Don't write any output files if the PCollection is empty. */
+    public TypedWrite<UserT, DestinationT> skipIfEmpty() {
+      return toBuilder().setSkipIfEmpty(true).build();
+    }
+
     private DynamicDestinations<UserT, DestinationT, String> resolveDynamicDestinations() {
       DynamicDestinations<UserT, DestinationT, String> dynamicDestinations =
           getDynamicDestinations();
@@ -1000,7 +1049,7 @@ public class TextIO {
                   getHeader(),
                   getFooter(),
                   getWritableByteChannelFactory()));
-      if (getNumShards() > 0) {
+      if (getNumShards() != null) {
         write = write.withNumShards(getNumShards());
       }
       if (getWindowedWrites()) {
@@ -1008,6 +1057,9 @@ public class TextIO {
       }
       if (getNoSpilling()) {
         write = write.withNoSpilling();
+      }
+      if (getSkipIfEmpty()) {
+        write = write.withSkipIfEmpty();
       }
       return input.apply("WriteFiles", write);
     }
@@ -1018,8 +1070,8 @@ public class TextIO {
 
       resolveDynamicDestinations().populateDisplayData(builder);
       builder
-          .addIfNotDefault(
-              DisplayData.item("numShards", getNumShards()).withLabel("Maximum Output Shards"), 0)
+          .addIfNotNull(
+              DisplayData.item("numShards", getNumShards()).withLabel("Maximum Output Shards"))
           .addIfNotNull(
               DisplayData.item("tempDirectory", getTempDirectory())
                   .withLabel("Directory for temporary files"))
@@ -1134,6 +1186,11 @@ public class TextIO {
 
     /** See {@link TypedWrite#withNumShards(int)}. */
     public Write withNumShards(int numShards) {
+      return new Write(inner.withNumShards(numShards));
+    }
+
+    /** See {@link TypedWrite#withNumShards(ValueProvider)}. */
+    public Write withNumShards(@Nullable ValueProvider<Integer> numShards) {
       return new Write(inner.withNumShards(numShards));
     }
 

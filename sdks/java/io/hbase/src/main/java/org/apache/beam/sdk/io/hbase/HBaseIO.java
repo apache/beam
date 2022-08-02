@@ -157,6 +157,9 @@ import org.slf4j.LoggerFactory;
  * .
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class HBaseIO {
   private static final Logger LOG = LoggerFactory.getLogger(HBaseIO.class);
 
@@ -297,7 +300,7 @@ public class HBaseIO {
      * article</a>.
      */
     private Object writeReplace() {
-      return new SerializationProxy(this);
+      return new Read.SerializationProxy(this);
     }
 
     private static class SerializationProxy implements Serializable {
@@ -344,7 +347,6 @@ public class HBaseIO {
    * A {@link PTransform} that works like {@link #read}, but executes read operations coming from a
    * {@link PCollection} of {@link Read}.
    */
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public static ReadAll readAll() {
     return new ReadAll();
   }
@@ -674,7 +676,7 @@ public class HBaseIO {
      * article</a>.
      */
     private Object writeReplace() {
-      return new SerializationProxy(this);
+      return new Write.SerializationProxy(this);
     }
 
     private static class SerializationProxy implements Serializable {
@@ -714,7 +716,6 @@ public class HBaseIO {
       HBaseWriterFn(Write write) {
         checkNotNull(write.tableId, "tableId");
         checkNotNull(write.configuration, "configuration");
-        this.write = write;
       }
 
       @Setup
@@ -758,7 +759,6 @@ public class HBaseIO {
         builder.delegate(Write.this);
       }
 
-      private final Write write;
       private long recordsWritten;
 
       private transient Connection connection;

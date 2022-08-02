@@ -17,16 +17,18 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
@@ -54,6 +56,7 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -62,7 +65,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -78,6 +81,9 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link ParDoTranslation}. */
 @RunWith(Enclosed.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class ParDoTranslationTest {
 
   /** Tests for translating various {@link ParDo} transforms to/from {@link ParDoPayload} protos. */
@@ -146,13 +152,19 @@ public class ParDoTranslationTest {
       assertEquals(
           parDo.getFn() instanceof StateTimerDropElementsFn,
           components.requirements().contains(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN));
+      assertEquals(
+          parDo.getFn() instanceof StateTimerDropElementsFn,
+          components.requirements().contains(ParDoTranslation.REQUIRES_ON_WINDOW_EXPIRATION_URN));
+      assertEquals(
+          parDo.getFn() instanceof StateTimerDropElementsFn ? "onWindowExpiration0" : "",
+          payload.getOnWindowExpirationTimerFamilySpec());
     }
 
     @Test
     public void toTransformProto() throws Exception {
-      Map<TupleTag<?>, PValue> inputs = new HashMap<>();
+      Map<TupleTag<?>, PCollection<?>> inputs = new HashMap<>();
       inputs.put(new TupleTag<KV<Long, String>>("mainInputName") {}, mainInput);
-      inputs.putAll(parDo.getAdditionalInputs());
+      inputs.putAll(PValues.fullyExpand(parDo.getAdditionalInputs()));
       PCollectionTuple output = mainInput.apply(parDo);
 
       SdkComponents sdkComponents = SdkComponents.create();
@@ -162,7 +174,7 @@ public class ParDoTranslationTest {
       RunnerApi.PTransform protoTransform =
           PTransformTranslation.toProto(
               AppliedPTransform.<PCollection<KV<Long, String>>, PCollection<Void>, MultiOutput>of(
-                  "foo", inputs, output.expand(), parDo, p),
+                  "foo", inputs, PValues.expandOutput(output), parDo, ResourceHints.create(), p),
               sdkComponents);
       RunnerApi.Components components = sdkComponents.toComponents();
       RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(components);
@@ -215,15 +227,32 @@ public class ParDoTranslationTest {
   public static class TestStateAndTimerTranslation {
 
     @Parameters(name = "{index}: {0}")
-    public static Iterable<StateSpec<?>> stateSpecs() {
-      return ImmutableList.of(
-          StateSpecs.value(VarIntCoder.of()),
-          StateSpecs.bag(VarIntCoder.of()),
-          StateSpecs.set(VarIntCoder.of()),
-          StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of()));
+    public static Iterable<Object[]> stateSpecs() {
+      return Arrays.asList(
+          new Object[][] {
+            {
+              StateSpecs.value(VarIntCoder.of()),
+              FunctionSpec.newBuilder().setUrn(ParDoTranslation.BAG_USER_STATE).build()
+            },
+            {
+              StateSpecs.bag(VarIntCoder.of()),
+              FunctionSpec.newBuilder().setUrn(ParDoTranslation.BAG_USER_STATE).build()
+            },
+            {
+              StateSpecs.set(VarIntCoder.of()),
+              FunctionSpec.newBuilder().setUrn(ParDoTranslation.MULTIMAP_USER_STATE).build()
+            },
+            {
+              StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of()),
+              FunctionSpec.newBuilder().setUrn(ParDoTranslation.MULTIMAP_USER_STATE).build()
+            }
+          });
     }
 
     @Parameter public StateSpec<?> stateSpec;
+
+    @Parameter(1)
+    public FunctionSpec protocol;
 
     @Test
     public void testStateSpecToFromProto() throws Exception {
@@ -232,6 +261,8 @@ public class ParDoTranslationTest {
       sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
       RunnerApi.StateSpec stateSpecProto =
           ParDoTranslation.translateStateSpec(stateSpec, sdkComponents);
+
+      assertEquals(stateSpecProto.getProtocol(), protocol);
 
       // Decode
       RehydratedComponents rehydratedComponents =
@@ -334,6 +365,9 @@ public class ParDoTranslationTest {
 
     @OnTimer(PROCESSING_TIMER_ID)
     public void onProcessingTime(OnTimerContext context) {}
+
+    @OnWindowExpiration
+    public void onWindowExpiration() {}
 
     @Override
     public boolean equals(@Nullable Object other) {

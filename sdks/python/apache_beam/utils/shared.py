@@ -17,31 +17,41 @@
 
 """Shared class.
 
-Shared class for managing a single instance of an object shared by multiple
-threads within the same process. Shared is a serializable object that can be
-shared by all threads of each worker process, which will be initialized as
-necessary by calls to acquire.
+Shared is a helper class for managing a single instance of an object
+shared by multiple threads within the same process. Instances of Shared
+are serializable objects that can be shared by all threads of each worker
+process. A Shared object encapsulates a weak reference to a singleton
+instance of the shared resource. The singleton is lazily initialized by
+calls to Shared.acquire().
 
 Example usage:
 
 To share a very large list across all threads of each worker in a DoFn::
 
-  class GetNthStringFn(beam.DoFn):
-    def __init__(self, shared_handle):
-      self._shared_handle = shared_handle
+  # Several built-in types such as list and dict do not directly support weak
+  # references but can add support through subclassing:
+  # https://docs.python.org/3/library/weakref.html
+  class WeakRefList(list):
+    pass
 
-    def process(self, element):
+  class GetNthStringFn(beam.DoFn):
+    def __init__(self):
+      self._shared_handle = shared.Shared()
+
+    def setup(self):
+      # setup is a good place to initialize transient in-memory resources.
       def initialize_list():
         # Build the giant initial list.
-        return [str(i) for i in range(1000000)]
+        return WeakRefList([str(i) for i in range(1000000)])
 
-      giant_list = self._shared_handle.acquire(initialize_list)
-      yield giant_list[element]
+      self._giant_list = self._shared_handle.acquire(initialize_list)
+
+    def process(self, element):
+      yield self._giant_list[element]
 
   p = beam.Pipeline()
-  shared_handle = shared.Shared()
   (p | beam.Create([2, 4, 6, 8])
-     | beam.ParDo(GetNthStringFn(shared_handle)))
+     | beam.ParDo(GetNthStringFn()))
 
 
 Real-world uses will typically involve using a side-input to a DoFn to
@@ -49,14 +59,14 @@ initialize the shared resource in a way that can't be done with just its
 constructor::
 
   class RainbowTableLookupFn(beam.DoFn):
-    def __init__(self, shared_handle):
-      self._shared_handle = shared_handle
+    def __init__(self):
+      self._shared_handle = shared.Shared()
 
     def process(self, element, table_elements):
       def construct_table():
         # Construct the rainbow table from the table elements.
         # The table contains lines in the form "string::hash"
-        result = dict()
+        result = {}
         for key, value in table_elements:
           result[value] = key
         return result
@@ -67,7 +77,6 @@ constructor::
         yield unhashed_str
 
   p = beam.Pipeline()
-  shared_handle = shared.Shared()
   reverse_hash_table = p | "ReverseHashTable" >> beam.Create([
                   ('a', '0cc175b9c0f1b6a831c399e269772661'),
                   ('b', '92eb5ffee6ae2fec3ad71c777531578f'),
@@ -78,13 +87,9 @@ constructor::
                   '0cc175b9c0f1b6a831c399e269772661',
                   '8277e0910d750195b448797616e091ad'])
               | 'Unhash' >> beam.ParDo(
-                   RainbowTableLookupFn(shared_handle), reverse_hash_table))
+                   RainbowTableLookupFn(), reverse_hash_table))
 
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import threading
 import uuid
 import weakref
@@ -102,10 +107,12 @@ class _SharedControlBlock(object):
   def __init__(self):
     self._lock = threading.Lock()
     self._ref = None
+    self._tag = None
 
   def acquire(
       self,
-      constructor_fn  # type: Callable[[], Any]
+      constructor_fn,  # type: Callable[[], Any]
+      tag=None  # type: Any
   ):
     # type: (...) -> Any
 
@@ -116,6 +123,9 @@ class _SharedControlBlock(object):
         present in the cache. This function should take no arguments. It should
         return an initialised object, or None if the object could not be
         initialised / constructed.
+      tag: an optional indentifier to store with the cached object. If
+        subsequent calls to acquire use different tags, the object will be
+        reloaded rather than returned from cache.
 
     Returns:
       An initialised object, either from a previous initialisation, or
@@ -124,11 +134,13 @@ class _SharedControlBlock(object):
     with self._lock:
       # self._ref is None if this is a new control block.
       # self._ref() is None if the weak reference was GCed.
-      if self._ref is None or self._ref() is None:
+      # self._tag != tag if user specifies a new identifier
+      if self._ref is None or self._ref() is None or self._tag != tag:
         result = constructor_fn()
         if result is None:
           return None
         self._ref = weakref.ref(result)
+        self._tag = tag
       else:
         result = self._ref()
     return result
@@ -191,7 +203,7 @@ class _SharedMap(object):
     self._lock = threading.Lock()
 
     # Dictionary of references to shared control blocks
-    self._cache_map = dict()
+    self._cache_map = {}
 
     # Tuple of (key, obj), where obj is an object we explicitly hold a reference
     # to keep it alive
@@ -205,6 +217,7 @@ class _SharedMap(object):
       self,
       key,  # type: Text
       constructor_fn,  # type: Callable[[], Any]
+      tag=None  # type: Any
   ):
     # type: (...) -> Any
 
@@ -216,6 +229,9 @@ class _SharedMap(object):
         present in the cache. This function should take no arguments. It should
         return an initialised object, or None if the object could not be
         initialised / constructed.
+      tag: an optional indentifier to store with the cached object. If
+        subsequent calls to acquire use different tags, the object will be
+        reloaded rather than returned from cache.
 
     Returns:
       A reference to the initialised object, either from the cache, or
@@ -227,7 +243,7 @@ class _SharedMap(object):
         control_block = _SharedControlBlock()
         self._cache_map[key] = control_block
 
-    result = control_block.acquire(constructor_fn)
+    result = control_block.acquire(constructor_fn, tag)
 
     # Because we release the lock in between, if we acquire multiple Shareds
     # in a short time, there's no guarantee as to which one will be kept alive.
@@ -266,7 +282,8 @@ class Shared(object):
 
   def acquire(
       self,
-      constructor_fn  # type: Callable[[], Any]
+      constructor_fn,  # type: Callable[[], Any]
+      tag=None  # type: Any
   ):
     # type: (...) -> Any
 
@@ -277,9 +294,12 @@ class Shared(object):
         present in the cache. This function should take no arguments. It should
         return an initialised object, or None if the object could not be
         initialised / constructed.
+      tag: an optional indentifier to store with the cached object. If
+        subsequent calls to acquire use different tags, the object will be
+        reloaded rather than returned from cache.
 
     Returns:
       A reference to an initialised object, either from the cache, or
       newly-constructed.
     """
-    return _shared_map.acquire(self._key, constructor_fn)
+    return _shared_map.acquire(self._key, constructor_fn, tag)

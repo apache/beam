@@ -34,13 +34,16 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link OffsetRangeTracker}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class OffsetRangeTrackerTest {
   @Rule public final ExpectedException expected = ExpectedException.none();
 
   @Test
   public void testIllegalInitialization() throws Exception {
     expected.expect(NullPointerException.class);
-    OffsetRangeTracker tracker = new OffsetRangeTracker(null);
+    new OffsetRangeTracker(null);
   }
 
   @Test

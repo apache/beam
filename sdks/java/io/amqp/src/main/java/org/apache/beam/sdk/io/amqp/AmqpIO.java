@@ -91,6 +91,9 @@ import org.joda.time.Instant;
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AmqpIO {
 
   public static Read read() {
@@ -324,19 +327,15 @@ public class AmqpIO {
 
     @Override
     public PDone expand(PCollection<Message> input) {
-      input.apply(ParDo.of(new WriteFn(this)));
+      input.apply(ParDo.of(new WriteFn()));
       return PDone.in(input.getPipeline());
     }
 
     private static class WriteFn extends DoFn<Message, Void> {
 
-      private final Write spec;
-
       private transient Messenger messenger;
 
-      public WriteFn(Write spec) {
-        this.spec = spec;
-      }
+      public WriteFn() {}
 
       @Setup
       public void setup() throws Exception {

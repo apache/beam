@@ -61,12 +61,6 @@ Example usage for type-hinting both arguments and return values::
   def int_to_str(a):
     return str(a)
 
-Type-hinting a function with arguments that unpack tuples are also supported
-(in Python 2 only). As an example, such a function would be defined as::
-
-  def foo((a, b)):
-    ...
-
 The valid type-hint for such as function looks like the following::
 
   @with_input_types(a=int, b=int)
@@ -85,17 +79,12 @@ defined, or before importing a module containing type-hinted functions.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import inspect
 import itertools
 import logging
 import sys
 import traceback
 import types
-from builtins import next
-from builtins import object
-from builtins import zip
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -105,6 +94,7 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
+from typing import Union
 
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
@@ -113,11 +103,6 @@ from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
 from apache_beam.typehints.typehints import validate_composite_type_param
-
-try:
-  import funcsigs  # Python 2 only.
-except ImportError:
-  funcsigs = None
 
 __all__ = [
     'disable_type_annotations',
@@ -141,44 +126,6 @@ _ANY_VAR_POSITIONAL = typehints.Tuple[typehints.Any, ...]
 _ANY_VAR_KEYWORD = typehints.Dict[typehints.Any, typehints.Any]
 _disable_from_callable = False
 
-try:
-  _original_getfullargspec = inspect.getfullargspec
-  _use_full_argspec = True
-except AttributeError:  # Python 2
-  _original_getfullargspec = inspect.getargspec  # type: ignore
-  _use_full_argspec = False
-
-
-def getfullargspec(func):
-  # Python 3: Use get_signature instead.
-  assert sys.version_info < (3, ), 'This method should not be used in Python 3'
-  try:
-    return _original_getfullargspec(func)
-  except TypeError:
-    if isinstance(func, type):
-      argspec = getfullargspec(func.__init__)
-      del argspec.args[0]
-      return argspec
-    elif callable(func):
-      try:
-        return _original_getfullargspec(func.__call__)
-      except TypeError:
-        # Return an ArgSpec with at least one positional argument,
-        # and any number of other (positional or keyword) arguments
-        # whose name won't match any real argument.
-        # Arguments with the %unknown% prefix will be ignored in the type
-        # checking code.
-        if _use_full_argspec:
-          return inspect.FullArgSpec(['_'],
-                                     '__unknown__varargs',
-                                     '__unknown__keywords', (), [], {}, {})
-        else:  # Python 2
-          return inspect.ArgSpec(['_'],
-                                 '__unknown__varargs',
-                                 '__unknown__keywords', ())
-    else:
-      raise
-
 
 def get_signature(func):
   """Like inspect.signature(), but supports Py2 as well.
@@ -187,26 +134,18 @@ def get_signature(func):
   latter: 'the "self" parameter is always reported, even for bound methods'
   https://github.com/python/cpython/blob/44f91c388a6f4da9ed3300df32ca290b8aa104ea/Lib/inspect.py#L1103
   """
-  # Fall back on funcsigs if inspect module doesn't have 'signature'; prefer
-  # inspect.signature over funcsigs.signature if both are available.
-  if hasattr(inspect, 'signature'):
-    inspect_ = inspect
-  else:
-    inspect_ = funcsigs
-
   try:
-    signature = inspect_.signature(func)
+    signature = inspect.signature(func)
   except ValueError:
     # Fall back on a catch-all signature.
     params = [
-        inspect_.Parameter('_', inspect_.Parameter.POSITIONAL_OR_KEYWORD),
-        inspect_.Parameter(
-            '__unknown__varargs', inspect_.Parameter.VAR_POSITIONAL),
-        inspect_.Parameter(
-            '__unknown__keywords', inspect_.Parameter.VAR_KEYWORD)
+        inspect.Parameter('_', inspect.Parameter.POSITIONAL_OR_KEYWORD),
+        inspect.Parameter(
+            '__unknown__varargs', inspect.Parameter.VAR_POSITIONAL),
+        inspect.Parameter('__unknown__keywords', inspect.Parameter.VAR_KEYWORD)
     ]
 
-    signature = inspect_.Signature(params)
+    signature = inspect.Signature(params)
 
   # This is a specialization to hint the first argument of certain builtins,
   # such as str.strip.
@@ -241,12 +180,11 @@ def disable_type_annotations():
   _disable_from_callable = True
 
 
-class IOTypeHints(NamedTuple(
-    'IOTypeHints',
-    [('input_types', Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]),
-     ('output_types', Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]),
-     ('origin', List[str])])):
-  """Encapsulates all type hint information about a Dataflow construct.
+TRACEBACK_LIMIT = 5
+
+
+class IOTypeHints(NamedTuple):
+  """Encapsulates all type hint information about a Beam construct.
 
   This should primarily be used via the WithTypeHints mixin class, though
   may also be attached to other objects (such as Python functions).
@@ -259,8 +197,9 @@ class IOTypeHints(NamedTuple(
     origin: (List[str]) Stack of tracebacks of method calls used to create this
       instance.
   """
-
-  traceback_limit = 5
+  input_types: Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]
+  output_types: Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]
+  origin: List[str]
 
   @classmethod
   def _make_origin(cls, bases, tb=True, msg=()):
@@ -272,7 +211,7 @@ class IOTypeHints(NamedTuple(
     if tb:
       # Omit this method and the IOTypeHints method that called it.
       num_frames_skip = 2
-      tbs = traceback.format_stack(limit=cls.traceback_limit +
+      tbs = traceback.format_stack(limit=TRACEBACK_LIMIT +
                                    num_frames_skip)[:-num_frames_skip]
       # tb is a list of strings in the form of 'File ...\n[code]\n'. Split into
       # single lines and flatten.
@@ -363,6 +302,16 @@ class IOTypeHints(NamedTuple(
     return self._replace(
         output_types=(args, kwargs), origin=self._make_origin([self]))
 
+  def with_input_types_from(self, other):
+    # type: (IOTypeHints) -> IOTypeHints
+    return self._replace(
+        input_types=other.input_types, origin=self._make_origin([self]))
+
+  def with_output_types_from(self, other):
+    # type: (IOTypeHints) -> IOTypeHints
+    return self._replace(
+        output_types=other.output_types, origin=self._make_origin([self]))
+
   def simple_output_type(self, context):
     if self._has_output_types():
       args, kwargs = self.output_types
@@ -377,6 +326,75 @@ class IOTypeHints(NamedTuple(
     return (
         self.output_types and len(self.output_types[0]) == 1 and
         not self.output_types[1])
+
+  def strip_pcoll(self):
+    from apache_beam.pipeline import Pipeline
+    from apache_beam.pvalue import PBegin
+    from apache_beam.pvalue import PDone
+
+    return self.strip_pcoll_helper(self.input_types,
+                                   self._has_input_types,
+                                   'input_types',
+                                    [Pipeline, PBegin],
+                                   'This input type hint will be ignored '
+                                   'and not used for type-checking purposes. '
+                                   'Typically, input type hints for a '
+                                   'PTransform are single (or nested) types '
+                                   'wrapped by a PCollection, or PBegin.',
+                                   'strip_pcoll_input()').\
+                strip_pcoll_helper(self.output_types,
+                                   self.has_simple_output_type,
+                                   'output_types',
+                                   [PDone, None],
+                                   'This output type hint will be ignored '
+                                   'and not used for type-checking purposes. '
+                                   'Typically, output type hints for a '
+                                   'PTransform are single (or nested) types '
+                                   'wrapped by a PCollection, PDone, or None.',
+                                   'strip_pcoll_output()')
+
+  def strip_pcoll_helper(
+      self,
+      my_type,            # type: any
+      has_my_type,        # type: Callable[[], bool]
+      my_key,             # type: str
+      special_containers,   # type: List[Union[PBegin, PDone, PCollection]] # noqa: F821
+      error_str,          # type: str
+      source_str          # type: str
+      ):
+    # type: (...) -> IOTypeHints
+    from apache_beam.pvalue import PCollection
+
+    if not has_my_type() or not my_type or len(my_type[0]) != 1:
+      return self
+
+    my_type = my_type[0][0]
+
+    if isinstance(my_type, typehints.AnyTypeConstraint):
+      return self
+
+    special_containers += [PCollection]
+    kwarg_dict = {}
+
+    if (my_type not in special_containers and
+        getattr(my_type, '__origin__', None) != PCollection):
+      logging.warning(error_str + ' Got: %s instead.' % my_type)
+      kwarg_dict[my_key] = None
+      return self._replace(
+          origin=self._make_origin([self], tb=False, msg=[source_str]),
+          **kwarg_dict)
+
+    if (getattr(my_type, '__args__', -1) in [-1, None] or
+        len(my_type.__args__) == 0):
+      # e.g. PCollection (or PBegin/PDone)
+      kwarg_dict[my_key] = ((typehints.Any, ), {})
+    else:
+      # e.g. PCollection[type]
+      kwarg_dict[my_key] = ((convert_to_beam_type(my_type.__args__[0]), ), {})
+
+    return self._replace(
+        origin=self._make_origin([self], tb=False, msg=[source_str]),
+        **kwarg_dict)
 
   def strip_iterable(self):
     # type: () -> IOTypeHints
@@ -469,9 +487,6 @@ class IOTypeHints(NamedTuple(
         same(self.input_types, other.input_types) and
         same(self.output_types, other.output_types))
 
-  def __ne__(self, other):
-    return not self == other
-
   def __hash__(self):
     return hash(str(self))
 
@@ -508,6 +523,10 @@ class WithTypeHints(object):
         self._get_or_create_type_hints().with_defaults(
             self.default_type_hints()).with_defaults(
                 get_type_hints(self.__class__)))
+
+  def _set_type_hints(self, type_hints):
+    # type: (IOTypeHints) -> None
+    self._type_hints = type_hints
 
   def default_type_hints(self):
     return None
@@ -567,65 +586,6 @@ def _unpack_positional_arg_hints(arg, hint):
   return hint
 
 
-def getcallargs_forhints(func, *typeargs, **typekwargs):
-  """Like inspect.getcallargs, with support for declaring default args as Any.
-
-  In Python 2, understands that Tuple[] and an Any unpack.
-
-  Returns:
-    (Dict[str, Any]) A dictionary from arguments names to values.
-  """
-  if sys.version_info < (3, ):
-    return getcallargs_forhints_impl_py2(func, typeargs, typekwargs)
-  else:
-    return getcallargs_forhints_impl_py3(func, typeargs, typekwargs)
-
-
-def getcallargs_forhints_impl_py2(func, typeargs, typekwargs):
-  argspec = getfullargspec(func)
-  # Turn Tuple[x, y] into (x, y) so getcallargs can do the proper unpacking.
-  packed_typeargs = [
-      _unpack_positional_arg_hints(arg, hint)
-      for (arg, hint) in zip(argspec.args, typeargs)
-  ]
-  packed_typeargs += list(typeargs[len(packed_typeargs):])
-
-  # Monkeypatch inspect.getfullargspec to allow passing non-function objects.
-  # getfullargspec (getargspec on Python 2) are used by inspect.getcallargs.
-  # TODO(BEAM-5490): Reimplement getcallargs and stop relying on monkeypatch.
-  inspect.getargspec = getfullargspec
-  try:
-    callargs = inspect.getcallargs(func, *packed_typeargs, **typekwargs)  # pylint: disable=deprecated-method
-  except TypeError as e:
-    raise TypeCheckError(e)
-  finally:
-    # Revert monkey-patch.
-    inspect.getargspec = _original_getfullargspec
-
-  if argspec.defaults:
-    # Declare any default arguments to be Any.
-    for k, var in enumerate(reversed(argspec.args)):
-      if k >= len(argspec.defaults):
-        break
-      if callargs.get(var, None) is argspec.defaults[-k - 1]:
-        callargs[var] = typehints.Any
-  # Patch up varargs and keywords
-  if argspec.varargs:
-    # TODO(BEAM-8122): This will always assign _ANY_VAR_POSITIONAL. Should be
-    #   "callargs.get(...) or _ANY_VAR_POSITIONAL".
-    callargs[argspec.varargs] = typekwargs.get(
-        argspec.varargs, _ANY_VAR_POSITIONAL)
-
-  varkw = argspec.keywords
-  if varkw:
-    # TODO(robertwb): Consider taking the union of key and value types.
-    callargs[varkw] = typekwargs.get(varkw, _ANY_VAR_KEYWORD)
-
-  # TODO(BEAM-5878) Support kwonlyargs.
-
-  return callargs
-
-
 def _normalize_var_positional_hint(hint):
   """Converts a var_positional hint into Tuple[Union[<types>], ...] form.
 
@@ -672,7 +632,7 @@ def _normalize_var_keyword_hint(hint, arg_name):
     return typehints.Dict[str, typehints.Union[values]]
 
 
-def getcallargs_forhints_impl_py3(func, type_args, type_kwargs):
+def getcallargs_forhints(func, *type_args, **type_kwargs):
   """Bind type_args and type_kwargs to func.
 
   Works like inspect.getcallargs, with some modifications to support type hint

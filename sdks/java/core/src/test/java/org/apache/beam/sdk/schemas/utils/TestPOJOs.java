@@ -27,10 +27,13 @@ import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -55,7 +58,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof POJOWithNullables)) {
         return false;
       }
       POJOWithNullables that = (POJOWithNullables) o;
@@ -223,23 +226,44 @@ public class TestPOJOs {
   /** A POJO for testing annotations. */
   @DefaultSchema(JavaFieldSchema.class)
   public static class AnnotatedSimplePojo {
+    @SchemaFieldNumber("0")
     public final String str;
 
     @SchemaFieldName("aByte")
+    @SchemaFieldNumber("2")
     public final byte theByte;
 
     @SchemaFieldName("aShort")
+    @SchemaFieldNumber("1")
     public final short theShort;
 
+    @SchemaFieldNumber("3")
     public final int anInt;
+
+    @SchemaFieldNumber("4")
     public final long aLong;
+
+    @SchemaFieldNumber("5")
     public final boolean aBoolean;
+
+    @SchemaFieldNumber("6")
     public final DateTime dateTime;
+
+    @SchemaFieldNumber("7")
     public final Instant instant;
+
+    @SchemaFieldNumber("8")
     public final byte[] bytes;
+
+    @SchemaFieldNumber("9")
     public final ByteBuffer byteBuffer;
+
+    @SchemaFieldNumber("10")
     public final BigDecimal bigDecimal;
+
+    @SchemaFieldNumber("11")
     public final StringBuilder stringBuilder;
+
     @SchemaIgnore public final Integer pleaseIgnore;
 
     // Marked with SchemaCreate, so this will be called to construct instances.
@@ -347,6 +371,23 @@ public class TestPOJOs {
           + '}';
     }
   }
+
+  /** The schema for {@link SimplePOJO}. * */
+  public static final Schema ANNOTATED_SIMPLE_POJO_SCHEMA =
+      Schema.builder()
+          .addStringField("str")
+          .addInt16Field("aShort")
+          .addByteField("aByte")
+          .addInt32Field("anInt")
+          .addInt64Field("aLong")
+          .addBooleanField("aBoolean")
+          .addDateTimeField("dateTime")
+          .addDateTimeField("instant")
+          .addByteArrayField("bytes")
+          .addByteArrayField("byteBuffer")
+          .addDecimalField("bigDecimal")
+          .addStringField("stringBuilder")
+          .build();
 
   /** A simple POJO containing basic types. * */
   @DefaultSchema(JavaFieldSchema.class)
@@ -910,7 +951,7 @@ public class TestPOJOs {
   /** A simple POJO containing nullable basic types. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class NullablePOJO {
-    @Nullable public String str;
+    public @Nullable String str;
     public @Nullable Byte aByte;
     public @Nullable Short aShort;
     public @Nullable Integer anInt;
@@ -1010,5 +1051,188 @@ public class TestPOJOs {
           .addNullableField("byteBuffer", FieldType.BYTES)
           .addNullableField("bigDecimal", FieldType.DECIMAL)
           .addNullableField("stringBuilder", FieldType.STRING)
+          .build();
+
+  @DefaultSchema(JavaFieldSchema.class)
+  @SchemaCaseFormat(CaseFormat.LOWER_UNDERSCORE)
+  public static class PojoWithCaseFormat {
+    public String user;
+    public int ageInYears;
+
+    @SchemaCaseFormat(CaseFormat.UPPER_CAMEL)
+    public boolean knowsJavascript;
+
+    @SchemaCreate
+    public PojoWithCaseFormat(String user, int ageInYears, boolean knowsJavascript) {
+      this.user = user;
+      this.ageInYears = ageInYears;
+      this.knowsJavascript = knowsJavascript;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PojoWithCaseFormat that = (PojoWithCaseFormat) o;
+      return ageInYears == that.ageInYears
+          && knowsJavascript == that.knowsJavascript
+          && user.equals(that.user);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(user, ageInYears, knowsJavascript);
+    }
+  }
+
+  /** The schema for {@link PojoWithCaseFormat}. * */
+  public static final Schema CASE_FORMAT_POJO_SCHEMA =
+      Schema.builder()
+          .addField("user", FieldType.STRING)
+          .addField("age_in_years", FieldType.INT32)
+          .addField("KnowsJavascript", FieldType.BOOLEAN)
+          .build();
+
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class PojoNoCreateOption {
+    public String user;
+
+    // JavaFieldSchema will not try to use this constructor unless annotated with @SchemaCreate
+    public PojoNoCreateOption(String user) {
+      this.user = user;
+    }
+  }
+
+  /** A POJO containing itself as a nested class. * */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class SelfNestedPOJO {
+    public SelfNestedPOJO nested;
+
+    public SelfNestedPOJO(SelfNestedPOJO nested) {
+      this.nested = nested;
+    }
+
+    public SelfNestedPOJO() {}
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SelfNestedPOJO that = (SelfNestedPOJO) o;
+      return Objects.equals(nested, that.nested);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(nested);
+    }
+  }
+
+  /**
+   * A POJO containing a circular reference back to itself through the accompanying POJO below. *
+   */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class FirstCircularNestedPOJO {
+    public SecondCircularNestedPOJO nested;
+
+    public FirstCircularNestedPOJO(SecondCircularNestedPOJO nested) {
+      this.nested = nested;
+    }
+
+    public FirstCircularNestedPOJO() {}
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      FirstCircularNestedPOJO that = (FirstCircularNestedPOJO) o;
+      return Objects.equals(nested, that.nested);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(nested);
+    }
+  }
+
+  /**
+   * A POJO containing a circular reference back to itself through the accompanying POJO below. *
+   */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class SecondCircularNestedPOJO {
+    public FirstCircularNestedPOJO nested;
+
+    public SecondCircularNestedPOJO(FirstCircularNestedPOJO nested) {
+      this.nested = nested;
+    }
+
+    public SecondCircularNestedPOJO() {}
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SecondCircularNestedPOJO that = (SecondCircularNestedPOJO) o;
+      return Objects.equals(nested, that.nested);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(nested);
+    }
+  }
+
+  /** A POJO containing a nested class, along with a SimplePOJO. * */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class NestedPOJOWithSimplePOJO {
+    public NestedPOJO nested;
+    public SimplePOJO simplePojo;
+
+    public NestedPOJOWithSimplePOJO(NestedPOJO nested, SimplePOJO simplePojo) {
+      this.nested = nested;
+      this.simplePojo = simplePojo;
+    }
+
+    public NestedPOJOWithSimplePOJO() {}
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedPOJOWithSimplePOJO that = (NestedPOJOWithSimplePOJO) o;
+      return Objects.equals(nested, that.nested);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(nested);
+    }
+  }
+
+  /** The schema for {@link NestedPOJOWithSimplePOJO}. * */
+  public static final Schema NESTED_POJO_WITH_SIMPLE_POJO_SCHEMA =
+      Schema.builder()
+          .addRowField("nested", NESTED_POJO_SCHEMA)
+          .addRowField("simplePojo", SIMPLE_POJO_SCHEMA)
           .build();
 }

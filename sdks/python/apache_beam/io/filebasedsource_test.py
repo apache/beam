@@ -16,9 +16,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import bz2
 import gzip
 import io
@@ -26,14 +23,9 @@ import logging
 import math
 import os
 import random
-import sys
 import tempfile
 import unittest
-from builtins import object
-from builtins import range
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 
 import apache_beam as beam
@@ -217,12 +209,6 @@ class TestConcatSource(unittest.TestCase):
     def estimate_size(self):
       return len(self._values)  # Assuming each value to be 1 byte.
 
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
@@ -266,12 +252,6 @@ class TestConcatSource(unittest.TestCase):
 
 
 class TestFileBasedSource(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
@@ -621,12 +601,6 @@ class TestFileBasedSource(unittest.TestCase):
 
 
 class TestSingleFileSource(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.

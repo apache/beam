@@ -28,6 +28,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * Construct an oauth credential to be used by the SDK and the SDK workers. Always returns a null
  * Credential object.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class NoopCredentialFactory implements CredentialFactory {
   private static final NoopCredentialFactory INSTANCE = new NoopCredentialFactory();
   private static final NoopCredentials NOOP_CREDENTIALS = new NoopCredentials();

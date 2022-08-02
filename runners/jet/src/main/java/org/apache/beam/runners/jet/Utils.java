@@ -19,7 +19,6 @@ package org.apache.beam.runners.jet;
 
 import static com.hazelcast.jet.impl.util.ExceptionUtil.rethrow;
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -58,6 +57,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Various common methods used by the Jet based runner. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness",
+  "keyfor"
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class Utils {
 
   public static String getTupleTagId(PValue value) {
@@ -77,7 +81,7 @@ public class Utils {
     return TransformInputs.nonAdditionalInputs(node.toAppliedPTransform(pipeline));
   }
 
-  static Map<TupleTag<?>, PValue> getInputs(AppliedPTransform<?, ?, ?> appliedTransform) {
+  static Map<TupleTag<?>, PCollection<?>> getInputs(AppliedPTransform<?, ?, ?> appliedTransform) {
     return appliedTransform.getInputs();
   }
 
@@ -93,14 +97,15 @@ public class Utils {
     return Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(appliedTransform));
   }
 
-  static Map<TupleTag<?>, PValue> getOutputs(AppliedPTransform<?, ?, ?> appliedTransform) {
+  static Map<TupleTag<?>, PCollection<?>> getOutputs(AppliedPTransform<?, ?, ?> appliedTransform) {
     if (appliedTransform.getTransform() == null) {
       return null;
     }
     return appliedTransform.getOutputs();
   }
 
-  static Map.Entry<TupleTag<?>, PValue> getOutput(AppliedPTransform<?, ?, ?> appliedTransform) {
+  static Map.Entry<TupleTag<?>, PCollection<?>> getOutput(
+      AppliedPTransform<?, ?, ?> appliedTransform) {
     return Iterables.getOnlyElement(getOutputs(appliedTransform).entrySet());
   }
 
@@ -133,10 +138,10 @@ public class Utils {
   }
 
   static <T> Map<T, Coder> getCoders(
-      Map<TupleTag<?>, PValue> pCollections,
-      Function<Map.Entry<TupleTag<?>, PValue>, T> tupleTagExtractor) {
+      Map<TupleTag<?>, PCollection<?>> pCollections,
+      Function<Map.Entry<TupleTag<?>, PCollection<?>>, T> tupleTagExtractor) {
     return pCollections.entrySet().stream()
-        .collect(Collectors.toMap(tupleTagExtractor, e -> getCoder((PCollection) e.getValue())));
+        .collect(Collectors.toMap(tupleTagExtractor, e -> getCoder(e.getValue()), (v1, v2) -> v1));
   }
 
   static Map<TupleTag<?>, Coder<?>> getOutputValueCoders(
@@ -146,7 +151,7 @@ public class Utils {
         .collect(Collectors.toMap(Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
   }
 
-  static List<PCollectionView<?>> getSideInputs(AppliedPTransform<?, ?, ?> appliedTransform) {
+  static Collection<PCollectionView<?>> getSideInputs(AppliedPTransform<?, ?, ?> appliedTransform) {
     PTransform<?, ?> transform = appliedTransform.getTransform();
     if (transform instanceof ParDo.MultiOutput) {
       ParDo.MultiOutput multiParDo = (ParDo.MultiOutput) transform;
@@ -177,7 +182,7 @@ public class Utils {
       if (DoFnSignatures.requiresTimeSortedInput(doFn)) {
         throw new UnsupportedOperationException(
             String.format(
-                "%s doesn't current support @RequiresTimeSortedInput annotation.",
+                "%s doesn't currently support @RequiresTimeSortedInput annotation.",
                 JetRunner.class.getSimpleName()));
       }
       return doFn;
@@ -189,19 +194,13 @@ public class Utils {
   static WindowingStrategy<?, ?> getWindowingStrategy(AppliedPTransform<?, ?, ?> appliedTransform) {
     // assume that the windowing strategy is the same for all outputs
 
-    Map<TupleTag<?>, PValue> outputs = getOutputs(appliedTransform);
+    Map<TupleTag<?>, PCollection<?>> outputs = getOutputs(appliedTransform);
 
     if (outputs == null || outputs.isEmpty()) {
       throw new IllegalStateException("No outputs defined.");
     }
 
-    PValue taggedValue = outputs.values().iterator().next();
-    checkState(
-        taggedValue instanceof PCollection,
-        "Within ParDo, got a non-PCollection output %s of type %s",
-        taggedValue,
-        taggedValue.getClass().getSimpleName());
-    PCollection<?> coll = (PCollection<?>) taggedValue;
+    PCollection<?> coll = outputs.values().iterator().next();
     return coll.getWindowingStrategy();
   }
 

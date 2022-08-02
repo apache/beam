@@ -21,18 +21,18 @@ limitations under the License.
 ## Overview
 
 The Hazelcast Jet Runner can be used to execute Beam pipelines using [Hazelcast
-Jet](https://jet-start.sh/). 
+Jet](https://jet-start.sh/).
 
 The Jet Runner and Jet are suitable for large scale continuous jobs and provide:
 * Support for both batch (bounded) and streaming (unbounded) data sets
 * A runtime that supports very high throughput and low event latency at the same time
 * Natural back-pressure in streaming programs
-* Distributed massively parallel data processing engine with in memory storage 
+* Distributed massively parallel data processing engine with in memory storage
 
 It's important to note that the Jet Runner is currently in an *EXPERIMENTAL* state and can not make use of many of
 the capabilities present in Jet:
 * Jet has full Fault Tolerance support, the Jet Runner does not; if a job fails it must be restarted
-* Internal performance of Jet is extremely high. 
+* Internal performance of Jet is extremely high.
 The Runner can't match it as of now because Beam pipeline optimization/surgery has not been fully implemented.
 
 The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the
@@ -66,7 +66,7 @@ The Beam examples project, when generated from an archetype, comes from a partic
 the `archetypeVersion` property is about). Each Beam version that contains the Jet Runner (ie. from 2.14.0 onwards)
 uses a certain version of Jet. Because of this, when we start a stand-alone Jet cluster and try to run Beam examples on
 it we need to make sure the two are compatible. See following table for which Jet version is recommended for various
-Beam versions.  
+Beam versions.
 
 <table class="table table-bordered">
 <tr>
@@ -87,8 +87,8 @@ Beam versions.
 </tr>
 </table>
 
-Download latest Hazelcast Jet version compatible with the Beam you are using from 
-[Hazelcast Jet Website](https://jet-start.sh/download). 
+Download latest Hazelcast Jet version compatible with the Beam you are using from
+[Hazelcast Jet Website](https://jet-start.sh/download).
 
 <nav class="version-switcher">
   <strong>Adapt for:</strong>
@@ -99,7 +99,7 @@ Download latest Hazelcast Jet version compatible with the Beam you are using fro
 </nav>
 
 Once the download has finished you need to start a Jet cluster. The simplest way to do so is to start Jet cluster
-members using the `jet-start` script that comes with the downloaded Jet distribution. The members use the 
+members using the `jet-start` script that comes with the downloaded Jet distribution. The members use the
 <span class="version-jet3">
 [auto discovery feature](https://docs.hazelcast.org/docs/3.12/manual/html-single/index.html#setting-up-clusters)
 </span>
@@ -137,7 +137,7 @@ State: ACTIVE
 Version: 3.0
 Size: 2
 
-ADDRESS                  UUID               
+ADDRESS                  UUID
 [192.168.0.117]:5701     76bea7ba-f032-4c25-ad04-bdef6782f481
 [192.168.0.117]:5702     03ecfaa2-be16-41b6-b5cf-eea584d7fb86
 {{< /highlight >}}
@@ -147,12 +147,12 @@ State: ACTIVE
 Version: 4.0
 Size: 2
 
-ADDRESS                  UUID               
+ADDRESS                  UUID
 [192.168.0.117]:5701     b9937bba-32aa-48ba-8e32-423aafed763b
 [192.168.0.117]:5702     dfeadfb2-3ba5-4d1c-95e7-71a1a3ca4937
 {{< /highlight >}}
 
-Change directory to the Beam Examples project and issue following command to submit and execute your 
+Change directory to the Beam Examples project and issue following command to submit and execute your
 Pipeline on the remote Jet cluster.
 Make sure to distribute the input file (file with the words to be counted) to all machines where the
 cluster runs. The word count job won't be able to read the data otherwise.
@@ -188,22 +188,22 @@ cluster runs. The word count job won't be able to read the data otherwise.
     <td>
         <span class="version-jet3">The name of the Hazelcast Group to join, in essence an ID of the Jet Cluster that
         will be used by the Runner. With groups it is possible to create multiple clusters where each cluster has its
-        own group and doesn't interfere with other clusters.</span> 
-        <span class="version-jet4">The name of the Hazelcast Cluster that will be used by the Runner.</span> 
+        own group and doesn't interfere with other clusters.</span>
+        <span class="version-jet4">The name of the Hazelcast Cluster that will be used by the Runner.</span>
     </td>
   <td><code>jet</code></td>
 </tr>
 <tr>
   <td><code>jetServers</code></td>
-  <td>List of the addresses of Jet Cluster members, needed when the Runner doesn't start its own Jet Cluster, 
-  but makes use of an external, independently started one. Takes the form of a comma separated list of ip/hostname-port pairs, 
+  <td>List of the addresses of Jet Cluster members, needed when the Runner doesn't start its own Jet Cluster,
+  but makes use of an external, independently started one. Takes the form of a comma separated list of ip/hostname-port pairs,
   like this: <code>192.168.0.117:5701,192.168.0.117:5702</code></td>
   <td><code>127.0.0.1:5701</code></td>
 </tr>
 <tr>
   <td><code>codeJarPathname</code></td>
   <td>Also a property needed only when using external Jet Clusters, specifies the location of a fat jar
-  containing all the code that needs to run on the cluster (so at least the pipeline and the runner code). The value 
+  containing all the code that needs to run on the cluster (so at least the pipeline and the runner code). The value
   is any string that is acceptad by <code>new java.io.File()</code> as a parameter.</td>
   <td>Has no default value.</td>
 </tr>
@@ -215,13 +215,13 @@ cluster runs. The word count job won't be able to read the data otherwise.
 </tr>
 <tr>
   <td><code>jetDefaultParallelism</code></td>
-  <td>Local parallelism of Jet members, the number of processors of each vertex of the DAG that will be created on each 
+  <td>Local parallelism of Jet members, the number of processors of each vertex of the DAG that will be created on each
   Jet Cluster member.</td>
   <td><code>2</code></td>
 </tr>
 <tr>
   <td><code>jetProcessorsCooperative</code></td>
-  <td>Boolean flag specifying if Jet Processors for DoFns are allowed to be cooperative (ie. use green threads instead of 
+  <td>Boolean flag specifying if Jet Processors for DoFns are allowed to be cooperative (ie. use green threads instead of
   dedicated OS ones). If set to true than all such Processors will be cooperative, except when they have no outputs
   (so they are assumed to be syncs).</td>
   <td><code>false</code></td>

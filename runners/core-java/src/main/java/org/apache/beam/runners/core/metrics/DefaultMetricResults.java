@@ -32,6 +32,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link Iterable}s of counters, distributions, and gauges, and serves queries by applying {@link
  * org.apache.beam.sdk.metrics.MetricsFilter}s linearly to them.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DefaultMetricResults extends MetricResults {
 
   private final Iterable<MetricResult<Long>> counters;

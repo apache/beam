@@ -214,7 +214,7 @@ public class TestCountingSource
     public Instant getWatermark() {
       if (current >= numMessagesPerShard - 1) {
         // we won't emit further data, signal this with the final watermark
-        return new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE);
+        return BoundedWindow.TIMESTAMP_MAX_VALUE;
       }
 
       // The watermark is a promise about future elements, and the timestamps of elements are

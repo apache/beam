@@ -37,7 +37,7 @@ Composite type-hints are reserved for hinting the types of container-like
 Python objects such as 'list'. Composite type-hints can be parameterized by an
 inner simple or composite type-hint, using the 'indexing' syntax. In order to
 avoid conflicting with the namespace of the built-in container types, when
-specifying this category of type-hints, the first letter should capitalized.
+specifying this category of type-hints, the first letter should be capitalized.
 The following composite type-hints are permitted. NOTE: 'T' can be any of the
 type-hints listed or a simple Python type:
 
@@ -65,18 +65,10 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-import collections
 import copy
 import logging
-import sys
-import types
 import typing
-from builtins import next
-from builtins import zip
-
-from future.utils import with_metaclass
+from collections import abc
 
 __all__ = [
     'Any',
@@ -182,9 +174,34 @@ class TypeConstraint(object):
       else:
         visitor(t, visitor_arg)
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
+
+def visit_inner_types(type_constraint, visitor, visitor_arg):
+  """Visitor pattern to visit all inner types of a type constraint.
+
+  Args:
+    type_constraint: A type constraint or a type.
+    visitor: A callable invoked for all nodes in the type tree comprising a
+      composite type. The visitor will be called with the node visited and the
+      visitor argument specified here.
+    visitor_arg: Visitor callback second argument.
+
+  Note:
+    Raise and capture a StopIteration to terminate the visit, e.g.
+
+    ```
+    def visitor(type_constraint, visitor_arg):
+      if ...:
+        raise StopIteration
+
+    try:
+      visit_inner_types(type_constraint, visitor, visitor_arg)
+    except StopIteration:
+      pass
+    ```
+  """
+  if isinstance(type_constraint, TypeConstraint):
+    return type_constraint.visit(visitor, visitor_arg)
+  return visitor(type_constraint, visitor_arg)
 
 
 def match_type_variables(type_constraint, concrete_type):
@@ -263,7 +280,7 @@ class SequenceTypeConstraint(IndexableTypeConstraint):
     for index, elem in enumerate(sequence_instance):
       try:
         check_constraint(self.inner_type, elem)
-      except SimpleTypeHintError as e:
+      except SimpleTypeHintError:
         raise CompositeTypeHintError(
             '%s hint type-constraint violated. The type of element #%s in '
             'the passed %s is incorrect. Expected an instance of type %s, '
@@ -330,6 +347,19 @@ class CompositeTypeHint(object):
     raise NotImplementedError
 
 
+def is_typing_generic(type_param):
+  """Determines if an object is a subscripted typing.Generic type, such as
+  PCollection[int].
+
+  Such objects are considered valid type parameters.
+
+  Always returns false for Python versions below 3.7.
+  """
+  if hasattr(typing, '_GenericAlias'):
+    return isinstance(type_param, typing._GenericAlias)
+  return False
+
+
 def validate_composite_type_param(type_param, error_msg_prefix):
   """Determines if an object is a valid type parameter to a
   :class:`CompositeTypeHint`.
@@ -349,10 +379,8 @@ def validate_composite_type_param(type_param, error_msg_prefix):
   """
   # Must either be a TypeConstraint instance or a basic Python type.
   possible_classes = [type, TypeConstraint]
-  if sys.version_info[0] == 2:
-    # Access from __dict__ to avoid py27-lint3 compatibility checker complaint.
-    possible_classes.append(types.__dict__["ClassType"])
   is_not_type_constraint = (
+      not is_typing_generic(type_param) and
       not isinstance(type_param, tuple(possible_classes)) and
       type_param is not None and
       getattr(type_param, '__module__', None) != 'typing')
@@ -366,6 +394,8 @@ def validate_composite_type_param(type_param, error_msg_prefix):
         (error_msg_prefix, type_param, type_param.__class__.__name__))
 
 
+# TODO(https://github.com/apache/beam/issues/20982): Remove this function and
+# use plain repr() instead.
 def _unified_repr(o):
   """Given an object return a qualified name for the object.
 
@@ -379,7 +409,10 @@ def _unified_repr(o):
   Returns:
     A qualified name for the passed Python object fit for string formatting.
   """
-  return repr(o) if isinstance(o, (TypeConstraint, type(None))) else o.__name__
+  if isinstance(o, (TypeConstraint, type(None))) or not hasattr(o, '__name__'):
+    return repr(o)
+  else:
+    return o.__name__
 
 
 def check_constraint(type_constraint, object_instance):
@@ -427,7 +460,8 @@ class AnyTypeConstraint(TypeConstraint):
     return 'Any'
 
   def __hash__(self):
-    # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
+    # TODO(https://github.com/apache/beam/issues/18633): Fix
+    # typehints.TypeVariable issues with __hash__.
     return hash(id(self))
 
   def type_check(self, instance):
@@ -449,7 +483,8 @@ class TypeVariable(AnyTypeConstraint):
     return type(self) == type(other)
 
   def __hash__(self):
-    # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
+    # TODO(https://github.com/apache/beam/issues/18633): Fix
+    # typehints.TypeVariable issues with __hash__.
     return hash(id(self))
 
   def __repr__(self):
@@ -459,7 +494,10 @@ class TypeVariable(AnyTypeConstraint):
     return {self: concrete_type}
 
   def bind_type_variables(self, bindings):
-    return bindings.get(self, self)
+    return bindings.get(
+        self,
+        # Star matches all type variables.
+        bindings.get('*', self))
 
 
 class UnionHint(CompositeTypeHint):
@@ -497,9 +535,12 @@ class UnionHint(CompositeTypeHint):
       return 'Union[%s]' % (
           ', '.join(sorted(_unified_repr(t) for t in self.union_types)))
 
-    def _inner_types(self):
+    def inner_types(self):
       for t in self.union_types:
         yield t
+
+    def contains_type(self, maybe_type):
+      return maybe_type in self.union_types
 
     def _consistent_with_check_(self, sub):
       if isinstance(sub, UnionConstraint):
@@ -528,8 +569,25 @@ class UnionHint(CompositeTypeHint):
               instance.__class__.__name__,
               error_msg))
 
+    def match_type_variables(self, concrete_type):
+      sub_bindings = [
+          match_type_variables(t, concrete_type) for t in self.union_types
+          if is_consistent_with(concrete_type, t)
+      ]
+      if sub_bindings:
+        return {
+            var: Union[(sub[var] for sub in sub_bindings)]
+            for var in set.intersection(
+                *[set(sub.keys()) for sub in sub_bindings])
+        }
+      else:
+        return {}
+
+    def bind_type_variables(self, bindings):
+      return Union[(bind_type_variables(t, bindings) for t in self.union_types)]
+
   def __getitem__(self, type_params):
-    if not isinstance(type_params, (collections.Sequence, set)):
+    if not isinstance(type_params, (abc.Iterable, set)):
       raise TypeError('Cannot create Union without a sequence of types.')
 
     # Flatten nested Union's and duplicated repeated type hints.
@@ -570,12 +628,28 @@ class OptionalHint(UnionHint):
   """
   def __getitem__(self, py_type):
     # A single type must have been passed.
-    if isinstance(py_type, collections.Sequence):
+    if isinstance(py_type, abc.Sequence):
       raise TypeError(
           'An Option type-hint only accepts a single type '
           'parameter.')
 
     return Union[py_type, type(None)]
+
+
+def is_nullable(typehint):
+  return (
+      isinstance(typehint, UnionConstraint) and
+      typehint.contains_type(type(None)) and
+      len(list(typehint.inner_types())) == 2)
+
+
+def get_concrete_type_from_nullable(typehint):
+  if is_nullable(typehint):
+    for inner_type in typehint.inner_types():
+      if not type(None) == inner_type:
+        return inner_type
+  else:
+    raise TypeError('Typehint is not of nullable type', typehint)
 
 
 class TupleHint(CompositeTypeHint):
@@ -596,7 +670,7 @@ class TupleHint(CompositeTypeHint):
   """
   class TupleSequenceConstraint(SequenceTypeConstraint):
     def __init__(self, type_param):
-      super(TupleHint.TupleSequenceConstraint, self).__init__(type_param, tuple)
+      super().__init__(type_param, tuple)
 
     def __repr__(self):
       return 'Tuple[%s, ...]' % _unified_repr(self.inner_type)
@@ -607,7 +681,7 @@ class TupleHint(CompositeTypeHint):
         return all(
             is_consistent_with(elem, self.inner_type)
             for elem in sub.tuple_types)
-      return super(TupleSequenceConstraint, self)._consistent_with_check_(sub)
+      return super()._consistent_with_check_(sub)
 
   class TupleConstraint(IndexableTypeConstraint):
     def __init__(self, type_params):
@@ -690,7 +764,7 @@ class TupleHint(CompositeTypeHint):
   def __getitem__(self, type_params):
     ellipsis = False
 
-    if not isinstance(type_params, collections.Iterable):
+    if not isinstance(type_params, abc.Iterable):
       # Special case for hinting tuples with arity-1.
       type_params = (type_params, )
 
@@ -728,7 +802,7 @@ class ListHint(CompositeTypeHint):
   """
   class ListConstraint(SequenceTypeConstraint):
     def __init__(self, list_type):
-      super(ListHint.ListConstraint, self).__init__(list_type, list)
+      super().__init__(list_type, list)
 
     def __repr__(self):
       return 'List[%s]' % _unified_repr(self.inner_type)
@@ -909,7 +983,7 @@ class SetHint(CompositeTypeHint):
   """
   class SetTypeConstraint(SequenceTypeConstraint):
     def __init__(self, type_param):
-      super(SetHint.SetTypeConstraint, self).__init__(type_param, set)
+      super().__init__(type_param, set)
 
     def __repr__(self):
       return 'Set[%s]' % _unified_repr(self.inner_type)
@@ -959,7 +1033,7 @@ class IterableHint(CompositeTypeHint):
   class IterableTypeConstraint(SequenceTypeConstraint):
     def __init__(self, iter_type):
       super(IterableHint.IterableTypeConstraint,
-            self).__init__(iter_type, collections.Iterable)
+            self).__init__(iter_type, abc.Iterable)
 
     def __repr__(self):
       return 'Iterable[%s]' % _unified_repr(self.inner_type)
@@ -1047,7 +1121,7 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-class WindowedTypeConstraint(with_metaclass(GetitemConstructor, TypeConstraint)):  # type: ignore[misc]
+class WindowedTypeConstraint(TypeConstraint, metaclass=GetitemConstructor):
   """A type constraint for WindowedValue objects.
 
   Mostly for internal use.
@@ -1103,9 +1177,9 @@ class GeneratorHint(IteratorHint):
   def __getitem__(self, type_params):
     if isinstance(type_params, tuple) and len(type_params) == 3:
       yield_type, send_type, return_type = type_params
-      if send_type is not None:
+      if send_type is not type(None):
         _LOGGER.warning('Ignoring send_type hint: %s' % send_type)
-      if send_type is not None:
+      if return_type is not type(None):
         _LOGGER.warning('Ignoring return_type hint: %s' % return_type)
     else:
       yield_type = type_params
@@ -1177,9 +1251,9 @@ def is_consistent_with(sub, base):
     return True
   sub = normalize(sub, none_as_type=True)
   base = normalize(base, none_as_type=True)
-  if isinstance(base, TypeConstraint):
-    if isinstance(sub, UnionConstraint):
-      return all(is_consistent_with(c, base) for c in sub.union_types)
+  if isinstance(sub, UnionConstraint):
+    return all(is_consistent_with(c, base) for c in sub.union_types)
+  elif isinstance(base, TypeConstraint):
     return base._consistent_with_check_(sub)
   elif isinstance(sub, TypeConstraint):
     # Nothing but object lives above any type constraints.

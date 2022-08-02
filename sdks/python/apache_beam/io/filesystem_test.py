@@ -19,9 +19,6 @@
 """Unit tests for filesystem module."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import bz2
 import gzip
 import logging
@@ -32,10 +29,9 @@ import sys
 import tempfile
 import unittest
 import zlib
-from builtins import range
 from io import BytesIO
 
-from future.utils import iteritems
+import zstandard
 from parameterized import param
 from parameterized import parameterized
 
@@ -47,7 +43,7 @@ from apache_beam.io.filesystem import FileSystem
 
 class TestingFileSystem(FileSystem):
   def __init__(self, pipeline_options, has_dirs=False):
-    super(TestingFileSystem, self).__init__(pipeline_options)
+    super().__init__(pipeline_options)
     self._has_dirs = has_dirs
     self._files = {}
 
@@ -72,7 +68,7 @@ class TestingFileSystem(FileSystem):
     self._files[path] = size
 
   def _list(self, dir_or_prefix):
-    for path, size in iteritems(self._files):
+    for path, size in self._files.items():
       if path.startswith(dir_or_prefix):
         yield FileMetadata(path, size)
 
@@ -106,6 +102,9 @@ class TestingFileSystem(FileSystem):
     raise NotImplementedError
 
   def checksum(self, path):
+    raise NotImplementedError
+
+  def metadata(self, path):
     raise NotImplementedError
 
   def delete(self, paths):
@@ -313,6 +312,10 @@ atomized in instants hammered around the
           else gzip.open
       with compress_open(file_name, 'wb') as f:
         f.write(content)
+    elif compression_type == CompressionTypes.ZSTD:
+      compress_open = zstandard.open
+      with compress_open(file_name, 'wb') as f:
+        f.write(content)
     else:
       assert False, "Invalid compression type: %s" % compression_type
 
@@ -336,7 +339,8 @@ atomized in instants hammered around the
   def test_seek_set(self):
     for compression_type in [CompressionTypes.BZIP2,
                              CompressionTypes.DEFLATE,
-                             CompressionTypes.GZIP]:
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(
@@ -370,7 +374,8 @@ atomized in instants hammered around the
   def test_seek_cur(self):
     for compression_type in [CompressionTypes.BZIP2,
                              CompressionTypes.DEFLATE,
-                             CompressionTypes.GZIP]:
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(
@@ -404,7 +409,8 @@ atomized in instants hammered around the
   def test_read_from_end_returns_no_data(self):
     for compression_type in [CompressionTypes.BZIP2,
                              CompressionTypes.DEFLATE,
-                             CompressionTypes.GZIP]:
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(
@@ -421,7 +427,8 @@ atomized in instants hammered around the
   def test_seek_outside(self):
     for compression_type in [CompressionTypes.BZIP2,
                              CompressionTypes.DEFLATE,
-                             CompressionTypes.GZIP]:
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(
@@ -445,7 +452,8 @@ atomized in instants hammered around the
   def test_read_and_seek_back_to_beginning(self):
     for compression_type in [CompressionTypes.BZIP2,
                              CompressionTypes.DEFLATE,
-                             CompressionTypes.GZIP]:
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(
@@ -504,12 +512,14 @@ atomized in instants hammered around the
       return b''.join(byte_list)
 
     def create_test_file(compression_type, lines):
-      filenames = list()
+      filenames = []
       file_name = self._create_temp_file()
       if compression_type == CompressionTypes.BZIP2:
         compress_factory = bz2.BZ2File
       elif compression_type == CompressionTypes.GZIP:
         compress_factory = gzip.open
+      elif compression_type == CompressionTypes.ZSTD:
+        compress_factory = zstandard.open
       else:
         assert False, "Invalid compression type: %s" % compression_type
       for line in lines:
@@ -535,7 +545,9 @@ atomized in instants hammered around the
     timer = threading.Timer(timeout, timeout_handler)
     try:
       test_lines = tuple(generate_random_line() for i in range(num_test_lines))
-      for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
+      for compression_type in [CompressionTypes.BZIP2,
+                               CompressionTypes.GZIP,
+                               CompressionTypes.ZSTD]:
         file_name = create_test_file(compression_type, test_lines)
         timer.start()
         with open(file_name, 'rb') as f:

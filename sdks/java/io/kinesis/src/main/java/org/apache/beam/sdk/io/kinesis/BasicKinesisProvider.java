@@ -18,10 +18,9 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
@@ -31,28 +30,34 @@ import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
+import java.net.URI;
+import java.util.Objects;
+import org.apache.beam.sdk.io.kinesis.serde.AwsSerializableUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Basic implementation of {@link AWSClientsProvider} used by default in {@link KinesisIO}. */
 class BasicKinesisProvider implements AWSClientsProvider {
-  private final String accessKey;
-  private final String secretKey;
+  private final String awsCredentialsProviderSerialized;
   private final Regions region;
   private final @Nullable String serviceEndpoint;
+  private final boolean verifyCertificate;
 
   BasicKinesisProvider(
-      String accessKey, String secretKey, Regions region, @Nullable String serviceEndpoint) {
-    checkArgument(accessKey != null, "accessKey can not be null");
-    checkArgument(secretKey != null, "secretKey can not be null");
+      AWSCredentialsProvider awsCredentialsProvider,
+      Regions region,
+      @Nullable String serviceEndpoint,
+      boolean verifyCertificate) {
+    checkArgument(awsCredentialsProvider != null, "awsCredentialsProvider can not be null");
     checkArgument(region != null, "region can not be null");
-    this.accessKey = accessKey;
-    this.secretKey = secretKey;
+    this.awsCredentialsProviderSerialized = AwsSerializableUtils.serialize(awsCredentialsProvider);
+    checkNotNull(awsCredentialsProviderSerialized, "awsCredentialsProviderString can not be null");
     this.region = region;
     this.serviceEndpoint = serviceEndpoint;
+    this.verifyCertificate = verifyCertificate;
   }
 
   private AWSCredentialsProvider getCredentialsProvider() {
-    return new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey));
+    return AwsSerializableUtils.deserialize(awsCredentialsProviderSerialized);
   }
 
   @Override
@@ -85,6 +90,33 @@ class BasicKinesisProvider implements AWSClientsProvider {
   public IKinesisProducer createKinesisProducer(KinesisProducerConfiguration config) {
     config.setRegion(region.getName());
     config.setCredentialsProvider(getCredentialsProvider());
+    if (serviceEndpoint != null) {
+      URI uri = URI.create(serviceEndpoint);
+      config.setKinesisEndpoint(uri.getHost());
+      config.setKinesisPort(uri.getPort());
+    }
+    config.setVerifyCertificate(verifyCertificate);
     return new KinesisProducer(config);
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    BasicKinesisProvider that = (BasicKinesisProvider) o;
+    return verifyCertificate == that.verifyCertificate
+        && Objects.equals(awsCredentialsProviderSerialized, that.awsCredentialsProviderSerialized)
+        && Objects.equals(region, that.region)
+        && Objects.equals(serviceEndpoint, that.serviceEndpoint);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        awsCredentialsProviderSerialized, region, serviceEndpoint, verifyCertificate);
   }
 }

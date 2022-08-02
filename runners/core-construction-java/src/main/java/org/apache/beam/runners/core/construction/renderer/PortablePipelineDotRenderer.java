@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core.construction.renderer;
 
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -26,6 +28,9 @@ import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 /**
  * A DOT renderer for BEAM portable {@link org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class PortablePipelineDotRenderer {
   private final StringBuilder dotBuilder = new StringBuilder();
   private final Map<String, Integer> valueToProducerNodeId = new HashMap<>();
@@ -99,7 +104,8 @@ class PortablePipelineDotRenderer {
     indent -= 4;
   }
 
-  private void writeLine(String format, Object... args) {
+  @FormatMethod
+  private void writeLine(@FormatString String format, Object... args) {
     if (indent != 0) {
       dotBuilder.append(String.format("%-" + indent + "s", ""));
     }

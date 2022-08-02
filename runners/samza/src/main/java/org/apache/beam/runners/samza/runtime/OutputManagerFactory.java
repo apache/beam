@@ -23,4 +23,9 @@ import org.apache.beam.runners.core.DoFnRunners;
 /** Factory class to create {@link DoFnRunners.OutputManager}. */
 public interface OutputManagerFactory<OutT> extends Serializable {
   DoFnRunners.OutputManager create(OpEmitter<OutT> emitter);
+
+  default DoFnRunners.OutputManager create(
+      OpEmitter<OutT> emitter, FutureCollector<OutT> collector) {
+    return create(emitter);
+  }
 }

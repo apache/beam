@@ -36,6 +36,9 @@ import org.joda.time.Instant;
 import org.junit.Assert;
 
 /** A direct implementation of {@link Query6}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Query6Model extends NexmarkQueryModel<SellerPrice> implements Serializable {
   /** Simulator for query 6. */
   private static class Simulator extends AbstractSimulator<AuctionBid, SellerPrice> {

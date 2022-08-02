@@ -14,19 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import unittest
 
 import pandas as pd
 
+from apache_beam.dataframe.partitionings import Arbitrary
 from apache_beam.dataframe.partitionings import Index
-from apache_beam.dataframe.partitionings import Nothing
+from apache_beam.dataframe.partitionings import JoinIndex
 from apache_beam.dataframe.partitionings import Singleton
 
 
 class PartitioningsTest(unittest.TestCase):
-  # pylint: disable=range-builtin-not-iterating
+  # pylint: disable=bad-option-value
 
   multi_index_df = pd.DataFrame({
       'shape': ['dodecahedron', 'icosahedron'] * 12,
@@ -36,19 +35,30 @@ class PartitioningsTest(unittest.TestCase):
   }).set_index(['shape', 'color', 'size'])
 
   def test_index_is_subpartition(self):
-    ordered_list = [Nothing(), Index([3]), Index([1, 3]), Index(), Singleton()]
-    for loose, strict in zip(ordered_list[:1], ordered_list[1:]):
+    ordered_list = [
+        Singleton(),
+        Index([3]),
+        Index([1, 3]),
+        Index(),
+        JoinIndex('ref'),
+        JoinIndex(),
+        Arbitrary()
+    ]
+    for loose, strict in zip(ordered_list[:-1], ordered_list[1:]):
       self.assertTrue(strict.is_subpartitioning_of(loose), (strict, loose))
       self.assertFalse(loose.is_subpartitioning_of(strict), (loose, strict))
     # Incomparable.
     self.assertFalse(Index([1, 2]).is_subpartitioning_of(Index([1, 3])))
     self.assertFalse(Index([1, 3]).is_subpartitioning_of(Index([1, 2])))
+    self.assertFalse(JoinIndex('a').is_subpartitioning_of(JoinIndex('b')))
+    self.assertFalse(JoinIndex('b').is_subpartitioning_of(JoinIndex('a')))
 
   def _check_partition(self, partitioning, min_non_empty, max_non_empty=None):
+    num_partitions = 1000
     if max_non_empty is None:
       max_non_empty = min_non_empty
-    parts = list(partitioning.partition_fn(self.multi_index_df))
-    self.assertEqual(Index._INDEX_PARTITIONS, len(parts))
+    parts = list(partitioning.partition_fn(self.multi_index_df, num_partitions))
+    self.assertEqual(num_partitions, len(parts))
     self.assertGreaterEqual(len([p for _, p in parts if len(p)]), min_non_empty)
     self.assertLessEqual(len([p for _, p in parts if len(p)]), max_non_empty)
     self.assertEqual(
@@ -56,29 +66,24 @@ class PartitioningsTest(unittest.TestCase):
         sorted(sum((list(p.value) for _, p in parts), [])))
 
   def test_index_partition(self):
-    try:
-      # Reduce odds of collision.
-      old, Index._INDEX_PARTITIONS = Index._INDEX_PARTITIONS, 1000
-      self._check_partition(Index([0]), 2)
-      self._check_partition(Index([0, 1]), 6)
-      self._check_partition(Index([1]), 3)
-      self._check_partition(Index([2]), 7, 24)
-      self._check_partition(Index([0, 2]), 7, 24)
-      self._check_partition(Index(), 7, 24)
-    finally:
-      Index._INDEX_PARTITIONS = old
+    self._check_partition(Index([0]), 2)
+    self._check_partition(Index([0, 1]), 6)
+    self._check_partition(Index([1]), 3)
+    self._check_partition(Index([2]), 7, 24)
+    self._check_partition(Index([0, 2]), 7, 24)
+    self._check_partition(Index(), 7, 24)
 
   def test_nothing_subpartition(self):
-    self.assertTrue(Nothing().is_subpartitioning_of(Nothing()))
     for p in [Index([1]), Index([1, 2]), Index(), Singleton()]:
-      self.assertFalse(Nothing().is_subpartitioning_of(p), p)
+      self.assertTrue(Arbitrary().is_subpartitioning_of(p), p)
 
   def test_singleton_subpartition(self):
-    for p in [Nothing(), Index([1]), Index([1, 2]), Index(), Singleton()]:
-      self.assertTrue(Singleton().is_subpartitioning_of(p), p)
+    self.assertTrue(Singleton().is_subpartitioning_of(Singleton()))
+    for p in [Arbitrary(), Index([1]), Index([1, 2]), Index()]:
+      self.assertFalse(Singleton().is_subpartitioning_of(p), p)
 
   def test_singleton_partition(self):
-    parts = list(Singleton().partition_fn(pd.Series(range(10))))
+    parts = list(Singleton().partition_fn(pd.Series(range(10)), 1000))
     self.assertEqual(1, len(parts))
 
 

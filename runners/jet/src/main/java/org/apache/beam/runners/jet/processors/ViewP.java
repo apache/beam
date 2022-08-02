@@ -42,6 +42,10 @@ import org.joda.time.Instant;
  * primitives. Collects all input {@link WindowedValue}s, groups them by windows and keys and when
  * input is complete emits them.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ViewP extends AbstractProcessor {
 
   private final TimestampCombiner timestampCombiner;

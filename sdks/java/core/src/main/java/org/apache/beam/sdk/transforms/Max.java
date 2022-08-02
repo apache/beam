@@ -43,6 +43,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *     .apply(Max.<String>integersPerKey());
  * }</pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Max {
 
   private Max() {

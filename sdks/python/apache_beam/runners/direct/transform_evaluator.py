@@ -19,14 +19,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import atexit
 import collections
 import logging
 import random
 import time
-from builtins import object
+from collections import abc
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -34,10 +32,8 @@ from typing import List
 from typing import Tuple
 from typing import Type
 
-from future.utils import iteritems
-
-import apache_beam.io as io
 from apache_beam import coders
+from apache_beam import io
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.runners import common
@@ -221,7 +217,10 @@ class _TestStreamRootBundleProvider(RootBundleProvider):
     # TestStreamService.
     if test_stream.endpoint:
       _TestStreamEvaluator.event_stream = _TestStream.events_from_rpc(
-          test_stream.endpoint, test_stream.output_tags, test_stream.coder)
+          test_stream.endpoint,
+          test_stream.output_tags,
+          test_stream.coder,
+          self._evaluation_context)
     else:
       _TestStreamEvaluator.event_stream = (
           _TestStream.events_from_script(test_stream._events))
@@ -308,7 +307,10 @@ class _TransformEvaluator(object):
     """
     state = self._step_context.get_keyed_state(timer_firing.encoded_key)
     state.clear_timer(
-        timer_firing.window, timer_firing.name, timer_firing.time_domain)
+        timer_firing.window,
+        timer_firing.name,
+        timer_firing.time_domain,
+        dynamic_timer_tag=timer_firing.dynamic_timer_tag)
     self.process_timer(timer_firing)
 
   def process_timer(self, timer_firing):
@@ -344,7 +346,7 @@ class _BoundedReadEvaluator(_TransformEvaluator):
     assert not side_inputs
     self._source = applied_ptransform.transform.source
     self._source.pipeline_options = evaluation_context.pipeline_options
-    super(_BoundedReadEvaluator, self).__init__(
+    super().__init__(
         evaluation_context,
         applied_ptransform,
         input_committed_bundle,
@@ -393,7 +395,7 @@ class _WatermarkControllerEvaluator(_TransformEvaluator):
       side_inputs):
     assert not side_inputs
     self.transform = applied_ptransform.transform
-    super(_WatermarkControllerEvaluator, self).__init__(
+    super().__init__(
         evaluation_context,
         applied_ptransform,
         input_committed_bundle,
@@ -463,7 +465,7 @@ class _PairWithTimingEvaluator(_TransformEvaluator):
       input_committed_bundle,
       side_inputs):
     assert not side_inputs
-    super(_PairWithTimingEvaluator, self).__init__(
+    super().__init__(
         evaluation_context,
         applied_ptransform,
         input_committed_bundle,
@@ -511,7 +513,7 @@ class _TestStreamEvaluator(_TransformEvaluator):
       input_committed_bundle,
       side_inputs):
     assert not side_inputs
-    super(_TestStreamEvaluator, self).__init__(
+    super().__init__(
         evaluation_context,
         applied_ptransform,
         input_committed_bundle,
@@ -591,7 +593,8 @@ class _PubSubReadEvaluator(_TransformEvaluator):
   """TransformEvaluator for PubSub read."""
 
   # A mapping of transform to _PubSubSubscriptionWrapper.
-  # TODO(BEAM-7750): Prevents garbage collection of pipeline instances.
+  # TODO(https://github.com/apache/beam/issues/19751): Prevents garbage
+  # collection of pipeline instances.
   _subscription_cache = {}  # type: Dict[AppliedPTransform, str]
 
   def __init__(
@@ -601,7 +604,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       input_committed_bundle,
       side_inputs):
     assert not side_inputs
-    super(_PubSubReadEvaluator, self).__init__(
+    super().__init__(
         evaluation_context,
         applied_ptransform,
         input_committed_bundle,
@@ -644,8 +647,8 @@ class _PubSubReadEvaluator(_TransformEvaluator):
         sub_project,
         'beam_%d_%x' % (int(time.time()), random.randrange(1 << 32)))
     topic_name = sub_client.topic_path(project, short_topic_name)
-    sub_client.create_subscription(sub_name, topic_name)
-    atexit.register(sub_client.delete_subscription, sub_name)
+    sub_client.create_subscription(name=sub_name, topic=topic_name)
+    atexit.register(sub_client.delete_subscription, subscription=sub_name)
     cls._subscription_cache[transform] = sub_name
     return cls._subscription_cache[transform]
 
@@ -673,8 +676,9 @@ class _PubSubReadEvaluator(_TransformEvaluator):
           except ValueError as e:
             raise ValueError('Bad timestamp value: %s' % e)
       else:
-        timestamp = Timestamp(
-            message.publish_time.seconds, message.publish_time.nanos // 1000)
+        if message.publish_time is None:
+          raise ValueError('No publish time present in message: %s' % message)
+        timestamp = Timestamp.from_utc_datetime(message.publish_time)
 
       return timestamp, parsed_message
 
@@ -685,13 +689,13 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     sub_client = pubsub.SubscriberClient()
     try:
       response = sub_client.pull(
-          self._sub_name, max_messages=10, return_immediately=True)
+          subscription=self._sub_name, max_messages=10, timeout=30)
       results = [_get_element(rm.message) for rm in response.received_messages]
       ack_ids = [rm.ack_id for rm in response.received_messages]
       if ack_ids:
-        sub_client.acknowledge(self._sub_name, ack_ids)
+        sub_client.acknowledge(subscription=self._sub_name, ack_ids=ack_ids)
     finally:
-      sub_client.api.transport.channel.close()
+      sub_client.close()
 
     return results
 
@@ -735,7 +739,7 @@ class _FlattenEvaluator(_TransformEvaluator):
       input_committed_bundle,
       side_inputs):
     assert not side_inputs
-    super(_FlattenEvaluator, self).__init__(
+    super().__init__(
         evaluation_context,
         applied_ptransform,
         input_committed_bundle,
@@ -769,7 +773,7 @@ class _TaggedReceivers(dict):
   def __init__(self, evaluation_context):
     self._evaluation_context = evaluation_context
     self._null_receiver = None
-    super(_TaggedReceivers, self).__init__()
+    super().__init__()
 
   class NullReceiver(common.Receiver):
     """Ignores undeclared outputs, default execution mode."""
@@ -803,7 +807,7 @@ class _ParDoEvaluator(_TransformEvaluator):
                side_inputs,
                perform_dofn_pickle_test=True
               ):
-    super(_ParDoEvaluator, self).__init__(
+    super().__init__(
         evaluation_context,
         applied_ptransform,
         input_committed_bundle,
@@ -872,7 +876,8 @@ class _ParDoEvaluator(_TransformEvaluator):
         timer_firing.window,
         timer_firing.timestamp,
         # TODO Add paneinfo to timer_firing in DirectRunner
-        None)
+        None,
+        timer_firing.dynamic_timer_tag)
 
   def process_element(self, element):
     self.runner.process(element)
@@ -884,6 +889,7 @@ class _ParDoEvaluator(_TransformEvaluator):
     result_counters = self._counter_factory.get_counters()
     if self.user_state_context:
       self.user_state_context.commit()
+      self.user_state_context.reset()
     return TransformResult(self, bundles, [], result_counters, None)
 
 
@@ -901,7 +907,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
       input_committed_bundle,
       side_inputs):
     assert not side_inputs
-    super(_GroupByKeyOnlyEvaluator, self).__init__(
+    super().__init__(
         evaluation_context,
         applied_ptransform,
         input_committed_bundle,
@@ -919,7 +925,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     self.output_pcollection = list(self._outputs)[0]
 
     # The output type of a GroupByKey will be Tuple[Any, Any] or more specific.
-    # TODO(BEAM-2717): Infer coders earlier.
+    # TODO(https://github.com/apache/beam/issues/18490): Infer coders earlier.
     kv_type_hint = (
         self._applied_ptransform.outputs[None].element_type or
         self._applied_ptransform.transform.get_type_hints().input_types[0][0])
@@ -933,8 +939,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     assert not self.global_state.get_state(
         None, _GroupByKeyOnlyEvaluator.COMPLETION_TAG)
     if (isinstance(element, WindowedValue) and
-        isinstance(element.value, collections.Iterable) and
-        len(element.value) == 2):
+        isinstance(element.value, abc.Iterable) and len(element.value) == 2):
       k, v = element.value
       encoded_k = self.key_coder.encode(k)
       state = self._step_context.get_keyed_state(encoded_k)
@@ -1003,7 +1008,7 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
       input_committed_bundle,
       side_inputs):
     assert not side_inputs
-    super(_StreamingGroupByKeyOnlyEvaluator, self).__init__(
+    super().__init__(
         evaluation_context,
         applied_ptransform,
         input_committed_bundle,
@@ -1022,7 +1027,7 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
 
   def process_element(self, element):
     if (isinstance(element, WindowedValue) and
-        isinstance(element.value, collections.Iterable) and
+        isinstance(element.value, collections.abc.Iterable) and
         len(element.value) == 2):
       k, v = element.value
       self.gbk_items[self.key_coder.encode(k)].append(v)
@@ -1034,7 +1039,7 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
   def finish_bundle(self):
     bundles = []
     bundle = None
-    for encoded_k, vs in iteritems(self.gbk_items):
+    for encoded_k, vs in self.gbk_items.items():
       if not bundle:
         bundle = self._evaluation_context.create_bundle(self.output_pcollection)
         bundles.append(bundle)
@@ -1058,7 +1063,7 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
       input_committed_bundle,
       side_inputs):
     assert not side_inputs
-    super(_StreamingGroupAlsoByWindowEvaluator, self).__init__(
+    super().__init__(
         evaluation_context,
         applied_ptransform,
         input_committed_bundle,
@@ -1129,7 +1134,7 @@ class _NativeWriteEvaluator(_TransformEvaluator):
       input_committed_bundle,
       side_inputs):
     assert not side_inputs
-    super(_NativeWriteEvaluator, self).__init__(
+    super().__init__(
         evaluation_context,
         applied_ptransform,
         input_committed_bundle,
@@ -1204,7 +1209,7 @@ class _ProcessElementsEvaluator(_TransformEvaluator):
       applied_ptransform,
       input_committed_bundle,
       side_inputs):
-    super(_ProcessElementsEvaluator, self).__init__(
+    super().__init__(
         evaluation_context,
         applied_ptransform,
         input_committed_bundle,
@@ -1270,6 +1275,6 @@ class _ProcessElementsEvaluator(_TransformEvaluator):
         par_do_result.counters,
         par_do_result.keyed_watermark_holds,
         par_do_result.undeclared_tag_values)
-    for key in self.keyed_holds:
-      transform_result.keyed_watermark_holds[key] = self.keyed_holds[key]
+    for key, keyed_hold in self.keyed_holds.items():
+      transform_result.keyed_watermark_holds[key] = keyed_hold
     return transform_result

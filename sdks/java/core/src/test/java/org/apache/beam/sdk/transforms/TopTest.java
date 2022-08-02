@@ -60,7 +60,10 @@ public class TopTest {
   @SuppressWarnings("unchecked")
   static final String[] EMPTY_COLLECTION = new String[] {};
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings({
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+    "unchecked"
+  })
   static final KV<String, Integer>[] TABLE =
       new KV[] {
         KV.of("a", 1),
@@ -72,7 +75,10 @@ public class TopTest {
         KV.of("b", 100),
       };
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings({
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+    "unchecked"
+  })
   static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {};
 
   public PCollection<KV<String, Integer>> createInputTable(Pipeline p) {

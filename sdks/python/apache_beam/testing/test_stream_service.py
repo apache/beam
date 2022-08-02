@@ -17,23 +17,23 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from concurrent.futures import ThreadPoolExecutor
 
 import grpc
 
 from apache_beam.portability.api import beam_runner_api_pb2_grpc
-from apache_beam.portability.api.beam_runner_api_pb2_grpc import TestStreamServiceServicer
 
 
-class TestStreamServiceController(TestStreamServiceServicer):
+class TestStreamServiceController(
+    beam_runner_api_pb2_grpc.TestStreamServiceServicer):
   """A server that streams TestStreamPayload.Events from a single EventRequest.
 
   This server is used as a way for TestStreams to receive events from file.
   """
   def __init__(self, reader, endpoint=None, exception_handler=None):
     self._server = grpc.server(ThreadPoolExecutor(max_workers=10))
+    self._server_started = False
+    self._server_stopped = False
 
     if endpoint:
       self.endpoint = endpoint
@@ -50,9 +50,18 @@ class TestStreamServiceController(TestStreamServiceServicer):
       self._exception_handler = lambda _: False
 
   def start(self):
+    # A server can only be started if never started and never stopped before.
+    if self._server_started or self._server_stopped:
+      return
+    self._server_started = True
     self._server.start()
 
   def stop(self):
+    # A server can only be stopped if already started and never stopped before.
+    if not self._server_started or self._server_stopped:
+      return
+    self._server_started = False
+    self._server_stopped = True
     self._server.stop(0)
     # This was introduced in grpcio 1.24 and might be gone in the future. Keep
     # this check in case the runtime is on a older, current or future grpcio.

@@ -30,6 +30,7 @@ import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -37,6 +38,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A read-only {@link FileSystem} implementation looking up resources using a ClassLoader. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.ClassLoaderResourceId> {
 
   public static final String SCHEMA = "classpath";
@@ -82,7 +86,9 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
 
   @Override
   protected void rename(
-      List<ClassLoaderResourceId> srcResourceIds, List<ClassLoaderResourceId> destResourceIds)
+      List<ClassLoaderResourceId> srcResourceIds,
+      List<ClassLoaderResourceId> destResourceIds,
+      MoveOptions... moveOptions)
       throws IOException {
     throw new UnsupportedOperationException("Read-only filesystem.");
   }
@@ -137,9 +143,8 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
       return SCHEMA;
     }
 
-    @Nullable
     @Override
-    public String getFilename() {
+    public @Nullable String getFilename() {
       return path;
     }
 
@@ -154,7 +159,7 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
   @Experimental(Experimental.Kind.FILESYSTEM)
   public static class ClassLoaderFileSystemRegistrar implements FileSystemRegistrar {
     @Override
-    public Iterable<FileSystem> fromOptions(@Nullable PipelineOptions options) {
+    public Iterable<FileSystem<?>> fromOptions(@Nullable PipelineOptions options) {
       return ImmutableList.of(new ClassLoaderFileSystem());
     }
   }

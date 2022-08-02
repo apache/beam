@@ -34,6 +34,9 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link OperatorTranslator Translator } for Euphoria {@link Join} operator. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
     extends AbstractJoinTranslator<LeftT, RightT, KeyT, OutputT> {
 
@@ -60,7 +63,7 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
           new AdaptableCollector<>(
               accumulatorProvider,
               operatorName,
-              ((ctx, elem) -> ctx.output(KV.of(ctx.element().getKey(), elem))));
+              (ctx, elem) -> ctx.output(KV.of(ctx.element().getKey(), elem)));
     }
 
     @ProcessElement

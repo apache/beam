@@ -116,19 +116,28 @@ public class TableDestination implements Serializable {
         tableReference, tableDescription, jsonTimePartitioning, jsonClustering);
   }
 
+  /** Return the tablespec in [project:].dataset.tableid format. */
   public String getTableSpec() {
     return tableSpec;
+  }
+
+  /** Return the tablespec in projects/[project]/datasets/[dataset]/tables/[table] format. */
+  public String getTableUrn() {
+    TableReference table = getTableReference();
+    return String.format(
+        "projects/%s/datasets/%s/tables/%s",
+        table.getProjectId(), table.getDatasetId(), table.getTableId());
   }
 
   public TableReference getTableReference() {
     return BigQueryHelpers.parseTableSpec(tableSpec);
   }
 
-  public String getJsonTimePartitioning() {
+  public @Nullable String getJsonTimePartitioning() {
     return jsonTimePartitioning;
   }
 
-  public TimePartitioning getTimePartitioning() {
+  public @Nullable TimePartitioning getTimePartitioning() {
     if (jsonTimePartitioning == null) {
       return null;
     } else {
@@ -136,11 +145,11 @@ public class TableDestination implements Serializable {
     }
   }
 
-  public String getJsonClustering() {
+  public @Nullable String getJsonClustering() {
     return jsonClustering;
   }
 
-  public Clustering getClustering() {
+  public @Nullable Clustering getClustering() {
     if (jsonClustering == null) {
       return null;
     } else {

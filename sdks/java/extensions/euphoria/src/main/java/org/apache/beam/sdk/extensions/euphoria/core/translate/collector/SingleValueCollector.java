@@ -29,6 +29,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@code Collector} for combinable functors. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SingleValueCollector<T> implements Collector<T>, Serializable {
 
   private static final String UNSUPPORTED = "Accumulators are supported for named operators only.";

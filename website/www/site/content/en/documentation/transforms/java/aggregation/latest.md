@@ -43,7 +43,7 @@ For elements with the same timestamp, the output element is arbitrarily selected
  PCollection latestValues = sessioned.apply(Latest.globally());
 {{< /highlight >}}
 
-## Related transforms 
+## Related transforms
 * [Reify](/documentation/transforms/java/elementwise/reify)
   converts between explicit and implicit form of various Beam values
 * [WithTimestamps](/documentation/transforms/java/elementwise/withtimestamps)

@@ -25,7 +25,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
@@ -51,6 +50,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MapElements<InputT, OutputT> extends Operator<OutputT>
     implements CompositeOperator<InputT, OutputT>, TypeAware.Output<OutputT> {
 
@@ -150,7 +152,7 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
     }
 
     @Override
-    public PCollection<OutputT> output(OutputHint... outputHints) {
+    public PCollection<OutputT> output() {
       final MapElements<InputT, OutputT> operator = new MapElements<>(name, mapper, outputType);
       return OperatorTransform.apply(operator, PCollectionList.of(input));
     }

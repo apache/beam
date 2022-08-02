@@ -19,10 +19,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import threading
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Dict
 from typing import Iterable
@@ -325,8 +322,14 @@ class _TransformWatermarks(object):
         if had_realtime_timer:
           has_realtime_timer = True
         for expired in timers:
-          window, (name, time_domain, timestamp) = expired
+          window, (name, time_domain, timestamp, dynamic_timer_tag) = expired
           fired_timers.append(
-              TimerFiring(encoded_key, window, name, time_domain, timestamp))
+              TimerFiring(
+                  encoded_key,
+                  window,
+                  name,
+                  time_domain,
+                  timestamp,
+                  dynamic_timer_tag=dynamic_timer_tag))
       self._fired_timers.update(fired_timers)
       return fired_timers, has_realtime_timer

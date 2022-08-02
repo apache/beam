@@ -41,6 +41,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * @param <OutputT> type of output values
  */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializable {
 
   private final GlobalCombineFn<InputT, AccumT, OutputT> fn;

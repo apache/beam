@@ -29,8 +29,8 @@ import (
 
 	"sync/atomic"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // IsWorkerCompatibleBinary returns the path to itself and true if running
@@ -61,9 +61,13 @@ func BuildTempWorkerBinary(ctx context.Context) (string, error) {
 //   /usr/local/go/src/runtime/asm_amd64.s (skip: 4 or 5)
 func BuildWorkerBinary(ctx context.Context, filename string) error {
 	program := ""
+	var isTest bool
 	for i := 3; ; i++ {
 		_, file, _, ok := runtime.Caller(i)
 		if !ok || !strings.HasSuffix(file, ".go") || strings.HasSuffix(file, "runtime/proc.go") {
+			break
+		} else if strings.HasSuffix(file, "testing/testing.go") {
+			isTest = true
 			break
 		}
 		program = file
@@ -75,7 +79,14 @@ func BuildWorkerBinary(ctx context.Context, filename string) error {
 	log.Infof(ctx, "Cross-compiling %v as %v", program, filename)
 
 	// Cross-compile given go program. Not awesome.
-	build := []string{"go", "build", "-o", filename, program}
+	program = program[:strings.LastIndex(program, "/")+1]
+	program = program + "."
+	var build []string
+	if isTest {
+		build = []string{"go", "test", "-c", "-o", filename, program}
+	} else {
+		build = []string{"go", "build", "-o", filename, program}
+	}
 
 	cmd := exec.Command(build[0], build[1:]...)
 	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64")

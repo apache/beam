@@ -13,14 +13,14 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
+
+# beam-playground:
+#   name: SideInput
+#   description: Task from katas to enrich each Person with the country based on the city he/she lives in.
+#   multifile: false
+#   context_line: 38
+#   categories:
+#     - Side Input
 
 import apache_beam as beam
 
@@ -44,26 +44,25 @@ class EnrichCountryDoFn(beam.DoFn):
                      cities_to_countries[element.city])
 
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-cities_to_countries = {
-    'Beijing': 'China',
-    'London': 'United Kingdom',
-    'San Francisco': 'United States',
-    'Singapore': 'Singapore',
-    'Sydney': 'Australia'
-}
+  cities_to_countries = {
+      'Beijing': 'China',
+      'London': 'United Kingdom',
+      'San Francisco': 'United States',
+      'Singapore': 'Singapore',
+      'Sydney': 'Australia'
+  }
 
-persons = [
-    Person('Henry', 'Singapore'),
-    Person('Jane', 'San Francisco'),
-    Person('Lee', 'Beijing'),
-    Person('John', 'Sydney'),
-    Person('Alfred', 'London')
-]
+  persons = [
+      Person('Henry', 'Singapore'),
+      Person('Jane', 'San Francisco'),
+      Person('Lee', 'Beijing'),
+      Person('John', 'Sydney'),
+      Person('Alfred', 'London')
+  ]
 
-(p | beam.Create(persons)
-   | beam.ParDo(EnrichCountryDoFn(), cities_to_countries)
-   | LogElements())
+  (p | beam.Create(persons)
+     | beam.ParDo(EnrichCountryDoFn(), cities_to_countries)
+     | LogElements())
 
-p.run()

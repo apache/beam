@@ -17,8 +17,8 @@
 package stats
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 // Count counts the number of appearances of each element in a collection. It
@@ -45,7 +45,8 @@ func CountElms(s beam.Scope, col beam.PCollection) beam.PCollection {
 		col = beam.DropKey(s, col)
 	}
 	pre := beam.ParDo(s, countFn, col)
-	return Sum(s, pre)
+	zero := beam.Create(s, 0)
+	return Sum(s, beam.Flatten(s, pre, zero))
 }
 
 func countFn(_ beam.T) int {

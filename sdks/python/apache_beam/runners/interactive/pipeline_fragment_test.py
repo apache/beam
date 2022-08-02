@@ -16,9 +16,8 @@
 #
 
 """Tests for apache_beam.runners.interactive.pipeline_fragment."""
-from __future__ import absolute_import
-
 import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import StandardOptions
@@ -31,19 +30,13 @@ from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pi
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_proto_equal
 from apache_beam.testing.test_stream import TestStream
 
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch  # type: ignore[misc]
-
 
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
 class PipelineFragmentTest(unittest.TestCase):
   def setUp(self):
+    ie.new_env()
     # Assume a notebook frontend is connected to the mocked ipython kernel.
     ie.current_env()._is_in_ipython = True
     ie.current_env()._is_in_notebook = True
@@ -57,7 +50,7 @@ class PipelineFragmentTest(unittest.TestCase):
       ib.watch(locals())
 
     with cell:  # Cell 2
-      # pylint: disable=range-builtin-not-iterating
+      # pylint: disable=bad-option-value
       init = p | 'Init' >> beam.Create(range(10))
       init_expected = p_expected | 'Init' >> beam.Create(range(10))
 
@@ -79,7 +72,7 @@ class PipelineFragmentTest(unittest.TestCase):
       ib.watch({'p': p})
 
     with cell:  # Cell 2
-      # pylint: disable=range-builtin-not-iterating
+      # pylint: disable=bad-option-value
       init = p | 'Init' >> beam.Create(range(10))
 
     with cell:  # Cell 3
@@ -92,10 +85,10 @@ class PipelineFragmentTest(unittest.TestCase):
     # calling locals().
     ib.watch({'init': init, 'square': square, 'cube': cube})
     user_pipeline_proto_before_deducing_fragment = p.to_runner_api(
-        return_context=False, use_fake_coders=True)
+        return_context=False)
     _ = pf.PipelineFragment([square]).deduce_fragment()
     user_pipeline_proto_after_deducing_fragment = p.to_runner_api(
-        return_context=False, use_fake_coders=True)
+        return_context=False)
     assert_pipeline_proto_equal(
         self,
         user_pipeline_proto_before_deducing_fragment,
@@ -108,7 +101,7 @@ class PipelineFragmentTest(unittest.TestCase):
       ib.watch({'p': p})
 
     with cell:  # Cell 2
-      # pylint: disable=range-builtin-not-iterating
+      # pylint: disable=bad-option-value
       init = p | 'Init' >> beam.Create(range(5))
 
     with cell:  # Cell 3
@@ -136,6 +129,41 @@ class PipelineFragmentTest(unittest.TestCase):
     # If the fragment does prune the TestStreawm composite parts, then the
     # resulting graph is invalid and the following call will raise an exception.
     fragment.to_runner_api()
+
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  def test_pipeline_composites(self, cell):
+    """Tests that composites are supported.
+    """
+    with cell:  # Cell 1
+      p = beam.Pipeline(ir.InteractiveRunner())
+      ib.watch({'p': p})
+
+    with cell:  # Cell 2
+      # pylint: disable=bad-option-value
+      init = p | 'Init' >> beam.Create(range(5))
+
+    with cell:  # Cell 3
+      # Have a composite within a composite to test that all transforms under a
+      # composite are added.
+
+      @beam.ptransform_fn
+      def Bar(pcoll):
+        return pcoll | beam.Map(lambda n: 2 * n)
+
+      @beam.ptransform_fn
+      def Foo(pcoll):
+        p1 = pcoll | beam.Map(lambda n: 3 * n)
+        p2 = pcoll | beam.Map(str)
+        bar = p1 | Bar()
+        return {'pc1': p1, 'pc2': p2, 'bar': bar}
+
+      res = init | Foo()
+      ib.watch(res)
+
+    pc = res['bar']
+
+    result = pf.PipelineFragment([pc]).run()
+    self.assertEqual([0, 6, 12, 18, 24], list(result.get(pc)))
 
 
 if __name__ == '__main__':

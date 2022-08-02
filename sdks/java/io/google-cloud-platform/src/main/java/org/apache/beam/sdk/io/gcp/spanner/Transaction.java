@@ -24,6 +24,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A transaction object. */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class Transaction implements Serializable {
 
   public abstract @Nullable BatchTransactionId transactionId();

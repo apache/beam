@@ -18,48 +18,46 @@
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRel;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Join;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.RelFactories;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalJoin;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilderFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Join;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.RelFactories;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalJoin;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
 
 /**
  * This is exactly similar to {@link
- * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinPushThroughJoinRule}. It
+ * org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.JoinPushThroughJoinRule}. It
  * only checks if the condition of the new bottom join is supported.
  */
-public class BeamJoinPushThroughJoinRule extends JoinPushThroughJoinRule {
+public class BeamJoinPushThroughJoinRule extends RelOptRule {
   /** Instance of the rule that works on logical joins only, and pushes to the right. */
   public static final RelOptRule RIGHT =
       new BeamJoinPushThroughJoinRule(
-          "BeamJoinPushThroughJoinRule:right",
-          true,
-          LogicalJoin.class,
-          RelFactories.LOGICAL_BUILDER);
+          "BeamJoinPushThroughJoinRule:right", JoinPushThroughJoinRule.RIGHT);
 
   /** Instance of the rule that works on logical joins only, and pushes to the left. */
   public static final RelOptRule LEFT =
       new BeamJoinPushThroughJoinRule(
-          "BeamJoinPushThroughJoinRule:left",
-          false,
-          LogicalJoin.class,
-          RelFactories.LOGICAL_BUILDER);
+          "BeamJoinPushThroughJoinRule:left", JoinPushThroughJoinRule.LEFT);
+
+  private final RelOptRule base;
 
   /** Creates a JoinPushThroughJoinRule. */
-  private BeamJoinPushThroughJoinRule(
-      String description,
-      boolean right,
-      Class<? extends Join> clazz,
-      RelBuilderFactory relBuilderFactory) {
-    super(description, right, clazz, relBuilderFactory);
+  private BeamJoinPushThroughJoinRule(String description, RelOptRule base) {
+    super(
+        operand(
+            LogicalJoin.class, operand(LogicalJoin.class, any()), operand(RelNode.class, any())),
+        RelFactories.LOGICAL_BUILDER,
+        description);
+
+    this.base = base;
   }
 
   @Override
   public void onMatch(RelOptRuleCall call) {
-    super.onMatch(
+    base.onMatch(
         new JoinRelOptRuleCall(
             call,
             rel -> {

@@ -23,6 +23,6 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
  * A factory for generating {@link ExpansionServiceClient} from {@link
  * org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor}.
  */
-interface ExpansionServiceClientFactory extends AutoCloseable {
+public interface ExpansionServiceClientFactory extends AutoCloseable {
   ExpansionServiceClient getExpansionServiceClient(Endpoints.ApiServiceDescriptor endpoint);
 }

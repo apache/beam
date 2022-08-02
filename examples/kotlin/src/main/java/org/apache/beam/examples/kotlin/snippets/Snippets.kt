@@ -111,7 +111,7 @@ object Snippets {
                     .apply<PCollection<Double>>(
                             MapElements.into(TypeDescriptors.doubles())
                                     .via(SerializableFunction<TableRow, Double> {
-                                        it["max_temperature"] as Double
+                                        it["max_temperature"] as Double?
                                     })
                     )
             // [END BigQueryReadTable]
@@ -121,7 +121,7 @@ object Snippets {
             val tableSpec = "clouddataflow-readonly:samples.weather_stations"
             // [START BigQueryReadFunction]
             val maxTemperatures = pipeline.apply(
-                    BigQueryIO.read { it.record["max_temperature"] as Double }
+                    BigQueryIO.read { it.record["max_temperature"] as Double? }
                             .from(tableSpec)
                             .withCoder(DoubleCoder.of()))
             // [END BigQueryReadFunction]
@@ -130,7 +130,7 @@ object Snippets {
         run {
             // [START BigQueryReadQuery]
             val maxTemperatures = pipeline.apply(
-                    BigQueryIO.read { it.record["max_temperature"] as Double }
+                    BigQueryIO.read { it.record["max_temperature"] as Double? }
                             .fromQuery(
                                     "SELECT max_temperature FROM [clouddataflow-readonly:samples.weather_stations]")
                             .withCoder(DoubleCoder.of()))
@@ -140,7 +140,7 @@ object Snippets {
         run {
             // [START BigQueryReadQueryStdSQL]
             val maxTemperatures = pipeline.apply(
-                    BigQueryIO.read { it.record["max_temperature"] as Double }
+                    BigQueryIO.read { it.record["max_temperature"] as Double? }
                             .fromQuery(
                                     "SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`")
                             .usingStandardSql()
@@ -269,8 +269,8 @@ object Snippets {
                     BigQueryIO.write<WeatherData>()
                             .to(
                                     object : DynamicDestinations<WeatherData, Long>() {
-                                        override fun getDestination(elem: ValueInSingleWindow<WeatherData>): Long? {
-                                            return elem.value!!.year
+                                        override fun getDestination(elem: ValueInSingleWindow<WeatherData>?): Long {
+                                            return elem!!.value!!.year
                                         }
 
                                         override fun getTable(destination: Long?): TableDestination {

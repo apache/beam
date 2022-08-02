@@ -31,6 +31,9 @@ import java.util.Arrays;
  * <p>{@code Repeatedly.forever(someTrigger)} behaves like an infinite {@code
  * AfterEach.inOrder(someTrigger, someTrigger, someTrigger, ...)}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class RepeatedlyStateMachine extends TriggerStateMachine {
 
   private static final int REPEATED = 0;
@@ -53,13 +56,28 @@ public class RepeatedlyStateMachine extends TriggerStateMachine {
   }
 
   @Override
+  public void prefetchOnElement(PrefetchContext c) {
+    getRepeated(c).invokePrefetchOnElement(c);
+  }
+
+  @Override
   public void onElement(OnElementContext c) throws Exception {
     getRepeated(c).invokeOnElement(c);
   }
 
   @Override
+  public void prefetchOnMerge(MergingPrefetchContext c) {
+    getRepeated(c).invokePrefetchOnMerge(c);
+  }
+
+  @Override
   public void onMerge(OnMergeContext c) throws Exception {
     getRepeated(c).invokeOnMerge(c);
+  }
+
+  @Override
+  public void prefetchShouldFire(PrefetchContext c) {
+    getRepeated(c).invokePrefetchShouldFire(c);
   }
 
   @Override
@@ -84,5 +102,9 @@ public class RepeatedlyStateMachine extends TriggerStateMachine {
 
   private ExecutableTriggerStateMachine getRepeated(TriggerContext context) {
     return context.trigger().subTrigger(REPEATED);
+  }
+
+  private ExecutableTriggerStateMachine getRepeated(PrefetchContext context) {
+    return context.trigger().subTriggers().get(REPEATED);
   }
 }

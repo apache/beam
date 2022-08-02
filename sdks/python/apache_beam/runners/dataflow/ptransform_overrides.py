@@ -19,9 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.pipeline import PTransformOverride
 
@@ -40,10 +39,13 @@ class CreatePTransformOverride(PTransformOverride):
     else:
       return False
 
-  def get_replacement_transform(self, ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam import PTransform
+
+    ptransform = applied_ptransform.transform
 
     # Return a wrapper rather than ptransform.as_read() directly to
     # ensure backwards compatibility of the pipeline structure.
@@ -66,9 +68,13 @@ class ReadPTransformOverride(PTransformOverride):
         return True
     return False
 
-  def get_replacement_transform(self, ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
+
     from apache_beam import pvalue
     from apache_beam.io import iobase
+
+    transform = applied_ptransform.transform
 
     class Read(iobase.Read):
       override = True
@@ -77,8 +83,8 @@ class ReadPTransformOverride(PTransformOverride):
         return pvalue.PCollection(
             self.pipeline, is_bounded=self.source.is_bounded())
 
-    return Read(ptransform.source).with_output_types(
-        ptransform.get_type_hints().simple_output_type('Read'))
+    return Read(transform.source).with_output_types(
+        transform.get_type_hints().simple_output_type('Read'))
 
 
 class JrhReadPTransformOverride(PTransformOverride):
@@ -90,12 +96,13 @@ class JrhReadPTransformOverride(PTransformOverride):
         isinstance(applied_ptransform.transform, Read) and
         isinstance(applied_ptransform.transform.source, BoundedSource))
 
-  def get_replacement_transform(self, ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
     from apache_beam.io import Read
     from apache_beam.transforms import core
     from apache_beam.transforms import util
     # Make this a local to narrow what's captured in the closure.
-    source = ptransform.source
+    source = applied_ptransform.transform.source
 
     class JrhRead(core.PTransform):
       def expand(self, pbegin):
@@ -112,7 +119,8 @@ class JrhReadPTransformOverride(PTransformOverride):
                         split.start_position, split.stop_position))))
 
     return JrhRead().with_output_types(
-        ptransform.get_type_hints().simple_output_type('Read'))
+        applied_ptransform.transform.get_type_hints().simple_output_type(
+            'Read'))
 
 
 class CombineValuesPTransformOverride(PTransformOverride):
@@ -190,7 +198,7 @@ class NativeReadPTransformOverride(PTransformOverride):
 
 class WriteToBigQueryPTransformOverride(PTransformOverride):
   def __init__(self, pipeline, options):
-    super(WriteToBigQueryPTransformOverride, self).__init__()
+    super().__init__()
     self.options = options
     self.outputs = []
 
@@ -206,7 +214,7 @@ class WriteToBigQueryPTransformOverride(PTransformOverride):
     gives a user-friendsly error.
     """
     # Imported here to avoid circular dependencies.
-    # pylint: disable=wrong-import-order, wrong-import-position
+    # pylint: disable=wrong-import-order, wrong-import-position, unused-import
     from apache_beam.pipeline import PipelineVisitor
     from apache_beam.io import WriteToBigQuery
 
@@ -236,7 +244,10 @@ class WriteToBigQueryPTransformOverride(PTransformOverride):
         self.visit_transform(transform_node)
 
       def visit_transform(self, transform_node):
-        if [o for o in self.outputs if o in transform_node.inputs]:
+        # Internal consumers of the outputs we're overriding are expected.
+        # We only error out on non-internal consumers.
+        if ('BigQueryBatchFileLoads' not in transform_node.full_label and
+            [o for o in self.outputs if o in transform_node.inputs]):
           raise ValueError(
               'WriteToBigQuery was being replaced with the native '
               'BigQuerySink, but the transform "{}" has an input which will be '
@@ -250,16 +261,13 @@ class WriteToBigQueryPTransformOverride(PTransformOverride):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam import io
-    from apache_beam.runners.dataflow.internal import apiclient
-
     transform = applied_ptransform.transform
     if (not isinstance(transform, io.WriteToBigQuery) or
         getattr(transform, 'override', False)):
       return False
 
-    use_fnapi = apiclient._use_fnapi(self.options)
     experiments = self.options.view_as(DebugOptions).experiments or []
-    if (use_fnapi or 'use_beam_bq_sink' in experiments):
+    if 'use_legacy_bq_sink' not in experiments:
       return False
 
     if transform.schema == io.gcp.bigquery.SCHEMA_AUTODETECT:
@@ -320,3 +328,52 @@ class WriteToBigQueryPTransformOverride(PTransformOverride):
         return {key: out for key in self.outputs}
 
     return WriteToBigQuery(ptransform, self.outputs)
+
+
+class GroupIntoBatchesWithShardedKeyPTransformOverride(PTransformOverride):
+  """A ``PTransformOverride`` for ``GroupIntoBatches.WithShardedKey``.
+
+  This override simply returns the original transform but additionally records
+  the output PCollection in order to append required step properties during
+  graph translation.
+  """
+  def __init__(self, dataflow_runner, options):
+    self.dataflow_runner = dataflow_runner
+    self.options = options
+
+  def matches(self, applied_ptransform):
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam import util
+
+    transform = applied_ptransform.transform
+
+    if not isinstance(transform, util.GroupIntoBatches.WithShardedKey):
+      return False
+
+    # The replacement is only valid for portable Streaming Engine jobs with
+    # runner v2.
+    standard_options = self.options.view_as(StandardOptions)
+    if not standard_options.streaming:
+      return False
+    google_cloud_options = self.options.view_as(GoogleCloudOptions)
+    if not google_cloud_options.enable_streaming_engine:
+      raise ValueError(
+          'Runner determined sharding not available in Dataflow for '
+          'GroupIntoBatches for non-Streaming-Engine jobs. In order to use '
+          'runner determined sharding, please use '
+          '--streaming --enable_streaming_engine --experiments=use_runner_v2')
+
+    from apache_beam.runners.dataflow.internal import apiclient
+    if not apiclient._use_unified_worker(self.options):
+      raise ValueError(
+          'Runner determined sharding not available in Dataflow for '
+          'GroupIntoBatches for jobs not using Runner V2. In order to use '
+          'runner determined sharding, please use '
+          '--streaming --enable_streaming_engine --experiments=use_runner_v2')
+
+    self.dataflow_runner.add_pcoll_with_auto_sharding(applied_ptransform)
+    return True
+
+  def get_replacement_transform_for_applied_ptransform(self, ptransform):
+    return ptransform.transform

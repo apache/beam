@@ -44,6 +44,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Also can take an HttpResponseInterceptor to be applied to the responses.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class RetryHttpRequestInitializer implements HttpRequestInitializer {
 
   private static final Logger LOG = LoggerFactory.getLogger(RetryHttpRequestInitializer.class);
@@ -69,8 +72,8 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     private final BackOff unsuccessfulResponseBackOff;
     private final Set<Integer> ignoredResponseCodes;
     // aggregate the total time spent in exponential backoff
-    private final Counter throttlingSeconds =
-        Metrics.counter(LoggingHttpBackOffHandler.class, "cumulativeThrottlingSeconds");
+    private final Counter throttlingMsecs =
+        Metrics.counter(LoggingHttpBackOffHandler.class, "throttling-msecs");
     private int ioExceptionRetries;
     private int unsuccessfulResponseRetries;
     private @Nullable CustomHttpErrors customHttpErrors;
@@ -179,7 +182,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
         if (backOffTime == BackOff.STOP) {
           return false;
         }
-        throttlingSeconds.inc(backOffTime / 1000);
+        throttlingMsecs.inc(backOffTime);
         sleeper.sleep(backOffTime);
         return true;
       } catch (InterruptedException | IOException e) {
@@ -277,6 +280,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     this.customHttpErrors = customErrors;
   }
 
+  /** @param writeTimeout in milliseconds. */
   public void setWriteTimeout(int writeTimeout) {
     this.writeTimeout = writeTimeout;
   }

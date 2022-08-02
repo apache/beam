@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws.s3;
 
+import static com.amazonaws.util.IOUtils.drainInputStream;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -24,6 +25,7 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -32,9 +34,11 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NonWritableChannelException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
-import org.apache.beam.sdk.io.aws.options.S3Options;
 
 /** A readable S3 object, as a {@link SeekableByteChannel}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class S3ReadableSeekableByteChannel implements SeekableByteChannel {
 
   private final AmazonS3 amazonS3;
@@ -43,14 +47,14 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
   private long position = 0;
   private boolean open = true;
   private S3Object s3Object;
-  private final S3Options options;
+  private final S3FileSystemConfiguration config;
   private ReadableByteChannel s3ObjectContentChannel;
 
-  S3ReadableSeekableByteChannel(AmazonS3 amazonS3, S3ResourceId path, S3Options options)
-      throws IOException {
+  S3ReadableSeekableByteChannel(
+      AmazonS3 amazonS3, S3ResourceId path, S3FileSystemConfiguration config) throws IOException {
     this.amazonS3 = checkNotNull(amazonS3, "amazonS3");
     checkNotNull(path, "path");
-    this.options = checkNotNull(options, "options");
+    this.config = checkNotNull(config, "config");
 
     if (path.getSize().isPresent()) {
       contentLength = path.getSize().get();
@@ -81,7 +85,7 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
 
     if (s3Object == null) {
       GetObjectRequest request = new GetObjectRequest(path.getBucket(), path.getKey());
-      request.setSSECustomerKey(options.getSSECustomerKey());
+      request.setSSECustomerKey(config.getSSECustomerKey());
       if (position > 0) {
         request.setRange(position, contentLength);
       }
@@ -152,6 +156,8 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
   @Override
   public void close() throws IOException {
     if (s3Object != null) {
+      S3ObjectInputStream s3ObjectInputStream = s3Object.getObjectContent();
+      drainInputStream(s3ObjectInputStream);
       s3Object.close();
     }
     open = false;

@@ -22,6 +22,8 @@ import static org.apache.beam.runners.core.construction.resources.PipelineResour
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import org.apache.beam.fn.harness.ExternalWorkerService;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
@@ -36,7 +38,6 @@ import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 import org.apache.beam.runners.portability.CloseableResource.CloseException;
@@ -44,18 +45,22 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@link PipelineRunner} a {@link Pipeline} against a {@code JobService}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class PortableRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PortableRunner.class);
@@ -135,6 +140,8 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
               + "Defaulting to files from the classpath: {}",
           classpathResources.size());
       filesToStageBuilder.addAll(classpathResources);
+    } else {
+      filesToStageBuilder.addAll(stagingFiles);
     }
 
     // TODO(heejong): remove jar_packages experimental flag when cross-language dependency
@@ -171,7 +178,12 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
     try (CloseableResource<JobServiceBlockingStub> wrappedJobService =
         CloseableResource.of(jobService, unused -> jobServiceChannel.shutdown())) {
 
-      PrepareJobResponse prepareJobResponse = jobService.prepare(prepareJobRequest);
+      final int jobServerTimeout = options.as(PortablePipelineOptions.class).getJobServerTimeout();
+      PrepareJobResponse prepareJobResponse =
+          jobService
+              .withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS)
+              .withWaitForReady()
+              .prepare(prepareJobRequest);
       LOG.info("PrepareJobResponse: {}", prepareJobResponse);
 
       ApiServiceDescriptor artifactStagingEndpoint =
@@ -198,12 +210,16 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
               .setPreparationId(prepareJobResponse.getPreparationId())
               .build();
 
+      // Run the job and wait for a result, we don't set a timeout here because
+      // it may take a long time for a job to complete and streaming
+      // jobs never return a response.
       RunJobResponse runJobResponse = jobService.run(runJobRequest);
 
       LOG.info("RunJobResponse: {}", runJobResponse);
       ByteString jobId = runJobResponse.getJobIdBytes();
 
-      return new JobServicePipelineResult(jobId, wrappedJobService.transfer(), cleanup);
+      return new JobServicePipelineResult(
+          jobId, jobServerTimeout, wrappedJobService.transfer(), cleanup);
     } catch (CloseException e) {
       throw new RuntimeException(e);
     }

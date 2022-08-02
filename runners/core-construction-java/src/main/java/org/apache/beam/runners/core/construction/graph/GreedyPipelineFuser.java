@@ -55,6 +55,9 @@ import org.slf4j.LoggerFactory;
 /** Fuses a {@link Pipeline} into some set of single-environment executable transforms. */
 // The use of NavigableSets everywhere provides consistent ordering but may be overkill for this
 // cause.
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class GreedyPipelineFuser {
   private static final Logger LOG = LoggerFactory.getLogger(GreedyPipelineFuser.class);
 

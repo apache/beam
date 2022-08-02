@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -48,13 +48,10 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Tests for coder exception handling in runners. */
 @RunWith(JUnit4.class)
 public class PCollectionCustomCoderTest {
-  private static final Logger LOG = LoggerFactory.getLogger(PCollectionCustomCoderTest.class);
   /**
    * A custom test coder that can throw various exceptions during:
    *
@@ -223,7 +220,7 @@ public class PCollectionCustomCoderTest {
     p.run().waitUntilFinish();
   }
 
-  // TODO(BEAM-6004) Have DirectRunner trigger deserialization.
+  // TODO(https://github.com/apache/beam/issues/19185) Have DirectRunner trigger deserialization.
   @Ignore("DirectRunner doesn't decode coders so this test does not pass.")
   @Test
   @Category(NeedsRunner.class)
@@ -235,7 +232,7 @@ public class PCollectionCustomCoderTest {
     p.run().waitUntilFinish();
   }
 
-  // TODO(BEAM-6004) Have DirectRunner trigger deserialization.
+  // TODO(https://github.com/apache/beam/issues/19185) Have DirectRunner trigger deserialization.
   @Ignore("DirectRunner doesn't decode coders so this test does not pass.")
   @Test
   @Category(NeedsRunner.class)

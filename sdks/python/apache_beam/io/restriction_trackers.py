@@ -18,10 +18,6 @@
 """`iobase.RestrictionTracker` implementations provided with Apache Beam."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
-from builtins import object
 from typing import Tuple
 
 from apache_beam.io.iobase import RestrictionProgress
@@ -43,10 +39,6 @@ class OffsetRange(object):
       return False
 
     return self.start == other.start and self.stop == other.stop
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __hash__(self):
     return hash((type(self), self.start, self.stop))
@@ -88,7 +80,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
   """
   def __init__(self, offset_range):
     # type: (OffsetRange) -> None
-    assert isinstance(offset_range, OffsetRange)
+    assert isinstance(offset_range, OffsetRange), offset_range
     self._range = offset_range
     self._current_position = None
     self._last_claim_attempt = None
@@ -164,3 +156,20 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
   def is_bounded(self):
     return True
+
+
+class UnsplittableRestrictionTracker(RestrictionTracker):
+  """An `iobase.RestrictionTracker` that wraps another but does not split."""
+  def __init__(self, underling_tracker):
+    self._underling_tracker = underling_tracker
+
+  def try_split(self, fraction_of_remainder):
+    return False
+
+  # __getattribute__ is used rather than __getattr__ to override the
+  # stubs in the baseclass.
+  def __getattribute__(self, name):
+    if name.startswith('_') or name in ('try_split', ):
+      return super().__getattribute__(name)
+    else:
+      return getattr(self._underling_tracker, name)

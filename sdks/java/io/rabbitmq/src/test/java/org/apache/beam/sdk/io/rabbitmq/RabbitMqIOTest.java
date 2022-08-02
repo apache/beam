@@ -63,13 +63,10 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Test of {@link RabbitMqIO}. */
 @RunWith(JUnit4.class)
 public class RabbitMqIOTest implements Serializable {
-  private static final Logger LOG = LoggerFactory.getLogger(RabbitMqIOTest.class);
 
   private static int port;
   private static String defaultPort;

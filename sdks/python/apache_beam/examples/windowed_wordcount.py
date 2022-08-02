@@ -23,15 +23,11 @@ and is not yet available for use.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 
-from past.builtins import unicode
-
 import apache_beam as beam
-import apache_beam.transforms.window as window
+from apache_beam.transforms import window
 
 TABLE_SCHEMA = (
     'word:STRING, count:INTEGER, '
@@ -56,7 +52,7 @@ class FormatDoFn(beam.DoFn):
     }]
 
 
-def run(argv=None):
+def main(argv=None):
   """Build and run the pipeline."""
 
   parser = argparse.ArgumentParser()
@@ -84,7 +80,7 @@ def run(argv=None):
 
     transformed = (
         lines
-        | 'Split' >> (beam.FlatMap(find_words).with_output_types(unicode))
+        | 'Split' >> (beam.FlatMap(find_words).with_output_types(str))
         | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
         | beam.WindowInto(window.FixedWindows(2 * 60, 0))
         | 'Group' >> beam.GroupByKey()
@@ -102,4 +98,4 @@ def run(argv=None):
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  run()
+  main()

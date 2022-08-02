@@ -19,22 +19,19 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
+import io
 import logging
 import unittest
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 from hamcrest import all_of
 from hamcrest import assert_that
 from hamcrest import has_entry
 
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_status
+from apache_beam.utils.plugin import BeamPlugin
 
 
 class SdkWorkerMainTest(unittest.TestCase):
@@ -52,7 +49,6 @@ class SdkWorkerMainTest(unittest.TestCase):
           '--m_m_option', action='append', help='mock multi option')
 
   def test_status_server(self):
-
     # Wrapping the method to see if it appears in threadump
     def wrapped_method_for_test():
       threaddump = worker_status.thread_dump()
@@ -94,6 +90,111 @@ class SdkWorkerMainTest(unittest.TestCase):
             '{"options": {"eam:option:m_option:v":"mock_val"}}').
         get_all_options(),
         has_entry('eam:option:m_option:v', 'mock_val'))
+
+  def test_runtime_values(self):
+    test_runtime_provider = RuntimeValueProvider('test_param', int, None)
+    sdk_worker_main.create_harness({
+        'CONTROL_API_SERVICE_DESCRIPTOR': '',
+        'PIPELINE_OPTIONS': '{"test_param": 37}',
+    },
+                                   dry_run=True)
+    self.assertTrue(test_runtime_provider.is_accessible())
+    self.assertEqual(test_runtime_provider.get(), 37)
+
+  def test_create_sdk_harness_log_handler_received_log(self):
+    # tests that the log handler created in create_harness() does not miss
+    # logs emitted from create_harness() itself.
+    logstream = io.StringIO()
+
+    class InMemoryHandler(logging.StreamHandler):
+      def __init__(self, *unused):
+        super().__init__(stream=logstream)
+
+    with unittest.mock.patch(
+        'apache_beam.runners.worker.sdk_worker_main.FnApiLogRecordHandler',
+        InMemoryHandler):
+      sdk_worker_main.create_harness({
+          'LOGGING_API_SERVICE_DESCRIPTOR': '',
+          'CONTROL_API_SERVICE_DESCRIPTOR': '',
+          'PIPELINE_OPTIONS': '{"default_sdk_harness_log_level":"INVALID",'
+          '"sdk_harness_log_level_overrides":"{INVALID_JSON}"}',
+      },
+                                     dry_run=True)
+    logstream.seek(0)
+    logs = logstream.read()
+    self.assertIn('Unknown log level', logs)
+    self.assertIn('Unable to parse sdk_harness_log_level_overrides', logs)
+
+  def test_import_beam_plugins(self):
+    sdk_worker_main._import_beam_plugins(BeamPlugin.get_all_plugin_paths())
+
+  def test__get_log_level_from_options_dict(self):
+    test_cases = [
+        {},
+        {
+            'default_sdk_harness_log_level': 'DEBUG'
+        },
+        {
+            'default_sdk_harness_log_level': '30'
+        },
+        {
+            'default_sdk_harness_log_level': 'INVALID_ENTRY'
+        },
+    ]
+    expected_results = [logging.INFO, logging.DEBUG, 30, logging.INFO]
+    for case, expected in zip(test_cases, expected_results):
+      self.assertEqual(
+          sdk_worker_main._get_log_level_from_options_dict(case), expected)
+
+  def test__set_log_level_overrides(self):
+    test_cases = [
+        ([], {}), # not provided, as a smoke test
+        (
+            # single overrides
+            ['{"fake_module_1a.b":"DEBUG","fake_module_1c.d":"INFO"}'],
+            {
+                "fake_module_1a.b": logging.DEBUG,
+                "fake_module_1a.b.f": logging.DEBUG,
+                "fake_module_1c.d": logging.INFO
+            }
+        ),
+        (
+            # multiple overrides
+            [
+                '{"fake_module_2a.b":"DEBUG"}',
+                '{"fake_module_2c.d":"ERROR","fake_module_2c.d.e":15}'
+            ],
+            {
+                "fake_module_2a.b": logging.DEBUG,
+                "fake_module_2a.b.f": logging.DEBUG,
+                "fake_module_2c.d": logging.ERROR,
+                "fake_module_2c.d.e": 15,
+                "fake_module_2c.d.f": logging.ERROR
+            }
+        )
+    ]
+    for case, expected in test_cases:
+      options_dict = {'sdk_harness_log_level_overrides': case}
+      sdk_worker_main._set_log_level_overrides(options_dict)
+      for name, level in expected.items():
+        self.assertEqual(logging.getLogger(name).getEffectiveLevel(), level)
+
+  def test__set_log_level_overrides_error(self):
+    test_cases = [
+        ({
+            'sdk_harness_log_level_overrides': ['{"missed.quote":WARNING}']
+        },
+         "Unable to parse sdk_harness_log_level_overrides"),
+        ({
+            'sdk_harness_log_level_overrides': ['{"invalid.level":"INVALID"}']
+        },
+         "Error occurred when setting log level"),
+    ]
+    for case, expected in test_cases:
+      with self.assertLogs('apache_beam.runners.worker.sdk_worker_main',
+                           level='ERROR') as cm:
+        sdk_worker_main._set_log_level_overrides(case)
+        self.assertIn(expected, cm.output[0])
 
 
 if __name__ == '__main__':

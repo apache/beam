@@ -32,6 +32,9 @@ import org.slf4j.LoggerFactory;
  * A factory used to create {@link DataflowWorkerHarnessOptions} used during the bootstrap process
  * to initialize a Dataflow worker harness.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class WorkerPipelineOptionsFactory {
   private static final Logger LOG = LoggerFactory.getLogger(WorkerPipelineOptionsFactory.class);
 
@@ -75,6 +78,9 @@ public class WorkerPipelineOptionsFactory {
     }
     if (System.getProperties().containsKey("job_id")) {
       options.setJobId(System.getProperty("job_id"));
+    }
+    if (System.getProperties().containsKey("worker_pool")) {
+      options.setWorkerPool(System.getProperty("worker_pool"));
     }
 
     return options;

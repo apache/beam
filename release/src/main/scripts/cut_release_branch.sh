@@ -51,11 +51,12 @@ else
 	done
 fi
 if [[ -z "$RELEASE" || -z "$NEXT_VERSION_IN_BASE_BRANCH" ]]; then
-	echo "This sricpt needs to be ran with params, please run with -h to get more instructions."
+	echo "This script needs to be ran with params, please run with -h to get more instructions."
 	exit
 fi
 
-
+SCRIPT=$(readlink -f $0)
+SCRIPT_DIR=$(dirname $SCRIPT)
 MASTER_BRANCH=master
 DEV=${RELEASE}.dev
 RELEASE_BRANCH=release-${RELEASE}
@@ -78,7 +79,7 @@ if [[ -d ${LOCAL_CLONE_DIR} ]]; then
 fi
 mkdir ${LOCAL_CLONE_DIR}
 cd ${LOCAL_CLONE_DIR}
-git clone ${GITHUB_REPO_URL}
+git clone --depth=1 ${GITHUB_REPO_URL}
 cd ${BEAM_ROOT_DIR}
 
 # Create local release branch
@@ -91,9 +92,7 @@ echo ${MASTER_BRANCH}
 echo "==============================================================="
 
 # Update master branch
-sed -i -e "s/'${RELEASE}'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g" buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
-sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" gradle.properties
-sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" sdks/python/apache_beam/version.py
+sh "$SCRIPT_DIR"/set_version.sh "$NEXT_VERSION_IN_BASE_BRANCH"
 
 echo "==============Update master branch as following================"
 git diff
@@ -110,6 +109,7 @@ fi
 git add buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
 git add gradle.properties
 git add sdks/python/apache_beam/version.py
+git add sdks/go/pkg/beam/core/core.go
 git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
 if git push origin ${MASTER_BRANCH}; then
   break
@@ -125,10 +125,7 @@ echo "==================Current working branch======================="
 echo ${RELEASE_BRANCH}
 echo "==============================================================="
 
-sed -i -e "s/${DEV}/${RELEASE}/g" gradle.properties
-sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py
-# TODO: [BEAM-4767]
-sed -i -e "s/'beam-master-.*'/'beam-${RELEASE}'/g" runners/google-cloud-dataflow-java/build.gradle
+sed -i -e "s/'beam-master-.*'/'${RELEASE}'/g" runners/google-cloud-dataflow-java/build.gradle
 
 echo "===============Update release branch as following=============="
 git diff
@@ -142,10 +139,8 @@ if [[ $confirmation != "y" ]]; then
   exit
 fi
 
-git add gradle.properties
-git add sdks/python/apache_beam/version.py
 git add runners/google-cloud-dataflow-java/build.gradle
-git commit -m "Create release branch for version ${RELEASE}."
+git commit -m "Set Dataflow container to release version."
 git push --set-upstream origin ${RELEASE_BRANCH}
 
 clean_up

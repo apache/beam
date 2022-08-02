@@ -28,6 +28,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Encapsulates a spanner read operation. */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class ReadOperation implements Serializable {
 
   public static ReadOperation create() {
@@ -38,6 +41,8 @@ public abstract class ReadOperation implements Serializable {
   }
 
   public abstract @Nullable Statement getQuery();
+
+  public abstract @Nullable String getQueryName();
 
   public abstract @Nullable String getTable();
 
@@ -53,6 +58,8 @@ public abstract class ReadOperation implements Serializable {
   abstract static class Builder {
 
     abstract Builder setQuery(Statement statement);
+
+    abstract Builder setQueryName(String queryName);
 
     abstract Builder setTable(String table);
 
@@ -87,6 +94,10 @@ public abstract class ReadOperation implements Serializable {
 
   public ReadOperation withQuery(String sql) {
     return withQuery(Statement.of(sql));
+  }
+
+  public ReadOperation withQueryName(String queryName) {
+    return toBuilder().setQueryName(queryName).build();
   }
 
   public ReadOperation withKeySet(KeySet keySet) {

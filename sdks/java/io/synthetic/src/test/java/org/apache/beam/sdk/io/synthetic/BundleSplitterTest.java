@@ -30,6 +30,9 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link BundleSplitter}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class BundleSplitterTest {
 
   private SyntheticSourceOptions options;

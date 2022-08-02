@@ -15,15 +15,16 @@
 # limitations under the License.
 #
 
-"""A cross-language word-counting workflow."""
+"""A word-counting workflow that uses the SQL transform.
 
-from __future__ import absolute_import
+A Java version supported by Beam must be installed locally to run this pipeline.
+Additionally, Docker must also be available to run this pipeline locally.
+"""
 
 import argparse
 import logging
+import re
 import typing
-
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import coders
@@ -31,51 +32,40 @@ from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.portability import portable_runner
 from apache_beam.transforms.sql import SqlTransform
 
-MyRow = typing.NamedTuple('MyRow', [('word', unicode)])
+# The input to SqlTransform must be a PCollection(s) of known schema.
+# One way to create such a PCollection is to produce a PCollection of
+# NamedTuple registered with the RowCoder.
+#
+# Here we create and register a simple NamedTuple with a single str typed
+# field named 'word' which we will use below.
+MyRow = typing.NamedTuple('MyRow', [('word', str)])
 coders.registry.register_coder(MyRow, coders.RowCoder)
-
-# Some more fun queries:
-# ------
-# SELECT
-#   word as key,
-#   COUNT(*) as `count`
-# FROM PCOLLECTION
-# GROUP BY word
-# ORDER BY `count` DESC
-# LIMIT 100
-# ------
-# SELECT
-#   len as key,
-#   COUNT(*) as `count`
-# FROM (
-#   SELECT
-#     LENGTH(word) AS len
-#   FROM PCOLLECTION
-# )
-# GROUP BY len
 
 
 def run(p, input_file, output_file):
   #pylint: disable=expression-not-assigned
   (
       p
-      | 'read' >> ReadFromText(input_file)
-      | 'split' >> beam.FlatMap(str.split)
-      | 'row' >> beam.Map(MyRow).with_output_types(MyRow)
-      | 'sql!!' >> SqlTransform(
+      # Read the lines from a text file.
+      | 'Read' >> ReadFromText(input_file)
+      # Split the line into individual words.
+      | 'Split' >> beam.FlatMap(lambda line: re.split(r'\W+', line))
+      # Map each word to an instance of MyRow.
+      | 'ToRow' >> beam.Map(MyRow).with_output_types(MyRow)
+      # SqlTransform yields a PCollection containing elements with attributes
+      # based on the output of the query.
+      | 'Sql!!' >> SqlTransform(
           """
                    SELECT
                      word as key,
                      COUNT(*) as `count`
                    FROM PCOLLECTION
                    GROUP BY word""")
-      | 'format' >> beam.Map(lambda row: '{}: {}'.format(row.key, row.count))
-      | 'write' >> WriteToText(output_file))
-
-  result = p.run()
-  result.wait_until_finish()
+      | 'Format' >> beam.Map(lambda row: '{}: {}'.format(row.key, row.count))
+      | 'Write' >> WriteToText(output_file))
 
 
 def main():
@@ -101,12 +91,33 @@ def main():
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options.view_as(SetupOptions).save_main_session = True
 
-  p = beam.Pipeline(options=pipeline_options)
-  # Preemptively start due to BEAM-6666.
-  p.runner.create_job_service(pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
+    if isinstance(p.runner, portable_runner.PortableRunner):
+      # Preemptively start due to BEAM-6666.
+      p.runner.create_job_service(pipeline_options)
 
-  run(p, known_args.input, known_args.output)
+    run(p, known_args.input, known_args.output)
 
+
+# Some more fun queries:
+# ------
+# SELECT
+#   word as key,
+#   COUNT(*) as `count`
+# FROM PCOLLECTION
+# GROUP BY word
+# ORDER BY `count` DESC
+# LIMIT 100
+# ------
+# SELECT
+#   len as key,
+#   COUNT(*) as `count`
+# FROM (
+#   SELECT
+#     LENGTH(word) AS len
+#   FROM PCOLLECTION
+# )
+# GROUP BY len
 
 if __name__ == '__main__':
   main()

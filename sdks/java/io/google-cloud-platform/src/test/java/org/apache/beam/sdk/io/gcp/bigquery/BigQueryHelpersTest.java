@@ -58,8 +58,25 @@ public class BigQueryHelpersTest {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testTableParsing() {
+  public void testTablesspecParsingLegacySql() {
     TableReference ref = BigQueryHelpers.parseTableSpec("my-project:data_set.table_name");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("data_set", ref.getDatasetId());
+    assertEquals("table_name", ref.getTableId());
+  }
+
+  @Test
+  public void testTablesspecParsingStandardSql() {
+    TableReference ref = BigQueryHelpers.parseTableSpec("my-project.data_set.table_name");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("data_set", ref.getDatasetId());
+    assertEquals("table_name", ref.getTableId());
+  }
+
+  @Test
+  public void testTableUrnParsing() {
+    TableReference ref =
+        BigQueryHelpers.parseTableUrn("projects/my-project/datasets/data_set/tables/table_name");
     assertEquals("my-project", ref.getProjectId());
     assertEquals("data_set", ref.getDatasetId());
     assertEquals("table_name", ref.getTableId());
@@ -78,6 +95,19 @@ public class BigQueryHelpersTest {
     assertEquals(null, ref.getProjectId());
     assertEquals("data_set", ref.getDatasetId());
     assertEquals("table_name", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsingError0() {
+    String expectedMessage =
+        "Table specification [foo_bar_baz] is not in one of the expected formats ("
+            + " [project_id]:[dataset_id].[table_id],"
+            + " [project_id].[dataset_id].[table_id],"
+            + " [dataset_id].[table_id])";
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(expectedMessage);
+    BigQueryHelpers.parseTableSpec("foo_bar_baz");
   }
 
   @Test
@@ -212,7 +242,7 @@ public class BigQueryHelpersTest {
     String projectId = "this-is-my-project";
     String jobUuid = "this-is-my-job";
     TableReference noDataset =
-        BigQueryHelpers.createTempTableReference(projectId, jobUuid, Optional.empty());
+        BigQueryResourceNaming.createTempTableReference(projectId, jobUuid, Optional.empty());
 
     assertEquals(noDataset.getProjectId(), projectId);
     assertEquals(noDataset.getDatasetId(), "temp_dataset_" + jobUuid);
@@ -220,7 +250,7 @@ public class BigQueryHelpersTest {
 
     Optional<String> dataset = Optional.ofNullable("my-tmp-dataset");
     TableReference tempTableReference =
-        BigQueryHelpers.createTempTableReference(projectId, jobUuid, dataset);
+        BigQueryResourceNaming.createTempTableReference(projectId, jobUuid, dataset);
 
     assertEquals(tempTableReference.getProjectId(), noDataset.getProjectId());
     assertEquals(tempTableReference.getDatasetId(), dataset.get());

@@ -46,6 +46,9 @@ import org.slf4j.LoggerFactory;
  * A {@link Source} that accommodates Spark's micro-batch oriented nature and wraps an {@link
  * UnboundedSource}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends Source<T> {
 
@@ -196,8 +199,8 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
       backoffFactory =
           FluentBackoff.DEFAULT
               .withInitialBackoff(Duration.millis(10))
-              .withMaxBackoff(maxReadTime.minus(1))
-              .withMaxCumulativeBackoff(maxReadTime.minus(1));
+              .withMaxBackoff(maxReadTime.minus(Duration.millis(1)))
+              .withMaxCumulativeBackoff(maxReadTime.minus(Duration.millis(1)));
     }
 
     private boolean startIfNeeded() throws IOException {

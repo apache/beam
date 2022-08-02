@@ -25,23 +25,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Pipeline options common to all portable runners. */
 @Experimental(Kind.PORTABILITY)
-public interface PortablePipelineOptions extends PipelineOptions {
-
-  // TODO: https://issues.apache.org/jira/browse/BEAM-4106: Consider pulling this out into a new
-  // options interface, e.g., FileStagingOptions.
-  /**
-   * List of local files to make available to workers.
-   *
-   * <p>Files are placed on the worker's classpath.
-   *
-   * <p>The default value is the list of jars from the main program's classpath.
-   */
-  @Description(
-      "Files to stage to the artifact service and make available to workers. Files are placed on "
-          + "the worker's classpath. The default value is all files from the classpath.")
-  List<String> getFilesToStage();
-
-  void setFilesToStage(List<String> value);
+public interface PortablePipelineOptions extends PipelineOptions, FileStagingOptions {
 
   @Description(
       "Job service endpoint to use. Should be in the form of address and port, e.g. localhost:3000")
@@ -49,6 +33,17 @@ public interface PortablePipelineOptions extends PipelineOptions {
   String getJobEndpoint();
 
   void setJobEndpoint(String endpoint);
+
+  @Description(
+      "Job service request timeout in seconds. The timeout "
+          + "determines the max time the driver program will wait to "
+          + "get a response from the job server. NOTE: the timeout does not "
+          + "apply to the actual pipeline run time. The driver program will "
+          + "still wait for job completion indefinitely.")
+  @Default.Integer(60)
+  int getJobServerTimeout();
+
+  void setJobServerTimeout(int timeout);
 
   @Description(
       "Set the default environment type for running user code. "
@@ -104,17 +99,31 @@ public interface PortablePipelineOptions extends PipelineOptions {
 
   void setOutputExecutablePath(String outputExecutablePath);
 
-  /** Enumeration of the different implementations of the artifact retrieval service. */
-  enum RetrievalServiceType {
-    /** Artifacts are to be retrieved from a {@link org.apache.beam.sdk.io.FileSystem}. */
-    FILE_SYSTEM,
-    /** Artifacts are to be retrieved from the runtime {@link ClassLoader}. */
-    CLASSLOADER,
+  @Description(
+      "Options for configuring the default environment of portable workers. This environment will be used for all executable stages except for external transforms. Recognized options depend on the value of defaultEnvironmentType:\n"
+          + "DOCKER: docker_container_image (optional), e.g. 'apache/beam_java8_sdk:latest'. If unset, will default to the latest official release of the Beam Java SDK corresponding to your Java runtime version (8 or 11).\n"
+          + "EXTERNAL: external_service_address (required), e.g. 'localhost:50000'\n"
+          + "PROCESS: process_command (required), process_variables (optional). process_command must be the location of an executable file that starts a Beam SDK worker. process_variables is a comma-separated list of environment variable assignments which will be set before running the process, e.g. 'FOO=a,BAR=b'\n\n"
+          + "environmentOptions and defaultEnvironmentConfig are mutually exclusive. Prefer environmentOptions.")
+  List<String> getEnvironmentOptions();
+
+  void setEnvironmentOptions(List<String> value);
+
+  /** Return the value for the specified environment option or empty string if not present. */
+  static String getEnvironmentOption(
+      PortablePipelineOptions options, String environmentOptionName) {
+    List<String> environmentOptions = options.getEnvironmentOptions();
+    if (environmentOptions == null) {
+      return "";
+    }
+
+    for (String environmentEntry : environmentOptions) {
+      String[] tokens = environmentEntry.split(environmentOptionName + "=", -1);
+      if (tokens.length > 1) {
+        return tokens[1];
+      }
+    }
+
+    return "";
   }
-
-  @Description("The artifact retrieval service to be used.")
-  @Default.Enum("FILE_SYSTEM")
-  RetrievalServiceType getRetrievalServiceType();
-
-  void setRetrievalServiceType(RetrievalServiceType retrievalServiceType);
 }

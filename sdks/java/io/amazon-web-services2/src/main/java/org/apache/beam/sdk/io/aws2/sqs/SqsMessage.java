@@ -17,20 +17,26 @@
  */
 package org.apache.beam.sdk.io.aws2.sqs;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoValue
 public abstract class SqsMessage implements Serializable {
 
-  abstract @Nullable String getBody();
+  /** Message body. */
+  public abstract String getBody();
 
-  abstract @Nullable String getMessageId();
+  /** SQS message id. */
+  public abstract String getMessageId();
 
-  abstract @Nullable String getTimeStamp();
+  /** SQS receipt handle. */
+  public abstract String getReceiptHandle();
+
+  /** Timestamp the message was sent at (in epoch millis). */
+  public abstract long getTimeStamp();
+
+  /** Timestamp the message was received at (in epoch millis). */
+  public abstract long getRequestTimeStamp();
 
   abstract Builder toBuilder();
 
@@ -40,20 +46,23 @@ public abstract class SqsMessage implements Serializable {
 
     abstract Builder setMessageId(String messageId);
 
-    abstract Builder setTimeStamp(String timeStamp);
+    abstract Builder setReceiptHandle(String receiptHandle);
+
+    abstract Builder setTimeStamp(long timeStamp);
+
+    abstract Builder setRequestTimeStamp(long timeStamp);
 
     abstract SqsMessage build();
   }
 
-  static SqsMessage create(String body, String messageId, String timeStamp) {
-    checkArgument(body != null, "body can not be null");
-    checkArgument(messageId != null, "messageId can not be null");
-    checkArgument(timeStamp != null, "timeStamp can not be null");
-
+  public static SqsMessage create(
+      String body, String messageId, String receiptHandle, long timeStamp, long requestTimeStamp) {
     return new AutoValue_SqsMessage.Builder()
         .setBody(body)
         .setMessageId(messageId)
+        .setReceiptHandle(receiptHandle)
         .setTimeStamp(timeStamp)
+        .setRequestTimeStamp(requestTimeStamp)
         .build();
   }
 }

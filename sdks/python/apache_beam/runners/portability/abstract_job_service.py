@@ -16,8 +16,6 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import copy
 import itertools
 import json
@@ -26,7 +24,6 @@ import shutil
 import tempfile
 import uuid
 import zipfile
-from builtins import object
 from concurrent import futures
 from typing import TYPE_CHECKING
 from typing import Dict
@@ -324,7 +321,7 @@ class UberJarBeamJob(AbstractBeamJob):
       pipeline,
       options,
       artifact_port=0):
-    super(UberJarBeamJob, self).__init__(job_id, job_name, pipeline, options)
+    super().__init__(job_id, job_name, pipeline, options)
     self._executable_jar = executable_jar
     self._jar_uploaded = False
     self._artifact_port = artifact_port
@@ -347,7 +344,10 @@ class UberJarBeamJob(AbstractBeamJob):
             for (env_id,
                  env) in self._pipeline_proto.components.environments.items()
         })
-    self._artifact_staging_server = grpc.server(futures.ThreadPoolExecutor())
+    options = [("grpc.http2.max_pings_without_data", 0),
+               ("grpc.http2.max_ping_strikes", 0)]
+    self._artifact_staging_server = grpc.server(
+        futures.ThreadPoolExecutor(), options=options)
     port = self._artifact_staging_server.add_insecure_port(
         '[::]:%s' % requested_port)
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(

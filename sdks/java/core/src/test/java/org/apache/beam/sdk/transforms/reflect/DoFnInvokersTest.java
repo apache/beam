@@ -20,12 +20,13 @@ package org.apache.beam.sdk.transforms.reflect;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Matchers.eq;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -65,6 +67,8 @@ import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
@@ -86,6 +90,13 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DoFnInvokers}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "SameNameButDifferent",
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
+})
 public class DoFnInvokersTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -99,6 +110,7 @@ public class DoFnInvokersTest {
   @Mock private IntervalWindow mockWindow;
   // @Mock private PaneInfo mockPaneInfo;
   @Mock private DoFnInvoker.ArgumentProvider<String, String> mockArgumentProvider;
+  @Mock private PipelineOptions mockOptions;
 
   @Before
   public void setUp() {
@@ -113,6 +125,7 @@ public class DoFnInvokersTest {
     when(mockArgumentProvider.outputReceiver(Matchers.<DoFn>any())).thenReturn(mockOutputReceiver);
     when(mockArgumentProvider.taggedOutputReceiver(Matchers.<DoFn>any()))
         .thenReturn(mockMultiOutputReceiver);
+    when(mockArgumentProvider.pipelineOptions()).thenReturn(mockOptions);
     when(mockArgumentProvider.startBundleContext(Matchers.<DoFn>any()))
         .thenReturn(mockStartBundleContext);
     when(mockArgumentProvider.finishBundleContext(Matchers.<DoFn>any()))
@@ -254,6 +267,7 @@ public class DoFnInvokersTest {
     when(mockArgumentProvider.state(stateId, false)).thenReturn(mockState);
 
     class MockFn extends DoFn<String, String> {
+
       @StateId(stateId)
       private final StateSpec<ValueState<Integer>> spec = StateSpecs.value(VarIntCoder.of());
 
@@ -275,6 +289,7 @@ public class DoFnInvokersTest {
     when(mockArgumentProvider.timer(TimerDeclaration.PREFIX + timerId)).thenReturn(mockTimer);
 
     class MockFn extends DoFn<String, String> {
+
       @TimerId(timerId)
       private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -354,6 +369,7 @@ public class DoFnInvokersTest {
 
   @Test
   public void testDoFnWithStartBundleSetupTeardown() throws Exception {
+    when(mockArgumentProvider.pipelineOptions()).thenReturn(mockOptions);
     when(mockArgumentProvider.startBundleContext(any(DoFn.class)))
         .thenReturn(mockStartBundleContext);
     when(mockArgumentProvider.finishBundleContext(any(DoFn.class)))
@@ -369,19 +385,20 @@ public class DoFnInvokersTest {
       public void finishBundle(FinishBundleContext c) {}
 
       @Setup
-      public void before() {}
+      public void before(PipelineOptions options) {}
 
       @Teardown
       public void after() {}
     }
 
     MockFn fn = mock(MockFn.class);
+
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
-    invoker.invokeSetup();
+    invoker.invokeSetup(mockArgumentProvider);
     invoker.invokeStartBundle(mockArgumentProvider);
     invoker.invokeFinishBundle(mockArgumentProvider);
     invoker.invokeTeardown();
-    verify(fn).before();
+    verify(fn).before(mockOptions);
     verify(fn).startBundle(mockStartBundleContext);
     verify(fn).finishBundle(mockFinishBundleContext);
     verify(fn).after();
@@ -433,6 +450,11 @@ public class DoFnInvokersTest {
     @NewTracker
     public SomeRestrictionTracker newTracker(@Restriction SomeRestriction restriction) {
       return null;
+    }
+
+    @GetSize
+    public double getSize() {
+      return 2.0;
     }
 
     @GetRestrictionCoder
@@ -494,6 +516,7 @@ public class DoFnInvokersTest {
     when(fn.newTracker(restriction)).thenReturn(tracker);
     when(fn.newWatermarkEstimator(watermarkEstimatorState)).thenReturn(watermarkEstimator);
     when(fn.processElement(mockProcessContext, tracker, watermarkEstimator)).thenReturn(resume());
+    when(fn.getSize()).thenReturn(2.0);
 
     assertEquals(coder, invoker.invokeGetRestrictionCoder(CoderRegistry.createDefault()));
     assertEquals(
@@ -583,6 +606,7 @@ public class DoFnInvokersTest {
                 return watermarkEstimator;
               }
             }));
+    assertEquals(2.0, invoker.invokeGetSize(mockArgumentProvider), 0.0001);
   }
 
   private static class RestrictionWithBoundedDefaultTracker
@@ -979,6 +1003,77 @@ public class DoFnInvokersTest {
             RestrictionWithBoundedDefaultTracker.class, CoderForDefaultTracker.class));
     assertEquals(VoidCoder.of(), invoker.invokeGetWatermarkEstimatorStateCoder(coderRegistry));
     assertNull(invoker.invokeGetInitialWatermarkEstimatorState(new FakeArgumentProvider<>()));
+  }
+
+  @Test
+  public void testDefaultGetSizeWithoutHasProgress() throws Exception {
+    class MockFn extends DoFn<String, String> {
+      @ProcessElement
+      public void processElement(
+          ProcessContext c,
+          RestrictionTracker<RestrictionWithBoundedDefaultTracker, Void> tracker) {}
+
+      @GetInitialRestriction
+      public RestrictionWithBoundedDefaultTracker getInitialRestriction(@Element String element) {
+        return null;
+      }
+    }
+
+    MockFn fn = mock(MockFn.class);
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
+    assertEquals(1.0, invoker.invokeGetSize(mockArgumentProvider), 0.0001);
+  }
+
+  @Test
+  public void testDefaultGetSizeWithHasProgress() throws Exception {
+    class MockFn extends DoFn<String, String> {
+      @ProcessElement
+      public void processElement(
+          ProcessContext c,
+          RestrictionTracker<RestrictionWithBoundedDefaultTracker, Void> tracker) {}
+
+      @GetInitialRestriction
+      public RestrictionWithBoundedDefaultTracker getInitialRestriction(@Element String element) {
+        return null;
+      }
+    }
+
+    abstract class HasProgressRestrictionTracker extends SomeRestrictionTracker
+        implements HasProgress {}
+    HasProgressRestrictionTracker tracker = mock(HasProgressRestrictionTracker.class);
+    when(tracker.getProgress()).thenReturn(Progress.from(3.0, 4.0));
+
+    when(mockArgumentProvider.restrictionTracker()).thenReturn((RestrictionTracker) tracker);
+
+    MockFn fn = mock(MockFn.class);
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
+    assertEquals(4.0, invoker.invokeGetSize(mockArgumentProvider), 0.0001);
+  }
+
+  @Test
+  public void testGetSize() throws Exception {
+    abstract class MockFn extends DoFn<String, String> {
+      @ProcessElement
+      public abstract void processElement(
+          ProcessContext c, RestrictionTracker<RestrictionWithBoundedDefaultTracker, Void> tracker);
+
+      @GetInitialRestriction
+      public abstract RestrictionWithBoundedDefaultTracker getInitialRestriction(
+          @Element String element);
+
+      @GetSize
+      public abstract double getSize();
+    }
+
+    MockFn fn = mock(MockFn.class);
+    when(fn.getSize()).thenReturn(5.0, -3.0);
+
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
+    assertEquals(5.0, invoker.invokeGetSize(mockArgumentProvider), 0.0001);
+    assertThrows(
+        "Expected size >= 0 but received",
+        IllegalArgumentException.class,
+        () -> invoker.invokeGetSize(mockArgumentProvider));
   }
 
   // ---------------------------------------------------------------------------------------

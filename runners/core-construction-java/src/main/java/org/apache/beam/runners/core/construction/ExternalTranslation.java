@@ -32,6 +32,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Translating External transforms to proto. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class ExternalTranslation {
   public static final String EXTERNAL_TRANSFORM_URN = "beam:transform:external:v1";
 
@@ -42,9 +45,8 @@ public class ExternalTranslation {
       return new ExternalTranslator();
     }
 
-    @Nullable
     @Override
-    public String getUrn(External.ExpandableTransform transform) {
+    public @Nullable String getUrn(External.ExpandableTransform transform) {
       return EXTERNAL_TRANSFORM_URN;
     }
 
@@ -68,6 +70,12 @@ public class ExternalTranslation {
       String impulsePrefix = expandableTransform.getImpulsePrefix();
       RunnerApi.PTransform expandedTransform = expandableTransform.getExpandedTransform();
       RunnerApi.Components expandedComponents = expandableTransform.getExpandedComponents();
+      List<String> expandedRequirements = expandableTransform.getExpandedRequirements();
+
+      for (String requirement : expandedRequirements) {
+        components.addRequirement(requirement);
+      }
+
       Map<PCollection, String> externalPCollectionIdMap =
           expandableTransform.getExternalPCollectionIdMap();
       Map<Coder, String> externalCoderIdMap = expandableTransform.getExternalCoderIdMap();

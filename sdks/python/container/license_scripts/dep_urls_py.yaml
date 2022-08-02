@@ -41,17 +41,31 @@ pip_dependencies:
     notice: "https://raw.githubusercontent.com/apache/avro/master/NOTICE.txt"
   backports.weakref:
     license: "https://raw.githubusercontent.com/PiDelport/backports.weakref/master/LICENSE"
+  beautifulsoup4:
+    # copied from source tar files.
+    license: "file:///tmp/license_scripts/manual_licenses/beautifulsoup4/LICENSE"
+  bs4:
+    # bs4 is a dummy PyPI package setup for beautifulsoup4.
+    license: "skip"
   chardet:
     license: "https://raw.githubusercontent.com/chardet/chardet/master/LICENSE"
   certifi:
     license: "https://raw.githubusercontent.com/certifi/python-certifi/master/LICENSE"
+  clang:
+    license: "https://raw.githubusercontent.com/llvm/llvm-project/main/clang/LICENSE.TXT"
   cython:
     license: "https://raw.githubusercontent.com/cython/cython/master/LICENSE.txt"
+  dataclasses:
+    license: "https://raw.githubusercontent.com/ericvsmith/dataclasses/master/LICENSE.txt"
   enum34:
-    license: "https://bitbucket.org/stoneleaf/enum34/raw/c208549a93b71b948ff7bbdfd29dce8f85527916/enum/LICENSE"
+    # The original repo is down. This license taken from somebody's clone:
+    # https://github.com/jamespharaoh/python-enum34/blob/master/enum/LICENSE
+    license: "file:///tmp/license_scripts/manual_licenses/enum34/LICENSE"
   fastavro:
     license: "https://raw.githubusercontent.com/fastavro/fastavro/master/LICENSE"
     notice: "https://raw.githubusercontent.com/fastavro/fastavro/master/NOTICE.txt"
+  flatbuffers:
+    license: "https://raw.githubusercontent.com/google/flatbuffers/master/LICENSE.txt"
   funcsigs:
     license: "https://raw.githubusercontent.com/aliles/funcsigs/master/LICENSE"
   futures:
@@ -60,6 +74,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/google/apitools/master/LICENSE"
   googledatastore:
     license: "https://raw.githubusercontent.com/GoogleCloudPlatform/google-cloud-datastore/master/LICENSE"
+  google-python-cloud-debugger:
+    license: "https://raw.githubusercontent.com/GoogleCloudPlatform/cloud-debug-python/master/LICENSE"
   grpcio:
     license: "https://raw.githubusercontent.com/grpc/grpc/master/LICENSE"
     notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
@@ -75,6 +91,10 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/mtth/hdfs/master/LICENSE"
   httplib2:
     license: "https://raw.githubusercontent.com/httplib2/httplib2/master/LICENSE"
+  keras-nightly:
+    license: "https://raw.githubusercontent.com/keras-team/keras/master/LICENSE"
+  mmh3:
+    license: "https://raw.githubusercontent.com/hajimes/mmh3/master/LICENSE"
   mock:
     license: "https://raw.githubusercontent.com/testing-cabal/mock/master/LICENSE.txt"
   monotonic:
@@ -85,6 +105,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/numpy/numpy/master/LICENSE.txt"
   oauth2client:
     license: "https://raw.githubusercontent.com/googleapis/oauth2client/master/LICENSE"
+  orjson:
+    license: "https://github.com/ijl/orjson/raw/master/LICENSE-APACHE"
   pandas:
     license: "https://raw.githubusercontent.com/pandas-dev/pandas/master/LICENSE"
   pathlib2:
@@ -93,6 +115,10 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/protocolbuffers/protobuf/master/LICENSE"
   protorpc:
     license: "https://raw.githubusercontent.com/google/protorpc/master/LICENSE"
+  proto-plus:
+    license: "https://raw.githubusercontent.com/googleapis/proto-plus-python/master/LICENSE"
+  pbr:
+    license: "https://opendev.org/openstack/pbr/raw/branch/master/LICENSE"
   pyarrow:
     license: "https://raw.githubusercontent.com/apache/arrow/master/LICENSE.txt"
     notice: "https://raw.githubusercontent.com/apache/arrow/master/NOTICE.txt"
@@ -108,15 +134,23 @@ pip_dependencies:
     license: "file:///tmp/license_scripts/manual_licenses/singledispatch/LICENSE"
   scipy:
     license: "https://raw.githubusercontent.com/scipy/scipy/master/LICENSE.txt"
+  soupsieve:
+    license: "https://raw.githubusercontent.com/facelessuser/soupsieve/main/LICENSE.md"
   termcolor:
     license: "file:///tmp/license_scripts/manual_licenses/termcolor/LICENSE"
   tensorflow:
     license: "https://raw.githubusercontent.com/tensorflow/tensorflow/master/LICENSE"
   tensorflow-estimator:
     license: "https://raw.githubusercontent.com/tensorflow/estimator/master/LICENSE"
+  tf-estimator-nightly:
+    license: "https://raw.githubusercontent.com/tensorflow/estimator/master/LICENSE"
+  tensorboard-data-server:
+    license: "https://raw.githubusercontent.com/tensorflow/tensorboard/master/LICENSE"
   tensorboard-plugin-wit:
     license: "https://raw.githubusercontent.com/PAIR-code/what-if-tool/master/LICENSE"
   timeloop:
     license: "https://raw.githubusercontent.com/sankalpjonn/timeloop/master/LICENSE"
+  torch:
+    license: "https://raw.githubusercontent.com/pytorch/pytorch/master/LICENSE"
   wget:
     license: "https://raw.githubusercontent.com/mirror/wget/master/COPYING"

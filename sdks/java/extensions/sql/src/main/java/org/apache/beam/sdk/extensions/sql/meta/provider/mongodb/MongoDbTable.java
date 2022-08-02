@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.mongodb;
 
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.AND;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.COMPARISON;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.OR;
+import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind.AND;
+import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind.COMPARISON;
+import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind.OR;
 
 import com.mongodb.client.model.Filters;
 import java.io.Serializable;
@@ -57,13 +57,13 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -73,6 +73,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Experimental
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbTable.class);
   // Should match: mongodb://username:password@localhost:27017/database/collection
@@ -317,7 +320,8 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
 
     @Override
     public PCollection<Row> expand(PCollection<Document> input) {
-      // TODO(BEAM-8498): figure out a way convert Document directly to Row.
+      // TODO(https://github.com/apache/beam/issues/19845): figure out a way convert Document
+      // directly to Row.
       return input
           .apply("Convert Document to JSON", ParDo.of(new DocumentToJsonStringConverter()))
           .apply("Transform JSON to Row", JsonToRow.withSchema(schema))
@@ -349,7 +353,8 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
     @Override
     public PCollection<Document> expand(PCollection<Row> input) {
       return input
-          // TODO(BEAM-8498): figure out a way convert Row directly to Document.
+          // TODO(https://github.com/apache/beam/issues/19845): figure out a way convert Row
+          // directly to Document.
           .apply("Transform Rows to JSON", ToJson.of())
           .apply("Produce documents from JSON", MapElements.via(new ObjectToDocumentFn()));
     }

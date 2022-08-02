@@ -19,13 +19,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import logging
 import sys
 import typing
-from builtins import next
 
 from apache_beam.typehints import typehints
 
@@ -56,17 +53,6 @@ def _get_args(typ):
   except AttributeError:
     if isinstance(typ, typing.TypeVar):
       return (typ.__name__, )
-    # On Python versions < 3.5.3, the Tuple and Union type from typing do
-    # not have an __args__ attribute, but a __tuple_params__, and a
-    # __union_params__ argument respectively.
-    if (3, 0, 0) <= sys.version_info[0:3] < (3, 5, 3):
-      if getattr(typ, '__tuple_params__', None) is not None:
-        if typ.__tuple_use_ellipsis__:
-          return typ.__tuple_params__ + (Ellipsis, )
-        else:
-          return typ.__tuple_params__
-      elif getattr(typ, '__union_params__', None) is not None:
-        return typ.__union_params__
     return ()
 
 
@@ -118,10 +104,10 @@ def _match_is_exactly_iterable(user_type):
   return getattr(user_type, '__origin__', None) is expected_origin
 
 
-def _match_is_named_tuple(user_type):
+def match_is_named_tuple(user_type):
   return (
       _safe_issubclass(user_type, typing.Tuple) and
-      hasattr(user_type, '_field_types'))
+      hasattr(user_type, '__annotations__'))
 
 
 def _match_is_optional(user_type):
@@ -144,12 +130,6 @@ def _match_is_union(user_type):
   # For non-subscripted unions (Python 2.7.14+ with typing 3.64)
   if user_type is typing.Union:
     return True
-
-  try:  # Python 3.5.2
-    if isinstance(user_type, typing.UnionMeta):
-      return True
-  except AttributeError:
-    pass
 
   try:  # Python 3.5.4+, or Python 2.7.14+ with typing 3.64
     return user_type.__origin__ is typing.Union
@@ -209,7 +189,7 @@ def convert_to_beam_type(typ):
     return _type_var_cache[id(typ)]
   elif isinstance(typ, str):
     # Special case for forward references.
-    # TODO(BEAM-8487): Currently unhandled.
+    # TODO(https://github.com/apache/beam/issues/19954): Currently unhandled.
     _LOGGER.info('Converting string literal type hint to Any: "%s"', typ)
     return typehints.Any
   elif getattr(typ, '__module__', None) != 'typing':
@@ -217,9 +197,11 @@ def convert_to_beam_type(typ):
     return typ
 
   type_map = [
-      # TODO(BEAM-9355): Currently unsupported.
+      # TODO(https://github.com/apache/beam/issues/20076): Currently
+      # unsupported.
       _TypeMapEntry(match=is_new_type, arity=0, beam_type=typehints.Any),
-      # TODO(BEAM-8487): Currently unsupported.
+      # TODO(https://github.com/apache/beam/issues/19954): Currently
+      # unsupported.
       _TypeMapEntry(match=is_forward_ref, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(match=is_any, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
@@ -245,7 +227,7 @@ def convert_to_beam_type(typ):
       # We just convert it to Any for now.
       # This MUST appear before the entry for the normal Tuple.
       _TypeMapEntry(
-          match=_match_is_named_tuple, arity=0, beam_type=typehints.Any),
+          match=match_is_named_tuple, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
           match=_match_issubclass(typing.Tuple),
           arity=-1,
@@ -278,11 +260,11 @@ def convert_to_beam_type(typ):
     elif _match_is_union(typ):
       raise ValueError('Unsupported Union with no arguments.')
     elif _match_issubclass(typing.Generator)(typ):
-      raise ValueError('Unsupported Generator with no arguments.')
+      # Assume a simple generator.
+      args = (typehints.TypeVariable('T_co'), type(None), type(None))
     elif _match_issubclass(typing.Dict)(typ):
       args = (typehints.TypeVariable('KT'), typehints.TypeVariable('VT'))
     elif (_match_issubclass(typing.Iterator)(typ) or
-          _match_issubclass(typing.Generator)(typ) or
           _match_is_exactly_iterable(typ)):
       args = (typehints.TypeVariable('T_co'), )
     else:
@@ -338,13 +320,6 @@ def convert_to_typing_type(typ):
   Raises:
     ValueError: The type was malformed or could not be converted.
   """
-
-  from apache_beam.coders.coders import CoderElementType
-  if isinstance(typ, CoderElementType):
-    # This represents an element that holds a coder.
-    # No special handling is needed here.
-    return typ
-
   if isinstance(typ, typehints.TypeVariable):
     # This is a special case, as it's not parameterized by types.
     # Also, identity must be preserved through conversion (i.e. the same

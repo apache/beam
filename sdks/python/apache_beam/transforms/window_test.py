@@ -18,11 +18,7 @@
 """Unit tests for the windowing classes."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import unittest
-from builtins import range
 
 import apache_beam as beam
 from apache_beam.coders import coders
@@ -153,7 +149,7 @@ class WindowTest(unittest.TestCase):
 
       class TestMergeContext(WindowFn.MergeContext):
         def __init__(self):
-          super(TestMergeContext, self).__init__(running)
+          super().__init__(running)
 
         def merge(self, to_be_merged, merge_result):
           for w in to_be_merged:

@@ -19,9 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import itertools
 import logging
 import os
@@ -48,14 +45,14 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   the pipeline artifacts.
   """
   def __init__(self, rest_url, options):
-    super(SparkUberJarJobServer, self).__init__()
+    super().__init__()
     self._rest_url = rest_url
-    self._executable_jar = (
-        options.view_as(
-            pipeline_options.SparkRunnerOptions).spark_job_server_jar)
     self._artifact_port = (
         options.view_as(pipeline_options.JobServerOptions).artifact_port)
     self._temp_dir = tempfile.mkdtemp(prefix='apache-beam-spark')
+    spark_options = options.view_as(pipeline_options.SparkRunnerOptions)
+    self._executable_jar = spark_options.spark_job_server_jar
+    self._spark_version = spark_options.spark_version
 
   def start(self):
     return self
@@ -72,12 +69,17 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
               'Unable to parse jar URL "%s". If using a full URL, make sure '
               'the scheme is specified. If using a local file path, make sure '
               'the file exists; you may have to first build the job server '
-              'using `./gradlew runners:spark:job-server:shadowJar`.' %
+              'using `./gradlew runners:spark:2:job-server:shadowJar`.' %
               self._executable_jar)
       url = self._executable_jar
     else:
-      url = job_server.JavaJarJobServer.path_to_beam_jar(
-          'runners:spark:job-server:shadowJar')
+      if self._spark_version == '3':
+        url = job_server.JavaJarJobServer.path_to_beam_jar(
+            ':runners:spark:3:job-server:shadowJar')
+      else:
+        url = job_server.JavaJarJobServer.path_to_beam_jar(
+            ':runners:spark:2:job-server:shadowJar',
+            artifact_id='beam-runners-spark-job-server')
     return job_server.JavaJarJobServer.local_jar(url)
 
   def create_beam_job(self, job_id, job_name, pipeline, options):
@@ -106,7 +108,7 @@ class SparkBeamJob(abstract_job_service.UberJarBeamJob):
       pipeline,
       options,
       artifact_port=0):
-    super(SparkBeamJob, self).__init__(
+    super().__init__(
         executable_jar,
         job_id,
         job_name,
@@ -216,7 +218,7 @@ class SparkBeamJob(abstract_job_service.UberJarBeamJob):
     timestamp = self.set_state(state)
     if timestamp is None:
       # State has not changed since last check. Use previous timestamp.
-      return super(SparkBeamJob, self).get_state()
+      return super().get_state()
     else:
       return state, timestamp
 
@@ -246,8 +248,8 @@ class SparkBeamJob(abstract_job_service.UberJarBeamJob):
             message_text=response['message'])
         yield message
         message_ix += 1
-        # TODO(BEAM-8983) In the event of a failure, query
-        #  additional info from Spark master and/or workers.
+        # TODO(https://github.com/apache/beam/issues/20019) In the event of a
+        #  failure, query additional info from Spark master and/or workers.
       check_timestamp = self.set_state(state)
       if check_timestamp is not None:
         if message:

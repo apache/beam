@@ -52,7 +52,7 @@ public class TfIdfIT {
 
   @BeforeClass
   public static void setUp() {
-    PipelineOptionsFactory.register(TfIdfITOptions.class);
+    PipelineOptionsFactory.register(TestPipelineOptions.class);
   }
 
   @Test

@@ -23,8 +23,8 @@ import CommonJobProperties as commonJobProperties
 job('beam_PostRelease_NightlySnapshot') {
   description('Runs post release verification of the nightly snapshot.')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+  // Set common parameters. Timeout is longer, to avoid [BEAM-5774].
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 200)
 
   parameters {
     stringParam('snapshot_version',
@@ -38,7 +38,7 @@ job('beam_PostRelease_NightlySnapshot') {
   // This is a post-commit job that runs once per day, not for every push.
   commonJobProperties.setAutoJob(
       delegate,
-      '0 11 * * *')
+      '@daily')
 
 
   // Allows triggering this build against pull requests.

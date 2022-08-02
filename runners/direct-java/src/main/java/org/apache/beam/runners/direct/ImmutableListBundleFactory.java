@@ -33,6 +33,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** A factory that produces bundles that perform no additional validation. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class ImmutableListBundleFactory implements BundleFactory {
   private static final ImmutableListBundleFactory FACTORY = new ImmutableListBundleFactory();
 
@@ -152,12 +155,12 @@ class ImmutableListBundleFactory implements BundleFactory {
     }
 
     @Override
-    public int hashCode() {
+    public final int hashCode() {
       return System.identityHashCode(this);
     }
 
     @Override
-    public boolean equals(@Nullable Object obj) {
+    public final boolean equals(@Nullable Object obj) {
       return this == obj;
     }
   }

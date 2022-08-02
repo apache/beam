@@ -19,20 +19,17 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import csv
 import io
 import json
 import logging
 import os
-import sys
 import unittest
 import uuid
 import warnings
 
+import pytest
 from hamcrest.library.text import stringmatches
-from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.io import fileio
@@ -50,16 +47,15 @@ from apache_beam.testing.util import matches_all
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import IntervalWindow
+from apache_beam.utils.timestamp import Timestamp
 
 warnings.filterwarnings(
     'ignore', category=FutureWarning, module='apache_beam.io.fileio_test')
 
 
 def _get_file_reader(readable_file):
-  if sys.version_info >= (3, 0):
-    return io.TextIOWrapper(readable_file.open())
-  else:
-    return readable_file.open()
+  return io.TextIOWrapper(readable_file.open())
 
 
 class MatchTest(_TestCaseWithTempDirCleanUp):
@@ -106,7 +102,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
         '%s%s' % (self._new_tempdir(), os.sep)
     ]
 
-    files = list()
+    files = []
     files.append(self._create_temp_file(dir=directories[0]))
     files.append(self._create_temp_file(dir=directories[0]))
 
@@ -126,7 +122,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
         '%s%s' % (self._new_tempdir(), os.sep)
     ]
 
-    files = list()
+    files = []
     files.append(self._create_temp_file(dir=directories[0]))
     files.append(self._create_temp_file(dir=directories[0]))
 
@@ -295,7 +291,7 @@ class MatchIntegrationTest(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_transform_on_gcs(self):
     args = self.test_pipeline.get_full_options_as_args()
 
@@ -323,6 +319,106 @@ class MatchIntegrationTest(unittest.TestCase):
           checksum_pc,
           equal_to([self.KINGLEAR_CHECKSUM]),
           label='Assert Checksums')
+
+
+class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
+  def test_with_deduplication(self):
+    files = []
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+
+    # Create a file to be matched before pipeline
+    files.append(self._create_temp_file(dir=tempdir))
+    # Add file name that will be created mid-pipeline
+    files.append(FileSystems.join(tempdir, 'extra'))
+
+    interval = 0.2
+    start = Timestamp.now()
+    stop = start + interval + 0.1
+
+    def _create_extra_file(element):
+      writer = FileSystems.create(FileSystems.join(tempdir, 'extra'))
+      writer.close()
+      return element.path
+
+    with TestPipeline() as p:
+      match_continiously = (
+          p
+          | fileio.MatchContinuously(
+              file_pattern=FileSystems.join(tempdir, '*'),
+              interval=interval,
+              start_timestamp=start,
+              stop_timestamp=stop)
+          | beam.Map(_create_extra_file))
+
+      assert_that(match_continiously, equal_to(files))
+
+  def test_without_deduplication(self):
+    interval = 0.2
+    start = Timestamp.now()
+    stop = start + interval + 0.1
+
+    files = []
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+
+    # Create a file to be matched before pipeline starts
+    file = self._create_temp_file(dir=tempdir)
+    # Add file twice, since it will be matched for every interval
+    files += [file, file]
+    # Add file name that will be created mid-pipeline
+    files.append(FileSystems.join(tempdir, 'extra'))
+
+    def _create_extra_file(element):
+      writer = FileSystems.create(FileSystems.join(tempdir, 'extra'))
+      writer.close()
+      return element.path
+
+    with TestPipeline() as p:
+      match_continiously = (
+          p
+          | fileio.MatchContinuously(
+              file_pattern=FileSystems.join(tempdir, '*'),
+              interval=interval,
+              has_deduplication=False,
+              start_timestamp=start,
+              stop_timestamp=stop)
+          | beam.Map(_create_extra_file))
+
+      assert_that(match_continiously, equal_to(files))
+
+  def test_match_updated_files(self):
+    files = []
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+
+    def _create_extra_file(element):
+      writer = FileSystems.create(FileSystems.join(tempdir, 'extra'))
+      writer.close()
+      return element.path
+
+    # Create two files to be matched before pipeline
+    files.append(self._create_temp_file(dir=tempdir))
+    writer = FileSystems.create(FileSystems.join(tempdir, 'extra'))
+    writer.close()
+
+    # Add file name that will be created mid-pipeline
+    files.append(FileSystems.join(tempdir, 'extra'))
+    files.append(FileSystems.join(tempdir, 'extra'))
+
+    interval = 0.2
+    start = Timestamp.now()
+    stop = start + interval + 0.1
+
+    with TestPipeline() as p:
+      match_continiously = (
+          p
+          | fileio.MatchContinuously(
+              file_pattern=FileSystems.join(tempdir, '*'),
+              interval=interval,
+              start_timestamp=start,
+              stop_timestamp=stop,
+              match_updated_files=True)
+          | beam.Map(_create_extra_file))
+
+      assert_that(match_continiously, equal_to(files))
 
 
 class WriteFilesTest(_TestCaseWithTempDirCleanUp):
@@ -398,6 +494,42 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
 
       assert_that(result, equal_to([row for row in self.SIMPLE_COLLECTION]))
 
+  def test_write_to_dynamic_destination(self):
+
+    sink_params = [
+        fileio.TextSink, # pass a type signature
+        fileio.TextSink() # pass a FileSink object
+    ]
+
+    for sink in sink_params:
+      dir = self._new_tempdir()
+
+      with TestPipeline() as p:
+        _ = (
+            p
+            | "Create" >> beam.Create(range(100))
+            | beam.Map(lambda x: str(x))
+            | fileio.WriteToFiles(
+                path=dir,
+                destination=lambda n: "odd" if int(n) % 2 else "even",
+                sink=sink,
+                file_naming=fileio.destination_prefix_naming("test")))
+
+      with TestPipeline() as p:
+        result = (
+            p
+            | fileio.MatchFiles(FileSystems.join(dir, '*'))
+            | fileio.ReadMatches()
+            | beam.Map(
+                lambda f: (
+                    os.path.basename(f.metadata.path).split('-')[0],
+                    sorted(map(int, f.read_utf8().strip().split('\n'))))))
+
+        assert_that(
+            result,
+            equal_to([('odd', list(range(1, 100, 2))),
+                      ('even', list(range(0, 100, 2)))]))
+
   def test_write_to_different_file_types_some_spilling(self):
 
     dir = self._new_tempdir()
@@ -446,6 +578,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                     if row['foundation'] == 'apache']),
           label='verifyApache')
 
+  @unittest.skip('https://github.com/apache/beam/issues/21269')
   def test_find_orphaned_files(self):
     dir = self._new_tempdir()
 
@@ -541,8 +674,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
     # Use state on the TestCase class, since other references would be pickled
     # into a closure and not have the desired side effects.
     #
-    # TODO(BEAM-5295): Use assert_that after it works for the cases here in
-    # streaming mode.
+    # TODO(https://github.com/apache/beam/issues/18987): Use assert_that after
+    # it works for the cases here in streaming mode.
     WriteFilesTest.all_records = []
 
     dir = '%s%s' % (self._new_tempdir(), os.sep)
@@ -554,7 +687,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
 
       ts.add_elements([('key', '%s' % elm)])
       if timestamp % 5 == 0 and timestamp != 0:
-        # TODO(BEAM-3759): Add many firings per window after getting PaneInfo.
+        # TODO(https://github.com/apache/beam/issues/18721): Add many firings
+        # per window after getting PaneInfo.
         ts.advance_processing_time(5)
         ts.advance_watermark_to(timestamp)
     ts.advance_watermark_to_infinity()
@@ -662,13 +796,13 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
           cncf_files,
           matches_all([
               stringmatches.matches_regexp(
-                  '.*cncf-1970-01-01T00_00_00-1970-01-01T00_00_10--.*'),
+                  '.*cncf-1970-01-01T00_00_00-1970-01-01T00_00_10.*'),
               stringmatches.matches_regexp(
-                  '.*cncf-1970-01-01T00_00_10-1970-01-01T00_00_20--.*'),
+                  '.*cncf-1970-01-01T00_00_10-1970-01-01T00_00_20.*'),
               stringmatches.matches_regexp(
-                  '.*cncf-1970-01-01T00_00_20-1970-01-01T00_00_30--.*'),
+                  '.*cncf-1970-01-01T00_00_20-1970-01-01T00_00_30.*'),
               stringmatches.matches_regexp(
-                  '.*cncf-1970-01-01T00_00_30-1970-01-01T00_00_40--.*')
+                  '.*cncf-1970-01-01T00_00_30-1970-01-01T00_00_40.*')
           ]),
           label='verifyCNCFFiles')
 
@@ -676,15 +810,31 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
           apache_files,
           matches_all([
               stringmatches.matches_regexp(
-                  '.*apache-1970-01-01T00_00_00-1970-01-01T00_00_10--.*'),
+                  '.*apache-1970-01-01T00_00_00-1970-01-01T00_00_10.*'),
               stringmatches.matches_regexp(
-                  '.*apache-1970-01-01T00_00_10-1970-01-01T00_00_20--.*'),
+                  '.*apache-1970-01-01T00_00_10-1970-01-01T00_00_20.*'),
               stringmatches.matches_regexp(
-                  '.*apache-1970-01-01T00_00_20-1970-01-01T00_00_30--.*'),
+                  '.*apache-1970-01-01T00_00_20-1970-01-01T00_00_30.*'),
               stringmatches.matches_regexp(
-                  '.*apache-1970-01-01T00_00_30-1970-01-01T00_00_40--.*')
+                  '.*apache-1970-01-01T00_00_30-1970-01-01T00_00_40.*')
           ]),
           label='verifyApacheFiles')
+
+  def test_shard_naming(self):
+    namer = fileio.default_file_naming(prefix='/path/to/file', suffix='.txt')
+    self.assertEqual(
+        namer(GlobalWindow(), None, None, None, None, None),
+        '/path/to/file.txt')
+    self.assertEqual(
+        namer(GlobalWindow(), None, 1, 5, None, None),
+        '/path/to/file-00001-of-00005.txt')
+    self.assertEqual(
+        namer(GlobalWindow(), None, 1, 5, 'gz', None),
+        '/path/to/file-00001-of-00005.txt.gz')
+    self.assertEqual(
+        namer(IntervalWindow(0, 100), None, 1, 5, None, None),
+        '/path/to/file'
+        '-1970-01-01T00:00:00-1970-01-01T00:01:40-00001-of-00005.txt')
 
 
 if __name__ == '__main__':

@@ -28,9 +28,9 @@ The Apache Beam community is pleased to [announce the availability of version 2.
 <!--more-->
 
 This first stable release is the third important milestone for the Apache Beam community. Beam joined the Apache Incubator in February 2016 and graduated as a top-level project of The Apache Software Foundation in December. Through these fifteen months of concentrated effort, a slightly chaotic codebase, merged from multiple organizations, has been developed into a generalized framework for data processing that is truly engine- and environment-independent. Apache Beam has evolved and improved through three incubating and three post-incubation releases, culminating in the stable release announced today as version 2.0.0.
- 
+
 In the five months since graduation, Apache Beam has seen a significant growth, both in terms of adoption and community contribution. Apache Beam is [in use](https://blogs.apache.org/foundation/entry/the-apache-software-foundation-announces12) at Google Cloud, PayPal, and Talend, among others.
- 
+
 Apache Beam, version 2.0.0 improves user experience across the project, focusing on seamless portability across execution environments, including engines, operating systems, on-premise clusters, cloud providers, and data storage systems. Other highlights include:
 
 * API stability and future compatibility within this major version.
@@ -118,5 +118,5 @@ Many contributors made this release possible, by participating in different role
 * Aviem Zur
 
 Apache Beam, version 2.0.0, is making its debut at Apache: Big Data, taking place this week in Miami, FL, with four sessions featuring Apache Beam. Apache Beam will also be highlighted at numerous face-to-face meetups and conferences, including the Future of Data San Jose meetup, Strata Data Conference London, Berlin Buzzwords, and DataWorks Summit San Jose.
- 
+
 We’d like to invite everyone to try out Apache Beam today and consider joining our vibrant community. We welcome feedback, contribution and participation through our mailing lists, issue tracker, pull requests, and events.

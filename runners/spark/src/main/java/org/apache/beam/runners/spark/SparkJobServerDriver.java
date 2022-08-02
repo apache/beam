@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.spark;
 
-import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.jobsubmission.JobServerDriver;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -62,7 +62,7 @@ public class SparkJobServerDriver extends JobServerDriver {
     System.err.println();
   }
 
-  private static SparkJobServerDriver fromParams(String[] args) {
+  public static SparkJobServerDriver fromParams(String[] args) {
     SparkServerConfiguration configuration = new SparkServerConfiguration();
     CmdLineParser parser = new CmdLineParser(configuration);
     try {
@@ -76,7 +76,7 @@ public class SparkJobServerDriver extends JobServerDriver {
     return fromConfig(configuration);
   }
 
-  private static SparkJobServerDriver fromConfig(SparkServerConfiguration configuration) {
+  public static SparkJobServerDriver fromConfig(SparkServerConfiguration configuration) {
     return create(
         configuration,
         createJobServerFactory(configuration),

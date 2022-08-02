@@ -17,13 +17,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import typing
 import unittest
+from typing import Callable
+from typing import Union
 
-from past.builtins import unicode
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam import coders
@@ -44,6 +44,7 @@ except ImportError:
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from testcontainers.postgres import PostgresContainer
+  from testcontainers.mysql import MySqlContainer
 except ImportError:
   PostgresContainer = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -63,7 +64,7 @@ JdbcWriteTestRow = typing.NamedTuple(
     [
         ("f_id", int),
         ("f_real", float),
-        ("f_string", unicode),
+        ("f_string", str),
     ],
 )
 coders.registry.register_coder(JdbcWriteTestRow, coders.RowCoder)
@@ -77,27 +78,57 @@ coders.registry.register_coder(JdbcWriteTestRow, coders.RowCoder)
     None,
     'Do not run this test on precommit suites.')
 class CrossLanguageJdbcIOTest(unittest.TestCase):
-  def setUp(self):
-    self.postgres = PostgresContainer('postgres:latest')
-    self.postgres.start()
-    self.engine = sqlalchemy.create_engine(self.postgres.get_connection_url())
+  DbData = typing.NamedTuple(
+      'DbData',
+      [('container_fn', typing.Any), ('classpath', typing.List[str]),
+       ('db_string', str), ('connector', str)])
+  DB_CONTAINER_CLASSPATH_STRING = {
+      'postgres': DbData(
+          lambda: PostgresContainer('postgres:12.3'),
+          None,
+          'postgresql',
+          'org.postgresql.Driver'),
+      'mysql': DbData(
+          lambda: MySqlContainer(), ['mysql:mysql-connector-java:8.0.28'],
+          'mysql',
+          'com.mysql.cj.jdbc.Driver')
+  }
+
+  def _setUpTestCase(
+      self,
+      container_init: Callable[[], Union[PostgresContainer, MySqlContainer]],
+      db_string: str,
+      driver: str):
+    # This method is not the normal setUp from unittest, because the test has
+    # beem parameterized. The setup then needs extra parameters to initialize.
+    self.start_db_container(retries=3, container_init=container_init)
+    self.engine = sqlalchemy.create_engine(self.db.get_connection_url())
     self.username = 'test'
     self.password = 'test'
-    self.host = self.postgres.get_container_host_ip()
-    self.port = self.postgres.get_exposed_port(5432)
+    self.host = self.db.get_container_host_ip()
+    self.port = self.db.get_exposed_port(self.db.port_to_expose)
     self.database_name = 'test'
-    self.driver_class_name = 'org.postgresql.Driver'
-    self.jdbc_url = 'jdbc:postgresql://{}:{}/{}'.format(
-        self.host, self.port, self.database_name)
+    self.driver_class_name = driver
+    self.jdbc_url = 'jdbc:{}://{}:{}/{}'.format(
+        db_string, self.host, self.port, self.database_name)
 
   def tearDown(self):
-    self.postgres.stop()
+    # Sometimes stopping the container raises ReadTimeout. We can ignore it
+    # here to avoid the test failure.
+    try:
+      self.db.stop()
+    except:  # pylint: disable=bare-except
+      logging.error('Could not stop the postgreSQL container.')
 
-  def test_xlang_jdbc_write(self):
+  @parameterized.expand(['postgres', 'mysql'])
+  def test_xlang_jdbc_write(self, database):
+    container_init, classpath, db_string, driver = (
+        CrossLanguageJdbcIOTest.DB_CONTAINER_CLASSPATH_STRING[database])
+    self._setUpTestCase(container_init, db_string, driver)
     table_name = 'jdbc_external_test_write'
     self.engine.execute(
-        "CREATE TABLE {}(f_id INTEGER, f_real REAL, f_string VARCHAR)".format(
-            table_name))
+        "CREATE TABLE {}(f_id INTEGER, f_real FLOAT, f_string VARCHAR(100))".
+        format(table_name))
     inserted_rows = [
         JdbcWriteTestRow(i, i + 0.1, 'Test{}'.format(i))
         for i in range(ROW_COUNT)
@@ -108,12 +139,15 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       _ = (
           p
           | beam.Create(inserted_rows).with_output_types(JdbcWriteTestRow)
+          # TODO(https://github.com/apache/beam/issues/20446) Add test with
+          # overridden write_statement
           | 'Write to jdbc' >> WriteToJdbc(
+              table_name=table_name,
               driver_class_name=self.driver_class_name,
               jdbc_url=self.jdbc_url,
               username=self.username,
               password=self.password,
-              statement='INSERT INTO {} VALUES(?, ?, ?)'.format(table_name),
+              classpath=classpath,
           ))
 
     fetched_data = self.engine.execute("SELECT * FROM {}".format(table_name))
@@ -128,7 +162,11 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
         'Inserted data does not fit data fetched from table',
     )
 
-  def test_xlang_jdbc_read(self):
+  @parameterized.expand(['postgres', 'mysql'])
+  def test_xlang_jdbc_read(self, database):
+    container_init, classpath, db_string, driver = (
+        CrossLanguageJdbcIOTest.DB_CONTAINER_CLASSPATH_STRING[database])
+    self._setUpTestCase(container_init, db_string, driver)
     table_name = 'jdbc_external_test_read'
     self.engine.execute("CREATE TABLE {}(f_int INTEGER)".format(table_name))
 
@@ -139,16 +177,31 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       p.not_use_test_runner_api = True
       result = (
           p
+          # TODO(https://github.com/apache/beam/issues/20446) Add test with
+          # overridden read_query
           | 'Read from jdbc' >> ReadFromJdbc(
+              table_name=table_name,
               driver_class_name=self.driver_class_name,
               jdbc_url=self.jdbc_url,
               username=self.username,
               password=self.password,
-              query='SELECT f_int FROM {}'.format(table_name),
-          ))
+              classpath=classpath))
 
       assert_that(
           result, equal_to([JdbcReadTestRow(i) for i in range(ROW_COUNT)]))
+
+  # Creating a container with testcontainers sometimes raises ReadTimeout
+  # error. In java there are 2 retries set by default.
+  def start_db_container(self, retries, container_init):
+    for i in range(retries):
+      try:
+        self.db = container_init()
+        self.db.start()
+        break
+      except Exception as e:  # pylint: disable=bare-except
+        if i == retries - 1:
+          logging.error('Unable to initialize database container.')
+          raise e
 
 
 if __name__ == '__main__':

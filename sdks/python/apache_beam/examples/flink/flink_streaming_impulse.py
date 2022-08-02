@@ -22,16 +22,14 @@ This can only be used with the Flink portable runner.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import sys
 
 import apache_beam as beam
-import apache_beam.transforms.window as window
 from apache_beam.io.flink.flink_streaming_impulse_source import FlinkStreamingImpulseSource
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.transforms import window
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterProcessingTime
 from apache_beam.transforms.trigger import Repeatedly

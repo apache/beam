@@ -62,8 +62,8 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
     delegateCoder =
         DelegateCoder.of(
             StringUtf8Coder.of(),
-            Object::toString,
-            input -> clazz.getConstructor(String.class).newInstance(input),
+            obj -> String.valueOf(obj),
+            serialized -> clazz.getConstructor(String.class).newInstance(serialized),
             typeDescriptor);
 
     this.clazz = clazz;

@@ -18,10 +18,11 @@
 package org.apache.beam.fn.harness.logging;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Collection;
@@ -29,32 +30,37 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Timestamp;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.MDC;
 
 /** Tests for {@link BeamFnLoggingClient}. */
 @RunWith(JUnit4.class)
 public class BeamFnLoggingClientTest {
-
+  @Rule public TestRule restoreLogging = new RestoreBeamFnLoggingMDC();
   private static final LogRecord FILTERED_RECORD;
   private static final LogRecord TEST_RECORD;
   private static final LogRecord TEST_RECORD_WITH_EXCEPTION;
@@ -76,14 +82,25 @@ public class BeamFnLoggingClientTest {
 
   private static final BeamFnApi.LogEntry TEST_ENTRY =
       BeamFnApi.LogEntry.newBuilder()
+          .setInstructionId("instruction-1")
           .setSeverity(BeamFnApi.LogEntry.Severity.Enum.DEBUG)
           .setMessage("Message")
           .setThread("12345")
           .setTimestamp(Timestamp.newBuilder().setSeconds(1234567).setNanos(890000000).build())
           .setLogLocation("LoggerName")
           .build();
+  private static final BeamFnApi.LogEntry TEST_ENTRY_WITH_CUSTOM_FORMATTER =
+      BeamFnApi.LogEntry.newBuilder()
+          .setInstructionId("instruction-1")
+          .setSeverity(BeamFnApi.LogEntry.Severity.Enum.DEBUG)
+          .setMessage("testMdcValue:Message")
+          .setThread("12345")
+          .setTimestamp(Timestamp.newBuilder().setSeconds(1234567).setNanos(890000000).build())
+          .setLogLocation("LoggerName")
+          .build();
   private static final BeamFnApi.LogEntry TEST_ENTRY_WITH_EXCEPTION =
       BeamFnApi.LogEntry.newBuilder()
+          .setInstructionId("instruction-1")
           .setSeverity(BeamFnApi.LogEntry.Severity.Enum.WARN)
           .setMessage("MessageWithException")
           .setTrace(getStackTraceAsString(TEST_RECORD_WITH_EXCEPTION.getThrown()))
@@ -95,6 +112,7 @@ public class BeamFnLoggingClientTest {
 
   @Test
   public void testLogging() throws Exception {
+    BeamFnLoggingMDC.setInstructionId("instruction-1");
     AtomicBoolean clientClosedStream = new AtomicBoolean();
     Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
@@ -143,24 +161,45 @@ public class BeamFnLoggingClientTest {
               apiServiceDescriptor,
               (Endpoints.ApiServiceDescriptor descriptor) -> channel);
 
+      // Keep a strong reference to the loggers in this block. Otherwise the call to client.close()
+      // removes the only reference and the logger may get GC'd before the assertions (BEAM-4136).
+      Logger rootLogger = LogManager.getLogManager().getLogger("");
+      Logger configuredLogger = LogManager.getLogManager().getLogger("ConfiguredLogger");
+
       // Ensure that log levels were correctly set.
-      assertEquals(Level.OFF, LogManager.getLogManager().getLogger("").getLevel());
-      assertEquals(Level.FINE, LogManager.getLogManager().getLogger("ConfiguredLogger").getLevel());
+      assertEquals(Level.OFF, rootLogger.getLevel());
+      assertEquals(Level.FINE, configuredLogger.getLevel());
 
       // Should be filtered because the default log level override is OFF
-      LogManager.getLogManager().getLogger("").log(FILTERED_RECORD);
+      rootLogger.log(FILTERED_RECORD);
       // Should not be filtered because the default log level override for ConfiguredLogger is DEBUG
-      LogManager.getLogManager().getLogger("ConfiguredLogger").log(TEST_RECORD);
-      LogManager.getLogManager().getLogger("ConfiguredLogger").log(TEST_RECORD_WITH_EXCEPTION);
+      configuredLogger.log(TEST_RECORD);
+      configuredLogger.log(TEST_RECORD_WITH_EXCEPTION);
+
+      // Ensure that configuring a custom formatter on the logging handler will be honored.
+      for (Handler handler : rootLogger.getHandlers()) {
+        handler.setFormatter(
+            new SimpleFormatter() {
+              @Override
+              public synchronized String formatMessage(LogRecord record) {
+                return MDC.get("testMdcKey") + ":" + super.formatMessage(record);
+              }
+            });
+      }
+      MDC.put("testMdcKey", "testMdcValue");
+      configuredLogger.log(TEST_RECORD);
+
       client.close();
 
       // Verify that after close, log levels are reset.
-      assertEquals(Level.INFO, LogManager.getLogManager().getLogger("").getLevel());
-      assertNull(LogManager.getLogManager().getLogger("ConfiguredLogger").getLevel());
+      assertEquals(Level.INFO, rootLogger.getLevel());
+      assertNull(configuredLogger.getLevel());
 
       assertTrue(clientClosedStream.get());
       assertTrue(channel.isShutdown());
-      assertThat(values, contains(TEST_ENTRY, TEST_ENTRY_WITH_EXCEPTION));
+      assertThat(
+          values,
+          contains(TEST_ENTRY, TEST_ENTRY_WITH_EXCEPTION, TEST_ENTRY_WITH_CUSTOM_FORMATTER));
     } finally {
       server.shutdownNow();
     }
@@ -168,6 +207,7 @@ public class BeamFnLoggingClientTest {
 
   @Test
   public void testWhenServerFailsThatClientIsAbleToCleanup() throws Exception {
+    BeamFnLoggingMDC.setInstructionId("instruction-1");
     Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
         new AtomicReference<>();
@@ -198,6 +238,12 @@ public class BeamFnLoggingClientTest {
     server.start();
 
     ManagedChannel channel = InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+
+    // Keep a strong reference to the loggers. Otherwise the call to client.close()
+    // removes the only reference and the logger may get GC'd before the assertions (BEAM-4136).
+    Logger rootLogger = null;
+    Logger configuredLogger = null;
+
     try {
       BeamFnLoggingClient client =
           new BeamFnLoggingClient(
@@ -210,12 +256,18 @@ public class BeamFnLoggingClientTest {
               apiServiceDescriptor,
               (Endpoints.ApiServiceDescriptor descriptor) -> channel);
 
+      rootLogger = LogManager.getLogManager().getLogger("");
+      configuredLogger = LogManager.getLogManager().getLogger("ConfiguredLogger");
+
       thrown.expectMessage("TEST ERROR");
       client.close();
     } finally {
+      assertNotNull("rootLogger should be initialized before exception", rootLogger);
+      assertNotNull("configuredLogger should be initialized before exception", rootLogger);
+
       // Verify that after close, log levels are reset.
-      assertEquals(Level.INFO, LogManager.getLogManager().getLogger("").getLevel());
-      assertNull(LogManager.getLogManager().getLogger("ConfiguredLogger").getLevel());
+      assertEquals(Level.INFO, rootLogger.getLevel());
+      assertNull(configuredLogger.getLevel());
 
       assertTrue(channel.isShutdown());
 
@@ -225,6 +277,7 @@ public class BeamFnLoggingClientTest {
 
   @Test
   public void testWhenServerHangsUpEarlyThatClientIsAbleCleanup() throws Exception {
+    BeamFnLoggingMDC.setInstructionId("instruction-1");
     Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
         new AtomicReference<>();
@@ -266,12 +319,17 @@ public class BeamFnLoggingClientTest {
               apiServiceDescriptor,
               (Endpoints.ApiServiceDescriptor descriptor) -> channel);
 
-      client.close();
-    } finally {
-      // Verify that after close, log levels are reset.
-      assertEquals(Level.INFO, LogManager.getLogManager().getLogger("").getLevel());
-      assertNull(LogManager.getLogManager().getLogger("ConfiguredLogger").getLevel());
+      // Keep a strong reference to the loggers in this block. Otherwise the call to client.close()
+      // removes the only reference and the logger may get GC'd before the assertions (BEAM-4136).
+      Logger rootLogger = LogManager.getLogManager().getLogger("");
+      Logger configuredLogger = LogManager.getLogManager().getLogger("ConfiguredLogger");
 
+      client.close();
+
+      // Verify that after close, log levels are reset.
+      assertEquals(Level.INFO, rootLogger.getLevel());
+      assertNull(configuredLogger.getLevel());
+    } finally {
       assertTrue(channel.isShutdown());
 
       server.shutdownNow();

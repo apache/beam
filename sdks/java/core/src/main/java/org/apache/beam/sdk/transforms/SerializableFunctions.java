@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Useful {@link SerializableFunction} overrides. */
 public class SerializableFunctions {
@@ -36,9 +35,9 @@ public class SerializableFunctions {
   }
 
   private static class Constant<InT, OutT> implements SerializableFunction<InT, OutT> {
-    @Nullable OutT value;
+    OutT value;
 
-    Constant(@Nullable OutT value) {
+    Constant(OutT value) {
       this.value = value;
     }
 
@@ -52,7 +51,7 @@ public class SerializableFunctions {
     return new Identity<>();
   }
 
-  public static <InT, OutT> SerializableFunction<InT, OutT> constant(@Nullable OutT value) {
+  public static <InT, OutT> SerializableFunction<InT, OutT> constant(OutT value) {
     return new Constant<>(value);
   }
 }

@@ -24,7 +24,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEve
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -49,6 +48,10 @@ import org.joda.time.Duration;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AssignEventTime<InputT> extends Operator<InputT>
     implements CompositeOperator<InputT, InputT> {
 
@@ -103,10 +106,7 @@ public class AssignEventTime<InputT> extends Operator<InputT>
     Builders.Output<InputT> using(ExtractEventTime<InputT> fn, Duration allowedTimestampSkew);
   }
 
-  /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output(OutputHint...)}.
-   */
+  /** Last builder in a chain. It concludes this operators creation by calling {@link #output()}. */
   public static class Builder<InputT>
       implements OfBuilder, UsingBuilder<InputT>, Builders.Output<InputT> {
 
@@ -141,7 +141,7 @@ public class AssignEventTime<InputT> extends Operator<InputT>
     }
 
     @Override
-    public PCollection<InputT> output(OutputHint... outputHints) {
+    public PCollection<InputT> output() {
       return OperatorTransform.apply(
           new AssignEventTime<>(
               name, eventTimeExtractor, allowedTimestampSkew, input.getTypeDescriptor()),

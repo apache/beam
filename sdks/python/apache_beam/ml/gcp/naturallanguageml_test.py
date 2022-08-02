@@ -18,8 +18,6 @@
 
 """Unit tests for Google Cloud Natural Language API transform."""
 
-from __future__ import absolute_import
-
 import unittest
 
 import mock

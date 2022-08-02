@@ -50,6 +50,9 @@ import scala.Tuple2;
  * SparkPipelineOptions#getMinReadTimeMillis()}. Records bound is controlled by the {@link
  * RateController} mechanism.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends InputDStream<Tuple2<Source<T>, CheckpointMarkT>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceDStream.class);
@@ -174,8 +177,8 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   private Duration boundReadDuration(double readTimePercentage, long minReadTimeMillis) {
     long batchDurationMillis = ssc().graph().batchDuration().milliseconds();
     Duration proportionalDuration =
-        new Duration(Math.round(batchDurationMillis * readTimePercentage));
-    Duration lowerBoundDuration = new Duration(minReadTimeMillis);
+        Duration.millis(Math.round(batchDurationMillis * readTimePercentage));
+    Duration lowerBoundDuration = Duration.millis(minReadTimeMillis);
     Duration readDuration =
         proportionalDuration.isLongerThan(lowerBoundDuration)
             ? proportionalDuration

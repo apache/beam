@@ -22,7 +22,8 @@ job('beam_Dependency_Check') {
   description('Runs Beam dependency check.')
 
   // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+  commonJobProperties.setTopLevelMainJobProperties(
+      delegate, 'master', 100, true, 'beam', false)
 
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
@@ -32,10 +33,9 @@ job('beam_Dependency_Check') {
       false
       )
 
-  // This is a job that runs weekly.
   commonJobProperties.setAutoJob(
       delegate,
-      '0 12 * * 1')
+      '@weekly')
 
   steps {
     gradle {
@@ -46,13 +46,8 @@ job('beam_Dependency_Check') {
     }
 
     shell('cd ' + commonJobProperties.checkoutDir +
-        ' && bash .test-infra/jenkins/dependency_check/generate_report.sh')
-  }
-
-  wrappers{
-    credentialsBinding {
-      usernamePassword('BEAM_JIRA_BOT_USERNAME', 'BEAM_JIRA_BOT_PASSWORD', 'beam-jira-bot')
-    }
+        ' && bash .test-infra/jenkins/dependency_check/generate_report.sh ' +
+        commonJobProperties.PYTHON)
   }
 
   def date = new Date().format('yyyy-MM-dd')
@@ -70,6 +65,9 @@ job('beam_Dependency_Check') {
     archiveArtifacts {
       pattern('src/build/dependencyUpdates/beam-dependency-check-report.html')
       onlyIfSuccessful()
+    }
+    wsCleanup {
+      excludePattern('src/build/dependencyUpdates/beam-dependency-check-report.html')
     }
   }
 }

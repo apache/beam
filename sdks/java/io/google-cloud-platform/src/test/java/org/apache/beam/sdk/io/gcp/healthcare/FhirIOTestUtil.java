@@ -21,9 +21,13 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.services.healthcare.v1.model.HttpBody;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -43,9 +47,8 @@ import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareH
 class FhirIOTestUtil {
   public static final String DEFAULT_TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
 
-  private static Stream<String> readPrettyBundles(String version) {
-    ClassLoader classLoader = FhirIOTestUtil.class.getClassLoader();
-    Path resourceDir = Paths.get("build", "resources", "test", version);
+  private static Stream<String> readPrettyBundles(String resourcesPath) {
+    Path resourceDir = Paths.get("build", "resources", "test", resourcesPath);
     String absolutePath = resourceDir.toFile().getAbsolutePath();
     File dir = new File(absolutePath);
     File[] fhirJsons = dir.listFiles();
@@ -70,6 +73,8 @@ class FhirIOTestUtil {
       readPrettyBundles("STU3").collect(Collectors.toList());
   static final List<String> R4_PRETTY_BUNDLES =
       readPrettyBundles("R4").collect(Collectors.toList());
+  static final List<String> BUNDLE_PARSE_TEST_PRETTY_BUNDLES =
+      readPrettyBundles("BUNDLE_PARSE_TEST").collect(Collectors.toList());
 
   static final Map<String, List<String>> BUNDLES;
 
@@ -78,19 +83,35 @@ class FhirIOTestUtil {
     m.put("DSTU2", DSTU2_PRETTY_BUNDLES);
     m.put("STU3", STU3_PRETTY_BUNDLES);
     m.put("R4", R4_PRETTY_BUNDLES);
+    m.put("BUNDLE_PARSE_TEST", BUNDLE_PARSE_TEST_PRETTY_BUNDLES);
     BUNDLES = Collections.unmodifiableMap(m);
   }
 
   /** Populate the test resources into the FHIR store and returns a list of resource IDs. */
-  static void executeFhirBundles(HealthcareApiClient client, String fhirStore, List<String> bundles)
+  static List<String> executeFhirBundles(
+      HealthcareApiClient client, String fhirStore, List<String> bundles)
       throws IOException, HealthcareHttpException {
+    List<String> resourceNames = new ArrayList<>();
     for (String bundle : bundles) {
-      client.executeFhirBundle(fhirStore, bundle);
+      HttpBody resp = client.executeFhirBundle(fhirStore, bundle);
+
+      JsonObject jsonResponse = JsonParser.parseString(resp.toString()).getAsJsonObject();
+      for (JsonElement entry : jsonResponse.getAsJsonArray("entry")) {
+        String location =
+            entry
+                .getAsJsonObject()
+                .getAsJsonObject("response")
+                .getAsJsonPrimitive("location")
+                .getAsString();
+        String resourceName =
+            location.substring(location.indexOf("project"), location.indexOf("/_history"));
+        resourceNames.add(resourceName);
+      }
     }
+    return resourceNames;
   }
 
   public static void tearDownTempBucket() throws IOException {
-
     GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
     HttpRequestInitializer requestInitializer =
         request -> {

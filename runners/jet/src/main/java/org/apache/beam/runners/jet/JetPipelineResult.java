@@ -38,9 +38,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Jet specific implementation of {@link PipelineResult}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class JetPipelineResult implements PipelineResult {
 
-  private static final Logger LOG = LoggerFactory.getLogger(JetRunner.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JetPipelineResult.class);
 
   private final Job job;
   private final JetMetricResults metricResults;
@@ -90,6 +93,7 @@ public class JetPipelineResult implements PipelineResult {
   }
 
   @Override
+  @SuppressWarnings("EmptyCatch")
   public State cancel() throws IOException {
     if (terminalState != null) {
       throw new IllegalStateException("Job already completed");
@@ -122,7 +126,7 @@ public class JetPipelineResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish() {
-    return waitUntilFinish(new Duration(Long.MAX_VALUE));
+    return waitUntilFinish(Duration.millis(Long.MAX_VALUE));
   }
 
   @Override

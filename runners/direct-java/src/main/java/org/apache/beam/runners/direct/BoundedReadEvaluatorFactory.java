@@ -27,10 +27,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.construction.ReadTranslation;
-import org.apache.beam.runners.direct.StepTransformResult.Builder;
+import org.apache.beam.runners.core.construction.SplittableParDo.PrimitiveBoundedRead;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
-import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -49,8 +48,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link TransformEvaluatorFactory} that produces {@link TransformEvaluator TransformEvaluators}
- * for the {@link Bounded Read.Bounded} primitive {@link PTransform}.
+ * for the {@link PrimitiveBoundedRead SplittableParDo.PrimitiveBoundedRead} {@link PTransform}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   /**
    * The required minimum size of a source to dynamically split. Produced {@link TransformEvaluator
@@ -62,7 +65,8 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
   private final PipelineOptions options;
 
-  // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the DirectRunner.
+  // TODO: (https://github.com/apache/beam/issues/18079) Create a shared ExecutorService for
+  // maintenance tasks in the DirectRunner.
   @VisibleForTesting
   final ExecutorService executor =
       Executors.newCachedThreadPool(
@@ -118,7 +122,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     private final PCollection<OutputT> outputPCollection;
     private final EvaluationContext evaluationContext;
     private final PipelineOptions options;
-    private Builder resultBuilder;
+    private StepTransformResult.Builder resultBuilder;
 
     private final long minimumDynamicSplitSize;
     private final ExecutorService produceSplitExecutor;

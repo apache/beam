@@ -25,6 +25,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Describes a customer. */
 @DefaultSchema(JavaBeanSchema.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Customer implements Serializable {
   private int id;
   private String name;

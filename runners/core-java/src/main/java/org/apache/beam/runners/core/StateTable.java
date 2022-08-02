@@ -35,6 +35,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * information carried by the {@link StateTag} is used to configure an empty state cell if it is not
  * yet initialized.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class StateTable {
 
   private final Table<StateNamespace, Equivalence.Wrapper<StateTag>, State> stateTable =

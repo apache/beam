@@ -25,22 +25,23 @@ import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardDisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Utilities for going to/from DisplayData protos. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DisplayDataTranslation {
-  public static final String LABELLED_STRING = "beam:display_data:labelled_string:v1";
+  public static final String LABELLED = "beam:display_data:labelled:v1";
 
   static {
-    checkState(
-        LABELLED_STRING.equals(BeamUrns.getUrn(StandardDisplayData.DisplayData.LABELLED_STRING)));
+    checkState(LABELLED.equals(BeamUrns.getUrn(StandardDisplayData.DisplayData.LABELLED)));
   }
 
   private static final Map<String, Function<DisplayData.Item, ByteString>>
-      WELL_KNOWN_URN_TRANSLATORS =
-          ImmutableMap.of(LABELLED_STRING, DisplayDataTranslation::translateStringUtf8);
+      WELL_KNOWN_URN_TRANSLATORS = ImmutableMap.of(LABELLED, DisplayDataTranslation::translate);
 
   public static List<RunnerApi.DisplayData> toProto(DisplayData displayData) {
     ImmutableList.Builder<RunnerApi.DisplayData> builder = ImmutableList.builder();
@@ -51,8 +52,8 @@ public class DisplayDataTranslation {
       if (translator != null) {
         urn = item.getKey();
       } else {
-        urn = LABELLED_STRING;
-        translator = DisplayDataTranslation::translateStringUtf8;
+        urn = LABELLED;
+        translator = DisplayDataTranslation::translate;
       }
       builder.add(
           RunnerApi.DisplayData.newBuilder()
@@ -63,13 +64,24 @@ public class DisplayDataTranslation {
     return builder.build();
   }
 
-  private static ByteString translateStringUtf8(DisplayData.Item item) {
-    String value = String.valueOf(item.getValue() == null ? item.getShortValue() : item.getValue());
+  private static ByteString translate(DisplayData.Item item) {
     String label = item.getLabel() == null ? item.getKey() : item.getLabel();
-    return RunnerApi.LabelledStringPayload.newBuilder()
-        .setLabel(label)
-        .setValue(value)
-        .build()
-        .toByteString();
+    String namespace = item.getNamespace() == null ? "" : item.getNamespace().getName();
+    RunnerApi.LabelledPayload.Builder builder =
+        RunnerApi.LabelledPayload.newBuilder()
+            .setKey(item.getKey())
+            .setLabel(label)
+            .setNamespace(namespace);
+    Object valueObj = item.getValue() == null ? item.getShortValue() : item.getValue();
+    if (valueObj instanceof Boolean) {
+      builder.setBoolValue((Boolean) valueObj);
+    } else if (valueObj instanceof Integer || valueObj instanceof Long) {
+      builder.setIntValue((Long) valueObj);
+    } else if (valueObj instanceof Number) {
+      builder.setDoubleValue(((Number) valueObj).doubleValue());
+    } else {
+      builder.setStringValue(String.valueOf(valueObj));
+    }
+    return builder.build().toByteString();
   }
 }

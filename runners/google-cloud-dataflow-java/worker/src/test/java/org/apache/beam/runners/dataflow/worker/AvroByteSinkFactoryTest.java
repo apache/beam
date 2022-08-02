@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
@@ -60,7 +61,7 @@ public class AvroByteSinkFactoryTest {
         WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE);
     Sink<?> sink = runTestCreateAvroSink(pathToAvroFile, coder);
 
-    Assert.assertThat(sink, new IsInstanceOf(AvroByteSink.class));
+    assertThat(sink, new IsInstanceOf(AvroByteSink.class));
     AvroByteSink<?> avroSink = (AvroByteSink<?>) sink;
     Assert.assertEquals(pathToAvroFile, avroSink.resourceId.toString());
     Assert.assertEquals(coder, avroSink.coder);

@@ -22,23 +22,23 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import math
 import random
-from builtins import hex
-from builtins import object
+import sys
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Optional
 
+from apache_beam.typehints import TypeCheckError
+from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.utils import counters
+from apache_beam.utils import windowed_value
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 
 if TYPE_CHECKING:
-  from apache_beam.utils import windowed_value
   from apache_beam.runners.worker.statesampler import StateSampler
+  from apache_beam.typehints.batch import BatchConverter
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -99,7 +99,7 @@ class TransformIOCounter(object):
 class NoOpTransformIOCounter(TransformIOCounter):
   """All operations for IO tracking are no-ops."""
   def __init__(self):
-    super(NoOpTransformIOCounter, self).__init__(None, None)
+    super().__init__(None, None)
 
   def update_current_step(self):
     pass
@@ -149,7 +149,7 @@ class SideInputReadCounter(TransformIOCounter):
     side input, and input_index is the index of the PCollectionView within
     the list of inputs.
     """
-    super(SideInputReadCounter, self).__init__(counter_factory, state_sampler)
+    super().__init__(counter_factory, state_sampler)
     self.declaring_step = declaring_step
     self.input_index = input_index
 
@@ -189,7 +189,10 @@ class OperationCounters(object):
       step_name,  # type: str
       coder,
       index,
-      suffix='out'):
+      suffix='out',
+      producer_type_hints=None,
+      producer_batch_converter=None, # type: Optional[BatchConverter]
+  ):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(
         '%s-%s%s-ElementCount' % (step_name, suffix, index), Counter.SUM)
@@ -201,6 +204,8 @@ class OperationCounters(object):
     self.current_size = None  # type: Optional[int]
     self._sample_counter = 0
     self._next_sample = 0
+    self.output_type_constraints = producer_type_hints or {}
+    self.producer_batch_converter = producer_batch_converter
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
@@ -208,6 +213,19 @@ class OperationCounters(object):
     """Add one value to this counter."""
     if self._should_sample():
       self.do_sample(windowed_value)
+
+  def update_from_batch(self, windowed_batch):
+    # type: (windowed_value.WindowedBatch) -> None
+    assert self.producer_batch_converter is not None
+    assert isinstance(windowed_batch, windowed_value.HomogeneousWindowedBatch)
+
+    batch_length = self.producer_batch_converter.get_length(
+        windowed_batch.values)
+    self.element_counter.update(batch_length)
+
+    mean_element_size = self.producer_batch_converter.estimate_byte_size(
+        windowed_batch.values) / batch_length
+    self.mean_byte_counter.update_n(mean_element_size, batch_length)
 
   def _observable_callback(self, inner_coder_impl, accumulator):
     def _observable_callback_inner(value, is_encoded=False):
@@ -224,8 +242,27 @@ class OperationCounters(object):
 
     return _observable_callback_inner
 
+  def type_check(self, value):
+    # type: (Any, bool) -> None
+    for transform_label, type_constraint_tuple in (
+            self.output_type_constraints.items()):
+      parameter_name, constraint = type_constraint_tuple
+      try:
+        _check_instance_type(constraint, value, parameter_name, verbose=True)
+      except TypeCheckError as e:
+        # TODO: Remove the 'ParDo' prefix for the label name (BEAM-10710)
+        if not transform_label.startswith('ParDo'):
+          transform_label = 'ParDo(%s)' % transform_label
+        error_msg = (
+            'Runtime type violation detected within %s: '
+            '%s' % (transform_label, e))
+        _, _, traceback = sys.exc_info()
+        raise TypeCheckError(error_msg).with_traceback(traceback)
+
   def do_sample(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
+    self.type_check(windowed_value.value)
+
     size, observables = (
         self.coder_impl.get_estimated_size_and_observables(windowed_value))
     if not observables:

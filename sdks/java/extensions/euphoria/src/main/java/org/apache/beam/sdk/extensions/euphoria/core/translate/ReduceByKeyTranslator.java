@@ -50,6 +50,10 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Translator for {@code ReduceByKey} operator. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
     implements OperatorTranslator<
         InputT, KV<KeyT, OutputT>, ReduceByKey<InputT, KeyT, ValueT, ?, OutputT>> {

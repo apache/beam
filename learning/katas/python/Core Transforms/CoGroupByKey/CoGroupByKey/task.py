@@ -14,6 +14,15 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: CoGroupByKey
+#   description: Task from katas to implement a CoGroupByKey transform that join words by its first
+#     alphabetical letter, and then produces the string representation of the WordsAlphabet model.
+#   multifile: false
+#   context_line: 31
+#   categories:
+#     - Combiners
+
 import apache_beam as beam
 
 from log_elements import LogElements
@@ -46,12 +55,11 @@ def apply_transforms(fruits, countries):
             | beam.Map(cogbk_result_to_wordsalphabet))
 
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-fruits = p | 'Fruits' >> beam.Create(['apple', 'banana', 'cherry'])
-countries = p | 'Countries' >> beam.Create(['australia', 'brazil', 'canada'])
+  fruits = p | 'Fruits' >> beam.Create(['apple', 'banana', 'cherry'])
+  countries = p | 'Countries' >> beam.Create(['australia', 'brazil', 'canada'])
 
-(apply_transforms(fruits, countries)
- | LogElements())
+  (apply_transforms(fruits, countries)
+   | LogElements())
 
-p.run()

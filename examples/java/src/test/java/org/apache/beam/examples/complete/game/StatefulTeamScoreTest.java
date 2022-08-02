@@ -159,7 +159,6 @@ public class StatefulTeamScoreTest {
             .apply(ParDo.of(new UpdateTeamScoreFn(100)));
 
     String redTeam = TestUser.RED_ONE.getTeam();
-    String blueTeam = TestUser.BLUE_ONE.getTeam();
 
     IntervalWindow window1 = new IntervalWindow(baseTime, teamWindowDuration);
     IntervalWindow window2 = new IntervalWindow(window1.end(), teamWindowDuration);

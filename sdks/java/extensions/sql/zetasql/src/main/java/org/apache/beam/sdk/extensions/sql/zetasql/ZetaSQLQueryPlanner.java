@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.LanguageOptions;
 import com.google.zetasql.Value;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
@@ -28,38 +29,60 @@ import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionConfig;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitDef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.prepare.CalciteCatalogReader;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelRoot;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinCommuteRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperatorTable;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParser;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserImplFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.util.ChainedSqlOperatorTable;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSets;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUncollectRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
+import org.apache.beam.sdk.extensions.sql.zetasql.unnest.BeamZetaSqlUncollectRule;
+import org.apache.beam.sdk.extensions.sql.zetasql.unnest.BeamZetaSqlUnnestRule;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.config.CalciteConnectionConfig;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptUtil;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitDef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.prepare.CalciteCatalogReader;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelRoot;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.FilterCalcMergeRule;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.JoinCommuteRule;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.ProjectCalcMergeRule;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperatorTable;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParser;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserImplFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.util.SqlOperatorTables;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.FrameworkConfig;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** ZetaSQLQueryPlanner. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ZetaSQLQueryPlanner implements QueryPlanner {
+  public static final Collection<RelOptRule> DEFAULT_CALC =
+      ImmutableList.<RelOptRule>builder()
+          .add(BeamZetaSqlCalcSplittingRule.INSTANCE, BeamZetaSqlCalcMergeRule.INSTANCE)
+          .build();
+
+  private static final Logger LOG = LoggerFactory.getLogger(ZetaSQLQueryPlanner.class);
+
   private final ZetaSQLPlannerImpl plannerImpl;
 
   public ZetaSQLQueryPlanner(FrameworkConfig config) {
@@ -70,9 +93,10 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
    * Called by {@link org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv}.instantiatePlanner()
    * reflectively.
    */
-  public ZetaSQLQueryPlanner(JdbcConnection jdbcConnection, RuleSet[] ruleSets) {
+  public ZetaSQLQueryPlanner(JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
     plannerImpl =
-        new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, modifyRuleSetsForZetaSql(ruleSets)));
+        new ZetaSQLPlannerImpl(
+            defaultConfig(jdbcConnection, modifyRuleSetsForZetaSql(ruleSets, DEFAULT_CALC)));
     setDefaultTimezone(
         jdbcConnection
             .getPipelineOptions()
@@ -80,28 +104,55 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
             .getZetaSqlDefaultTimezone());
   }
 
-  public static RuleSet[] getZetaSqlRuleSets() {
-    return modifyRuleSetsForZetaSql(BeamRuleSets.getRuleSets());
+  public static final Factory FACTORY =
+      new Factory() {
+        @Override
+        public QueryPlanner createPlanner(
+            JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
+          return new ZetaSQLQueryPlanner(jdbcConnection, ruleSets);
+        }
+      };
+
+  public static Collection<RuleSet> getZetaSqlRuleSets() {
+    return modifyRuleSetsForZetaSql(BeamRuleSets.getRuleSets(), DEFAULT_CALC);
   }
 
-  private static RuleSet[] modifyRuleSetsForZetaSql(RuleSet[] ruleSets) {
-    RuleSet[] ret = new RuleSet[ruleSets.length];
-    for (int i = 0; i < ruleSets.length; i++) {
+  public static Collection<RuleSet> getZetaSqlRuleSets(Collection<RelOptRule> calc) {
+    return modifyRuleSetsForZetaSql(BeamRuleSets.getRuleSets(), calc);
+  }
+
+  private static Collection<RuleSet> modifyRuleSetsForZetaSql(
+      Collection<RuleSet> ruleSets, Collection<RelOptRule> calc) {
+    ImmutableList.Builder<RuleSet> ret = ImmutableList.builder();
+    for (RuleSet ruleSet : ruleSets) {
       ImmutableList.Builder<RelOptRule> bd = ImmutableList.builder();
-      for (RelOptRule rule : ruleSets[i]) {
-        // TODO[BEAM-9075]: Fix join re-ordering for ZetaSQL planner. Currently join re-ordering
+      for (RelOptRule rule : ruleSet) {
+        // TODO[https://github.com/apache/beam/issues/20077]: Fix join re-ordering for ZetaSQL
+        // planner. Currently join re-ordering
         //  requires the JoinCommuteRule, which doesn't work without struct flattening.
         if (rule instanceof JoinCommuteRule) {
           continue;
+        } else if (rule instanceof FilterCalcMergeRule || rule instanceof ProjectCalcMergeRule) {
+          // In order to support Java UDF, we need both BeamZetaSqlCalcRel and BeamCalcRel. It is
+          // because BeamZetaSqlCalcRel can execute ZetaSQL built-in functions while BeamCalcRel
+          // can execute UDFs. So during planning, we expect both Filter and Project are converted
+          // to Calc nodes before merging with other Project/Filter/Calc nodes. Thus we should not
+          // add FilterCalcMergeRule and ProjectCalcMergeRule. CalcMergeRule will achieve equivalent
+          // planning result eventually.
+          continue;
         } else if (rule instanceof BeamCalcRule) {
-          bd.add(BeamZetaSqlCalcRule.INSTANCE);
+          bd.addAll(calc);
+        } else if (rule instanceof BeamUnnestRule) {
+          bd.add(BeamZetaSqlUnnestRule.INSTANCE);
+        } else if (rule instanceof BeamUncollectRule) {
+          bd.add(BeamZetaSqlUncollectRule.INSTANCE);
         } else {
           bd.add(rule);
         }
       }
-      ret[i] = RuleSets.ofList(bd.build());
+      ret.add(RuleSets.ofList(bd.build()));
     }
-    return ret;
+    return ret.build();
   }
 
   public String getDefaultTimezone() {
@@ -157,17 +208,27 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
         .getCluster()
         .setMetadataProvider(
             ChainedRelMetadataProvider.of(
-                org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList.of(
+                org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList.of(
                     NonCumulativeCostImpl.SOURCE,
                     RelMdNodeStats.SOURCE,
                     root.rel.getCluster().getMetadataProvider())));
+
+    root.rel.getCluster().setMetadataQuerySupplier(BeamRelMetadataQuery::instance);
+
     RelMetadataQuery.THREAD_PROVIDERS.set(
         JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
     root.rel.getCluster().invalidateMetadataQuery();
-    return (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
+    try {
+      BeamRelNode beamRelNode = (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
+      LOG.info("BEAMPlan>\n" + RelOptUtil.toString(beamRelNode));
+      return beamRelNode;
+    } catch (RelOptPlanner.CannotPlanException e) {
+      throw new SqlConversionException("Failed to produce plan for query " + sql, e);
+    }
   }
 
-  private static FrameworkConfig defaultConfig(JdbcConnection connection, RuleSet[] ruleSets) {
+  private static FrameworkConfig defaultConfig(
+      JdbcConnection connection, Collection<RuleSet> ruleSets) {
     final CalciteConnectionConfig config = connection.config();
     final SqlParser.ConfigBuilder parserConfig =
         SqlParser.configBuilder()
@@ -200,10 +261,10 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
         .parserConfig(parserConfig.build())
         .defaultSchema(defaultSchema)
         .traitDefs(traitDefs)
-        .ruleSets(ruleSets)
+        .ruleSets(ruleSets.toArray(new RuleSet[0]))
         .costFactory(BeamCostModel.FACTORY)
         .typeSystem(connection.getTypeFactory().getTypeSystem())
-        .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))
+        .operatorTable(SqlOperatorTables.chain(opTab0, catalogReader))
         .build();
   }
 }

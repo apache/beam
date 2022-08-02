@@ -22,9 +22,10 @@ import (
 	"reflect"
 
 	// Library imports
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
@@ -67,7 +68,9 @@ func init() {
 	runtime.RegisterFunction(sumUint8Fn)
 	runtime.RegisterFunction(sumUintFn)
 	runtime.RegisterType(reflect.TypeOf((*meanAccum)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*meanAccum)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*meanFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*meanFn)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*meanFn)(nil)).Elem(), wrapMakerMeanFn)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(float32, float32) float32)(nil)).Elem(), funcMakerFloat32Float32ГFloat32)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(float64, float64) float64)(nil)).Elem(), funcMakerFloat64Float64ГFloat64)

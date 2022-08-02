@@ -27,9 +27,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.fn.grpc.BeamFnService;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
-import org.apache.beam.runners.fnexecution.HeaderAccessor;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.sdk.fn.server.HeaderAccessor;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +41,9 @@ import org.slf4j.LoggerFactory;
  * them to the provided {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry} {@link
  * Consumer}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class BeamFnLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBase
     implements BeamFnService {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnLoggingService.class);
@@ -133,7 +136,7 @@ public class BeamFnLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBas
 
     @Override
     public void onError(Throwable t) {
-      LOG.warn("Logging client failed unexpectedly. ClientId: {}", t, sdkWorkerId);
+      LOG.warn("Logging client failed unexpectedly. ClientId: {}", sdkWorkerId, t);
       // We remove these from the connected clients map to prevent a race between
       // the close method and this InboundObserver calling a terminal method on the
       // StreamObserver. If we removed it, then we are responsible for the terminal call.

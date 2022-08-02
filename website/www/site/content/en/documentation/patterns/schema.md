@@ -17,7 +17,7 @@ limitations under the License.
 
 # Schema Patterns
 
-The samples on this page describe common patterns using Schemas. 
+The samples on this page describe common patterns using Schemas.
 Schemas provide us a type-system for Beam records that is independent of any specific programming-language type. There might be multiple Java classes that all have the same schema (for example a Protocol-Buffer class or a POJO class), and Beam will allow us to seamlessly convert between these types.
 Schemas also provide a simple way to reason about types across different programming-language APIs.
 For more information, see the [programming guide section on Schemas](/documentation/programming-guide/#what-is-a-schema).
@@ -26,7 +26,7 @@ For more information, see the [programming guide section on Schemas](/documentat
 
 ## Using Joins
 
-Beam supports equijoins on schema `PCollections` of Schemas where the join condition depends on the equality of a subset of fields. 
+Beam supports equijoins on schema `PCollections` of Schemas where the join condition depends on the equality of a subset of fields.
 
 Consider using [`Join`](https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/schemas/transforms/Join.html) if you have multiple collections that provide information about related things, and their structure is known.
 
@@ -36,14 +36,14 @@ After the join, we have one collection that contains all the information (email 
 
 The following conceptual example uses two input collections to show the mechanism of [`Join`](https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/schemas/transforms/Join.html).
 
-First, we define Schemas and User data. 
+First, we define Schemas and User data.
 
 {{< highlight java >}}
 {{< code_sample "examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" SchemaJoinPatternCreate >}}
 {{< /highlight >}}
 
 
-Then we create the `Pcollections` for user data and perform join on the two `PCollections` using a [`Join`](https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/schemas/transforms/Join.html). 
+Then we create the `Pcollections` for user data and perform join on the two `PCollections` using a [`Join`](https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/schemas/transforms/Join.html).
 
 {{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SchemaJoinPatternJoin >}}

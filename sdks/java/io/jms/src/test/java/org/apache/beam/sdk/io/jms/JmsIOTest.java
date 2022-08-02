@@ -17,14 +17,20 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import static org.apache.beam.sdk.io.UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -34,6 +40,7 @@ import java.util.function.Function;
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
+import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
@@ -57,6 +64,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.junit.After;
@@ -68,6 +76,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests of {@link JmsIO}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class JmsIOTest {
 
   private static final String BROKER_URL = "vm://localhost";
@@ -228,8 +239,9 @@ public class JmsIOTest {
     pipeline
         .apply(Create.of(data))
         .apply(
-            JmsIO.write()
+            JmsIO.<String>write()
                 .withConnectionFactory(connectionFactory)
+                .withValueMapper(new TextMessageMapper())
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD));
@@ -242,6 +254,87 @@ public class JmsIOTest {
     MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
     int count = 0;
     while (consumer.receive(1000) != null) {
+      count++;
+    }
+    assertEquals(100, count);
+  }
+
+  @Test
+  public void testWriteMessageWithError() throws Exception {
+    ArrayList<String> data = new ArrayList<>();
+    for (int i = 0; i < 100; i++) {
+      data.add("Message " + i);
+    }
+
+    WriteJmsResult<String> output =
+        pipeline
+            .apply(Create.of(data))
+            .apply(
+                JmsIO.<String>write()
+                    .withConnectionFactory(connectionFactory)
+                    .withValueMapper(new TextMessageMapperWithError())
+                    .withQueue(QUEUE)
+                    .withUsername(USERNAME)
+                    .withPassword(PASSWORD));
+
+    PAssert.that(output.getFailedMessages()).containsInAnyOrder("Message 1", "Message 2");
+
+    pipeline.run();
+
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
+    int count = 0;
+    while (consumer.receive(1000) != null) {
+      count++;
+    }
+    assertEquals(98, count);
+  }
+
+  @Test
+  public void testWriteDynamicMessage() throws Exception {
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumerOne = session.createConsumer(session.createTopic("Topic_One"));
+    MessageConsumer consumerTwo = session.createConsumer(session.createTopic("Topic_Two"));
+    ArrayList<TestEvent> data = new ArrayList<>();
+    for (int i = 0; i < 50; i++) {
+      data.add(new TestEvent("Topic_One", "Message One " + i));
+    }
+    for (int i = 0; i < 100; i++) {
+      data.add(new TestEvent("Topic_Two", "Message Two " + i));
+    }
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            JmsIO.<TestEvent>write()
+                .withConnectionFactory(connectionFactory)
+                .withUsername(USERNAME)
+                .withPassword(PASSWORD)
+                .withTopicNameMapper(e -> e.getTopicName())
+                .withValueMapper(
+                    (e, s) -> {
+                      try {
+                        TextMessage msg = s.createTextMessage();
+                        msg.setText(e.getValue());
+                        return msg;
+                      } catch (JMSException ex) {
+                        throw new JmsIOException("Error writing TextMessage", ex);
+                      }
+                    }));
+
+    pipeline.run();
+
+    int count = 0;
+    while (consumerOne.receive(1000) != null) {
+      count++;
+    }
+    assertEquals(50, count);
+
+    count = 0;
+    while (consumerTwo.receive(1000) != null) {
       count++;
     }
     assertEquals(100, count);
@@ -418,6 +511,50 @@ public class JmsIOTest {
     CoderProperties.coderDecodeEncodeEqual(coder, jmsCheckpointMark);
   }
 
+  @Test
+  public void testDefaultAutoscaler() throws IOException {
+    JmsIO.Read spec =
+        JmsIO.read()
+            .withConnectionFactory(connectionFactory)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
+            .withQueue(QUEUE);
+    JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
+    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+
+    // start the reader and check getSplitBacklogBytes and getTotalBacklogBytes values
+    reader.start();
+    assertEquals(BACKLOG_UNKNOWN, reader.getSplitBacklogBytes());
+    assertEquals(BACKLOG_UNKNOWN, reader.getTotalBacklogBytes());
+    reader.close();
+  }
+
+  @Test
+  public void testCustomAutoscaler() throws IOException {
+    long excpectedTotalBacklogBytes = 1111L;
+
+    AutoScaler autoScaler = mock(DefaultAutoscaler.class);
+    when(autoScaler.getTotalBacklogBytes()).thenReturn(excpectedTotalBacklogBytes);
+    JmsIO.Read spec =
+        JmsIO.read()
+            .withConnectionFactory(connectionFactory)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
+            .withQueue(QUEUE)
+            .withAutoScaler(autoScaler);
+
+    JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
+    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+
+    // start the reader and check getSplitBacklogBytes and getTotalBacklogBytes values
+    reader.start();
+    verify(autoScaler, times(1)).start();
+    assertEquals(excpectedTotalBacklogBytes, reader.getTotalBacklogBytes());
+    verify(autoScaler, times(1)).getTotalBacklogBytes();
+    reader.close();
+    verify(autoScaler, times(1)).stop();
+  }
+
   private int count(String queue) throws Exception {
     Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
     connection.start();
@@ -502,5 +639,40 @@ public class JmsIOTest {
               }
               return result;
             });
+  }
+
+  private static class TestEvent implements Serializable {
+    private final String topicName;
+    private final String value;
+
+    private TestEvent(String topicName, String value) {
+      this.topicName = topicName;
+      this.value = value;
+    }
+
+    private String getTopicName() {
+      return this.topicName;
+    }
+
+    private String getValue() {
+      return this.value;
+    }
+  }
+
+  private static class TextMessageMapperWithError
+      implements SerializableBiFunction<String, Session, Message> {
+    @Override
+    public Message apply(String value, Session session) {
+      try {
+        if (value.equals("Message 1") || value.equals("Message 2")) {
+          throw new JMSException("Error!!");
+        }
+        TextMessage msg = session.createTextMessage();
+        msg.setText(value);
+        return msg;
+      } catch (JMSException e) {
+        throw new JmsIOException("Error creating TextMessage", e);
+      }
+    }
   }
 }

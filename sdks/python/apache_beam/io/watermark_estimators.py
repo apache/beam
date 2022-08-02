@@ -20,8 +20,6 @@ can use."""
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from apache_beam.io.iobase import WatermarkEstimator
 from apache_beam.transforms.core import WatermarkEstimatorProvider
 from apache_beam.utils.timestamp import Timestamp
@@ -42,8 +40,8 @@ class MonotonicWatermarkEstimator(WatermarkEstimator):
     if self._watermark is None:
       self._watermark = timestamp
     else:
-      # TODO(BEAM-9312): Consider making it configurable to deal with late
-      # timestamp.
+      # TODO(https://github.com/apache/beam/issues/20041): Consider making it
+      # configurable to deal with late timestamp.
       if timestamp < self._watermark:
         raise ValueError(
             'A MonotonicWatermarkEstimator expects output '

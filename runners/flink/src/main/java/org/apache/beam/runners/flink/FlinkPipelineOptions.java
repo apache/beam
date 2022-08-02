@@ -17,11 +17,12 @@
  */
 package org.apache.beam.runners.flink;
 
-import java.util.List;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 
 /**
@@ -31,30 +32,16 @@ import org.apache.beam.sdk.options.StreamingOptions;
  * requiring flink on the classpath (e.g. to use with the direct runner).
  */
 public interface FlinkPipelineOptions
-    extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
+    extends PipelineOptions, ApplicationNameOptions, StreamingOptions, FileStagingOptions {
 
   String AUTO = "[auto]";
   String PIPELINED = "PIPELINED";
   String EXACTLY_ONCE = "EXACTLY_ONCE";
 
   /**
-   * List of local files to make available to workers.
-   *
-   * <p>Jars are placed on the worker's classpath.
-   *
-   * <p>The default value is the list of jars from the main program's classpath.
-   */
-  @Description(
-      "Jar-Files to send to all workers and put on the classpath. "
-          + "The default value is all files from the classpath.")
-  List<String> getFilesToStage();
-
-  void setFilesToStage(List<String> value);
-
-  /**
-   * The url of the Flink JobManager on which to execute pipelines. This can either be the the
-   * address of a cluster JobManager, in the form "host:port" or one of the special Strings
-   * "[local]", "[collection]" or "[auto]". "[local]" will start a local Flink Cluster in the JVM,
+   * The url of the Flink JobManager on which to execute pipelines. This can either be the address
+   * of a cluster JobManager, in the form "host:port" or one of the special Strings "[local]",
+   * "[collection]" or "[auto]". "[local]" will start a local Flink Cluster in the JVM,
    * "[collection]" will execute the pipeline on Java Collections while "[auto]" will let the system
    * decide where to execute the pipeline based on the environment.
    */
@@ -120,7 +107,7 @@ public interface FlinkPipelineOptions
   @Description(
       "Sets the expected behaviour for tasks in case that they encounter an error in their "
           + "checkpointing procedure. If this is set to true, the task will fail on checkpointing error. "
-          + "If this is set to false, the task will only decline a the checkpoint and continue running. ")
+          + "If this is set to false, the task will only decline the checkpoint and continue running. ")
   @Default.Boolean(true)
   Boolean getFailOnCheckpointingErrors();
 
@@ -172,13 +159,29 @@ public interface FlinkPipelineOptions
   /**
    * State backend to store Beam's state during computation. Note: Only applicable when executing in
    * streaming mode.
+   *
+   * @deprecated Please use setStateBackend below.
    */
+  @Deprecated
   @Description(
       "Sets the state backend factory to use in streaming mode. "
           + "Defaults to the flink cluster's state.backend configuration.")
   Class<? extends FlinkStateBackendFactory> getStateBackendFactory();
 
+  /** @deprecated Please use setStateBackend below. */
+  @Deprecated
   void setStateBackendFactory(Class<? extends FlinkStateBackendFactory> stateBackendFactory);
+
+  void setStateBackend(String stateBackend);
+
+  @Description("State backend to store Beam's state. Use 'rocksdb' or 'filesystem'.")
+  String getStateBackend();
+
+  void setStateBackendStoragePath(String path);
+
+  @Description(
+      "State backend path to persist state backend data. Used to initialize state backend.")
+  String getStateBackendStoragePath();
 
   @Description("Disable Beam metrics in Flink Runner")
   @Default.Boolean(false)
@@ -274,4 +277,23 @@ public interface FlinkPipelineOptions
   Boolean getReIterableGroupByKeyResult();
 
   void setReIterableGroupByKeyResult(Boolean reIterableGroupByKeyResult);
+
+  @Description(
+      "Remove unneeded deep copy between operators. See https://issues.apache.org/jira/browse/BEAM-11146")
+  @Default.Boolean(false)
+  Boolean getFasterCopy();
+
+  void setFasterCopy(Boolean fasterCopy);
+
+  @Description(
+      "Directory containing Flink YAML configuration files. "
+          + "These properties will be set to all jobs submitted to Flink and take precedence "
+          + "over configurations in FLINK_CONF_DIR.")
+  String getFlinkConfDir();
+
+  void setFlinkConfDir(String confDir);
+
+  static FlinkPipelineOptions defaults() {
+    return PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+  }
 }

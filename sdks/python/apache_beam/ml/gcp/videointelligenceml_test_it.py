@@ -19,13 +19,10 @@
 """An integration test that labels entities appearing in a video and checks
 if some expected entities were properly recognized."""
 
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import unittest
 
 import hamcrest as hc
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -48,7 +45,7 @@ def extract_entities_descriptions(response):
       yield segment.entity.description
 
 
-@attr('IT')
+@pytest.mark.it_postcommit
 @unittest.skipIf(
     AnnotateVideoWithContext is None, 'GCP dependencies are not installed')
 class VideoIntelligenceMlTestIT(unittest.TestCase):

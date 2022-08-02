@@ -20,8 +20,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 
@@ -81,40 +79,55 @@ class S3FileSystemTest(unittest.TestCase):
       self.fs.split('/no/s3/prefix')
 
   @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
+  def test_match_single(self, unused_mock_arg):
+    # Prepare mocks.
+    s3io_mock = mock.MagicMock()
+    s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
+    s3io_mock._status.return_value = {'size': 1, 'last_updated': 9999999.0}
+    expected_results = [FileMetadata('s3://bucket/file1', 1, 9999999.0)]
+    match_result = self.fs.match(['s3://bucket/file1'])[0]
+
+    self.assertEqual(match_result.metadata_list, expected_results)
+    s3io_mock._status.assert_called_once_with('s3://bucket/file1')
+
+  @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
   def test_match_multiples(self, unused_mock_arg):
     # Prepare mocks.
     s3io_mock = mock.MagicMock()
-    s3filesystem.s3io.S3IO = lambda: s3io_mock  # type: ignore[misc]
+    s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
     s3io_mock.list_prefix.return_value = {
-        's3://bucket/file1': 1, 's3://bucket/file2': 2
+        's3://bucket/file1': (1, 9999999.0),
+        's3://bucket/file2': (2, 8888888.0)
     }
     expected_results = set([
-        FileMetadata('s3://bucket/file1', 1),
-        FileMetadata('s3://bucket/file2', 2)
+        FileMetadata('s3://bucket/file1', 1, 9999999.0),
+        FileMetadata('s3://bucket/file2', 2, 8888888.0)
     ])
     match_result = self.fs.match(['s3://bucket/'])[0]
 
     self.assertEqual(set(match_result.metadata_list), expected_results)
-    s3io_mock.list_prefix.assert_called_once_with('s3://bucket/')
+    s3io_mock.list_prefix.assert_called_once_with(
+        's3://bucket/', with_metadata=True)
 
   @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
   def test_match_multiples_limit(self, unused_mock_arg):
     # Prepare mocks.
     s3io_mock = mock.MagicMock()
     limit = 1
-    s3filesystem.s3io.S3IO = lambda: s3io_mock  # type: ignore[misc]
-    s3io_mock.list_prefix.return_value = {'s3://bucket/file1': 1}
-    expected_results = set([FileMetadata('s3://bucket/file1', 1)])
+    s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
+    s3io_mock.list_prefix.return_value = {'s3://bucket/file1': (1, 99999.0)}
+    expected_results = set([FileMetadata('s3://bucket/file1', 1, 99999.0)])
     match_result = self.fs.match(['s3://bucket/'], [limit])[0]
     self.assertEqual(set(match_result.metadata_list), expected_results)
     self.assertEqual(len(match_result.metadata_list), limit)
-    s3io_mock.list_prefix.assert_called_once_with('s3://bucket/')
+    s3io_mock.list_prefix.assert_called_once_with(
+        's3://bucket/', with_metadata=True)
 
   @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
   def test_match_multiples_error(self, unused_mock_arg):
     # Prepare mocks.
     s3io_mock = mock.MagicMock()
-    s3filesystem.s3io.S3IO = lambda: s3io_mock  # type: ignore[misc]
+    s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
     exception = IOError('Failed')
     s3io_mock.list_prefix.side_effect = exception
 
@@ -122,23 +135,24 @@ class S3FileSystemTest(unittest.TestCase):
       self.fs.match(['s3://bucket/'])
 
     self.assertIn('Match operation failed', str(error.exception))
-    s3io_mock.list_prefix.assert_called_once_with('s3://bucket/')
+    s3io_mock.list_prefix.assert_called_once_with(
+        's3://bucket/', with_metadata=True)
 
   @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
   def test_match_multiple_patterns(self, unused_mock_arg):
     # Prepare mocks.
     s3io_mock = mock.MagicMock()
-    s3filesystem.s3io.S3IO = lambda: s3io_mock  # type: ignore[misc]
+    s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
     s3io_mock.list_prefix.side_effect = [
         {
-            's3://bucket/file1': 1
+            's3://bucket/file1': (1, 99999.0)
         },
         {
-            's3://bucket/file2': 2
+            's3://bucket/file2': (2, 88888.0)
         },
     ]
-    expected_results = [[FileMetadata('s3://bucket/file1', 1)],
-                        [FileMetadata('s3://bucket/file2', 2)]]
+    expected_results = [[FileMetadata('s3://bucket/file1', 1, 99999.0)],
+                        [FileMetadata('s3://bucket/file2', 2, 88888.0)]]
     result = self.fs.match(['s3://bucket/file1*', 's3://bucket/file2*'])
     self.assertEqual([mr.metadata_list for mr in result], expected_results)
 
@@ -146,7 +160,7 @@ class S3FileSystemTest(unittest.TestCase):
   def test_create(self, unused_mock_arg):
     # Prepare mocks.
     s3io_mock = mock.MagicMock()
-    s3filesystem.s3io.S3IO = lambda: s3io_mock  # type: ignore[misc]
+    s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
     # Issue file copy
     _ = self.fs.create('s3://bucket/from1', 'application/octet-stream')
 
@@ -157,7 +171,7 @@ class S3FileSystemTest(unittest.TestCase):
   def test_open(self, unused_mock_arg):
     # Prepare mocks.
     s3io_mock = mock.MagicMock()
-    s3filesystem.s3io.S3IO = lambda: s3io_mock  # type: ignore[misc]
+    s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
     # Issue file copy
     _ = self.fs.open('s3://bucket/from1', 'application/octet-stream')
 
@@ -168,7 +182,7 @@ class S3FileSystemTest(unittest.TestCase):
   def test_copy_file(self, unused_mock_arg):
     # Prepare mocks.
     s3io_mock = mock.MagicMock()
-    s3filesystem.s3io.S3IO = lambda: s3io_mock  # type: ignore[misc]
+    s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
 
     sources = ['s3://bucket/from1', 's3://bucket/from2']
     destinations = ['s3://bucket/to1', 's3://bucket/to2']
@@ -183,7 +197,7 @@ class S3FileSystemTest(unittest.TestCase):
   def test_copy_file_error(self, unused_mock_arg):
     # Prepare mocks.
     s3io_mock = mock.MagicMock()
-    s3filesystem.s3io.S3IO = lambda: s3io_mock  # type: ignore[misc]
+    s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
 
     sources = ['s3://bucket/from1', 's3://bucket/from2', 's3://bucket/from3']
     destinations = ['s3://bucket/to1', 's3://bucket/to2']
@@ -196,7 +210,7 @@ class S3FileSystemTest(unittest.TestCase):
   def test_delete(self, unused_mock_arg):
     # Prepare mocks.
     s3io_mock = mock.MagicMock()
-    s3filesystem.s3io.S3IO = lambda: s3io_mock  # type: ignore[misc]
+    s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
     s3io_mock.size.return_value = 0
     files = [
         's3://bucket/from1',
@@ -212,7 +226,7 @@ class S3FileSystemTest(unittest.TestCase):
   def test_delete_error(self, unused_mock_arg):
     # Prepare mocks.
     s3io_mock = mock.MagicMock()
-    s3filesystem.s3io.S3IO = lambda: s3io_mock  # type: ignore[misc]
+    s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
 
     problematic_directory = 's3://nonexistent-bucket/tree/'
     exception = messages.S3ClientError('Not found', 404)
@@ -242,7 +256,7 @@ class S3FileSystemTest(unittest.TestCase):
   def test_rename(self, unused_mock_arg):
     # Prepare mocks.
     s3io_mock = mock.MagicMock()
-    s3filesystem.s3io.S3IO = lambda: s3io_mock  # type: ignore[misc]
+    s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
 
     sources = ['s3://bucket/from1', 's3://bucket/from2']
     destinations = ['s3://bucket/to1', 's3://bucket/to2']

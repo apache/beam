@@ -17,15 +17,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import collections
 import os
-import sys
 import tempfile
-import urllib
+from urllib.parse import quote
+from urllib.parse import unquote_to_bytes
 
 import apache_beam as beam
 from apache_beam import coders
@@ -33,13 +29,6 @@ from apache_beam.io import filesystems
 from apache_beam.io import textio
 from apache_beam.io import tfrecordio
 from apache_beam.transforms import combiners
-
-if sys.version_info[0] > 2:
-  unquote_to_bytes = urllib.parse.unquote_to_bytes
-  quote = urllib.parse.quote
-else:
-  unquote_to_bytes = urllib.unquote  # pylint: disable=deprecated-urllib-function
-  quote = urllib.quote  # pylint: disable=deprecated-urllib-function
 
 
 class CacheManager(object):
@@ -67,13 +56,16 @@ class CacheManager(object):
     """Returns the latest version number of the PCollection cache."""
     raise NotImplementedError
 
-  def read(self, *labels):
-    # type (*str) -> Tuple[str, Generator[Any]]
+  def read(self, *labels, **args):
+    # type (*str, Dict[str, Any]) -> Tuple[str, Generator[Any]]
 
     """Return the PCollection as a list as well as the version number.
 
     Args:
       *labels: List of labels for PCollection instance.
+      **args: Dict of additional arguments. Currently only 'tail' as a boolean.
+        When tail is True, will wait and read new elements until the cache is
+        complete.
 
     Returns:
       A tuple containing an iterator for the items in the PCollection and the
@@ -90,6 +82,17 @@ class CacheManager(object):
     # type (Any, *str) -> None
 
     """Writes the value to the given cache.
+
+    Args:
+      value: An encodable (with corresponding PCoder) value
+      *labels: List of labels for PCollection instance
+    """
+    raise NotImplementedError
+
+  def clear(self, *labels):
+    # type (*str) -> Boolean
+
+    """Clears the cache entry of the given labels and returns True on success.
 
     Args:
       value: An encodable (with corresponding PCoder) value
@@ -142,6 +145,12 @@ class CacheManager(object):
     """Cleans up all the PCollection caches."""
     raise NotImplementedError
 
+  def size(self, *labels):
+    # type: (*str) -> int
+
+    """Returns the size of the PCollection on disk in bytes."""
+    raise NotImplementedError
+
 
 class FileBasedCacheManager(CacheManager):
   """Maps PCollections to local temp files for materialization."""
@@ -156,8 +165,9 @@ class FileBasedCacheManager(CacheManager):
       self._cache_dir = cache_dir
     else:
       self._cache_dir = tempfile.mkdtemp(
-          prefix='it-', dir=os.environ.get('TEST_TMPDIR', None))
+          prefix='ib-', dir=os.environ.get('TEST_TMPDIR', None))
     self._versions = collections.defaultdict(lambda: self._CacheVersion())
+    self.cache_format = cache_format
 
     if cache_format not in self._available_formats:
       raise ValueError("Unsupported cache format: '%s'." % cache_format)
@@ -178,8 +188,22 @@ class FileBasedCacheManager(CacheManager):
     # and its PCoder type.
     self._saved_pcoders = {}
 
+  def size(self, *labels):
+    if self.exists(*labels):
+      matched_path = self._match(*labels)
+      # if any matched path has a gs:// prefix, it must be cached on GCS
+      if 'gs://' in matched_path[0]:
+        from apache_beam.io.gcp import gcsio
+        return sum(
+            sum(gcsio.GcsIO().list_prefix(path).values())
+            for path in matched_path)
+      return sum(os.path.getsize(path) for path in matched_path)
+    return 0
+
   def exists(self, *labels):
-    return bool(self._match(*labels))
+    if labels and any(labels[1:]):
+      return bool(self._match(*labels))
+    return False
 
   def _latest_version(self, *labels):
     timestamp = 0
@@ -192,11 +216,13 @@ class FileBasedCacheManager(CacheManager):
     self._saved_pcoders[self._path(*labels)] = pcoder
 
   def load_pcoder(self, *labels):
-    return (
-        self._default_pcoder if self._default_pcoder is not None else
-        self._saved_pcoders[self._path(*labels)])
+    saved_pcoder = self._saved_pcoders.get(self._path(*labels), None)
+    if saved_pcoder is None or isinstance(saved_pcoder,
+                                          coders.FastPrimitivesCoder):
+      return self._default_pcoder
+    return saved_pcoder
 
-  def read(self, *labels):
+  def read(self, *labels, **args):
     # Return an iterator to an empty list if it doesn't exist.
     if not self.exists(*labels):
       return iter([]), -1
@@ -206,17 +232,35 @@ class FileBasedCacheManager(CacheManager):
     range_tracker = source.get_range_tracker(None, None)
     reader = source.read(range_tracker)
     version = self._latest_version(*labels)
+
     return reader, version
 
   def write(self, values, *labels):
-    sink = self.sink(labels)._sink
-    path = self._path(*labels)
+    """Imitates how a WriteCache tranform works without running a pipeline.
 
-    init_result = sink.initialize_write()
-    writer = sink.open_writer(init_result, path)
+    For testing and cache manager development, not for production usage because
+    the write is not sharded and does not use Beam execution model.
+    """
+    pcoder = coders.registry.get_coder(type(values[0]))
+    # Save the pcoder for the actual labels.
+    self.save_pcoder(pcoder, *labels)
+    single_shard_labels = [*labels[:-1], '-00000-of-00001']
+    # Save the pcoder for the labels that imitates the sharded cache file name
+    # suffix.
+    self.save_pcoder(pcoder, *single_shard_labels)
+    # Put a '-%05d-of-%05d' suffix to the cache file.
+    sink = self.sink(single_shard_labels)._sink
+    path = self._path(*labels[:-1])
+    writer = sink.open_writer(path, labels[-1])
     for v in values:
       writer.write(v)
     writer.close()
+
+  def clear(self, *labels):
+    if self.exists(*labels):
+      filesystems.FileSystems.delete(self._match(*labels))
+      return True
+    return False
 
   def source(self, *labels):
     return self._reader_class(
@@ -227,12 +271,17 @@ class FileBasedCacheManager(CacheManager):
         self._path(*labels), coder=self.load_pcoder(*labels))
 
   def cleanup(self):
-    if filesystems.FileSystems.exists(self._cache_dir):
+    if self._cache_dir.startswith('gs://'):
+      from apache_beam.io.gcp import gcsfilesystem
+      from apache_beam.options.pipeline_options import PipelineOptions
+      fs = gcsfilesystem.GCSFileSystem(PipelineOptions())
+      fs.delete([self._cache_dir + '/full/'])
+    elif filesystems.FileSystems.exists(self._cache_dir):
       filesystems.FileSystems.delete([self._cache_dir])
     self._saved_pcoders = {}
 
   def _glob_path(self, *labels):
-    return self._path(*labels) + '-*-of-*'
+    return self._path(*labels) + '*-*-of-*'
 
   def _path(self, *labels):
     return filesystems.FileSystems.join(self._cache_dir, *labels)
@@ -310,7 +359,7 @@ class WriteCache(beam.PTransform):
 class SafeFastPrimitivesCoder(coders.Coder):
   """This class add an quote/unquote step to escape special characters."""
 
-  # pylint: disable=deprecated-urllib-function
+  # pylint: disable=bad-option-value
 
   def encode(self, value):
     return quote(

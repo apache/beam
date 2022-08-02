@@ -38,6 +38,10 @@ import org.joda.time.Instant;
  * define Java objects which can represent these field types.
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public class FieldTypeDescriptors {
   private static final BiMap<TypeName, TypeDescriptor> PRIMITIVE_MAPPING =
       ImmutableBiMap.<TypeName, TypeDescriptor>builder()

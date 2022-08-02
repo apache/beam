@@ -63,6 +63,9 @@ import org.joda.time.Instant;
  * A {@link ParDoFnFactory} to create instances of user {@link ProcessFn} according to
  * specifications from the Dataflow service.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 class SplittableProcessFnFactory {
   static final ParDoFnFactory createDefault() {
     return new UserParDoFnFactory(new ProcessFnExtractor(), new SplittableDoFnRunnerFactory());
@@ -91,7 +94,8 @@ class SplittableProcessFnFactory {
               doFnInfo.getInputCoder(),
               restrictionCoder,
               watermarkEstimatorStateCoder,
-              doFnInfo.getWindowingStrategy());
+              doFnInfo.getWindowingStrategy(),
+              doFnInfo.getSideInputMapping());
 
       return DoFnInfo.forFn(
           processFn,
@@ -131,6 +135,7 @@ class SplittableProcessFnFactory {
           (ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>) fn;
       processFn.setStateInternalsFactory(key -> (StateInternals) stepContext.stateInternals());
       processFn.setTimerInternalsFactory(key -> stepContext.timerInternals());
+      processFn.setSideInputReader(sideInputReader);
       processFn.setProcessElementInvoker(
           new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
               processFn.getFn(),
@@ -162,7 +167,11 @@ class SplittableProcessFnFactory {
               // advancing smoothly, and ensures that not too much work will have to be reprocessed
               // in the event of a crash.
               10000,
-              Duration.standardSeconds(10)));
+              Duration.standardSeconds(10),
+              () -> {
+                throw new UnsupportedOperationException(
+                    "BundleFinalizer unsupported by non-portable Dataflow.");
+              }));
       DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> simpleRunner =
           new SimpleDoFnRunner<>(
               options,

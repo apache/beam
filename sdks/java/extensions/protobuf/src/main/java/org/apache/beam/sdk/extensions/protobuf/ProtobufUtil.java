@@ -36,6 +36,9 @@ import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
  *
  * <p>Used by {@link ProtoCoder}, but in a separate file for testing and isolation.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class ProtobufUtil {
   /**
    * Returns the {@link Descriptor} for the given Protocol Buffers {@link Message}.

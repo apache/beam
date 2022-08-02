@@ -38,18 +38,26 @@ import (
 	"flag"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 var (
 	input  = flag.String("input", "clouddataflow-readonly:samples.weather_stations", "BigQuery table with weather data to read from, specified as <project_id>:<dataset_id>.<table_id>")
 	output = flag.String("output", "", "BigQuery table to write to, specified as <project_id>:<dataset_id>.<table_id>. The dataset must already exist")
 )
+
+func init() {
+	beam.RegisterFunction(formatFn)
+	beam.RegisterFunction(extractFn)
+	beam.RegisterType(reflect.TypeOf((*Month)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*WeatherDataRow)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*TornadoRow)(nil)).Elem())
+}
 
 // Month is represented as 'int' in BQ. A Go type definition allows
 // us to write more type-safe transformations.

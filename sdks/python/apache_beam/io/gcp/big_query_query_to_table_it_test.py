@@ -21,8 +21,6 @@ Integration test for Google Cloud BigQuery.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import base64
 import datetime
 import logging
@@ -30,8 +28,8 @@ import random
 import time
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.io.gcp import big_query_query_to_table_pipeline
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
@@ -148,14 +146,16 @@ class BigQueryQueryToTableIT(unittest.TestCase):
                       'time': '00:00:00'
                   }]
     # the API Tools bigquery client expects byte values to be base-64 encoded
-    # TODO BEAM-4850: upgrade to google-cloud-bigquery which does not require
-    # handling the encoding in beam
+    # TODO https://github.com/apache/beam/issues/19073: upgrade to
+    # google-cloud-bigquery which does not require handling the encoding in
+    # beam
     for row in table_data:
       row['bytes'] = base64.b64encode(row['bytes']).decode('utf-8')
-    self.bigquery_client.insert_rows(
+    passed, errors = self.bigquery_client.insert_rows(
         self.project, self.dataset_id, NEW_TYPES_INPUT_TABLE, table_data)
+    self.assertTrue(passed, 'Error in BQ setup: %s' % errors)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_legacy_sql(self):
     verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
     expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)
@@ -174,12 +174,11 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'use_standard_sql': False,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
         'on_success_matcher': all_of(*pipeline_verifiers),
-        'experiments': 'use_beam_bq_sink',
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_standard_sql(self):
     verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
     expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)
@@ -198,12 +197,11 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'use_standard_sql': True,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
         'on_success_matcher': all_of(*pipeline_verifiers),
-        'experiments': 'use_beam_bq_sink',
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_standard_sql_kms_key_native(self):
     if isinstance(self.test_pipeline.runner, TestDirectRunner):
       self.skipTest("This test doesn't work on DirectRunner.")
@@ -227,6 +225,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'on_success_matcher': all_of(*pipeline_verifiers),
         'kms_key': kms_key,
         'native': True,
+        'experiments': 'use_legacy_bq_sink',
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
@@ -238,7 +237,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'No encryption configuration found: %s' % table)
     self.assertEqual(kms_key, table.encryptionConfiguration.kmsKeyName)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_new_types(self):
     expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
     verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table
@@ -262,7 +261,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_new_types_avro(self):
     expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
     verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table
@@ -281,12 +280,11 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'use_standard_sql': False,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
         'on_success_matcher': all_of(*pipeline_verifiers),
-        'experiments': 'use_beam_bq_sink',
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_new_types_native(self):
     expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
     verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table
@@ -295,7 +293,9 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         BigqueryMatcher(
             project=self.project,
             query=verify_query,
-            checksum=expected_checksum)
+            checksum=expected_checksum,
+            timeout_secs=30,
+        )
     ]
     self._setup_new_types_env()
     extra_opts = {
@@ -304,8 +304,10 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'output_schema': NEW_TYPES_OUTPUT_SCHEMA,
         'use_standard_sql': False,
         'native': True,
+        'use_json_exports': True,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
-        'on_success_matcher': all_of(*pipeline_verifiers)
+        'on_success_matcher': all_of(*pipeline_verifiers),
+        'experiments': 'use_legacy_bq_sink',
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)

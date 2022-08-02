@@ -19,16 +19,13 @@
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import json
 import logging
 import math
 import os.path
 import sys
 import unittest
-from builtins import map
+from copy import deepcopy
 from typing import Dict
 from typing import Tuple
 
@@ -43,6 +40,7 @@ from apache_beam.transforms import window
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.typehints import schemas
 from apache_beam.utils import windowed_value
+from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import PaneInfo
 from apache_beam.utils.windowed_value import PaneInfoTiming
@@ -78,6 +76,13 @@ def parse_float(s):
 
 def value_parser_from_schema(schema):
   def attribute_parser_from_type(type_):
+    parser = nonnull_attribute_parser_from_type(type_)
+    if type_.nullable:
+      return lambda x: None if x is None else parser(x)
+    else:
+      return parser
+
+  def nonnull_attribute_parser_from_type(type_):
     # TODO: This should be exhaustive
     type_info = type_.WhichOneof("type_info")
     if type_info == "atomic_type":
@@ -89,10 +94,19 @@ def value_parser_from_schema(schema):
       element_parser = attribute_parser_from_type(type_.array_type.element_type)
       return lambda x: list(map(element_parser, x))
     elif type_info == "map_type":
-      key_parser = attribute_parser_from_type(type_.array_type.key_type)
-      value_parser = attribute_parser_from_type(type_.array_type.value_type)
+      key_parser = attribute_parser_from_type(type_.map_type.key_type)
+      value_parser = attribute_parser_from_type(type_.map_type.value_type)
       return lambda x: dict(
           (key_parser(k), value_parser(v)) for k, v in x.items())
+    elif type_info == "row_type":
+      return value_parser_from_schema(type_.row_type.schema)
+    elif type_info == "logical_type":
+      # In YAML logical types are represented with their representation types.
+      to_language_type = schemas.LogicalType.from_runner_api(
+          type_.logical_type).to_language_type
+      parse_representation = attribute_parser_from_type(
+          type_.logical_type.representation)
+      return lambda x: to_language_type(parse_representation(x))
 
   parsers = [(field.name, attribute_parser_from_type(field.type))
              for field in schema.fields]
@@ -101,6 +115,7 @@ def value_parser_from_schema(schema):
 
   def value_parser(x):
     result = []
+    x = deepcopy(x)
     for name, parser in parsers:
       value = x.pop(name)
       result.append(None if value is None else parser(value))
@@ -130,19 +145,21 @@ class StandardCodersTest(unittest.TestCase):
           end=Timestamp(micros=x['end'] * 1000)),
       'beam:coder:iterable:v1': lambda x,
       parser: list(map(parser, x)),
+      'beam:coder:state_backed_iterable:v1': lambda x,
+      parser: list(map(parser, x)),
       'beam:coder:global_window:v1': lambda x: window.GlobalWindow(),
       'beam:coder:windowed_value:v1': lambda x,
       value_parser,
       window_parser: windowed_value.create(
           value_parser(x['value']),
           x['timestamp'] * 1000,
-          tuple([window_parser(w) for w in x['windows']])),
+          tuple(window_parser(w) for w in x['windows'])),
       'beam:coder:param_windowed_value:v1': lambda x,
       value_parser,
       window_parser: windowed_value.create(
           value_parser(x['value']),
           x['timestamp'] * 1000,
-          tuple([window_parser(w) for w in x['windows']]),
+          tuple(window_parser(w) for w in x['windows']),
           PaneInfo(
               x['pane']['is_first'],
               x['pane']['is_last'],
@@ -155,7 +172,7 @@ class StandardCodersTest(unittest.TestCase):
           user_key=value_parser(x['userKey']),
           dynamic_timer_tag=x['dynamicTimerTag'],
           clear_bit=x['clearBit'],
-          windows=tuple([window_parser(w) for w in x['windows']]),
+          windows=tuple(window_parser(w) for w in x['windows']),
           fire_timestamp=None,
           hold_timestamp=None,
           paneinfo=None) if x['clearBit'] else userstate.Timer(
@@ -164,7 +181,7 @@ class StandardCodersTest(unittest.TestCase):
               clear_bit=x['clearBit'],
               fire_timestamp=Timestamp(micros=x['fireTimestamp'] * 1000),
               hold_timestamp=Timestamp(micros=x['holdTimestamp'] * 1000),
-              windows=tuple([window_parser(w) for w in x['windows']]),
+              windows=tuple(window_parser(w) for w in x['windows']),
               paneinfo=PaneInfo(
                   x['pane']['is_first'],
                   x['pane']['is_last'],
@@ -172,6 +189,13 @@ class StandardCodersTest(unittest.TestCase):
                   x['pane']['index'],
                   x['pane']['on_time_index'])),
       'beam:coder:double:v1': parse_float,
+      'beam:coder:sharded_key:v1': lambda x,
+      value_parser: ShardedKey(
+          key=value_parser(x['key']), shard_id=x['shardId'].encode('utf-8')),
+      'beam:coder:custom_window:v1': lambda x,
+      window_parser: window_parser(x['window']),
+      'beam:coder:nullable:v1': lambda x,
+      value_parser: x.encode('utf-8') if x else None
   }
 
   def test_standard_coders(self):
@@ -214,6 +238,18 @@ class StandardCodersTest(unittest.TestCase):
         context.coders.get_id(self.parse_coder(c))
         for c in spec.get('components', ())
     ]
+    if spec.get('state'):
+
+      def iterable_state_read(state_token, elem_coder):
+        state = spec.get('state').get(state_token.decode('latin1'))
+        if state is None:
+          state = ''
+        input_stream = coder_impl.create_InputStream(state.encode('latin1'))
+        while input_stream.size() > 0:
+          yield elem_coder.decode_from_stream(input_stream, True)
+
+      context.iterable_state_read = iterable_state_read
+
     context.coders.put_proto(
         coder_id,
         beam_runner_api_pb2.Coder(

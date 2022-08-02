@@ -27,9 +27,25 @@ import (
 
 	"sync/atomic"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
+
+func init() {
+	flag.Var(&SdkHarnessContainerImageOverrides,
+		"sdk_harness_container_image_override",
+		"Overrides for SDK harness container images. Could be for the "+
+			"local SDK or for a remote SDK that pipeline has to support due "+
+			"to a cross-language transform. Each entry consists of two values "+
+			"separated by a comma where first value gives a regex to "+
+			"identify the container image to override and the second value "+
+			"gives the replacement container image. Multiple entries can be "+
+			"specified by using this flag multiple times. A container will "+
+			"have no more than 1 override applied to it. If multiple "+
+			"overrides match a container image it is arbitrary which "+
+			"will be applied.")
+}
 
 var (
 	// Endpoint is the job service endpoint.
@@ -40,7 +56,7 @@ var (
 
 	// EnvironmentType is the environment type to run the user code.
 	EnvironmentType = flag.String("environment_type", "DOCKER",
-		"Environment Type. Possible options are DOCKER and PROCESS.")
+		"Environment Type. Possible options are DOCKER, and LOOPBACK.")
 
 	// EnvironmentConfig is the environment configuration for running the user code.
 	EnvironmentConfig = flag.String("environment_config",
@@ -51,6 +67,10 @@ var (
 			"\"arch\": \"<ARCHITECTURE>\", \"command\": \"<process to execute>\", "+
 			"\"env\":{\"<Environment variables 1>\": \"<ENV_VAL>\"} }. "+
 			"All fields in the json are optional except command.")
+
+	// SdkHarnessContainerImageOverrides contains patterns for overriding
+	// container image names in a pipeline.
+	SdkHarnessContainerImageOverrides stringSlice
 
 	// WorkerBinary is the location of the compiled worker binary. If not
 	// specified, the binary is produced via go build.
@@ -69,13 +89,18 @@ var (
 	// Flag to retain docker containers created by the runner. If false, then
 	// containers are deleted once the job ends, even if it failed.
 	RetainDockerContainers = flag.Bool("retain_docker_containers", false, "Retain Docker containers created by the runner.")
+
+	// Flag to set the degree of parallelism. If not set, the configured Flink default is used, or 1 if none can be found.
+	Parallelism = flag.Int("parallelism", -1, "The degree of parallelism to be used when distributing operations onto Flink workers.")
 )
+
+type missingFlagError error
 
 // GetEndpoint returns the endpoint, if non empty and exits otherwise. Runners
 // such as Dataflow set a reasonable default. Convenience function.
 func GetEndpoint() (string, error) {
 	if *Endpoint == "" {
-		return "", errors.New("no job service endpoint specified. Use --endpoint=<endpoint>")
+		return "", missingFlagError(errors.New("no job service endpoint specified. Use --endpoint=<endpoint>"))
 	}
 	return *Endpoint, nil
 }
@@ -99,6 +124,8 @@ func GetEnvironmentUrn(ctx context.Context) string {
 	switch env := strings.ToLower(*EnvironmentType); env {
 	case "process":
 		return "beam:env:process:v1"
+	case "loopback", "external":
+		return "beam:env:external:v1"
 	case "docker":
 		return "beam:env:docker:v1"
 	default:
@@ -107,15 +134,32 @@ func GetEnvironmentUrn(ctx context.Context) string {
 	}
 }
 
+// IsLoopback returns whether the EnvironmentType is loopback.
+func IsLoopback() bool {
+	return strings.ToLower(*EnvironmentType) == "loopback"
+}
+
 // GetEnvironmentConfig returns the specified configuration for specified SDK Harness,
 // if not present, the default development container for the current user.
 // Convenience function.
 func GetEnvironmentConfig(ctx context.Context) string {
 	if *EnvironmentConfig == "" {
-		*EnvironmentConfig = os.ExpandEnv("apache/beam_go_sdk:latest")
+		*EnvironmentConfig = os.ExpandEnv("apache/beam_go_sdk:" + core.SdkVersion)
 		log.Infof(ctx, "No environment config specified. Using default config: '%v'", *EnvironmentConfig)
 	}
 	return *EnvironmentConfig
+}
+
+// GetSdkImageOverrides gets the specified overrides as a map where each key is
+// a regular expression pattern to match, and each value is the string to
+// replace matching containers with.
+func GetSdkImageOverrides() map[string]string {
+	ret := make(map[string]string)
+	for _, pattern := range SdkHarnessContainerImageOverrides {
+		splits := strings.SplitN(pattern, ",", 2)
+		ret[splits[0]] = splits[1]
+	}
+	return ret
 }
 
 // GetExperiments returns the experiments.

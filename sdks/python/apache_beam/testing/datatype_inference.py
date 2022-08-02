@@ -16,24 +16,14 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import array
-import json
 from collections import OrderedDict
 
 import numpy as np
-from past.builtins import unicode
+from fastavro import parse_schema
 
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
-
-# pylint: disable=wrong-import-order, wrong-import-position
-try:
-  from avro.schema import Parse  # avro-python3 library for python3
-except ImportError:
-  from avro.schema import parse as Parse  # avro library for python2
-# pylint: enable=wrong-import-order, wrong-import-position
 
 try:
   import pyarrow as pa
@@ -80,15 +70,13 @@ def infer_typehints_schema(data):
   return column_types
 
 
-def infer_avro_schema(data, use_fastavro=False):
+def infer_avro_schema(data):
   """For internal use only; no backwards-compatibility guarantees.
 
   Infer avro schema for tabular data.
 
   Args:
     data (List[dict]): A list of dictionaries representing rows in a table.
-    use_fastavro (bool): A flag indicating whether the schema should be
-        constructed using fastavro.
 
   Returns:
     An avro schema object.
@@ -98,7 +86,6 @@ def infer_avro_schema(data, use_fastavro=False):
       int: "int",
       float: "double",
       str: "string",
-      unicode: "string",
       bytes: "bytes",
       np.ndarray: "bytes",
       array.array: "bytes",
@@ -122,11 +109,7 @@ def infer_avro_schema(data, use_fastavro=False):
       "type": "record",
       "fields": avro_fields
   }
-  if use_fastavro:
-    from fastavro import parse_schema
-    return parse_schema(schema_dict)
-  else:
-    return Parse(json.dumps(schema_dict))
+  return parse_schema(schema_dict)
 
 
 def infer_pyarrow_schema(data):

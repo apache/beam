@@ -19,6 +19,7 @@ package org.apache.beam.sdk.options;
 
 import static java.util.Locale.ROOT;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps.uniqueIndex;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -32,11 +33,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -48,7 +52,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.auto.service.AutoService;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -75,6 +81,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -84,6 +91,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link PipelineOptionsFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class PipelineOptionsFactoryTest {
   private static final String DEFAULT_RUNNER_NAME = "DirectRunner";
   private static final Class<? extends PipelineRunner<?>> REGISTERED_RUNNER =
@@ -1061,6 +1071,53 @@ public class PipelineOptionsFactoryTest {
     assertEquals("value2", options.getObjectValue().get().value2);
   }
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = PolymorphicTypeOne.class, name = "one"),
+    @JsonSubTypes.Type(value = PolymorphicTypeTwo.class, name = "two")
+  })
+  public abstract static class PolymorphicType {
+    String key;
+
+    @JsonProperty("key")
+    public String getKey() {
+      return key;
+    }
+
+    public void setKey(String key) {
+      this.key = key;
+    }
+  }
+
+  public static class PolymorphicTypeOne extends PolymorphicType {}
+
+  public static class PolymorphicTypeTwo extends PolymorphicType {}
+
+  public interface PolymorphicTypes extends PipelineOptions {
+    PolymorphicType getObject();
+
+    void setObject(PolymorphicType value);
+
+    ValueProvider<PolymorphicType> getObjectValue();
+
+    void setObjectValue(ValueProvider<PolymorphicType> value);
+  }
+
+  @Test
+  public void testPolymorphicType() {
+    String[] args =
+        new String[] {
+          "--object={\"key\":\"value\",\"@type\":\"one\"}",
+          "--objectValue={\"key\":\"value\",\"@type\":\"two\"}"
+        };
+    PolymorphicTypes options = PipelineOptionsFactory.fromArgs(args).as(PolymorphicTypes.class);
+    assertEquals("value", options.getObject().key);
+    assertEquals(PolymorphicTypeOne.class, options.getObject().getClass());
+
+    assertEquals("value", options.getObjectValue().get().key);
+    assertEquals(PolymorphicTypeTwo.class, options.getObjectValue().get().getClass());
+  }
+
   @Test
   public void testMissingArgument() {
     String[] args = new String[] {};
@@ -1858,6 +1915,8 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testAllFromPipelineOptions() {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20466
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "All inherited interfaces of"
@@ -2071,6 +2130,161 @@ public class PipelineOptionsFactoryTest {
     static String myStaticMethod(OptionsWithStaticMethod o) {
       return o.getMyMethod();
     }
+  }
+
+  public static class SimpleParsedObject {
+    public String value;
+
+    public SimpleParsedObject(String value) {
+      this.value = value;
+    }
+  }
+
+  public interface OptionsWithParsing extends PipelineOptions {
+    SimpleParsedObject getSimple();
+
+    void setSimple(SimpleParsedObject value);
+  }
+
+  @Test
+  public void testAutoQuoteStringArgumentsForComplexObjects() {
+    OptionsWithParsing options =
+        PipelineOptionsFactory.fromArgs("--simple=test").as(OptionsWithParsing.class);
+
+    assertEquals("test", options.getSimple().value);
+  }
+
+  public static class ComplexType2 {
+    public String value;
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ComplexType2 that = (ComplexType2) o;
+      return value.equals(that.value);
+    }
+
+    @Override
+    public int hashCode() {
+      return value.hashCode();
+    }
+  }
+
+  public interface OptionsWithJsonDeserialize1 extends PipelineOptions {
+    @JsonDeserialize(using = ComplexType2Deserializer1.class)
+    @JsonSerialize(using = ComplexType2Serializer1.class)
+    ComplexType2 getComplexType();
+
+    void setComplexType(ComplexType2 value);
+  }
+
+  public interface OptionsWithJsonDeserialize2 extends PipelineOptions {
+    @JsonDeserialize(using = ComplexType2Deserializer2.class)
+    ComplexType2 getComplexType();
+
+    void setComplexType(ComplexType2 value);
+  }
+
+  public static class ComplexType2Deserializer1 extends StdDeserializer<ComplexType2> {
+    public ComplexType2Deserializer1() {
+      super(ComplexType2.class);
+    }
+
+    @Override
+    public ComplexType2 deserialize(JsonParser p, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
+      ComplexType2 ct = new ComplexType2();
+      ct.value = p.getText();
+      return ct;
+    }
+  }
+
+  public static class ComplexType2Serializer1 extends StdSerializer<ComplexType2> {
+    public ComplexType2Serializer1() {
+      super(ComplexType2.class);
+    }
+
+    @Override
+    public void serialize(ComplexType2 value, JsonGenerator gen, SerializerProvider provider)
+        throws IOException {
+      gen.writeString(value.value);
+    }
+  }
+
+  public static class ComplexType2Deserializer2 extends StdDeserializer<ComplexType2> {
+    public ComplexType2Deserializer2() {
+      super(ComplexType2.class);
+    }
+
+    @Override
+    public ComplexType2 deserialize(JsonParser p, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
+      ComplexType2 ct = new ComplexType2();
+      ct.value = p.getText();
+      return ct;
+    }
+  }
+
+  @Test
+  public void testJsonDeserializeAttribute_NoConflict() {
+    OptionsWithJsonDeserialize1 options =
+        PipelineOptionsFactory.fromArgs("--complexType=test").as(OptionsWithJsonDeserialize1.class);
+
+    assertEquals("test", options.getComplexType().value);
+  }
+
+  @Test
+  public void testJsonDeserializeAttribute_Conflict() {
+    OptionsWithJsonDeserialize1 options =
+        PipelineOptionsFactory.fromArgs("--complexType=test").as(OptionsWithJsonDeserialize1.class);
+
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class, () -> options.as(OptionsWithJsonDeserialize2.class));
+    assertThat(
+        thrown.getMessage(),
+        containsString("Property [complexType] is marked with contradictory annotations"));
+  }
+
+  public interface InconsistentJsonDeserializeAttributes extends PipelineOptions {
+    @JsonDeserialize()
+    String getString();
+
+    void setString(String value);
+  }
+
+  public interface InconsistentJsonSerializeAttributes extends PipelineOptions {
+    @JsonSerialize()
+    String getString();
+
+    void setString(String value);
+  }
+
+  @Test
+  public void testJsonDeserializeAttributeValidation() {
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                PipelineOptionsFactory.fromArgs("--string=test")
+                    .as(InconsistentJsonDeserializeAttributes.class));
+    assertThat(thrown.getMessage(), containsString("Property [string] had only @JsonDeserialize"));
+  }
+
+  @Test
+  public void testJsonSerializeAttributeValidation() {
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                PipelineOptionsFactory.fromArgs("--string=test")
+                    .as(InconsistentJsonSerializeAttributes.class));
+    assertThat(thrown.getMessage(), containsString("Property [string] had only @JsonSerialize"));
   }
 
   /** Test interface. */

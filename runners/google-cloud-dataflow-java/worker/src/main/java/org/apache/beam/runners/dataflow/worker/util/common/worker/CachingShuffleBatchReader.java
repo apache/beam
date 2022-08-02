@@ -29,6 +29,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCac
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link ShuffleBatchReader} that caches batches as they're read. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CachingShuffleBatchReader implements ShuffleBatchReader {
   private final ShuffleBatchReader reader;
   @VisibleForTesting final LoadingCache<BatchRange, Batch> cache;

@@ -18,9 +18,9 @@ package graph
 import (
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // TODO(herohde) 4/21/2017: Bind is where most user mistakes will likely show
@@ -138,7 +138,7 @@ func findInbound(fn *funcx.Fn, in ...typex.FullType) ([]typex.FullType, []InputK
 
 	var inbound []typex.FullType
 	var kinds []InputKind
-	params := funcx.SubParams(fn.Param, fn.Params(funcx.FnValue|funcx.FnIter|funcx.FnReIter)...)
+	params := funcx.SubParams(fn.Param, fn.Params(funcx.FnValue|funcx.FnIter|funcx.FnReIter|funcx.FnMultiMap)...)
 	index := 0
 	for _, input := range in {
 		arity, err := inboundArity(input, index == 0)
@@ -212,6 +212,9 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 				kind = ReIter
 				other = typex.New(trimmed[0])
 
+			case funcx.FnMultiMap:
+				return nil, kind, errors.Errorf("input to MultiMap side input must be KV, got %v", t)
+
 			default:
 				return nil, kind, errors.Errorf("unexpected param kind: %v", arg)
 			}
@@ -228,8 +231,6 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 				}
 				other = typex.NewKV(typex.New(args[0].T), typex.New(args[1].T))
 			} else {
-				// TODO(herohde) 6/29/2017: side input map form.
-
 				switch args[0].Kind {
 				case funcx.FnIter:
 					values, _ := funcx.UnfoldIter(args[0].T)
@@ -249,6 +250,15 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 					}
 
 					kind = ReIter
+					other = typex.NewKV(typex.New(trimmed[0]), typex.New(trimmed[1]))
+
+				case funcx.FnMultiMap:
+					values, _ := funcx.UnfoldMultiMap(args[0].T)
+					kind = MultiMap
+					trimmed := trimIllegal(values)
+					if len(trimmed) != 2 {
+						return nil, kind, errors.Errorf("%v cannot bind to %v", t, args[0])
+					}
 					other = typex.NewKV(typex.New(trimmed[0]), typex.New(trimmed[1]))
 
 				default:

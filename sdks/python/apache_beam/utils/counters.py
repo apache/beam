@@ -17,6 +17,7 @@
 
 # cython: profile=False
 # cython: overflowcheck=True
+# cython: language_level=3
 
 """Counters collect the progress of the Worker for reporting to the service.
 
@@ -25,11 +26,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import threading
-from builtins import hex
-from builtins import object
 from collections import namedtuple
 from typing import TYPE_CHECKING
 from typing import Dict
@@ -117,7 +114,7 @@ class CounterName(_CounterName):
       output_index=None,
       io_target=None):
     origin = origin or CounterName.SYSTEM
-    return super(CounterName, cls).__new__(
+    return super().__new__(
         cls,
         name,
         stage_name,
@@ -166,7 +163,8 @@ class Counter(object):
   BEAM_DISTRIBUTION = cy_combiners.DistributionInt64Fn()
 
   # Dataflow Distribution Accumulator Fn.
-  # TODO(BEAM-4045): Generalize distribution counter if necessary.
+  # TODO(https://github.com/apache/beam/issues/18843): Generalize distribution
+  # counter if necessary.
   DATAFLOW_DISTRIBUTION = cy_combiners.DataflowDistributionCounterFn()
 
   def __init__(self, name, combine_fn):
@@ -186,6 +184,11 @@ class Counter(object):
 
   def update(self, value):
     self.accumulator = self._add_input(self.accumulator, value)
+
+  def update_n(self, value, n):
+    """Update the counter with the same value N times"""
+    for _ in range(n):
+      self.accumulator = self._add_input(self, value)
 
   def reset(self, value):
     self.accumulator = self.combine_fn.create_accumulator()
@@ -209,15 +212,19 @@ class AccumulatorCombineFnCounter(Counter):
   def __init__(self, name, combine_fn):
     # type: (CounterName, cy_combiners.AccumulatorCombineFn) -> None
     assert isinstance(combine_fn, cy_combiners.AccumulatorCombineFn)
-    super(AccumulatorCombineFnCounter, self).__init__(name, combine_fn)
+    super().__init__(name, combine_fn)
     self.reset()
 
   def update(self, value):
     self._fast_add_input(value)
 
+  def update_n(self, value, n):
+    self._fast_add_input_n(value, n)
+
   def reset(self):
     self.accumulator = self.combine_fn.create_accumulator()
     self._fast_add_input = self.accumulator.add_input
+    self._fast_add_input_n = self.accumulator.add_input_n
 
 
 class CounterFactory(object):
@@ -271,4 +278,4 @@ class CounterFactory(object):
       this method returns hence the returned iterable may be stale.
     """
     with self._lock:
-      return self.counters.values()  # pylint: disable=dict-values-not-iterating
+      return self.counters.values()  # pylint: disable=bad-option-value

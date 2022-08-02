@@ -13,14 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//lint:file-ignore U1000 ignore the unused functions
+
 package dataflowlib
 
 import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"google.golang.org/api/googleapi"
 )
 
@@ -80,6 +82,7 @@ type properties struct {
 	NonParallelInputs       map[string]*outputReference `json:"non_parallel_inputs,omitempty"`       // ParDo
 	OutputInfo              []output                    `json:"output_info,omitempty"`               // Source, ParDo, GBK, Flatten, Combine, WindowInto
 	ParallelInput           *outputReference            `json:"parallel_input,omitempty"`            // ParDo, GBK, Flatten, Combine, WindowInto
+	RestrictionEncoder      *graphx.CoderRef            `json:"restriction_encoding,omitempty"`      // ParDo (Splittable DoFn)
 	SerializedFn            string                      `json:"serialized_fn,omitempty"`             // ParDo, GBK, Combine, WindowInto
 
 	PubSubTopic          string `json:"pubsub_topic,omitempty"`           // Read,Write

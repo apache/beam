@@ -21,12 +21,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import org.apache.beam.runners.core.Concatenate;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
@@ -48,10 +48,8 @@ import org.apache.beam.runners.flink.translation.wrappers.ImpulseInputFormat;
 import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -59,7 +57,6 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -95,7 +92,6 @@ import org.apache.flink.api.java.operators.GroupCombineOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapOperator;
-import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.configuration.Configuration;
@@ -106,6 +102,10 @@ import org.joda.time.Instant;
 /**
  * Translators for transforming {@link PTransform PTransforms} to Flink {@link DataSet DataSets}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class FlinkBatchTransformTranslators {
 
   // --------------------------------------------------------------------------------------------
@@ -260,7 +260,7 @@ class FlinkBatchTransformTranslators {
         FlinkBatchTranslationContext context) {
       final WindowingStrategy<?, ?> windowingStrategy =
           context.getInput(transform).getWindowingStrategy();
-      return windowingStrategy.getWindowFn().isNonMerging()
+      return !windowingStrategy.needsMerge()
           && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW
           && windowingStrategy.getWindowFn().windowCoder().consistentWithEquals();
     }
@@ -299,7 +299,8 @@ class FlinkBatchTransformTranslators {
               WindowedValue.getFullCoder(
                   KvCoder.of(
                       inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getValueCoder())),
-                  windowingStrategy.getWindowFn().windowCoder()));
+                  windowingStrategy.getWindowFn().windowCoder()),
+              context.getPipelineOptions());
       final DataSet<WindowedValue<KV<K, Iterable<InputT>>>> outputDataSet =
           new GroupReduceOperator<>(
                   inputGrouping,
@@ -348,7 +349,8 @@ class FlinkBatchTransformTranslators {
           new CoderTypeInformation<>(
               WindowedValue.getFullCoder(
                   KvCoder.of(inputCoder.getKeyCoder(), accumulatorCoder),
-                  windowingStrategy.getWindowFn().windowCoder()));
+                  windowingStrategy.getWindowFn().windowCoder()),
+              context.getPipelineOptions());
 
       Grouping<WindowedValue<KV<K, InputT>>> inputGrouping =
           inputDataSet.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
@@ -420,53 +422,6 @@ class FlinkBatchTransformTranslators {
     }
   }
 
-  /**
-   * Combiner that combines {@code T}s into a single {@code List<T>} containing all inputs.
-   *
-   * <p>For internal use to translate {@link GroupByKey}. For a large {@link PCollection} this is
-   * expected to crash!
-   *
-   * <p>This is copied from the dataflow runner code.
-   *
-   * @param <T> the type of elements to concatenate.
-   */
-  private static class Concatenate<T> extends Combine.CombineFn<T, List<T>, List<T>> {
-    @Override
-    public List<T> createAccumulator() {
-      return new ArrayList<>();
-    }
-
-    @Override
-    public List<T> addInput(List<T> accumulator, T input) {
-      accumulator.add(input);
-      return accumulator;
-    }
-
-    @Override
-    public List<T> mergeAccumulators(Iterable<List<T>> accumulators) {
-      List<T> result = createAccumulator();
-      for (List<T> accumulator : accumulators) {
-        result.addAll(accumulator);
-      }
-      return result;
-    }
-
-    @Override
-    public List<T> extractOutput(List<T> accumulator) {
-      return accumulator;
-    }
-
-    @Override
-    public Coder<List<T>> getAccumulatorCoder(CoderRegistry registry, Coder<T> inputCoder) {
-      return ListCoder.of(inputCoder);
-    }
-
-    @Override
-    public Coder<List<T>> getDefaultOutputCoder(CoderRegistry registry, Coder<T> inputCoder) {
-      return ListCoder.of(inputCoder);
-    }
-  }
-
   private static class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
       implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
           PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
@@ -532,7 +487,7 @@ class FlinkBatchTransformTranslators {
         sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
       }
 
-      if (windowingStrategy.getWindowFn().isNonMerging()) {
+      if (!windowingStrategy.needsMerge()) {
         final FlinkPartialReduceFunction<K, InputT, AccumT, ?> partialReduceFunction =
             new FlinkPartialReduceFunction<>(
                 combineFn,
@@ -638,7 +593,7 @@ class FlinkBatchTransformTranslators {
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
-      Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
+      Map<TupleTag<?>, PCollection<?>> outputs = context.getOutputs(transform);
 
       final TupleTag<OutputT> mainOutputTag;
       DoFnSchemaInformation doFnSchemaInformation;
@@ -692,8 +647,8 @@ class FlinkBatchTransformTranslators {
 
       TypeInformation<WindowedValue<RawUnionValue>> typeInformation =
           new CoderTypeInformation<>(
-              WindowedValue.getFullCoder(
-                  unionCoder, windowingStrategy.getWindowFn().windowCoder()));
+              WindowedValue.getFullCoder(unionCoder, windowingStrategy.getWindowFn().windowCoder()),
+              context.getPipelineOptions());
 
       List<PCollectionView<?>> sideInputs;
       try {
@@ -766,19 +721,12 @@ class FlinkBatchTransformTranslators {
                 doFnSchemaInformation,
                 sideInputMapping);
 
-        if (FlinkCapabilities.supportsOutputDuringClosing()) {
-          outputDataSet =
-              new FlatMapOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);
-        } else {
-          // This can be removed once we drop support for 1.8 and 1.9 versions.
-          outputDataSet =
-              new MapPartitionOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);
-        }
+        outputDataSet = new FlatMapOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);
       }
 
       transformSideInputs(sideInputs, outputDataSet, context);
 
-      for (Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+      for (Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
         pruneOutput(
             outputDataSet,
             context,
@@ -823,7 +771,7 @@ class FlinkBatchTransformTranslators {
         PTransform<PCollectionList<T>, PCollection<T>> transform,
         FlinkBatchTranslationContext context) {
 
-      Map<TupleTag<?>, PValue> allInputs = context.getInputs(transform);
+      Map<TupleTag<?>, PCollection<?>> allInputs = context.getInputs(transform);
       DataSet<WindowedValue<T>> result = null;
 
       if (allInputs.isEmpty()) {
@@ -841,7 +789,8 @@ class FlinkBatchTransformTranslators {
                 .returns(
                     new CoderTypeInformation<>(
                         WindowedValue.getFullCoder(
-                            (Coder<T>) VoidCoder.of(), GlobalWindow.Coder.INSTANCE)));
+                            (Coder<T>) VoidCoder.of(), GlobalWindow.Coder.INSTANCE),
+                        context.getPipelineOptions()));
       } else {
         for (PValue taggedPc : allInputs.values()) {
           checkArgument(

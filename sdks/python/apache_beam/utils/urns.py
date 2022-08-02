@@ -19,12 +19,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-# TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
+# TODO(https://github.com/apache/beam/issues/18399): Issue with dill + local
+# classes + abc metaclass
 # import abc
 import inspect
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -47,6 +45,7 @@ if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
 
 T = TypeVar('T')
+RunnerApiFnT = TypeVar('RunnerApiFnT', bound='RunnerApiFn')
 ConstructorFn = Callable[[Union['message.Message', bytes], 'PipelineContext'],
                          Any]
 
@@ -62,7 +61,8 @@ class RunnerApiFn(object):
   to register serialization via pickling.
   """
 
-  # TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
+  # TODO(https://github.com/apache/beam/issues/18399): Issue with dill + local
+  # classes + abc metaclass
   # __metaclass__ = abc.ABCMeta
 
   _known_urns = {}  # type: Dict[str, Tuple[Optional[type], ConstructorFn]]
@@ -177,7 +177,7 @@ class RunnerApiFn(object):
 
   @classmethod
   def from_runner_api(cls, fn_proto, context):
-    # type: (beam_runner_api_pb2.FunctionSpec, PipelineContext) -> Any
+    # type: (Type[RunnerApiFnT], beam_runner_api_pb2.FunctionSpec, PipelineContext) -> RunnerApiFnT
 
     """Converts from an FunctionSpec to a Fn object.
 

@@ -18,8 +18,6 @@
 """Tests for consumer_tracking_pipeline_visitor."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 
@@ -45,10 +43,6 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
   def setUp(self):
     self.pipeline = Pipeline(DirectRunner())
     self.visitor = ConsumerTrackingPipelineVisitor()
-    try:  # Python 2
-      self.assertCountEqual = self.assertItemsEqual
-    except AttributeError:  # Python 3
-      pass
 
   def test_root_transforms(self):
     root_read = beam.Impulse()
@@ -153,13 +147,15 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
     # Convert to string to assert they are equal.
     out_of_order_labels = {
-        str(k): [str(t) for t in v_out_of_order.value_to_consumers[k]]
-        for k in v_out_of_order.value_to_consumers
+        str(k): [str(t) for t in value_to_consumer]
+        for k,
+        value_to_consumer in v_out_of_order.value_to_consumers.items()
     }
 
     original_labels = {
-        str(k): [str(t) for t in v_original.value_to_consumers[k]]
-        for k in v_original.value_to_consumers
+        str(k): [str(t) for t in value_to_consumer]
+        for k,
+        value_to_consumer in v_original.value_to_consumers.items()
     }
     self.assertDictEqual(out_of_order_labels, original_labels)
 

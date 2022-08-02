@@ -16,11 +16,16 @@
 package beam
 
 import (
+	"context"
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"reflect"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 func addParDoCtx(err error, s Scope) error {
@@ -49,14 +54,34 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 	}
 
 	in := []*graph.Node{col.n}
-	for _, s := range side {
+	inWfn := col.n.WindowingStrategy().Fn
+	for i, s := range side {
+		sideNode := s.Input.n
+		sideWfn := sideNode.WindowingStrategy().Fn
+		if sideWfn.Kind == window.Sessions {
+			return nil, fmt.Errorf("error with side input %d in DoFn %v: PCollections using merging WindowFns are not supported as side inputs. Consider re-windowing the side input PCollection before use", i, fn)
+		}
+		if (inWfn.Kind == window.GlobalWindows) && (sideWfn.Kind != window.GlobalWindows) {
+			return nil, fmt.Errorf("main input is global windowed in DoFn %v but side input %v is not, cannot map windows correctly. Consider re-windowing the side input PCollection before use", fn, i)
+		}
+		if (sideWfn.Kind == window.GlobalWindows) && !sideNode.Bounded() {
+			// TODO(https://github.com/apache/beam/issues/21596): Replace this warning with an error return when proper streaming test functions have been added.
+			log.Warnf(context.Background(), "side input %v is global windowed in DoFn %v but is unbounded, DoFn will block until end of Global Window. Consider windowing your unbounded side input PCollection before use. This will cause your pipeline to fail in a future release, see https://github.com/apache/beam/issues/21596 for details", i, fn)
+		}
 		in = append(in, s.Input.n)
 	}
 
 	var rc *coder.Coder
+	// Sdfs will always encode restrictions as KV<restriction, watermark state | bool(false)>
 	if fn.IsSplittable() {
 		sdf := (*graph.SplittableDoFn)(fn)
-		rc, err = inferCoder(typex.New(sdf.RestrictionT()))
+		restT := typex.New(sdf.RestrictionT())
+		// If no watermark estimator state, use boolean as a placeholder
+		weT := typex.New(reflect.TypeOf(true))
+		if sdf.IsStatefulWatermarkEstimating() {
+			weT = typex.New(sdf.WatermarkEstimatorStateT())
+		}
+		rc, err = inferCoder(typex.NewKV(restT, weT))
 		if err != nil {
 			return nil, addParDoCtx(err, s)
 		}
@@ -93,7 +118,7 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // user-specified function on each of the elements of the input PCollection
 // to produce zero or more output elements, all of which are collected into
 // the output PCollection. Use one of the ParDo variants for a different
-// number of output PCollections. The PCollections do no need to have the
+// number of output PCollections. The PCollections do not need to have the
 // same types.
 //
 // Elements are processed independently, and possibly in parallel across
@@ -287,11 +312,11 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 //     called on each newly created restriction before they are processed.
 // * `RestrictionSize(elem, restriction) float64`
 //     RestrictionSize returns a cheap size estimation for a restriction. This
-//     size is an abstract scalar value that represents how much work a
-//     restriction takes compared to other restrictions in the same DoFn. For
-//     example, a size of 200 represents twice as much work as a size of
+//     size is an abstract non-negative scalar value that represents how much
+//     work a restriction takes compared to other restrictions in the same DoFn.
+//     For example, a size of 200 represents twice as much work as a size of
 //     100, but the numbers do not represent anything on their own. Size is
-//     used by runners to estimate work for liquid sharding.
+//     used by runners to estimate work for dynamic work rebalancing.
 // * `CreateTracker(restriction) restrictionTracker`
 //     CreateTracker creates and returns a restriction tracker (a concrete type
 //     implementing the `sdf.RTracker` interface) given a restriction. The

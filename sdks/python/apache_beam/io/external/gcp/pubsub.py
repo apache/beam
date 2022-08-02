@@ -17,11 +17,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import typing
-
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io.gcp import pubsub
@@ -32,11 +28,11 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 ReadFromPubsubSchema = typing.NamedTuple(
     'ReadFromPubsubSchema',
     [
-        ('topic', typing.Optional[unicode]),
-        ('subscription', typing.Optional[unicode]),
-        ('id_label', typing.Optional[unicode]),
+        ('topic', typing.Optional[str]),
+        ('subscription', typing.Optional[str]),
+        ('id_label', typing.Optional[str]),
         ('with_attributes', bool),
-        ('timestamp_attribute', typing.Optional[unicode]),
+        ('timestamp_attribute', typing.Optional[str]),
     ])
 
 
@@ -44,10 +40,10 @@ class ReadFromPubSub(beam.PTransform):
   """An external ``PTransform`` for reading from Cloud Pub/Sub.
 
   Experimental; no backwards compatibility guarantees.  It requires special
-  preparation of the Java SDK.  See BEAM-7870.
+  preparation of the Java SDK.  See https://github.com/apache/beam/issues/19728.
   """
 
-  URN = 'beam:external:java:pubsub:read:v1'
+  URN = 'beam:transform:org.apache.beam:pubsub_read:v1'
 
   def __init__(
       self,
@@ -116,11 +112,11 @@ class ReadFromPubSub(beam.PTransform):
 WriteToPubsubSchema = typing.NamedTuple(
     'WriteToPubsubSchema',
     [
-        ('topic', unicode),
-        ('id_label', typing.Optional[unicode]),
+        ('topic', str),
+        ('id_label', typing.Optional[str]),
         # this is not implemented yet on the Java side:
         # ('with_attributes', bool),
-        ('timestamp_attribute', typing.Optional[unicode]),
+        ('timestamp_attribute', typing.Optional[str]),
     ])
 
 
@@ -128,10 +124,10 @@ class WriteToPubSub(beam.PTransform):
   """An external ``PTransform`` for writing messages to Cloud Pub/Sub.
 
   Experimental; no backwards compatibility guarantees.  It requires special
-  preparation of the Java SDK.  See BEAM-7870.
+  preparation of the Java SDK.  See https://github.com/apache/beam/issues/19728.
   """
 
-  URN = 'beam:external:java:pubsub:write:v1'
+  URN = 'beam:transform:org.apache.beam:pubsub_write:v1'
 
   def __init__(
       self,

@@ -61,6 +61,9 @@ import org.slf4j.LoggerFactory;
 
 /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
 @Deprecated
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
   private static final Logger LOG = LoggerFactory.getLogger(DoFnTester.class);
@@ -720,7 +723,19 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                   SerializableUtils.serializeToByteArray(origFn), origFn.toString());
     }
     fnInvoker = DoFnInvokers.invokerFor(fn);
-    fnInvoker.invokeSetup();
+    fnInvoker.invokeSetup(new TestSetupArgumentProvider());
+  }
+
+  private class TestSetupArgumentProvider extends BaseArgumentProvider<InputT, OutputT> {
+    @Override
+    public PipelineOptions pipelineOptions() {
+      return options;
+    }
+
+    @Override
+    public String getErrorContext() {
+      return "DoFnTester/Setup";
+    }
   }
 
   private Map getOutputs() {

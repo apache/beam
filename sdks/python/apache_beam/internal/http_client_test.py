@@ -18,8 +18,6 @@
 """Unit tests for the http_client module."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import os
 import unittest
 

@@ -26,13 +26,16 @@ import org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc.ProvisionServiceImplBase;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.fnexecution.FnService;
-import org.apache.beam.runners.fnexecution.HeaderAccessor;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.sdk.fn.server.FnService;
+import org.apache.beam.sdk.fn.server.HeaderAccessor;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 
 /**
  * A {@link ProvisionServiceImplBase provision service} that returns a static response to all calls.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class StaticGrpcProvisionService extends ProvisionServiceGrpc.ProvisionServiceImplBase
     implements FnService {
   public static StaticGrpcProvisionService create(
@@ -55,9 +58,8 @@ public class StaticGrpcProvisionService extends ProvisionServiceGrpc.ProvisionSe
   public void getProvisionInfo(
       ProvisionApi.GetProvisionInfoRequest request,
       StreamObserver<GetProvisionInfoResponse> responseObserver) {
-    if (headerAccessor.getSdkWorkerId() == null
-        || !environments.containsKey(headerAccessor.getSdkWorkerId())) {
-      // TODO(BEAM-9818): Remove once the JRH is gone.
+    if (!environments.containsKey(headerAccessor.getSdkWorkerId())) {
+      // TODO(https://github.com/apache/beam/issues/20253): Remove once the JRH is gone.
       responseObserver.onNext(GetProvisionInfoResponse.newBuilder().setInfo(info).build());
       responseObserver.onCompleted();
       return;

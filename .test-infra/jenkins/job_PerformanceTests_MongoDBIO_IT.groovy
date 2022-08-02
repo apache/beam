@@ -24,7 +24,7 @@ String jobName = "beam_PerformanceTests_MongoDBIO_IT"
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
-  common.setAutoJob(delegate,'H */6 * * *')
+  common.setAutoJob(delegate,'H H/6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java MongoDBIO Performance Test',
@@ -47,7 +47,7 @@ job(jobName) {
     bigQueryTable       : 'mongodbioit_results',
     influxMeasurement   : 'mongodbioit_results',
     influxDatabase      : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influxHost          : InfluxDBCredentialsHelper.InfluxDBHostname,
+    influxHost          : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     mongoDBDatabaseName : 'beam',
     mongoDBHostName     : "\$${mongoHostName}",
     mongoDBPort         : 27017,

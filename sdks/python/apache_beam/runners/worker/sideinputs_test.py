@@ -19,13 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import time
 import unittest
-from builtins import object
-from builtins import range
 
 import mock
 
@@ -48,7 +44,7 @@ class FakeSource(object):
 
 class FakeSourceReader(observable.ObservableMixin):
   def __init__(self, items, notify_observers=False):
-    super(FakeSourceReader, self).__init__()
+    super().__init__()
     self.items = items
     self.entered = False
     self.exited = False

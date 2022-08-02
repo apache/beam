@@ -21,6 +21,7 @@ package org.apache.beam.runners.dataflow.util;
 class CloudObjectKinds {
   static final String KIND_GLOBAL_WINDOW = "kind:global_window";
   static final String KIND_INTERVAL_WINDOW = "kind:interval_window";
+  static final String KIND_CUSTOM_WINDOW = "kind:custom_window";
   static final String KIND_LENGTH_PREFIX = "kind:length_prefix";
   static final String KIND_PAIR = "kind:pair";
   static final String KIND_STREAM = "kind:stream";

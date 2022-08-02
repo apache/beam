@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
 import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -61,6 +62,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /**
  * An {@link org.apache.beam.runners.core.construction.expansion.ExpansionService} useful for tests.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class TestExpansionService {
 
   private static final String TEST_PREFIX_URN = "beam:transforms:xlang:test:prefix";
@@ -76,6 +80,7 @@ public class TestExpansionService {
   private static final String TEST_COUNT_URN = "beam:transforms:xlang:count";
   private static final String TEST_FILTER_URN = "beam:transforms:xlang:filter_less_than_eq";
   private static final String TEST_PARQUET_READ_URN = "beam:transforms:xlang:parquet_read";
+  private static final String TEST_TEXTIO_READ_URN = "beam:transforms:xlang:textio_read";
 
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
   public static class TestServiceRegistrar implements ExpansionService.ExpansionServiceRegistrar {
@@ -164,8 +169,8 @@ public class TestExpansionService {
     private static Schema schema = new Schema.Parser().parse(rawSchema);
 
     @Override
-    public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
-      ImmutableMap.Builder<String, Class<? extends ExternalTransformBuilder>> builder =
+    public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
+      ImmutableMap.Builder<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> builder =
           ImmutableMap.builder();
       builder.put(TEST_PREFIX_URN, PrefixBuilder.class);
       builder.put(TEST_MULTI_URN, MultiBuilder.class);
@@ -177,6 +182,7 @@ public class TestExpansionService {
       builder.put(TEST_PARTITION_URN, PartitionBuilder.class);
       builder.put(TEST_PARQUET_WRITE_URN, ParquetWriteBuilder.class);
       builder.put(TEST_PARQUET_READ_URN, ParquetReadBuilder.class);
+      builder.put(TEST_TEXTIO_READ_URN, TextIOReadBuilder.class);
       return builder.build();
     }
 
@@ -337,6 +343,20 @@ public class TestExpansionService {
                 .apply(FileIO.readMatches())
                 .apply(ParquetIO.readFiles(schema))
                 .setCoder(AvroCoder.of(schema));
+          }
+        };
+      }
+    }
+
+    public static class TextIOReadBuilder
+        implements ExternalTransformBuilder<StringConfiguration, PBegin, PCollection<String>> {
+      @Override
+      public PTransform<PBegin, PCollection<String>> buildExternal(
+          StringConfiguration configuration) {
+        return new PTransform<PBegin, PCollection<String>>() {
+          @Override
+          public PCollection<String> expand(PBegin input) {
+            return input.apply(TextIO.read().from(configuration.data));
           }
         };
       }

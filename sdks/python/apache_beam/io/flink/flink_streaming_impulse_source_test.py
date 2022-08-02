@@ -18,8 +18,6 @@
 """Unit tests for flink_streaming_impulse_source."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 
@@ -33,8 +31,7 @@ class FlinkStreamingImpulseSourceTest(unittest.TestCase):
     # pylint: disable=expression-not-assigned
     p | FlinkStreamingImpulseSource()
     # Test that roundtrip through Runner API works
-    beam.Pipeline.from_runner_api(
-        p.to_runner_api(), p.runner, p._options, allow_proto_holders=False)
+    beam.Pipeline.from_runner_api(p.to_runner_api(), p.runner, p._options)
 
 
 if __name__ == '__main__':

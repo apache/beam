@@ -29,8 +29,6 @@ Currently it is possible to have following metrics types:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import logging
 import time
@@ -46,15 +44,17 @@ from requests.auth import HTTPBasicAuth
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.utils.timestamp import Timestamp
 
 try:
-  from google.cloud import bigquery
+  from google.cloud import bigquery  # type: ignore[attr-defined]
   from google.cloud.bigquery.schema import SchemaField
   from google.cloud.exceptions import NotFound
 except ImportError:
   bigquery = None
   SchemaField = None
-  NotFound = None
+  NotFound = None  # type: ignore
 
 RUNTIME_METRIC = 'runtime'
 COUNTER_LABEL = 'total_bytes_count'
@@ -92,7 +92,12 @@ def parse_step(step_name):
   Returns:
     lower case step name without namespace and step label
   """
-  return step_name.lower().replace(' ', '_').strip('step:_')
+  prefix = 'step'
+  step_name = step_name.lower().replace(' ', '_')
+  step_name = (
+      step_name[len(prefix):]
+      if prefix and step_name.startswith(prefix) else step_name)
+  return step_name.strip(':_')
 
 
 def split_metrics_by_namespace_and_name(metrics, namespace, name):
@@ -147,10 +152,15 @@ def get_all_distributions_by_type(dist, metric_id):
   """
   submit_timestamp = time.time()
   dist_types = ['count', 'max', 'min', 'sum']
-  return [
-      get_distribution_dict(dist_type, submit_timestamp, dist, metric_id)
-      for dist_type in dist_types
-  ]
+  distribution_dicts = []
+  for dist_type in dist_types:
+    try:
+      distribution_dicts.append(
+          get_distribution_dict(dist_type, submit_timestamp, dist, metric_id))
+    except ValueError:
+      # Ignore metrics with 'None' values.
+      continue
+  return distribution_dicts
 
 
 def get_distribution_dict(metric_type, submit_timestamp, dist, metric_id):
@@ -211,7 +221,8 @@ class MetricsReader(object):
           'InfluxDB')
     self.filters = filters
 
-  def publish_metrics(self, result):
+  def publish_metrics(self, result, extra_metrics: Optional[dict] = None):
+    metric_id = uuid.uuid4().hex
     metrics = result.metrics().query(self.filters)
 
     # Metrics from pipeline result are stored in map with keys: 'gauges',
@@ -219,10 +230,22 @@ class MetricsReader(object):
     # Under each key there is list of objects of each metric type. It is
     # required to prepare metrics for publishing purposes. Expected is to have
     # a list of dictionaries matching the schema.
-    insert_dicts = self._prepare_all_metrics(metrics)
+    insert_dicts = self._prepare_all_metrics(metrics, metric_id)
+
+    insert_dicts += self._prepare_extra_metrics(metric_id, extra_metrics)
     if len(insert_dicts) > 0:
       for publisher in self.publishers:
         publisher.publish(insert_dicts)
+
+  def _prepare_extra_metrics(
+      self, metric_id: str, extra_metrics: Optional[dict] = None):
+    ts = time.time()
+    if not extra_metrics:
+      extra_metrics = {}
+    return [
+        Metric(ts, metric_id, v, label=k).as_dict() for k,
+        v in extra_metrics.items()
+    ]
 
   def publish_values(self, labeled_values):
     """The method to publish simple labeled values.
@@ -239,8 +262,7 @@ class MetricsReader(object):
     for publisher in self.publishers:
       publisher.publish(metric_dicts)
 
-  def _prepare_all_metrics(self, metrics):
-    metric_id = uuid.uuid4().hex
+  def _prepare_all_metrics(self, metrics, metric_id):
 
     insert_rows = self._get_counters(metrics['counters'], metric_id)
     insert_rows += self._get_distributions(metrics['distributions'], metric_id)
@@ -305,8 +327,7 @@ class CounterMetric(Metric):
   """
   def __init__(self, counter_metric, submit_timestamp, metric_id):
     value = counter_metric.result
-    super(CounterMetric,
-          self).__init__(submit_timestamp, metric_id, value, counter_metric)
+    super().__init__(submit_timestamp, metric_id, value, counter_metric)
 
 
 class DistributionMetric(Metric):
@@ -323,7 +344,12 @@ class DistributionMetric(Metric):
                    '_' + metric_type + \
                    '_' + dist_metric.key.metric.name
     value = getattr(dist_metric.result, metric_type)
-    super(DistributionMetric, self) \
+    if value is None:
+      msg = '%s: the result is expected to be an integer, ' \
+            'not None.' % custom_label
+      _LOGGER.debug(msg)
+      raise ValueError(msg)
+    super() \
       .__init__(submit_timestamp, metric_id, value, dist_metric, custom_label)
 
 
@@ -342,8 +368,7 @@ class RuntimeMetric(Metric):
     # out of many steps
     label = runtime_list[0].key.metric.namespace + \
             '_' + RUNTIME_METRIC
-    super(RuntimeMetric,
-          self).__init__(submit_timestamp, metric_id, value, None, label)
+    super().__init__(submit_timestamp, metric_id, value, None, label)
 
   def _prepare_runtime_metrics(self, distributions):
     min_values = []
@@ -386,11 +411,10 @@ class BigQueryMetricsPublisher(object):
     outputs = self.bq.save(results)
     if len(outputs) > 0:
       for output in outputs:
-        errors = output['errors']
-        for err in errors:
-          _LOGGER.error(err['message'])
+        if output['errors']:
+          _LOGGER.error(output)
           raise ValueError(
-              'Unable save rows in BigQuery: {}'.format(err['message']))
+              'Unable save rows in BigQuery: {}'.format(output['errors']))
 
 
 class BigQueryClient(object):
@@ -559,3 +583,36 @@ class CountMessages(beam.DoFn):
   def process(self, element):
     self.counter.inc(1)
     yield element
+
+
+class MeasureLatency(beam.DoFn):
+  """A distribution metric which captures the latency based on the timestamps
+  of the processed elements."""
+  LABEL = 'latency'
+
+  def __init__(self, namespace):
+    """Initializes :class:`MeasureLatency`.
+
+      namespace(str): namespace of  metric
+    """
+    self.namespace = namespace
+    self.latency_ms = Metrics.distribution(self.namespace, self.LABEL)
+    self.time_fn = time.time
+
+  def process(self, element, timestamp=beam.DoFn.TimestampParam):
+    self.latency_ms.update(
+        int(self.time_fn() * 1000) - (timestamp.micros // 1000))
+    yield element
+
+
+class AssignTimestamps(beam.DoFn):
+  """DoFn to assigned timestamps to elements."""
+  def __init__(self):
+    # Avoid having to use save_main_session
+    self.time_fn = time.time
+    self.timestamp_val_fn = TimestampedValue
+    self.timestamp_fn = Timestamp
+
+  def process(self, element):
+    yield self.timestamp_val_fn(
+        element, self.timestamp_fn(micros=int(self.time_fn() * 1000000)))

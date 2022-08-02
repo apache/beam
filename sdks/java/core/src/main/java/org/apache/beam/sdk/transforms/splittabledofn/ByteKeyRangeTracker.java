@@ -21,8 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
@@ -39,7 +37,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Note, one can complete a range by claiming the {@link ByteKey#EMPTY} once one runs out of keys
  * to process.
  */
-@Experimental(Kind.SPLITTABLE_DO_FN)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKey>
     implements HasProgress {
   /* An empty range which contains no keys. */
@@ -153,14 +153,14 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
         key,
         lastAttemptedKey);
     checkArgument(
-        key.compareTo(range.getStartKey()) > -1,
+        key.compareTo(range.getStartKey()) >= 0,
         "Trying to claim key %s before start of the range %s",
         key,
         range);
 
     lastAttemptedKey = key;
     // No respective checkArgument for i < range.to() - it's ok to try claiming keys beyond
-    if (!range.getEndKey().isEmpty() && key.compareTo(range.getEndKey()) > -1) {
+    if (!range.getEndKey().isEmpty() && key.compareTo(range.getEndKey()) >= 0) {
       return false;
     }
     lastClaimedKey = key;

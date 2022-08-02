@@ -17,7 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import PostcommitJobBuilder
+import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
 import LoadTestsBuilder
 
@@ -37,14 +37,14 @@ def chicagoTaxiJob = { scope ->
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       commonJobProperties.setGradleSwitches(delegate)
-      tasks(':sdks:python:test-suites:dataflow:py2:chicagoTaxiExample')
+      tasks(':sdks:python:test-suites:dataflow:chicagoTaxiExample')
       switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
       switches("-PpipelineOptions=\"${LoadTestsBuilder.parseOptions(pipelineOptions)}\"")
     }
   }
 }
 
-PostcommitJobBuilder.postCommitJob(
+PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_PostCommit_Python_Chicago_Taxi_Dataflow',
     'Run Chicago Taxi on Dataflow',
     'Chicago Taxi Example on Dataflow ("Run Chicago Taxi on Dataflow")',
@@ -53,10 +53,13 @@ PostcommitJobBuilder.postCommitJob(
       chicagoTaxiJob(delegate)
     }
 
-CronJobBuilder.cronJob(
-    'beam_PostCommit_Python_Chicago_Taxi_Dataflow',
-    'H 14 * * *',
-    this
-    ) {
-      chicagoTaxiJob(delegate)
-    }
+// TODO(https://github.com/apache/beam/issues/19973): Chicago Taxi Example doesn't work in Python 3.
+// Uncomment below once it is fixed.
+//
+// CronJobBuilder.cronJob(
+//     'beam_PostCommit_Python_Chicago_Taxi_Dataflow',
+//     'H 14 * * *',
+//     this
+//     ) {
+//       chicagoTaxiJob(delegate)
+//     }

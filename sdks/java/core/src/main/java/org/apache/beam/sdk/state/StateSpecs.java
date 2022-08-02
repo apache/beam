@@ -23,6 +23,7 @@ import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -36,6 +37,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Static methods for working with {@link StateSpec StateSpecs}. */
 @Experimental(Kind.STATE)
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public class StateSpecs {
 
   private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();
@@ -235,6 +240,13 @@ public class StateSpecs {
     return new MapStateSpec<>(keyCoder, valueCoder);
   }
 
+  public static <T> StateSpec<OrderedListState<T>> orderedList(Coder<T> elemCoder) {
+    return new OrderedListStateSpec<>(elemCoder);
+  }
+
+  public static StateSpec<OrderedListState<Row>> rowOrderedList(Schema valueSchema) {
+    return new OrderedListStateSpec<>(RowCoder.of(valueSchema));
+  }
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
@@ -306,6 +318,25 @@ public class StateSpecs {
       return typedSpec.asBagSpec();
     } else {
       throw new IllegalArgumentException("Unexpected StateSpec " + combiningSpec);
+    }
+  }
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Convert a set state spec to a map-state spec.
+   */
+  @Internal
+  public static <KeyT> StateSpec<MapState<KeyT, Boolean>> convertToMapSpecInternal(
+      StateSpec<SetState<KeyT>> setStateSpec) {
+    if (setStateSpec instanceof SetStateSpec) {
+      // Checked above; conversion to a map spec depends on the provided spec being one of those
+      // created via the factory methods in this class.
+      @SuppressWarnings("unchecked")
+      SetStateSpec<KeyT> typedSpec = (SetStateSpec<KeyT>) setStateSpec;
+      return typedSpec.asMapSpec();
+    } else {
+      throw new IllegalArgumentException("Unexpected StateSpec " + setStateSpec);
     }
   }
 
@@ -582,6 +613,63 @@ public class StateSpecs {
     }
   }
 
+  private static class OrderedListStateSpec<T> implements StateSpec<OrderedListState<T>> {
+
+    private @Nullable Coder<T> elemCoder;
+
+    private OrderedListStateSpec(@Nullable Coder<T> elemCoder) {
+      this.elemCoder = elemCoder;
+    }
+
+    @Override
+    public OrderedListState<T> bind(String id, StateBinder visitor) {
+      return visitor.bindOrderedList(id, this, elemCoder);
+    }
+
+    @Override
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      return cases.dispatchOrderedList(elemCoder);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public void offerCoders(Coder[] coders) {
+      if (this.elemCoder == null && coders[0] != null) {
+        this.elemCoder = (Coder<T>) coders[0];
+      }
+    }
+
+    @Override
+    public void finishSpecifying() {
+      if (elemCoder == null) {
+        throw new IllegalStateException(
+            "Unable to infer a coder for OrderedListState and no Coder"
+                + " was specified. Please set a coder by either invoking"
+                + " StateSpecs.orderedListState(Coder<K> elemCoder), specifying a schema,  or by registering the"
+                + " coder in the Pipeline's CoderRegistry.");
+      }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == this) {
+        return true;
+      }
+
+      if (!(obj instanceof OrderedListStateSpec)) {
+        return false;
+      }
+
+      OrderedListStateSpec<?> that = (OrderedListStateSpec<?>) obj;
+      return Objects.equals(this.elemCoder, that.elemCoder);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getClass(), elemCoder);
+    }
+  }
+
   private static class MapStateSpec<K, V> implements StateSpec<MapState<K, V>> {
 
     private @Nullable Coder<K> keyCoder;
@@ -704,6 +792,10 @@ public class StateSpecs {
     @Override
     public int hashCode() {
       return Objects.hash(getClass(), elemCoder);
+    }
+
+    private StateSpec<MapState<T, Boolean>> asMapSpec() {
+      return new MapStateSpec<>(this.elemCoder, BooleanCoder.of());
     }
   }
 

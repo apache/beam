@@ -54,9 +54,8 @@ public abstract class SplunkEvent {
 
   public abstract @Nullable String source();
 
-  @Nullable
   @SerializedName("sourcetype")
-  public abstract String sourceType();
+  public abstract @Nullable String sourceType();
 
   public abstract @Nullable String index();
 

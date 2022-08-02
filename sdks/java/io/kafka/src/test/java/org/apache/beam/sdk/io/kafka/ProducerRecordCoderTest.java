@@ -42,6 +42,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
 /** Tests for {@link ProducerRecordCoder}. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(ConsumerSpEL.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class ProducerRecordCoderTest {
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() {

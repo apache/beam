@@ -85,8 +85,11 @@ import org.slf4j.LoggerFactory;
  * {@link #pruningPrefix} to halt the traversal so it does not uselessly catalog references that are
  * not interesting.
  */
-@SuppressWarnings("rawtypes")
 @Internal
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ApiSurface {
   private static final Logger LOG = LoggerFactory.getLogger(ApiSurface.class);
 
@@ -247,7 +250,10 @@ public class ApiSurface {
         return messages.isEmpty();
       }
 
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+        "unchecked"
+      })
       private boolean classIsAllowed(
           final Class<?> clazz, final Set<Matcher<Class<?>>> allowedClasses) {
         // Safe cast inexpressible in Java without rawtypes
@@ -315,7 +321,8 @@ public class ApiSurface {
       try {
         clazz = classInfo.load();
       } catch (NoClassDefFoundError e) {
-        // TODO: Ignore any NoClassDefFoundError errors as a workaround. (BEAM-2231)
+        // TODO: Ignore any NoClassDefFoundError errors as a workaround.
+        // (https://github.com/apache/beam/issues/18368)
         LOG.warn("Failed to load class: {}", classInfo.toString(), e);
         continue;
       }
@@ -706,11 +713,19 @@ public class ApiSurface {
   private void addExposedTypes(Invokable<?, ?> invokable, Class<?> cause) {
     addExposedTypes(invokable.getReturnType(), cause);
     for (Annotation annotation : invokable.getAnnotations()) {
+      Class<? extends Annotation> annotationClass = annotation.annotationType();
+      if (!Modifier.isPublic(annotationClass.getModifiers())) {
+        // Non-public annotations are invisible to Beam users. Example: Guava's
+        // ParametricNullness is package-private. This annotation helps static
+        // analyzers including Kotlin platform.
+        // Details: https://github.com/apache/beam/pull/15835
+        continue;
+      }
       LOG.debug(
           "Adding exposed types from {}, which is an annotation on invokable {}",
           annotation,
           invokable);
-      addExposedTypes(annotation.annotationType(), cause);
+      addExposedTypes(annotationClass, cause);
     }
     for (Parameter parameter : invokable.getParameters()) {
       LOG.debug(
@@ -735,11 +750,19 @@ public class ApiSurface {
         parameter);
     addExposedTypes(parameter.getType(), cause);
     for (Annotation annotation : parameter.getAnnotations()) {
+      Class<? extends Annotation> annotationClass = annotation.annotationType();
+      if (!Modifier.isPublic(annotationClass.getModifiers())) {
+        // Non-public annotations are invisible to Beam users. Example: Guava's
+        // ParametricNullness is package-private. This annotation helps static
+        // analyzers including Kotlin platform.
+        // Details: https://github.com/apache/beam/pull/15835
+        continue;
+      }
       LOG.debug(
           "Adding exposed types from {}, which is an annotation on parameter {}",
           annotation,
           parameter);
-      addExposedTypes(annotation.annotationType(), cause);
+      addExposedTypes(annotationClass, cause);
     }
   }
 

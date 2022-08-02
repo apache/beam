@@ -85,8 +85,16 @@ import org.slf4j.LoggerFactory;
  * If you need the full ResponseMetadata and SdkHttpMetadata you can call {@link
  * Write#withFullPublishResult}. If you need the HTTP status code but not the response headers you
  * can call {@link Write#withFullPublishResultWithoutHeaders}.
+ *
+ * @deprecated Module <code>beam-sdks-java-io-amazon-web-services</code> is deprecated and will be
+ *     eventually removed. Please migrate to {@link org.apache.beam.sdk.io.aws2.sns.SnsIO} in module
+ *     <code>beam-sdks-java-io-amazon-web-services2</code>.
  */
 @Experimental(Kind.SOURCE_SINK)
+@Deprecated
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class SnsIO {
 
   // Write data tp SNS
@@ -104,7 +112,10 @@ public final class SnsIO {
    * </ul>
    */
   @AutoValue
+  @AutoValue.CopyAnnotations
   public abstract static class RetryConfiguration implements Serializable {
+    private static final Duration DEFAULT_INITIAL_DURATION = Duration.standardSeconds(5);
+
     @VisibleForTesting
     static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
 
@@ -112,18 +123,30 @@ public final class SnsIO {
 
     abstract Duration getMaxDuration();
 
+    abstract Duration getInitialDuration();
+
     abstract RetryPredicate getRetryPredicate();
 
     abstract Builder builder();
 
     public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
+      return create(maxAttempts, maxDuration, DEFAULT_INITIAL_DURATION);
+    }
+
+    @VisibleForTesting
+    static RetryConfiguration create(
+        int maxAttempts, Duration maxDuration, Duration initialDuration) {
       checkArgument(maxAttempts > 0, "maxAttempts should be greater than 0");
       checkArgument(
           maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
           "maxDuration should be greater than 0");
+      checkArgument(
+          initialDuration != null && initialDuration.isLongerThan(Duration.ZERO),
+          "initialDuration should be greater than 0");
       return new AutoValue_SnsIO_RetryConfiguration.Builder()
           .setMaxAttempts(maxAttempts)
           .setMaxDuration(maxDuration)
+          .setInitialDuration(initialDuration)
           .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
           .build();
     }
@@ -133,6 +156,8 @@ public final class SnsIO {
       abstract SnsIO.RetryConfiguration.Builder setMaxAttempts(int maxAttempts);
 
       abstract SnsIO.RetryConfiguration.Builder setMaxDuration(Duration maxDuration);
+
+      abstract SnsIO.RetryConfiguration.Builder setInitialDuration(Duration initialDuration);
 
       abstract SnsIO.RetryConfiguration.Builder setRetryPredicate(RetryPredicate retryPredicate);
 
@@ -163,6 +188,7 @@ public final class SnsIO {
 
   /** Implementation of {@link #write}. */
   @AutoValue
+  @AutoValue.CopyAnnotations
   public abstract static class Write
       extends PTransform<PCollection<PublishRequest>, PCollectionTuple> {
 
@@ -174,7 +200,7 @@ public final class SnsIO {
 
     abstract @Nullable TupleTag<PublishResult> getResultOutputTag();
 
-    abstract @Nullable Coder getCoder();
+    abstract @Nullable Coder<PublishResult> getCoder();
 
     abstract Builder builder();
 
@@ -189,7 +215,7 @@ public final class SnsIO {
 
       abstract Builder setResultOutputTag(TupleTag<PublishResult> results);
 
-      abstract Builder setCoder(Coder coder);
+      abstract Builder setCoder(Coder<PublishResult> coder);
 
       abstract Write build();
     }
@@ -287,6 +313,11 @@ public final class SnsIO {
 
     @Override
     public PCollectionTuple expand(PCollection<PublishRequest> input) {
+      LoggerFactory.getLogger(SnsIO.class)
+          .warn(
+              "You are using a deprecated IO for Sns. Please migrate to module "
+                  + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
+
       checkArgument(getTopicName() != null, "withTopicName() is required");
       PCollectionTuple result =
           input.apply(
@@ -300,9 +331,8 @@ public final class SnsIO {
 
     static class SnsWriterFn extends DoFn<PublishRequest, PublishResult> {
       @VisibleForTesting
-      static final String RETRY_ATTEMPT_LOG = "Error writing to SNS. Retry attempt[%d]";
+      static final String RETRY_ATTEMPT_LOG = "Error writing to SNS. Retry attempt[{}]";
 
-      private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
       private transient FluentBackoff retryBackoff; // defaults to no retries
       private static final Logger LOG = LoggerFactory.getLogger(SnsWriterFn.class);
       private static final Counter SNS_WRITE_FAILURES =
@@ -324,14 +354,12 @@ public final class SnsIO {
             "Topic %s does not exist",
             spec.getTopicName());
 
-        retryBackoff =
-            FluentBackoff.DEFAULT
-                .withMaxRetries(0) // default to no retrying
-                .withInitialBackoff(RETRY_INITIAL_BACKOFF);
+        retryBackoff = FluentBackoff.DEFAULT.withMaxRetries(0); // default to no retrying
         if (spec.getRetryConfiguration() != null) {
           retryBackoff =
               retryBackoff
                   .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
+                  .withInitialBackoff(spec.getRetryConfiguration().getInitialDuration())
                   .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration());
         }
       }
@@ -353,7 +381,7 @@ public final class SnsIO {
             if (spec.getRetryConfiguration() == null
                 || !spec.getRetryConfiguration().getRetryPredicate().test(ex)) {
               SNS_WRITE_FAILURES.inc();
-              LOG.info("Unable to publish message {} due to {} ", request.getMessage(), ex);
+              LOG.info("Unable to publish message {}.", request.getMessage(), ex);
               throw new IOException("Error writing to SNS (no attempt made to retry)", ex);
             }
 
@@ -365,7 +393,7 @@ public final class SnsIO {
                   ex);
             } else {
               // Note: this used in test cases to verify behavior
-              LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), ex);
+              LOG.warn(RETRY_ATTEMPT_LOG, attempt, ex);
             }
           }
         }

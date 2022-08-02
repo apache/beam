@@ -26,7 +26,6 @@ import org.apache.beam.sdk.transforms.windowing.AfterWatermark.AfterWatermarkEar
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark.FromEndOfWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.Never.NeverTrigger;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -158,13 +157,6 @@ public class GroupByKey<K, V>
               + " trigger. Use a Window.into or Window.triggering transform prior to GroupByKey.");
     }
 
-    // Validate the window merge function.
-    if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
-      String cause = ((InvalidWindows<?>) windowingStrategy.getWindowFn()).getCause();
-      throw new IllegalStateException(
-          "GroupByKey must have a valid Window merge function.  " + "Invalid because: " + cause);
-    }
-
     // Validate that the trigger does not finish before garbage collection time
     if (!triggerIsSafe(windowingStrategy)) {
       throw new IllegalArgumentException(
@@ -208,18 +200,10 @@ public class GroupByKey<K, V>
   }
 
   public WindowingStrategy<?, ?> updateWindowingStrategy(WindowingStrategy<?, ?> inputStrategy) {
-    WindowFn<?, ?> inputWindowFn = inputStrategy.getWindowFn();
-    if (!inputWindowFn.isNonMerging()) {
-      // Prevent merging windows again, without explicit user
-      // involvement, e.g., by Window.into() or Window.remerge().
-      inputWindowFn =
-          new InvalidWindows<>(
-              "WindowFn has already been consumed by previous GroupByKey", inputWindowFn);
-    }
-
-    // We also switch to the continuation trigger associated with the current trigger.
+    // If the WindowFn was merging, set the bit to indicate it is already merged.
+    // Switch to the continuation trigger associated with the current trigger.
     return inputStrategy
-        .withWindowFn(inputWindowFn)
+        .withAlreadyMerged(!inputStrategy.getWindowFn().isNonMerging())
         .withTrigger(inputStrategy.getTrigger().getContinuationTrigger());
   }
 

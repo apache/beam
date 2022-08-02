@@ -31,6 +31,9 @@ import org.apache.beam.sdk.transforms.Combine;
  * @param <StateT> The type of state being described.
  */
 @Experimental(Kind.STATE)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public interface StateSpec<StateT extends State> extends Serializable {
 
   /**
@@ -75,6 +78,8 @@ public interface StateSpec<StateT extends State> extends Serializable {
     ResultT dispatchValue(Coder<?> valueCoder);
 
     ResultT dispatchBag(Coder<?> elementCoder);
+
+    ResultT dispatchOrderedList(Coder<?> elementCoder);
 
     ResultT dispatchCombining(Combine.CombineFn<?, ?, ?> combineFn, Coder<?> accumCoder);
 

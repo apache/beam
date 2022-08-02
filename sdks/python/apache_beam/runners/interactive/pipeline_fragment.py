@@ -19,10 +19,9 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.pipeline import PipelineVisitor
+from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.testing.test_stream import TestStream
 
 
@@ -64,10 +63,9 @@ class PipelineFragment(object):
     # pipeline instance held by the end user. This instance can be processed
     # into a pipeline fragment that later run by the underlying runner.
     self._runner_pipeline = self._build_runner_pipeline()
-    _, self._context = self._runner_pipeline.to_runner_api(
-        return_context=True, use_fake_coders=True)
+    _, self._context = self._runner_pipeline.to_runner_api(return_context=True)
     from apache_beam.runners.interactive import pipeline_instrument as instr
-    self._runner_pcoll_to_id = instr.pcolls_to_pcoll_id(
+    self._runner_pcoll_to_id = instr.pcoll_to_pcoll_id(
         self._runner_pipeline, self._context)
     # Correlate components in the runner pipeline to components in the user
     # pipeline. The target pcolls are the pcolls given and defined in the user
@@ -96,10 +94,12 @@ class PipelineFragment(object):
 
   def deduce_fragment(self):
     """Deduce the pipeline fragment as an apache_beam.Pipeline instance."""
-    return beam.pipeline.Pipeline.from_runner_api(
-        self._runner_pipeline.to_runner_api(use_fake_coders=True),
+    fragment = beam.pipeline.Pipeline.from_runner_api(
+        self._runner_pipeline.to_runner_api(),
         self._runner_pipeline.runner,
         self._options)
+    ie.current_env().add_derived_pipeline(self._runner_pipeline, fragment)
+    return fragment
 
   def run(self, display_pipeline_graph=False, use_cache=True, blocking=False):
     """Shorthand to run the pipeline fragment."""
@@ -117,10 +117,12 @@ class PipelineFragment(object):
       self._runner_pipeline.runner._blocking = preserved_blocking
 
   def _build_runner_pipeline(self):
-    return beam.pipeline.Pipeline.from_runner_api(
-        self._user_pipeline.to_runner_api(use_fake_coders=True),
+    runner_pipeline = beam.pipeline.Pipeline.from_runner_api(
+        self._user_pipeline.to_runner_api(),
         self._user_pipeline.runner,
         self._options)
+    ie.current_env().add_derived_pipeline(self._user_pipeline, runner_pipeline)
+    return runner_pipeline
 
   def _calculate_target_pcoll_ids(self):
     pcoll_id_to_target_pcoll = {}
@@ -188,9 +190,21 @@ class PipelineFragment(object):
             break
           # Mark the AppliedPTransform as necessary.
           necessary_transforms.add(producer)
+
+          # Also mark composites that are not the root transform. If the root
+          # transform is added, then all transforms are incorrectly marked as
+          # necessary. If composites are not handled, then there will be
+          # orphaned PCollections.
+          if producer.parent is not None:
+            necessary_transforms.update(producer.parts)
+
+            # This will recursively add all the PCollections in this composite.
+            for part in producer.parts:
+              updated_all_inputs.update(part.outputs.values())
+
           # Record all necessary input and side input PCollections.
           updated_all_inputs.update(producer.inputs)
-          # pylint: disable=map-builtin-not-iterating
+          # pylint: disable=bad-option-value
           side_input_pvalues = set(
               map(lambda side_input: side_input.pvalue, producer.side_inputs))
           updated_all_inputs.update(side_input_pvalues)

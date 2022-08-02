@@ -19,7 +19,7 @@
 WithKeys
 --------
 
-**Kata:** Convert each fruit name into a KV of its first letter and itself, e.g. 
+**Kata:** Convert each fruit name into a KV of its first letter and itself, e.g.
 `apple => KV.of("a", "apple")`
 
 <div class="hint">

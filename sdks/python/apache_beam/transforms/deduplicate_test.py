@@ -19,11 +19,9 @@
 
 """Unit tests for deduplicate transform by using TestStream."""
 
-from __future__ import absolute_import
-
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.coders import coders
@@ -41,12 +39,14 @@ from apache_beam.utils.timestamp import Timestamp
 # TestStream is only supported in streaming pipeline. The Deduplicate transform
 # also requires Timer support. Sickbaying this testsuite until dataflow runner
 # supports both TestStream and user timer.
-@attr('ValidatesRunner', 'sickbay-batch', 'sickbay-streaming')
+@pytest.mark.no_sickbay_batch
+@pytest.mark.no_sickbay_streaming
+@pytest.mark.it_validatesrunner
 class DeduplicateTest(unittest.TestCase):
   def __init__(self, *args, **kwargs):
     self.runner = None
     self.options = None
-    super(DeduplicateTest, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
   def set_runner(self, runner):
     self.runner = runner

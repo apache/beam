@@ -19,12 +19,15 @@ package org.apache.beam.runners.spark;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
+import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.StreamingTransformTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -48,6 +51,9 @@ import org.slf4j.LoggerFactory;
  * String sparkPipeline = result.getDebugString();
  * }</pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkRunnerDebugger.class);
@@ -72,7 +78,18 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
 
   @Override
   public SparkPipelineResult run(Pipeline pipeline) {
-    JavaSparkContext jsc = new JavaSparkContext("local[1]", "Debug_Pipeline");
+    boolean isStreaming =
+        options.isStreaming() || options.as(TestSparkPipelineOptions.class).isForceStreaming();
+
+    // Default to using the primitive versions of Read.Bounded and Read.Unbounded.
+    // TODO(https://github.com/apache/beam/issues/20530): Use SDF read as default when we address
+    // performance issue.
+    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
+      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+    }
+
+    JavaSparkContext jsc =
+        SparkContextFactory.getSparkContext(pipeline.getOptions().as(SparkPipelineOptions.class));
     JavaStreamingContext jssc =
         new JavaStreamingContext(jsc, new org.apache.spark.streaming.Duration(1000));
 
@@ -81,9 +98,7 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
     TransformTranslator.Translator translator = new TransformTranslator.Translator();
 
     SparkNativePipelineVisitor visitor;
-    if (options.isStreaming()
-        || (options instanceof TestSparkPipelineOptions
-            && ((TestSparkPipelineOptions) options).isForceStreaming())) {
+    if (isStreaming) {
       SparkPipelineTranslator streamingTranslator =
           new StreamingTransformTranslator.Translator(translator);
       EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options, jssc);
@@ -95,7 +110,7 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
 
     pipeline.traverseTopologically(visitor);
 
-    jsc.stop();
+    SparkContextFactory.stopSparkContext(jsc);
 
     String debugString = visitor.getDebugString();
     LOG.info("Translated Native Spark pipeline:\n" + debugString);

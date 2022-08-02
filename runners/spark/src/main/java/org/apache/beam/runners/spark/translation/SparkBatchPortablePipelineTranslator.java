@@ -18,6 +18,10 @@
 package org.apache.beam.runners.spark.translation;
 
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.createOutputMap;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getExecutableStageIntermediateId;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getInputId;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getOutputId;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowedValueCoder;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.instantiateCoder;
 
@@ -32,16 +36,14 @@ import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
-import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
-import org.apache.beam.runners.fnexecution.wire.WireCoders;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.util.ByteArray;
@@ -50,6 +52,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
@@ -57,23 +61,23 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.StorageLevel;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /** Translates a bounded portable pipeline into a Spark job. */
-public class SparkBatchPortablePipelineTranslator {
-
-  private static final Logger LOG =
-      LoggerFactory.getLogger(SparkBatchPortablePipelineTranslator.class);
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+public class SparkBatchPortablePipelineTranslator
+    implements SparkPortablePipelineTranslator<SparkTranslationContext> {
 
   private final ImmutableMap<String, PTransformTranslator> urnToTransformTranslator;
 
@@ -84,6 +88,7 @@ public class SparkBatchPortablePipelineTranslator {
         PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context);
   }
 
+  @Override
   public Set<String> knownUrns() {
     return urnToTransformTranslator.keySet();
   }
@@ -108,6 +113,7 @@ public class SparkBatchPortablePipelineTranslator {
   }
 
   /** Translates pipeline from Beam into the Spark context. */
+  @Override
   public void translate(final RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
     QueryablePipeline p =
         QueryablePipeline.forTransforms(
@@ -173,7 +179,14 @@ public class SparkBatchPortablePipelineTranslator {
 
     JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKeyAndWindow;
     Partitioner partitioner = getPartitioner(context);
-    if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
+    // As this is batch, we can ignore triggering and allowed lateness parameters.
+    if (windowingStrategy.getWindowFn().equals(new GlobalWindows())
+        && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
+      // we can drop the windows and recover them later
+      groupedByKeyAndWindow =
+          GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
+              inputRdd, inputKeyCoder, inputValueCoder, partitioner);
+    } else if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
       // we can have a memory sensitive translation for non-merging windows
       groupedByKeyAndWindow =
           GroupNonMergingWindowsFunctions.groupByKeyAndWindow(
@@ -241,6 +254,7 @@ public class SparkBatchPortablePipelineTranslator {
           groupByKeyPair(inputDataset, keyCoder, wvCoder);
       SparkExecutableStageFunction<KV, SideInputT> function =
           new SparkExecutableStageFunction<>(
+              context.getSerializableOptions(),
               stagePayload,
               context.jobInfo,
               outputExtractionMap,
@@ -253,6 +267,7 @@ public class SparkBatchPortablePipelineTranslator {
       JavaRDD<WindowedValue<InputT>> inputRdd2 = ((BoundedDataset<InputT>) inputDataset).getRDD();
       SparkExecutableStageFunction<InputT, SideInputT> function2 =
           new SparkExecutableStageFunction<>(
+              context.getSerializableOptions(),
               stagePayload,
               context.jobInfo,
               outputExtractionMap,
@@ -393,30 +408,10 @@ public class SparkBatchPortablePipelineTranslator {
         : new HashPartitioner(context.getSparkContext().defaultParallelism());
   }
 
-  private static String getInputId(PTransformNode transformNode) {
-    return Iterables.getOnlyElement(transformNode.getTransform().getInputsMap().values());
-  }
-
-  private static String getOutputId(PTransformNode transformNode) {
-    return Iterables.getOnlyElement(transformNode.getTransform().getOutputsMap().values());
-  }
-
-  private static <T> WindowedValueCoder<T> getWindowedValueCoder(
-      String pCollectionId, RunnerApi.Components components) {
-    PCollection pCollection = components.getPcollectionsOrThrow(pCollectionId);
-    PCollectionNode pCollectionNode = PipelineNode.pCollection(pCollectionId, pCollection);
-    WindowedValueCoder<T> coder;
-    try {
-      coder =
-          (WindowedValueCoder) WireCoders.instantiateRunnerWireCoder(pCollectionNode, components);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    return coder;
-  }
-
-  private static String getExecutableStageIntermediateId(PTransformNode transformNode) {
-    return transformNode.getId();
+  @Override
+  public SparkTranslationContext createTranslationContext(
+      JavaSparkContext jsc, SparkPipelineOptions options, JobInfo jobInfo) {
+    return new SparkTranslationContext(jsc, options, jobInfo);
   }
 
   /** Predicate to determine whether a URN is a Spark native transform. */

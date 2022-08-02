@@ -23,14 +23,13 @@ import com.google.cloud.datacatalog.v1beta1.GcsFilesetSpec;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.Table.Builder;
 
 /** {@link TableFactory} that understands Data Catalog GCS entries. */
 class GcsTableFactory implements TableFactory {
 
   /** Creates a Beam SQL table description from a GCS fileset entry. */
   @Override
-  public Optional<Builder> tableBuilder(Entry entry) {
+  public Optional<Table.Builder> tableBuilder(Entry entry) {
     if (!entry.hasGcsFilesetSpec()) {
       return Optional.empty();
     }

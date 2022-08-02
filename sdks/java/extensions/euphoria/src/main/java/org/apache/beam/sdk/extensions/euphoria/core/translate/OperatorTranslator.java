@@ -28,6 +28,9 @@ import org.apache.beam.sdk.values.PCollectionList;
  * @param <OutputT> the type of output elements
  * @param <OperatorT> the type of the euphoria operator
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public interface OperatorTranslator<InputT, OutputT, OperatorT extends Operator> {
 
   /**

@@ -17,10 +17,10 @@ package vet
 
 import (
 	"context"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/vet/testpipeline"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/vet/testpipeline"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
 func TestEvaluate(t *testing.T) {
@@ -55,7 +55,7 @@ func TestEvaluate(t *testing.T) {
 				t.Errorf("e.AllExported() = %v, want %v", e.AllExported(), test.exp)
 			}
 			if e.RequiresRegistrations() != test.reg {
-				t.Errorf("e.RequiresRegistrations() = %v, want %v\n%v", e.RequiresRegistrations(), test.reg, string(e.d.Bytes()))
+				t.Errorf("e.RequiresRegistrations() = %v, want %v\n%v", e.RequiresRegistrations(), test.reg, e.d.String())
 			}
 			if e.UsesDefaultReflectionShims() != test.ref {
 				t.Errorf("e.UsesDefaultReflectionShims() = %v, want %v", e.UsesDefaultReflectionShims(), test.ref)

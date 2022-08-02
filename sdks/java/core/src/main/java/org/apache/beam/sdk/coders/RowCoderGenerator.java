@@ -24,10 +24,31 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.BitSet;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import javax.annotation.Nullable;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.description.modifier.FieldManifestation;
+import net.bytebuddy.description.modifier.Ownership;
+import net.bytebuddy.description.modifier.Visibility;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import net.bytebuddy.implementation.FixedValue;
+import net.bytebuddy.implementation.Implementation;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
+import net.bytebuddy.implementation.bytecode.Duplication;
+import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.member.FieldAccess;
+import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
@@ -35,27 +56,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.ByteBuddy;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.modifier.FieldManifestation;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.modifier.Ownership;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.modifier.Visibility;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.type.TypeDescription;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.DynamicType;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.FixedValue;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.Implementation;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.Duplication;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.StackManipulation;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.FieldAccess;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.matcher.ElementMatchers;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /**
@@ -95,15 +96,29 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
  * </code></pre>
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public abstract class RowCoderGenerator {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static final BitSetCoder NULL_LIST_CODER = BitSetCoder.of();
   private static final VarIntCoder VAR_INT_CODER = VarIntCoder.of();
+  // BitSet.get(n) will return false for any n >= nbits, so a BitSet with 0 bits will return false
+  // for all calls to get.
+  private static final BitSet EMPTY_BIT_SET = new BitSet(0);
 
   private static final String CODERS_FIELD_NAME = "FIELD_CODERS";
+  private static final String POSITIONS_FIELD_NAME = "FIELD_ENCODING_POSITIONS";
 
   // Cache for Coder class that are already generated.
   private static final Map<UUID, Coder<Row>> GENERATED_CODERS = Maps.newConcurrentMap();
+  private static final Map<UUID, Map<String, Integer>> ENCODING_POSITION_OVERRIDES =
+      Maps.newConcurrentMap();
+
+  public static void overrideEncodingPositions(UUID uuid, Map<String, Integer> encodingPositions) {
+    ENCODING_POSITION_OVERRIDES.put(uuid, encodingPositions);
+  }
 
   @SuppressWarnings("unchecked")
   public static Coder<Row> generate(Schema schema) {
@@ -117,22 +132,37 @@ public abstract class RowCoderGenerator {
           (DynamicType.Builder<Coder>) BYTE_BUDDY.subclass(coderType);
       builder = implementMethods(schema, builder);
 
+      int[] encodingPosToRowIndex = new int[schema.getFieldCount()];
+      Map<String, Integer> encodingPositions =
+          ENCODING_POSITION_OVERRIDES.getOrDefault(schema.getUUID(), schema.getEncodingPositions());
+      for (int recordIndex = 0; recordIndex < schema.getFieldCount(); ++recordIndex) {
+        String name = schema.getField(recordIndex).getName();
+        int encodingPosition = encodingPositions.get(name);
+        encodingPosToRowIndex[encodingPosition] = recordIndex;
+      }
+      // There should never be duplicate encoding positions.
+      Preconditions.checkState(
+          schema.getFieldCount() == Arrays.stream(encodingPosToRowIndex).distinct().count());
+
+      // Component coders are ordered by encoding position, but may encode a field with a different
+      // row index.
       Coder[] componentCoders = new Coder[schema.getFieldCount()];
       for (int i = 0; i < schema.getFieldCount(); ++i) {
+        int rowIndex = encodingPosToRowIndex[i];
         // We use withNullable(false) as nulls are handled by the RowCoder and the individual
         // component coders therefore do not need to handle nulls.
         componentCoders[i] =
-            SchemaCoder.coderForFieldType(schema.getField(i).getType().withNullable(false));
+            SchemaCoder.coderForFieldType(schema.getField(rowIndex).getType().withNullable(false));
       }
 
       builder =
-          builder.defineField(
-              CODERS_FIELD_NAME, Coder[].class, Visibility.PRIVATE, FieldManifestation.FINAL);
-
-      builder =
           builder
+              .defineField(
+                  CODERS_FIELD_NAME, Coder[].class, Visibility.PRIVATE, FieldManifestation.FINAL)
+              .defineField(
+                  POSITIONS_FIELD_NAME, int[].class, Visibility.PRIVATE, FieldManifestation.FINAL)
               .defineConstructor(Modifier.PUBLIC)
-              .withParameters(Coder[].class)
+              .withParameters(Coder[].class, int[].class)
               .intercept(new GeneratedCoderConstructor());
 
       try {
@@ -141,8 +171,8 @@ public abstract class RowCoderGenerator {
                 .make()
                 .load(Coder.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
                 .getLoaded()
-                .getDeclaredConstructor(Coder[].class)
-                .newInstance((Object) componentCoders);
+                .getDeclaredConstructor(Coder[].class, int[].class)
+                .newInstance((Object) componentCoders, (Object) encodingPosToRowIndex);
       } catch (InstantiationException
           | IllegalAccessException
           | NoSuchMethodException
@@ -175,6 +205,7 @@ public abstract class RowCoderGenerator {
                         .filter(
                             ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
                         .getOnly()),
+                Duplication.SINGLE,
                 // Store the list of Coders as a member variable.
                 MethodVariableAccess.REFERENCE.loadFrom(1),
                 FieldAccess.forField(
@@ -182,6 +213,15 @@ public abstract class RowCoderGenerator {
                             .getInstrumentedType()
                             .getDeclaredFields()
                             .filter(ElementMatchers.named(CODERS_FIELD_NAME))
+                            .getOnly())
+                    .write(),
+                // Store the list of encoding offsets as a member variable.
+                MethodVariableAccess.REFERENCE.loadFrom(2),
+                FieldAccess.forField(
+                        implementationTarget
+                            .getInstrumentedType()
+                            .getDeclaredFields()
+                            .filter(ElementMatchers.named(POSITIONS_FIELD_NAME))
                             .getOnly())
                     .write(),
                 MethodReturn.VOID);
@@ -223,6 +263,14 @@ public abstract class RowCoderGenerator {
                             .filter(ElementMatchers.named(CODERS_FIELD_NAME))
                             .getOnly())
                     .read(),
+                MethodVariableAccess.loadThis(),
+                FieldAccess.forField(
+                        implementationContext
+                            .getInstrumentedType()
+                            .getDeclaredFields()
+                            .filter(ElementMatchers.named(POSITIONS_FIELD_NAME))
+                            .getOnly())
+                    .read(),
                 // Element to encode. (offset 1, as offset 0 is always "this").
                 MethodVariableAccess.REFERENCE.loadFrom(1),
                 // OutputStream.
@@ -256,33 +304,58 @@ public abstract class RowCoderGenerator {
     // per-field Coders.
     @SuppressWarnings("unchecked")
     static void encodeDelegate(
-        Coder[] coders, Row value, OutputStream outputStream, boolean hasNullableFields)
+        Coder[] coders,
+        int[] encodingPosToIndex,
+        Row value,
+        OutputStream outputStream,
+        boolean hasNullableFields)
         throws IOException {
       checkState(value.getFieldCount() == value.getSchema().getFieldCount());
+      checkState(encodingPosToIndex.length == value.getFieldCount());
 
       // Encode the field count. This allows us to handle compatible schema changes.
       VAR_INT_CODER.encode(value.getFieldCount(), outputStream);
-      // Encode a bitmap for the null fields to save having to encode a bunch of nulls.
-      NULL_LIST_CODER.encode(scanNullFields(value, hasNullableFields), outputStream);
-      for (int idx = 0; idx < value.getFieldCount(); ++idx) {
-        Object fieldValue = value.getValue(idx);
-        if (value.getValue(idx) != null) {
-          coders[idx].encode(fieldValue, outputStream);
+
+      if (hasNullableFields) {
+        // If the row has null fields, extract the values out once so that both scanNullFields and
+        // the encoding can share it and avoid having to extract them twice.
+
+        Object[] fieldValues = new Object[value.getFieldCount()];
+        for (int idx = 0; idx < fieldValues.length; ++idx) {
+          fieldValues[idx] = value.getValue(idx);
+        }
+
+        // Encode a bitmap for the null fields to save having to encode a bunch of nulls.
+        NULL_LIST_CODER.encode(scanNullFields(fieldValues), outputStream);
+        for (int encodingPos = 0; encodingPos < fieldValues.length; ++encodingPos) {
+          @Nullable Object fieldValue = fieldValues[encodingPosToIndex[encodingPos]];
+          if (fieldValue != null) {
+            coders[encodingPos].encode(fieldValue, outputStream);
+          }
+        }
+      } else {
+        // Otherwise, we know all fields are non-null, so the null list is always empty.
+
+        NULL_LIST_CODER.encode(EMPTY_BIT_SET, outputStream);
+        for (int encodingPos = 0; encodingPos < value.getFieldCount(); ++encodingPos) {
+          @Nullable Object fieldValue = value.getValue(encodingPosToIndex[encodingPos]);
+          if (fieldValue != null) {
+            coders[encodingPos].encode(fieldValue, outputStream);
+          }
         }
       }
     }
 
     // Figure out which fields of the Row are null, and returns a BitSet. This allows us to save
     // on encoding each null field separately.
-    private static BitSet scanNullFields(Row row, boolean hasNullableFields) {
-      BitSet nullFields = new BitSet(row.getFieldCount());
-      if (hasNullableFields) {
-        for (int idx = 0; idx < row.getFieldCount(); ++idx) {
-          if (row.getValue(idx) == null) {
-            nullFields.set(idx);
-          }
+    private static BitSet scanNullFields(Object[] fieldValues) {
+      BitSet nullFields = new BitSet(fieldValues.length);
+      for (int idx = 0; idx < fieldValues.length; ++idx) {
+        if (fieldValues[idx] == null) {
+          nullFields.set(idx);
         }
       }
+
       return nullFields;
     }
   }
@@ -311,6 +384,14 @@ public abstract class RowCoderGenerator {
                             .filter(ElementMatchers.named(CODERS_FIELD_NAME))
                             .getOnly())
                     .read(),
+                MethodVariableAccess.loadThis(),
+                FieldAccess.forField(
+                        implementationContext
+                            .getInstrumentedType()
+                            .getDeclaredFields()
+                            .filter(ElementMatchers.named(POSITIONS_FIELD_NAME))
+                            .getOnly())
+                    .read(),
                 // read the InputStream. (offset 1, as offset 0 is always "this").
                 MethodVariableAccess.REFERENCE.loadFrom(1),
                 MethodInvocation.invoke(
@@ -332,27 +413,30 @@ public abstract class RowCoderGenerator {
 
     // The decode method of the generated Coder delegates to this method to evaluate all of the
     // per-field Coders.
-    static Row decodeDelegate(Schema schema, Coder[] coders, InputStream inputStream)
+    static Row decodeDelegate(
+        Schema schema, Coder[] coders, int[] encodingPosToIndex, InputStream inputStream)
         throws IOException {
       int fieldCount = VAR_INT_CODER.decode(inputStream);
 
       BitSet nullFields = NULL_LIST_CODER.decode(inputStream);
-      List<Object> fieldValues = Lists.newArrayListWithCapacity(coders.length);
-      for (int i = 0; i < fieldCount; ++i) {
+      Object[] fieldValues = new Object[coders.length];
+      for (int encodingPos = 0; encodingPos < fieldCount; ++encodingPos) {
         // In the case of a schema change going backwards, fieldCount might be > coders.length,
         // in which case we drop the extra fields.
-        if (i < coders.length) {
-          if (nullFields.get(i)) {
-            fieldValues.add(null);
+        if (encodingPos < coders.length) {
+          int rowIndex = encodingPosToIndex[encodingPos];
+          if (nullFields.get(rowIndex)) {
+            fieldValues[rowIndex] = null;
           } else {
-            Object fieldValue = coders[i].decode(inputStream);
-            fieldValues.add(fieldValue);
+            Object fieldValue = coders[encodingPos].decode(inputStream);
+            fieldValues[rowIndex] = fieldValue;
           }
         }
       }
       // If the schema was evolved to contain more fields, we fill them in with nulls.
-      for (int i = fieldCount; i < coders.length; i++) {
-        fieldValues.add(null);
+      for (int encodingPos = fieldCount; encodingPos < coders.length; encodingPos++) {
+        int rowIndex = encodingPosToIndex[encodingPos];
+        fieldValues[rowIndex] = null;
       }
       // We call attachValues instead of setValues. setValues validates every element in the list
       // is of the proper type, potentially converts to the internal type Row stores, and copies

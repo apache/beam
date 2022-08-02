@@ -62,6 +62,9 @@ import org.slf4j.LoggerFactory;
  * Beam/Dataflow-specific classes, such as {@link PipelineOptions} which cannot be shared with
  * Flume.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DataflowElementExecutionTracker extends ElementExecutionTracker {
   @VisibleForTesting
   public static final String TIME_PER_ELEMENT_EXPERIMENT = "time_per_element_counter";

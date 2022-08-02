@@ -73,16 +73,22 @@ class BigQueryAvroUtils {
           .put("GEOGRAPHY", Type.STRING)
           .put("BYTES", Type.BYTES)
           .put("INTEGER", Type.LONG)
+          .put("INT64", Type.LONG)
           .put("FLOAT", Type.DOUBLE)
+          .put("FLOAT64", Type.DOUBLE)
           .put("NUMERIC", Type.BYTES)
+          .put("BIGNUMERIC", Type.BYTES)
           .put("BOOLEAN", Type.BOOLEAN)
+          .put("BOOL", Type.BOOLEAN)
           .put("TIMESTAMP", Type.LONG)
           .put("RECORD", Type.RECORD)
+          .put("STRUCT", Type.RECORD)
           .put("DATE", Type.STRING)
           .put("DATE", Type.INT)
           .put("DATETIME", Type.STRING)
           .put("TIME", Type.STRING)
           .put("TIME", Type.LONG)
+          .put("JSON", Type.STRING)
           .build();
 
   /**
@@ -295,6 +301,7 @@ class BigQueryAvroUtils {
       case "STRING":
       case "DATETIME":
       case "GEOGRAPHY":
+      case "JSON":
         // Avro will use a CharSequence to represent String objects, but it may not always use
         // java.lang.String; for example, it may prefer org.apache.avro.util.Utf8.
         verify(v instanceof CharSequence, "Expected CharSequence (String), got %s", v.getClass());
@@ -322,12 +329,15 @@ class BigQueryAvroUtils {
           return v.toString();
         }
       case "INTEGER":
+      case "INT64":
         verify(v instanceof Long, "Expected Long, got %s", v.getClass());
         return ((Long) v).toString();
       case "FLOAT":
+      case "FLOAT64":
         verify(v instanceof Double, "Expected Double, got %s", v.getClass());
         return v;
       case "NUMERIC":
+      case "BIGNUMERIC":
         // NUMERIC data types are represented as BYTES with the DECIMAL logical type. They are
         // converted back to Strings with precision and scale determined by the logical type.
         verify(v instanceof ByteBuffer, "Expected ByteBuffer, got %s", v.getClass());
@@ -337,6 +347,7 @@ class BigQueryAvroUtils {
             new Conversions.DecimalConversion()
                 .fromBytes((ByteBuffer) v, Schema.create(avroType), avroLogicalType);
         return numericValue.toString();
+      case "BOOL":
       case "BOOLEAN":
         verify(v instanceof Boolean, "Expected Boolean, got %s", v.getClass());
         return v;
@@ -346,6 +357,7 @@ class BigQueryAvroUtils {
         verify(v instanceof Long, "Expected Long, got %s", v.getClass());
         return formatTimestamp((Long) v);
       case "RECORD":
+      case "STRUCT":
         verify(v instanceof GenericRecord, "Expected GenericRecord, got %s", v.getClass());
         return convertGenericRecordToTableRow((GenericRecord) v, fieldSchema.getFields());
       case "BYTES":
@@ -402,6 +414,9 @@ class BigQueryAvroUtils {
         avroFields);
   }
 
+  @SuppressWarnings({
+    "nullness" // Avro library not annotated
+  })
   private static Field convertField(TableFieldSchema bigQueryField) {
     ImmutableCollection<Type> avroTypes = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType());
     if (avroTypes.isEmpty()) {

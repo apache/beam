@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import static org.apache.beam.runners.dataflow.worker.NameContextsForTests.nameContextForTest;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterMean;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -65,7 +66,7 @@ public class OutputReceiverTest {
     CounterMean<Long> meanByteCount = outputCounter.getMeanByteCount().getAggregate();
     Assert.assertEquals(7, meanByteCount.getAggregate().longValue());
     Assert.assertEquals(2, meanByteCount.getCount());
-    Assert.assertThat(receiver1.outputElems, CoreMatchers.<Object>hasItems("hi", "bob"));
-    Assert.assertThat(receiver2.outputElems, CoreMatchers.<Object>hasItems("hi", "bob"));
+    assertThat(receiver1.outputElems, CoreMatchers.<Object>hasItems("hi", "bob"));
+    assertThat(receiver2.outputElems, CoreMatchers.<Object>hasItems("hi", "bob"));
   }
 }

@@ -19,14 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import abc
 import io
 import os
-from builtins import object
-
-from future.utils import with_metaclass
 
 __all__ = [
     'Downloader',
@@ -37,12 +32,13 @@ __all__ = [
 ]
 
 
-class Downloader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class Downloader(metaclass=abc.ABCMeta):
   """Download interface for a single file.
 
   Implementations should support random access reads.
   """
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def size(self):
     """Size of file to download."""
 
@@ -62,7 +58,7 @@ class Downloader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
     """
 
 
-class Uploader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class Uploader(metaclass=abc.ABCMeta):
   """Upload interface for a single file."""
   @abc.abstractmethod
   def put(self, data):
@@ -218,7 +214,7 @@ class UploaderStream(io.RawIOBase):
     if not self.closed:
       self._uploader.finish()
 
-    super(UploaderStream, self).close()
+    super().close()
 
   def writable(self):
     return True

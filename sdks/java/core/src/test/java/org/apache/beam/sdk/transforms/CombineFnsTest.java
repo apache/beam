@@ -17,9 +17,18 @@
  */
 package org.apache.beam.sdk.transforms;
 
+// beam-playground:
+//   name: CombineFnsTest
+//   description: Unit-test for the CombineFn example.
+//   multifile: false
+//   context_line: 71
+//   categories:
+//     - Combiners
+//     - Core Transforms
+
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,7 +44,6 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesSideInputs;
@@ -99,7 +107,7 @@ public class CombineFnsTest {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSideInputs.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class, UsesSideInputs.class})
   public void testComposedCombine() {
     p.getCoderRegistry().registerCoderForClass(UserString.class, UserStringCoder.of());
 
@@ -149,7 +157,7 @@ public class CombineFnsTest {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSideInputs.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class, UsesSideInputs.class})
   public void testComposedCombineWithContext() {
     p.getCoderRegistry().registerCoderForClass(UserString.class, UserStringCoder.of());
 
@@ -210,7 +218,7 @@ public class CombineFnsTest {
   }
 
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class})
   public void testComposedCombineNullValues() {
     p.getCoderRegistry()
         .registerCoderForClass(UserString.class, NullableCoder.of(UserStringCoder.of()));

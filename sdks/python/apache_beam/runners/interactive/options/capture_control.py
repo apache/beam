@@ -23,13 +23,10 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 from datetime import timedelta
 
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
-from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.options import capture_limiters
 
@@ -49,7 +46,7 @@ class CaptureControl(object):
     self._test_limiters = None
 
   def limiters(self):
-    # type: () -> List[capture_limiters.Limiter]
+    # type: () -> List[capture_limiters.Limiter] # noqa: F821
     if self._test_limiters:
       return self._test_limiters
     return [
@@ -58,7 +55,7 @@ class CaptureControl(object):
     ]
 
   def set_limiters_for_test(self, limiters):
-    # type: (List[capture_limiters.Limiter]) -> None
+    # type: (List[capture_limiters.Limiter]) -> None # noqa: F821
     self._test_limiters = limiters
 
 
@@ -69,17 +66,9 @@ def evict_captured_data(pipeline=None):
 
   In future PCollection evaluation/visualization and pipeline
   runs, Interactive Beam will capture fresh data."""
-  if ie.current_env().options.enable_capture_replay:
+  if ie.current_env().options.enable_recording_replay:
     _LOGGER.info(
-        'You have requested Interactive Beam to evict all captured '
+        'You have requested Interactive Beam to evict all recorded '
         'data that could be deterministically replayed among multiple '
         'pipeline runs.')
-  ie.current_env().track_user_pipelines()
-  if pipeline:
-    bcj.attempt_to_cancel_background_caching_job(pipeline)
-    bcj.attempt_to_stop_test_stream_service(pipeline)
-  else:
-    for user_pipeline in ie.current_env().tracked_user_pipelines:
-      bcj.attempt_to_cancel_background_caching_job(user_pipeline)
-      bcj.attempt_to_stop_test_stream_service(user_pipeline)
   ie.current_env().cleanup(pipeline)

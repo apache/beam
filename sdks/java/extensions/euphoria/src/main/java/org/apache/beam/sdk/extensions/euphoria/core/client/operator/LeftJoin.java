@@ -53,6 +53,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * </ol>
  */
 @Audience(Audience.Type.CLIENT)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class LeftJoin {
 
   /**

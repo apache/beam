@@ -19,15 +19,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import re
 import subprocess
 
 import grpc
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -63,8 +60,7 @@ def build_pipeline(p, input_file, output_file):
 
   counts = (
       lines
-      | 'split' >>
-      (beam.ParDo(WordExtractingDoFn()).with_output_types(unicode))
+      | 'split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))
       | 'count' >> beam.ExternalTransform(
           'beam:transforms:xlang:count', None, EXPANSION_SERVICE_ADDR))
 

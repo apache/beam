@@ -68,20 +68,21 @@ or:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import sys
 
 import apache_beam as beam
 from apache_beam.testing.load_tests.load_test import LoadTest
+from apache_beam.testing.load_tests.load_test_metrics_utils import AssignTimestamps
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
+from apache_beam.testing.synthetic_pipeline import StatefulLoadGenerator
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
+from apache_beam.transforms.combiners import window
 
 
 class CombineTest(LoadTest):
   def __init__(self):
-    super(CombineTest, self).__init__()
+    super().__init__()
     self.fanout = self.get_option_or_default('fanout', 1)
     try:
       self.top_count = int(self.pipeline.get_option('top_count'))
@@ -96,17 +97,28 @@ class CombineTest(LoadTest):
       yield element
 
   def test(self):
-    input = (
-        self.pipeline
-        | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
+    if self.get_option_or_default('use_stateful_load_generator', False):
+      source = (
+          self.pipeline
+          | 'LoadGenerator' >> StatefulLoadGenerator(self.input_options)
+          | beam.ParDo(AssignTimestamps())
+          | beam.WindowInto(window.FixedWindows(20)))
+    else:
+      source = (
+          self.pipeline
+          | 'Read synthetic' >> beam.io.Read(
+              SyntheticSource(self.parse_synthetic_source_options())))
+
+    pc = (
+        source
         | 'Measure time: Start' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
 
     for branch in range(self.fanout):
       (  # pylint: disable=expression-not-assigned
-          input
+          pc
           | 'Combine with Top %i' % branch >> beam.CombineGlobally(
-              beam.combiners.TopCombineFn(self.top_count))
+              beam.combiners.TopCombineFn(self.top_count)).without_defaults()
           | 'Consume %i' % branch >> beam.ParDo(self._GetElement())
           | 'Measure time: End %i' % branch >> beam.ParDo(
               MeasureTime(self.metrics_namespace)))

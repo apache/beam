@@ -19,12 +19,12 @@
 Event Time Triggers
 -------------------
 
-When collecting and grouping data into windows, Beam uses triggers to determine when to emit the 
-aggregated results of each window (referred to as a pane). If you use Beam’s default windowing 
-configuration and default trigger, Beam outputs the aggregated result when it estimates all data 
+When collecting and grouping data into windows, Beam uses triggers to determine when to emit the
+aggregated results of each window (referred to as a pane). If you use Beam’s default windowing
+configuration and default trigger, Beam outputs the aggregated result when it estimates all data
 has arrived, and discards all subsequent data for that window.
 
-You can set triggers for your PCollections to change this default behavior. Beam provides a number 
+You can set triggers for your PCollections to change this default behavior. Beam provides a number
 of pre-built triggers that you can set:
 
 *   Event time triggers
@@ -32,16 +32,16 @@ of pre-built triggers that you can set:
 *   Data-driven triggers
 *   Composite triggers
 
-Event time triggers operate on the event time, as indicated by the timestamp on each data element. 
+Event time triggers operate on the event time, as indicated by the timestamp on each data element.
 Beam’s default trigger is event time-based.
 
-The AfterWatermark trigger operates on event time. The AfterWatermark trigger emits the contents 
-of a window after the watermark passes the end of the window, based on the timestamps attached to 
-the data elements. The watermark is a global progress metric, and is Beam’s notion of input 
-completeness within your pipeline at any given point. AfterWatermark.pastEndOfWindow() only fires 
+The AfterWatermark trigger operates on event time. The AfterWatermark trigger emits the contents
+of a window after the watermark passes the end of the window, based on the timestamps attached to
+the data elements. The watermark is a global progress metric, and is Beam’s notion of input
+completeness within your pipeline at any given point. AfterWatermark.pastEndOfWindow() only fires
 when the watermark passes the end of the window.
 
-**Kata:** Given that events are being generated every second, please implement a trigger that emits 
+**Kata:** Given that events are being generated every second, please implement a trigger that emits
 the number of events count within a fixed window of 5-second duration.
 
 <div class="hint">

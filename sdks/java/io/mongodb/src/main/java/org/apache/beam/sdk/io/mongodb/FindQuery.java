@@ -38,6 +38,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Builds a MongoDB FindQuery object. */
 @Experimental(Kind.SOURCE_SINK)
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class FindQuery
     implements SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> {
 

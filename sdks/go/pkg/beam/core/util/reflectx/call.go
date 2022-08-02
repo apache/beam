@@ -19,8 +19,9 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"runtime/debug"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 //go:generate specialize --input=calls.tmpl
@@ -98,7 +99,7 @@ func CallNoPanic(fn Func, args []interface{}) (ret []interface{}, err error) {
 
 // ValueOf performs a per-element reflect.ValueOf.
 func ValueOf(list []interface{}) []reflect.Value {
-	ret := make([]reflect.Value, len(list), len(list))
+	ret := make([]reflect.Value, len(list))
 	for i := 0; i < len(list); i++ {
 		ret[i] = reflect.ValueOf(list[i])
 	}
@@ -107,7 +108,7 @@ func ValueOf(list []interface{}) []reflect.Value {
 
 // Interface performs a per-element Interface call.
 func Interface(list []reflect.Value) []interface{} {
-	ret := make([]interface{}, len(list), len(list))
+	ret := make([]interface{}, len(list))
 	for i := 0; i < len(list); i++ {
 		ret[i] = list[i].Interface()
 	}

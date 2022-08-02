@@ -17,11 +17,10 @@
     under the License.
 -->
 
-# Go SDK (experimental)
+# Go SDK
 
-The Go SDK is currently an experimental feature of Apache Beam and
-not suitable for production use. It is based on the following initial 
-[design](https://s.apache.org/beam-go-sdk-design-rfc).
+The Apache Beam Go SDK is the Beam Model implemented in the [Go Programming Language](https://go.dev/).
+It is based on the following initial [design](https://s.apache.org/beam-go-sdk-design-rfc).
 
 ## How to run the examples
 
@@ -30,8 +29,9 @@ most examples), follow the setup
 [here](https://beam.apache.org/documentation/runners/dataflow/). You can
 verify that it works by running the corresponding Java example.
 
-The examples are normal Go programs and are most easily run directly. They
-are parameterized by Go flags. For example, to run wordcount on direct runner do:
+The examples are normal Go programs and are most easily run directly.
+They are parameterized by Go flags.
+For example, to run wordcount on the Go direct runner do:
 
 ```
 $ pwd
@@ -71,7 +71,7 @@ The debugging output is currently quite verbose and likely to change. The output
 file in this case:
 
 ```
-$ head /tmp/result.txt 
+$ head /tmp/result.txt
 while: 2
 darkling: 1
 rail'd: 1
@@ -112,59 +112,28 @@ See [BUILD.md](./BUILD.md) for how to build Go code in general. See
 
 ## Issues
 
-Please use the [`sdk-go`](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20component%20%3D%20sdk-go%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) component for any bugs or feature requests.
+Please use the [`sdk-go`](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Asdk-go) component for any bugs or feature requests.
 
 ## Contributing to the Go SDK
 
 ### New to developing Go?
 https://tour.golang.org : The Go Tour gives you the basics of the language, interactively no installation required.
 
-https://github.com/campoy/go-tooling-workshop is a great start on learning good (optional) development tools for Go. 
+https://github.com/campoy/go-tooling-workshop is a great start on learning good (optional) development tools for Go.
 
 ### Developing Go Beam SDK on Github
 
-To make and test changes when working with Go, it's neecessary to clone your repository 
-in a subdirectory of your GOPATH. This permits existing gradle tools to use your in progress changes.
+The Go SDK uses Go Modules for dependency management so it's as simple as cloning
+the repo, making necessary changes and running tests.
 
-```
-# Create a Go compatible place for the repo, using src/github.com/apache/
-# matches where Go will look for the files, or go get would put them.
-$ mkdir -p $GOPATH/src/github.com/apache/
-$ cd $GOPATH/src/github.com/apache/
+Executing all unit tests for the SDK is possible from the `<beam root>\sdks\go` directory and running `go test ./...`.
 
-
-# Clone the repo, and update your branch as normal
-$ git clone https://github.com/apache/beam.git
-$ cd beam
-$ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
-$ git fetch --all
-
-# Get or Update all the Go SDK dependencies
-$ go get -u ./...
-# Test that the system compiles and runs.
-$ go test ./...
-```
-
-If you don’t have a GOPATH set, follow [these instructions](https://github.com/golang/go/wiki/SettingGOPATH) to create a new directory in your home directory, and use that.
+To test your change as Jenkins would execute it from a PR, from the
+beam root directory, run:
+ * `./gradlew :sdks:go:goTest` executes the unit tests.
+ * `./gradlew :sdks:go:test:ulrValidatesRunner` validates the SDK against the Portable Python runner.
+ * `./gradlew :sdks:go:test:flinkValidatesRunner` validates the SDK against the Flink runner.
 
 Follow the [contribution guide](https://beam.apache.org/contribute/contribution-guide/#code) to create branches, and submit pull requests as normal.
-
-### Dependency management
-Until [BEAM-5379](https://issues.apache.org/jira/browse/BEAM-5379) is resolved,
-Beam locks versions of packages with the gogradle plugin. If new dependencies
-are added in a PR then the lock file needs to be updated. 
-From the `$GOPATH/src/github.com/apache/beam` directory run
-
-```
-$ ./gradlew :sdks:go:goLock
-`./gradlew :goPostcommit`
-```
-
- to update the lock file, and test your code under the locked versions. gogradle
-will add vendor directories with the locked versions of the code.
-
-You can sanity check a PR on Jenkins by commenting `Run Go PostCommit` to trigger 
-the integration tests. This is important so that the Beam testing done on the
-jenkins cluster can produce consistent results, and have the packages available.
 
 

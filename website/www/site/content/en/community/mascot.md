@@ -17,9 +17,9 @@ limitations under the License.
 
 # Beam Mascot Design
 
-This page contains Apache Beam's mascot designs. 
+This page contains Apache Beam's mascot designs.
 
-Beam Firefly is cute, friendly, agile, easy to use, and its main objective is to fetch streams and batches of data and process it. The mascot’s model sheet is useful to understand its features, capabilities, as well as its morphology.  The original design of the mascot was created by [Julian G. Bruno](https://www.artstation.com/jbruno) and was donated to the Apache Beam community under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). 
+Beam Firefly is cute, friendly, agile, easy to use, and its main objective is to fetch streams and batches of data and process it. The mascot’s model sheet is useful to understand its features, capabilities, as well as its morphology.  The original design of the mascot was created by [Julian G. Bruno](https://www.artstation.com/jbruno) and was donated to the Apache Beam community under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
 You can browse the original mascot and its adaptations in different sizes and image formats in [this directory](https://github.com/apache/beam/tree/master/website/www/site/static/images/mascot/).
 

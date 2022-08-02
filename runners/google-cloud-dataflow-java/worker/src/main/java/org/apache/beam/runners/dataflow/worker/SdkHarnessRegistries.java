@@ -26,16 +26,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.dataflow.worker.fn.data.BeamFnDataGrpcService;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Factory to create SdkHarnessRegistry */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SdkHarnessRegistries {
 
   /** Create a registry which does not require sdkHarness registration for non fnapi worker. */
@@ -224,27 +227,23 @@ public class SdkHarnessRegistries {
 
     private final SdkWorkerHarness sdkWorkerHarness =
         new SdkWorkerHarness() {
-          @Nullable
           @Override
-          public FnApiControlClient getControlClientHandler() {
+          public @Nullable FnApiControlClient getControlClientHandler() {
             return null;
           }
 
-          @Nullable
           @Override
-          public String getWorkerId() {
+          public @Nullable String getWorkerId() {
             return null;
           }
 
-          @Nullable
           @Override
-          public GrpcFnServer<GrpcDataService> getGrpcDataFnServer() {
+          public @Nullable GrpcFnServer<GrpcDataService> getGrpcDataFnServer() {
             return null;
           }
 
-          @Nullable
           @Override
-          public GrpcFnServer<GrpcStateService> getGrpcStateFnServer() {
+          public @Nullable GrpcFnServer<GrpcStateService> getGrpcStateFnServer() {
             return null;
           }
         };
@@ -274,15 +273,13 @@ public class SdkHarnessRegistries {
     @Override
     public void completeWork(SdkWorkerHarness worker) {}
 
-    @Nullable
     @Override
-    public ApiServiceDescriptor beamFnStateApiServiceDescriptor() {
+    public @Nullable ApiServiceDescriptor beamFnStateApiServiceDescriptor() {
       return null;
     }
 
-    @Nullable
     @Override
-    public ApiServiceDescriptor beamFnDataApiServiceDescriptor() {
+    public @Nullable ApiServiceDescriptor beamFnDataApiServiceDescriptor() {
       return null;
     }
   }

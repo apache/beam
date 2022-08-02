@@ -19,7 +19,14 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
+# beam-playground:
+#   name: WordCountMinimalTest
+#   description: Unit-test for the minimal WordCount example.
+#   multifile: false
+#   context_line: 43
+#   categories:
+#     - IO
+#     - Combiners
 
 import collections
 import logging
@@ -27,10 +34,13 @@ import re
 import tempfile
 import unittest
 
+import pytest
+
 from apache_beam.examples import wordcount_minimal
 from apache_beam.testing.util import open_shards
 
 
+@pytest.mark.examples_postcommit
 class WordCountMinimalTest(unittest.TestCase):
   """Unit test for wordcount_minimal example with direct runner."""
 
@@ -46,7 +56,7 @@ class WordCountMinimalTest(unittest.TestCase):
     expected_words = collections.defaultdict(int)
     for word in re.findall(r'\w+', self.SAMPLE_TEXT):
       expected_words[word] += 1
-    wordcount_minimal.run(
+    wordcount_minimal.main(
         ['--input=%s*' % temp_path, '--output=%s.result' % temp_path],
         save_main_session=False)
     # Parse result file and compare.

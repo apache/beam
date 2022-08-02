@@ -48,7 +48,7 @@
     and make sure that 'java' command is available.
 
   In this option, Python SDK will either download (for released Beam version) or
-  build (when running from a Beam Git clone) a expansion service jar and use
+  build (when running from a Beam Git clone) an expansion service jar and use
   that to expand transforms. Currently Kafka transforms use the
   'beam-sdks-java-io-expansion-service' jar for this purpose.
 
@@ -80,11 +80,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import typing
-
-from past.builtins import unicode
 
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
@@ -92,16 +88,17 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
 ReadFromKafkaSchema = typing.NamedTuple(
     'ReadFromKafkaSchema',
-    [
-        ('consumer_config', typing.List[typing.Tuple[unicode, unicode]]),
-        ('topics', typing.List[unicode]),
-        ('key_deserializer', unicode),
-        ('value_deserializer', unicode),
-    ])
+    [('consumer_config', typing.Mapping[str, str]),
+     ('topics', typing.List[str]), ('key_deserializer', str),
+     ('value_deserializer', str), ('start_read_time', typing.Optional[int]),
+     ('max_num_records', typing.Optional[int]),
+     ('max_read_time', typing.Optional[int]),
+     ('commit_offset_in_finalize', bool), ('timestamp_policy', str)])
 
 
-def default_io_expansion_service():
-  return BeamJarExpansionService('sdks:java:io:expansion-service:shadowJar')
+def default_io_expansion_service(append_args=None):
+  return BeamJarExpansionService(
+      'sdks:java:io:expansion-service:shadowJar', append_args=append_args)
 
 
 class ReadFromKafka(ExternalTransform):
@@ -117,7 +114,14 @@ class ReadFromKafka(ExternalTransform):
   byte_array_deserializer = (
       'org.apache.kafka.common.serialization.ByteArrayDeserializer')
 
-  URN = 'beam:external:java:kafka:read:v1'
+  processing_time_policy = 'ProcessingTime'
+  create_time_policy = 'CreateTime'
+  log_append_time = 'LogAppendTime'
+
+  URN_WITH_METADATA = (
+      'beam:transform:org.apache.beam:kafka_read_with_metadata:v1')
+  URN_WITHOUT_METADATA = (
+      'beam:transform:org.apache.beam:kafka_read_without_metadata:v1')
 
   def __init__(
       self,
@@ -125,45 +129,79 @@ class ReadFromKafka(ExternalTransform):
       topics,
       key_deserializer=byte_array_deserializer,
       value_deserializer=byte_array_deserializer,
-      expansion_service=None):
+      start_read_time=None,
+      max_num_records=None,
+      max_read_time=None,
+      commit_offset_in_finalize=False,
+      timestamp_policy=processing_time_policy,
+      with_metadata=False,
+      expansion_service=None,
+  ):
     """
     Initializes a read operation from Kafka.
 
     :param consumer_config: A dictionary containing the consumer configuration.
     :param topics: A list of topic strings.
     :param key_deserializer: A fully-qualified Java class name of a Kafka
-                             Deserializer for the topic's key, e.g.
-                             'org.apache.kafka.common.
-                             serialization.LongDeserializer'.
-                             Default: 'org.apache.kafka.common.
-                             serialization.ByteArrayDeserializer'.
+        Deserializer for the topic's key, e.g.
+        'org.apache.kafka.common.serialization.LongDeserializer'.
+        Default: 'org.apache.kafka.common.serialization.ByteArrayDeserializer'.
     :param value_deserializer: A fully-qualified Java class name of a Kafka
-                               Deserializer for the topic's value, e.g.
-                               'org.apache.kafka.common.
-                               serialization.LongDeserializer'.
-                               Default: 'org.apache.kafka.common.
-                               serialization.ByteArrayDeserializer'.
+        Deserializer for the topic's value, e.g.
+        'org.apache.kafka.common.serialization.LongDeserializer'.
+        Default: 'org.apache.kafka.common.serialization.ByteArrayDeserializer'.
+    :param start_read_time: Use timestamp to set up start offset in milliseconds
+        epoch.
+    :param max_num_records: Maximum amount of records to be read. Mainly used
+        for tests and demo applications.
+    :param max_read_time: Maximum amount of time in seconds the transform
+        executes. Mainly used for tests and demo applications.
+    :param commit_offset_in_finalize: Whether to commit offsets when finalizing.
+    :param timestamp_policy: The built-in timestamp policy which is used for
+        extracting timestamp from KafkaRecord.
+    :param with_metadata: whether the returned PCollection should contain
+        Kafka related metadata or not. If False (default), elements of the
+        returned PCollection will be of type 'bytes' if True, elements of the
+        returned PCollection will be of the type 'Row'. Note that, currently
+        this only works when using default key and value deserializers where
+        Java Kafka Reader reads keys and values as 'byte[]'.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    super(ReadFromKafka, self).__init__(
-        self.URN,
+    if timestamp_policy not in [ReadFromKafka.processing_time_policy,
+                                ReadFromKafka.create_time_policy,
+                                ReadFromKafka.log_append_time]:
+      raise ValueError(
+          'timestamp_policy should be one of '
+          '[ProcessingTime, CreateTime, LogAppendTime]')
+
+    super().__init__(
+        self.URN_WITH_METADATA if with_metadata else self.URN_WITHOUT_METADATA,
         NamedTupleBasedPayloadBuilder(
             ReadFromKafkaSchema(
-                consumer_config=list(consumer_config.items()),
+                consumer_config=consumer_config,
                 topics=topics,
                 key_deserializer=key_deserializer,
                 value_deserializer=value_deserializer,
-            )),
-        expansion_service or default_io_expansion_service())
+                max_num_records=max_num_records,
+                max_read_time=max_read_time,
+                start_read_time=start_read_time,
+                commit_offset_in_finalize=commit_offset_in_finalize,
+                timestamp_policy=timestamp_policy)),
+        expansion_service or default_io_expansion_service(
+            append_args=['--experiments=use_unbounded_sdf_wrapper']))
+    # TODO(https://github.com/apache/beam/issues/21730): remove
+    #  'use_unbounded_sdf_wrapper' which opts default expansion
+    #  service into using SDF wrapped legacy Kafka source instead of pure SDF
+    #  Kafka source.
 
 
 WriteToKafkaSchema = typing.NamedTuple(
     'WriteToKafkaSchema',
     [
-        ('producer_config', typing.List[typing.Tuple[unicode, unicode]]),
-        ('topic', unicode),
-        ('key_serializer', unicode),
-        ('value_serializer', unicode),
+        ('producer_config', typing.Mapping[str, str]),
+        ('topic', str),
+        ('key_serializer', str),
+        ('value_serializer', str),
     ])
 
 
@@ -180,7 +218,7 @@ class WriteToKafka(ExternalTransform):
   byte_array_serializer = (
       'org.apache.kafka.common.serialization.ByteArraySerializer')
 
-  URN = 'beam:external:java:kafka:write:v1'
+  URN = 'beam:transform:org.apache.beam:kafka_write:v1'
 
   def __init__(
       self,
@@ -195,24 +233,20 @@ class WriteToKafka(ExternalTransform):
     :param producer_config: A dictionary containing the producer configuration.
     :param topic: A Kafka topic name.
     :param key_deserializer: A fully-qualified Java class name of a Kafka
-                             Serializer for the topic's key, e.g.
-                             'org.apache.kafka.common.
-                             serialization.LongSerializer'.
-                             Default: 'org.apache.kafka.common.
-                             serialization.ByteArraySerializer'.
+        Serializer for the topic's key, e.g.
+        'org.apache.kafka.common.serialization.LongSerializer'.
+        Default: 'org.apache.kafka.common.serialization.ByteArraySerializer'.
     :param value_deserializer: A fully-qualified Java class name of a Kafka
-                               Serializer for the topic's value, e.g.
-                               'org.apache.kafka.common.
-                               serialization.LongSerializer'.
-                               Default: 'org.apache.kafka.common.
-                               serialization.ByteArraySerializer'.
+        Serializer for the topic's value, e.g.
+        'org.apache.kafka.common.serialization.LongSerializer'.
+        Default: 'org.apache.kafka.common.serialization.ByteArraySerializer'.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    super(WriteToKafka, self).__init__(
+    super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
             WriteToKafkaSchema(
-                producer_config=list(producer_config.items()),
+                producer_config=producer_config,
                 topic=topic,
                 key_serializer=key_serializer,
                 value_serializer=value_serializer,

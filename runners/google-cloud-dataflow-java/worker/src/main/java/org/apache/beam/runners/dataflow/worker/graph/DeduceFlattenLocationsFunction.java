@@ -58,6 +58,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNet
  * <p>The ambiguous result means that executing the flatten in either the SDK or Runner is equally
  * inefficient, and thus it can execute in either one.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DeduceFlattenLocationsFunction
     implements Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> {
 
@@ -153,10 +156,10 @@ public class DeduceFlattenLocationsFunction
 
     // Find all predecessor and successor locations for every flatten.
     for (Node flatten : flattens) {
-      AggregatedLocation predecessorLocations = AggregatedLocation.NEITHER;
-      AggregatedLocation successorLocations = AggregatedLocation.NEITHER;
-      predecessorLocations = getPredecessorLocations(flatten, network, predecessorLocationsMap);
-      successorLocations = getSuccessorLocations(flatten, network, successorLocationsMap);
+      AggregatedLocation predecessorLocations =
+          getPredecessorLocations(flatten, network, predecessorLocationsMap);
+      AggregatedLocation successorLocations =
+          getSuccessorLocations(flatten, network, successorLocationsMap);
 
       deducedLocationsMap.put(
           flatten, DEDUCTION_TABLE.get(predecessorLocations, successorLocations));

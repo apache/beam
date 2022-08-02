@@ -41,6 +41,7 @@ import org.joda.time.Instant;
  * @param <K> Key type.
  * @param <InputT> Input type.
  */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class FlinkNonMergingReduceFunction<K, InputT>
     implements GroupReduceFunction<
         WindowedValue<KV<K, InputT>>, WindowedValue<KV<K, Iterable<InputT>>>> {
@@ -83,10 +84,7 @@ public class FlinkNonMergingReduceFunction<K, InputT>
     final WindowedValue<KV<K, InputT>> first = iterator.peek();
     final BoundedWindow window = Iterables.getOnlyElement(first.getWindows());
     @SuppressWarnings("unchecked")
-    final Instant outputTimestamp =
-        ((WindowingStrategy) windowingStrategy)
-            .getWindowFn()
-            .getOutputTime(first.getTimestamp(), window);
+    final Instant outputTimestamp = first.getTimestamp();
     final Instant combinedTimestamp =
         windowingStrategy.getTimestampCombiner().assign(window, outputTimestamp);
     final Iterable<InputT> values;

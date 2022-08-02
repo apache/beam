@@ -27,8 +27,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test operator {@code SumByKey}. */
+@RunWith(JUnit4.class)
 public class SumByKeyTest extends AbstractOperatorTest {
 
   @Test

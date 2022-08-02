@@ -28,6 +28,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Static factory methods for constructing instances of {@link TransformExecutorService}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 final class TransformExecutorServices {
   private TransformExecutorServices() {
     // Do not instantiate
@@ -67,7 +70,8 @@ final class TransformExecutorServices {
     }
 
     @Override
-    // TODO: [BEAM-4563] Pass Future back to consumer to check for async errors
+    // TODO: [https://github.com/apache/beam/issues/18968] Pass Future back to consumer to check for
+    // async errors
     @SuppressWarnings("FutureReturnValueIgnored")
     public void schedule(TransformExecutor work) {
       if (active.get()) {
@@ -151,7 +155,8 @@ final class TransformExecutorServices {
       workQueue.clear();
     }
 
-    // TODO: [BEAM-4563] Pass Future back to consumer to check for async errors
+    // TODO: [https://github.com/apache/beam/issues/18968] Pass Future back to consumer to check for
+    // async errors
     @SuppressWarnings("FutureReturnValueIgnored")
     private void updateCurrentlyEvaluating() {
       if (currentlyEvaluating.get() == null) {

@@ -26,15 +26,10 @@ Run as
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import logging
 import random
 import sys
 import time
-from builtins import range
 
 from apache_beam.tools import utils
 

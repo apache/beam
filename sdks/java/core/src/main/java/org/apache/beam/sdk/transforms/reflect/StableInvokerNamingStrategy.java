@@ -20,9 +20,9 @@ package org.apache.beam.sdk.transforms.reflect;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 
 import com.google.auto.value.AutoValue;
+import net.bytebuddy.NamingStrategy;
+import net.bytebuddy.description.type.TypeDescription;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.NamingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.type.TypeDescription;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**

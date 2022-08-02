@@ -19,15 +19,16 @@ package org.apache.beam.runners.core;
 
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -50,6 +51,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Tests for {@link OutputAndTimeBoundedSplittableProcessElementInvoker}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
   @Rule public transient ExpectedException e = ExpectedException.none();
 
@@ -95,14 +99,15 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
       int totalNumOutputs,
       Duration sleepBeforeFirstClaim,
       int numOutputsPerProcessCall,
-      Duration sleepBeforeEachOutput) {
+      Duration sleepBeforeEachOutput)
+      throws Exception {
     SomeFn fn = new SomeFn(sleepBeforeFirstClaim, numOutputsPerProcessCall, sleepBeforeEachOutput);
     OffsetRange initialRestriction = new OffsetRange(0, totalNumOutputs);
     return runTest(fn, initialRestriction);
   }
 
   private SplittableProcessElementInvoker<Void, String, OffsetRange, Long, Void>.Result runTest(
-      DoFn<Void, String> fn, OffsetRange initialRestriction) {
+      DoFn<Void, String> fn, OffsetRange initialRestriction) throws Exception {
     SplittableProcessElementInvoker<Void, String, OffsetRange, Long, Void> invoker =
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             fn,
@@ -126,23 +131,29 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
             NullSideInputReader.empty(),
             Executors.newSingleThreadScheduledExecutor(),
             1000,
-            Duration.standardSeconds(3));
+            Duration.standardSeconds(3),
+            () -> {
+              throw new UnsupportedOperationException("BundleFinalizer not configured for test.");
+            });
 
-    return invoker.invokeProcessElement(
-        DoFnInvokers.invokerFor(fn),
-        WindowedValue.of(null, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
-        new OffsetRangeTracker(initialRestriction),
-        new WatermarkEstimator<Void>() {
-          @Override
-          public Instant currentWatermark() {
-            return GlobalWindow.TIMESTAMP_MIN_VALUE;
-          }
+    SplittableProcessElementInvoker.Result rval =
+        invoker.invokeProcessElement(
+            DoFnInvokers.invokerFor(fn),
+            WindowedValue.of(null, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
+            new OffsetRangeTracker(initialRestriction),
+            new WatermarkEstimator<Void>() {
+              @Override
+              public Instant currentWatermark() {
+                return GlobalWindow.TIMESTAMP_MIN_VALUE;
+              }
 
-          @Override
-          public Void getState() {
-            return null;
-          }
-        });
+              @Override
+              public Void getState() {
+                return null;
+              }
+            },
+            Collections.emptyMap());
+    return rval;
   }
 
   @Test

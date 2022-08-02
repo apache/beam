@@ -29,6 +29,9 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 
 /** Test utilities to use with {@link SolrIO}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class SolrIOTestUtils {
   public static final long MIN_DOC_SIZE = 30L;
   public static final long MAX_DOC_SIZE = 150L;
@@ -37,10 +40,7 @@ public class SolrIOTestUtils {
       String collection, int numShards, int replicationFactor, AuthorizedSolrClient client)
       throws Exception {
     CollectionAdminRequest.Create create =
-        new CollectionAdminRequest.Create()
-            .setCollectionName(collection)
-            .setNumShards(numShards)
-            .setReplicationFactor(replicationFactor)
+        CollectionAdminRequest.Create.createCollection(collection, numShards, replicationFactor)
             .setMaxShardsPerNode(2);
     client.process(create);
   }

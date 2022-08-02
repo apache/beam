@@ -34,6 +34,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Configuration for a Cloud Bigtable client. */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 abstract class BigtableConfig implements Serializable {
 
   /** Returns the project id being written to. */
@@ -63,6 +66,9 @@ abstract class BigtableConfig implements Serializable {
   /** {@link BigtableService} used only for testing. */
   abstract @Nullable BigtableService getBigtableService();
 
+  /** Bigtable emulator. Used only for testing. */
+  abstract @Nullable String getEmulatorHost();
+
   abstract Builder toBuilder();
 
   static BigtableConfig.Builder builder() {
@@ -88,6 +94,8 @@ abstract class BigtableConfig implements Serializable {
         SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> optionsConfigurator);
 
     abstract Builder setBigtableService(BigtableService bigtableService);
+
+    abstract Builder setEmulatorHost(String emulatorHost);
 
     abstract BigtableConfig build();
   }
@@ -128,6 +136,12 @@ abstract class BigtableConfig implements Serializable {
   BigtableConfig withBigtableService(BigtableService bigtableService) {
     checkArgument(bigtableService != null, "bigtableService can not be null");
     return toBuilder().setBigtableService(bigtableService).build();
+  }
+
+  @VisibleForTesting
+  BigtableConfig withEmulator(String emulatorHost) {
+    checkArgument(emulatorHost != null, "emulatorHost can not be null");
+    return toBuilder().setEmulatorHost(emulatorHost).build();
   }
 
   void validate() {
@@ -192,9 +206,6 @@ abstract class BigtableConfig implements Serializable {
           CredentialOptions.credential(pipelineOptions.as(GcpOptions.class).getGcpCredential()));
     }
 
-    // Default option that should be forced
-    bigtableOptions.setUseCachedDataPool(true);
-
     return new BigtableServiceImpl(bigtableOptions.build());
   }
 
@@ -214,6 +225,9 @@ abstract class BigtableConfig implements Serializable {
       effectiveOptions = getBigtableOptionsConfigurator().apply(effectiveOptions);
     }
 
+    // Default option that should be forced in most cases
+    effectiveOptions.setUseCachedDataPool(true);
+
     if (getInstanceId() != null) {
       effectiveOptions.setInstanceId(getInstanceId().get());
     }
@@ -222,11 +236,16 @@ abstract class BigtableConfig implements Serializable {
       effectiveOptions.setProjectId(getProjectId().get());
     }
 
+    if (getEmulatorHost() != null) {
+      effectiveOptions.enableEmulator(getEmulatorHost());
+      effectiveOptions.setUseCachedDataPool(false);
+    }
+
     return effectiveOptions;
   }
 
   @Override
-  public String toString() {
+  public final String toString() {
     return MoreObjects.toStringHelper(BigtableConfig.class)
         .add("projectId", getProjectId())
         .add("instanceId", getInstanceId())

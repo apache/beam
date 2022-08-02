@@ -19,19 +19,17 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import logging
 import unittest
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import mock
 
 # Protect against environments where datastore library is not available.
 try:
   from google.cloud.datastore import client
+  from google.cloud.datastore import entity
+  from google.cloud.datastore import key
   from google.cloud.datastore.helpers import GeoPoint
   from apache_beam.io.gcp.datastore.v1new.types import Entity
   from apache_beam.io.gcp.datastore.v1new.types import Key
@@ -103,6 +101,14 @@ class TypesTest(unittest.TestCase):
     # Test reverse conversion.
     entity_from_client_entity = Entity.from_client_entity(ec)
     self.assertEqual(e, entity_from_client_entity)
+
+  def testEmbeddedClientEntityWithoutKey(self):
+    client_entity = entity.Entity(key.Key('foo', project='bar'))
+    entity_without_key = entity.Entity()
+    entity_without_key['test'] = True
+    client_entity['embedded'] = entity_without_key
+    e = Entity.from_client_entity(client_entity)
+    self.assertIsInstance(e.properties['embedded'], dict)
 
   def testKeyToClientKey(self):
     k = Key(['kind1', 'parent'],

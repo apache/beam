@@ -34,6 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -47,9 +48,11 @@ import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
+import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -67,7 +70,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.Builder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
@@ -80,6 +82,9 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link CloudObjects}. */
 @RunWith(Enclosed.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class CloudObjectsTest {
   private static final Schema TEST_SCHEMA =
       Schema.builder()
@@ -134,12 +139,13 @@ public class CloudObjectsTest {
   public static class DefaultCoders {
     @Parameters(name = "{index}: {0}")
     public static Iterable<Coder<?>> data() {
-      Builder<Coder<?>> dataBuilder =
+      ImmutableList.Builder<Coder<?>> dataBuilder =
           ImmutableList.<Coder<?>>builder()
               .add(new ArbitraryCoder())
               .add(new ObjectCoder())
               .add(GlobalWindow.Coder.INSTANCE)
               .add(IntervalWindow.getCoder())
+              .add(TimestampPrefixingWindowCoder.of(IntervalWindow.getCoder()))
               .add(LengthPrefixCoder.of(VarLongCoder.of()))
               .add(IterableCoder.of(VarLongCoder.of()))
               .add(KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()))
@@ -150,7 +156,8 @@ public class CloudObjectsTest {
               .add(ByteArrayCoder.of())
               .add(VarLongCoder.of())
               .add(SerializableCoder.of(Record.class))
-              .add(AvroCoder.of(Record.class))
+              .add(AvroCoder.of(Record.class, true))
+              .add(AvroCoder.of(GenericRecord.class, avroSchema, false))
               .add(CollectionCoder.of(VarLongCoder.of()))
               .add(ListCoder.of(VarLongCoder.of()))
               .add(SetCoder.of(VarLongCoder.of()))
@@ -175,7 +182,8 @@ public class CloudObjectsTest {
                       new RowIdentity()))
               .add(
                   SchemaCoder.of(
-                      TEST_SCHEMA, TypeDescriptors.rows(), new RowIdentity(), new RowIdentity()));
+                      TEST_SCHEMA, TypeDescriptors.rows(), new RowIdentity(), new RowIdentity()))
+              .add(RowCoder.of(TEST_SCHEMA));
       for (Class<? extends Coder> atomicCoder :
           DefaultCoderCloudObjectTranslatorRegistrar.KNOWN_ATOMIC_CODERS) {
         dataBuilder.add(InstanceBuilder.ofType(atomicCoder).fromFactoryMethod("of").build());
@@ -241,6 +249,15 @@ public class CloudObjectsTest {
   }
 
   private static class Record implements Serializable {}
+
+  private static org.apache.avro.Schema avroSchema =
+      new org.apache.avro.Schema.Parser()
+          .parse(
+              "{\"namespace\": \"example.avro\",\n"
+                  + " \"type\": \"record\",\n"
+                  + " \"name\": \"TestAvro\",\n"
+                  + " \"fields\": []\n"
+                  + "}");
 
   private static class ObjectCoder extends CustomCoder<Object> {
     @Override

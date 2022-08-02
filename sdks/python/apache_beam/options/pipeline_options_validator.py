@@ -21,17 +21,13 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import re
-from builtins import object
-
-from past.builtins import unicode
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
@@ -56,12 +52,27 @@ class PipelineOptionsValidator(object):
   OPTIONS = [
       DebugOptions,
       GoogleCloudOptions,
+      PortableOptions,
       SetupOptions,
       StandardOptions,
+      TestOptions,
       TypeOptions,
-      WorkerOptions,
-      TestOptions
+      WorkerOptions
   ]
+
+  # Mutually exclusive options for different types of portable environments.
+  REQUIRED_ENVIRONMENT_OPTIONS = {
+      'DOCKER': [],
+      'PROCESS': ['process_command'],
+      'EXTERNAL': ['external_service_address'],
+      'LOOPBACK': []
+  }
+  OPTIONAL_ENVIRONMENT_OPTIONS = {
+      'DOCKER': ['docker_container_image'],
+      'PROCESS': ['process_variables'],
+      'EXTERNAL': [],
+      'LOOPBACK': []
+  }
 
   # Possible validation errors.
   ERR_MISSING_OPTION = 'Missing required option: %s.'
@@ -93,6 +104,17 @@ class PipelineOptionsValidator(object):
   ERR_INVALID_TRANSFORM_NAME_MAPPING = (
       'Invalid transform name mapping format. Please make sure the mapping is '
       'string key-value pairs. Invalid pair: (%s:%s)')
+  ERR_INVALID_ENVIRONMENT = (
+      'Option %s is not compatible with environment type %s.')
+  ERR_ENVIRONMENT_CONFIG = (
+      'Option environment_config is incompatible with option(s) %s.')
+  ERR_MISSING_REQUIRED_ENVIRONMENT_OPTION = (
+      'Option %s is required for environment type %s.')
+  ERR_NUM_WORKERS_TOO_HIGH = (
+      'num_workers (%s) cannot exceed max_num_workers (%s)')
+  ERR_REPEATABLE_OPTIONS_NOT_SET_AS_LIST = (
+      '(%s) is a string. Programmatically set PipelineOptions like (%s) '
+      'options need to be specified as a list.')
 
   # GCS path specific patterns.
   GCS_URI = '(?P<SCHEME>[^:]+)://(?P<BUCKET>[^/]+)(/(?P<OBJECT>.*))?'
@@ -198,8 +220,7 @@ class PipelineOptionsValidator(object):
             'Transform name mapping option is only useful when '
             '--update and --streaming is specified')
       for _, (key, value) in enumerate(view.transform_name_mapping.items()):
-        if not isinstance(key, (str, unicode)) \
-            or not isinstance(value, (str, unicode)):
+        if not isinstance(key, str) or not isinstance(value, str):
           errors.extend(
               self._validate_error(
                   self.ERR_INVALID_TRANSFORM_NAME_MAPPING, key, value))
@@ -210,6 +231,56 @@ class PipelineOptionsValidator(object):
         errors.extend(self._validate_error(self.ERR_MISSING_OPTION, 'region'))
       else:
         view.region = default_region
+    return errors
+
+  def validate_sdk_container_image_options(self, view):
+    errors = []
+    if view.sdk_container_image and view.worker_harness_container_image:
+      # To be fully backwards-compatible, these options will be set to the same
+      # value. Check that the values are different.
+      if view.sdk_container_image != view.worker_harness_container_image:
+        errors.extend(
+            self._validate_error(
+                'Cannot use legacy flag --worker_harness_container_image along '
+                'with view.sdk_container_image'))
+    elif view.worker_harness_container_image:
+      # Warn about legacy flag and set new flag to value of old flag.
+      _LOGGER.warning(
+          'Setting sdk_container_image to value of legacy flag '
+          'worker_harness_container_image.')
+      view.sdk_container_image = view.worker_harness_container_image
+    elif view.sdk_container_image:
+      # Set legacy option to value of new option.
+      view.worker_harness_container_image = view.sdk_container_image
+
+    return errors
+
+  def validate_container_prebuilding_options(self, view):
+    errors = []
+    custom_image = self.options.view_as(WorkerOptions).sdk_container_image
+    if (view.prebuild_sdk_container_base_image is not None and
+        custom_image != view.prebuild_sdk_container_base_image):
+      errors.extend(
+          self._validate_error(
+              'Don\'t use the deprecated option '
+              '--prebuild_sdk_container_base_image. Use --sdk_container_image '
+              'instead.'))
+    return errors
+
+  def validate_num_workers(self, view):
+    """Validates that Dataflow worker number is valid."""
+    errors = self.validate_optional_argument_positive(view, 'num_workers')
+    errors.extend(
+        self.validate_optional_argument_positive(view, 'max_num_workers'))
+
+    num_workers = view.num_workers
+    max_num_workers = view.max_num_workers
+    if (num_workers is not None and max_num_workers is not None and
+        num_workers > max_num_workers):
+      errors.extend(
+          self._validate_error(
+              self.ERR_NUM_WORKERS_TOO_HIGH, num_workers, max_num_workers))
+
     return errors
 
   def validate_worker_region_zone(self, view):
@@ -267,3 +338,58 @@ class PipelineOptionsValidator(object):
               pickled_matcher,
               arg_name))
     return errors
+
+  def validate_environment_options(self, view):
+    """Validates portable environment options."""
+    errors = []
+    actual_environment_type = (
+        view.environment_type.upper() if view.environment_type else None)
+    for environment_type, required in self.REQUIRED_ENVIRONMENT_OPTIONS.items():
+      found_required_options = [
+          opt for opt in required
+          if view.lookup_environment_option(opt) is not None
+      ]
+      found_optional_options = [
+          opt for opt in self.OPTIONAL_ENVIRONMENT_OPTIONS[environment_type]
+          if view.lookup_environment_option(opt) is not None
+      ]
+      found_options = found_required_options + found_optional_options
+      if environment_type == actual_environment_type:
+        if view.environment_config:
+          if found_options:
+            errors.extend(
+                self._validate_error(
+                    self.ERR_ENVIRONMENT_CONFIG, ', '.join(found_options)))
+        else:
+          missing_options = set(required).difference(
+              set(found_required_options))
+          for opt in missing_options:
+            errors.extend(
+                self._validate_error(
+                    self.ERR_MISSING_REQUIRED_ENVIRONMENT_OPTION,
+                    opt,
+                    environment_type))
+      else:
+        # Environment options classes are mutually exclusive.
+        for opt in found_options:
+          errors.extend(
+              self._validate_error(
+                  self.ERR_INVALID_ENVIRONMENT, opt, actual_environment_type))
+    if actual_environment_type == 'LOOPBACK' and view.environment_config:
+      errors.extend(
+          self._validate_error(
+              self.ERR_INVALID_ENVIRONMENT, 'environment_config', 'LOOPBACK'))
+    return errors
+
+  def validate_repeatable_argument_passed_as_list(self, view, arg_name):
+    """Validates that repeatable PipelineOptions like dataflow_service_options
+    or experiments are specified as a list when set programmatically. This
+    way, users do not inadvertently specify it as a string, mirroring the way
+    they are set via the command lineRepeatable options, which are as passed a
+    list.
+    """
+    arg = getattr(view, arg_name, None)
+    if not isinstance(arg, list):
+      return self._validate_error(
+          self.ERR_REPEATABLE_OPTIONS_NOT_SET_AS_LIST, arg, arg_name)
+    return []

@@ -31,7 +31,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * significant for larger schemas) on each lookup. This wrapper caches the value returned by the
  * inner factory, so the schema comparison only need happen on the first lookup.
  */
-class CachingFactory<CreatedT> implements Factory<CreatedT> {
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
+public class CachingFactory<CreatedT> implements Factory<CreatedT> {
   private transient @Nullable ConcurrentHashMap<Class, CreatedT> cache = null;
 
   private final Factory<CreatedT> innerFactory;

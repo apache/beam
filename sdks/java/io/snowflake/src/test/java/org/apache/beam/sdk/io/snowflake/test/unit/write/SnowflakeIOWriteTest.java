@@ -20,16 +20,17 @@ package org.apache.beam.sdk.io.snowflake.test.unit.write;
 import static org.junit.Assert.assertTrue;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import net.snowflake.client.jdbc.SnowflakeSQLException;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
-import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServices;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
-import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServiceImpl;
+import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServicesImpl;
+import org.apache.beam.sdk.io.snowflake.test.TestSnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -48,30 +49,40 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SnowflakeIOWriteTest {
   private static final String FAKE_TABLE = "FAKE_TABLE";
-  private static final String BUCKET_NAME = "BUCKET";
+  private static final String BUCKET_NAME = "BUCKET/";
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Rule public ExpectedException exceptionRule = ExpectedException.none();
 
-  private static SnowflakePipelineOptions options;
+  private static TestSnowflakePipelineOptions options;
   private static SnowflakeIO.DataSourceConfiguration dc;
 
-  private static SnowflakeService snowflakeService;
+  private static SnowflakeServices snowflakeServices;
   private static List<Long> testData;
+  private static List<String> testDataInStrings;
 
   @BeforeClass
   public static void setupAll() {
-    snowflakeService = new FakeSnowflakeServiceImpl();
+    snowflakeServices = new FakeSnowflakeServicesImpl();
     testData = LongStream.range(0, 100).boxed().collect(Collectors.toList());
+
+    testDataInStrings = new ArrayList<>();
+    testDataInStrings.add("First row");
+    testDataInStrings.add("Second row with 'single' quotation");
+    testDataInStrings.add("Second row with single one ' quotation");
+    testDataInStrings.add("Second row with single twice '' quotation");
+    testDataInStrings.add("Third row with \"double\" quotation");
+    testDataInStrings.add("Third row with double one \" quotation");
+    testDataInStrings.add("Third row with double twice \"\" quotation");
   }
 
   @Before
   public void setup() {
     FakeSnowflakeDatabase.createTable(FAKE_TABLE);
 
-    PipelineOptionsFactory.register(SnowflakePipelineOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(SnowflakePipelineOptions.class);
+    PipelineOptionsFactory.register(TestSnowflakePipelineOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(TestSnowflakePipelineOptions.class);
     options.setStagingBucketName(BUCKET_NAME);
     options.setStorageIntegrationName("STORAGE_INTEGRATION");
     options.setServerName("NULL.snowflakecomputing.com");
@@ -98,7 +109,7 @@ public class SnowflakeIOWriteTest {
                 .to(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
@@ -119,7 +130,7 @@ public class SnowflakeIOWriteTest {
                 .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withDataSourceConfiguration(dc)
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
@@ -141,13 +152,13 @@ public class SnowflakeIOWriteTest {
                 .to(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
     List<String> actualData = FakeSnowflakeDatabase.getElements(FAKE_TABLE);
     List<String> testDataInStrings =
-        testData.stream().map(e -> e.toString()).collect(Collectors.toList());
+        testData.stream().map(Object::toString).collect(Collectors.toList());
     assertTrue(TestUtils.areListsEqual(testDataInStrings, actualData));
   }
 
@@ -166,12 +177,63 @@ public class SnowflakeIOWriteTest {
                 .withUserDataMapper(TestUtils.getLongCsvMapperKV())
                 .withDataSourceConfiguration(dc)
                 .withQueryTransformation(query)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
     List<Long> actualData = FakeSnowflakeDatabase.getElementsAsLong(FAKE_TABLE);
 
     assertTrue(TestUtils.areListsEqual(testData, actualData));
+  }
+
+  @Test
+  public void writeToExternalWithDoubleQuotation() throws SnowflakeSQLException {
+
+    pipeline
+        .apply(Create.of(testDataInStrings))
+        .apply(
+            "Write SnowflakeIO",
+            SnowflakeIO.<String>write()
+                .withDataSourceConfiguration(dc)
+                .withUserDataMapper(TestUtils.getStringCsvMapper())
+                .to(FAKE_TABLE)
+                .withStagingBucketName(options.getStagingBucketName())
+                .withStorageIntegrationName(options.getStorageIntegrationName())
+                .withSnowflakeServices(snowflakeServices)
+                .withQuotationMark("\""));
+
+    pipeline.run(options).waitUntilFinish();
+
+    List<String> actualData = FakeSnowflakeDatabase.getElements(FAKE_TABLE);
+    List<String> escapedTestData =
+        testDataInStrings.stream()
+            .map(e -> e.replace("'", "''"))
+            .map(e -> String.format("\"%s\"", e))
+            .collect(Collectors.toList());
+    assertTrue(TestUtils.areListsEqual(escapedTestData, actualData));
+  }
+
+  @Test
+  public void writeToExternalWithBlankQuotation() throws SnowflakeSQLException {
+    pipeline
+        .apply(Create.of(testDataInStrings))
+        .apply(
+            "Write SnowflakeIO",
+            SnowflakeIO.<String>write()
+                .withDataSourceConfiguration(dc)
+                .withUserDataMapper(TestUtils.getStringCsvMapper())
+                .to(FAKE_TABLE)
+                .withStagingBucketName(options.getStagingBucketName())
+                .withStorageIntegrationName(options.getStorageIntegrationName())
+                .withSnowflakeServices(snowflakeServices)
+                .withQuotationMark(""));
+
+    pipeline.run(options).waitUntilFinish();
+
+    List<String> actualData = FakeSnowflakeDatabase.getElements(FAKE_TABLE);
+
+    List<String> escapedTestData =
+        testDataInStrings.stream().map(e -> e.replace("'", "''")).collect(Collectors.toList());
+    assertTrue(TestUtils.areListsEqual(escapedTestData, actualData));
   }
 }

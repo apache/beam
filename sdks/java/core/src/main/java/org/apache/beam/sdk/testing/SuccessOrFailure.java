@@ -27,6 +27,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Output of {@link PAssert}. Passed to a conclude function to act upon. */
 @DefaultCoder(SerializableCoder.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class SuccessOrFailure implements Serializable {
 
   private final boolean isSuccess;

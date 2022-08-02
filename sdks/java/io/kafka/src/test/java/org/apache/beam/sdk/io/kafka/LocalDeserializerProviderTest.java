@@ -43,17 +43,23 @@ public class LocalDeserializerProviderTest {
   public void testInferKeyCoder() {
     CoderRegistry registry = CoderRegistry.createDefault();
     assertTrue(
-        LocalDeserializerProvider.of(LongDeserializer.class).getCoder(registry).getValueCoder()
+        LocalDeserializerProvider.of(LongDeserializer.class)
+                .getNullableCoder(registry)
+                .getValueCoder()
             instanceof VarLongCoder);
     assertTrue(
-        LocalDeserializerProvider.of(StringDeserializer.class).getCoder(registry).getValueCoder()
+        LocalDeserializerProvider.of(StringDeserializer.class)
+                .getNullableCoder(registry)
+                .getValueCoder()
             instanceof StringUtf8Coder);
     assertTrue(
-        LocalDeserializerProvider.of(InstantDeserializer.class).getCoder(registry).getValueCoder()
+        LocalDeserializerProvider.of(InstantDeserializer.class)
+                .getNullableCoder(registry)
+                .getValueCoder()
             instanceof InstantCoder);
     assertTrue(
         LocalDeserializerProvider.of(DeserializerWithInterfaces.class)
-                .getCoder(registry)
+                .getNullableCoder(registry)
                 .getValueCoder()
             instanceof VarLongCoder);
   }

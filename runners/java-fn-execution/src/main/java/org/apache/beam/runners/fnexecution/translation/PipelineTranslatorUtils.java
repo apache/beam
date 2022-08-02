@@ -43,14 +43,19 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
 
 /** Utilities for pipeline translation. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class PipelineTranslatorUtils {
   private PipelineTranslatorUtils() {}
 
@@ -146,13 +151,13 @@ public final class PipelineTranslatorUtils {
     Timer<?> timerValue =
         Timer.of(
             currentTimerKey,
-            "",
+            timer.getTimerId(),
             Collections.singletonList(window),
             timestamp,
             outputTimestamp,
             PaneInfo.NO_FIRING);
     KV<String, String> transformAndTimerId =
-        TimerReceiverFactory.decodeTimerDataTimerId(timer.getTimerId());
+        TimerReceiverFactory.decodeTimerDataTimerId(timer.getTimerFamilyId());
     FnDataReceiver<Timer> fnTimerReceiver = timerReceivers.get(transformAndTimerId);
     Preconditions.checkNotNull(
         fnTimerReceiver, "No FnDataReceiver found for %s", transformAndTimerId);
@@ -162,5 +167,33 @@ public final class PipelineTranslatorUtils {
       throw new RuntimeException(
           String.format(Locale.ENGLISH, "Failed to process timer: %s", timerValue));
     }
+  }
+
+  public static <T> WindowedValue.WindowedValueCoder<T> getWindowedValueCoder(
+      String pCollectionId, RunnerApi.Components components) {
+    RunnerApi.PCollection pCollection = components.getPcollectionsOrThrow(pCollectionId);
+    PipelineNode.PCollectionNode pCollectionNode =
+        PipelineNode.pCollection(pCollectionId, pCollection);
+    WindowedValue.WindowedValueCoder<T> coder;
+    try {
+      coder =
+          (WindowedValue.WindowedValueCoder)
+              WireCoders.instantiateRunnerWireCoder(pCollectionNode, components);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    return coder;
+  }
+
+  public static String getInputId(PipelineNode.PTransformNode transformNode) {
+    return Iterables.getOnlyElement(transformNode.getTransform().getInputsMap().values());
+  }
+
+  public static String getOutputId(PipelineNode.PTransformNode transformNode) {
+    return Iterables.getOnlyElement(transformNode.getTransform().getOutputsMap().values());
+  }
+
+  public static String getExecutableStageIntermediateId(PipelineNode.PTransformNode transformNode) {
+    return transformNode.getId();
   }
 }

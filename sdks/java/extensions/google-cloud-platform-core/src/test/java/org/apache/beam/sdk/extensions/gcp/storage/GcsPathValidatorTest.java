@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.gcp.storage;
 
+import static org.hamcrest.Matchers.instanceOf;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 
+import java.io.FileNotFoundException;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
@@ -45,7 +48,7 @@ public class GcsPathValidatorTest {
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
-    when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(true);
+    doNothing().when(mockGcsUtil).verifyBucketAccessible(any(GcsPath.class));
     GcsOptions options = PipelineOptionsFactory.as(GcsOptions.class);
     options.setGcpCredential(new TestCredential());
     options.setGcsUtil(mockGcsUtil);
@@ -75,8 +78,11 @@ public class GcsPathValidatorTest {
 
   @Test
   public void testWhenBucketDoesNotExist() throws Exception {
-    when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(false);
-    expectedException.expect(IllegalArgumentException.class);
+    doThrow(new FileNotFoundException())
+        .when(mockGcsUtil)
+        .verifyBucketAccessible(any(GcsPath.class));
+    expectedException.expect(RuntimeException.class);
+    expectedException.expectCause(instanceOf(FileNotFoundException.class));
     expectedException.expectMessage("Could not find file gs://non-existent-bucket/location");
     validator.validateInputFilePatternSupported("gs://non-existent-bucket/location");
   }

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
-import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.calcite.v1_28_0.com.google.common.base.MoreObjects.firstNonNull;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,9 +42,8 @@ public class BigQueryTestTableProvider extends BigQueryTableProvider {
     tableSpecMap.put(name, table);
   }
 
-  @Nullable
   @Override
-  public Table getTable(String tableName) {
+  public @Nullable Table getTable(String tableName) {
     return tableSpecMap.get(tableName);
   }
 

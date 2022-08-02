@@ -29,6 +29,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValu
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verifyNotNull;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThan;
@@ -37,9 +38,9 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
 import com.google.bigtable.v2.Family;
@@ -67,7 +68,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -78,7 +78,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
@@ -101,7 +101,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -170,7 +169,7 @@ public class BigtableIOTest {
   private static BigtableConfig config;
   private static FakeBigtableService service;
   private static final BigtableOptions BIGTABLE_OPTIONS =
-      new BigtableOptions.Builder()
+      BigtableOptions.builder()
           .setProjectId("options_project")
           .setInstanceId("options_instance")
           .build();
@@ -233,7 +232,7 @@ public class BigtableIOTest {
         BigtableIO.read()
             .withTableId("table")
             .withProjectId("project")
-            .withBigtableOptions(new BigtableOptions.Builder().build());
+            .withBigtableOptions(BigtableOptions.builder().build());
 
     thrown.expect(IllegalArgumentException.class);
 
@@ -246,7 +245,7 @@ public class BigtableIOTest {
         BigtableIO.read()
             .withTableId("table")
             .withInstanceId("instance")
-            .withBigtableOptions(new BigtableOptions.Builder().build());
+            .withBigtableOptions(BigtableOptions.builder().build());
 
     thrown.expect(IllegalArgumentException.class);
 
@@ -258,7 +257,7 @@ public class BigtableIOTest {
     BigtableIO.Read read =
         BigtableIO.read()
             .withTableId("table")
-            .withBigtableOptions(new BigtableOptions.Builder().build());
+            .withBigtableOptions(BigtableOptions.builder().build());
 
     thrown.expect(IllegalArgumentException.class);
 
@@ -299,6 +298,51 @@ public class BigtableIOTest {
   }
 
   @Test
+  public void testReadWithReaderStartFailed() throws IOException {
+    FailureBigtableService failureService =
+        new FailureBigtableService(FailureOptions.builder().setFailAtStart(true).build());
+    BigtableConfig failureConfig =
+        BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
+    final String table = "TEST-TABLE";
+    final int numRows = 100;
+    makeTableData(failureService, table, numRows);
+    BigtableSource source =
+        new BigtableSource(
+            failureConfig.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
+            null);
+    BoundedReader<Row> reader = source.createReader(TestPipeline.testingPipelineOptions());
+
+    thrown.expect(IOException.class);
+    thrown.expectMessage("Fake IOException at start()");
+
+    reader.start();
+  }
+
+  @Test
+  public void testReadWithReaderAdvanceFailed() throws IOException {
+    FailureBigtableService failureService =
+        new FailureBigtableService(FailureOptions.builder().setFailAtAdvance(true).build());
+    BigtableConfig failureConfig =
+        BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
+    final String table = "TEST-TABLE";
+    final int numRows = 100;
+    makeTableData(failureService, table, numRows);
+    BigtableSource source =
+        new BigtableSource(
+            failureConfig.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
+            null);
+    BoundedReader<Row> reader = source.createReader(TestPipeline.testingPipelineOptions());
+
+    thrown.expect(IOException.class);
+    thrown.expectMessage("Fake IOException at advance()");
+
+    reader.start();
+    reader.advance();
+  }
+
+  @Test
   public void testWriteBuildsCorrectly() {
     BigtableIO.Write write =
         BigtableIO.write()
@@ -319,7 +363,7 @@ public class BigtableIOTest {
         BigtableIO.write()
             .withTableId("table")
             .withProjectId("project")
-            .withBigtableOptions(new BigtableOptions.Builder().build())
+            .withBigtableOptions(BigtableOptions.builder().build())
             .withWriteResults();
 
     thrown.expect(IllegalArgumentException.class);
@@ -333,7 +377,7 @@ public class BigtableIOTest {
         BigtableIO.write()
             .withTableId("table")
             .withInstanceId("instance")
-            .withBigtableOptions(new BigtableOptions.Builder().build())
+            .withBigtableOptions(BigtableOptions.builder().build())
             .withWriteResults();
 
     thrown.expect(IllegalArgumentException.class);
@@ -346,7 +390,7 @@ public class BigtableIOTest {
     BigtableIO.WriteWithResults write =
         BigtableIO.write()
             .withTableId("table")
-            .withBigtableOptions(new BigtableOptions.Builder().build())
+            .withBigtableOptions(BigtableOptions.builder().build())
             .withWriteResults();
 
     thrown.expect(IllegalArgumentException.class);
@@ -747,6 +791,35 @@ public class BigtableIOTest {
     assertSourcesEqualReferenceSource(source, splits, null /* options */);
   }
 
+  @Test
+  public void testReadingWithSplitFailed() throws Exception {
+    FailureBigtableService failureService =
+        new FailureBigtableService(FailureOptions.builder().setFailAtSplit(true).build());
+    BigtableConfig failureConfig =
+        BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
+
+    final String table = "TEST-MANY-ROWS-SPLITS-TABLE";
+    final int numRows = 1500;
+    final int numSamples = 10;
+    final long bytesPerRow = 100L;
+
+    // Set up test table data and sample row keys for size estimation and splitting.
+    makeTableData(failureService, table, numRows);
+    failureService.setupSampleRowKeys(table, numSamples, bytesPerRow);
+
+    // Generate source and split it.
+    BigtableSource source =
+        new BigtableSource(
+            failureConfig.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
+            null /*size*/);
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Fake Exception in getSampleRowKeys()");
+
+    source.split(numRows * bytesPerRow / numSamples, null /* options */);
+  }
+
   private void assertAllSourcesHaveSingleAdjacentRanges(List<BigtableSource> sources) {
     if (sources.size() > 0) {
       assertThat(sources.get(0).getRanges(), hasSize(1));
@@ -1121,34 +1194,6 @@ public class BigtableIOTest {
   }
 
   @Test
-  public void testReadingPrimitiveDisplayData() throws IOException, InterruptedException {
-    final String table = "fooTable";
-    service.createTable(table);
-
-    RowFilter rowFilter =
-        RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8("foo.*")).build();
-
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    BigtableIO.Read read =
-        BigtableIO.read()
-            .withBigtableOptions(BIGTABLE_OPTIONS)
-            .withTableId(table)
-            .withRowFilter(rowFilter)
-            .withBigtableService(service);
-
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-    assertThat(
-        "BigtableIO.Read should include the table id in its primitive display data",
-        displayData,
-        Matchers.hasItem(hasDisplayItem("tableId")));
-    assertThat(
-        "BigtableIO.Read should include the row filter, if it exists, in its primitive "
-            + "display data",
-        displayData,
-        Matchers.hasItem(hasDisplayItem("rowFilter")));
-  }
-
-  @Test
   public void testReadingDisplayDataFromRuntimeParameters() {
     ReadOptions options = PipelineOptionsFactory.fromArgs().withValidation().as(ReadOptions.class);
     BigtableIO.Read read =
@@ -1301,8 +1346,7 @@ public class BigtableIOTest {
    * A DoFn used to generate N outputs, where N is the input. Used to generate bundles of >= 1
    * element.
    */
-  private static class WriteGeneratorDoFn
-      extends DoFn<Integer, KV<ByteString, Iterable<Mutation>>> {
+  private static class WriteGeneratorDoFn extends DoFn<Long, KV<ByteString, Iterable<Mutation>>> {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       for (int i = 0; i < ctx.element(); i++) {
@@ -1315,20 +1359,18 @@ public class BigtableIOTest {
   @Test
   public void testWritingEmitsResultsWhenDoneInFixedWindow() throws Exception {
     final String table = "table";
-    final String key = "key";
-    final String value = "value";
 
     service.createTable(table);
 
     Instant elementTimestamp = Instant.parse("2019-06-10T00:00:00");
     Duration windowDuration = Duration.standardMinutes(1);
 
-    TestStream<Integer> input =
-        TestStream.create(VarIntCoder.of())
+    TestStream<Long> input =
+        TestStream.create(VarLongCoder.of())
             .advanceWatermarkTo(elementTimestamp)
-            .addElements(1)
+            .addElements(1L)
             .advanceWatermarkTo(elementTimestamp.plus(windowDuration))
-            .addElements(2)
+            .addElements(2L)
             .advanceWatermarkToInfinity();
 
     BoundedWindow expectedFirstWindow = new IntervalWindow(elementTimestamp, windowDuration);
@@ -1378,6 +1420,40 @@ public class BigtableIOTest {
 
     emptyInput.apply("write", defaultWrite.withTableId(NOT_ACCESSIBLE_VALUE));
     p.run();
+  }
+
+  /** Tests that the error happens when submitting the write request is handled. */
+  @Test
+  public void testWritingFailsAtWriteRecord() throws IOException {
+    FailureBigtableService failureService =
+        new FailureBigtableService(FailureOptions.builder().setFailAtWriteRecord(true).build());
+    BigtableIO.Write failureWrite =
+        BigtableIO.write()
+            .withInstanceId("instance")
+            .withProjectId("project")
+            .withBigtableService(failureService);
+
+    final String table = "table";
+    final String key = "key";
+    final String value = "value";
+
+    failureService.createTable(table);
+
+    p.apply("single row", Create.of(makeWrite(key, value)).withCoder(bigtableCoder))
+        .apply("write", failureWrite.withTableId(table));
+
+    // Exception will be thrown by writer.writeRecord() when BigtableWriterFn is applied.
+    thrown.expect(IOException.class);
+    thrown.expectMessage("Fake IOException in writeRecord()");
+
+    try {
+      p.run();
+    } catch (PipelineExecutionException e) {
+      // throwing inner exception helps assert that first exception is thrown from writeRecord()
+      if (e.getCause() instanceof IOException) {
+        throw (IOException) e.getCause();
+      }
+    }
   }
 
   /** Tests that when writing an element fails, the write fails. */
@@ -1445,7 +1521,7 @@ public class BigtableIOTest {
 
     BigtableOptions.Builder optionsBuilder = BIGTABLE_OPTIONS.toBuilder();
 
-    RetryOptions.Builder retryOptionsBuilder = new RetryOptions.Builder();
+    RetryOptions.Builder retryOptionsBuilder = RetryOptions.builder();
     retryOptionsBuilder.setInitialBackoffMillis(initialBackoffMillis);
 
     optionsBuilder.setRetryOptions(retryOptionsBuilder.build());
@@ -1465,10 +1541,10 @@ public class BigtableIOTest {
 
     BigtableOptions.Builder optionsBuilder = BIGTABLE_OPTIONS.toBuilder();
 
-    BulkOptions.Builder bulkOptionsBuilder = new BulkOptions.Builder();
+    BulkOptions.Builder bulkOptionsBuilder = BulkOptions.builder();
     bulkOptionsBuilder.setMaxInflightRpcs(maxInflightRpcs);
 
-    RetryOptions.Builder retryOptionsBuilder = new RetryOptions.Builder();
+    RetryOptions.Builder retryOptionsBuilder = RetryOptions.builder();
     retryOptionsBuilder.setInitialBackoffMillis(initialBackoffMillis);
 
     optionsBuilder
@@ -1503,10 +1579,11 @@ public class BigtableIOTest {
         .build();
   }
 
-  /** Helper function to create a table and return the rows that it created. */
-  private static List<Row> makeTableData(String tableId, int numRows) {
-    service.createTable(tableId);
-    Map<ByteString, ByteString> testData = service.getTable(tableId);
+  /** Helper function to create a table and return the rows that it created with custom service. */
+  private static List<Row> makeTableData(
+      FakeBigtableService fakeService, String tableId, int numRows) {
+    fakeService.createTable(tableId);
+    Map<ByteString, ByteString> testData = fakeService.getTable(tableId);
 
     List<Row> testRows = new ArrayList<>(numRows);
     for (int i = 0; i < numRows; ++i) {
@@ -1517,6 +1594,11 @@ public class BigtableIOTest {
     }
 
     return testRows;
+  }
+
+  /** Helper function to create a table and return the rows that it created. */
+  private static List<Row> makeTableData(String tableId, int numRows) {
+    return makeTableData(service, tableId, numRows);
   }
 
   /** A {@link BigtableService} implementation that stores tables and their contents in memory. */
@@ -1599,6 +1681,33 @@ public class BigtableIOTest {
     }
   }
 
+  /** A {@link BigtableService} implementation that throw exceptions at given stage. */
+  private static class FailureBigtableService extends FakeBigtableService {
+    public FailureBigtableService(FailureOptions options) {
+      failureOptions = options;
+    }
+
+    @Override
+    public FakeBigtableReader createReader(BigtableSource source) {
+      return new FailureBigtableReader(source, this, failureOptions);
+    }
+
+    @Override
+    public FailureBigtableWriter openForWriting(String tableId) {
+      return new FailureBigtableWriter(tableId, this, failureOptions);
+    }
+
+    @Override
+    public List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) {
+      if (failureOptions.getFailAtSplit()) {
+        throw new RuntimeException("Fake Exception in getSampleRowKeys()");
+      }
+      return super.getSampleRowKeys(source);
+    }
+
+    private final FailureOptions failureOptions;
+  }
+
   /**
    * A {@link BigtableService.Reader} implementation that reads from the static instance of {@link
    * FakeBigtableService} stored in {@link #service}.
@@ -1607,12 +1716,14 @@ public class BigtableIOTest {
    */
   private static class FakeBigtableReader implements BigtableService.Reader {
     private final BigtableSource source;
+    private final FakeBigtableService service;
     private Iterator<Map.Entry<ByteString, ByteString>> rows;
     private Row currentRow;
-    private Predicate<ByteString> filter;
+    private final Predicate<ByteString> filter;
 
-    public FakeBigtableReader(BigtableSource source) {
+    public FakeBigtableReader(BigtableSource source, FakeBigtableService service) {
       this.source = source;
+      this.service = service;
       if (source.getRowFilter() == null) {
         filter = Predicates.alwaysTrue();
       } else {
@@ -1623,14 +1734,18 @@ public class BigtableIOTest {
       service.verifyTableExists(source.getTableId().get());
     }
 
+    public FakeBigtableReader(BigtableSource source) {
+      this(source, BigtableIOTest.service);
+    }
+
     @Override
-    public boolean start() {
+    public boolean start() throws IOException {
       rows = service.tables.get(source.getTableId().get()).entrySet().iterator();
       return advance();
     }
 
     @Override
-    public boolean advance() {
+    public boolean advance() throws IOException {
       // Loop until we find a row in range, or reach the end of the iterator.
       Map.Entry<ByteString, ByteString> entry = null;
       while (rows.hasNext()) {
@@ -1680,6 +1795,37 @@ public class BigtableIOTest {
     }
   }
 
+  /** A {@link FakeBigtableReader} implementation that throw exceptions at given stage. */
+  private static class FailureBigtableReader extends FakeBigtableReader {
+    public FailureBigtableReader(
+        BigtableSource source, FakeBigtableService service, FailureOptions options) {
+      super(source, service);
+      failureOptions = options;
+      numAdvance = 0;
+    }
+
+    @Override
+    public boolean start() throws IOException {
+      if (failureOptions.getFailAtStart()) {
+        throw new IOException("Fake IOException at start()");
+      }
+      return super.start();
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      if (failureOptions.getFailAtAdvance() && numAdvance > 0) {
+        // because start() will call numAdvance once, only throw if called before
+        throw new IOException("Fake IOException at advance()");
+      }
+      ++numAdvance;
+      return super.advance();
+    }
+
+    private long numAdvance;
+    private final FailureOptions failureOptions;
+  }
+
   /**
    * A {@link BigtableService.Writer} implementation that writes to the static instance of {@link
    * FakeBigtableService} stored in {@link #service}.
@@ -1692,14 +1838,20 @@ public class BigtableIOTest {
    */
   private static class FakeBigtableWriter implements BigtableService.Writer {
     private final String tableId;
+    private final FakeBigtableService service;
+
+    public FakeBigtableWriter(String tableId, FakeBigtableService service) {
+      this.tableId = tableId;
+      this.service = service;
+    }
 
     public FakeBigtableWriter(String tableId) {
-      this.tableId = tableId;
+      this(tableId, BigtableIOTest.service);
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeRecord(
-        KV<ByteString, Iterable<Mutation>> record) {
+    public CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
+        throws IOException {
       service.verifyTableExists(tableId);
       Map<ByteString, ByteString> table = service.getTable(tableId);
       ByteString key = record.getKey();
@@ -1722,11 +1874,64 @@ public class BigtableIOTest {
     public void close() {}
   }
 
+  /** A {@link FakeBigtableWriter} implementation that throw exceptions at given stage. */
+  private static class FailureBigtableWriter extends FakeBigtableWriter {
+    public FailureBigtableWriter(
+        String tableId, FailureBigtableService service, FailureOptions options) {
+      super(tableId, service);
+      this.failureOptions = options;
+    }
+
+    @Override
+    public CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
+        throws IOException {
+      if (failureOptions.getFailAtWriteRecord()) {
+        throw new IOException("Fake IOException in writeRecord()");
+      }
+      return super.writeRecord(record);
+    }
+
+    private final FailureOptions failureOptions;
+  }
+
   /** A serializable comparator for ByteString. Used to make row samples. */
   private static final class ByteStringComparator implements Comparator<ByteString>, Serializable {
     @Override
     public int compare(ByteString o1, ByteString o2) {
       return makeByteKey(o1).compareTo(makeByteKey(o2));
+    }
+  }
+
+  /** Error injection options for FakeBigtableService and FakeBigtableReader. */
+  @AutoValue
+  abstract static class FailureOptions implements Serializable {
+    abstract Boolean getFailAtStart();
+
+    abstract Boolean getFailAtAdvance();
+
+    abstract Boolean getFailAtSplit();
+
+    abstract Boolean getFailAtWriteRecord();
+
+    static Builder builder() {
+      return new AutoValue_BigtableIOTest_FailureOptions.Builder()
+          .setFailAtStart(false)
+          .setFailAtAdvance(false)
+          .setFailAtSplit(false)
+          .setFailAtWriteRecord(false);
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setFailAtStart(Boolean failAtStart);
+
+      abstract Builder setFailAtAdvance(Boolean failAtAdvance);
+
+      abstract Builder setFailAtSplit(Boolean failAtSplit);
+
+      abstract Builder setFailAtWriteRecord(Boolean failAtWriteRecord);
+
+      abstract FailureOptions build();
     }
   }
 }

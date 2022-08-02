@@ -23,10 +23,12 @@ import (
 	"reflect"
 
 	// Library imports
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
@@ -39,12 +41,18 @@ func init() {
 	runtime.RegisterFunction(makePartitionFn)
 	runtime.RegisterFunction(protoDec)
 	runtime.RegisterFunction(protoEnc)
+	runtime.RegisterFunction(schemaDec)
+	runtime.RegisterFunction(schemaEnc)
 	runtime.RegisterFunction(swapKVFn)
 	runtime.RegisterType(reflect.TypeOf((*createFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*createFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*reflect.Type)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*reflect.Type)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*reflectx.Func)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*reflectx.Func)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*createFn)(nil)).Elem(), wrapMakerCreateFn)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(reflect.Type, []byte) (typex.T, error))(nil)).Elem(), funcMakerReflect۰TypeSliceOfByteГTypex۰TError)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(reflect.Type, typex.T) ([]byte, error))(nil)).Elem(), funcMakerReflect۰TypeTypex۰TГSliceOfByteError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte, func(typex.T)) error)(nil)).Elem(), funcMakerSliceOfByteEmitTypex۰TГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.T, func(typex.T)))(nil)).Elem(), funcMakerSliceOfTypex۰TEmitTypex۰TГ)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(string, reflect.Type, []byte) reflectx.Func)(nil)).Elem(), funcMakerStringReflect۰TypeSliceOfByteГReflectx۰Func)
@@ -87,6 +95,32 @@ func (c *callerReflect۰TypeSliceOfByteГTypex۰TError) Call(args []interface{})
 
 func (c *callerReflect۰TypeSliceOfByteГTypex۰TError) Call2x2(arg0, arg1 interface{}) (interface{}, interface{}) {
 	return c.fn(arg0.(reflect.Type), arg1.([]byte))
+}
+
+type callerReflect۰TypeTypex۰TГSliceOfByteError struct {
+	fn func(reflect.Type, typex.T) ([]byte, error)
+}
+
+func funcMakerReflect۰TypeTypex۰TГSliceOfByteError(fn interface{}) reflectx.Func {
+	f := fn.(func(reflect.Type, typex.T) ([]byte, error))
+	return &callerReflect۰TypeTypex۰TГSliceOfByteError{fn: f}
+}
+
+func (c *callerReflect۰TypeTypex۰TГSliceOfByteError) Name() string {
+	return reflectx.FunctionName(c.fn)
+}
+
+func (c *callerReflect۰TypeTypex۰TГSliceOfByteError) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *callerReflect۰TypeTypex۰TГSliceOfByteError) Call(args []interface{}) []interface{} {
+	out0, out1 := c.fn(args[0].(reflect.Type), args[1].(typex.T))
+	return []interface{}{out0, out1}
+}
+
+func (c *callerReflect۰TypeTypex۰TГSliceOfByteError) Call2x2(arg0, arg1 interface{}) (interface{}, interface{}) {
+	return c.fn(arg0.(reflect.Type), arg1.(typex.T))
 }
 
 type callerSliceOfByteEmitTypex۰TГError struct {
@@ -298,8 +332,9 @@ func (c *callerTypex۰XTypex۰YГTypex۰YTypex۰X) Call2x2(arg0, arg1 interface{
 }
 
 type emitNative struct {
-	n  exec.ElementProcessor
-	fn interface{}
+	n   exec.ElementProcessor
+	fn  interface{}
+	est *sdf.WatermarkEstimator
 
 	ctx   context.Context
 	ws    []typex.Window
@@ -318,6 +353,10 @@ func (e *emitNative) Value() interface{} {
 	return e.fn
 }
 
+func (e *emitNative) AttachEstimator(est *sdf.WatermarkEstimator) {
+	e.est = est
+}
+
 func emitMakerTypex۰T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
 	ret.fn = ret.invokeTypex۰T
@@ -326,6 +365,9 @@ func emitMakerTypex۰T(n exec.ElementProcessor) exec.ReusableEmitter {
 
 func (e *emitNative) invokeTypex۰T(val typex.T) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: val}
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}

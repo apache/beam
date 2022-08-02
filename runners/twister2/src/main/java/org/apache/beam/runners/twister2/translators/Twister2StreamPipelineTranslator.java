@@ -17,15 +17,8 @@
  */
 package org.apache.beam.runners.twister2.translators;
 
-import org.apache.beam.runners.twister2.Twister2PipelineOptions;
-import org.apache.beam.runners.twister2.Twister2TranslationContext;
-
 /** Twister pipeline translator for stream pipelines. */
 public class Twister2StreamPipelineTranslator extends Twister2PipelineTranslator {
-  private final Twister2PipelineOptions options;
 
-  public Twister2StreamPipelineTranslator(
-      Twister2PipelineOptions options, Twister2TranslationContext twister2TranslationContext) {
-    this.options = options;
-  }
+  public Twister2StreamPipelineTranslator() {}
 }

@@ -1,0 +1,30 @@
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+
+<svg width="20" height="21" viewBox="0 0 20 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+        d="M15.8334 3H7.50004C6.57957 3 5.83337 3.74619 5.83337 4.66667V13C5.83337 13.9205 6.57957 14.6667 7.50004 14.6667H15.8334C16.7538 14.6667 17.5 13.9205 17.5 13V4.66667C17.5 3.74619 16.7538 3 15.8334 3Z"
+        stroke="#A0A4AB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    <path
+        d="M14.1667 14.6666V16.3333C14.1667 16.7753 13.9911 17.1993 13.6785 17.5118C13.366 17.8244 12.942 18 12.5 18H4.16667C3.72464 18 3.30072 17.8244 2.98816 17.5118C2.67559 17.1993 2.5 16.7753 2.5 16.3333V7.99998C2.5 7.55795 2.67559 7.13403 2.98816 6.82147C3.30072 6.50891 3.72464 6.33331 4.16667 6.33331H5.83333"
+        stroke="#A0A4AB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    <path
+        d="M12.6875 10.2734C12.6875 10.0521 12.6094 9.88281 12.4531 9.76562C12.2969 9.64583 12.0156 9.52083 11.6094 9.39062C11.2031 9.25781 10.8815 9.1276 10.6445 9C9.9987 8.65104 9.67578 8.18099 9.67578 7.58984C9.67578 7.28255 9.76172 7.00911 9.93359 6.76953C10.1081 6.52734 10.3568 6.33854 10.6797 6.20312C11.0052 6.06771 11.3698 6 11.7734 6C12.1797 6 12.5417 6.07422 12.8594 6.22266C13.1771 6.36849 13.4232 6.57552 13.5977 6.84375C13.7747 7.11198 13.8633 7.41667 13.8633 7.75781H12.6914C12.6914 7.4974 12.6094 7.29557 12.4453 7.15234C12.2812 7.00651 12.0508 6.93359 11.7539 6.93359C11.4674 6.93359 11.2448 6.99479 11.0859 7.11719C10.9271 7.23698 10.8477 7.39583 10.8477 7.59375C10.8477 7.77865 10.9401 7.93359 11.125 8.05859C11.3125 8.18359 11.5872 8.30078 11.9492 8.41016C12.6159 8.61068 13.1016 8.85938 13.4062 9.15625C13.7109 9.45312 13.8633 9.82292 13.8633 10.2656C13.8633 10.7578 13.6771 11.1445 13.3047 11.4258C12.9323 11.7044 12.431 11.8438 11.8008 11.8438C11.3633 11.8438 10.9648 11.7643 10.6055 11.6055C10.2461 11.444 9.97135 11.224 9.78125 10.9453C9.59375 10.6667 9.5 10.3438 9.5 9.97656H10.6758C10.6758 10.6042 11.0508 10.918 11.8008 10.918C12.0794 10.918 12.2969 10.862 12.4531 10.75C12.6094 10.6354 12.6875 10.4766 12.6875 10.2734Z"
+        fill="#A0A4AB" />
+</svg>

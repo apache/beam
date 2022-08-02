@@ -19,14 +19,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 import uuid
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples import streaming_wordcount_debugging
 from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
@@ -71,17 +69,19 @@ class StreamingWordcountDebuggingIT(unittest.TestCase):
     from google.cloud import pubsub
     self.pub_client = pubsub.PublisherClient()
     self.input_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, INPUT_TOPIC + self.uuid))
+        name=self.pub_client.topic_path(self.project, INPUT_TOPIC + self.uuid))
     self.output_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, OUTPUT_TOPIC + self.uuid))
+        name=self.pub_client.topic_path(self.project, OUTPUT_TOPIC + self.uuid))
 
     self.sub_client = pubsub.SubscriberClient()
     self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project, INPUT_SUB + self.uuid),
-        self.input_topic.name)
+        name=self.sub_client.subscription_path(
+            self.project, INPUT_SUB + self.uuid),
+        topic=self.input_topic.name)
     self.output_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project, OUTPUT_SUB + self.uuid),
-        self.output_topic.name,
+        name=self.sub_client.subscription_path(
+            self.project, OUTPUT_SUB + self.uuid),
+        topic=self.output_topic.name,
         ack_deadline_seconds=60)
 
   def _inject_data(self, topic, data):
@@ -96,9 +96,10 @@ class StreamingWordcountDebuggingIT(unittest.TestCase):
     test_utils.cleanup_topics(
         self.pub_client, [self.input_topic, self.output_topic])
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   @unittest.skip(
-      "Skipped due to [BEAM-3377]: assert_that not working for streaming")
+      "Skipped due to [https://github.com/apache/beam/issues/18709]: "
+      "assert_that not working for streaming")
   def test_streaming_wordcount_debugging_it(self):
 
     # Set extra options to the pipeline for test purpose

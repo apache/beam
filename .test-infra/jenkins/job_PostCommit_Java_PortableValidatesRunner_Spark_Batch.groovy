@@ -25,7 +25,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Spark_Batch',
       description('Runs the Java PortableValidatesRunner suite on the Spark runner in batch mode.')
 
       // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
       // Publish all test results to Jenkins
       publishers {
@@ -36,7 +36,10 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Spark_Batch',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:spark:job-server:validatesPortableRunnerBatch')
+          tasks(':runners:spark:2:job-server:validatesPortableRunnerBatch')
+          tasks(':runners:spark:3:job-server:validatesPortableRunnerBatch')
+          tasks(':runners:spark:2:job-server:validatesPortableRunnerDocker')
+          tasks(':runners:spark:3:job-server:validatesPortableRunnerDocker')
           commonJobProperties.setGradleSwitches(delegate)
         }
       }

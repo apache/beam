@@ -34,5 +34,5 @@ For example, a single element to execute a one-time `ParDo` or a list of filenam
 
 See [BEAM-7704](https://issues.apache.org/jira/browse/BEAM-7704) for updates.
 
-## Related transforms 
+## Related transforms
 N/A

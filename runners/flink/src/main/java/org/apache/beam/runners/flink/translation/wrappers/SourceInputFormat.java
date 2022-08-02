@@ -39,6 +39,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Wrapper for executing a {@link Source} as a Flink {@link InputFormat}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, SourceInputSplit<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceInputFormat.class);
 
@@ -98,7 +102,7 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
         }
       };
     } catch (Exception e) {
-      LOG.warn("Could not read Source statistics: {}", e);
+      LOG.warn("Could not read Source statistics.", e);
     }
 
     return null;
@@ -127,7 +131,7 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
   }
 
   @Override
-  public boolean reachedEnd() throws IOException {
+  public boolean reachedEnd() {
     return !inputAvailable;
   }
 
@@ -146,7 +150,9 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
 
   @Override
   public void close() throws IOException {
-    metricContainer.registerMetricsForPipelineResult();
+    if (metricContainer != null) {
+      metricContainer.registerMetricsForPipelineResult();
+    }
     // TODO null check can be removed once FLINK-3796 is fixed
     if (reader != null) {
       reader.close();

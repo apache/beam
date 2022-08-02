@@ -19,9 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import logging
 import os
 import tempfile
@@ -46,7 +43,7 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   the pipeline artifacts.
   """
   def __init__(self, master_url, options):
-    super(FlinkUberJarJobServer, self).__init__()
+    super().__init__()
     self._master_url = master_url
     self._executable_jar = (
         options.view_as(
@@ -66,16 +63,20 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
       if not os.path.exists(self._executable_jar):
         parsed = urllib.parse.urlparse(self._executable_jar)
         if not parsed.scheme:
+          try:
+            flink_version = self.flink_version()
+          except Exception:
+            flink_version = '$FLINK_VERSION'
           raise ValueError(
               'Unable to parse jar URL "%s". If using a full URL, make sure '
               'the scheme is specified. If using a local file path, make sure '
               'the file exists; you may have to first build the job server '
               'using `./gradlew runners:flink:%s:job-server:shadowJar`.' %
-              (self._executable_jar, self._flink_version))
+              (self._executable_jar, flink_version))
       url = self._executable_jar
     else:
       url = job_server.JavaJarJobServer.path_to_beam_jar(
-          'runners:flink:%s:job-server:shadowJar' % self.flink_version())
+          ':runners:flink:%s:job-server:shadowJar' % self.flink_version())
     return job_server.JavaJarJobServer.local_jar(url)
 
   def flink_version(self):
@@ -115,7 +116,7 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
       pipeline,
       options,
       artifact_port=0):
-    super(FlinkBeamJob, self).__init__(
+    super().__init__(
         executable_jar,
         job_id,
         job_name,
@@ -207,7 +208,7 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
     state, timestamp = self._get_state()
     if timestamp is None:
       # state has not changed since it was last checked: use previous timestamp
-      return super(FlinkBeamJob, self).get_state()
+      return super().get_state()
     else:
       return state, timestamp
 

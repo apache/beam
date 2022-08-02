@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.twister2.translation.wrappers;
 
-import edu.iu.dsc.tws.api.config.Config;
 import edu.iu.dsc.tws.api.tset.TSetContext;
 import edu.iu.dsc.tws.api.tset.fn.BaseSourceFunc;
 import java.io.IOException;
@@ -41,13 +40,15 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /** Twister2 wrapper for Bounded Source. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Twister2BoundedSource<T> extends BaseSourceFunc<WindowedValue<T>> {
   private static final Logger LOG = Logger.getLogger(Twister2BoundedSource.class.getName());
 
   private transient BoundedSource<T> source;
   private int numPartitions;
   private long splitSize = 100;
-  private transient Config twister2Config;
   private List<? extends Source<T>> partitionedSources;
   private Source<T> localPartition;
   private transient PipelineOptions options;
@@ -70,7 +71,7 @@ public class Twister2BoundedSource<T> extends BaseSourceFunc<WindowedValue<T>> {
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(
         Environments.createOrGetDefaultEnvironment(options.as(PortablePipelineOptions.class)));
-    RunnerApi.FunctionSpec sourceProto = ReadTranslation.toProto(source, components);
+    RunnerApi.FunctionSpec sourceProto = ReadTranslation.toProto(source);
     sourceBytes = sourceProto.getPayload().toByteArray();
   }
 
@@ -88,7 +89,6 @@ public class Twister2BoundedSource<T> extends BaseSourceFunc<WindowedValue<T>> {
                   + "size of %d bytes.",
               source.toString(), DEFAULT_BUNDLE_SIZE));
     }
-    twister2Config = context.getConfig();
     int index = context.getIndex();
     List<Source<T>> partitionList = new ArrayList<>();
     try {

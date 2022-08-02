@@ -32,6 +32,9 @@ import org.apache.beam.sdk.values.PCollectionView;
  * decoded from the ByteStrings are annotated.
  */
 @Experimental
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class AnnotateVideoFromBytesFn extends AnnotateVideoFn<ByteString> {
 
   public AnnotateVideoFromBytesFn(

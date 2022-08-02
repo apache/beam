@@ -22,22 +22,24 @@ This module is experimental. No backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import logging
 
 import apache_beam as beam
 from apache_beam import runners
+from apache_beam.options.pipeline_options import FlinkRunnerOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
 from apache_beam.runners.interactive import background_caching_job
+from apache_beam.runners.interactive.dataproc.types import ClusterMetadata
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.options import capture_control
 from apache_beam.runners.interactive.utils import to_element_list
+from apache_beam.runners.interactive.utils import watch_sources
 from apache_beam.testing.test_stream_service import TestStreamServiceController
 
 # size of PCollection samples cached.
@@ -84,7 +86,8 @@ class InteractiveRunner(runners.PipelineRunner):
     self._blocking = blocking
 
   def is_fnapi_compatible(self):
-    # TODO(BEAM-8436): return self._underlying_runner.is_fnapi_compatible()
+    # TODO(https://github.com/apache/beam/issues/19937):
+    # return self._underlying_runner.is_fnapi_compatible()
     return False
 
   def set_render_option(self, render_option):
@@ -127,15 +130,20 @@ class InteractiveRunner(runners.PipelineRunner):
     return self._underlying_runner.apply(transform, pvalueish, options)
 
   def run_pipeline(self, pipeline, options):
-    if not ie.current_env().options.enable_capture_replay:
+    if not ie.current_env().options.enable_recording_replay:
       capture_control.evict_captured_data()
     if self._force_compute:
       ie.current_env().evict_computed_pcollections()
 
     # Make sure that sources without a user reference are still cached.
-    inst.watch_sources(pipeline)
+    watch_sources(pipeline)
 
-    user_pipeline = inst.user_pipeline(pipeline)
+    user_pipeline = ie.current_env().user_pipeline(pipeline)
+
+    from apache_beam.runners.portability.flink_runner import FlinkRunner
+    if isinstance(self._underlying_runner, FlinkRunner):
+      self.configure_for_flink(user_pipeline, options)
+
     pipeline_instrument = inst.build_pipeline_instrument(pipeline, options)
 
     # The user_pipeline analyzed might be None if the pipeline given has nothing
@@ -152,7 +160,11 @@ class InteractiveRunner(runners.PipelineRunner):
               user_pipeline)):
         streaming_cache_manager = ie.current_env().get_cache_manager(
             user_pipeline)
-        if streaming_cache_manager:
+
+        # Only make the server if it doesn't exist already.
+        if (streaming_cache_manager and
+            not ie.current_env().get_test_stream_service_controller(
+                user_pipeline)):
 
           def exception_handler(e):
             _LOGGER.error(str(e))
@@ -186,7 +198,7 @@ class InteractiveRunner(runners.PipelineRunner):
 
     if not self._skip_display:
       a_pipeline_graph = pipeline_graph.PipelineGraph(
-          pipeline_instrument.original_pipeline,
+          pipeline_instrument.original_pipeline_proto,
           render_option=self._render_option)
       a_pipeline_graph.display_graph()
 
@@ -202,11 +214,78 @@ class InteractiveRunner(runners.PipelineRunner):
       main_job_result.wait_until_finish()
 
     if main_job_result.state is beam.runners.runner.PipelineState.DONE:
-      # pylint: disable=dict-values-not-iterating
+      # pylint: disable=bad-option-value
       ie.current_env().mark_pcollection_computed(
-          pipeline_instrument.runner_pcoll_to_user_pcoll.values())
+          pipeline_instrument.cached_pcolls)
 
     return main_job_result
+
+  def configure_for_flink(
+      self, user_pipeline: beam.Pipeline, options: PipelineOptions) -> None:
+    """Configures the pipeline options for running a job with Flink.
+
+    When running with a FlinkRunner, a job server started from an uber jar
+    (locally built or remotely downloaded) hosting the beam_job_api will
+    communicate with the Flink cluster located at the given flink_master in the
+    pipeline options.
+    """
+    clusters = ie.current_env().clusters
+    if clusters.pipelines.get(user_pipeline, None):
+      # Noop for a known pipeline using a known Dataproc cluster.
+      return
+    flink_master = options.view_as(FlinkRunnerOptions).flink_master
+    cluster_metadata = clusters.default_cluster_metadata
+    if flink_master == '[auto]':
+      # Try to create/reuse a cluster when no flink_master is given.
+      project_id = options.view_as(GoogleCloudOptions).project
+      region = options.view_as(GoogleCloudOptions).region
+      if project_id:
+        if clusters.default_cluster_metadata:
+          # Reuse the cluster name from default in case of a known cluster.
+          cluster_metadata = ClusterMetadata(
+              project_id=project_id,
+              region=region,
+              cluster_name=clusters.default_cluster_metadata.cluster_name)
+        else:
+          # Generate the metadata with a new unique cluster name.
+          cluster_metadata = ClusterMetadata(
+              project_id=project_id, region=region)
+        # Add additional configurations.
+        self._worker_options_to_cluster_metadata(options, cluster_metadata)
+      # else use the default cluster metadata.
+    elif flink_master in clusters.master_urls:
+      cluster_metadata = clusters.cluster_metadata(flink_master)
+    else:  # Noop if a self-hosted Flink is in use.
+      return
+    if not cluster_metadata:
+      return  # Not even a default cluster to create/reuse, run Flink locally.
+    dcm = clusters.create(cluster_metadata)
+    # Side effects associated with the user_pipeline.
+    clusters.pipelines[user_pipeline] = dcm
+    dcm.pipelines.add(user_pipeline)
+    self._configure_flink_options(
+        options,
+        clusters.DATAPROC_FLINK_VERSION,
+        dcm.cluster_metadata.master_url)
+
+  def _worker_options_to_cluster_metadata(
+      self, options: PipelineOptions, cluster_metadata: ClusterMetadata):
+    worker_options = options.view_as(WorkerOptions)
+    if worker_options.subnetwork:
+      cluster_metadata.subnetwork = worker_options.subnetwork
+    if worker_options.num_workers:
+      cluster_metadata.num_workers = worker_options.num_workers
+    if worker_options.machine_type:
+      cluster_metadata.machine_type = worker_options.machine_type
+
+  def _configure_flink_options(
+      self, options: PipelineOptions, flink_version: str, master_url: str):
+    flink_options = options.view_as(FlinkRunnerOptions)
+    flink_options.flink_version = flink_version
+    # flink_options.flink_job_server_jar will be populated by the
+    # apache_beam.utils.subprocess_server.JavaJarServer.path_to_beam_jar,
+    # do not populate it explicitly.
+    flink_options.flink_master = master_url
 
 
 class PipelineResult(beam.runners.runner.PipelineResult):
@@ -221,7 +300,7 @@ class PipelineResult(beam.runners.runner.PipelineResult):
           the pipeline being executed with interactivity applied and related
           metadata including where the interactivity-backing cache lies.
     """
-    super(PipelineResult, self).__init__(underlying_result.state)
+    super().__init__(underlying_result.state)
     self._underlying_result = underlying_result
     self._pipeline_instrument = pipeline_instrument
 
@@ -249,7 +328,7 @@ class PipelineResult(beam.runners.runner.PipelineResult):
     key = self._pipeline_instrument.cache_key(pcoll)
     cache_manager = ie.current_env().get_cache_manager(
         self._pipeline_instrument.user_pipeline)
-    if cache_manager.exists('full', key):
+    if key and cache_manager.exists('full', key):
       coder = cache_manager.load_pcoder('full', key)
       reader, _ = cache_manager.read('full', key)
       return to_element_list(reader, coder, include_window_info)

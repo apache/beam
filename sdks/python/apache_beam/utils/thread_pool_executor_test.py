@@ -19,16 +19,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import itertools
 import threading
 import time
 import traceback
 import unittest
-
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 
 from apache_beam.utils import thread_pool_executor
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor

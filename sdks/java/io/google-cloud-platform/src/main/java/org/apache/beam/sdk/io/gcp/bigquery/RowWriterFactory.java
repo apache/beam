@@ -23,6 +23,7 @@ import java.io.Serializable;
 import org.apache.avro.Schema;
 import org.apache.avro.io.DatumWriter;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable {
   private RowWriterFactory() {}
@@ -40,21 +41,33 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
       String tempFilePrefix, DestinationT destination) throws Exception;
 
   static <ElementT, DestinationT> RowWriterFactory<ElementT, DestinationT> tableRows(
-      SerializableFunction<ElementT, TableRow> toRow) {
-    return new TableRowWriterFactory<ElementT, DestinationT>(toRow);
+      SerializableFunction<ElementT, TableRow> toRow,
+      SerializableFunction<ElementT, TableRow> toFailsafeRow) {
+    return new TableRowWriterFactory<ElementT, DestinationT>(toRow, toFailsafeRow);
   }
 
   static final class TableRowWriterFactory<ElementT, DestinationT>
       extends RowWriterFactory<ElementT, DestinationT> {
 
     private final SerializableFunction<ElementT, TableRow> toRow;
+    private final SerializableFunction<ElementT, TableRow> toFailsafeRow;
 
-    private TableRowWriterFactory(SerializableFunction<ElementT, TableRow> toRow) {
+    private TableRowWriterFactory(
+        SerializableFunction<ElementT, TableRow> toRow,
+        SerializableFunction<ElementT, TableRow> toFailsafeRow) {
       this.toRow = toRow;
+      this.toFailsafeRow = toFailsafeRow;
     }
 
     public SerializableFunction<ElementT, TableRow> getToRowFn() {
       return toRow;
+    }
+
+    public SerializableFunction<ElementT, TableRow> getToFailsafeRowFn() {
+      if (toFailsafeRow == null) {
+        return toRow;
+      }
+      return toFailsafeRow;
     }
 
     @Override
@@ -86,14 +99,14 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
 
     private final SerializableFunction<AvroWriteRequest<ElementT>, AvroT> toAvro;
     private final SerializableFunction<Schema, DatumWriter<AvroT>> writerFactory;
-    private final SerializableFunction<TableSchema, Schema> schemaFactory;
-    private final DynamicDestinations<?, DestinationT> dynamicDestinations;
+    private final @Nullable SerializableFunction<@Nullable TableSchema, Schema> schemaFactory;
+    private final @Nullable DynamicDestinations<?, DestinationT> dynamicDestinations;
 
     private AvroRowWriterFactory(
         SerializableFunction<AvroWriteRequest<ElementT>, AvroT> toAvro,
         SerializableFunction<Schema, DatumWriter<AvroT>> writerFactory,
-        SerializableFunction<TableSchema, Schema> schemaFactory,
-        DynamicDestinations<?, DestinationT> dynamicDestinations) {
+        @Nullable SerializableFunction<@Nullable TableSchema, Schema> schemaFactory,
+        @Nullable DynamicDestinations<?, DestinationT> dynamicDestinations) {
       this.toAvro = toAvro;
       this.writerFactory = writerFactory;
       this.schemaFactory = schemaFactory;
@@ -102,7 +115,7 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
 
     AvroRowWriterFactory<ElementT, AvroT, DestinationT> prepare(
         DynamicDestinations<?, DestinationT> dynamicDestinations,
-        SerializableFunction<TableSchema, Schema> schemaFactory) {
+        SerializableFunction<@Nullable TableSchema, Schema> schemaFactory) {
       return new AvroRowWriterFactory<>(toAvro, writerFactory, schemaFactory, dynamicDestinations);
     }
 
@@ -114,6 +127,15 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
     @Override
     BigQueryRowWriter<ElementT> createRowWriter(String tempFilePrefix, DestinationT destination)
         throws Exception {
+      if (dynamicDestinations == null) {
+        throw new IllegalStateException(
+            "createRowWriter called when dynamicDestinations is null; forgot to call prepare()?");
+      }
+      if (schemaFactory == null) {
+        throw new IllegalStateException(
+            "createRowWriter called when schemaFactory is null; forgot to call prepare()?");
+      }
+
       TableSchema tableSchema = dynamicDestinations.getSchema(destination);
       Schema avroSchema = schemaFactory.apply(tableSchema);
       return new AvroRowWriter<>(tempFilePrefix, avroSchema, toAvro, writerFactory);

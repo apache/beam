@@ -17,18 +17,21 @@
 
 """Code for communicating with the Workers."""
 
-from __future__ import absolute_import
+# mypy: disallow-untyped-defs
 
 import collections
 import contextlib
 import copy
 import logging
+import os
 import queue
 import subprocess
 import sys
 import threading
 import time
-from builtins import object
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import BinaryIO  # pylint: disable=unused-import
 from typing import Callable
 from typing import DefaultDict
 from typing import Dict
@@ -38,6 +41,8 @@ from typing import List
 from typing import Mapping
 from typing import Optional
 from typing import Tuple
+from typing import Type
+from typing import TypeVar
 from typing import Union
 from typing import cast
 from typing import overload
@@ -45,6 +50,7 @@ from typing import overload
 import grpc
 
 from apache_beam.io import filesystems
+from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
@@ -59,10 +65,18 @@ from apache_beam.runners.portability.fn_api_runner.execution import Buffer
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.log_handler import LOGENTRY_TO_LOG_LEVEL_MAP
 from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.utils import proto_utils
 from apache_beam.utils import thread_pool_executor
+from apache_beam.utils.interactive_utils import is_in_notebook
+from apache_beam.utils.sentinel import Sentinel
+
+if TYPE_CHECKING:
+  from grpc import ServicerContext
+  from google.protobuf import message
+  from apache_beam.runners.portability.fn_api_runner.fn_runner import ExtendedProvisionInfo  # pylint: disable=ungrouped-imports
 
 # State caching is enabled in the fn_api_runner for testing, except for one
 # test which runs without state caching (FnApiRunnerTestWithDisabledCaching).
@@ -74,10 +88,11 @@ DATA_BUFFER_TIME_LIMIT_MS = 1000
 
 _LOGGER = logging.getLogger(__name__)
 
+T = TypeVar('T')
 ConstructorFn = Callable[[
     Union['message.Message', bytes],
-    'StateServicer',
-    Optional['ExtendedProvisionInfo'],
+    'sdk_worker.StateHandler',
+    'ExtendedProvisionInfo',
     'GrpcServer'
 ],
                          'WorkerHandler']
@@ -89,21 +104,24 @@ class ControlConnection(object):
   _lock = threading.Lock()
 
   def __init__(self):
+    # type: () -> None
     self._push_queue = queue.Queue(
-    )  # type: queue.Queue[beam_fn_api_pb2.InstructionRequest]
+    )  # type: queue.Queue[Union[beam_fn_api_pb2.InstructionRequest, Sentinel]]
     self._input = None  # type: Optional[Iterable[beam_fn_api_pb2.InstructionResponse]]
-    self._futures_by_id = dict()  # type: Dict[str, ControlFuture]
+    self._futures_by_id = {}  # type: Dict[str, ControlFuture]
     self._read_thread = threading.Thread(
         name='beam_control_read', target=self._read)
     self._state = BeamFnControlServicer.UNSTARTED_STATE
 
   def _read(self):
+    # type: () -> None
+    assert self._input is not None
     for data in self._input:
       self._futures_by_id.pop(data.instruction_id).set(data)
 
   @overload
   def push(self, req):
-    # type: (BeamFnControlServicer.DoneMarker) -> None
+    # type: (Sentinel) -> None
     pass
 
   @overload
@@ -112,7 +130,8 @@ class ControlConnection(object):
     pass
 
   def push(self, req):
-    if req == BeamFnControlServicer._DONE_MARKER:
+    # type: (Union[Sentinel, beam_fn_api_pb2.InstructionRequest]) -> Optional[ControlFuture]
+    if req is BeamFnControlServicer._DONE_MARKER:
       self._push_queue.put(req)
       return None
     if not req.instruction_id:
@@ -125,7 +144,7 @@ class ControlConnection(object):
     return future
 
   def get_req(self):
-    # type: () -> beam_fn_api_pb2.InstructionRequest
+    # type: () -> Union[Sentinel, beam_fn_api_pb2.InstructionRequest]
     return self._push_queue.get()
 
   def set_input(self, input):
@@ -146,6 +165,7 @@ class ControlConnection(object):
       self._state = BeamFnControlServicer.DONE_STATE
 
   def abort(self, exn):
+    # type: (Exception) -> None
     for future in self._futures_by_id.values():
       future.abort(exn)
 
@@ -157,23 +177,20 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
   STARTED_STATE = 'started'
   DONE_STATE = 'done'
 
-  class DoneMarker(object):
-    pass
-
-  _DONE_MARKER = DoneMarker()
+  _DONE_MARKER = Sentinel.sentinel
 
   def __init__(
       self,
       worker_manager,  # type: WorkerHandlerManager
   ):
+    # type: (...) -> None
     self._worker_manager = worker_manager
     self._lock = threading.Lock()
     self._uid_counter = 0
     self._state = self.UNSTARTED_STATE
     # following self._req_* variables are used for debugging purpose, data is
     # added only when self._log_req is True.
-    self._req_sent = collections.defaultdict(int)
-    self._req_worker_mapping = {}
+    self._req_sent = collections.defaultdict(int)  # type: DefaultDict[str, int]
     self._log_req = logging.getLogger().getEffectiveLevel() <= logging.DEBUG
     self._connections_by_worker_id = collections.defaultdict(
         ControlConnection)  # type: DefaultDict[str, ControlConnection]
@@ -185,7 +202,7 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
 
   def Control(self,
               iterator,  # type: Iterable[beam_fn_api_pb2.InstructionResponse]
-              context
+              context  # type: ServicerContext
              ):
     # type: (...) -> Iterator[beam_fn_api_pb2.InstructionRequest]
     with self._lock:
@@ -212,16 +229,14 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
         self._req_sent[to_push.instruction_id] += 1
 
   def done(self):
+    # type: () -> None
     self._state = self.DONE_STATE
     _LOGGER.debug(
         'Runner: Requests sent by runner: %s',
         [(str(req), cnt) for req, cnt in self._req_sent.items()])
-    _LOGGER.debug(
-        'Runner: Requests multiplexing info: %s',
-        [(str(req), worker)
-         for req, worker in self._req_worker_mapping.items()])
 
   def GetProcessBundleDescriptor(self, id, context=None):
+    # type: (beam_fn_api_pb2.GetProcessBundleDescriptorRequest, Any) -> beam_fn_api_pb2.ProcessBundleDescriptor
     return self._worker_manager.get_process_bundle_descriptor(id)
 
 
@@ -241,10 +256,10 @@ class WorkerHandler(object):
   data_conn = None  # type: data_plane._GrpcDataChannel
 
   def __init__(self,
-               control_handler,
-               data_plane_handler,
-               state,  # type: StateServicer
-               provision_info  # type: Optional[ExtendedProvisionInfo]
+               control_handler,  # type: Any
+               data_plane_handler,  # type: Any
+               state,  # type: sdk_worker.StateHandler
+               provision_info  # type: ExtendedProvisionInfo
               ):
     # type: (...) -> None
 
@@ -277,6 +292,14 @@ class WorkerHandler(object):
     # type: () -> None
     raise NotImplementedError
 
+  def control_api_service_descriptor(self):
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
+    raise NotImplementedError
+
+  def artifact_api_service_descriptor(self):
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
+    raise NotImplementedError
+
   def data_api_service_descriptor(self):
     # type: () -> Optional[endpoints_pb2.ApiServiceDescriptor]
     raise NotImplementedError
@@ -295,9 +318,10 @@ class WorkerHandler(object):
       urn,  # type: str
       payload_type  # type: Optional[Type[T]]
   ):
-    # type: (...) -> Callable[[Callable[[T, StateServicer, Optional[ExtendedProvisionInfo], GrpcServer], WorkerHandler]], Callable[[T, StateServicer, Optional[ExtendedProvisionInfo], GrpcServer], WorkerHandler]]
+    # type: (...) -> Callable[[Type[WorkerHandler]], Callable[[T, sdk_worker.StateHandler, ExtendedProvisionInfo, GrpcServer], WorkerHandler]]
     def wrapper(constructor):
-      cls._registered_environments[urn] = constructor, payload_type
+      # type: (Callable) -> Callable
+      cls._registered_environments[urn] = constructor, payload_type  # type: ignore[assignment]
       return constructor
 
     return wrapper
@@ -305,8 +329,8 @@ class WorkerHandler(object):
   @classmethod
   def create(cls,
              environment,  # type: beam_runner_api_pb2.Environment
-             state,  # type: StateServicer
-             provision_info,  # type: Optional[ExtendedProvisionInfo]
+             state,  # type: sdk_worker.StateHandler
+             provision_info,  # type: ExtendedProvisionInfo
              grpc_server  # type: GrpcServer
             ):
     # type: (...) -> WorkerHandler
@@ -318,6 +342,9 @@ class WorkerHandler(object):
         grpc_server)
 
 
+# This takes a WorkerHandlerManager instead of GrpcServer, so it is not
+# compatible with WorkerHandler.register_environment.  There is a special case
+# in WorkerHandlerManager.get_worker_handlers() that allows it to work.
 @WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON, None)
 class EmbeddedWorkerHandler(WorkerHandler):
   """An in-memory worker_handler for fn API control, state and data planes."""
@@ -325,18 +352,18 @@ class EmbeddedWorkerHandler(WorkerHandler):
   def __init__(self,
                unused_payload,  # type: None
                state,  # type: sdk_worker.StateHandler
-               provision_info,  # type: Optional[ExtendedProvisionInfo]
+               provision_info,  # type: ExtendedProvisionInfo
                worker_manager,  # type: WorkerHandlerManager
               ):
     # type: (...) -> None
-    super(EmbeddedWorkerHandler, self).__init__(
+    super().__init__(
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.control_conn = self  # type: ignore  # need Protocol to describe this
     self.data_conn = self.data_plane_handler
     state_cache = StateCache(STATE_CACHE_SIZE)
     self.bundle_processor_cache = sdk_worker.BundleProcessorCache(
         SingletonStateHandlerFactory(
-            sdk_worker.CachingStateHandler(state_cache, state)),
+            sdk_worker.GlobalCachingStateHandler(state_cache, state)),
         data_plane.InMemoryDataChannelFactory(
             self.data_plane_handler.inverse()),
         worker_manager._process_bundle_descriptors)
@@ -346,6 +373,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
     self._uid_counter = 0
 
   def push(self, request):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> ControlFuture
     if not request.instruction_id:
       self._uid_counter += 1
       request.instruction_id = 'control_%s' % self._uid_counter
@@ -380,39 +408,28 @@ class EmbeddedWorkerHandler(WorkerHandler):
 
 
 class BasicLoggingService(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
-
-  LOG_LEVEL_MAP = {
-      beam_fn_api_pb2.LogEntry.Severity.CRITICAL: logging.CRITICAL,
-      beam_fn_api_pb2.LogEntry.Severity.ERROR: logging.ERROR,
-      beam_fn_api_pb2.LogEntry.Severity.WARN: logging.WARNING,
-      beam_fn_api_pb2.LogEntry.Severity.NOTICE: logging.INFO + 1,
-      beam_fn_api_pb2.LogEntry.Severity.INFO: logging.INFO,
-      beam_fn_api_pb2.LogEntry.Severity.DEBUG: logging.DEBUG,
-      beam_fn_api_pb2.LogEntry.Severity.TRACE: logging.DEBUG - 1,
-      beam_fn_api_pb2.LogEntry.Severity.UNSPECIFIED: logging.NOTSET,
-  }
-
   def Logging(self, log_messages, context=None):
+    # type: (Iterable[beam_fn_api_pb2.LogEntry.List], Any) -> Iterator[beam_fn_api_pb2.LogControl]
     yield beam_fn_api_pb2.LogControl()
     for log_message in log_messages:
       for log in log_message.log_entries:
-        logging.log(self.LOG_LEVEL_MAP[log.severity], str(log))
+        logging.log(LOGENTRY_TO_LOG_LEVEL_MAP[log.severity], str(log))
 
 
 class BasicProvisionService(beam_provision_api_pb2_grpc.ProvisionServiceServicer
                             ):
   def __init__(self, base_info, worker_manager):
-    # type: (Optional[beam_provision_api_pb2.ProvisionInfo], WorkerHandlerManager) -> None
+    # type: (beam_provision_api_pb2.ProvisionInfo, WorkerHandlerManager) -> None
     self._base_info = base_info
     self._worker_manager = worker_manager
 
   def GetProvisionInfo(self, request, context=None):
-    # type: (...) -> beam_provision_api_pb2.GetProvisionInfoResponse
+    # type: (Any, Optional[ServicerContext]) -> beam_provision_api_pb2.GetProvisionInfoResponse
     if context:
       worker_id = dict(context.invocation_metadata())['worker_id']
       worker = self._worker_manager.get_worker(worker_id)
       info = copy.copy(worker.provision_info.provision_info)
-      info.logging_endpoint.CopyFrom(worker.logging_api_service_descriptor())
+      info.logging_endpoint.CopyFrom(worker.logging_api_service_descriptor())  # type: ignore
       info.artifact_endpoint.CopyFrom(worker.artifact_api_service_descriptor())
       info.control_endpoint.CopyFrom(worker.control_api_service_descriptor())
     else:
@@ -430,26 +447,29 @@ class GrpcServer(object):
                worker_manager,  # type: WorkerHandlerManager
               ):
     # type: (...) -> None
-    self.state = state
-    self.provision_info = provision_info
-    self.control_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance())
-    self.control_port = self.control_server.add_insecure_port('[::]:0')
-    self.control_address = 'localhost:%s' % self.control_port
 
     # Options to have no limits (-1) on the size of the messages
     # received or sent over the data plane. The actual buffer size
-    # is controlled in a layer above.
-    no_max_message_sizes = [("grpc.max_receive_message_length", -1),
-                            ("grpc.max_send_message_length", -1)]
+    # is controlled in a layer above. Also, options to keep the server alive
+    # when too many pings are received.
+    options = [("grpc.max_receive_message_length", -1),
+               ("grpc.max_send_message_length", -1),
+               ("grpc.http2.max_pings_without_data", 0),
+               ("grpc.http2.max_ping_strikes", 0)]
+
+    self.state = state
+    self.provision_info = provision_info
+    self.control_server = grpc.server(
+        thread_pool_executor.shared_unbounded_instance(), options=options)
+    self.control_port = self.control_server.add_insecure_port('[::]:0')
+    self.control_address = 'localhost:%s' % self.control_port
+
     self.data_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance(),
-        options=no_max_message_sizes)
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     self.data_port = self.data_server.add_insecure_port('[::]:0')
 
     self.state_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance(),
-        options=no_max_message_sizes)
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     self.state_port = self.state_server.add_insecure_port('[::]:0')
 
     self.control_handler = BeamFnControlServicer(worker_manager)
@@ -464,9 +484,14 @@ class GrpcServer(object):
                 self.provision_info.provision_info, worker_manager),
             self.control_server)
 
+      def open_uncompressed(f):
+        # type: (str) -> BinaryIO
+        return filesystems.FileSystems.open(
+            f, compression_type=CompressionTypes.UNCOMPRESSED)
+
       beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
           artifact_service.ArtifactRetrievalService(
-              file_reader=filesystems.FileSystems.open),
+              file_reader=open_uncompressed),
           self.control_server)
 
     self.data_plane_handler = data_plane.BeamFnDataServicer(
@@ -478,8 +503,7 @@ class GrpcServer(object):
         GrpcStateServicer(state), self.state_server)
 
     self.logging_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance(),
-        options=no_max_message_sizes)
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     self.logging_port = self.logging_server.add_insecure_port('[::]:0')
     beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server(
         BasicLoggingService(), self.logging_server)
@@ -494,6 +518,7 @@ class GrpcServer(object):
     self.control_server.start()
 
   def close(self):
+    # type: () -> None
     self.control_handler.done()
     to_wait = [
         self.control_server.stop(self._DEFAULT_SHUTDOWN_TIMEOUT_SECS),
@@ -510,12 +535,12 @@ class GrpcWorkerHandler(WorkerHandler):
 
   def __init__(self,
                state,  # type: StateServicer
-               provision_info,  # type: Optional[ExtendedProvisionInfo]
+               provision_info,  # type: ExtendedProvisionInfo
                grpc_server  # type: GrpcServer
               ):
     # type: (...) -> None
     self._grpc_server = grpc_server
-    super(GrpcWorkerHandler, self).__init__(
+    super().__init__(
         self._grpc_server.control_handler,
         self._grpc_server.data_plane_handler,
         state,
@@ -558,12 +583,14 @@ class GrpcWorkerHandler(WorkerHandler):
     # type: () -> None
     self.control_conn.close()
     self.data_conn.close()
-    super(GrpcWorkerHandler, self).close()
+    super().close()
 
   def port_from_worker(self, port):
+    # type: (int) -> str
     return '%s:%s' % (self.host_from_worker(), port)
 
   def host_from_worker(self):
+    # type: () -> str
     return 'localhost'
 
 
@@ -573,12 +600,11 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
   def __init__(self,
                external_payload,  # type: beam_runner_api_pb2.ExternalPayload
                state,  # type: StateServicer
-               provision_info,  # type: Optional[ExtendedProvisionInfo]
+               provision_info,  # type: ExtendedProvisionInfo
                grpc_server  # type: GrpcServer
               ):
     # type: (...) -> None
-    super(ExternalWorkerHandler,
-          self).__init__(state, provision_info, grpc_server)
+    super().__init__(state, provision_info, grpc_server)
     self._external_payload = external_payload
 
   def start_worker(self):
@@ -605,7 +631,9 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
     pass
 
   def host_from_worker(self):
-    # TODO(BEAM-8646): Reconcile across platforms.
+    # type: () -> str
+    # TODO(https://github.com/apache/beam/issues/19947): Reconcile across
+    # platforms.
     if sys.platform in ['win32', 'darwin']:
       return 'localhost'
     import socket
@@ -617,12 +645,11 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
   def __init__(self,
                payload,  # type: bytes
                state,  # type: StateServicer
-               provision_info,  # type: Optional[ExtendedProvisionInfo]
+               provision_info,  # type: ExtendedProvisionInfo
                grpc_server  # type: GrpcServer
               ):
     # type: (...) -> None
-    super(EmbeddedGrpcWorkerHandler,
-          self).__init__(state, provision_info, grpc_server)
+    super().__init__(state, provision_info, grpc_server)
 
     from apache_beam.transforms.environments import EmbeddedPythonGrpcEnvironment
     config = EmbeddedPythonGrpcEnvironment.parse_config(payload.decode('utf-8'))
@@ -648,7 +675,7 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
 
 
 # The subprocesses module is not threadsafe on Python 2.7. Use this lock to
-# prevent concurrent calls to POpen().
+# prevent concurrent calls to Popen().
 SUBPROCESS_LOCK = threading.Lock()
 
 
@@ -657,19 +684,21 @@ class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
   def __init__(self,
                worker_command_line,  # type: bytes
                state,  # type: StateServicer
-               provision_info,  # type: Optional[ExtendedProvisionInfo]
+               provision_info,  # type: ExtendedProvisionInfo
                grpc_server  # type: GrpcServer
               ):
     # type: (...) -> None
-    super(SubprocessSdkWorkerHandler,
-          self).__init__(state, provision_info, grpc_server)
+    super().__init__(state, provision_info, grpc_server)
     self._worker_command_line = worker_command_line
 
   def start_worker(self):
     # type: () -> None
     from apache_beam.runners.portability import local_job_service
     self.worker = local_job_service.SubprocessSdkWorker(
-        self._worker_command_line, self.control_address, self.worker_id)
+        self._worker_command_line,
+        self.control_address,
+        self.provision_info,
+        self.worker_id)
     self.worker_thread = threading.Thread(
         name='run_worker', target=self.worker.run)
     self.worker_thread.start()
@@ -685,35 +714,65 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
   def __init__(self,
                payload,  # type: beam_runner_api_pb2.DockerPayload
                state,  # type: StateServicer
-               provision_info,  # type: Optional[ExtendedProvisionInfo]
+               provision_info,  # type: ExtendedProvisionInfo
                grpc_server  # type: GrpcServer
               ):
     # type: (...) -> None
-    super(DockerSdkWorkerHandler,
-          self).__init__(state, provision_info, grpc_server)
+    super().__init__(state, provision_info, grpc_server)
     self._container_image = payload.container_image
     self._container_id = None  # type: Optional[bytes]
 
   def host_from_worker(self):
-    if sys.platform == "darwin":
+    # type: () -> str
+    if sys.platform == 'darwin':
       # See https://docs.docker.com/docker-for-mac/networking/
       return 'host.docker.internal'
-    else:
-      return super(DockerSdkWorkerHandler, self).host_from_worker()
+    if sys.platform == 'linux' and is_in_notebook():
+      import socket
+      # Gets ipv4 address of current host. Note the host is not guaranteed to
+      # be localhost because the python SDK could be running within a container.
+      return socket.gethostbyname(socket.getfqdn())
+    return super().host_from_worker()
 
   def start_worker(self):
     # type: () -> None
+    credential_options = []
+    try:
+      # This is the public facing API, skip if it is not available.
+      # (If this succeeds but the imports below fail, better to actually raise
+      # an error below rather than silently fail.)
+      # pylint: disable=unused-import
+      import google.auth
+    except ImportError:
+      pass
+    else:
+      from google.auth import environment_vars
+      from google.auth import _cloud_sdk
+      gcloud_cred_file = os.environ.get(
+          environment_vars.CREDENTIALS,
+          _cloud_sdk.get_application_default_credentials_path())
+      if os.path.exists(gcloud_cred_file):
+        docker_cred_file = '/docker_cred_file.json'
+        credential_options.extend([
+            '--mount',
+            f'type=bind,source={gcloud_cred_file},target={docker_cred_file}',
+            '--env',
+            f'{environment_vars.CREDENTIALS}={docker_cred_file}'
+        ])
     with SUBPROCESS_LOCK:
       try:
+        _LOGGER.info('Attempting to pull image %s', self._container_image)
         subprocess.check_call(['docker', 'pull', self._container_image])
       except Exception:
-        _LOGGER.info('Unable to pull image %s' % self._container_image)
+        _LOGGER.info(
+            'Unable to pull image %s, defaulting to local image if it exists' %
+            self._container_image)
       self._container_id = subprocess.check_output([
           'docker',
           'run',
           '-d',
-          # TODO:  credentials
           '--network=host',
+      ] + credential_options + [
           self._container_image,
           '--id=%s' % self.worker_id,
           '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,
@@ -727,7 +786,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
             'docker', 'inspect', '-f', '{{.State.Status}}', self._container_id
         ]).strip()
         _LOGGER.info(
-            'Waiting for docker to start up.Current status is %s' %
+            'Waiting for docker to start up. Current status is %s' %
             status.decode('utf-8'))
         if status == b'running':
           _LOGGER.info(
@@ -748,7 +807,9 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
     t.start()
 
   def watch_container(self):
+    # type: () -> None
     while not self._done:
+      assert self._container_id is not None
       status = subprocess.check_output(
           ['docker', 'inspect', '-f', '{{.State.Status}}',
            self._container_id]).strip()
@@ -764,7 +825,8 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
                   'SDK exited unexpectedly. '
                   'Final status is %s. Final log line is %s' % (
                       status.decode('utf-8'),
-                      logs.decode('utf-8').strip().split('\n')[-1])))
+                      logs.decode('utf-8').strip().rsplit('\n',
+                                                          maxsplit=1)[-1])))
       time.sleep(5)
 
   def stop_worker(self):
@@ -783,7 +845,7 @@ class WorkerHandlerManager(object):
   """
   def __init__(self,
                environments,  # type: Mapping[str, beam_runner_api_pb2.Environment]
-               job_provision_info  # type: Optional[ExtendedProvisionInfo]
+               job_provision_info  # type: ExtendedProvisionInfo
               ):
     # type: (...) -> None
     self._environments = environments
@@ -793,13 +855,16 @@ class WorkerHandlerManager(object):
     self._workers_by_id = {}  # type: Dict[str, WorkerHandler]
     self.state_servicer = StateServicer()
     self._grpc_server = None  # type: Optional[GrpcServer]
-    self._process_bundle_descriptors = {}
+    self._process_bundle_descriptors = {
+    }  # type: Dict[str, beam_fn_api_pb2.ProcessBundleDescriptor]
 
   def register_process_bundle_descriptor(self, process_bundle_descriptor):
+    # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> None
     self._process_bundle_descriptors[
         process_bundle_descriptor.id] = process_bundle_descriptor
 
   def get_process_bundle_descriptor(self, request):
+    # type: (beam_fn_api_pb2.GetProcessBundleDescriptorRequest) -> beam_fn_api_pb2.ProcessBundleDescriptor
     return self._process_bundle_descriptors[
         request.process_bundle_descriptor_id]
 
@@ -847,6 +912,7 @@ class WorkerHandlerManager(object):
     return self._cached_handlers[environment_id][:num_workers]
 
   def close_all(self):
+    # type: () -> None
     for worker_handler_list in self._cached_handlers.values():
       for worker_handler in set(worker_handler_list):
         try:
@@ -854,13 +920,14 @@ class WorkerHandlerManager(object):
         except Exception:
           _LOGGER.error(
               "Error closing worker_handler %s" % worker_handler, exc_info=True)
-    self._cached_handlers = {}
+    self._cached_handlers = {}  # type: ignore[assignment]
     self._workers_by_id = {}
     if self._grpc_server is not None:
       self._grpc_server.close()
       self._grpc_server = None
 
   def get_worker(self, worker_id):
+    # type: (str) -> WorkerHandler
     return self._workers_by_id[worker_id]
 
 
@@ -913,6 +980,9 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
         self._overlay[self._key] = list(self._underlying[self._key])
       self._overlay[self._key].append(item)
 
+    def extend(self, other: Buffer) -> None:
+      raise NotImplementedError()
+
   StateType = Union[CopyOnWriteState, DefaultDict[bytes, Buffer]]
 
   def __init__(self):
@@ -948,6 +1018,7 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
 
   @contextlib.contextmanager
   def process_instruction_id(self, unused_instruction_id):
+    # type: (Any) -> Iterator
     yield
 
   def get_raw(self,
@@ -998,6 +1069,10 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
         pass
     return _Future.done()
 
+  def done(self):
+    # type: () -> None
+    pass
+
   @staticmethod
   def _to_key(state_key):
     # type: (beam_fn_api_pb2.StateKey) -> bytes
@@ -1011,7 +1086,7 @@ class GrpcStateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
 
   def State(self,
       request_stream,  # type: Iterable[beam_fn_api_pb2.StateRequest]
-      context=None
+      context=None  # type: Any
             ):
     # type: (...) -> Iterator[beam_fn_api_pb2.StateResponse]
     # Note that this eagerly mutates state, assuming any failures are fatal.
@@ -1057,24 +1132,29 @@ class SingletonStateHandlerFactory(sdk_worker.StateHandlerFactory):
 
 
 class ControlFuture(object):
-  def __init__(self, instruction_id, response=None):
+  def __init__(self,
+               instruction_id,  # type: str
+               response=None  # type: Optional[beam_fn_api_pb2.InstructionResponse]
+              ):
+    # type: (...) -> None
     self.instruction_id = instruction_id
-    if response:
-      self._response = response
-    else:
-      self._response = None
+    self._response = response
+    if response is None:
       self._condition = threading.Condition()
-    self._exception = None
+    self._exception = None  # type: Optional[Exception]
 
   def is_done(self):
+    # type: () -> bool
     return self._response is not None
 
   def set(self, response):
+    # type: (beam_fn_api_pb2.InstructionResponse) -> None
     with self._condition:
       self._response = response
       self._condition.notify_all()
 
   def get(self, timeout=None):
+    # type: (Optional[float]) -> beam_fn_api_pb2.InstructionResponse
     if not self._response and not self._exception:
       with self._condition:
         if not self._response and not self._exception:
@@ -1082,9 +1162,11 @@ class ControlFuture(object):
     if self._exception:
       raise self._exception
     else:
+      assert self._response is not None
       return self._response
 
   def abort(self, exception):
+    # type: (Exception) -> None
     with self._condition:
       self._exception = exception
       self._condition.notify_all()

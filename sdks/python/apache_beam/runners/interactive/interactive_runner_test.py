@@ -22,22 +22,26 @@ This module is experimental. No backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import sys
 import unittest
+from typing import NamedTuple
 
 import pandas as pd
 
 import apache_beam as beam
+from apache_beam.dataframe.convert import to_dataframe
+from apache_beam.options.pipeline_options import FlinkRunnerOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
-from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
+from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
+from apache_beam.runners.interactive.dataproc.types import ClusterMetadata
+from apache_beam.runners.interactive.testing.mock_env import isolated_env
+from apache_beam.runners.portability.flink_runner import FlinkRunner
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
@@ -45,13 +49,6 @@ from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import PaneInfo
 from apache_beam.utils.windowed_value import PaneInfoTiming
 from apache_beam.utils.windowed_value import WindowedValue
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch  # type: ignore[misc]
 
 
 def print_with_message(msg):
@@ -62,10 +59,15 @@ def print_with_message(msg):
   return printer
 
 
-class InteractiveRunnerTest(unittest.TestCase):
-  def setUp(self):
-    ie.new_env()
+class Record(NamedTuple):
+  name: str
+  age: int
+  height: int
 
+
+@isolated_env
+class InteractiveRunnerTest(unittest.TestCase):
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_basic(self):
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(
@@ -83,6 +85,7 @@ class InteractiveRunnerTest(unittest.TestCase):
     _ = pc0 | 'Print3' >> beam.Map(print_with_message('Run3'))
     p.run().wait_until_finish()
 
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_wordcount(self):
     class WordExtractingDoFn(beam.DoFn):
       def process(self, element):
@@ -106,6 +109,10 @@ class InteractiveRunnerTest(unittest.TestCase):
     # Watch the local scope for Interactive Beam so that counts will be cached.
     ib.watch(locals())
 
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
     result = p.run()
     result.wait_until_finish()
 
@@ -126,7 +133,7 @@ class InteractiveRunnerTest(unittest.TestCase):
     # Truncate the precision to millis because the window coder uses millis
     # as units then gets upcast to micros.
     end_of_window = (GlobalWindow().max_timestamp().micros // 1000) * 1000
-    df_counts = ib.collect(counts, include_window_info=True)
+    df_counts = ib.collect(counts, include_window_info=True, n=10)
     df_expected = pd.DataFrame({
         0: [e[0] for e in actual],
         1: [e[1] for e in actual],
@@ -151,9 +158,6 @@ class InteractiveRunnerTest(unittest.TestCase):
     ]
     self.assertEqual(actual_reified, expected_reified)
 
-  @unittest.skipIf(
-      sys.version_info < (3, 5, 3),
-      'The tests require at least Python 3.6 to work.')
   def test_streaming_wordcount(self):
     class WordExtractingDoFn(beam.DoFn):
       def process(self, element):
@@ -162,7 +166,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         return words
 
     # Add the TestStream so that it can be cached.
-    ib.options.capturable_sources.add(TestStream)
+    ib.options.recordable_sources.add(TestStream)
 
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(),
@@ -177,6 +181,12 @@ class InteractiveRunnerTest(unittest.TestCase):
             .advance_watermark_to(20)
             .advance_processing_time(1)
             .add_elements(['that', 'is', 'the', 'question'])
+            .advance_watermark_to(30)
+            .advance_processing_time(1)
+            .advance_watermark_to(40)
+            .advance_processing_time(1)
+            .advance_watermark_to(50)
+            .advance_processing_time(1)
         | beam.WindowInto(beam.window.FixedWindows(10))) # yapf: disable
 
     counts = (
@@ -194,27 +204,6 @@ class InteractiveRunnerTest(unittest.TestCase):
     # applied but needs an IPython environment. So we manually run this here.
     ie.current_env().track_user_pipelines()
 
-    # Create a fake limiter that cancels the BCJ once the main job receives the
-    # expected amount of results.
-    class FakeLimiter:
-      def __init__(self, p, pcoll):
-        self.p = p
-        self.pcoll = pcoll
-
-      def is_triggered(self):
-        result = ie.current_env().pipeline_result(self.p)
-        if result:
-          try:
-            results = result.get(self.pcoll)
-          except ValueError:
-            return False
-          return len(results) >= 10
-        return False
-
-    # This sets the limiters to stop reading when the test receives 10 elements.
-    ie.current_env().options.capture_control.set_limiters_for_test(
-        [FakeLimiter(p, data)])
-
     # This tests that the data was correctly cached.
     pane_info = PaneInfo(True, True, PaneInfoTiming.UNKNOWN, 0, 0)
     expected_data_df = pd.DataFrame([
@@ -230,7 +219,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         ('question', 20000000, [IntervalWindow(20, 30)], pane_info)
     ], columns=[0, 'event_time', 'windows', 'pane_info']) # yapf: disable
 
-    data_df = ib.collect(data, include_window_info=True)
+    data_df = ib.collect(data, n=10, include_window_info=True)
     pd.testing.assert_frame_equal(expected_data_df, data_df)
 
     # This tests that the windowing was passed correctly so that all the data
@@ -247,7 +236,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         ('the', 1, 29999999, [IntervalWindow(20, 30)], pane_info),
     ], columns=[0, 1, 'event_time', 'windows', 'pane_info']) # yapf: disable
 
-    counts_df = ib.collect(counts, include_window_info=True)
+    counts_df = ib.collect(counts, n=8, include_window_info=True)
 
     # The group by key has no guarantee of order. So we post-process the DF by
     # sorting so we can test equality.
@@ -277,17 +266,16 @@ class InteractiveRunnerTest(unittest.TestCase):
   @unittest.skipIf(
       not ie.current_env().is_interactive_ready,
       '[interactive] dependency is not installed.')
-  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
-  def test_mark_pcollection_completed_after_successful_run(self, cell):
-    with cell:  # Cell 1
+  def test_mark_pcollection_completed_after_successful_run(self):
+    with self.cell:  # Cell 1
       p = beam.Pipeline(interactive_runner.InteractiveRunner())
       ib.watch({'p': p})
 
-    with cell:  # Cell 2
-      # pylint: disable=range-builtin-not-iterating
+    with self.cell:  # Cell 2
+      # pylint: disable=bad-option-value
       init = p | 'Init' >> beam.Create(range(5))
 
-    with cell:  # Cell 3
+    with self.cell:  # Cell 3
       square = init | 'Square' >> beam.Map(lambda x: x * x)
       cube = init | 'Cube' >> beam.Map(lambda x: x**3)
 
@@ -299,6 +287,349 @@ class InteractiveRunnerTest(unittest.TestCase):
     self.assertEqual({0, 1, 4, 9, 16}, set(result.get(square)))
     self.assertTrue(cube in ie.current_env().computed_pcollections)
     self.assertEqual({0, 1, 8, 27, 64}, set(result.get(cube)))
+
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  def test_dataframes(self):
+    p = beam.Pipeline(
+        runner=interactive_runner.InteractiveRunner(
+            direct_runner.DirectRunner()))
+    data = p | beam.Create(
+        [1, 2, 3]) | beam.Map(lambda x: beam.Row(square=x * x, cube=x * x * x))
+    df = to_dataframe(data)
+
+    # Watch the local scope for Interactive Beam so that values will be cached.
+    ib.watch(locals())
+
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
+    df_expected = pd.DataFrame({'square': [1, 4, 9], 'cube': [1, 8, 27]})
+    pd.testing.assert_frame_equal(
+        df_expected, ib.collect(df, n=10).reset_index(drop=True))
+
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  def test_dataframes_with_grouped_index(self):
+    p = beam.Pipeline(
+        runner=interactive_runner.InteractiveRunner(
+            direct_runner.DirectRunner()))
+
+    data = [
+        Record('a', 20, 170),
+        Record('a', 30, 170),
+        Record('b', 22, 180),
+        Record('c', 18, 150)
+    ]
+
+    aggregate = lambda df: df.groupby('height').mean()
+
+    deferred_df = aggregate(to_dataframe(p | beam.Create(data)))
+    df_expected = aggregate(pd.DataFrame(data))
+
+    # Watch the local scope for Interactive Beam so that values will be cached.
+    ib.watch(locals())
+
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
+    pd.testing.assert_frame_equal(df_expected, ib.collect(deferred_df, n=10))
+
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  def test_dataframes_with_multi_index(self):
+    p = beam.Pipeline(
+        runner=interactive_runner.InteractiveRunner(
+            direct_runner.DirectRunner()))
+
+    data = [
+        Record('a', 20, 170),
+        Record('a', 30, 170),
+        Record('b', 22, 180),
+        Record('c', 18, 150)
+    ]
+
+    aggregate = lambda df: df.groupby(['name', 'height']).mean()
+
+    deferred_df = aggregate(to_dataframe(p | beam.Create(data)))
+    df_expected = aggregate(pd.DataFrame(data))
+
+    # Watch the local scope for Interactive Beam so that values will be cached.
+    ib.watch(locals())
+
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
+    pd.testing.assert_frame_equal(df_expected, ib.collect(deferred_df, n=10))
+
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  def test_dataframes_with_multi_index_get_result(self):
+    p = beam.Pipeline(
+        runner=interactive_runner.InteractiveRunner(
+            direct_runner.DirectRunner()))
+
+    data = [
+        Record('a', 20, 170),
+        Record('a', 30, 170),
+        Record('b', 22, 180),
+        Record('c', 18, 150)
+    ]
+
+    aggregate = lambda df: df.groupby(['name', 'height']).mean()['age']
+
+    deferred_df = aggregate(to_dataframe(p | beam.Create(data)))
+    df_expected = aggregate(pd.DataFrame(data))
+
+    # Watch the local scope for Interactive Beam so that values will be cached.
+    ib.watch(locals())
+
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
+    pd.testing.assert_series_equal(df_expected, ib.collect(deferred_df, n=10))
+
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  def test_dataframes_same_cell_twice(self):
+    p = beam.Pipeline(
+        runner=interactive_runner.InteractiveRunner(
+            direct_runner.DirectRunner()))
+    data = p | beam.Create(
+        [1, 2, 3]) | beam.Map(lambda x: beam.Row(square=x * x, cube=x * x * x))
+    df = to_dataframe(data)
+
+    # Watch the local scope for Interactive Beam so that values will be cached.
+    ib.watch(locals())
+
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
+    df_expected = pd.DataFrame({'square': [1, 4, 9], 'cube': [1, 8, 27]})
+    pd.testing.assert_series_equal(
+        df_expected['square'],
+        ib.collect(df['square'], n=10).reset_index(drop=True))
+    pd.testing.assert_series_equal(
+        df_expected['cube'],
+        ib.collect(df['cube'], n=10).reset_index(drop=True))
+
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  def test_dataframe_caching(self):
+    # Create a pipeline that exercises the DataFrame API. This will also use
+    # caching in the background.
+    with self.cell:  # Cell 1
+      p = beam.Pipeline(interactive_runner.InteractiveRunner())
+      ib.watch({'p': p})
+
+    with self.cell:  # Cell 2
+      data = p | beam.Create([
+          1, 2, 3
+      ]) | beam.Map(lambda x: beam.Row(square=x * x, cube=x * x * x))
+
+      with beam.dataframe.allow_non_parallel_operations():
+        df = to_dataframe(data).reset_index(drop=True)
+
+      ib.collect(df)
+
+    with self.cell:  # Cell 3
+      df['output'] = df['square'] * df['cube']
+      ib.collect(df)
+
+    with self.cell:  # Cell 4
+      df['output'] = 0
+      ib.collect(df)
+
+    # We use a trace through the graph to perform an isomorphism test. The end
+    # output should look like a linear graph. This indicates that the dataframe
+    # transform was correctly broken into separate pieces to cache. If caching
+    # isn't enabled, all the dataframe computation nodes are connected to a
+    # single shared node.
+    trace = []
+
+    # Only look at the top-level transforms for the isomorphism. The test
+    # doesn't care about the transform implementations, just the overall shape.
+    class TopLevelTracer(beam.pipeline.PipelineVisitor):
+      def _find_root_producer(self, node: beam.pipeline.AppliedPTransform):
+        if node is None or not node.full_label:
+          return None
+
+        parent = self._find_root_producer(node.parent)
+        if parent is None:
+          return node
+
+        return parent
+
+      def _add_to_trace(self, node, trace):
+        if '/' not in str(node):
+          if node.inputs:
+            producer = self._find_root_producer(node.inputs[0].producer)
+            producer_name = producer.full_label if producer else ''
+            trace.append((producer_name, node.full_label))
+
+      def visit_transform(self, node: beam.pipeline.AppliedPTransform):
+        self._add_to_trace(node, trace)
+
+      def enter_composite_transform(
+          self, node: beam.pipeline.AppliedPTransform):
+        self._add_to_trace(node, trace)
+
+    p.visit(TopLevelTracer())
+
+    # Do the isomorphism test which states that the topological sort of the
+    # graph yields a linear graph.
+    trace_string = '\n'.join(str(t) for t in trace)
+    prev_producer = ''
+    for producer, consumer in trace:
+      self.assertEqual(producer, prev_producer, trace_string)
+      prev_producer = consumer
+
+
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
+@isolated_env
+class ConfigForFlinkTest(unittest.TestCase):
+  def test_create_a_new_cluster_for_a_new_pipeline(self):
+    clusters = self.current_env.clusters
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    options = PipelineOptions(project='test-project', region='test-region')
+    p = beam.Pipeline(runner=runner, options=options)
+    runner.configure_for_flink(p, options)
+
+    # Fetch the metadata and assert all side effects.
+    meta = clusters.cluster_metadata(p)
+    # The metadata should have all fields populated.
+    self.assertEqual(meta.project_id, 'test-project')
+    self.assertEqual(meta.region, 'test-region')
+    self.assertTrue(meta.cluster_name.startswith('interactive-beam-'))
+    self.assertTrue(meta.master_url.startswith('test-url'))
+    self.assertEqual(meta.dashboard, 'test-dashboard')
+    # The cluster is known now.
+    self.assertIn(meta, clusters.dataproc_cluster_managers)
+    self.assertIn(meta.master_url, clusters.master_urls)
+    self.assertIn(p, clusters.pipelines)
+    # The default cluster is updated to the created cluster.
+    self.assertIs(meta, clusters.default_cluster_metadata)
+    # The pipeline options is tuned for execution on the cluster.
+    flink_options = options.view_as(FlinkRunnerOptions)
+    self.assertEqual(flink_options.flink_master, meta.master_url)
+    self.assertEqual(
+        flink_options.flink_version, clusters.DATAPROC_FLINK_VERSION)
+
+  def test_reuse_a_cluster_for_a_known_pipeline(self):
+    clusters = self.current_env.clusters
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    options = PipelineOptions(project='test-project', region='test-region')
+    p = beam.Pipeline(runner=runner, options=options)
+    meta = ClusterMetadata(project_id='test-project', region='test-region')
+    dcm = DataprocClusterManager(meta)
+    # Configure the clusters so that the pipeline is known.
+    clusters.pipelines[p] = dcm
+    runner.configure_for_flink(p, options)
+
+    # A known cluster is reused.
+    tuned_meta = clusters.cluster_metadata(p)
+    self.assertIs(tuned_meta, meta)
+
+  def test_reuse_a_known_cluster_for_unknown_pipeline(self):
+    clusters = self.current_env.clusters
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    options = PipelineOptions(project='test-project', region='test-region')
+    p = beam.Pipeline(runner=runner, options=options)
+    meta = ClusterMetadata(project_id='test-project', region='test-region')
+    dcm = DataprocClusterManager(meta)
+    # Configure the clusters so that the cluster is known.
+    clusters.dataproc_cluster_managers[meta] = dcm
+    clusters.set_default_cluster(meta)
+    runner.configure_for_flink(p, options)
+
+    # A known cluster is reused.
+    tuned_meta = clusters.cluster_metadata(p)
+    self.assertIs(tuned_meta, meta)
+    # The pipeline is known.
+    self.assertIn(p, clusters.pipelines)
+    registered_dcm = clusters.pipelines[p]
+    self.assertIn(p, registered_dcm.pipelines)
+
+  def test_reuse_default_cluster_if_not_configured(self):
+    clusters = self.current_env.clusters
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    options = PipelineOptions()
+    # Pipeline is not configured to run on Cloud.
+    p = beam.Pipeline(runner=runner, options=options)
+    meta = ClusterMetadata(project_id='test-project', region='test-region')
+    meta.master_url = 'test-url'
+    meta.dashboard = 'test-dashboard'
+    dcm = DataprocClusterManager(meta)
+    # Configure the clusters so that a default cluster is known.
+    clusters.dataproc_cluster_managers[meta] = dcm
+    clusters.set_default_cluster(meta)
+    runner.configure_for_flink(p, options)
+
+    # The default cluster is used.
+    tuned_meta = clusters.cluster_metadata(p)
+    self.assertIs(tuned_meta, clusters.default_cluster_metadata)
+    # The pipeline is known.
+    self.assertIn(p, clusters.pipelines)
+    registered_dcm = clusters.pipelines[p]
+    self.assertIn(p, registered_dcm.pipelines)
+    # The pipeline options is tuned for execution on the cluster.
+    flink_options = options.view_as(FlinkRunnerOptions)
+    self.assertEqual(flink_options.flink_master, tuned_meta.master_url)
+    self.assertEqual(
+        flink_options.flink_version, clusters.DATAPROC_FLINK_VERSION)
+
+  def test_worker_options_to_cluster_metadata(self):
+    clusters = self.current_env.clusters
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    options = PipelineOptions(project='test-project', region='test-region')
+    worker_options = options.view_as(WorkerOptions)
+    worker_options.num_workers = 2
+    worker_options.subnetwork = 'test-network'
+    worker_options.machine_type = 'test-machine-type'
+    p = beam.Pipeline(runner=runner, options=options)
+    runner.configure_for_flink(p, options)
+
+    configured_meta = clusters.cluster_metadata(p)
+    self.assertEqual(configured_meta.num_workers, worker_options.num_workers)
+    self.assertEqual(configured_meta.subnetwork, worker_options.subnetwork)
+    self.assertEqual(configured_meta.machine_type, worker_options.machine_type)
+
+  def test_configure_flink_options(self):
+    clusters = self.current_env.clusters
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    options = PipelineOptions(project='test-project', region='test-region')
+    p = beam.Pipeline(runner=runner, options=options)
+    runner.configure_for_flink(p, options)
+
+    flink_options = options.view_as(FlinkRunnerOptions)
+    self.assertEqual(
+        flink_options.flink_version, clusters.DATAPROC_FLINK_VERSION)
+    self.assertTrue(flink_options.flink_master.startswith('test-url-'))
+
+  def test_configure_flink_options_with_flink_version_overridden(self):
+    clusters = self.current_env.clusters
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    options = PipelineOptions(project='test-project', region='test-region')
+    flink_options = options.view_as(FlinkRunnerOptions)
+    flink_options.flink_version = 'test-version'
+    p = beam.Pipeline(runner=runner, options=options)
+    runner.configure_for_flink(p, options)
+
+    # The version is overridden to the flink version used by the EMR solution,
+    # currently only 1: Cloud Dataproc.
+    self.assertEqual(
+        flink_options.flink_version, clusters.DATAPROC_FLINK_VERSION)
 
 
 if __name__ == '__main__':

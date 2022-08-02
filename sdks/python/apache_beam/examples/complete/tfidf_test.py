@@ -19,13 +19,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import os
 import re
 import tempfile
 import unittest
+
+import pytest
 
 import apache_beam as beam
 from apache_beam.examples.complete import tfidf
@@ -65,6 +65,7 @@ class TfIdfTest(unittest.TestCase):
       # To actually trigger the check the pipeline must be run (e.g. by
       # exiting the with context).
 
+  @pytest.mark.examples_postcommit
   def test_basics(self):
     # Setup the files with expected content.
     temp_folder = tempfile.mkdtemp()

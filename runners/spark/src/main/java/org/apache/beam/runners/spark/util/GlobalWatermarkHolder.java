@@ -55,6 +55,10 @@ import scala.reflect.ClassTag;
  * <p>For each source, holds a queue for the watermarks of each micro-batch that was read, and
  * advances the watermarks according to the queue (first-in-first-out).
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class GlobalWatermarkHolder {
 
   private static final Logger LOG = LoggerFactory.getLogger(GlobalWatermarkHolder.class);
@@ -248,7 +252,7 @@ public class GlobalWatermarkHolder {
         WATERMARKS_BLOCK_ID, newWatermarks, StorageLevel.MEMORY_ONLY(), true, WATERMARKS_TAG);
     // if an executor tries to fetch the watermark block here, it still may fail to do so since
     // the put operation might not have been executed yet
-    // see also https://issues.apache.org/jira/browse/BEAM-2789
+    // see also https://github.com/apache/beam/issues/18426
     LOG.info("Put new watermark block: {}", newWatermarks);
   }
 

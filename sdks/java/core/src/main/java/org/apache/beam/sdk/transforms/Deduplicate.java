@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -66,7 +64,9 @@ import org.joda.time.Duration;
  *     words.apply(Deduplicate.<String>values());
  * }</pre>
  */
-@Experimental(Kind.SPLITTABLE_DO_FN)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// released (2.11.0)
+@SuppressWarnings("unused")
 public final class Deduplicate {
   /** The default is the {@link TimeDomain#PROCESSING_TIME processing time domain}. */
   public static final TimeDomain DEFAULT_TIME_DOMAIN = TimeDomain.PROCESSING_TIME;
@@ -313,7 +313,8 @@ public final class Deduplicate {
       Boolean seen = seenState.read();
       // Seen state is either set or not set so if it has been set then it must be true.
       if (seen == null) {
-        expiryTimer.offset(duration).setRelative();
+        // We don't want the expiry timer to hold up watermarks.
+        expiryTimer.offset(duration).withNoOutputTimestamp().setRelative();
         seenState.write(true);
         receiver.output(element);
       }

@@ -29,6 +29,10 @@ import org.apache.flink.core.memory.MemorySegment;
  * Flink {@link org.apache.flink.api.common.typeutils.TypeComparator} for Beam values that have been
  * encoded to byte data by a {@link Coder}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class EncodedValueComparator extends TypeComparator<byte[]> {
 
   /** For storing the Reference in encoded form. */

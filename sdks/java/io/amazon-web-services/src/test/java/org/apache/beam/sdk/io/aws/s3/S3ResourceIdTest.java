@@ -25,7 +25,14 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.aws.options.S3Options;
@@ -75,6 +82,62 @@ public class S3ResourceIdTest {
           new TestCase(
               "s3://bucket/path/to/dir/", "..", RESOLVE_DIRECTORY, "s3://bucket/path/to/"));
 
+  private S3ResourceId deserializeFromB64(String base64) throws Exception {
+    ByteArrayInputStream b = new ByteArrayInputStream(Base64.getDecoder().decode(base64));
+    try (ObjectInputStream s = new ObjectInputStream(b)) {
+      return (S3ResourceId) s.readObject();
+    }
+  }
+
+  private String serializeToB64(S3ResourceId r) throws Exception {
+    ByteArrayOutputStream b = new ByteArrayOutputStream();
+    try (ObjectOutputStream s = new ObjectOutputStream(b)) {
+      s.writeObject(r);
+    }
+    return Base64.getEncoder().encodeToString(b.toByteArray());
+  }
+
+  @Test
+  public void testSerialization() throws Exception {
+    String r1Serialized =
+        "rO0ABXNyACpvcmcuYXBhY2hlLmJlYW0uc2RrLmlvLmF3cy5zMy5TM1Jlc291cmNlSWSN8nM8V4cVFwIABEwABmJ1Y2tldHQAEkxqYXZhL2xhbmcvU3RyaW5nO0wAA2tleXEAfgABTAAMbGFzdE1vZGlmaWVkdAAQTGphdmEvdXRpbC9EYXRlO0wABHNpemV0ABBMamF2YS9sYW5nL0xvbmc7eHB0AAZidWNrZXR0AAYvYS9iL2NwcA==";
+    String r2Serialized =
+        "rO0ABXNyACpvcmcuYXBhY2hlLmJlYW0uc2RrLmlvLmF3cy5zMy5TM1Jlc291cmNlSWSN8nM8V4cVFwIABEwABmJ1Y2tldHQAEkxqYXZhL2xhbmcvU3RyaW5nO0wAA2tleXEAfgABTAAMbGFzdE1vZGlmaWVkdAAQTGphdmEvdXRpbC9EYXRlO0wABHNpemV0ABBMamF2YS9sYW5nL0xvbmc7eHB0AAxvdGhlci1idWNrZXR0AAYveC95L3pwc3IADmphdmEubGFuZy5Mb25nO4vkkMyPI98CAAFKAAV2YWx1ZXhyABBqYXZhLmxhbmcuTnVtYmVyhqyVHQuU4IsCAAB4cAAAAAAAAAB7";
+    String r3Serialized =
+        "rO0ABXNyACpvcmcuYXBhY2hlLmJlYW0uc2RrLmlvLmF3cy5zMy5TM1Jlc291cmNlSWSN8nM8V4cVFwIABEwABmJ1Y2tldHQAEkxqYXZhL2xhbmcvU3RyaW5nO0wAA2tleXEAfgABTAAMbGFzdE1vZGlmaWVkdAAQTGphdmEvdXRpbC9EYXRlO0wABHNpemV0ABBMamF2YS9sYW5nL0xvbmc7eHB0AAx0aGlyZC1idWNrZXR0AAkvZm9vL2Jhci9zcgAOamF2YS51dGlsLkRhdGVoaoEBS1l0GQMAAHhwdwgAADgCgmXOAHhw";
+    String r4Serialized =
+        "rO0ABXNyACpvcmcuYXBhY2hlLmJlYW0uc2RrLmlvLmF3cy5zMy5TM1Jlc291cmNlSWSN8nM8V4cVFwIABEwABmJ1Y2tldHQAEkxqYXZhL2xhbmcvU3RyaW5nO0wAA2tleXEAfgABTAAMbGFzdE1vZGlmaWVkdAAQTGphdmEvdXRpbC9EYXRlO0wABHNpemV0ABBMamF2YS9sYW5nL0xvbmc7eHB0AApiYXotYnVja2V0dAAGL2EvYi9jc3IADmphdmEudXRpbC5EYXRlaGqBAUtZdBkDAAB4cHcIAAA33gSV5gB4c3IADmphdmEubGFuZy5Mb25nO4vkkMyPI98CAAFKAAV2YWx1ZXhyABBqYXZhLmxhbmcuTnVtYmVyhqyVHQuU4IsCAAB4cAAAAAAAAAAq";
+
+    S3ResourceId r1 = S3ResourceId.fromComponents("s3", "bucket", "a/b/c");
+    S3ResourceId r2 = S3ResourceId.fromComponents("s3", "other-bucket", "x/y/z").withSize(123);
+    S3ResourceId r3 =
+        S3ResourceId.fromComponents("s3", "third-bucket", "foo/bar/")
+            .withLastModified(new Date(121, Calendar.JULY, 3));
+    S3ResourceId r4 =
+        S3ResourceId.fromComponents("s3", "baz-bucket", "a/b/c")
+            .withSize(42)
+            .withLastModified(new Date(116, Calendar.JULY, 15));
+    S3ResourceId r5 = S3ResourceId.fromComponents("other-scheme", "bucket", "a/b/c");
+    S3ResourceId r6 =
+        S3ResourceId.fromComponents("other-scheme", "baz-bucket", "foo/bar/")
+            .withSize(42)
+            .withLastModified(new Date(116, Calendar.JULY, 5));
+
+    // S3ResourceIds serialized by previous versions should still deserialize.
+    assertEquals(r1, deserializeFromB64(r1Serialized));
+    assertEquals(r2, deserializeFromB64(r2Serialized));
+    assertEquals(r3, deserializeFromB64(r3Serialized));
+    assertEquals(r4, deserializeFromB64(r4Serialized));
+
+    // Current resource IDs should round-trip properly through serialization.
+    assertEquals(r1, deserializeFromB64(serializeToB64(r1)));
+    assertEquals(r2, deserializeFromB64(serializeToB64(r2)));
+    assertEquals(r3, deserializeFromB64(serializeToB64(r3)));
+    assertEquals(r4, deserializeFromB64(serializeToB64(r4)));
+    assertEquals(r5, deserializeFromB64(serializeToB64(r5)));
+    assertEquals(r6, deserializeFromB64(serializeToB64(r6)));
+  }
+
   @Test
   public void testResolve() {
     for (TestCase testCase : PATH_TEST_CASES) {
@@ -83,7 +146,7 @@ public class S3ResourceIdTest {
       assertEquals(testCase.expectedResult, resolved.toString());
     }
 
-    // Tests for common gcs paths.
+    // Tests for common s3 paths.
     assertEquals(
         S3ResourceId.fromUri("s3://bucket/tmp/aa"),
         S3ResourceId.fromUri("s3://bucket/tmp/").resolve("aa", RESOLVE_FILE));
@@ -143,7 +206,7 @@ public class S3ResourceIdTest {
 
   @Test
   public void testGetCurrentDirectory() {
-    // Tests gcs paths.
+    // Tests s3 paths.
     assertEquals(
         S3ResourceId.fromUri("s3://my_bucket/tmp dir/"),
         S3ResourceId.fromUri("s3://my_bucket/tmp dir/").getCurrentDirectory());
@@ -186,7 +249,7 @@ public class S3ResourceIdTest {
 
   @Test
   public void testGetScheme() {
-    // Tests gcs paths.
+    // Tests s3 paths.
     assertEquals("s3", S3ResourceId.fromUri("s3://my_bucket/tmp dir/").getScheme());
 
     // Tests bucket with no ending '/'.
@@ -250,34 +313,29 @@ public class S3ResourceIdTest {
 
   @Test
   public void testEquals() {
-    S3ResourceId a = S3ResourceId.fromComponents("bucket", "a/b/c");
-    S3ResourceId b = S3ResourceId.fromComponents("bucket", "a/b/c");
-    assertEquals(a, a);
+    S3ResourceId a = S3ResourceId.fromComponents("s3", "bucket", "a/b/c");
+    S3ResourceId b = S3ResourceId.fromComponents("s3", "bucket", "a/b/c");
     assertEquals(a, b);
 
-    b = S3ResourceId.fromComponents(a.getBucket(), "a/b/c/");
+    b = S3ResourceId.fromComponents("s3", a.getBucket(), "a/b/c/");
+    assertNotEquals(a, b);
+
+    b = S3ResourceId.fromComponents("s3", a.getBucket(), "x/y/z");
+    assertNotEquals(a, b);
+
+    b = S3ResourceId.fromComponents("s3", "other-bucket", a.getKey());
     assertNotEquals(a, b);
     assertNotEquals(b, a);
 
-    b = S3ResourceId.fromComponents(a.getBucket(), "x/y/z");
+    b = S3ResourceId.fromComponents("other", "bucket", "a/b/c");
     assertNotEquals(a, b);
     assertNotEquals(b, a);
-
-    b = S3ResourceId.fromComponents("other-bucket", a.getKey());
-    assertNotEquals(a, b);
-    assertNotEquals(b, a);
-  }
-
-  @Test
-  public void testInvalidS3ResourceId() {
-    thrown.expect(IllegalArgumentException.class);
-    S3ResourceId.fromUri("file://invalid/s3/path");
   }
 
   @Test
   public void testInvalidBucket() {
     thrown.expect(IllegalArgumentException.class);
-    S3ResourceId.fromComponents("invalid/", "");
+    S3ResourceId.fromComponents("s3", "invalid/", "");
   }
 
   @Test

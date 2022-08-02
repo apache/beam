@@ -30,6 +30,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A collection of static methods for manipulating datastructure representations transferred via the
  * Dataflow API.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class Structs {
   private Structs() {} // Non-instantiable
 

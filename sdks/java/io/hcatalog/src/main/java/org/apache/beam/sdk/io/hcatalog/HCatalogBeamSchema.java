@@ -40,6 +40,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>One of the use cases is to perform the schema conversion without leaking any HCatalog types.
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class HCatalogBeamSchema {
 
   private final @Nullable IMetaStoreClient metastore;

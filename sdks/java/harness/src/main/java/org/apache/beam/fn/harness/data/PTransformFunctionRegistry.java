@@ -19,15 +19,16 @@ package org.apache.beam.fn.harness.data;
 
 import java.io.Closeable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
-import org.apache.beam.runners.core.metrics.SimpleExecutionState;
-import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 
@@ -58,10 +59,11 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 public class PTransformFunctionRegistry {
 
   private MetricsContainerStepMap metricsContainerRegistry;
-  private ExecutionStateTracker stateTracker;
-  private String executionStateName;
-  private List<ThrowingRunnable> runnables = new ArrayList<>();
-  private SimpleStateRegistry executionStates = new SimpleStateRegistry();
+  private final ExecutionStateTracker stateTracker;
+  private final String executionStateUrn;
+  private final ShortIdMap shortIds;
+  private final List<ThrowingRunnable> runnables = new ArrayList<>();
+  private final String stateName;
 
   /**
    * Construct the registry to run for either start or finish bundle functions.
@@ -69,14 +71,26 @@ public class PTransformFunctionRegistry {
    * @param metricsContainerRegistry - Used to enable a metric container to properly account for the
    *     pTransform in user metrics.
    * @param stateTracker - The tracker to enter states in order to calculate execution time metrics.
-   * @param executionStateName - The state name for the state .
+   * @param executionStateUrn - The URN for the execution state .
    */
   public PTransformFunctionRegistry(
       MetricsContainerStepMap metricsContainerRegistry,
+      ShortIdMap shortIds,
       ExecutionStateTracker stateTracker,
-      String executionStateName) {
+      String executionStateUrn) {
+    switch (executionStateUrn) {
+      case Urns.START_BUNDLE_MSECS:
+        stateName = org.apache.beam.runners.core.metrics.ExecutionStateTracker.START_STATE_NAME;
+        break;
+      case Urns.FINISH_BUNDLE_MSECS:
+        stateName = org.apache.beam.runners.core.metrics.ExecutionStateTracker.FINISH_STATE_NAME;
+        break;
+      default:
+        throw new IllegalArgumentException(String.format("Unknown URN %s", executionStateUrn));
+    }
     this.metricsContainerRegistry = metricsContainerRegistry;
-    this.executionStateName = executionStateName;
+    this.shortIds = shortIds;
+    this.executionStateUrn = executionStateUrn;
     this.stateTracker = stateTracker;
   }
 
@@ -84,42 +98,40 @@ public class PTransformFunctionRegistry {
    * Register the runnable to process the specific pTransformId and track its execution time.
    *
    * @param pTransformId
+   * @param pTransformUniqueName
    * @param runnable
    */
-  public void register(String pTransformId, ThrowingRunnable runnable) {
-    HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
-    String executionTimeUrn = "";
-    if (executionStateName.equals(ExecutionStateTracker.START_STATE_NAME)) {
-      executionTimeUrn = MonitoringInfoConstants.Urns.START_BUNDLE_MSECS;
-    } else if (executionStateName.equals(ExecutionStateTracker.FINISH_STATE_NAME)) {
-      executionTimeUrn = MonitoringInfoConstants.Urns.FINISH_BUNDLE_MSECS;
+  public void register(
+      String pTransformId, String pTransformUniqueName, ThrowingRunnable runnable) {
+    SimpleMonitoringInfoBuilder miBuilder = new SimpleMonitoringInfoBuilder();
+    miBuilder.setUrn(executionStateUrn);
+    miBuilder.setType(MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE);
+    miBuilder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
+    MonitoringInfo mi = miBuilder.build();
+    if (mi == null) {
+      throw new IllegalStateException(
+          String.format(
+              "Unable to construct %s counter for PTransform {id=%s, name=%s}",
+              executionStateUrn, pTransformId, pTransformUniqueName));
     }
+    String shortId = shortIds.getOrCreateShortId(mi);
+    ExecutionState executionState =
+        stateTracker.create(shortId, pTransformId, pTransformUniqueName, stateName);
 
-    SimpleExecutionState state =
-        new SimpleExecutionState(this.executionStateName, executionTimeUrn, labelsMetadata);
-    executionStates.register(state);
+    MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
 
     ThrowingRunnable wrapped =
         () -> {
-          MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
           try (Closeable metricCloseable = MetricsEnvironment.scopedMetricsContainer(container)) {
-            try (Closeable trackerCloseable = this.stateTracker.enterState(state)) {
+            executionState.activate();
+            try {
               runnable.run();
+            } finally {
+              executionState.deactivate();
             }
           }
         };
     runnables.add(wrapped);
-  }
-
-  /** Reset the execution states of the registered functions. */
-  public void reset() {
-    executionStates.reset();
-  }
-
-  /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
-  public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
-    return executionStates.getExecutionTimeMonitoringInfos();
   }
 
   /**

@@ -48,6 +48,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
  * build. Order of registration is important. Building is started by {@link #newBuilder()}.
  */
 @Experimental
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class GenericTranslatorProvider implements TranslatorProvider {
 
   public static GenericTranslatorProvider createWithDefaultTranslators() {

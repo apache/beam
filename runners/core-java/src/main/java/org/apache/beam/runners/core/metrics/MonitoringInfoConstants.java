@@ -35,11 +35,13 @@ public final class MonitoringInfoConstants {
   public static final class Urns {
     public static final String ELEMENT_COUNT = extractUrn(MonitoringInfoSpecs.Enum.ELEMENT_COUNT);
     public static final String START_BUNDLE_MSECS =
-        extractUrn(MonitoringInfoSpecs.Enum.START_BUNDLE_MSECS);
+        "beam:metric:pardo_execution_time:start_bundle_msecs:v1";
+
     public static final String PROCESS_BUNDLE_MSECS =
-        extractUrn(MonitoringInfoSpecs.Enum.PROCESS_BUNDLE_MSECS);
+        "beam:metric:pardo_execution_time:process_bundle_msecs:v1";
+
     public static final String FINISH_BUNDLE_MSECS =
-        extractUrn(MonitoringInfoSpecs.Enum.FINISH_BUNDLE_MSECS);
+        "beam:metric:pardo_execution_time:finish_bundle_msecs:v1";
     public static final String TOTAL_MSECS = extractUrn(MonitoringInfoSpecs.Enum.TOTAL_MSECS);
     public static final String USER_SUM_INT64 = extractUrn(MonitoringInfoSpecs.Enum.USER_SUM_INT64);
     public static final String USER_SUM_DOUBLE =
@@ -54,6 +56,22 @@ public final class MonitoringInfoConstants {
     public static final String WORK_REMAINING = extractUrn(MonitoringInfoSpecs.Enum.WORK_REMAINING);
     public static final String DATA_CHANNEL_READ_INDEX =
         extractUrn(MonitoringInfoSpecs.Enum.DATA_CHANNEL_READ_INDEX);
+    public static final String API_REQUEST_COUNT =
+        extractUrn(MonitoringInfoSpecs.Enum.API_REQUEST_COUNT);
+    public static final String API_REQUEST_LATENCIES =
+        extractUrn(MonitoringInfoSpecs.Enum.API_REQUEST_LATENCIES);
+
+    static {
+      // Validate that compile time constants match the values stored in the protos.
+      // Defining these as constants allows for usage in switch case statements and also
+      // ensures that protos don't get accidentally changed.
+      checkArgument(
+          START_BUNDLE_MSECS.equals(extractUrn(MonitoringInfoSpecs.Enum.START_BUNDLE_MSECS)));
+      checkArgument(
+          PROCESS_BUNDLE_MSECS.equals(extractUrn(MonitoringInfoSpecs.Enum.PROCESS_BUNDLE_MSECS)));
+      checkArgument(
+          FINISH_BUNDLE_MSECS.equals(extractUrn(MonitoringInfoSpecs.Enum.FINISH_BUNDLE_MSECS)));
+    }
   }
 
   /** Standardised MonitoringInfo labels that can be utilized by runners. */
@@ -65,8 +83,31 @@ public final class MonitoringInfoConstants {
     public static final String ENVIRONMENT = "ENVIRONMENT";
     public static final String NAMESPACE = "NAMESPACE";
     public static final String NAME = "NAME";
+    public static final String SERVICE = "SERVICE";
+    public static final String METHOD = "METHOD";
+    public static final String RESOURCE = "RESOURCE";
+    public static final String STATUS = "STATUS";
+    public static final String BIGQUERY_PROJECT_ID = "BIGQUERY_PROJECT_ID";
+    public static final String BIGQUERY_DATASET = "BIGQUERY_DATASET";
+    public static final String BIGQUERY_TABLE = "BIGQUERY_TABLE";
+    public static final String BIGQUERY_VIEW = "BIGQUERY_VIEW";
+    public static final String BIGQUERY_QUERY_NAME = "BIGQUERY_QUERY_NAME";
+    public static final String DATASTORE_PROJECT = "DATASTORE_PROJECT";
+    public static final String DATASTORE_NAMESPACE = "DATASTORE_NAMESPACE";
+    public static final String BIGTABLE_PROJECT_ID = "BIGTABLE_PROJECT_ID";
+    public static final String INSTANCE_ID = "INSTANCE_ID";
+    public static final String TABLE_ID = "TABLE_ID";
+    public static final String GCS_BUCKET = "GCS_BUCKET";
+    public static final String GCS_PROJECT_ID = "GCS_PROJECT_ID";
+    public static final String SPANNER_PROJECT_ID = "SPANNER_PROJECT_ID";
+    public static final String SPANNER_DATABASE_ID = "SPANNER_DATABASE_ID";
+    public static final String SPANNER_INSTANCE_ID = "SPANNER_INSTANCE_ID";
+    public static final String SPANNER_QUERY_NAME = "SPANNER_QUERY_NAME";
 
     static {
+      // Validate that compile time constants match the values stored in the protos.
+      // Defining these as constants allows for usage in switch case statements and also
+      // ensures that protos don't get accidentally changed.
       checkArgument(PTRANSFORM.equals(extractLabel(MonitoringInfoLabels.TRANSFORM)));
       checkArgument(PCOLLECTION.equals(extractLabel(MonitoringInfoLabels.PCOLLECTION)));
       checkArgument(
@@ -75,6 +116,34 @@ public final class MonitoringInfoConstants {
       checkArgument(ENVIRONMENT.equals(extractLabel(MonitoringInfoLabels.ENVIRONMENT)));
       checkArgument(NAMESPACE.equals(extractLabel(MonitoringInfoLabels.NAMESPACE)));
       checkArgument(NAME.equals(extractLabel(MonitoringInfoLabels.NAME)));
+      checkArgument(SERVICE.equals(extractLabel(MonitoringInfoLabels.SERVICE)));
+      checkArgument(METHOD.equals(extractLabel(MonitoringInfoLabels.METHOD)));
+      checkArgument(RESOURCE.equals(extractLabel(MonitoringInfoLabels.RESOURCE)));
+      checkArgument(STATUS.equals(extractLabel(MonitoringInfoLabels.STATUS)));
+      checkArgument(
+          BIGQUERY_PROJECT_ID.equals(extractLabel(MonitoringInfoLabels.BIGQUERY_PROJECT_ID)));
+      checkArgument(BIGQUERY_DATASET.equals(extractLabel(MonitoringInfoLabels.BIGQUERY_DATASET)));
+      checkArgument(BIGQUERY_TABLE.equals(extractLabel(MonitoringInfoLabels.BIGQUERY_TABLE)));
+      checkArgument(BIGQUERY_VIEW.equals(extractLabel(MonitoringInfoLabels.BIGQUERY_VIEW)));
+      checkArgument(
+          BIGQUERY_QUERY_NAME.equals(extractLabel(MonitoringInfoLabels.BIGQUERY_QUERY_NAME)));
+      checkArgument(DATASTORE_PROJECT.equals(extractLabel(MonitoringInfoLabels.DATASTORE_PROJECT)));
+      checkArgument(
+          DATASTORE_NAMESPACE.equals(extractLabel(MonitoringInfoLabels.DATASTORE_NAMESPACE)));
+      checkArgument(
+          BIGTABLE_PROJECT_ID.equals(extractLabel(MonitoringInfoLabels.BIGTABLE_PROJECT_ID)));
+      checkArgument(INSTANCE_ID.equals(extractLabel(MonitoringInfoLabels.INSTANCE_ID)));
+      checkArgument(TABLE_ID.equals(extractLabel(MonitoringInfoLabels.TABLE_ID)));
+      checkArgument(GCS_BUCKET.equals(extractLabel(MonitoringInfoLabels.GCS_BUCKET)));
+      checkArgument(GCS_PROJECT_ID.equals(extractLabel(MonitoringInfoLabels.GCS_PROJECT_ID)));
+      checkArgument(
+          SPANNER_PROJECT_ID.equals(extractLabel(MonitoringInfoLabels.SPANNER_PROJECT_ID)));
+      checkArgument(
+          SPANNER_DATABASE_ID.equals(extractLabel(MonitoringInfoLabels.SPANNER_DATABASE_ID)));
+      checkArgument(
+          SPANNER_INSTANCE_ID.equals(extractLabel(MonitoringInfoLabels.SPANNER_INSTANCE_ID)));
+      checkArgument(
+          SPANNER_QUERY_NAME.equals(extractLabel(MonitoringInfoLabels.SPANNER_QUERY_NAME)));
     }
   }
 
@@ -93,6 +162,9 @@ public final class MonitoringInfoConstants {
     public static final String PROGRESS_TYPE = "beam:metrics:progress:v1";
 
     static {
+      // Validate that compile time constants match the values stored in the protos.
+      // Defining these as constants allows for usage in switch case statements and also
+      // ensures that protos don't get accidentally changed.
       checkArgument(SUM_INT64_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE)));
       checkArgument(SUM_DOUBLE_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.SUM_DOUBLE_TYPE)));
       checkArgument(

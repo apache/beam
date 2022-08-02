@@ -26,6 +26,9 @@ import org.joda.time.Instant;
  * contains either an element of main inputs or the collection results from a view (used as side
  * input).
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class OpMessage<T> {
   /**
    * Type of the element(s) in the message.

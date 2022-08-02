@@ -18,11 +18,6 @@
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
-enablePythonPerformanceTest()
-
-dependencies {
-  distTarBall project(path: ":sdks:python", configuration: "distTarBall")
-}
 
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.8'

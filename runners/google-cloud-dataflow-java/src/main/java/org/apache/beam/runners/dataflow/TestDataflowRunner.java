@@ -22,6 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
@@ -51,6 +52,9 @@ import org.slf4j.LoggerFactory;
  *
  * @see TestPipeline
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowRunner.class);
@@ -110,7 +114,11 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler());
 
     if (options.isStreaming()) {
-      jobSuccess = waitForStreamingJobTermination(job, messageHandler);
+      if (options.isBlockOnRun()) {
+        jobSuccess = waitForStreamingJobTermination(job, messageHandler);
+      } else {
+        jobSuccess = true;
+      }
       // No metrics in streaming
       allAssertionsPassed = Optional.absent();
     } else {
@@ -142,6 +150,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * Return {@code true} if the job succeeded or {@code false} if it terminated in any other manner.
    */
   @SuppressWarnings("FutureReturnValueIgnored") // Job status checked via job.waitUntilFinish
+  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
   private boolean waitForStreamingJobTermination(
       final DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
     // In streaming, there are infinite retries, so rather than timeout
@@ -199,11 +208,17 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static String errorMessage(
       DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
-    return Strings.isNullOrEmpty(messageHandler.getErrorMessage())
-        ? String.format(
-            "Dataflow job %s terminated in state %s but did not return a failure reason.",
-            job.getJobId(), job.getState())
-        : messageHandler.getErrorMessage();
+    if (!Strings.isNullOrEmpty(messageHandler.getErrorMessage())) {
+      return messageHandler.getErrorMessage();
+    } else {
+      State state = job.getState();
+      return String.format(
+          "Dataflow job %s terminated in state %s but did not return a failure reason.",
+          job.getJobId(),
+          state == State.UNRECOGNIZED
+              ? String.format("UNRECOGNIZED (%s)", job.getLatestStateString())
+              : state.toString());
+    }
   }
 
   @VisibleForTesting
@@ -286,8 +301,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return Optional.absent();
   }
 
-  @Nullable
   @VisibleForTesting
+  @Nullable
   JobMetrics getJobMetrics(DataflowPipelineJob job) {
     JobMetrics metrics = null;
     try {

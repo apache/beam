@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // ValidateKVType panics if the type of the PCollection is not KV<A,B>.
@@ -71,8 +71,8 @@ func makeTypedefs(list []TypeDefinition) (map[string]reflect.Type, error) {
 		if !typex.IsUniversal(v.Var) {
 			return nil, errors.Errorf("type var %s must be a universal type", v.Var)
 		}
-		if !typex.IsConcrete(v.T) {
-			return nil, errors.Errorf("type value %s must be a concrete type", v.T)
+		if ok, err := typex.CheckConcrete(v.T); !ok {
+			return nil, errors.Wrapf(err, "type value %s must be a concrete type", v.T)
 		}
 		typedefs[v.Var.Name()] = v.T
 	}

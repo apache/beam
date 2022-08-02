@@ -19,13 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import re
-from builtins import object
 from typing import BinaryIO  # pylint: disable=unused-import
-
-from past.builtins import unicode
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
@@ -55,6 +50,11 @@ except ImportError:
 
 try:
   from apache_beam.io.aws.s3filesystem import S3FileSystem
+except ImportError:
+  pass
+
+try:
+  from apache_beam.io.azure.blobstoragefilesystem import BlobStorageFileSystem
 except ImportError:
   pass
 
@@ -334,7 +334,7 @@ class FileSystems(object):
     Raises:
       ``BeamIOError``: if any of the delete operations fail
     """
-    if isinstance(paths, (str, unicode)):
+    if isinstance(paths, str):
       raise BeamIOError(
           'Delete passed string argument instead of list: %s' % paths)
     if len(paths) == 0:

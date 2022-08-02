@@ -29,6 +29,9 @@ class AvroRowWriter<AvroT, T> extends BigQueryRowWriter<T> {
   private final Schema schema;
   private final SerializableFunction<AvroWriteRequest<T>, AvroT> toAvroRecord;
 
+  @SuppressWarnings({
+    "nullness" // calling superclass method in constructor flagged as error; TODO: fix
+  })
   AvroRowWriter(
       String basename,
       Schema schema,

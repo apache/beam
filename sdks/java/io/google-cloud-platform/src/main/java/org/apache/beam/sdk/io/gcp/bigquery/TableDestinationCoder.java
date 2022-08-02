@@ -25,12 +25,14 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A coder for {@link TableDestination} objects. */
 public class TableDestinationCoder extends AtomicCoder<TableDestination> {
   private static final TableDestinationCoder INSTANCE = new TableDestinationCoder();
   private static final Coder<String> tableSpecCoder = StringUtf8Coder.of();
-  private static final Coder<String> tableDescriptionCoder = NullableCoder.of(StringUtf8Coder.of());
+  private static final Coder<@Nullable String> tableDescriptionCoder =
+      NullableCoder.of(StringUtf8Coder.of());
 
   private TableDestinationCoder() {}
 

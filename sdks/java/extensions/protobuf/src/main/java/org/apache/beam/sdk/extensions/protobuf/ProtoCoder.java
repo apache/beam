@@ -105,6 +105,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the Protocol Buffers {@link Message} handled by this {@link Coder}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ProtoCoder<T extends Message> extends CustomCoder<T> {
 
   public static final long serialVersionUID = -5043999806040629525L;
@@ -270,10 +273,6 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
    * classes will be included in the {@link ExtensionRegistry} used during encoding and decoding.
    */
   final Set<Class<?>> extensionHostClasses;
-
-  // Constants used to serialize and deserialize
-  private static final String PROTO_MESSAGE_CLASS = "proto_message_class";
-  private static final String PROTO_EXTENSION_HOSTS = "proto_extension_hosts";
 
   // Transient fields that are lazy initialized and then memoized.
   private transient ExtensionRegistry memoizedExtensionRegistry;

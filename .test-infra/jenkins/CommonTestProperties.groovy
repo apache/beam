@@ -21,8 +21,12 @@
 class CommonTestProperties {
   enum SDK {
     PYTHON,
-    PYTHON_37,
-    JAVA
+    JAVA,
+    GO,
+  }
+
+  static String getFlinkVersion() {
+    return "1.13"
   }
 
   enum Runner {
@@ -38,9 +42,9 @@ class CommonTestProperties {
       JAVA: [
         DATAFLOW: ":runners:google-cloud-dataflow-java",
         TEST_DATAFLOW: ":runners:google-cloud-dataflow-java",
-        SPARK: ":runners:spark",
-        SPARK_STRUCTURED_STREAMING: ":runners:spark",
-        FLINK: ":runners:flink:1.10",
+        SPARK: ":runners:spark:2",
+        SPARK_STRUCTURED_STREAMING: ":runners:spark:2",
+        FLINK: ":runners:flink:${CommonTestProperties.getFlinkVersion()}",
         DIRECT: ":runners:direct-java"
       ],
       PYTHON: [
@@ -49,12 +53,13 @@ class CommonTestProperties {
         DIRECT: "DirectRunner",
         PORTABLE: "PortableRunner"
       ],
-      PYTHON_37: [
+      GO: [
         DATAFLOW: "DataflowRunner",
-        TEST_DATAFLOW: "TestDataflowRunner",
+        SPARK: "SparkRunner",
+        FLINK: "FlinkRunner",
         DIRECT: "DirectRunner",
-        PORTABLE: "PortableRunner"
-      ]
+        PORTABLE: "PortableRunner",
+      ],
     ]
 
     private final String option

@@ -43,6 +43,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** Helper methods to select subrows out of rows. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public class SelectHelpers {
 
   private static Schema union(Iterable<Schema> schemas) {
@@ -443,8 +447,15 @@ public class SelectHelpers {
       Map<String, String> fieldsSelected) {
     for (Field field : schema.getFields()) {
       nameComponents.add(field.getName());
-      if (field.getType().getTypeName().isCompositeType()) {
-        allLeafFields(field.getType().getRowSchema(), nameComponents, nameFn, fieldsSelected);
+
+      FieldType fieldType = field.getType();
+      FieldType collectionElementType = fieldType.getCollectionElementType();
+
+      if (fieldType.getTypeName().isCompositeType()) {
+        allLeafFields(fieldType.getRowSchema(), nameComponents, nameFn, fieldsSelected);
+      } else if (collectionElementType != null
+          && collectionElementType.getTypeName().isCompositeType()) {
+        allLeafFields(collectionElementType.getRowSchema(), nameComponents, nameFn, fieldsSelected);
       } else {
         String newName = nameFn.apply(nameComponents);
         fieldsSelected.put(String.join(".", nameComponents), newName);

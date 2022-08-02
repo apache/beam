@@ -18,9 +18,9 @@ package passert
 import (
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Count verifies the given PCollection<T> has the specified number of elements.
@@ -29,6 +29,10 @@ func Count(s beam.Scope, col beam.PCollection, name string, count int) {
 
 	if typex.IsKV(col.Type()) {
 		col = beam.DropKey(s, col)
+	}
+
+	if count > 0 {
+		NonEmpty(s, col)
 	}
 	counted := beam.Combine(s, &elmCountCombineFn{}, col)
 	beam.ParDo0(s, &errFn{Name: name, Count: count}, counted)

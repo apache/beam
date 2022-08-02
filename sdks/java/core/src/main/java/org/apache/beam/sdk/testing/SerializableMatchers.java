@@ -20,6 +20,7 @@ package org.apache.beam.sdk.testing;
 import static org.hamcrest.Matchers.in;
 import static org.hamcrest.core.Is.is;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -57,6 +58,9 @@ import org.hamcrest.Matchers;
  * iterable is undefined, use a matcher like {@code kv(equalTo("some key"), containsInAnyOrder(1, 2,
  * 3))}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SerializableMatchers implements Serializable {
 
   // Serializable only because of capture by anonymous inner classes
@@ -66,7 +70,10 @@ public class SerializableMatchers implements Serializable {
   public static <T> SerializableMatcher<T> allOf(
       Iterable<SerializableMatcher<? super T>> serializableMatchers) {
 
-    @SuppressWarnings({"rawtypes", "unchecked"}) // safe covariant cast
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+      "unchecked"
+    }) // safe covariant cast
     final Iterable<Matcher<? super T>> matchers = (Iterable) serializableMatchers;
 
     return fromSupplier(() -> Matchers.allOf(matchers));
@@ -82,7 +89,10 @@ public class SerializableMatchers implements Serializable {
   public static <T> SerializableMatcher<T> anyOf(
       Iterable<SerializableMatcher<? super T>> serializableMatchers) {
 
-    @SuppressWarnings({"rawtypes", "unchecked"}) // safe covariant cast
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+      "unchecked"
+    }) // safe covariant cast
     final Iterable<Matcher<? super T>> matchers = (Iterable) serializableMatchers;
 
     return fromSupplier(() -> Matchers.anyOf(matchers));
@@ -141,7 +151,10 @@ public class SerializableMatchers implements Serializable {
   public static <T> SerializableMatcher<T[]> arrayContaining(
       List<SerializableMatcher<? super T>> serializableMatchers) {
 
-    @SuppressWarnings({"rawtypes", "unchecked"}) // safe covariant cast
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+      "unchecked"
+    }) // safe covariant cast
     final List<Matcher<? super T>> matchers = (List) serializableMatchers;
 
     return fromSupplier(() -> Matchers.arrayContaining(matchers));
@@ -190,7 +203,10 @@ public class SerializableMatchers implements Serializable {
   public static <T> SerializableMatcher<T[]> arrayContainingInAnyOrder(
       Collection<SerializableMatcher<? super T>> serializableMatchers) {
 
-    @SuppressWarnings({"rawtypes", "unchecked"}) // safe covariant cast
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+      "unchecked"
+    }) // safe covariant cast
     final Collection<Matcher<? super T>> matchers = (Collection) serializableMatchers;
 
     return fromSupplier(() -> Matchers.arrayContainingInAnyOrder(matchers));
@@ -257,7 +273,10 @@ public class SerializableMatchers implements Serializable {
   public static <T extends Serializable> SerializableMatcher<Iterable<? extends T>> contains(
       List<SerializableMatcher<? super T>> serializableMatchers) {
 
-    @SuppressWarnings({"rawtypes", "unchecked"}) // safe covariant cast
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+      "unchecked"
+    }) // safe covariant cast
     final List<Matcher<? super T>> matchers = (List) serializableMatchers;
 
     return fromSupplier(() -> Matchers.contains(matchers));
@@ -306,7 +325,10 @@ public class SerializableMatchers implements Serializable {
   public static <T> SerializableMatcher<Iterable<? extends T>> containsInAnyOrder(
       Collection<SerializableMatcher<? super T>> serializableMatchers) {
 
-    @SuppressWarnings({"rawtypes", "unchecked"}) // safe covariant cast
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+      "unchecked"
+    }) // safe covariant cast
     final Collection<Matcher<? super T>> matchers = (Collection) serializableMatchers;
 
     return fromSupplier(() -> Matchers.containsInAnyOrder(matchers));
@@ -796,6 +818,7 @@ public class SerializableMatchers implements Serializable {
    */
   private static class SerializableArrayViaCoder<T> implements SerializableSupplier<T[]> {
     /** Cached value that is not serialized. */
+    @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
     private transient T @Nullable [] value;
 
     /** The bytes of {@link #value} when encoded via {@link #coder}. */

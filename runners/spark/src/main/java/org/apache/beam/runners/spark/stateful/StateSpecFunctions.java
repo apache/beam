@@ -52,6 +52,10 @@ import scala.Tuple2;
 import scala.runtime.AbstractFunction3;
 
 /** A class containing {@link org.apache.spark.streaming.StateSpec} mappingFunctions. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class StateSpecFunctions {
   private static final Logger LOG = LoggerFactory.getLogger(StateSpecFunctions.class);
 

@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.JobStatistics;
@@ -31,9 +30,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +50,7 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
   private final String tempDatasetId;
   private final String kmsKey;
 
-  private transient AtomicReference<JobStatistics> dryRunJobStats;
+  private transient AtomicReference<@Nullable JobStatistics> dryRunJobStats;
 
   static BigQueryQuerySourceDef create(
       BigQueryServices bqServices,
@@ -128,26 +129,34 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
     Optional<String> queryTempDatasetOpt = Optional.ofNullable(tempDatasetId);
     TableReference tableToRemove =
         createTempTableReference(
-            bqOptions.getProject(),
-            createJobIdToken(bqOptions.getJobName(), stepUuid),
+            bqOptions.getBigQueryProject() == null
+                ? bqOptions.getProject()
+                : bqOptions.getBigQueryProject(),
+            BigQueryResourceNaming.createJobIdPrefix(
+                bqOptions.getJobName(), stepUuid, JobType.QUERY),
             queryTempDatasetOpt);
 
-    BigQueryServices.DatasetService tableService = bqServices.getDatasetService(bqOptions);
-    LOG.info("Deleting temporary table with query results {}", tableToRemove);
-    tableService.deleteTable(tableToRemove);
-    boolean datasetCreatedByBeam = !queryTempDatasetOpt.isPresent();
-    if (datasetCreatedByBeam) {
-      // Remove temporary dataset only if it was created by Beam
-      LOG.info("Deleting temporary dataset with query results {}", tableToRemove.getDatasetId());
-      tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
+    try (BigQueryServices.DatasetService tableService = bqServices.getDatasetService(bqOptions)) {
+      LOG.info("Deleting temporary table with query results {}", tableToRemove);
+      tableService.deleteTable(tableToRemove);
+      boolean datasetCreatedByBeam = !queryTempDatasetOpt.isPresent();
+      if (datasetCreatedByBeam) {
+        // Remove temporary dataset only if it was created by Beam
+        LOG.info("Deleting temporary dataset with query results {}", tableToRemove.getDatasetId());
+        tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
+      }
     }
   }
 
   /** {@inheritDoc} */
   @Override
   public <T> BigQuerySourceBase<T> toSource(
-      String stepUuid, Coder<T> coder, SerializableFunction<SchemaAndRecord, T> parseFn) {
-    return BigQueryQuerySource.create(stepUuid, this, bqServices, coder, parseFn);
+      String stepUuid,
+      Coder<T> coder,
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      boolean useAvroLogicalTypes) {
+    return BigQueryQuerySource.create(
+        stepUuid, this, bqServices, coder, parseFn, useAvroLogicalTypes);
   }
 
   /** {@inheritDoc} */

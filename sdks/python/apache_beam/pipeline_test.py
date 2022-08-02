@@ -19,26 +19,24 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import copy
 import platform
 import unittest
-from builtins import object
-from builtins import range
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam import typehints
 from apache_beam.coders import BytesCoder
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
+from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
@@ -53,6 +51,9 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.environments import ProcessEnvironment
+from apache_beam.transforms.resources import ResourceHint
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
@@ -60,7 +61,6 @@ from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
-# from nose.plugins.attrib import attr
 
 
 class FakeSource(NativeSource):
@@ -117,6 +117,32 @@ class ToStringParDo(beam.PTransform):
     # We use copy.copy() here to make sure the typehint mechanism doesn't
     # automatically infer that the output type is str.
     return input | 'Inner' >> beam.Map(lambda a: copy.copy(str(a)))
+
+
+class FlattenAndDouble(beam.PTransform):
+  def expand(self, pcolls):
+    return pcolls | beam.Flatten() | 'Double' >> DoubleParDo()
+
+
+class FlattenAndTriple(beam.PTransform):
+  def expand(self, pcolls):
+    return pcolls | beam.Flatten() | 'Triple' >> TripleParDo()
+
+
+class AddWithProductDoFn(beam.DoFn):
+  def process(self, input, a, b):
+    yield input + a * b
+
+
+class AddThenMultiplyDoFn(beam.DoFn):
+  def process(self, input, a, b):
+    yield (input + a) * b
+
+
+class AddThenMultiply(beam.PTransform):
+  def expand(self, pvalues):
+    return pvalues[0] | beam.ParDo(
+        AddThenMultiplyDoFn(), AsSingleton(pvalues[1]), AsSingleton(pvalues[2]))
 
 
 class PipelineTest(unittest.TestCase):
@@ -233,7 +259,7 @@ class PipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([[1, 2, 3]]))
 
   # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
-  # @attr('ValidatesRunner')
+  # @pytest.mark.it_validatesrunner
   def test_metrics_in_fake_source(self):
     pipeline = TestPipeline()
     pcoll = pipeline | Read(FakeSource([1, 2, 3, 4, 5, 6]))
@@ -374,7 +400,9 @@ class PipelineTest(unittest.TestCase):
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
-      def get_replacement_transform(self, ptransform):
+      def get_replacement_transform_for_applied_ptransform(
+          self, applied_ptransform):
+        ptransform = applied_ptransform.transform
         if isinstance(ptransform, DoubleParDo):
           return TripleParDo()
         raise ValueError('Unsupported type of transform: %r' % ptransform)
@@ -391,17 +419,19 @@ class PipelineTest(unittest.TestCase):
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
-      def get_replacement_transform(self, ptransform):
+      def get_replacement_transform_for_applied_ptransform(
+          self, applied_ptransform):
         return ToStringParDo()
 
     class WithTypeHintOverride(PTransformOverride):
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
-      def get_replacement_transform(self, ptransform):
+      def get_replacement_transform_for_applied_ptransform(
+          self, applied_ptransform):
         return ToStringParDo().with_input_types(int).with_output_types(str)
 
-    for override, expected_type in [(NoTypeHintOverride(), typehints.Any),
+    for override, expected_type in [(NoTypeHintOverride(), int),
                                     (WithTypeHintOverride(), str)]:
       p = TestPipeline()
       pcoll = (
@@ -412,6 +442,74 @@ class PipelineTest(unittest.TestCase):
 
       p.replace_all([override])
       self.assertEqual(pcoll.producer.inputs[0].element_type, expected_type)
+
+  def test_ptransform_override_multiple_inputs(self):
+    class MyParDoOverride(PTransformOverride):
+      def matches(self, applied_ptransform):
+        return isinstance(applied_ptransform.transform, FlattenAndDouble)
+
+      def get_replacement_transform(self, applied_ptransform):
+        return FlattenAndTriple()
+
+    p = Pipeline()
+    pcoll1 = p | 'pc1' >> beam.Create([1, 2, 3])
+    pcoll2 = p | 'pc2' >> beam.Create([4, 5, 6])
+    pcoll3 = (pcoll1, pcoll2) | 'FlattenAndMultiply' >> FlattenAndDouble()
+    assert_that(pcoll3, equal_to([3, 6, 9, 12, 15, 18]))
+
+    p.replace_all([MyParDoOverride()])
+    p.run()
+
+  def test_ptransform_override_side_inputs(self):
+    class MyParDoOverride(PTransformOverride):
+      def matches(self, applied_ptransform):
+        return (
+            isinstance(applied_ptransform.transform, ParDo) and
+            isinstance(applied_ptransform.transform.fn, AddWithProductDoFn))
+
+      def get_replacement_transform(self, transform):
+        return AddThenMultiply()
+
+    p = Pipeline()
+    pcoll1 = p | 'pc1' >> beam.Create([2])
+    pcoll2 = p | 'pc2' >> beam.Create([3])
+    pcoll3 = p | 'pc3' >> beam.Create([4, 5, 6])
+    result = pcoll3 | 'Operate' >> beam.ParDo(
+        AddWithProductDoFn(), AsSingleton(pcoll1), AsSingleton(pcoll2))
+    assert_that(result, equal_to([18, 21, 24]))
+
+    p.replace_all([MyParDoOverride()])
+    p.run()
+
+  def test_ptransform_override_replacement_inputs(self):
+    class MyParDoOverride(PTransformOverride):
+      def matches(self, applied_ptransform):
+        return (
+            isinstance(applied_ptransform.transform, ParDo) and
+            isinstance(applied_ptransform.transform.fn, AddWithProductDoFn))
+
+      def get_replacement_transform(self, transform):
+        return AddThenMultiply()
+
+      def get_replacement_inputs(self, applied_ptransform):
+        assert len(applied_ptransform.inputs) == 1
+        assert len(applied_ptransform.side_inputs) == 2
+        # Swap the order of the two side inputs
+        return (
+            applied_ptransform.inputs[0],
+            applied_ptransform.side_inputs[1].pvalue,
+            applied_ptransform.side_inputs[0].pvalue)
+
+    p = Pipeline()
+    pcoll1 = p | 'pc1' >> beam.Create([2])
+    pcoll2 = p | 'pc2' >> beam.Create([3])
+    pcoll3 = p | 'pc3' >> beam.Create([4, 5, 6])
+    result = pcoll3 | 'Operate' >> beam.ParDo(
+        AddWithProductDoFn(), AsSingleton(pcoll1), AsSingleton(pcoll2))
+    assert_that(result, equal_to([14, 16, 18]))
+
+    p.replace_all([MyParDoOverride()])
+    p.run()
 
   def test_ptransform_override_multiple_outputs(self):
     class MultiOutputComposite(PTransform):
@@ -441,7 +539,8 @@ class PipelineTest(unittest.TestCase):
       def matches(self, applied_ptransform):
         return applied_ptransform.full_label == 'MyMultiOutput'
 
-      def get_replacement_transform(self, ptransform):
+      def get_replacement_transform_for_applied_ptransform(
+          self, applied_ptransform):
         return MultiOutputComposite()
 
     def mux_input(x):
@@ -537,7 +636,7 @@ class PipelineTest(unittest.TestCase):
     pcoll2 = pcoll1 | 'do1' >> FlatMap(lambda x: [x + 1])
     pcoll3 = pcoll2 | 'do2' >> FlatMap(lambda x: [x + 1])
     self.assertIs(pcoll1.is_bounded, False)
-    self.assertIs(pcoll1.is_bounded, False)
+    self.assertIs(pcoll2.is_bounded, False)
     self.assertIs(pcoll3.is_bounded, False)
 
   def test_track_pcoll_bounded(self):
@@ -620,7 +719,7 @@ class DoFnTest(unittest.TestCase):
           TestDoFn(), prefix, suffix=AsSingleton(suffix))
       assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_element_param(self):
     pipeline = TestPipeline()
     input = [1, 2]
@@ -631,7 +730,7 @@ class DoFnTest(unittest.TestCase):
     assert_that(pcoll, equal_to(input))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_key_param(self):
     pipeline = TestPipeline()
     pcoll = (
@@ -824,6 +923,452 @@ class RunnerApiTest(unittest.TestCase):
     self.assertTrue(
         common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn,
         proto.requirements)
+
+  def test_annotations(self):
+    some_proto = BytesCoder().to_runner_api(None)
+
+    class EmptyTransform(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll
+
+      def annotations(self):
+        return {'foo': 'some_string'}
+
+    class NonEmptyTransform(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll | beam.Map(lambda x: x)
+
+      def annotations(self):
+        return {
+            'foo': b'some_bytes',
+            'proto': some_proto,
+        }
+
+    p = beam.Pipeline()
+    _ = p | beam.Create([]) | EmptyTransform() | NonEmptyTransform()
+    proto = p.to_runner_api()
+
+    seen = 0
+    for transform in proto.components.transforms.values():
+      if transform.unique_name == 'EmptyTransform':
+        seen += 1
+        self.assertEqual(transform.annotations['foo'], b'some_string')
+      elif transform.unique_name == 'NonEmptyTransform':
+        seen += 1
+        self.assertEqual(transform.annotations['foo'], b'some_bytes')
+        self.assertEqual(
+            transform.annotations['proto'], some_proto.SerializeToString())
+    self.assertEqual(seen, 2)
+
+  def test_transform_ids(self):
+    class MyPTransform(beam.PTransform):
+      def expand(self, p):
+        self.p = p
+        return p | beam.Create([None])
+
+    p = beam.Pipeline()
+    p | MyPTransform()  # pylint: disable=expression-not-assigned
+    runner_api_proto = Pipeline.to_runner_api(p)
+
+    for transform_id in runner_api_proto.components.transforms:
+      self.assertRegex(transform_id, r'[a-zA-Z0-9-_]+')
+
+  def test_input_names(self):
+    class MyPTransform(beam.PTransform):
+      def expand(self, pcolls):
+        return pcolls.values() | beam.Flatten()
+
+    p = beam.Pipeline()
+    input_names = set('ABC')
+    inputs = {x: p | x >> beam.Create([x]) for x in input_names}
+    inputs | MyPTransform()  # pylint: disable=expression-not-assigned
+    runner_api_proto = Pipeline.to_runner_api(p)
+
+    for transform_proto in runner_api_proto.components.transforms.values():
+      if transform_proto.unique_name == 'MyPTransform':
+        self.assertEqual(set(transform_proto.inputs.keys()), input_names)
+        break
+    else:
+      self.fail('Unable to find transform.')
+
+  def test_display_data(self):
+    class MyParentTransform(beam.PTransform):
+      def expand(self, p):
+        self.p = p
+        return p | beam.Create([None])
+
+      def display_data(self):  # type: () -> dict
+        parent_dd = super().display_data()
+        parent_dd['p_dd_string'] = DisplayDataItem(
+            'p_dd_string_value', label='p_dd_string_label')
+        parent_dd['p_dd_string_2'] = DisplayDataItem('p_dd_string_value_2')
+        parent_dd['p_dd_bool'] = DisplayDataItem(True, label='p_dd_bool_label')
+        parent_dd['p_dd_int'] = DisplayDataItem(1, label='p_dd_int_label')
+        return parent_dd
+
+    class MyPTransform(MyParentTransform):
+      def expand(self, p):
+        self.p = p
+        return p | beam.Create([None])
+
+      def display_data(self):  # type: () -> dict
+        parent_dd = super().display_data()
+        parent_dd['dd_string'] = DisplayDataItem(
+            'dd_string_value', label='dd_string_label')
+        parent_dd['dd_string_2'] = DisplayDataItem('dd_string_value_2')
+        parent_dd['dd_bool'] = DisplayDataItem(False, label='dd_bool_label')
+        parent_dd['dd_double'] = DisplayDataItem(1.1, label='dd_double_label')
+        return parent_dd
+
+    p = beam.Pipeline()
+    p | MyPTransform()  # pylint: disable=expression-not-assigned
+
+    proto_pipeline = Pipeline.to_runner_api(p, use_fake_coders=True)
+    my_transform, = [
+        transform
+        for transform in proto_pipeline.components.transforms.values()
+        if transform.unique_name == 'MyPTransform'
+    ]
+    self.assertIsNotNone(my_transform)
+    self.assertListEqual(
+        list(my_transform.display_data),
+        [
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='p_dd_string_label',
+                    key='p_dd_string',
+                    namespace='apache_beam.pipeline_test.MyPTransform',
+                    string_value='p_dd_string_value').SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='p_dd_string_2',
+                    key='p_dd_string_2',
+                    namespace='apache_beam.pipeline_test.MyPTransform',
+                    string_value='p_dd_string_value_2').SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='p_dd_bool_label',
+                    key='p_dd_bool',
+                    namespace='apache_beam.pipeline_test.MyPTransform',
+                    bool_value=True).SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='p_dd_int_label',
+                    key='p_dd_int',
+                    namespace='apache_beam.pipeline_test.MyPTransform',
+                    int_value=1).SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='dd_string_label',
+                    key='dd_string',
+                    namespace='apache_beam.pipeline_test.MyPTransform',
+                    string_value='dd_string_value').SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='dd_string_2',
+                    key='dd_string_2',
+                    namespace='apache_beam.pipeline_test.MyPTransform',
+                    string_value='dd_string_value_2').SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='dd_bool_label',
+                    key='dd_bool',
+                    namespace='apache_beam.pipeline_test.MyPTransform',
+                    bool_value=False).SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='dd_double_label',
+                    key='dd_double',
+                    namespace='apache_beam.pipeline_test.MyPTransform',
+                    double_value=1.1).SerializeToString()),
+        ])
+
+  def test_runner_api_roundtrip_preserves_resource_hints(self):
+    p = beam.Pipeline()
+    _ = (
+        p | beam.Create([1, 2])
+        | beam.Map(lambda x: x + 1).with_resource_hints(accelerator='gpu'))
+
+    self.assertEqual(
+        p.transforms_stack[0].parts[1].transform.get_resource_hints(),
+        {common_urns.resource_hints.ACCELERATOR.urn: b'gpu'})
+
+    for _ in range(3):
+      # Verify that DEFAULT environments are recreated during multiple RunnerAPI
+      # translation and hints don't get lost.
+      p = Pipeline.from_runner_api(Pipeline.to_runner_api(p), None, None)
+      self.assertEqual(
+          p.transforms_stack[0].parts[1].transform.get_resource_hints(),
+          {common_urns.resource_hints.ACCELERATOR.urn: b'gpu'})
+
+  def test_hints_on_composite_transforms_are_propagated_to_subtransforms(self):
+    class FooHint(ResourceHint):
+      urn = 'foo_urn'
+
+    class BarHint(ResourceHint):
+      urn = 'bar_urn'
+
+    class BazHint(ResourceHint):
+      urn = 'baz_urn'
+
+    class QuxHint(ResourceHint):
+      urn = 'qux_urn'
+
+    class UseMaxValueHint(ResourceHint):
+      urn = 'use_max_value_urn'
+
+      @classmethod
+      def get_merged_value(
+          cls, outer_value, inner_value):  # type: (bytes, bytes) -> bytes
+        return ResourceHint._use_max(outer_value, inner_value)
+
+    ResourceHint.register_resource_hint('foo_hint', FooHint)
+    ResourceHint.register_resource_hint('bar_hint', BarHint)
+    ResourceHint.register_resource_hint('baz_hint', BazHint)
+    ResourceHint.register_resource_hint('qux_hint', QuxHint)
+    ResourceHint.register_resource_hint('use_max_value_hint', UseMaxValueHint)
+
+    @beam.ptransform_fn
+    def SubTransform(pcoll):
+      return pcoll | beam.Map(lambda x: x + 1).with_resource_hints(
+          foo_hint='set_on_subtransform', use_max_value_hint='10')
+
+    @beam.ptransform_fn
+    def CompositeTransform(pcoll):
+      return pcoll | beam.Map(lambda x: x * 2) | SubTransform()
+
+    p = beam.Pipeline()
+    _ = (
+        p | beam.Create([1, 2])
+        | CompositeTransform().with_resource_hints(
+            foo_hint='should_be_overriden_by_subtransform',
+            bar_hint='set_on_composite',
+            baz_hint='set_on_composite',
+            use_max_value_hint='100'))
+    options = PortableOptions([
+        '--resource_hint=baz_hint=should_be_overriden_by_composite',
+        '--resource_hint=qux_hint=set_via_options',
+        '--environment_type=PROCESS',
+        '--environment_option=process_command=foo',
+        '--sdk_location=container',
+    ])
+    environment = ProcessEnvironment.from_options(options)
+    proto = Pipeline.to_runner_api(p, default_environment=environment)
+
+    for t in proto.components.transforms.values():
+      if "CompositeTransform/SubTransform/Map" in t.unique_name:
+        environment = proto.components.environments.get(t.environment_id)
+        self.assertEqual(
+            environment.resource_hints.get('foo_urn'), b'set_on_subtransform')
+        self.assertEqual(
+            environment.resource_hints.get('bar_urn'), b'set_on_composite')
+        self.assertEqual(
+            environment.resource_hints.get('baz_urn'), b'set_on_composite')
+        self.assertEqual(
+            environment.resource_hints.get('qux_urn'), b'set_via_options')
+        self.assertEqual(
+            environment.resource_hints.get('use_max_value_urn'), b'100')
+        found = True
+    assert found
+
+  def test_environments_with_same_resource_hints_are_reused(self):
+    class HintX(ResourceHint):
+      urn = 'X_urn'
+
+    class HintY(ResourceHint):
+      urn = 'Y_urn'
+
+    class HintIsOdd(ResourceHint):
+      urn = 'IsOdd_urn'
+
+    ResourceHint.register_resource_hint('X', HintX)
+    ResourceHint.register_resource_hint('Y', HintY)
+    ResourceHint.register_resource_hint('IsOdd', HintIsOdd)
+
+    p = beam.Pipeline()
+    num_iter = 4
+    for i in range(num_iter):
+      _ = (
+          p
+          | f'NoHintCreate_{i}' >> beam.Create([1, 2])
+          | f'NoHint_{i}' >> beam.Map(lambda x: x + 1))
+      _ = (
+          p
+          | f'XCreate_{i}' >> beam.Create([1, 2])
+          |
+          f'HintX_{i}' >> beam.Map(lambda x: x + 1).with_resource_hints(X='X'))
+      _ = (
+          p
+          | f'XYCreate_{i}' >> beam.Create([1, 2])
+          | f'HintXY_{i}' >> beam.Map(lambda x: x + 1).with_resource_hints(
+              X='X', Y='Y'))
+      _ = (
+          p
+          | f'IsOddCreate_{i}' >> beam.Create([1, 2])
+          | f'IsOdd_{i}' >>
+          beam.Map(lambda x: x + 1).with_resource_hints(IsOdd=str(i % 2 != 0)))
+
+    proto = Pipeline.to_runner_api(p)
+    count_x = count_xy = count_is_odd = count_no_hints = 0
+    env_ids = set()
+    for _, t in proto.components.transforms.items():
+      env = proto.components.environments[t.environment_id]
+      if t.unique_name.startswith('HintX_'):
+        count_x += 1
+        env_ids.add(t.environment_id)
+        self.assertEqual(env.resource_hints, {'X_urn': b'X'})
+
+      if t.unique_name.startswith('HintXY_'):
+        count_xy += 1
+        env_ids.add(t.environment_id)
+        self.assertEqual(env.resource_hints, {'X_urn': b'X', 'Y_urn': b'Y'})
+
+      if t.unique_name.startswith('NoHint_'):
+        count_no_hints += 1
+        env_ids.add(t.environment_id)
+        self.assertEqual(env.resource_hints, {})
+
+      if t.unique_name.startswith('IsOdd_'):
+        count_is_odd += 1
+        env_ids.add(t.environment_id)
+        self.assertTrue(
+            env.resource_hints == {'IsOdd_urn': b'True'} or
+            env.resource_hints == {'IsOdd_urn': b'False'})
+    assert count_x == count_is_odd == count_xy == count_no_hints == num_iter
+    assert num_iter > 1
+
+    self.assertEqual(len(env_ids), 5)
+
+  def test_multiple_application_of_the_same_transform_set_different_hints(self):
+    class FooHint(ResourceHint):
+      urn = 'foo_urn'
+
+    class UseMaxValueHint(ResourceHint):
+      urn = 'use_max_value_urn'
+
+      @classmethod
+      def get_merged_value(
+          cls, outer_value, inner_value):  # type: (bytes, bytes) -> bytes
+        return ResourceHint._use_max(outer_value, inner_value)
+
+    ResourceHint.register_resource_hint('foo_hint', FooHint)
+    ResourceHint.register_resource_hint('use_max_value_hint', UseMaxValueHint)
+
+    @beam.ptransform_fn
+    def SubTransform(pcoll):
+      return pcoll | beam.Map(lambda x: x + 1)
+
+    @beam.ptransform_fn
+    def CompositeTransform(pcoll):
+      sub = SubTransform()
+      return (
+          pcoll
+          | 'first' >> sub.with_resource_hints(foo_hint='first_application')
+          | 'second' >> sub.with_resource_hints(foo_hint='second_application'))
+
+    p = beam.Pipeline()
+    _ = (p | beam.Create([1, 2]) | CompositeTransform())
+    proto = Pipeline.to_runner_api(p)
+    count = 0
+    for t in proto.components.transforms.values():
+      if "CompositeTransform/first/Map" in t.unique_name:
+        environment = proto.components.environments.get(t.environment_id)
+        self.assertEqual(
+            b'first_application', environment.resource_hints.get('foo_urn'))
+        count += 1
+      if "CompositeTransform/second/Map" in t.unique_name:
+        environment = proto.components.environments.get(t.environment_id)
+        self.assertEqual(
+            b'second_application', environment.resource_hints.get('foo_urn'))
+        count += 1
+    assert count == 2
+
+  def test_environments_are_deduplicated(self):
+    def file_artifact(path, hash, staged_name):
+      return beam_runner_api_pb2.ArtifactInformation(
+          type_urn=common_urns.artifact_types.FILE.urn,
+          type_payload=beam_runner_api_pb2.ArtifactFilePayload(
+              path=path, sha256=hash).SerializeToString(),
+          role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+          role_payload=beam_runner_api_pb2.ArtifactStagingToRolePayload(
+              staged_name=staged_name).SerializeToString(),
+      )
+
+    proto = beam_runner_api_pb2.Pipeline(
+        components=beam_runner_api_pb2.Components(
+            transforms={
+                f'transform{ix}': beam_runner_api_pb2.PTransform(
+                    environment_id=f'e{ix}')
+                for ix in range(8)
+            },
+            environments={
+                # Same hash and destination.
+                'e1': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a1', 'x', 'dest')]),
+                'e2': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a2', 'x', 'dest')]),
+                # Different hash.
+                'e3': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a3', 'y', 'dest')]),
+                # Different destination.
+                'e4': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a4', 'y', 'dest2')]),
+                # Multiple files with same hash and destinations.
+                'e5': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        file_artifact('a1', 'x', 'dest'),
+                        file_artifact('b1', 'xb', 'destB')
+                    ]),
+                'e6': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        file_artifact('a2', 'x', 'dest'),
+                        file_artifact('b2', 'xb', 'destB')
+                    ]),
+                # Overlapping, but not identical, files.
+                'e7': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        file_artifact('a1', 'x', 'dest'),
+                        file_artifact('b2', 'y', 'destB')
+                    ]),
+                # Same files as first, but differing other properties.
+                'e0': beam_runner_api_pb2.Environment(
+                    resource_hints={'hint': b'value'},
+                    dependencies=[file_artifact('a1', 'x', 'dest')]),
+            }))
+    Pipeline.merge_compatible_environments(proto)
+
+    # These environments are equivalent.
+    self.assertEqual(
+        proto.components.transforms['transform1'].environment_id,
+        proto.components.transforms['transform2'].environment_id)
+
+    self.assertEqual(
+        proto.components.transforms['transform5'].environment_id,
+        proto.components.transforms['transform6'].environment_id)
+
+    # These are not.
+    self.assertNotEqual(
+        proto.components.transforms['transform1'].environment_id,
+        proto.components.transforms['transform3'].environment_id)
+    self.assertNotEqual(
+        proto.components.transforms['transform4'].environment_id,
+        proto.components.transforms['transform3'].environment_id)
+    self.assertNotEqual(
+        proto.components.transforms['transform6'].environment_id,
+        proto.components.transforms['transform7'].environment_id)
+    self.assertNotEqual(
+        proto.components.transforms['transform1'].environment_id,
+        proto.components.transforms['transform0'].environment_id)
+
+    self.assertEqual(len(proto.components.environments), 6)
 
 
 if __name__ == '__main__':

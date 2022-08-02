@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
-
 from typing import Mapping
 from typing import Optional
 from typing import Sequence

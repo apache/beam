@@ -125,4 +125,48 @@ public class PubsubTestClientTest {
       }
     }
   }
+
+  @Test
+  public void testPullThenPublish() throws IOException {
+    AtomicLong now = new AtomicLong();
+    Clock clock = now::get;
+    PubsubMessage message =
+        PubsubMessage.newBuilder().setData(ByteString.copyFromUtf8(DATA)).build();
+    IncomingMessage expectedIncomingMessage =
+        IncomingMessage.of(message, MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID);
+    OutgoingMessage expectedOutgoingMessage = OutgoingMessage.of(message, MESSAGE_TIME, MESSAGE_ID);
+
+    try (PubsubTestClientFactory factory =
+        PubsubTestClient.createFactoryForPullAndPublish(
+            SUBSCRIPTION,
+            TOPIC,
+            clock,
+            ACK_TIMEOUT_S,
+            ImmutableList.of(expectedIncomingMessage),
+            ImmutableList.of(expectedOutgoingMessage),
+            ImmutableList.of())) {
+      try (PubsubTestClient client = (PubsubTestClient) factory.newClient(null, null, null)) {
+        // Pull
+        now.set(REQ_TIME);
+        client.advance();
+        List<IncomingMessage> actualIncomingMessages =
+            client.pull(now.get(), SUBSCRIPTION, 1, true);
+        now.addAndGet(ACK_TIMEOUT_S - 10);
+        client.advance();
+        client.acknowledge(SUBSCRIPTION, ImmutableList.of(ACK_ID));
+
+        assertEquals(1, actualIncomingMessages.size());
+        assertEquals(expectedIncomingMessage, actualIncomingMessages.get(0));
+
+        // Publish
+        IncomingMessage incomingMessage = actualIncomingMessages.get(0);
+        OutgoingMessage actualOutgoingMessage =
+            OutgoingMessage.of(
+                incomingMessage.message(),
+                incomingMessage.timestampMsSinceEpoch(),
+                incomingMessage.recordId());
+        client.publish(TOPIC, ImmutableList.of(actualOutgoingMessage));
+      }
+    }
+  }
 }

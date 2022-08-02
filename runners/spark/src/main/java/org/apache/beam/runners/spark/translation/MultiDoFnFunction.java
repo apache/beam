@@ -60,6 +60,9 @@ import scala.Tuple2;
  * @param <InputT> Input type for DoFunction.
  * @param <OutputT> Output type for DoFunction.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MultiDoFnFunction<InputT, OutputT>
     implements PairFlatMapFunction<Iterator<WindowedValue<InputT>>, TupleTag<?>, WindowedValue<?>> {
 
@@ -123,7 +126,7 @@ public class MultiDoFnFunction<InputT, OutputT>
   public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> call(Iterator<WindowedValue<InputT>> iter)
       throws Exception {
     if (!wasSetupCalled && iter.hasNext()) {
-      DoFnInvokers.tryInvokeSetupFor(doFn);
+      DoFnInvokers.tryInvokeSetupFor(doFn, options.get());
       wasSetupCalled = true;
     }
 
@@ -132,8 +135,9 @@ public class MultiDoFnFunction<InputT, OutputT>
     final InMemoryTimerInternals timerInternals;
     final StepContext context;
     // Now only implements the StatefulParDo in Batch mode.
+    Object key = null;
+
     if (stateful) {
-      Object key = null;
       if (iter.hasNext()) {
         WindowedValue<InputT> currentValue = iter.next();
         key = ((KV) currentValue.getValue()).getKey();
@@ -180,6 +184,7 @@ public class MultiDoFnFunction<InputT, OutputT>
             doFn,
             doFnRunnerWithMetrics,
             outputManager,
+            key,
             stateful ? new TimerDataIterator(timerInternals) : Collections.emptyIterator())
         .processPartition(iter)
         .iterator();

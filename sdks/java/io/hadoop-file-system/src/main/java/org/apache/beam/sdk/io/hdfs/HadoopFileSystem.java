@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.conf.Configuration;
@@ -77,8 +78,8 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(HadoopFileSystem.class);
 
-  @VisibleForTesting static final String LOG_CREATE_DIRECTORY = "Creating directory %s";
-  @VisibleForTesting static final String LOG_DELETING_EXISTING_FILE = "Deleting existing file %s";
+  @VisibleForTesting static final String LOG_CREATE_DIRECTORY = "Creating directory {}";
+  @VisibleForTesting static final String LOG_DELETING_EXISTING_FILE = "Deleting existing file {}";
 
   private final String scheme;
 
@@ -244,8 +245,13 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
    */
   @Override
   protected void rename(
-      List<HadoopResourceId> srcResourceIds, List<HadoopResourceId> destResourceIds)
+      List<HadoopResourceId> srcResourceIds,
+      List<HadoopResourceId> destResourceIds,
+      MoveOptions... moveOptions)
       throws IOException {
+    if (moveOptions.length > 0) {
+      throw new UnsupportedOperationException("Support for move options is not yet implemented.");
+    }
     for (int i = 0; i < srcResourceIds.size(); ++i) {
 
       final Path srcPath = srcResourceIds.get(i).toPath();
@@ -263,9 +269,7 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       // This should be the exceptional case, so handle here rather than incur the overhead of
       // testing first
       if (!success && fs.exists(srcPath) && fs.exists(destPath)) {
-        LOG.debug(
-            String.format(
-                LOG_DELETING_EXISTING_FILE, Path.getPathWithoutSchemeAndAuthority(destPath)));
+        LOG.debug(LOG_DELETING_EXISTING_FILE, Path.getPathWithoutSchemeAndAuthority(destPath));
         fs.delete(destPath, false); // not recursive
         success = fs.rename(srcPath, destPath);
       }
@@ -297,9 +301,7 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
     final org.apache.hadoop.fs.FileSystem fs = filePath.getFileSystem(configuration);
     final Path targetDirectory = filePath.getParent();
     if (!fs.exists(targetDirectory)) {
-      LOG.debug(
-          String.format(
-              LOG_CREATE_DIRECTORY, Path.getPathWithoutSchemeAndAuthority(targetDirectory)));
+      LOG.debug(LOG_CREATE_DIRECTORY, Path.getPathWithoutSchemeAndAuthority(targetDirectory));
       if (!fs.mkdirs(targetDirectory)) {
         throw new IOException(
             String.format(

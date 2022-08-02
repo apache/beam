@@ -40,8 +40,11 @@ import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Testing translation of accumulators to Beam {@link org.apache.beam.sdk.metrics.Metrics}. */
+@RunWith(JUnit4.class)
 public class BeamMetricsTranslationTest {
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();

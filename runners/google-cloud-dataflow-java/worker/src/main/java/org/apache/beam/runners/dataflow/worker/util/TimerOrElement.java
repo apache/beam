@@ -41,6 +41,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * com.google.cloud.dataflow.sdk.util.TimerOrElement$TimerOrElementCoder} and we'd like to be able
  * to rename/move that without breaking things.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class TimerOrElement {
 
   // TimerOrElement should never be created.

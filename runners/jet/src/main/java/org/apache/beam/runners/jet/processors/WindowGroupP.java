@@ -67,6 +67,10 @@ import org.joda.time.Instant;
  * @param <K> key type of {@link KV} values from the output of this primitive
  * @param <V> type of elements being windowed
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class WindowGroupP<K, V> extends AbstractProcessor {
 
   private static final int PROCESSING_TIME_MIN_INCREMENT = 100;

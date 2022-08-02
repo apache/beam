@@ -33,6 +33,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
  *
  * @param <V> the type of the value written to the sink
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class IsmReader<V> extends NativeReader<WindowedValue<IsmRecord<V>>> {
   private static final ThreadLocal<SideInputReadCounter> CURRENT_SIDE_INPUT_COUNTERS =
       new ThreadLocal<>();

@@ -20,18 +20,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import filecmp
 import logging
 import os
 import shutil
-import sys
 import tempfile
 import unittest
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import mock
 from parameterized import param
 from parameterized import parameterized
@@ -62,12 +57,6 @@ def _gen_fake_split(separator):
 
 
 class LocalFileSystemTest(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
     pipeline_options = PipelineOptions()
@@ -304,8 +293,14 @@ class LocalFileSystemTest(unittest.TestCase):
       f.write('Hello')
     with open(path2, 'a') as f:
       f.write('foo')
-    self.assertEqual(self.fs.checksum(path1), str(5))
-    self.assertEqual(self.fs.checksum(path2), str(3))
+    # tests that localfilesystem checksum returns file size
+    checksum1 = self.fs.checksum(path1)
+    checksum2 = self.fs.checksum(path2)
+    self.assertEqual(checksum1, str(5))
+    self.assertEqual(checksum2, str(3))
+    # tests that fs.checksum and str(fs.size) are consistent
+    self.assertEqual(checksum1, str(self.fs.size(path1)))
+    self.assertEqual(checksum2, str(self.fs.size(path2)))
 
   def make_tree(self, path, value, expected_leaf_count=None):
     """Create a file+directory structure from a simple dict-based DSL

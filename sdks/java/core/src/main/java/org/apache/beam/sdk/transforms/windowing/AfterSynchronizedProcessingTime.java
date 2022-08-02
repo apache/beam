@@ -31,6 +31,9 @@ import org.joda.time.Instant;
  * triggers. In that use, this trigger is ready as soon as all upstream workers processing time
  * clocks have caught up to the moment that input arrived.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AfterSynchronizedProcessingTime extends OnceTrigger {
 
   public static AfterSynchronizedProcessingTime ofFirstElement() {

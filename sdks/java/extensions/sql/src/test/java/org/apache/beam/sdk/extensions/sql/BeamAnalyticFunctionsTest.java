@@ -67,6 +67,17 @@ public class BeamAnalyticFunctionsTest extends BeamSqlDslBase {
   }
 
   /**
+   * Table schema and data taken from.
+   * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#numbering_function_concepts
+   */
+  private PCollection<Row> inputData2() {
+    Schema schema = Schema.builder().addInt32Field("x").build();
+    return pipeline
+        .apply(Create.of(TestUtils.rowsBuilderOf(schema).addRows(1, 2, 2, 5, 8, 10, 10).getRows()))
+        .setRowSchema(schema);
+  }
+
+  /**
    * Compute a cumulative sum query taken from.
    * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#compute_a_cumulative_sum
    */
@@ -467,6 +478,110 @@ public class BeamAnalyticFunctionsTest extends BeamSqlDslBase {
                 23,
                 "vegetable",
                 23)
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(overResult);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testRowNumberFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PCollection<Row> inputRows = inputData2();
+    String sql = "SELECT x, ROW_NUMBER() over (ORDER BY x ) as agg  FROM PCOLLECTION";
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Schema overResultSchema = Schema.builder().addInt32Field("x").addInt64Field("agg").build();
+
+    List<Row> overResult =
+        TestUtils.RowsBuilder.of(overResultSchema)
+            .addRows(
+                1, 1L,
+                2, 2L,
+                2, 3L,
+                5, 4L,
+                8, 5L,
+                10, 6L,
+                10, 7L)
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(overResult);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testDenseRankFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PCollection<Row> inputRows = inputData2();
+    String sql = "SELECT x, DENSE_RANK() over (ORDER BY x ) as agg  FROM PCOLLECTION";
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Schema overResultSchema = Schema.builder().addInt32Field("x").addInt64Field("agg").build();
+
+    List<Row> overResult =
+        TestUtils.RowsBuilder.of(overResultSchema)
+            .addRows(
+                1, 1L,
+                2, 2L,
+                2, 2L,
+                5, 3L,
+                8, 4L,
+                10, 5L,
+                10, 5L)
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(overResult);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testRankFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PCollection<Row> inputRows = inputData2();
+    String sql = "SELECT x, RANK() over (ORDER BY x ) as agg  FROM PCOLLECTION";
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Schema overResultSchema = Schema.builder().addInt32Field("x").addInt64Field("agg").build();
+
+    List<Row> overResult =
+        TestUtils.RowsBuilder.of(overResultSchema)
+            .addRows(
+                1, 1L,
+                2, 2L,
+                2, 2L,
+                5, 4L,
+                8, 5L,
+                10, 6L,
+                10, 6L)
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(overResult);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testPercentRankFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PCollection<Row> inputRows = inputData2();
+    String sql = "SELECT x, PERCENT_RANK() over (ORDER BY x ) as agg  FROM PCOLLECTION";
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Schema overResultSchema = Schema.builder().addInt32Field("x").addDoubleField("agg").build();
+
+    List<Row> overResult =
+        TestUtils.RowsBuilder.of(overResultSchema)
+            .addRows(
+                1, 0.0 / 6.0,
+                2, 1.0 / 6.0,
+                2, 1.0 / 6.0,
+                5, 3.0 / 6.0,
+                8, 4.0 / 6.0,
+                10, 5.0 / 6.0,
+                10, 5.0 / 6.0)
             .getRows();
 
     PAssert.that(result).containsInAnyOrder(overResult);

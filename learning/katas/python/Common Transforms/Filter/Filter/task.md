@@ -21,7 +21,7 @@ Filter
 
 The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.
 
-**Kata:** Implement a filter function that filters out the odd numbers by using 
+**Kata:** Implement a filter function that filters out the odd numbers by using
 [Filter](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter).
 
 <div class="hint">

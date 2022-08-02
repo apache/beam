@@ -131,6 +131,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 // CHECKSTYLE.ON: JavadocStyle
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AvroSource<T> extends BlockBasedSource<T> {
   // Default minimum bundle size (chosen as two default-size Avro blocks to attempt to
   // ensure that every source has at least one block of records).

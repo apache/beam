@@ -15,9 +15,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//lint:file-ignore S1023 redundant return statements are generated
+
 package reflectx
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 // Generated arity-specialized Func implementations to avoid runtime temporary
 // slices. Code that knows the arity can potentially avoid that overhead in
@@ -57,7 +62,7 @@ func (c *shimFunc0x0) Call0x0() {
 
 func ToFunc0x0(c Func) Func0x0 {
 	if c.Type().NumIn() != 0 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 0 inputs and 0 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func0x0); ok {
 		return sc
@@ -98,7 +103,7 @@ func (c *shimFunc0x1) Call0x1() interface{} {
 
 func ToFunc0x1(c Func) Func0x1 {
 	if c.Type().NumIn() != 0 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 0 inputs and 1 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func0x1); ok {
 		return sc
@@ -139,7 +144,7 @@ func (c *shimFunc0x2) Call0x2() (interface{}, interface{}) {
 
 func ToFunc0x2(c Func) Func0x2 {
 	if c.Type().NumIn() != 0 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 0 inputs and 2 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func0x2); ok {
 		return sc
@@ -180,7 +185,7 @@ func (c *shimFunc0x3) Call0x3() (interface{}, interface{}, interface{}) {
 
 func ToFunc0x3(c Func) Func0x3 {
 	if c.Type().NumIn() != 0 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 0 inputs and 3 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func0x3); ok {
 		return sc
@@ -190,6 +195,47 @@ func ToFunc0x3(c Func) Func0x3 {
 
 func MakeFunc0x3(fn interface{}) Func0x3 {
 	return ToFunc0x3(MakeFunc(fn))
+}
+
+type Func0x4 interface {
+	Func
+	Call0x4() (interface{}, interface{}, interface{}, interface{})
+}
+
+type shimFunc0x4 struct {
+	inner Func
+}
+
+func (c *shimFunc0x4) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc0x4) Type() reflect.Type {
+	return c.inner.Type()
+}
+
+func (c *shimFunc0x4) Call(args []interface{}) []interface{} {
+	return c.inner.Call(args)
+}
+
+func (c *shimFunc0x4) Call0x4() (interface{}, interface{}, interface{}, interface{}) {
+	ret := c.inner.Call([]interface{}{})
+	_ = ret
+	return ret[0], ret[1], ret[2], ret[3]
+}
+
+func ToFunc0x4(c Func) Func0x4 {
+	if c.Type().NumIn() != 0 || c.Type().NumOut() != 4 {
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 0 inputs and 4 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
+	}
+	if sc, ok := c.(Func0x4); ok {
+		return sc
+	}
+	return &shimFunc0x4{inner: c}
+}
+
+func MakeFunc0x4(fn interface{}) Func0x4 {
+	return ToFunc0x4(MakeFunc(fn))
 }
 
 type Func1x0 interface {
@@ -221,7 +267,7 @@ func (c *shimFunc1x0) Call1x0(arg0 interface{}) {
 
 func ToFunc1x0(c Func) Func1x0 {
 	if c.Type().NumIn() != 1 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 1 inputs and 0 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func1x0); ok {
 		return sc
@@ -262,7 +308,7 @@ func (c *shimFunc1x1) Call1x1(arg0 interface{}) interface{} {
 
 func ToFunc1x1(c Func) Func1x1 {
 	if c.Type().NumIn() != 1 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 1 inputs and 1 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func1x1); ok {
 		return sc
@@ -303,7 +349,7 @@ func (c *shimFunc1x2) Call1x2(arg0 interface{}) (interface{}, interface{}) {
 
 func ToFunc1x2(c Func) Func1x2 {
 	if c.Type().NumIn() != 1 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 1 inputs and 2 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func1x2); ok {
 		return sc
@@ -344,7 +390,7 @@ func (c *shimFunc1x3) Call1x3(arg0 interface{}) (interface{}, interface{}, inter
 
 func ToFunc1x3(c Func) Func1x3 {
 	if c.Type().NumIn() != 1 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 1 inputs and 3 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func1x3); ok {
 		return sc
@@ -354,6 +400,47 @@ func ToFunc1x3(c Func) Func1x3 {
 
 func MakeFunc1x3(fn interface{}) Func1x3 {
 	return ToFunc1x3(MakeFunc(fn))
+}
+
+type Func1x4 interface {
+	Func
+	Call1x4(interface{}) (interface{}, interface{}, interface{}, interface{})
+}
+
+type shimFunc1x4 struct {
+	inner Func
+}
+
+func (c *shimFunc1x4) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc1x4) Type() reflect.Type {
+	return c.inner.Type()
+}
+
+func (c *shimFunc1x4) Call(args []interface{}) []interface{} {
+	return c.inner.Call(args)
+}
+
+func (c *shimFunc1x4) Call1x4(arg0 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	ret := c.inner.Call([]interface{}{arg0})
+	_ = ret
+	return ret[0], ret[1], ret[2], ret[3]
+}
+
+func ToFunc1x4(c Func) Func1x4 {
+	if c.Type().NumIn() != 1 || c.Type().NumOut() != 4 {
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 1 inputs and 4 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
+	}
+	if sc, ok := c.(Func1x4); ok {
+		return sc
+	}
+	return &shimFunc1x4{inner: c}
+}
+
+func MakeFunc1x4(fn interface{}) Func1x4 {
+	return ToFunc1x4(MakeFunc(fn))
 }
 
 type Func2x0 interface {
@@ -385,7 +472,7 @@ func (c *shimFunc2x0) Call2x0(arg0, arg1 interface{}) {
 
 func ToFunc2x0(c Func) Func2x0 {
 	if c.Type().NumIn() != 2 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 2 inputs and 0 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func2x0); ok {
 		return sc
@@ -426,7 +513,7 @@ func (c *shimFunc2x1) Call2x1(arg0, arg1 interface{}) interface{} {
 
 func ToFunc2x1(c Func) Func2x1 {
 	if c.Type().NumIn() != 2 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 2 inputs and 1 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func2x1); ok {
 		return sc
@@ -467,7 +554,7 @@ func (c *shimFunc2x2) Call2x2(arg0, arg1 interface{}) (interface{}, interface{})
 
 func ToFunc2x2(c Func) Func2x2 {
 	if c.Type().NumIn() != 2 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 2 inputs and 2 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func2x2); ok {
 		return sc
@@ -508,7 +595,7 @@ func (c *shimFunc2x3) Call2x3(arg0, arg1 interface{}) (interface{}, interface{},
 
 func ToFunc2x3(c Func) Func2x3 {
 	if c.Type().NumIn() != 2 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 2 inputs and 3 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func2x3); ok {
 		return sc
@@ -518,6 +605,47 @@ func ToFunc2x3(c Func) Func2x3 {
 
 func MakeFunc2x3(fn interface{}) Func2x3 {
 	return ToFunc2x3(MakeFunc(fn))
+}
+
+type Func2x4 interface {
+	Func
+	Call2x4(interface{}, interface{}) (interface{}, interface{}, interface{}, interface{})
+}
+
+type shimFunc2x4 struct {
+	inner Func
+}
+
+func (c *shimFunc2x4) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc2x4) Type() reflect.Type {
+	return c.inner.Type()
+}
+
+func (c *shimFunc2x4) Call(args []interface{}) []interface{} {
+	return c.inner.Call(args)
+}
+
+func (c *shimFunc2x4) Call2x4(arg0, arg1 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	ret := c.inner.Call([]interface{}{arg0, arg1})
+	_ = ret
+	return ret[0], ret[1], ret[2], ret[3]
+}
+
+func ToFunc2x4(c Func) Func2x4 {
+	if c.Type().NumIn() != 2 || c.Type().NumOut() != 4 {
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 2 inputs and 4 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
+	}
+	if sc, ok := c.(Func2x4); ok {
+		return sc
+	}
+	return &shimFunc2x4{inner: c}
+}
+
+func MakeFunc2x4(fn interface{}) Func2x4 {
+	return ToFunc2x4(MakeFunc(fn))
 }
 
 type Func3x0 interface {
@@ -549,7 +677,7 @@ func (c *shimFunc3x0) Call3x0(arg0, arg1, arg2 interface{}) {
 
 func ToFunc3x0(c Func) Func3x0 {
 	if c.Type().NumIn() != 3 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 3 inputs and 0 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func3x0); ok {
 		return sc
@@ -590,7 +718,7 @@ func (c *shimFunc3x1) Call3x1(arg0, arg1, arg2 interface{}) interface{} {
 
 func ToFunc3x1(c Func) Func3x1 {
 	if c.Type().NumIn() != 3 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 3 inputs and 1 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func3x1); ok {
 		return sc
@@ -631,7 +759,7 @@ func (c *shimFunc3x2) Call3x2(arg0, arg1, arg2 interface{}) (interface{}, interf
 
 func ToFunc3x2(c Func) Func3x2 {
 	if c.Type().NumIn() != 3 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 3 inputs and 2 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func3x2); ok {
 		return sc
@@ -672,7 +800,7 @@ func (c *shimFunc3x3) Call3x3(arg0, arg1, arg2 interface{}) (interface{}, interf
 
 func ToFunc3x3(c Func) Func3x3 {
 	if c.Type().NumIn() != 3 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 3 inputs and 3 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func3x3); ok {
 		return sc
@@ -682,6 +810,47 @@ func ToFunc3x3(c Func) Func3x3 {
 
 func MakeFunc3x3(fn interface{}) Func3x3 {
 	return ToFunc3x3(MakeFunc(fn))
+}
+
+type Func3x4 interface {
+	Func
+	Call3x4(interface{}, interface{}, interface{}) (interface{}, interface{}, interface{}, interface{})
+}
+
+type shimFunc3x4 struct {
+	inner Func
+}
+
+func (c *shimFunc3x4) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc3x4) Type() reflect.Type {
+	return c.inner.Type()
+}
+
+func (c *shimFunc3x4) Call(args []interface{}) []interface{} {
+	return c.inner.Call(args)
+}
+
+func (c *shimFunc3x4) Call3x4(arg0, arg1, arg2 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	ret := c.inner.Call([]interface{}{arg0, arg1, arg2})
+	_ = ret
+	return ret[0], ret[1], ret[2], ret[3]
+}
+
+func ToFunc3x4(c Func) Func3x4 {
+	if c.Type().NumIn() != 3 || c.Type().NumOut() != 4 {
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 3 inputs and 4 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
+	}
+	if sc, ok := c.(Func3x4); ok {
+		return sc
+	}
+	return &shimFunc3x4{inner: c}
+}
+
+func MakeFunc3x4(fn interface{}) Func3x4 {
+	return ToFunc3x4(MakeFunc(fn))
 }
 
 type Func4x0 interface {
@@ -713,7 +882,7 @@ func (c *shimFunc4x0) Call4x0(arg0, arg1, arg2, arg3 interface{}) {
 
 func ToFunc4x0(c Func) Func4x0 {
 	if c.Type().NumIn() != 4 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 4 inputs and 0 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func4x0); ok {
 		return sc
@@ -754,7 +923,7 @@ func (c *shimFunc4x1) Call4x1(arg0, arg1, arg2, arg3 interface{}) interface{} {
 
 func ToFunc4x1(c Func) Func4x1 {
 	if c.Type().NumIn() != 4 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 4 inputs and 1 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func4x1); ok {
 		return sc
@@ -795,7 +964,7 @@ func (c *shimFunc4x2) Call4x2(arg0, arg1, arg2, arg3 interface{}) (interface{}, 
 
 func ToFunc4x2(c Func) Func4x2 {
 	if c.Type().NumIn() != 4 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 4 inputs and 2 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func4x2); ok {
 		return sc
@@ -836,7 +1005,7 @@ func (c *shimFunc4x3) Call4x3(arg0, arg1, arg2, arg3 interface{}) (interface{}, 
 
 func ToFunc4x3(c Func) Func4x3 {
 	if c.Type().NumIn() != 4 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 4 inputs and 3 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func4x3); ok {
 		return sc
@@ -846,6 +1015,47 @@ func ToFunc4x3(c Func) Func4x3 {
 
 func MakeFunc4x3(fn interface{}) Func4x3 {
 	return ToFunc4x3(MakeFunc(fn))
+}
+
+type Func4x4 interface {
+	Func
+	Call4x4(interface{}, interface{}, interface{}, interface{}) (interface{}, interface{}, interface{}, interface{})
+}
+
+type shimFunc4x4 struct {
+	inner Func
+}
+
+func (c *shimFunc4x4) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc4x4) Type() reflect.Type {
+	return c.inner.Type()
+}
+
+func (c *shimFunc4x4) Call(args []interface{}) []interface{} {
+	return c.inner.Call(args)
+}
+
+func (c *shimFunc4x4) Call4x4(arg0, arg1, arg2, arg3 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3})
+	_ = ret
+	return ret[0], ret[1], ret[2], ret[3]
+}
+
+func ToFunc4x4(c Func) Func4x4 {
+	if c.Type().NumIn() != 4 || c.Type().NumOut() != 4 {
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 4 inputs and 4 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
+	}
+	if sc, ok := c.(Func4x4); ok {
+		return sc
+	}
+	return &shimFunc4x4{inner: c}
+}
+
+func MakeFunc4x4(fn interface{}) Func4x4 {
+	return ToFunc4x4(MakeFunc(fn))
 }
 
 type Func5x0 interface {
@@ -877,7 +1087,7 @@ func (c *shimFunc5x0) Call5x0(arg0, arg1, arg2, arg3, arg4 interface{}) {
 
 func ToFunc5x0(c Func) Func5x0 {
 	if c.Type().NumIn() != 5 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 5 inputs and 0 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func5x0); ok {
 		return sc
@@ -918,7 +1128,7 @@ func (c *shimFunc5x1) Call5x1(arg0, arg1, arg2, arg3, arg4 interface{}) interfac
 
 func ToFunc5x1(c Func) Func5x1 {
 	if c.Type().NumIn() != 5 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 5 inputs and 1 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func5x1); ok {
 		return sc
@@ -959,7 +1169,7 @@ func (c *shimFunc5x2) Call5x2(arg0, arg1, arg2, arg3, arg4 interface{}) (interfa
 
 func ToFunc5x2(c Func) Func5x2 {
 	if c.Type().NumIn() != 5 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 5 inputs and 2 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func5x2); ok {
 		return sc
@@ -1000,7 +1210,7 @@ func (c *shimFunc5x3) Call5x3(arg0, arg1, arg2, arg3, arg4 interface{}) (interfa
 
 func ToFunc5x3(c Func) Func5x3 {
 	if c.Type().NumIn() != 5 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 5 inputs and 3 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func5x3); ok {
 		return sc
@@ -1010,6 +1220,47 @@ func ToFunc5x3(c Func) Func5x3 {
 
 func MakeFunc5x3(fn interface{}) Func5x3 {
 	return ToFunc5x3(MakeFunc(fn))
+}
+
+type Func5x4 interface {
+	Func
+	Call5x4(interface{}, interface{}, interface{}, interface{}, interface{}) (interface{}, interface{}, interface{}, interface{})
+}
+
+type shimFunc5x4 struct {
+	inner Func
+}
+
+func (c *shimFunc5x4) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc5x4) Type() reflect.Type {
+	return c.inner.Type()
+}
+
+func (c *shimFunc5x4) Call(args []interface{}) []interface{} {
+	return c.inner.Call(args)
+}
+
+func (c *shimFunc5x4) Call5x4(arg0, arg1, arg2, arg3, arg4 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4})
+	_ = ret
+	return ret[0], ret[1], ret[2], ret[3]
+}
+
+func ToFunc5x4(c Func) Func5x4 {
+	if c.Type().NumIn() != 5 || c.Type().NumOut() != 4 {
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 5 inputs and 4 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
+	}
+	if sc, ok := c.(Func5x4); ok {
+		return sc
+	}
+	return &shimFunc5x4{inner: c}
+}
+
+func MakeFunc5x4(fn interface{}) Func5x4 {
+	return ToFunc5x4(MakeFunc(fn))
 }
 
 type Func6x0 interface {
@@ -1041,7 +1292,7 @@ func (c *shimFunc6x0) Call6x0(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) {
 
 func ToFunc6x0(c Func) Func6x0 {
 	if c.Type().NumIn() != 6 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 6 inputs and 0 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func6x0); ok {
 		return sc
@@ -1082,7 +1333,7 @@ func (c *shimFunc6x1) Call6x1(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) in
 
 func ToFunc6x1(c Func) Func6x1 {
 	if c.Type().NumIn() != 6 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 6 inputs and 1 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func6x1); ok {
 		return sc
@@ -1123,7 +1374,7 @@ func (c *shimFunc6x2) Call6x2(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) (i
 
 func ToFunc6x2(c Func) Func6x2 {
 	if c.Type().NumIn() != 6 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 6 inputs and 2 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func6x2); ok {
 		return sc
@@ -1164,7 +1415,7 @@ func (c *shimFunc6x3) Call6x3(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) (i
 
 func ToFunc6x3(c Func) Func6x3 {
 	if c.Type().NumIn() != 6 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 6 inputs and 3 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func6x3); ok {
 		return sc
@@ -1174,6 +1425,47 @@ func ToFunc6x3(c Func) Func6x3 {
 
 func MakeFunc6x3(fn interface{}) Func6x3 {
 	return ToFunc6x3(MakeFunc(fn))
+}
+
+type Func6x4 interface {
+	Func
+	Call6x4(interface{}, interface{}, interface{}, interface{}, interface{}, interface{}) (interface{}, interface{}, interface{}, interface{})
+}
+
+type shimFunc6x4 struct {
+	inner Func
+}
+
+func (c *shimFunc6x4) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc6x4) Type() reflect.Type {
+	return c.inner.Type()
+}
+
+func (c *shimFunc6x4) Call(args []interface{}) []interface{} {
+	return c.inner.Call(args)
+}
+
+func (c *shimFunc6x4) Call6x4(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5})
+	_ = ret
+	return ret[0], ret[1], ret[2], ret[3]
+}
+
+func ToFunc6x4(c Func) Func6x4 {
+	if c.Type().NumIn() != 6 || c.Type().NumOut() != 4 {
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 6 inputs and 4 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
+	}
+	if sc, ok := c.(Func6x4); ok {
+		return sc
+	}
+	return &shimFunc6x4{inner: c}
+}
+
+func MakeFunc6x4(fn interface{}) Func6x4 {
+	return ToFunc6x4(MakeFunc(fn))
 }
 
 type Func7x0 interface {
@@ -1205,7 +1497,7 @@ func (c *shimFunc7x0) Call7x0(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface
 
 func ToFunc7x0(c Func) Func7x0 {
 	if c.Type().NumIn() != 7 || c.Type().NumOut() != 0 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 7 inputs and 0 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func7x0); ok {
 		return sc
@@ -1246,7 +1538,7 @@ func (c *shimFunc7x1) Call7x1(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface
 
 func ToFunc7x1(c Func) Func7x1 {
 	if c.Type().NumIn() != 7 || c.Type().NumOut() != 1 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 7 inputs and 1 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func7x1); ok {
 		return sc
@@ -1287,7 +1579,7 @@ func (c *shimFunc7x2) Call7x2(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface
 
 func ToFunc7x2(c Func) Func7x2 {
 	if c.Type().NumIn() != 7 || c.Type().NumOut() != 2 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 7 inputs and 2 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func7x2); ok {
 		return sc
@@ -1328,7 +1620,7 @@ func (c *shimFunc7x3) Call7x3(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface
 
 func ToFunc7x3(c Func) Func7x3 {
 	if c.Type().NumIn() != 7 || c.Type().NumOut() != 3 {
-		panic("incompatible func type")
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 7 inputs and 3 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
 	}
 	if sc, ok := c.(Func7x3); ok {
 		return sc
@@ -1338,4 +1630,250 @@ func ToFunc7x3(c Func) Func7x3 {
 
 func MakeFunc7x3(fn interface{}) Func7x3 {
 	return ToFunc7x3(MakeFunc(fn))
+}
+
+type Func7x4 interface {
+	Func
+	Call7x4(interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{}) (interface{}, interface{}, interface{}, interface{})
+}
+
+type shimFunc7x4 struct {
+	inner Func
+}
+
+func (c *shimFunc7x4) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc7x4) Type() reflect.Type {
+	return c.inner.Type()
+}
+
+func (c *shimFunc7x4) Call(args []interface{}) []interface{} {
+	return c.inner.Call(args)
+}
+
+func (c *shimFunc7x4) Call7x4(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5, arg6})
+	_ = ret
+	return ret[0], ret[1], ret[2], ret[3]
+}
+
+func ToFunc7x4(c Func) Func7x4 {
+	if c.Type().NumIn() != 7 || c.Type().NumOut() != 4 {
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 7 inputs and 4 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
+	}
+	if sc, ok := c.(Func7x4); ok {
+		return sc
+	}
+	return &shimFunc7x4{inner: c}
+}
+
+func MakeFunc7x4(fn interface{}) Func7x4 {
+	return ToFunc7x4(MakeFunc(fn))
+}
+
+type Func8x0 interface {
+	Func
+	Call8x0(interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{})
+}
+
+type shimFunc8x0 struct {
+	inner Func
+}
+
+func (c *shimFunc8x0) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc8x0) Type() reflect.Type {
+	return c.inner.Type()
+}
+
+func (c *shimFunc8x0) Call(args []interface{}) []interface{} {
+	return c.inner.Call(args)
+}
+
+func (c *shimFunc8x0) Call8x0(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7 interface{}) {
+	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7})
+	_ = ret
+	return
+}
+
+func ToFunc8x0(c Func) Func8x0 {
+	if c.Type().NumIn() != 8 || c.Type().NumOut() != 0 {
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 8 inputs and 0 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
+	}
+	if sc, ok := c.(Func8x0); ok {
+		return sc
+	}
+	return &shimFunc8x0{inner: c}
+}
+
+func MakeFunc8x0(fn interface{}) Func8x0 {
+	return ToFunc8x0(MakeFunc(fn))
+}
+
+type Func8x1 interface {
+	Func
+	Call8x1(interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{}) interface{}
+}
+
+type shimFunc8x1 struct {
+	inner Func
+}
+
+func (c *shimFunc8x1) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc8x1) Type() reflect.Type {
+	return c.inner.Type()
+}
+
+func (c *shimFunc8x1) Call(args []interface{}) []interface{} {
+	return c.inner.Call(args)
+}
+
+func (c *shimFunc8x1) Call8x1(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7 interface{}) interface{} {
+	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7})
+	_ = ret
+	return ret[0]
+}
+
+func ToFunc8x1(c Func) Func8x1 {
+	if c.Type().NumIn() != 8 || c.Type().NumOut() != 1 {
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 8 inputs and 1 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
+	}
+	if sc, ok := c.(Func8x1); ok {
+		return sc
+	}
+	return &shimFunc8x1{inner: c}
+}
+
+func MakeFunc8x1(fn interface{}) Func8x1 {
+	return ToFunc8x1(MakeFunc(fn))
+}
+
+type Func8x2 interface {
+	Func
+	Call8x2(interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{}) (interface{}, interface{})
+}
+
+type shimFunc8x2 struct {
+	inner Func
+}
+
+func (c *shimFunc8x2) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc8x2) Type() reflect.Type {
+	return c.inner.Type()
+}
+
+func (c *shimFunc8x2) Call(args []interface{}) []interface{} {
+	return c.inner.Call(args)
+}
+
+func (c *shimFunc8x2) Call8x2(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7 interface{}) (interface{}, interface{}) {
+	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7})
+	_ = ret
+	return ret[0], ret[1]
+}
+
+func ToFunc8x2(c Func) Func8x2 {
+	if c.Type().NumIn() != 8 || c.Type().NumOut() != 2 {
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 8 inputs and 2 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
+	}
+	if sc, ok := c.(Func8x2); ok {
+		return sc
+	}
+	return &shimFunc8x2{inner: c}
+}
+
+func MakeFunc8x2(fn interface{}) Func8x2 {
+	return ToFunc8x2(MakeFunc(fn))
+}
+
+type Func8x3 interface {
+	Func
+	Call8x3(interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{}) (interface{}, interface{}, interface{})
+}
+
+type shimFunc8x3 struct {
+	inner Func
+}
+
+func (c *shimFunc8x3) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc8x3) Type() reflect.Type {
+	return c.inner.Type()
+}
+
+func (c *shimFunc8x3) Call(args []interface{}) []interface{} {
+	return c.inner.Call(args)
+}
+
+func (c *shimFunc8x3) Call8x3(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7 interface{}) (interface{}, interface{}, interface{}) {
+	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7})
+	_ = ret
+	return ret[0], ret[1], ret[2]
+}
+
+func ToFunc8x3(c Func) Func8x3 {
+	if c.Type().NumIn() != 8 || c.Type().NumOut() != 3 {
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 8 inputs and 3 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
+	}
+	if sc, ok := c.(Func8x3); ok {
+		return sc
+	}
+	return &shimFunc8x3{inner: c}
+}
+
+func MakeFunc8x3(fn interface{}) Func8x3 {
+	return ToFunc8x3(MakeFunc(fn))
+}
+
+type Func8x4 interface {
+	Func
+	Call8x4(interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{}) (interface{}, interface{}, interface{}, interface{})
+}
+
+type shimFunc8x4 struct {
+	inner Func
+}
+
+func (c *shimFunc8x4) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc8x4) Type() reflect.Type {
+	return c.inner.Type()
+}
+
+func (c *shimFunc8x4) Call(args []interface{}) []interface{} {
+	return c.inner.Call(args)
+}
+
+func (c *shimFunc8x4) Call8x4(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7})
+	_ = ret
+	return ret[0], ret[1], ret[2], ret[3]
+}
+
+func ToFunc8x4(c Func) Func8x4 {
+	if c.Type().NumIn() != 8 || c.Type().NumOut() != 4 {
+		panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want 8 inputs and 4 outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
+	}
+	if sc, ok := c.(Func8x4); ok {
+		return sc
+	}
+	return &shimFunc8x4{inner: c}
+}
+
+func MakeFunc8x4(fn interface{}) Func8x4 {
+	return ToFunc8x4(MakeFunc(fn))
 }

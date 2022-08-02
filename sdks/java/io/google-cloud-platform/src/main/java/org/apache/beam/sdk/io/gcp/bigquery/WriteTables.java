@@ -26,11 +26,17 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.BooleanCoder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -43,6 +49,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -56,6 +63,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -67,7 +75,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,10 +94,37 @@ import org.slf4j.LoggerFactory;
  * the data directly into the final table, skipping temporary tables. In this case, the output
  * {@link KV} maps the final table to itself.
  */
-class WriteTables<DestinationT>
+class WriteTables<DestinationT extends @NonNull Object>
     extends PTransform<
-        PCollection<KV<ShardedKey<DestinationT>, List<String>>>,
-        PCollection<KV<TableDestination, String>>> {
+        PCollection<KV<ShardedKey<DestinationT>, WritePartition.Result>>,
+        PCollection<KV<TableDestination, WriteTables.Result>>> {
+  @AutoValue
+  abstract static class Result {
+    abstract String getTableName();
+
+    abstract Boolean isFirstPane();
+  }
+
+  static class ResultCoder extends AtomicCoder<WriteTables.Result> {
+    static final ResultCoder INSTANCE = new ResultCoder();
+
+    @Override
+    public void encode(Result value, @UnknownKeyFor @NonNull @Initialized OutputStream outStream)
+        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull
+            @Initialized IOException {
+      StringUtf8Coder.of().encode(value.getTableName(), outStream);
+      BooleanCoder.of().encode(value.isFirstPane(), outStream);
+    }
+
+    @Override
+    public Result decode(@UnknownKeyFor @NonNull @Initialized InputStream inStream)
+        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull
+            @Initialized IOException {
+      return new AutoValue_WriteTables_Result(
+          StringUtf8Coder.of().decode(inStream), BooleanCoder.of().decode(inStream));
+    }
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(WriteTables.class);
 
   private final boolean tempTable;
@@ -97,17 +135,22 @@ class WriteTables<DestinationT>
   private final Set<SchemaUpdateOption> schemaUpdateOptions;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final List<PCollectionView<?>> sideInputs;
-  private final TupleTag<KV<TableDestination, String>> mainOutputTag;
+  private final TupleTag<KV<TableDestination, WriteTables.Result>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
-  private final ValueProvider<String> loadJobProjectId;
+  private final @Nullable ValueProvider<String> loadJobProjectId;
   private final int maxRetryJobs;
   private final boolean ignoreUnknownValues;
   private final @Nullable String kmsKey;
   private final String sourceFormat;
   private final boolean useAvroLogicalTypes;
+  private transient @Nullable DatasetService datasetService;
+  private @Nullable JobService jobService;
+  private final @Nullable String tempDataset;
 
   private class WriteTablesDoFn
-      extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
+      extends DoFn<
+          KV<ShardedKey<DestinationT>, WritePartition.Result>, KV<TableDestination, Result>> {
+
     private Map<DestinationT, String> jsonSchemas = Maps.newHashMap();
 
     // Represents a pending BigQuery load job.
@@ -117,18 +160,21 @@ class WriteTables<DestinationT>
       final List<String> partitionFiles;
       final TableDestination tableDestination;
       final TableReference tableReference;
+      final boolean isFirstPane;
 
       public PendingJobData(
           BoundedWindow window,
           BigQueryHelpers.PendingJob retryJob,
           List<String> partitionFiles,
           TableDestination tableDestination,
-          TableReference tableReference) {
+          TableReference tableReference,
+          boolean isFirstPane) {
         this.window = window;
         this.retryJob = retryJob;
         this.partitionFiles = partitionFiles;
         this.tableDestination = tableDestination;
         this.tableReference = tableReference;
+        this.isFirstPane = isFirstPane;
       }
     }
     // All pending load jobs.
@@ -143,7 +189,11 @@ class WriteTables<DestinationT>
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+    public void processElement(
+        @Element KV<ShardedKey<DestinationT>, WritePartition.Result> element,
+        ProcessContext c,
+        BoundedWindow window)
+        throws Exception {
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       DestinationT destination = c.element().getKey().getKey();
       TableSchema tableSchema;
@@ -154,8 +204,8 @@ class WriteTables<DestinationT>
             BigQueryHelpers.fromJsonString(jsonSchemas.get(destination), TableSchema.class);
       } else {
         tableSchema = dynamicDestinations.getSchema(destination);
-        checkArgument(
-            tableSchema != null,
+        Preconditions.checkArgumentNotNull(
+            tableSchema,
             "Unless create disposition is %s, a schema must be specified, i.e. "
                 + "DynamicDestinations.getSchema() may not return null. "
                 + "However, create disposition is %s, and %s returned null for destination %s",
@@ -185,24 +235,31 @@ class WriteTables<DestinationT>
           dynamicDestinations);
       TableReference tableReference = tableDestination.getTableReference();
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
-        tableReference.setProjectId(c.getPipelineOptions().as(BigQueryOptions.class).getProject());
+        BigQueryOptions options = c.getPipelineOptions().as(BigQueryOptions.class);
+        tableReference.setProjectId(
+            options.getBigQueryProject() == null
+                ? options.getProject()
+                : options.getBigQueryProject());
         tableDestination = tableDestination.withTableReference(tableReference);
       }
 
-      Integer partition = c.element().getKey().getShardNumber();
-      List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
+      Integer partition = element.getKey().getShardNumber();
+      List<String> partitionFiles = Lists.newArrayList(element.getValue().getFilenames());
       String jobIdPrefix =
-          BigQueryHelpers.createJobId(
+          BigQueryResourceNaming.createJobIdWithDestination(
               c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
 
       if (tempTable) {
+        if (tempDataset != null) {
+          tableReference.setDatasetId(tempDataset);
+        }
         // This is a temp table. Create a new one for each partition and each pane.
         tableReference.setTableId(jobIdPrefix);
       }
 
       WriteDisposition writeDisposition = firstPaneWriteDisposition;
       CreateDisposition createDisposition = firstPaneCreateDisposition;
-      if (c.pane().getIndex() > 0 && !tempTable) {
+      if (!element.getValue().isFirstPane() && !tempTable) {
         // If writing directly to the destination, then the table is created on the first write
         // and we should change the disposition for subsequent writes.
         writeDisposition = WriteDisposition.WRITE_APPEND;
@@ -210,14 +267,14 @@ class WriteTables<DestinationT>
       } else if (tempTable) {
         // In this case, we are writing to a temp table and always need to create it.
         // WRITE_TRUNCATE is set so that we properly handle retries of this pane.
-        writeDisposition = WriteDisposition.WRITE_TRUNCATE;
+        writeDisposition = WriteDisposition.WRITE_APPEND;
         createDisposition = CreateDisposition.CREATE_IF_NEEDED;
       }
 
       BigQueryHelpers.PendingJob retryJob =
           startLoad(
-              bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
-              bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
+              getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
+              getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
               jobIdPrefix,
               tableReference,
               tableDestination.getTimePartitioning(),
@@ -227,8 +284,45 @@ class WriteTables<DestinationT>
               writeDisposition,
               createDisposition,
               schemaUpdateOptions);
+
       pendingJobs.add(
-          new PendingJobData(window, retryJob, partitionFiles, tableDestination, tableReference));
+          new PendingJobData(
+              window,
+              retryJob,
+              partitionFiles,
+              tableDestination,
+              tableReference,
+              element.getValue().isFirstPane()));
+    }
+
+    @Teardown
+    public void onTeardown() {
+      try {
+        if (datasetService != null) {
+          datasetService.close();
+          datasetService = null;
+        }
+        if (jobService != null) {
+          jobService.close();
+          jobService = null;
+        }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
+      if (datasetService == null) {
+        datasetService = bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
+      }
+      return datasetService;
+    }
+
+    private JobService getJobService(PipelineOptions pipelineOptions) throws IOException {
+      if (jobService == null) {
+        jobService = bqServices.getJobService(pipelineOptions.as(BigQueryOptions.class));
+      }
+      return jobService;
     }
 
     @Override
@@ -241,10 +335,10 @@ class WriteTables<DestinationT>
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
       DatasetService datasetService =
-          bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
+          getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
 
       PendingJobManager jobManager = new PendingJobManager();
-      for (PendingJobData pendingJob : pendingJobs) {
+      for (final PendingJobData pendingJob : pendingJobs) {
         jobManager =
             jobManager.addPendingJob(
                 pendingJob.retryJob,
@@ -259,11 +353,13 @@ class WriteTables<DestinationT>
                                   BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
                           pendingJob.tableDestination.getTableDescription());
                     }
+                    Result result =
+                        new AutoValue_WriteTables_Result(
+                            BigQueryHelpers.toJsonString(pendingJob.tableReference),
+                            pendingJob.isFirstPane);
                     c.output(
                         mainOutputTag,
-                        KV.of(
-                            pendingJob.tableDestination,
-                            BigQueryHelpers.toJsonString(pendingJob.tableReference)),
+                        KV.of(pendingJob.tableDestination, result),
                         pendingJob.window.maxTimestamp(),
                         pendingJob.window);
                     for (String file : pendingJob.partitionFiles) {
@@ -301,10 +397,11 @@ class WriteTables<DestinationT>
       @Nullable ValueProvider<String> loadJobProjectId,
       int maxRetryJobs,
       boolean ignoreUnknownValues,
-      String kmsKey,
+      @Nullable String kmsKey,
       String sourceFormat,
       boolean useAvroLogicalTypes,
-      Set<SchemaUpdateOption> schemaUpdateOptions) {
+      Set<SchemaUpdateOption> schemaUpdateOptions,
+      @Nullable String tempDataset) {
 
     this.tempTable = tempTable;
     this.bqServices = bqServices;
@@ -322,11 +419,12 @@ class WriteTables<DestinationT>
     this.sourceFormat = sourceFormat;
     this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.schemaUpdateOptions = schemaUpdateOptions;
+    this.tempDataset = tempDataset;
   }
 
   @Override
-  public PCollection<KV<TableDestination, String>> expand(
-      PCollection<KV<ShardedKey<DestinationT>, List<String>>> input) {
+  public PCollection<KV<TableDestination, Result>> expand(
+      PCollection<KV<ShardedKey<DestinationT>, WritePartition.Result>> input) {
     PCollectionTuple writeTablesOutputs =
         input.apply(
             ParDo.of(new WriteTablesDoFn())
@@ -360,13 +458,16 @@ class WriteTables<DestinationT>
       DatasetService datasetService,
       String jobIdPrefix,
       TableReference ref,
-      TimePartitioning timePartitioning,
-      Clustering clustering,
+      @Nullable TimePartitioning timePartitioning,
+      @Nullable Clustering clustering,
       @Nullable TableSchema schema,
       List<String> gcsUris,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       Set<SchemaUpdateOption> schemaUpdateOptions) {
+    @SuppressWarnings({
+      "nullness" // nulls allowed in most fields but API client not annotated
+    })
     JobConfigurationLoad loadConfig =
         new JobConfigurationLoad()
             .setDestinationTable(ref)
@@ -379,21 +480,25 @@ class WriteTables<DestinationT>
             .setUseAvroLogicalTypes(useAvroLogicalTypes);
     if (schemaUpdateOptions != null) {
       List<String> options =
-          schemaUpdateOptions.stream().map(Enum::name).collect(Collectors.toList());
+          schemaUpdateOptions.stream()
+              .map(Enum<SchemaUpdateOption>::name)
+              .collect(Collectors.toList());
       loadConfig.setSchemaUpdateOptions(options);
     }
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
-      // only set clustering if timePartitioning is set
-      if (clustering != null) {
-        loadConfig.setClustering(clustering);
-      }
+    }
+    if (clustering != null) {
+      loadConfig.setClustering(clustering);
     }
     if (kmsKey != null) {
       loadConfig.setDestinationEncryptionConfiguration(
           new EncryptionConfiguration().setKmsKeyName(kmsKey));
     }
-    String projectId = loadJobProjectId == null ? ref.getProjectId() : loadJobProjectId.get();
+    String projectId =
+        loadJobProjectId == null || loadJobProjectId.get() == null
+            ? ref.getProjectId()
+            : loadJobProjectId.get();
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
 

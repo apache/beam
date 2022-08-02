@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
  * SubProcessPipelineOptions}
  */
 public class ExampleEchoPipeline {
-  static final Logger LOG = LoggerFactory.getLogger(ExampleEchoPipeline.class);
 
   public static void main(String[] args) throws Exception {
 
@@ -76,7 +75,7 @@ public class ExampleEchoPipeline {
   @SuppressWarnings("serial")
   public static class EchoInputDoFn extends DoFn<KV<String, String>, KV<String, String>> {
 
-    static final Logger LOG = LoggerFactory.getLogger(EchoInputDoFn.class);
+    private static final Logger LOG = LoggerFactory.getLogger(EchoInputDoFn.class);
 
     private SubProcessConfiguration configuration;
     private String binaryName;
@@ -114,15 +113,5 @@ public class ExampleEchoPipeline {
         throw ex;
       }
     }
-  }
-
-  private static String getTestShellEcho() {
-    return "#!/bin/sh\n" + "filename=$1;\n" + "echo $2 >> $filename;";
-  }
-
-  private static String getTestShellEchoAgain() {
-    return "#!/bin/sh\n"
-        + "filename=$1;\n"
-        + "echo \"You again? Well ok, here is your word again.\" >> $2 >> $filename;";
   }
 }

@@ -1,0 +1,60 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# If you would like to be excluded from consideration for reviewing a certain label,
+# add yourself to that label's exclusionList
+# FallbackReviewers is for reviewers who can review any area of the code base that might
+# not receive a label. These should generally be more experienced committers.
+labels:
+  - name: Go
+    reviewers:
+      - damccorm
+      - lostluck
+      - jrmccluskey
+      - riteshghorse
+    exclusionList:
+      - youngoli
+  - name: Python
+    reviewers:
+      - AnandInguva
+      - yeandy
+      - TheNeuralBit
+      - ryanthompson591
+      - tvalentyn
+      - pabloem
+      - y1chi
+    exclusionList: []
+  - name: Java
+    reviewers:
+      - lukecwik
+      - kennknowles
+      - robertwb
+      - kileys
+      - apilloud
+    exclusionList: []
+  - name: IO
+    reviewers:
+      - chamikaramj
+      - johnjcasey
+      - pabloem
+      - Abacn
+      - ahmedabu98
+    exclusionList: []
+  - name: Build
+    reviewers:
+      - damccorm
+      - Abacn
+    exclusionList: []
+fallbackReviewers: []

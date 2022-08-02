@@ -27,6 +27,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.File;
 import java.nio.file.Paths;
@@ -44,7 +45,7 @@ import org.junit.runners.JUnit4;
 /**
  * Tests for {@link LocalResourceId}.
  *
- * <p>TODO: re-enable unicode tests when BEAM-1453 is resolved.
+ * <p>TODO: re-enable unicode tests when https://github.com/apache/beam/issues/18213 is resolved.
  */
 @RunWith(JUnit4.class)
 public class LocalResourceIdTest {
@@ -150,6 +151,8 @@ public class LocalResourceIdTest {
 
   @Test
   public void testResolveInvalidInputs() {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20465
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("The resolved file: [tmp/] should not end with '/'.");
     toResourceIdentifier("/root/").resolve("tmp/", StandardResolveOptions.RESOLVE_FILE);
@@ -157,6 +160,8 @@ public class LocalResourceIdTest {
 
   @Test
   public void testResolveInvalidNotDirectory() {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20477
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     ResourceId tmp =
         toResourceIdentifier("/root/").resolve("tmp", StandardResolveOptions.RESOLVE_FILE);
     thrown.expect(IllegalStateException.class);
@@ -166,6 +171,8 @@ public class LocalResourceIdTest {
 
   @Test
   public void testResolveInWindowsOS() {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20460
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     if (!SystemUtils.IS_OS_WINDOWS) {
       // Skip tests
       return;
@@ -192,6 +199,8 @@ public class LocalResourceIdTest {
   @Test
   public void testGetCurrentDirectoryInUnix() {
     // Tests for local files without the scheme.
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20464
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     assertEquals(
         toResourceIdentifier("/root/tmp/"),
         toResourceIdentifier("/root/tmp/").getCurrentDirectory());
@@ -209,6 +218,8 @@ public class LocalResourceIdTest {
 
   @Test
   public void testEquals() {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20475
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     assertEquals(toResourceIdentifier("/root/tmp/"), toResourceIdentifier("/root/tmp/"));
 
     assertNotEquals(toResourceIdentifier("/root/tmp"), toResourceIdentifier("/root/tmp/"));
@@ -216,6 +227,8 @@ public class LocalResourceIdTest {
 
   @Test
   public void testIsDirectory() {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20480
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     assertTrue(toResourceIdentifier("/").isDirectory());
     assertTrue(toResourceIdentifier("/root/tmp/").isDirectory());
     assertFalse(toResourceIdentifier("/root").isDirectory());
@@ -247,6 +260,8 @@ public class LocalResourceIdTest {
 
   @Test
   public void testResourceIdTester() {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20476
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     ResourceIdTester.runResourceIdBattery(toResourceIdentifier("/tmp/foo/"));
   }
 

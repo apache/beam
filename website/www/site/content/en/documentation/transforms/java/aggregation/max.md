@@ -45,7 +45,7 @@ PCollection<KV<String, Integer>> maxPerKey = input
      .apply(Max.integersPerKey());
 {{< /highlight >}}
 
-## Related transforms 
+## Related transforms
 * [Min](/documentation/transforms/java/aggregation/min)
   for computing minimum values in a collection
 * [Mean](/documentation/transforms/java/aggregation/mean)

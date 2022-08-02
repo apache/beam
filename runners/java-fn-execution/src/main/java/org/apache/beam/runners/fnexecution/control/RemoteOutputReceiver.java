@@ -27,6 +27,9 @@ import org.apache.beam.sdk.fn.data.LogicalEndpoint;
  * for a {@link LogicalEndpoint}.
  */
 @AutoValue
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public abstract class RemoteOutputReceiver<T> {
   public static <T> RemoteOutputReceiver of(Coder<T> coder, FnDataReceiver<T> receiver) {
     return new AutoValue_RemoteOutputReceiver<>(coder, receiver);

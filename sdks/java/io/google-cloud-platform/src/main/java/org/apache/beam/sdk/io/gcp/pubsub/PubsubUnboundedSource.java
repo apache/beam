@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
@@ -53,23 +54,27 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.PubsubClientFactory;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessages.DeserializeBytesIntoPubsubMessagePayloadOnly;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.SourceMetrics;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BucketingFunction;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -109,6 +114,9 @@ import org.slf4j.LoggerFactory;
  *       UnboundedSource.UnboundedReader} instances to execute concurrently and thus hide latency.
  * </ul>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<PubsubMessage>> {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubUnboundedSource.class);
 
@@ -355,7 +363,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
    * consumed downstream and/or ACKed back to Pubsub.
    */
   @VisibleForTesting
-  static class PubsubReader extends UnboundedSource.UnboundedReader<PubsubMessage> {
+  static class PubsubReader extends UnboundedSource.UnboundedReader<byte[]> {
     /** For access to topic and checkpointCoder. */
     private final PubsubSource outer;
 
@@ -879,14 +887,16 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     @Override
-    public PubsubMessage getCurrent() throws NoSuchElementException {
+    public byte[] getCurrent() throws NoSuchElementException {
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return new PubsubMessage(
-          current.message().getData().toByteArray(),
-          current.message().getAttributesMap(),
-          current.recordId());
+      if (this.outer.outer.getNeedsMessageId() || this.outer.outer.getNeedsAttributes()) {
+        com.google.pubsub.v1.PubsubMessage output =
+            current.message().toBuilder().setMessageId(current.recordId()).build();
+        return output.toByteArray();
+      }
+      return current.message().getData().toByteArray();
     }
 
     @Override
@@ -1007,7 +1017,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   // ================================================================================
 
   @VisibleForTesting
-  static class PubsubSource extends UnboundedSource<PubsubMessage, PubsubCheckpoint> {
+  static class PubsubSource extends UnboundedSource<byte[], PubsubCheckpoint> {
     public final PubsubUnboundedSource outer;
     // The subscription to read from.
     @VisibleForTesting final ValueProvider<SubscriptionPath> subscriptionPath;
@@ -1068,7 +1078,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
           checkpoint.nackAll(reader);
         } catch (IOException e) {
           LOG.error(
-              "Pubsub {} cannot have {} lost messages NACKed, ignoring: {}",
+              "Pubsub {} cannot have {} lost messages NACKed, ignoring exception.",
               subscriptionPath,
               checkpoint.notYetReadIds.size(),
               e);
@@ -1077,23 +1087,14 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       return reader;
     }
 
-    @Nullable
     @Override
-    public Coder<PubsubCheckpoint> getCheckpointMarkCoder() {
+    public @Nullable Coder<PubsubCheckpoint> getCheckpointMarkCoder() {
       return CHECKPOINT_CODER;
     }
 
     @Override
-    public Coder<PubsubMessage> getOutputCoder() {
-      if (outer.getNeedsMessageId()) {
-        return outer.getNeedsAttributes()
-            ? PubsubMessageWithAttributesAndMessageIdCoder.of()
-            : PubsubMessageWithMessageIdCoder.of();
-      } else {
-        return outer.getNeedsAttributes()
-            ? PubsubMessageWithAttributesCoder.of()
-            : PubsubMessagePayloadOnlyCoder.of();
-      }
+    public Coder<byte[]> getOutputCoder() {
+      return ByteArrayCoder.of();
     }
 
     @Override
@@ -1142,7 +1143,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
           .addIfNotNull(DisplayData.item("subscription", subscription))
@@ -1334,14 +1335,52 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
   @Override
   public PCollection<PubsubMessage> expand(PBegin input) {
-    return input
-        .getPipeline()
-        .begin()
-        .apply(Read.from(new PubsubSource(this)))
-        .apply(
-            "PubsubUnboundedSource.Stats",
-            ParDo.of(
-                new StatsFn(pubsubFactory, subscription, topic, timestampAttribute, idAttribute)));
+    SerializableFunction<byte[], PubsubMessage> function;
+    if (getNeedsAttributes() || getNeedsMessageId()) {
+      function = new PubsubMessages.ParsePubsubMessageProtoAsPayload();
+    } else {
+      function = new DeserializeBytesIntoPubsubMessagePayloadOnly();
+    }
+    Coder<PubsubMessage> messageCoder;
+    if (getNeedsMessageId()) {
+      messageCoder =
+          getNeedsAttributes()
+              ? PubsubMessageWithAttributesAndMessageIdCoder.of()
+              : PubsubMessageWithMessageIdCoder.of();
+    } else {
+      messageCoder =
+          getNeedsAttributes()
+              ? PubsubMessageWithAttributesCoder.of()
+              : PubsubMessagePayloadOnlyCoder.of();
+    }
+    PCollection<PubsubMessage> messages =
+        input
+            .getPipeline()
+            .begin()
+            .apply(Read.from(new PubsubSource(this)))
+            .apply(
+                "MapBytesToPubsubMessages",
+                MapElements.into(TypeDescriptor.of(PubsubMessage.class)).via(function))
+            .setCoder(messageCoder);
+    if (usesStatsFn(input.getPipeline().getOptions())) {
+      messages =
+          messages.apply(
+              "PubsubUnboundedSource.Stats",
+              ParDo.of(
+                  new StatsFn(
+                      pubsubFactory, subscription, topic, timestampAttribute, idAttribute)));
+    }
+    return messages;
+  }
+
+  private boolean usesStatsFn(PipelineOptions options) {
+    if (ExperimentalOptions.hasExperiment(options, "enable_custom_pubsub_source")) {
+      return true;
+    }
+    if (!options.getRunner().getName().startsWith("org.apache.beam.runners.dataflow.")) {
+      return true;
+    }
+    return false;
   }
 
   private SubscriptionPath createRandomSubscription(PipelineOptions options) {

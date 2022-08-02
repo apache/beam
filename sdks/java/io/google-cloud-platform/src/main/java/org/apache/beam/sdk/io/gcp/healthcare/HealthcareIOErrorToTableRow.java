@@ -57,6 +57,9 @@ import org.joda.time.format.ISODateTimeFormat;
  *
  * @param <T> the type parameter for the {@link HealthcareIOError}
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class HealthcareIOErrorToTableRow<T>
     implements SerializableFunction<HealthcareIOError<T>, TableRow> {
 

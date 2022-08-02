@@ -146,10 +146,8 @@ Schema.Field Field() :
  *   ( LOCATION location_string )?
  *   ( TBLPROPERTIES tbl_properties )?
  */
-SqlCreate SqlCreateExternalTable() :
+SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
 {
-    final Span s = Span.of();
-    final boolean replace = false;
     final boolean ifNotExists;
     final SqlIdentifier id;
     List<Schema.Field> fieldList = null;
@@ -160,7 +158,7 @@ SqlCreate SqlCreateExternalTable() :
 }
 {
 
-    <CREATE> <EXTERNAL> <TABLE> {
+    <EXTERNAL> <TABLE> {
         s.add(this);
     }
 
@@ -188,6 +186,35 @@ SqlCreate SqlCreateExternalTable() :
                 comment,
                 location,
                 tblProperties);
+    }
+}
+
+SqlCreate SqlCreateFunction(Span s, boolean replace) :
+{
+    boolean isAggregate = false;
+    final SqlIdentifier name;
+    final SqlNode jarName;
+}
+{
+    (
+        <AGGREGATE> {
+            isAggregate = true;
+        }
+    )?
+    <FUNCTION> {
+        s.add(this);
+    }
+    name = CompoundIdentifier()
+    <USING> <JAR>
+        jarName = StringLiteral()
+    {
+        return
+            new SqlCreateFunction(
+                s.end(this),
+                replace,
+                name,
+                jarName,
+                isAggregate);
     }
 }
 
@@ -294,7 +321,7 @@ List<Schema.Field> RowFields() :
 Schema.FieldType SimpleType() :
 {
     final Span s = Span.of();
-    final SqlTypeName simpleTypeName;
+    final SqlTypeNameSpec simpleTypeName;
 }
 {
     simpleTypeName = SqlTypeName(s)

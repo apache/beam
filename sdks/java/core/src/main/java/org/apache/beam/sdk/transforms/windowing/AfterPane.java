@@ -30,6 +30,9 @@ import org.joda.time.Instant;
  * arrived.
  */
 @Experimental(Kind.TRIGGER)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class AfterPane extends OnceTrigger {
 
   private final int countElems;

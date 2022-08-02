@@ -23,65 +23,24 @@ to transform original pipeline into a one-shot pipeline with interactivity.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
+import logging
+from typing import Dict
 
 import apache_beam as beam
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_fragment as pf
 from apache_beam.runners.interactive import background_caching_job
-from apache_beam.runners.interactive.utils import obfuscate
+from apache_beam.runners.interactive import utils
+from apache_beam.runners.interactive.caching.cacheable import Cacheable
+from apache_beam.runners.interactive.caching.cacheable import CacheKey
+from apache_beam.runners.interactive.caching.reify import WRITE_CACHE
+from apache_beam.runners.interactive.caching.reify import reify_to_cache
+from apache_beam.runners.interactive.caching.reify import unreify_from_cache
 from apache_beam.testing import test_stream
-from apache_beam.transforms.window import WindowedValue
 
-READ_CACHE = "_ReadCache_"
-WRITE_CACHE = "_WriteCache_"
-
-
-# TODO: turn this into a dataclass object when we finally get off of Python2.
-class Cacheable:
-  def __init__(self, pcoll_id, var, version, pcoll, producer_version):
-    self.pcoll_id = pcoll_id
-    self.var = var
-    self.version = version
-    self.pcoll = pcoll
-    self.producer_version = producer_version
-
-  def __eq__(self, other):
-    return (
-        self.pcoll_id == other.pcoll_id and self.var == other.var and
-        self.version == other.version and self.pcoll == other.pcoll and
-        self.producer_version == other.producer_version)
-
-  def __hash__(self):
-    return hash((
-        self.pcoll_id,
-        self.var,
-        self.version,
-        self.pcoll,
-        self.producer_version))
-
-
-# TODO: turn this into a dataclass object when we finally get off of Python2.
-class CacheKey:
-  def __init__(self, var, version, producer_version, pipeline_id):
-    # Makes sure that the variable name is obfuscated and only first 10
-    # characters taken so that the CacheKey has a constant length.
-    self.var = obfuscate(var)[:10]
-    self.version = version
-    self.producer_version = producer_version
-    self.pipeline_id = pipeline_id
-
-  @staticmethod
-  def from_str(r):
-    split = r.split('-')
-    return CacheKey(split[0], split[1], split[2], split[3])
-
-  def __repr__(self):
-    return '-'.join(
-        [self.var, self.version, self.producer_version, self.pipeline_id])
+_LOGGER = logging.getLogger(__name__)
 
 
 class PipelineInstrument(object):
@@ -96,53 +55,42 @@ class PipelineInstrument(object):
   """
   def __init__(self, pipeline, options=None):
     self._pipeline = pipeline
-    # The cache manager per user-defined pipeline is lazily initiated the first
-    # time accessed. It is owned by interactive_environment module. This
-    # shortcut reference will be initialized when the user pipeline associated
-    # to the given pipeline is identified.
-    self._cache_manager = None
 
-    # Invoke a round trip through the runner API. This makes sure the Pipeline
-    # proto is stable. The snapshot of pipeline will not be mutated within this
-    # module and can be used to recover original pipeline if needed.
-    self._pipeline_snap = beam.pipeline.Pipeline.from_runner_api(
-        pipeline.to_runner_api(use_fake_coders=True), pipeline.runner, options)
+    self._user_pipeline = ie.current_env().user_pipeline(pipeline)
+    if not self._user_pipeline:
+      self._user_pipeline = pipeline
+    self._cache_manager = ie.current_env().get_cache_manager(
+        self._user_pipeline, create_if_absent=True)
+    # Check if the user defined pipeline contains any source to cache.
+    # If so, during the check, the cache manager is converted into a
+    # streaming cache manager, thus re-assign.
+    if background_caching_job.has_source_to_cache(self._user_pipeline):
+      self._cache_manager = ie.current_env().get_cache_manager(
+          self._user_pipeline)
 
     self._background_caching_pipeline = beam.pipeline.Pipeline.from_runner_api(
-        pipeline.to_runner_api(use_fake_coders=True), pipeline.runner, options)
+        pipeline.to_runner_api(), pipeline.runner, options)
+    ie.current_env().add_derived_pipeline(
+        self._pipeline, self._background_caching_pipeline)
 
     # Snapshot of original pipeline information.
     (self._original_pipeline_proto,
-     self._original_context) = self._pipeline_snap.to_runner_api(
-         return_context=True, use_fake_coders=True)
+     context) = self._pipeline.to_runner_api(return_context=True)
 
     # All compute-once-against-original-pipeline fields.
-    self._unbounded_sources = unbounded_sources(
+    self._unbounded_sources = utils.unbounded_sources(
         self._background_caching_pipeline)
-    # TODO(BEAM-7760): once cache scope changed, this is not needed to manage
-    # relationships across pipelines, runners, and jobs.
-    self._pcolls_to_pcoll_id = pcolls_to_pcoll_id(
-        self._pipeline_snap, self._original_context)
+    self._pcoll_to_pcoll_id = pcoll_to_pcoll_id(self._pipeline, context)
 
-    # A mapping from PCollection id to python id() value in user defined
-    # pipeline instance.
-    (
-        self._pcoll_version_map,
-        self._cacheables,
-        # A dict from pcoll_id to variable name of the referenced PCollection.
-        # (Dict[str, str])
-        self._cacheable_var_by_pcoll_id) = cacheables(self.pcolls_to_pcoll_id)
+    # A Dict[str, Cacheable] from a PCollection id to a Cacheable that belongs
+    # to the analyzed pipeline.
+    self._cacheables = self.find_cacheables()
 
     # A dict from cache key to PCollection that is read from cache.
     # If exists, caller should reuse the PCollection read. If not, caller
     # should create new transform and track the PCollection read from cache.
     # (Dict[str, AppliedPTransform]).
     self._cached_pcoll_read = {}
-
-    # Reference to the user defined pipeline instance based on the given
-    # pipeline. The class never mutates it.
-    # Note: the original pipeline is not the user pipeline.
-    self._user_pipeline = None
 
     # A dict from PCollections in the runner pipeline instance to their
     # corresponding PCollections in the user pipeline instance. Populated
@@ -160,6 +108,9 @@ class PipelineInstrument(object):
     # to be produced during pipeline runs.
     self._ignored_targets = set()
 
+    # Set of PCollections that are written to cache.
+    self.cached_pcolls = set()
+
   def instrumented_pipeline_proto(self):
     """Always returns a new instance of portable instrumented proto."""
     targets = set(self._runner_pcoll_to_user_pcoll.keys())
@@ -169,8 +120,8 @@ class PipelineInstrument(object):
       # Prunes upstream transforms that don't contribute to the targets the
       # instrumented pipeline run cares.
       return pf.PipelineFragment(
-          list(targets)).deduce_fragment().to_runner_api(use_fake_coders=True)
-    return self._pipeline.to_runner_api(use_fake_coders=True)
+          list(targets)).deduce_fragment().to_runner_api()
+    return self._pipeline.to_runner_api()
 
   def _required_components(
       self,
@@ -273,8 +224,7 @@ class PipelineInstrument(object):
   def prune_subgraph_for(self, pipeline, required_transform_ids):
     # Create the pipeline_proto to read all the components from. It will later
     # create a new pipeline proto from the cut out components.
-    pipeline_proto, context = pipeline.to_runner_api(
-        return_context=True, use_fake_coders=False)
+    pipeline_proto, context = pipeline.to_runner_api(return_context=True)
 
     # Get all the root transforms. The caching transforms will be subtransforms
     # of one of these roots.
@@ -324,17 +274,17 @@ class PipelineInstrument(object):
     # Create the pipeline_proto to read all the components from. It will later
     # create a new pipeline proto from the cut out components.
     pipeline_proto, context = self._background_caching_pipeline.to_runner_api(
-        return_context=True, use_fake_coders=False)
+        return_context=True)
 
     # Get all the sources we want to cache.
-    sources = unbounded_sources(self._background_caching_pipeline)
+    sources = utils.unbounded_sources(self._background_caching_pipeline)
 
     # Get all the root transforms. The caching transforms will be subtransforms
     # of one of these roots.
     roots = [root for root in pipeline_proto.root_transform_ids]
 
     # Get the transform IDs of the caching transforms. These caching operations
-    # are added the the _background_caching_pipeline in the instrument() method.
+    # are added to the _background_caching_pipeline in the instrument() method.
     # It's added there so that multiple calls to this method won't add multiple
     # caching operations (idempotent).
     transforms = pipeline_proto.components.transforms
@@ -384,38 +334,25 @@ class PipelineInstrument(object):
     return pipeline_to_execute
 
   @property
-  def has_unbounded_sources(self):
-    """Returns whether the pipeline has any capturable sources.
-    """
-    return len(self._unbounded_sources) > 0
+  def cacheables(self) -> Dict[str, Cacheable]:
+    """Returns the Cacheables by PCollection ids.
 
-  @property
-  def cacheables(self):
-    """Finds cacheable PCollections from the pipeline.
-
-    The function only treats the result as cacheables since there is no
-    guarantee whether PCollections that need to be cached have been cached or
-    not. A PCollection needs to be cached when it's bound to a user defined
-    variable in the source code. Otherwise, the PCollection is not reusable
-    nor introspectable which nullifies the need of cache.
+    If you're already working with user defined pipelines and PCollections,
+    do not build a PipelineInstrument just to get the cacheables. Instead,
+    use apache_beam.runners.interactive.utils.cacheables.
     """
     return self._cacheables
 
   @property
-  def pcolls_to_pcoll_id(self):
-    """Returns a dict mapping str(PCollection)s to IDs."""
-    return self._pcolls_to_pcoll_id
+  def has_unbounded_sources(self):
+    """Returns whether the pipeline has any recordable sources.
+    """
+    return len(self._unbounded_sources) > 0
 
   @property
   def original_pipeline_proto(self):
-    """Returns the portable proto representation of the pipeline before
-    instrumentation."""
+    """Returns a snapshot of the pipeline proto before instrumentation."""
     return self._original_pipeline_proto
-
-  @property
-  def original_pipeline(self):
-    """Returns a snapshot of the pipeline before instrumentation."""
-    return self._pipeline_snap
 
   @property
   def user_pipeline(self):
@@ -436,6 +373,27 @@ class PipelineInstrument(object):
     """Returns cacheable PCollections correlated from instances in the runner
     pipeline to instances in the user pipeline."""
     return self._runner_pcoll_to_user_pcoll
+
+  def find_cacheables(self) -> Dict[str, Cacheable]:
+    """Finds PCollections that need to be cached for analyzed pipeline.
+
+    There might be multiple pipelines defined and watched, this will only find
+    cacheables belong to the analyzed pipeline.
+    """
+    result = {}
+    cacheables = utils.cacheables()
+    for _, cacheable in cacheables.items():
+      if cacheable.pcoll.pipeline is not self._user_pipeline:
+        # Ignore all cacheables from other pipelines.
+        continue
+      pcoll_id = self.pcoll_id(cacheable.pcoll)
+      if not pcoll_id:
+        _LOGGER.debug(
+            'Unable to retrieve PCollection id for %s. Ignored.',
+            cacheable.pcoll)
+        continue
+      result[self.pcoll_id(cacheable.pcoll)] = cacheable
+    return result
 
   def instrument(self):
     """Instruments original pipeline with cache.
@@ -462,7 +420,7 @@ class PipelineInstrument(object):
 
       def visit_transform(self, transform_node):
         if isinstance(transform_node.transform,
-                      tuple(ie.current_env().options.capturable_sources)):
+                      tuple(ie.current_env().options.recordable_sources)):
           unbounded_source_pcolls.update(transform_node.outputs.values())
         cacheable_inputs.update(self._pin._cacheable_inputs(transform_node))
         ins, outs = self._pin._all_inputs_outputs(transform_node)
@@ -471,13 +429,13 @@ class PipelineInstrument(object):
 
     v = InstrumentVisitor(self)
     self._pipeline.visit(v)
-
     # Every output PCollection that is never used as an input PCollection is
     # considered as a side effect of the pipeline run and should be included.
     self._extended_targets.update(all_outputs.difference(all_inputs))
-    # Add the unbounded source pcollections to the cacheable inputs. This allows
+    # Add the unbounded source PCollections to the cacheable inputs. This allows
     # for the caching of unbounded sources without a variable reference.
     cacheable_inputs.update(unbounded_source_pcolls)
+
     # Create ReadCache transforms.
     for cacheable_input in cacheable_inputs:
       self._read_cache(
@@ -488,7 +446,7 @@ class PipelineInstrument(object):
     self._replace_with_cached_inputs(self._pipeline)
 
     # Write cache for all cacheables.
-    for _, cacheable in self.cacheables.items():
+    for _, cacheable in self._cacheables.items():
       self._write_cache(
           self._pipeline, cacheable.pcoll, ignore_unbounded_reads=True)
 
@@ -515,8 +473,7 @@ class PipelineInstrument(object):
 
       v = TestStreamVisitor()
       self._pipeline.visit(v)
-      pipeline_proto = self._pipeline.to_runner_api(
-          return_context=False, use_fake_coders=True)
+      pipeline_proto = self._pipeline.to_runner_api(return_context=False)
       test_stream_id = ''
       for t_id, t in pipeline_proto.components.transforms.items():
         if t.unique_name == v.test_stream:
@@ -524,10 +481,12 @@ class PipelineInstrument(object):
           break
       self._pruned_pipeline_proto = self.prune_subgraph_for(
           self._pipeline, [test_stream_id])
-      self._pipeline = beam.Pipeline.from_runner_api(
+      pruned_pipeline = beam.Pipeline.from_runner_api(
           proto=self._pruned_pipeline_proto,
           runner=self._pipeline.runner,
           options=self._pipeline._options)
+      ie.current_env().add_derived_pipeline(self._pipeline, pruned_pipeline)
+      self._pipeline = pruned_pipeline
 
   def preprocess(self):
     """Pre-processes the pipeline.
@@ -551,34 +510,16 @@ class PipelineInstrument(object):
           self._process(out_pcoll)
 
       def _process(self, pcoll):
-        pcoll_id = self._pin.pcolls_to_pcoll_id.get(str(pcoll), '')
-        if pcoll_id in self._pin._pcoll_version_map:
-          cacheable_key = self._pin._cacheable_key(pcoll)
-          user_pcoll = self._pin.cacheables[cacheable_key].pcoll
-          if (cacheable_key in self._pin.cacheables and user_pcoll != pcoll):
-            if not self._pin._user_pipeline:
-              # Retrieve a reference to the user defined pipeline instance.
-              self._pin._user_pipeline = user_pcoll.pipeline
-              # Retrieve a reference to the cache manager for the user defined
-              # pipeline instance.
-              self._pin._cache_manager = ie.current_env().get_cache_manager(
-                  self._pin._user_pipeline, create_if_absent=True)
-              # Check if the user defined pipeline contains any source to cache.
-              # If so, during the check, the cache manager is converted into a
-              # streaming cache manager, thus re-assign the reference.
-              if background_caching_job.has_source_to_cache(
-                  self._pin._user_pipeline):
-                self._pin._cache_manager = ie.current_env().get_cache_manager(
-                    self._pin._user_pipeline)
+        pcoll_id = self._pin._pcoll_to_pcoll_id.get(str(pcoll), '')
+        if pcoll_id in self._pin._cacheables:
+          pcoll_id = self._pin.pcoll_id(pcoll)
+          user_pcoll = self._pin._cacheables[pcoll_id].pcoll
+          if (pcoll_id in self._pin._cacheables and user_pcoll != pcoll):
             self._pin._runner_pcoll_to_user_pcoll[pcoll] = user_pcoll
-            self._pin.cacheables[cacheable_key].pcoll = pcoll
+            self._pin._cacheables[pcoll_id].pcoll = pcoll
 
     v = PreprocessVisitor(self)
     self._pipeline.visit(v)
-    if not self._user_pipeline:
-      self._user_pipeline = self._pipeline
-      self._cache_manager = ie.current_env().get_cache_manager(
-          self._user_pipeline, create_if_absent=True)
 
   def _write_cache(
       self,
@@ -603,14 +544,14 @@ class PipelineInstrument(object):
     if pcoll.pipeline is not pipeline:
       return
 
-    # Ignore the unbounded reads from capturable sources as these will be pruned
+    # Ignore the unbounded reads from recordable sources as these will be pruned
     # out using the PipelineFragment later on.
     if ignore_unbounded_reads:
       ignore = False
       producer = pcoll.producer
       while producer:
         if isinstance(producer.transform,
-                      tuple(ie.current_env().options.capturable_sources)):
+                      tuple(ie.current_env().options.recordable_sources)):
           ignore = True
           break
         producer = producer.parent
@@ -622,27 +563,17 @@ class PipelineInstrument(object):
     key = self.cache_key(pcoll)
     # Only need to write when the cache with expected key doesn't exist.
     if not self._cache_manager.exists('full', key):
-      label = '{}{}'.format(WRITE_CACHE, key)
-
+      self.cached_pcolls.add(self.runner_pcoll_to_user_pcoll.get(pcoll, pcoll))
       # Read the windowing information and cache it along with the element. This
       # caches the arguments to a WindowedValue object because Python has logic
       # that detects if a DoFn returns a WindowedValue. When it detecs one, it
       # puts the element into the correct window then emits the value to
       # downstream transforms.
-      class Reify(beam.DoFn):
-        def process(
-            self,
-            e,
-            w=beam.DoFn.WindowParam,
-            p=beam.DoFn.PaneInfoParam,
-            t=beam.DoFn.TimestampParam):
-          yield test_stream.WindowedValueHolder(WindowedValue(e, t, [w], p))
-
-      extended_target = (
-          pcoll
-          | label + 'reify' >> beam.ParDo(Reify())
-          | label >> cache.WriteCache(
-              self._cache_manager, key, is_capture=is_capture))
+      extended_target = reify_to_cache(
+          pcoll=pcoll,
+          cache_key=key,
+          cache_manager=self._cache_manager,
+          is_capture=is_capture)
       if output_as_extended_target:
         self._extended_targets.add(extended_target)
 
@@ -662,7 +593,6 @@ class PipelineInstrument(object):
     key = self.cache_key(pcoll)
     # Can only read from cache when the cache with expected key exists and its
     # computation has been completed.
-
     is_cached = self._cache_manager.exists('full', key)
     is_computed = (
         pcoll in self._runner_pcoll_to_user_pcoll and
@@ -675,15 +605,8 @@ class PipelineInstrument(object):
 
         # To put the cached value into the correct window, simply return a
         # WindowedValue constructed from the element.
-        class Unreify(beam.DoFn):
-          def process(self, e):
-            yield e.windowed_value
-
-        pcoll_from_cache = (
-            pipeline
-            | '{}{}'.format(READ_CACHE, key) >> cache.ReadCache(
-                self._cache_manager, key)
-            | '{}{}unreify'.format(READ_CACHE, key) >> beam.ParDo(Unreify()))
+        pcoll_from_cache = unreify_from_cache(
+            pipeline=pipeline, cache_key=key, cache_manager=self._cache_manager)
         self._cached_pcoll_read[key] = pcoll_from_cache
     # else: NOOP when cache doesn't exist, just compute the original graph.
 
@@ -754,8 +677,8 @@ class PipelineInstrument(object):
 
       def visit_transform(self, transform_node):
         if transform_node.inputs:
-          input_list = list(transform_node.inputs)
-          for i, input_pcoll in enumerate(input_list):
+          main_inputs = dict(transform_node.main_inputs)
+          for tag, input_pcoll in main_inputs.items():
             key = self._pin.cache_key(input_pcoll)
 
             # Replace the input pcollection with the cached pcollection (if it
@@ -763,9 +686,9 @@ class PipelineInstrument(object):
             if key in self._pin._cached_pcoll_read:
               # Ignore this pcoll in the final pruned instrumented pipeline.
               self._pin._ignored_targets.add(input_pcoll)
-              input_list[i] = self._pin._cached_pcoll_read[key]
+              main_inputs[tag] = self._pin._cached_pcoll_read[key]
           # Update the transform with its new inputs.
-          transform_node.inputs = tuple(input_list)
+          transform_node.main_inputs = main_inputs
 
     v = ReadCacheWireVisitor(self)
     pipeline.visit(v)
@@ -773,7 +696,7 @@ class PipelineInstrument(object):
   def _cacheable_inputs(self, transform):
     inputs = set()
     for in_pcoll in transform.inputs:
-      if self._cacheable_key(in_pcoll) in self.cacheables:
+      if self.pcoll_id(in_pcoll) in self._cacheables:
         inputs.add(in_pcoll)
     return inputs
 
@@ -786,49 +709,34 @@ class PipelineInstrument(object):
       outputs.add(out_pcoll)
     return inputs, outputs
 
-  def _cacheable_key(self, pcoll):
-    """Gets the key a cacheable PCollection is tracked within the instrument."""
-    return cacheable_key(
-        pcoll, self.pcolls_to_pcoll_id, self._pcoll_version_map)
+  def pcoll_id(self, pcoll):
+    """Gets the PCollection id of the given pcoll.
+
+    Returns '' if not found.
+    """
+    return self._pcoll_to_pcoll_id.get(str(pcoll), '')
 
   def cache_key(self, pcoll):
     """Gets the identifier of a cacheable PCollection in cache.
 
     If the pcoll is not a cacheable, return ''.
+    This is only needed in pipeline instrument when the origin of given pcoll
+    is unknown (whether it's from the user pipeline or a runner pipeline). If
+    a pcoll is from the user pipeline, always use CacheKey.from_pcoll to build
+    the key.
     The key is what the pcoll would use as identifier if it's materialized in
     cache. It doesn't mean that there would definitely be such cache already.
     Also, the pcoll can come from the original user defined pipeline object or
     an equivalent pcoll from a transformed copy of the original pipeline.
-
-    'pcoll_id' of cacheable is not stable for cache_key, thus not included in
-    cache key. A combination of 'var', 'version' and 'producer_version' is
-    sufficient to identify a cached PCollection.
     """
-    cacheable = self.cacheables.get(self._cacheable_key(pcoll), None)
+    cacheable = self._cacheables.get(self.pcoll_id(pcoll), None)
     if cacheable:
       if cacheable.pcoll in self.runner_pcoll_to_user_pcoll:
         user_pcoll = self.runner_pcoll_to_user_pcoll[cacheable.pcoll]
       else:
         user_pcoll = cacheable.pcoll
-
-      return repr(
-          CacheKey(
-              cacheable.var,
-              cacheable.version,
-              cacheable.producer_version,
-              str(id(user_pcoll.pipeline))))
+      return CacheKey.from_pcoll(cacheable.var, user_pcoll).to_str()
     return ''
-
-  def cacheable_var_by_pcoll_id(self, pcoll_id):
-    """Retrieves the variable name of a PCollection.
-
-    In source code, PCollection variables are defined in the user pipeline. When
-    it's converted to the runner api representation, each PCollection referenced
-    in the user pipeline is assigned a unique-within-pipeline pcoll_id. Given
-    such pcoll_id, retrieves the str variable name defined in user pipeline for
-    that referenced PCollection. If the PCollection is not watched, return None.
-    """
-    return self._cacheable_var_by_pcoll_id.get(pcoll_id, None)
 
 
 def build_pipeline_instrument(pipeline, options=None):
@@ -851,101 +759,7 @@ def build_pipeline_instrument(pipeline, options=None):
   return pi
 
 
-def user_pipeline(pipeline):
-  _, context = pipeline.to_runner_api(return_context=True)
-  pcoll_ids = pcolls_to_pcoll_id(pipeline, context)
-
-  for watching in ie.current_env().watching():
-    for _, v in watching:
-      # TODO(BEAM-8288): cleanup the attribute check when py2 is not supported.
-      if hasattr(v, '__class__') and isinstance(v, beam.pvalue.PCollection):
-        pcoll_id = pcoll_ids.get(str(v), None)
-        if (pcoll_id in context.pcollections and
-            context.pcollections[pcoll_id] != v):
-          return v.pipeline
-  return pipeline
-
-
-def cacheables(pcolls_to_pcoll_id):
-  """Finds PCollections that need to be cached for analyzed PCollections.
-
-  The function only treats the result as cacheables since there is no guarantee
-  whether PCollections that need to be cached have been cached or not. A
-  PCollection needs to be cached when it's bound to a user defined variable in
-  the source code. Otherwise, the PCollection is not reusable nor introspectable
-  which nullifies the need of cache. There might be multiple pipelines defined
-  and watched, this will only return for PCollections with pcolls_to_pcoll_id
-  analyzed. The check is not strict because pcoll_id is not unique across
-  multiple pipelines. Additional check needs to be done during instrument.
-  """
-  pcoll_version_map = {}
-  cacheables = {}
-  cacheable_var_by_pcoll_id = {}
-  for watching in ie.current_env().watching():
-    for key, val in watching:
-      # TODO(BEAM-8288): cleanup the attribute check when py2 is not supported.
-      if hasattr(val, '__class__') and isinstance(val, beam.pvalue.PCollection):
-        cacheable = {}
-
-        pcoll_id = pcolls_to_pcoll_id.get(str(val), None)
-        # It's highly possible that PCollection str is not unique across
-        # multiple pipelines, further check during instrument is needed.
-        if not pcoll_id:
-          continue
-
-        cacheable = Cacheable(
-            pcoll_id=pcoll_id,
-            var=key,
-            version=str(id(val)),
-            pcoll=val,
-            producer_version=str(id(val.producer)))
-        pcoll_version_map[cacheable.pcoll_id] = cacheable.version
-        cacheables[cacheable_key(val, pcolls_to_pcoll_id)] = cacheable
-        cacheable_var_by_pcoll_id[cacheable.pcoll_id] = key
-
-  return pcoll_version_map, cacheables, cacheable_var_by_pcoll_id
-
-
-def cacheable_key(pcoll, pcolls_to_pcoll_id, pcoll_version_map=None):
-  pcoll_version = str(id(pcoll))
-  pcoll_id = pcolls_to_pcoll_id.get(str(pcoll), '')
-  if pcoll_version_map:
-    original_pipeline_pcoll_version = pcoll_version_map.get(pcoll_id, None)
-    if original_pipeline_pcoll_version:
-      pcoll_version = original_pipeline_pcoll_version
-  return '_'.join((pcoll_version, pcoll_id))
-
-
-def has_unbounded_sources(pipeline):
-  """Checks if a given pipeline has capturable sources."""
-  return len(unbounded_sources(pipeline)) > 0
-
-
-def unbounded_sources(pipeline):
-  """Returns a pipeline's capturable sources."""
-  class CheckUnboundednessVisitor(PipelineVisitor):
-    """Visitor checks if there are any unbounded read sources in the Pipeline.
-
-    Visitor visits all nodes and checks if it is an instance of capturable
-    sources.
-    """
-    def __init__(self):
-      self.unbounded_sources = []
-
-    def enter_composite_transform(self, transform_node):
-      self.visit_transform(transform_node)
-
-    def visit_transform(self, transform_node):
-      if isinstance(transform_node.transform,
-                    tuple(ie.current_env().options.capturable_sources)):
-        self.unbounded_sources.append(transform_node)
-
-  v = CheckUnboundednessVisitor()
-  pipeline.visit(v)
-  return v.unbounded_sources
-
-
-def pcolls_to_pcoll_id(pipeline, original_context):
+def pcoll_to_pcoll_id(pipeline, original_context):
   """Returns a dict mapping PCollections string to PCollection IDs.
 
   Using a PipelineVisitor to iterate over every node in the pipeline,
@@ -965,42 +779,16 @@ def pcolls_to_pcoll_id(pipeline, original_context):
     results in validation errors.
     """
     def __init__(self):
-      self.pcolls_to_pcoll_id = {}
+      self.pcoll_to_pcoll_id = {}
 
     def enter_composite_transform(self, transform_node):
       self.visit_transform(transform_node)
 
     def visit_transform(self, transform_node):
       for pcoll in transform_node.outputs.values():
-        self.pcolls_to_pcoll_id[str(pcoll)] = (
+        self.pcoll_to_pcoll_id[str(pcoll)] = (
             original_context.pcollections.get_id(pcoll))
 
   v = PCollVisitor()
   pipeline.visit(v)
-  return v.pcolls_to_pcoll_id
-
-
-def watch_sources(pipeline):
-  """Watches the unbounded sources in the pipeline.
-
-  Sources can output to a PCollection without a user variable reference. In
-  this case the source is not cached. We still want to cache the data so we
-  synthetically create a variable to the intermediate PCollection.
-  """
-
-  retrieved_user_pipeline = user_pipeline(pipeline)
-
-  class CacheableUnboundedPCollectionVisitor(PipelineVisitor):
-    def __init__(self):
-      self.unbounded_pcolls = set()
-
-    def enter_composite_transform(self, transform_node):
-      self.visit_transform(transform_node)
-
-    def visit_transform(self, transform_node):
-      if isinstance(transform_node.transform,
-                    tuple(ie.current_env().options.capturable_sources)):
-        for pcoll in transform_node.outputs.values():
-          ie.current_env().watch({'synthetic_var_' + str(id(pcoll)): pcoll})
-
-  retrieved_user_pipeline.visit(CacheableUnboundedPCollectionVisitor())
+  return v.pcoll_to_pcoll_id

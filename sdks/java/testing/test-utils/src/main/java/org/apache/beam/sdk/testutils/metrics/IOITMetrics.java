@@ -22,7 +22,6 @@ import java.util.Set;
 import java.util.function.Function;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.testutils.publishing.ConsoleResultPublisher;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
@@ -50,24 +49,6 @@ public class IOITMetrics {
     this.namespace = namespace;
     this.uuid = uuid;
     this.timestamp = timestamp;
-  }
-
-  public void publish(String bigQueryDataset, String bigQueryTable) {
-    MetricsReader reader = new MetricsReader(result, namespace);
-    Collection<NamedTestResult> namedTestResults = reader.readAll(metricSuppliers);
-
-    publish(bigQueryDataset, bigQueryTable, namedTestResults);
-  }
-
-  public static void publish(
-      final String bigQueryDataset,
-      final String bigQueryTable,
-      final Collection<NamedTestResult> results) {
-
-    if (bigQueryDataset != null && bigQueryTable != null) {
-      BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema())
-          .publish(results, bigQueryTable);
-    }
   }
 
   public void publishToInflux(final InfluxDBSettings settings) {

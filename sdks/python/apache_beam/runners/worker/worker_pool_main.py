@@ -29,8 +29,6 @@ This entry point is used by the Python SDK container in worker pool mode.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import atexit
 import logging
@@ -78,8 +76,10 @@ class BeamFnExternalWorkerPoolServicer(
       container_executable=None  # type: Optional[str]
   ):
     # type: (...) -> Tuple[str, grpc.Server]
+    options = [("grpc.http2.max_pings_without_data", 0),
+               ("grpc.http2.max_ping_strikes", 0)]
     worker_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance())
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     worker_address = 'localhost:%s' % worker_server.add_insecure_port(
         '[::]:%s' % port)
     worker_pool = cls(

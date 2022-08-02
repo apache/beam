@@ -20,7 +20,14 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
+# beam-playground:
+#   name: WordCountTest
+#   description: Unit-test for the WordCount example.
+#   multifile: false
+#   context_line: 44
+#   categories:
+#     - IO
+#     - Combiners
 
 import collections
 import logging
@@ -28,10 +35,13 @@ import re
 import tempfile
 import unittest
 
+import pytest
+
 from apache_beam.examples import wordcount
 from apache_beam.testing.util import open_shards
 
 
+@pytest.mark.examples_postcommit
 class WordCountTest(unittest.TestCase):
 
   SAMPLE_TEXT = (

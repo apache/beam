@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.metrics.MetricName;
 import org.junit.Assert;
@@ -67,7 +67,7 @@ public class DistributionCellTest {
     Assert.assertNotEquals(distributionCell, new Object());
 
     DistributionCell differentDirty = new DistributionCell(MetricName.named("namespace", "name"));
-    differentDirty.getDirty().beforeCommit();
+    differentDirty.getDirty().afterModification();
     Assert.assertNotEquals(distributionCell, differentDirty);
     Assert.assertNotEquals(distributionCell.hashCode(), differentDirty.hashCode());
 
@@ -87,6 +87,7 @@ public class DistributionCellTest {
     DistributionCell distributionCell = new DistributionCell(MetricName.named("namespace", "name"));
     distributionCell.update(2);
     assertThat(distributionCell.getCumulative(), equalTo(DistributionData.create(2, 1, 2, 2)));
+    Assert.assertNotEquals(distributionCell.getDirty(), new DirtyState());
 
     distributionCell.reset();
     assertThat(distributionCell.getCumulative(), equalTo(DistributionData.EMPTY));

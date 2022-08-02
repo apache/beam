@@ -21,7 +21,6 @@ import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.Event.Type;
 import org.apache.beam.sdk.nexmark.model.sql.SelectEvent;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
@@ -49,26 +48,26 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public class SqlQuery7 extends NexmarkQueryTransform<Bid> {
 
-  private static final String QUERY_TEMPLATE =
-      ""
-          + " SELECT B.auction, B.price, B.bidder, B.dateTime, B.extra "
-          + "    FROM (SELECT B.auction, B.price, B.bidder, B.dateTime, B.extra, "
-          + "       TUMBLE_START(B.dateTime, INTERVAL '%1$d' SECOND) AS starttime "
-          + "    FROM Bid B "
-          + "    GROUP BY B.auction, B.price, B.bidder, B.dateTime, B.extra, "
-          + "       TUMBLE(B.dateTime, INTERVAL '%1$d' SECOND)) B "
-          + " JOIN (SELECT MAX(B1.price) AS maxprice, "
-          + "       TUMBLE_START(B1.dateTime, INTERVAL '%1$d' SECOND) AS starttime "
-          + "    FROM Bid B1 "
-          + "    GROUP BY TUMBLE(B1.dateTime, INTERVAL '%1$d' SECOND)) B1 "
-          + " ON B.starttime = B1.starttime AND B.price = B1.maxprice ";
-
   private final PTransform<PInput, PCollection<Row>> query;
 
   public SqlQuery7(NexmarkConfiguration configuration) {
     super("SqlQuery7");
 
-    String queryString = String.format(QUERY_TEMPLATE, configuration.windowSizeSec);
+    String queryString =
+        String.format(
+            ""
+                + " SELECT B.auction, B.price, B.bidder, B.dateTime, B.extra "
+                + "    FROM (SELECT B.auction, B.price, B.bidder, B.dateTime, B.extra, "
+                + "       TUMBLE_START(B.dateTime, INTERVAL '%1$d' SECOND) AS starttime "
+                + "    FROM Bid B "
+                + "    GROUP BY B.auction, B.price, B.bidder, B.dateTime, B.extra, "
+                + "       TUMBLE(B.dateTime, INTERVAL '%1$d' SECOND)) B "
+                + " JOIN (SELECT MAX(B1.price) AS maxprice, "
+                + "       TUMBLE_START(B1.dateTime, INTERVAL '%1$d' SECOND) AS starttime "
+                + "    FROM Bid B1 "
+                + "    GROUP BY TUMBLE(B1.dateTime, INTERVAL '%1$d' SECOND)) B1 "
+                + " ON B.starttime = B1.starttime AND B.price = B1.maxprice ",
+            configuration.windowSizeSec);
     query = SqlTransform.query(queryString);
   }
 
@@ -77,7 +76,7 @@ public class SqlQuery7 extends NexmarkQueryTransform<Bid> {
     PCollection<Row> bids =
         allEvents
             .apply(Filter.by(NexmarkQueryUtil.IS_BID))
-            .apply(getName() + ".SelectEvent", new SelectEvent(Type.BID));
+            .apply(getName() + ".SelectEvent", new SelectEvent(Event.Type.BID));
 
     return PCollectionTuple.of(new TupleTag<>("Bid"), bids)
         .apply(query)

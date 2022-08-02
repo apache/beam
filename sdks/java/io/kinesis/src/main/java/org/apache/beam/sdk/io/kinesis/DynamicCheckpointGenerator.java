@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-
 import com.amazonaws.services.kinesis.model.Shard;
-import java.util.Set;
+import java.util.List;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,35 +32,22 @@ class DynamicCheckpointGenerator implements CheckpointGenerator {
   private static final Logger LOG = LoggerFactory.getLogger(DynamicCheckpointGenerator.class);
   private final String streamName;
   private final StartingPoint startingPoint;
-  private final StartingPointShardsFinder startingPointShardsFinder;
 
   public DynamicCheckpointGenerator(String streamName, StartingPoint startingPoint) {
     this.streamName = streamName;
     this.startingPoint = startingPoint;
-    this.startingPointShardsFinder = new StartingPointShardsFinder();
-  }
-
-  public DynamicCheckpointGenerator(
-      String streamName,
-      StartingPoint startingPoint,
-      StartingPointShardsFinder startingPointShardsFinder) {
-    this.streamName = checkNotNull(streamName, "streamName");
-    this.startingPoint = checkNotNull(startingPoint, "startingPoint");
-    this.startingPointShardsFinder =
-        checkNotNull(startingPointShardsFinder, "startingPointShardsFinder");
   }
 
   @Override
   public KinesisReaderCheckpoint generate(SimplifiedKinesisClient kinesis)
       throws TransientKinesisException {
-    Set<Shard> shardsAtStartingPoint =
-        startingPointShardsFinder.findShardsAtStartingPoint(kinesis, streamName, startingPoint);
+    List<Shard> streamShards = kinesis.listShardsAtPoint(streamName, startingPoint);
     LOG.info(
         "Creating a checkpoint with following shards {} at {}",
-        shardsAtStartingPoint,
+        streamShards,
         startingPoint.getTimestamp());
     return new KinesisReaderCheckpoint(
-        shardsAtStartingPoint.stream()
+        streamShards.stream()
             .map(shard -> new ShardCheckpoint(streamName, shard.getShardId(), startingPoint))
             .collect(Collectors.toList()));
   }

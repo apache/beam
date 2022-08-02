@@ -31,6 +31,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SortedSe
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultimap;
 
 /** Validates that the {@link PipelineOptions} conforms to all the {@link Validation} criteria. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class PipelineOptionsValidator {
   /**
    * Validates that the passed {@link PipelineOptions} conforms to all the validation criteria from

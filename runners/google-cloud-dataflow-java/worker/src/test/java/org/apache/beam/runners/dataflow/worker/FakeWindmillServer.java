@@ -73,7 +73,7 @@ class FakeWindmillServer extends WindmillServerStub {
   private final ErrorCollector errorCollector;
   private boolean isReady = true;
   private boolean dropStreamingCommits = false;
-  private final AtomicInteger droppedStreamingCommits;
+  private final ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> droppedStreamingCommits;
 
   public FakeWindmillServer(ErrorCollector errorCollector) {
     workToOffer = new ConcurrentLinkedQueue<>();
@@ -83,7 +83,7 @@ class FakeWindmillServer extends WindmillServerStub {
     expectedExceptionCount = new AtomicInteger();
     this.errorCollector = errorCollector;
     statsReceived = new ArrayList<>();
-    droppedStreamingCommits = new AtomicInteger();
+    droppedStreamingCommits = new ConcurrentHashMap<>();
   }
 
   public void setDropStreamingCommits(boolean dropStreamingCommits) {
@@ -312,7 +312,7 @@ class FakeWindmillServer extends WindmillServerStub {
             request.getShardingKey(), allOf(greaterThan(0L), lessThan(Long.MAX_VALUE)));
         errorCollector.checkThat(request.getCacheToken(), not(equalTo(0L)));
         if (dropStreamingCommits) {
-          droppedStreamingCommits.incrementAndGet();
+          droppedStreamingCommits.put(request.getWorkToken(), onDone);
         } else {
           commitsReceived.put(request.getWorkToken(), request);
           onDone.accept(Windmill.CommitStatus.OK);
@@ -369,13 +369,20 @@ class FakeWindmillServer extends WindmillServerStub {
     return commitsReceived;
   }
 
-  public void waitForDroppedCommits(int droppedCommits) {
+  public void clearCommitsReceived() {
+    commitsRequested = 0;
+    commitsReceived.clear();
+  }
+
+  public ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> waitForDroppedCommits(
+      int droppedCommits) {
     LOG.debug("waitForDroppedCommits: {}", droppedCommits);
     int maxTries = 10;
-    while (maxTries-- > 0 && droppedStreamingCommits.get() < droppedCommits) {
+    while (maxTries-- > 0 && droppedStreamingCommits.size() < droppedCommits) {
       Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
     }
-    assertEquals(droppedCommits, droppedStreamingCommits.get());
+    assertEquals(droppedCommits, droppedStreamingCommits.size());
+    return droppedStreamingCommits;
   }
 
   public void setExpectedExceptionCount(int i) {

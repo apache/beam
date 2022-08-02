@@ -26,7 +26,7 @@ import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /** Utilities and constants ot interact with coders that are part of the Beam Model. */
@@ -54,6 +54,8 @@ public class ModelCoders {
   public static final String INTERVAL_WINDOW_CODER_URN =
       getUrn(StandardCoders.Enum.INTERVAL_WINDOW);
 
+  public static final String CUSTOM_WINDOW_CODER_URN = getUrn(StandardCoders.Enum.CUSTOM_WINDOW);
+
   public static final String WINDOWED_VALUE_CODER_URN = getUrn(StandardCoders.Enum.WINDOWED_VALUE);
   public static final String PARAM_WINDOWED_VALUE_CODER_URN =
       getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE);
@@ -62,6 +64,10 @@ public class ModelCoders {
 
   public static final String STATE_BACKED_ITERABLE_CODER_URN =
       "beam:coder:state_backed_iterable:v1";
+
+  public static final String SHARDED_KEY_CODER_URN = getUrn(StandardCoders.Enum.SHARDED_KEY);
+
+  public static final String NULLABLE_CODER_URN = getUrn(StandardCoders.Enum.NULLABLE);
 
   static {
     checkState(
@@ -80,11 +86,14 @@ public class ModelCoders {
           LENGTH_PREFIX_CODER_URN,
           GLOBAL_WINDOW_CODER_URN,
           INTERVAL_WINDOW_CODER_URN,
+          CUSTOM_WINDOW_CODER_URN,
           WINDOWED_VALUE_CODER_URN,
           DOUBLE_CODER_URN,
           ROW_CODER_URN,
           PARAM_WINDOWED_VALUE_CODER_URN,
-          STATE_BACKED_ITERABLE_CODER_URN);
+          STATE_BACKED_ITERABLE_CODER_URN,
+          SHARDED_KEY_CODER_URN,
+          NULLABLE_CODER_URN);
 
   public static Set<String> urns() {
     return MODEL_CODER_URNS;

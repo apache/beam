@@ -19,12 +19,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
+import itertools
 import logging
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -39,9 +38,6 @@ from apache_beam.utils.timestamp import Timestamp
 
 
 class SideInputsTest(unittest.TestCase):
-  # Enable nose tests running in parallel
-  _multiprocess_can_split_ = True
-
   def create_pipeline(self):
     return TestPipeline()
 
@@ -147,7 +143,7 @@ class SideInputsTest(unittest.TestCase):
                                       }),
                                   ])
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_empty_singleton_side_input(self):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
@@ -163,9 +159,10 @@ class SideInputsTest(unittest.TestCase):
     assert_that(result, equal_to([(1, 'empty'), (2, 'empty')]))
     pipeline.run()
 
-  # TODO(BEAM-5025): Disable this test in streaming temporarily.
-  # Remove sickbay-streaming tag after it's fixed.
-  @attr('ValidatesRunner', 'sickbay-streaming')
+  # TODO(https://github.com/apache/beam/issues/19012): Disable this test in
+  # streaming temporarily. Remove sickbay-streaming tag after it's fixed.
+  @pytest.mark.no_sickbay_streaming
+  @pytest.mark.it_validatesrunner
   def test_multi_valued_singleton_side_input(self):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
@@ -175,7 +172,7 @@ class SideInputsTest(unittest.TestCase):
     with self.assertRaises(Exception):
       pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_default_value_singleton_side_input(self):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
@@ -185,7 +182,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(result, equal_to([10, 20]))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_iterable_side_input(self):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
@@ -195,7 +192,34 @@ class SideInputsTest(unittest.TestCase):
     assert_that(result, equal_to([3, 4, 6, 8]))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
+  def test_reiterable_side_input(self):
+    expected_side = frozenset(range(100))
+
+    def check_reiteration(main, side):
+      assert expected_side == set(side), side
+      # Iterate a second time.
+      assert expected_side == set(side), side
+      # Iterate over two copies of the input at the same time.
+      both = zip(side, side)
+      first, second = zip(*both)
+      assert expected_side == set(first), first
+      assert expected_side == set(second), second
+      # This will iterate over two copies of the side input, but offset.
+      offset = [None] * (len(expected_side) // 2)
+      both = zip(itertools.chain(side, offset), itertools.chain(offset, side))
+      first, second = zip(*both)
+      expected_and_none = frozenset.union(expected_side, [None])
+      assert expected_and_none == set(first), first
+      assert expected_and_none == set(second), second
+
+    pipeline = self.create_pipeline()
+    pcol = pipeline | 'start' >> beam.Create(['A', 'B'])
+    side = pipeline | 'side' >> beam.Create(expected_side)
+    _ = pcol | 'check' >> beam.Map(check_reiteration, beam.pvalue.AsIter(side))
+    pipeline.run()
+
+  @pytest.mark.it_validatesrunner
   def test_as_list_and_as_dict_side_inputs(self):
     a_list = [5, 1, 3, 2, 9]
     some_pairs = [('crouton', 17), ('supreme', None)]
@@ -222,7 +246,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, a_list, some_pairs))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_as_singleton_without_unique_labels(self):
     # This should succeed as calling beam.pvalue.AsSingleton on the same
     # PCollection twice with the same defaults will return the same
@@ -250,7 +274,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, 2))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_as_singleton_with_different_defaults(self):
     a_list = []
     pipeline = self.create_pipeline()
@@ -275,7 +299,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, 2, 3))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_as_list_twice(self):
     # This should succeed as calling beam.pvalue.AsList on the same
     # PCollection twice will return the same view.
@@ -302,7 +326,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, [1, 2, 3]))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_as_dict_twice(self):
     some_kvs = [('a', 1), ('b', 2)]
     pipeline = self.create_pipeline()
@@ -327,7 +351,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, some_kvs))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_flattened_side_input(self):
     pipeline = self.create_pipeline()
     main_input = pipeline | 'main input' >> beam.Create([None])
@@ -341,67 +365,67 @@ class SideInputsTest(unittest.TestCase):
     pipeline.run()
 
   # TODO(BEAM-9499): Disable this test in streaming temporarily.
-  @attr('ValidatesRunner', 'sickbay-batch', 'sickbay-streaming')
+  @pytest.mark.no_sickbay_batch
+  @pytest.mark.no_sickbay_streaming
+  @pytest.mark.it_validatesrunner
   def test_multi_triggered_gbk_side_input(self):
     """Test a GBK sideinput, with multiple triggering."""
-    # TODO(BEAM-9322): Remove use of this experiment.
-    # This flag is only necessary when using the multi-output TestStream b/c
-    # it relies on using the PCollection output tags as the PCollection output
-    # ids.
-    p = TestPipeline()
+    # TODO(https://github.com/apache/beam/issues/20065): Remove use of this
+    # experiment. This flag is only necessary when using the multi-output
+    # TestStream b/c it relies on using the PCollection output tags as the
+    # PCollection output ids.
+    with TestPipeline() as p:
 
-    test_stream = (
-        p
-        | 'Mixed TestStream' >> TestStream().advance_watermark_to(
-            3,
-            tag='main').add_elements(['a1'], tag='main').advance_watermark_to(
-                8, tag='main').add_elements(['a2'], tag='main').add_elements(
-                    [window.TimestampedValue(('k', 100), 2)], tag='side').
-        add_elements([window.TimestampedValue(
-            ('k', 400), 7)], tag='side').advance_watermark_to_infinity(
-                tag='main').advance_watermark_to_infinity(tag='side'))
+      test_stream = (
+          p
+          | 'Mixed TestStream' >> TestStream().advance_watermark_to(
+              3,
+              tag='main').add_elements(['a1'], tag='main').advance_watermark_to(
+                  8, tag='main').add_elements(['a2'], tag='main').add_elements(
+                      [window.TimestampedValue(('k', 100), 2)], tag='side').
+          add_elements([window.TimestampedValue(
+              ('k', 400), 7)], tag='side').advance_watermark_to_infinity(
+                  tag='main').advance_watermark_to_infinity(tag='side'))
 
-    main_data = (
-        test_stream['main']
-        | 'Main windowInto' >> beam.WindowInto(
-            window.FixedWindows(5),
-            accumulation_mode=trigger.AccumulationMode.DISCARDING))
+      main_data = (
+          test_stream['main']
+          | 'Main windowInto' >> beam.WindowInto(
+              window.FixedWindows(5),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING))
 
-    side_data = (
-        test_stream['side']
-        | 'Side windowInto' >> beam.WindowInto(
-            window.FixedWindows(5),
-            trigger=trigger.AfterWatermark(early=trigger.AfterCount(1)),
-            accumulation_mode=trigger.AccumulationMode.DISCARDING)
-        | beam.CombinePerKey(sum)
-        | 'Values' >> Map(lambda k_vs: k_vs[1]))
+      side_data = (
+          test_stream['side']
+          | 'Side windowInto' >> beam.WindowInto(
+              window.FixedWindows(5),
+              trigger=trigger.AfterWatermark(early=trigger.AfterCount(1)),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.CombinePerKey(sum)
+          | 'Values' >> Map(lambda k_vs: k_vs[1]))
 
-    class RecordFn(beam.DoFn):
-      def process(
-          self,
-          elm=beam.DoFn.ElementParam,
-          ts=beam.DoFn.TimestampParam,
-          side=beam.DoFn.SideInputParam):
-        yield (elm, ts, side)
+      class RecordFn(beam.DoFn):
+        def process(
+            self,
+            elm=beam.DoFn.ElementParam,
+            ts=beam.DoFn.TimestampParam,
+            side=beam.DoFn.SideInputParam):
+          yield (elm, ts, side)
 
-    records = (
-        main_data
-        | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_data)))
+      records = (
+          main_data
+          | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_data)))
 
-    expected_window_to_elements = {
-        window.IntervalWindow(0, 5): [
-            ('a1', Timestamp(3), [100, 0]),
-        ],
-        window.IntervalWindow(5, 10): [('a2', Timestamp(8), [400, 0])],
-    }
+      expected_window_to_elements = {
+          window.IntervalWindow(0, 5): [
+              ('a1', Timestamp(3), [100, 0]),
+          ],
+          window.IntervalWindow(5, 10): [('a2', Timestamp(8), [400, 0])],
+      }
 
-    assert_that(
-        records,
-        equal_to_per_window(expected_window_to_elements),
-        use_global_window=False,
-        label='assert per window')
-
-    p.run()
+      assert_that(
+          records,
+          equal_to_per_window(expected_window_to_elements),
+          use_global_window=False,
+          label='assert per window')
 
 
 if __name__ == '__main__':

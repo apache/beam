@@ -20,19 +20,18 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
-from builtins import object
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 
 import apache_beam as beam
+from apache_beam.io import Read
+from apache_beam.io import Write
+from apache_beam.io.gcp.pubsub import MultipleReadFromPubSub
 from apache_beam.io.gcp.pubsub import PubsubMessage
+from apache_beam.io.gcp.pubsub import PubSubSourceDescriptor
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.io.gcp.pubsub import ReadStringsFromPubSub
 from apache_beam.io.gcp.pubsub import WriteStringsToPubSub
@@ -41,6 +40,9 @@ from apache_beam.io.gcp.pubsub import _PubSubSink
 from apache_beam.io.gcp.pubsub import _PubSubSource
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners import pipeline_context
 from apache_beam.runners.direct import transform_evaluator
 from apache_beam.runners.direct.direct_runner import _DirectReadFromPubSub
 from apache_beam.runners.direct.direct_runner import _get_transform_overrides
@@ -54,6 +56,7 @@ from apache_beam.transforms import window
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
 
 # Protect against environments where the PubSub library is not available.
@@ -83,6 +86,27 @@ class TestPubsubMessage(unittest.TestCase):
     m_converted = PubsubMessage._from_proto_str(m._to_proto_str())
     self.assertEqual(m_converted.data, data)
     self.assertEqual(m_converted.attributes, attributes)
+
+  @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
+  def test_payload_publish_invalid(self):
+    with self.assertRaisesRegex(ValueError, r'data field.*10MB'):
+      msg = PubsubMessage(b'0' * 1024 * 1024 * 11, None)
+      msg._to_proto_str(for_publish=True)
+    with self.assertRaisesRegex(ValueError, 'attribute key'):
+      msg = PubsubMessage(b'0', {'0' * 257: '0'})
+      msg._to_proto_str(for_publish=True)
+    with self.assertRaisesRegex(ValueError, 'attribute value'):
+      msg = PubsubMessage(b'0', {'0' * 100: '0' * 1025})
+      msg._to_proto_str(for_publish=True)
+    with self.assertRaisesRegex(ValueError, '100 attributes'):
+      attributes = {}
+      for i in range(0, 101):
+        attributes[str(i)] = str(i)
+      msg = PubsubMessage(b'0', attributes)
+      msg._to_proto_str(for_publish=True)
+    with self.assertRaisesRegex(ValueError, 'ordering key'):
+      msg = PubsubMessage(b'0', None, ordering_key='0' * 1301)
+      msg._to_proto_str(for_publish=True)
 
   def test_eq(self):
     a = PubsubMessage(b'abc', {1: 2, 3: 4})
@@ -217,6 +241,127 @@ class TestReadFromPubSubOverride(unittest.TestCase):
 
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
+class TestMultiReadFromPubSubOverride(unittest.TestCase):
+  def test_expand_with_multiple_sources(self):
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+    topics = [
+        'projects/fakeprj/topics/a_topic', 'projects/fakeprj2/topics/b_topic'
+    ]
+    subscriptions = ['projects/fakeprj/subscriptions/a_subscription']
+
+    pubsub_sources = [
+        PubSubSourceDescriptor(descriptor)
+        for descriptor in topics + subscriptions
+    ]
+    pcoll = (p | MultipleReadFromPubSub(pubsub_sources) | beam.Map(lambda x: x))
+
+    # Apply the necessary PTransformOverrides.
+    overrides = _get_transform_overrides(options)
+    p.replace_all(overrides)
+
+    self.assertEqual(bytes, pcoll.element_type)
+
+    # Ensure that the sources are passed through correctly
+    read_transforms = pcoll.producer.inputs[0].producer.inputs
+    topics_list = []
+    subscription_list = []
+    for read_transform in read_transforms:
+      source = read_transform.producer.transform._source
+      if source.full_topic:
+        topics_list.append(source.full_topic)
+      else:
+        subscription_list.append(source.full_subscription)
+    self.assertEqual(topics_list, topics)
+    self.assertEqual(subscription_list, subscriptions)
+
+  def test_expand_with_multiple_sources_and_attributes(self):
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+    topics = [
+        'projects/fakeprj/topics/a_topic', 'projects/fakeprj2/topics/b_topic'
+    ]
+    subscriptions = ['projects/fakeprj/subscriptions/a_subscription']
+
+    pubsub_sources = [
+        PubSubSourceDescriptor(descriptor)
+        for descriptor in topics + subscriptions
+    ]
+    pcoll = (
+        p | MultipleReadFromPubSub(pubsub_sources, with_attributes=True)
+        | beam.Map(lambda x: x))
+
+    # Apply the necessary PTransformOverrides.
+    overrides = _get_transform_overrides(options)
+    p.replace_all(overrides)
+
+    self.assertEqual(PubsubMessage, pcoll.element_type)
+
+    # Ensure that the sources are passed through correctly
+    read_transforms = pcoll.producer.inputs[0].producer.inputs
+    topics_list = []
+    subscription_list = []
+    for read_transform in read_transforms:
+      source = read_transform.producer.transform._source
+      if source.full_topic:
+        topics_list.append(source.full_topic)
+      else:
+        subscription_list.append(source.full_subscription)
+    self.assertEqual(topics_list, topics)
+    self.assertEqual(subscription_list, subscriptions)
+
+  def test_expand_with_multiple_sources_and_other_options(self):
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+    sources = [
+        'projects/fakeprj/topics/a_topic',
+        'projects/fakeprj2/topics/b_topic',
+        'projects/fakeprj/subscriptions/a_subscription'
+    ]
+    id_labels = ['a_label_topic', 'b_label_topic', 'a_label_subscription']
+    timestamp_attributes = ['a_ta_topic', 'b_ta_topic', 'a_ta_subscription']
+
+    pubsub_sources = [
+        PubSubSourceDescriptor(
+            source=source,
+            id_label=id_label,
+            timestamp_attribute=timestamp_attribute) for source,
+        id_label,
+        timestamp_attribute in zip(sources, id_labels, timestamp_attributes)
+    ]
+
+    pcoll = (p | MultipleReadFromPubSub(pubsub_sources) | beam.Map(lambda x: x))
+
+    # Apply the necessary PTransformOverrides.
+    overrides = _get_transform_overrides(options)
+    p.replace_all(overrides)
+
+    self.assertEqual(bytes, pcoll.element_type)
+
+    # Ensure that the sources are passed through correctly
+    read_transforms = pcoll.producer.inputs[0].producer.inputs
+    for i, read_transform in enumerate(read_transforms):
+      id_label = id_labels[i]
+      timestamp_attribute = timestamp_attributes[i]
+
+      source = read_transform.producer.transform._source
+      self.assertEqual(source.id_label, id_label)
+      self.assertEqual(source.with_attributes, False)
+      self.assertEqual(source.timestamp_attribute, timestamp_attribute)
+
+  def test_expand_with_wrong_source(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        r'PubSub source descriptor must be in the form '
+        r'"projects/<project>/topics/<topic>"'
+        ' or "projects/<project>/subscription/<subscription>".*'):
+      MultipleReadFromPubSub([PubSubSourceDescriptor('not_a_proper_source')])
+
+
+@unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestWriteStringsToPubSubOverride(unittest.TestCase):
   def test_expand_deprecated(self):
     options = PipelineOptions([])
@@ -261,7 +406,8 @@ class TestWriteStringsToPubSubOverride(unittest.TestCase):
     # Ensure that the properties passed through correctly
     self.assertEqual('a_topic', write_transform.dofn.short_topic_name)
     self.assertEqual(True, write_transform.dofn.with_attributes)
-    # TODO(BEAM-4275): These properties aren't supported yet in direct runner.
+    # TODO(https://github.com/apache/beam/issues/18939): These properties
+    # aren't supported yet in direct runner.
     self.assertEqual(None, write_transform.dofn.id_label)
     self.assertEqual(None, write_transform.dofn.timestamp_attribute)
 
@@ -306,16 +452,15 @@ class TestPubSubSource(unittest.TestCase):
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestPubSubSink(unittest.TestCase):
   def test_display_data(self):
-    sink = _PubSubSink(
+    sink = WriteToPubSub(
         'projects/fakeprj/topics/a_topic',
         id_label='id',
-        with_attributes=False,
         timestamp_attribute='time')
     dd = DisplayData.create_from(sink)
     expected_items = [
         DisplayDataItemMatcher('topic', 'projects/fakeprj/topics/a_topic'),
         DisplayDataItemMatcher('id_label', 'id'),
-        DisplayDataItemMatcher('with_attributes', False),
+        DisplayDataItemMatcher('with_attributes', True),
         DisplayDataItemMatcher('timestamp_attribute', 'time'),
     ]
 
@@ -380,10 +525,9 @@ class TestReadFromPubSub(unittest.TestCase):
               with_attributes=True))
       assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
-        [mock.call()])
+    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_strings_success(self, mock_pubsub):
     data = u'🤷 ¯\\_(ツ)_/¯'
@@ -403,10 +547,9 @@ class TestReadFromPubSub(unittest.TestCase):
               'projects/fakeprj/topics/a_topic', None, None))
       assert_that(pcoll, equal_to(expected_elements))
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
-        [mock.call()])
+    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_data_success(self, mock_pubsub):
     data_encoded = u'🤷 ¯\\_(ツ)_/¯'.encode('utf-8')
@@ -424,10 +567,9 @@ class TestReadFromPubSub(unittest.TestCase):
           | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, None))
       assert_that(pcoll, equal_to(expected_elements))
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
-        [mock.call()])
+    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_messages_timestamp_attribute_milli_success(self, mock_pubsub):
     data = b'data'
@@ -460,10 +602,9 @@ class TestReadFromPubSub(unittest.TestCase):
               timestamp_attribute='time'))
       assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
-        [mock.call()])
+    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_messages_timestamp_attribute_rfc3339_success(self, mock_pubsub):
     data = b'data'
@@ -496,10 +637,9 @@ class TestReadFromPubSub(unittest.TestCase):
               timestamp_attribute='time'))
       assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
-        [mock.call()])
+    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_messages_timestamp_attribute_missing(self, mock_pubsub):
     data = b'data'
@@ -533,10 +673,9 @@ class TestReadFromPubSub(unittest.TestCase):
               timestamp_attribute='nonexistent'))
       assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
-        [mock.call()])
+    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_messages_timestamp_attribute_fail_parse(self, mock_pubsub):
     data = b'data'
@@ -565,8 +704,7 @@ class TestReadFromPubSub(unittest.TestCase):
       p.run()
     mock_pubsub.return_value.acknowledge.assert_not_called()
 
-    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
-        [mock.call()])
+    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_message_id_label_unsupported(self, unused_mock_pubsub):
     # id_label is unsupported in DirectRunner.
@@ -578,6 +716,107 @@ class TestReadFromPubSub(unittest.TestCase):
         _ = (
             p | ReadFromPubSub(
                 'projects/fakeprj/topics/a_topic', None, 'a_label'))
+
+  def test_runner_api_transformation_with_topic(self, unused_mock_pubsub):
+    source = _PubSubSource(
+        topic='projects/fakeprj/topics/a_topic',
+        subscription=None,
+        id_label='a_label',
+        timestamp_attribute='b_label',
+        with_attributes=True)
+    transform = Read(source)
+
+    context = pipeline_context.PipelineContext()
+    proto_transform_spec = transform.to_runner_api(context)
+    self.assertEqual(
+        common_urns.composites.PUBSUB_READ.urn, proto_transform_spec.urn)
+
+    pubsub_read_payload = (
+        proto_utils.parse_Bytes(
+            proto_transform_spec.payload,
+            beam_runner_api_pb2.PubSubReadPayload))
+    self.assertEqual(
+        'projects/fakeprj/topics/a_topic', pubsub_read_payload.topic)
+    self.assertEqual('a_label', pubsub_read_payload.id_attribute)
+    self.assertEqual('b_label', pubsub_read_payload.timestamp_attribute)
+    self.assertEqual('', pubsub_read_payload.subscription)
+    self.assertTrue(pubsub_read_payload.with_attributes)
+
+    proto_transform = beam_runner_api_pb2.PTransform(
+        unique_name="dummy_label", spec=proto_transform_spec)
+
+    transform_from_proto = Read.from_runner_api_parameter(
+        proto_transform, pubsub_read_payload, None)
+    self.assertTrue(isinstance(transform_from_proto, Read))
+    self.assertTrue(isinstance(transform_from_proto.source, _PubSubSource))
+    self.assertEqual(
+        'projects/fakeprj/topics/a_topic',
+        transform_from_proto.source.full_topic)
+    self.assertTrue(transform_from_proto.source.with_attributes)
+
+  def test_runner_api_transformation_properties_none(self, unused_mock_pubsub):
+    # Confirming that properties stay None after a runner API transformation.
+    source = _PubSubSource(
+        topic='projects/fakeprj/topics/a_topic', with_attributes=True)
+    transform = Read(source)
+
+    context = pipeline_context.PipelineContext()
+    proto_transform_spec = transform.to_runner_api(context)
+    self.assertEqual(
+        common_urns.composites.PUBSUB_READ.urn, proto_transform_spec.urn)
+
+    pubsub_read_payload = (
+        proto_utils.parse_Bytes(
+            proto_transform_spec.payload,
+            beam_runner_api_pb2.PubSubReadPayload))
+
+    proto_transform = beam_runner_api_pb2.PTransform(
+        unique_name="dummy_label", spec=proto_transform_spec)
+
+    transform_from_proto = Read.from_runner_api_parameter(
+        proto_transform, pubsub_read_payload, None)
+    self.assertIsNone(transform_from_proto.source.full_subscription)
+    self.assertIsNone(transform_from_proto.source.id_label)
+    self.assertIsNone(transform_from_proto.source.timestamp_attribute)
+
+  def test_runner_api_transformation_with_subscription(
+      self, unused_mock_pubsub):
+    source = _PubSubSource(
+        topic=None,
+        subscription='projects/fakeprj/subscriptions/a_subscription',
+        id_label='a_label',
+        timestamp_attribute='b_label',
+        with_attributes=True)
+    transform = Read(source)
+
+    context = pipeline_context.PipelineContext()
+    proto_transform_spec = transform.to_runner_api(context)
+    self.assertEqual(
+        common_urns.composites.PUBSUB_READ.urn, proto_transform_spec.urn)
+
+    pubsub_read_payload = (
+        proto_utils.parse_Bytes(
+            proto_transform_spec.payload,
+            beam_runner_api_pb2.PubSubReadPayload))
+    self.assertEqual(
+        'projects/fakeprj/subscriptions/a_subscription',
+        pubsub_read_payload.subscription)
+    self.assertEqual('a_label', pubsub_read_payload.id_attribute)
+    self.assertEqual('b_label', pubsub_read_payload.timestamp_attribute)
+    self.assertEqual('', pubsub_read_payload.topic)
+    self.assertTrue(pubsub_read_payload.with_attributes)
+
+    proto_transform = beam_runner_api_pb2.PTransform(
+        unique_name="dummy_label", spec=proto_transform_spec)
+
+    transform_from_proto = Read.from_runner_api_parameter(
+        proto_transform, pubsub_read_payload, None)
+    self.assertTrue(isinstance(transform_from_proto, Read))
+    self.assertTrue(isinstance(transform_from_proto.source, _PubSubSource))
+    self.assertTrue(transform_from_proto.source.with_attributes)
+    self.assertEqual(
+        'projects/fakeprj/subscriptions/a_subscription',
+        transform_from_proto.source.full_subscription)
 
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
@@ -600,6 +839,7 @@ class TestWriteToPubSub(unittest.TestCase):
 
   def test_write_messages_deprecated(self, mock_pubsub):
     data = 'data'
+    data_bytes = b'data'
     payloads = [data]
 
     options = PipelineOptions([])
@@ -610,7 +850,7 @@ class TestWriteToPubSub(unittest.TestCase):
           | Create(payloads)
           | WriteStringsToPubSub('projects/fakeprj/topics/a_topic'))
     mock_pubsub.return_value.publish.assert_has_calls(
-        [mock.call(mock.ANY, data)])
+        [mock.call(mock.ANY, data_bytes)])
 
   def test_write_messages_with_attributes_success(self, mock_pubsub):
     data = b'data'
@@ -670,6 +910,65 @@ class TestWriteToPubSub(unittest.TestCase):
             | WriteToPubSub(
                 'projects/fakeprj/topics/a_topic',
                 timestamp_attribute='timestamp'))
+
+  def test_runner_api_transformation(self, unused_mock_pubsub):
+    sink = _PubSubSink(
+        topic='projects/fakeprj/topics/a_topic',
+        id_label=None,
+        # We expect encoded PubSub write transform to always return attributes.
+        timestamp_attribute=None)
+    transform = Write(sink)
+
+    context = pipeline_context.PipelineContext()
+    proto_transform_spec = transform.to_runner_api(context)
+    self.assertEqual(
+        common_urns.composites.PUBSUB_WRITE.urn, proto_transform_spec.urn)
+
+    pubsub_write_payload = (
+        proto_utils.parse_Bytes(
+            proto_transform_spec.payload,
+            beam_runner_api_pb2.PubSubWritePayload))
+
+    self.assertEqual(
+        'projects/fakeprj/topics/a_topic', pubsub_write_payload.topic)
+
+    proto_transform = beam_runner_api_pb2.PTransform(
+        unique_name="dummy_label", spec=proto_transform_spec)
+
+    transform_from_proto = Write.from_runner_api_parameter(
+        proto_transform, pubsub_write_payload, None)
+    self.assertTrue(isinstance(transform_from_proto, Write))
+    self.assertTrue(isinstance(transform_from_proto.sink, _PubSubSink))
+    self.assertEqual(
+        'projects/fakeprj/topics/a_topic', transform_from_proto.sink.full_topic)
+
+  def test_runner_api_transformation_properties_none(self, unused_mock_pubsub):
+    # Confirming that properties stay None after a runner API transformation.
+    sink = _PubSubSink(
+        topic='projects/fakeprj/topics/a_topic',
+        id_label=None,
+        # We expect encoded PubSub write transform to always return attributes.
+        timestamp_attribute=None)
+    transform = Write(sink)
+
+    context = pipeline_context.PipelineContext()
+    proto_transform_spec = transform.to_runner_api(context)
+    self.assertEqual(
+        common_urns.composites.PUBSUB_WRITE.urn, proto_transform_spec.urn)
+
+    pubsub_write_payload = (
+        proto_utils.parse_Bytes(
+            proto_transform_spec.payload,
+            beam_runner_api_pb2.PubSubWritePayload))
+    proto_transform = beam_runner_api_pb2.PTransform(
+        unique_name="dummy_label", spec=proto_transform_spec)
+    transform_from_proto = Write.from_runner_api_parameter(
+        proto_transform, pubsub_write_payload, None)
+
+    self.assertTrue(isinstance(transform_from_proto, Write))
+    self.assertTrue(isinstance(transform_from_proto.sink, _PubSubSink))
+    self.assertIsNone(transform_from_proto.sink.id_label)
+    self.assertIsNone(transform_from_proto.sink.timestamp_attribute)
 
 
 if __name__ == '__main__':

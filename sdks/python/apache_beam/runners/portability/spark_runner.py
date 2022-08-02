@@ -19,12 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import os
 import re
-import sys
 import urllib
 
 from apache_beam.options import pipeline_options
@@ -35,6 +31,10 @@ from apache_beam.runners.portability import spark_uber_jar_job_server
 # https://spark.apache.org/docs/latest/submitting-applications.html#master-urls
 LOCAL_MASTER_PATTERN = r'^local(\[.+\])?$'
 
+# Since Java job servers are heavyweight external processes, cache them.
+# This applies only to SparkJarJobServer, not SparkUberJarJobServer.
+JOB_SERVER_CACHE = {}
+
 
 class SparkRunner(portable_runner.PortableRunner):
   def run_pipeline(self, pipeline, options):
@@ -44,20 +44,24 @@ class SparkRunner(portable_runner.PortableRunner):
         not portable_options.environment_type and
         not portable_options.output_executable_path):
       portable_options.environment_type = 'LOOPBACK'
-    return super(SparkRunner, self).run_pipeline(pipeline, options)
+    return super().run_pipeline(pipeline, options)
 
   def default_job_server(self, options):
     spark_options = options.view_as(pipeline_options.SparkRunnerOptions)
     if spark_options.spark_submit_uber_jar:
-      if sys.version_info < (3, 6):
-        raise ValueError(
-            'spark_submit_uber_jar requires Python 3.6+, current version %s' %
-            sys.version)
       if not spark_options.spark_rest_url:
         raise ValueError('Option spark_rest_url must be set.')
       return spark_uber_jar_job_server.SparkUberJarJobServer(
           spark_options.spark_rest_url, options)
-    return job_server.StopOnExitJobServer(SparkJarJobServer(options))
+    # Use Java job server by default.
+    # Only SparkRunnerOptions and JobServerOptions affect job server
+    # configuration, so concat those as the cache key.
+    job_server_options = options.view_as(pipeline_options.JobServerOptions)
+    options_str = str(spark_options) + str(job_server_options)
+    if not options_str in JOB_SERVER_CACHE:
+      JOB_SERVER_CACHE[options_str] = job_server.StopOnExitJobServer(
+          SparkJarJobServer(options))
+    return JOB_SERVER_CACHE[options_str]
 
   def create_job_service_handle(self, job_service, options):
     return portable_runner.JobServiceHandle(
@@ -69,10 +73,11 @@ class SparkRunner(portable_runner.PortableRunner):
 
 class SparkJarJobServer(job_server.JavaJarJobServer):
   def __init__(self, options):
-    super(SparkJarJobServer, self).__init__(options)
+    super().__init__(options)
     options = options.view_as(pipeline_options.SparkRunnerOptions)
     self._jar = options.spark_job_server_jar
     self._master_url = options.spark_master_url
+    self._spark_version = options.spark_version
 
   def path_to_jar(self):
     if self._jar:
@@ -83,11 +88,15 @@ class SparkJarJobServer(job_server.JavaJarJobServer):
               'Unable to parse jar URL "%s". If using a full URL, make sure '
               'the scheme is specified. If using a local file path, make sure '
               'the file exists; you may have to first build the job server '
-              'using `./gradlew runners:spark:job-server:shadowJar`.' %
+              'using `./gradlew runners:spark:2:job-server:shadowJar`.' %
               self._jar)
       return self._jar
     else:
-      return self.path_to_beam_jar('runners:spark:job-server:shadowJar')
+      if self._spark_version == '3':
+        return self.path_to_beam_jar(':runners:spark:3:job-server:shadowJar')
+      return self.path_to_beam_jar(
+          ':runners:spark:2:job-server:shadowJar',
+          artifact_id='beam-runners-spark-job-server')
 
   def java_arguments(
       self, job_port, artifact_port, expansion_port, artifacts_dir):

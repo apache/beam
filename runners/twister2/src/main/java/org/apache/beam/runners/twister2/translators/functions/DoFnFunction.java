@@ -59,9 +59,13 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
 
 /** DoFn function. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DoFnFunction<OutputT, InputT>
     implements ComputeCollectorFunc<RawUnionValue, Iterator<WindowedValue<InputT>>> {
   private static final Logger LOG = Logger.getLogger(DoFnFunction.class.getName());
@@ -159,7 +163,7 @@ public class DoFnFunction<OutputT, InputT>
     initTransient();
     sideInputReader = new Twister2SideInputReader(sideInputs, context);
     outputManager.setup(mainOutput, sideOutputs);
-    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn);
+    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn, pipelineOptions);
 
     doFnRunner =
         DoFnRunners.simpleRunner(

@@ -25,10 +25,10 @@ import (
 	"strings"
 
 	"cloud.google.com/go/storage"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
@@ -124,3 +124,54 @@ func (f *fs) OpenWrite(ctx context.Context, filename string) (io.WriteCloser, er
 
 	return f.client.Bucket(bucket).Object(object).NewWriter(ctx), nil
 }
+
+func (f *fs) Size(ctx context.Context, filename string) (int64, error) {
+	bucket, object, err := gcsx.ParseObject(filename)
+	if err != nil {
+		return -1, err
+	}
+
+	obj := f.client.Bucket(bucket).Object(object)
+	attrs, err := obj.Attrs(ctx)
+	if err != nil {
+		return -1, err
+	}
+
+	return attrs.Size, nil
+}
+
+// Remove the named file from the filesystem.
+func (f *fs) Remove(ctx context.Context, filename string) error {
+	bucket, object, err := gcsx.ParseObject(filename)
+	if err != nil {
+		return err
+	}
+
+	obj := f.client.Bucket(bucket).Object(object)
+	return obj.Delete(ctx)
+}
+
+// Copy copies from srcpath to the dstpath.
+func (f *fs) Copy(ctx context.Context, srcpath, dstpath string) error {
+	bucket, src, err := gcsx.ParseObject(srcpath)
+	if err != nil {
+		return err
+	}
+	srcobj := f.client.Bucket(bucket).Object(src)
+
+	bucket, dst, err := gcsx.ParseObject(dstpath)
+	if err != nil {
+		return err
+	}
+	dstobj := f.client.Bucket(bucket).Object(dst)
+
+	cp := dstobj.CopierFrom(srcobj)
+	_, err = cp.Run(ctx)
+	return err
+}
+
+// Compile time check for interface implementations.
+var (
+	_ filesystem.Remover = ((*fs)(nil))
+	_ filesystem.Copier  = ((*fs)(nil))
+)

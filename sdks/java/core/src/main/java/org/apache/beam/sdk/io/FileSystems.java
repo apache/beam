@@ -48,10 +48,10 @@ import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.MoveOptions;
+import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
@@ -66,6 +66,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMult
 
 /** Clients facing {@link FileSystem} utility. */
 @Experimental(Kind.FILESYSTEM)
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public class FileSystems {
 
   public static final String DEFAULT_SCHEME = "file";
@@ -270,23 +274,13 @@ public class FileSystems {
       throws IOException {
     validateSrcDestLists(srcResourceIds, destResourceIds);
     if (srcResourceIds.isEmpty()) {
-      // Short-circuit.
       return;
     }
-
-    List<ResourceId> srcToCopy = srcResourceIds;
-    List<ResourceId> destToCopy = destResourceIds;
-    if (Sets.newHashSet(moveOptions)
-        .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
-      KV<List<ResourceId>, List<ResourceId>> existings =
-          filterMissingFiles(srcResourceIds, destResourceIds);
-      srcToCopy = existings.getKey();
-      destToCopy = existings.getValue();
+    FileSystem fileSystem = getFileSystemInternal(srcResourceIds.iterator().next().getScheme());
+    FilterResult filtered = filterFiles(fileSystem, srcResourceIds, destResourceIds, moveOptions);
+    if (!filtered.resultSources.isEmpty()) {
+      fileSystem.copy(filtered.resultSources, filtered.resultDestinations);
     }
-    if (srcToCopy.isEmpty()) {
-      return;
-    }
-    getFileSystemInternal(srcToCopy.iterator().next().getScheme()).copy(srcToCopy, destToCopy);
   }
 
   /**
@@ -299,6 +293,8 @@ public class FileSystems {
    *
    * <p>It doesn't support renaming globs.
    *
+   * <p>Src files will be removed, even if the copy is skipped due to specified move options.
+   *
    * @param srcResourceIds the references of the source resources
    * @param destResourceIds the references of the destination resources
    */
@@ -307,24 +303,35 @@ public class FileSystems {
       throws IOException {
     validateSrcDestLists(srcResourceIds, destResourceIds);
     if (srcResourceIds.isEmpty()) {
-      // Short-circuit.
       return;
     }
+    renameInternal(
+        getFileSystemInternal(srcResourceIds.iterator().next().getScheme()),
+        srcResourceIds,
+        destResourceIds,
+        moveOptions);
+  }
 
-    List<ResourceId> srcToRename = srcResourceIds;
-    List<ResourceId> destToRename = destResourceIds;
-    if (Sets.newHashSet(moveOptions)
-        .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
-      KV<List<ResourceId>, List<ResourceId>> existings =
-          filterMissingFiles(srcResourceIds, destResourceIds);
-      srcToRename = existings.getKey();
-      destToRename = existings.getValue();
+  @VisibleForTesting
+  static void renameInternal(
+      FileSystem fileSystem,
+      List<ResourceId> srcResourceIds,
+      List<ResourceId> destResourceIds,
+      MoveOptions... moveOptions)
+      throws IOException {
+    try {
+      fileSystem.rename(srcResourceIds, destResourceIds, moveOptions);
+    } catch (UnsupportedOperationException e) {
+      // Some file systems do not yet support specifying the move options. Instead we
+      // perform filtering using match calls before renaming.
+      FilterResult filtered = filterFiles(fileSystem, srcResourceIds, destResourceIds, moveOptions);
+      if (!filtered.resultSources.isEmpty()) {
+        fileSystem.rename(filtered.resultSources, filtered.resultDestinations);
+      }
+      if (!filtered.filteredExistingSrcs.isEmpty()) {
+        fileSystem.delete(filtered.filteredExistingSrcs);
+      }
     }
-    if (srcToRename.isEmpty()) {
-      return;
-    }
-    getFileSystemInternal(srcToRename.iterator().next().getScheme())
-        .rename(srcToRename, destToRename);
   }
 
   /**
@@ -386,25 +393,72 @@ public class FileSystems {
         .delete(resourceIdsToDelete);
   }
 
-  private static KV<List<ResourceId>, List<ResourceId>> filterMissingFiles(
-      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds) throws IOException {
-    validateSrcDestLists(srcResourceIds, destResourceIds);
-    if (srcResourceIds.isEmpty()) {
-      // Short-circuit.
-      return KV.of(Collections.<ResourceId>emptyList(), Collections.<ResourceId>emptyList());
+  private static class FilterResult {
+    public List<ResourceId> resultSources = new ArrayList();
+    public List<ResourceId> resultDestinations = new ArrayList();
+    public List<ResourceId> filteredExistingSrcs = new ArrayList();
+  };
+
+  private static FilterResult filterFiles(
+      FileSystem fileSystem,
+      List<ResourceId> srcResourceIds,
+      List<ResourceId> destResourceIds,
+      MoveOptions... moveOptions)
+      throws IOException {
+    FilterResult result = new FilterResult();
+    if (moveOptions.length == 0 || srcResourceIds.isEmpty()) {
+      // Nothing will be filtered.
+      result.resultSources = srcResourceIds;
+      result.resultDestinations = destResourceIds;
+      return result;
     }
+    Set<MoveOptions> moveOptionSet = Sets.newHashSet(moveOptions);
+    final boolean ignoreMissingSrc =
+        moveOptionSet.contains(StandardMoveOptions.IGNORE_MISSING_FILES);
+    final boolean skipExistingDest =
+        moveOptionSet.contains(StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+    final int size = srcResourceIds.size();
 
-    List<ResourceId> srcToHandle = new ArrayList<>();
-    List<ResourceId> destToHandle = new ArrayList<>();
+    // Match necessary srcs and dests with a single match call.
+    List<ResourceId> matchResources = new ArrayList<>();
+    if (ignoreMissingSrc) {
+      matchResources.addAll(srcResourceIds);
+    }
+    if (skipExistingDest) {
+      matchResources.addAll(destResourceIds);
+    }
+    List<MatchResult> matchResults =
+        fileSystem.match(
+            FluentIterable.from(matchResources).transform(ResourceId::toString).toList());
+    List<MatchResult> matchSrcResults = ignoreMissingSrc ? matchResults.subList(0, size) : null;
+    List<MatchResult> matchDestResults =
+        skipExistingDest
+            ? matchResults.subList(matchResults.size() - size, matchResults.size())
+            : null;
 
-    List<MatchResult> matchResults = matchResources(srcResourceIds);
-    for (int i = 0; i < matchResults.size(); ++i) {
-      if (!matchResults.get(i).status().equals(Status.NOT_FOUND)) {
-        srcToHandle.add(srcResourceIds.get(i));
-        destToHandle.add(destResourceIds.get(i));
+    for (int i = 0; i < size; ++i) {
+      if (matchSrcResults != null && matchSrcResults.get(i).status().equals(Status.NOT_FOUND)) {
+        // If the source is not found, and we are ignoring missing source files, then we skip it.
+        continue;
       }
+      if (matchDestResults != null
+          && matchDestResults.get(i).status().equals(Status.OK)
+          && checksumMatch(
+              matchDestResults.get(i).metadata().get(0),
+              matchSrcResults.get(i).metadata().get(0))) {
+        // If the destination exists, and we are skipping when destinations exist, then we skip
+        // the copy but note that the source exists in case it should be deleted.
+        result.filteredExistingSrcs.add(srcResourceIds.get(i));
+        continue;
+      }
+      result.resultSources.add(srcResourceIds.get(i));
+      result.resultDestinations.add(destResourceIds.get(i));
     }
-    return KV.of(srcToHandle, destToHandle);
+    return result;
+  }
+
+  private static boolean checksumMatch(MatchResult.Metadata first, MatchResult.Metadata second) {
+    return first.checksum() != null && first.checksum().equals(second.checksum());
   }
 
   private static void validateSrcDestLists(

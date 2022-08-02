@@ -53,6 +53,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <V> the type of the elements in the input {@code PCollection} and the values in the output
  *     {@code PCollection}
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class WithKeys<K, V> extends PTransform<PCollection<V>, PCollection<KV<K, V>>> {
   /**
    * Returns a {@code PTransform} that takes a {@code PCollection<V>} and returns a {@code

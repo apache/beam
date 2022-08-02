@@ -33,6 +33,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** A descriptor for ClickHouse table schema. */
 @Experimental(Kind.SOURCE_SINK)
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class TableSchema implements Serializable {
 
   public abstract List<Column> columns();

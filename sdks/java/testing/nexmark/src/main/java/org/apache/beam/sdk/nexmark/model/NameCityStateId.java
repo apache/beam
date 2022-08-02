@@ -36,6 +36,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Result of Query3. */
 @DefaultSchema(JavaFieldSchema.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class NameCityStateId implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
@@ -106,7 +109,7 @@ public class NameCityStateId implements KnownSize, Serializable {
     return Objects.equals(name, other.name)
         && Objects.equals(city, other.city)
         && Objects.equals(state, other.state)
-        && Objects.equals(id, other.id);
+        && id == other.id;
   }
 
   @Override

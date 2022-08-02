@@ -52,7 +52,6 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -64,6 +63,10 @@ import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.joda.time.Instant;
 
 /** A {@link Combine} that performs the combine in multiple steps. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class MultiStepCombine<
         K extends @Nullable Object,
         InputT extends @Nullable Object,
@@ -83,7 +86,7 @@ class MultiStepCombine<
       }
 
       private <K, InputT> boolean isApplicable(
-          Map<TupleTag<?>, PValue> inputs, GlobalCombineFn<InputT, ?, ?> fn) {
+          Map<TupleTag<?>, PCollection<?>> inputs, GlobalCombineFn<InputT, ?, ?> fn) {
         if (!(fn instanceof CombineFn)) {
           return false;
         }
@@ -91,7 +94,7 @@ class MultiStepCombine<
           PCollection<KV<K, InputT>> input =
               (PCollection<KV<K, InputT>>) Iterables.getOnlyElement(inputs.values());
           WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
-          boolean windowFnApplicable = windowingStrategy.getWindowFn().isNonMerging();
+          boolean windowFnApplicable = !windowingStrategy.needsMerge();
           // Triggering with count based triggers is not appropriately handled here. Disabling
           // most triggers is safe, though more broad than is technically required.
           boolean triggerApplicable = DefaultTrigger.of().equals(windowingStrategy.getTrigger());
@@ -426,7 +429,7 @@ class MultiStepCombine<
     @Override
     public <InputT> TransformEvaluator<InputT> forApplication(
         AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
-      return createEvaluator((AppliedPTransform) application, (CommittedBundle) inputBundle);
+      return createEvaluator((AppliedPTransform) application);
     }
 
     private <K, AccumT, OutputT> TransformEvaluator<KV<K, Iterable<AccumT>>> createEvaluator(
@@ -434,8 +437,7 @@ class MultiStepCombine<
                 PCollection<KV<K, Iterable<AccumT>>>,
                 PCollection<KV<K, OutputT>>,
                 MergeAndExtractAccumulatorOutput<K, AccumT, OutputT>>
-            application,
-        CommittedBundle<KV<K, Iterable<AccumT>>> inputBundle) {
+            application) {
       return new MergeAccumulatorsAndExtractOutputEvaluator<>(ctxt, application);
     }
 

@@ -26,15 +26,17 @@ import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServices;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
-import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServiceImpl;
-import org.apache.beam.sdk.io.snowflake.test.unit.TestPipelineOptions;
+import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServicesImpl;
+import org.apache.beam.sdk.io.snowflake.test.TestSnowflakePipelineOptions;
+import org.apache.beam.sdk.io.snowflake.test.TestUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,15 +48,16 @@ import org.junit.runners.JUnit4;
 public class SnowflakeIOReadTest implements Serializable {
   public static final String FAKE_TABLE = "FAKE_TABLE";
   public static final String FAKE_QUERY = "SELECT * FROM FAKE_TABLE";
+  public static final String BUCKET_NAME = "BUCKET/";
 
-  private static final TestPipelineOptions options =
-      TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);;
+  private static final TestSnowflakePipelineOptions options =
+      TestPipeline.testingPipelineOptions().as(TestSnowflakePipelineOptions.class);
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   private static SnowflakeIO.DataSourceConfiguration dataSourceConfiguration;
-  private static SnowflakeService snowflakeService;
+  private static SnowflakeServices snowflakeServices;
   private static List<GenericRecord> avroTestData;
 
   @BeforeClass
@@ -71,22 +74,27 @@ public class SnowflakeIOReadTest implements Serializable {
 
     options.setServerName("NULL.snowflakecomputing.com");
     options.setStorageIntegrationName("STORAGE_INTEGRATION");
-    options.setStagingBucketName("BUCKET");
+    options.setStagingBucketName(BUCKET_NAME);
 
     dataSourceConfiguration =
         SnowflakeIO.DataSourceConfiguration.create(new FakeSnowflakeBasicDataSource())
             .withServerName(options.getServerName());
 
-    snowflakeService = new FakeSnowflakeServiceImpl();
+    snowflakeServices = new FakeSnowflakeServicesImpl();
+  }
+
+  @AfterClass
+  public static void tearDown() {
+    TestUtils.removeTempDir(BUCKET_NAME);
   }
 
   @Test
   public void testConfigIsMissingStagingBucketName() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("withStagingBucketName is required");
+    thrown.expectMessage("withStagingBucketName() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
             .withStorageIntegrationName(options.getStorageIntegrationName())
@@ -99,10 +107,10 @@ public class SnowflakeIOReadTest implements Serializable {
   @Test
   public void testConfigIsMissingStorageIntegration() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("withStorageIntegrationName is required");
+    thrown.expectMessage("withStorageIntegrationName() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
             .withStagingBucketName(options.getStagingBucketName())
@@ -118,7 +126,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("withCsvMapper() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
             .withStagingBucketName(options.getStagingBucketName())
@@ -134,7 +142,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("withCoder() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
             .withStagingBucketName(options.getStagingBucketName())
@@ -150,7 +158,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("fromTable() or fromQuery() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .withStagingBucketName(options.getStagingBucketName())
             .withStorageIntegrationName(options.getStorageIntegrationName())
@@ -166,7 +174,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .fromTable(FAKE_TABLE)
             .withStagingBucketName(options.getStagingBucketName())
             .withStorageIntegrationName(options.getStorageIntegrationName())
@@ -182,7 +190,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("fromTable() and fromQuery() are not allowed together");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromQuery("")
             .fromTable(FAKE_TABLE)
@@ -200,7 +208,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("SQL compilation error: Table does not exist");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable("NON_EXIST")
             .withStagingBucketName(options.getStagingBucketName())
@@ -217,7 +225,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("SQL compilation error: Invalid query");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromQuery("BAD_QUERY")
             .withStagingBucketName(options.getStagingBucketName())
@@ -232,7 +240,7 @@ public class SnowflakeIOReadTest implements Serializable {
   public void testReadFromTable() {
     PCollection<GenericRecord> items =
         pipeline.apply(
-            SnowflakeIO.<GenericRecord>read(snowflakeService)
+            SnowflakeIO.<GenericRecord>read(snowflakeServices)
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .fromTable(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
@@ -248,7 +256,7 @@ public class SnowflakeIOReadTest implements Serializable {
   public void testReadFromQuery() {
     PCollection<GenericRecord> items =
         pipeline.apply(
-            SnowflakeIO.<GenericRecord>read(snowflakeService)
+            SnowflakeIO.<GenericRecord>read(snowflakeServices)
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .fromQuery(FAKE_QUERY)
                 .withStagingBucketName(options.getStagingBucketName())
@@ -261,12 +269,11 @@ public class SnowflakeIOReadTest implements Serializable {
   }
 
   static SnowflakeIO.CsvMapper<GenericRecord> getCsvMapper() {
-    return (SnowflakeIO.CsvMapper<GenericRecord>)
-        parts ->
-            new GenericRecordBuilder(AvroGeneratedUser.getClassSchema())
-                .set("name", String.valueOf(parts[0]))
-                .set("favorite_number", Integer.valueOf(parts[1]))
-                .set("favorite_color", String.valueOf(parts[2]))
-                .build();
+    return parts ->
+        new GenericRecordBuilder(AvroGeneratedUser.getClassSchema())
+            .set("name", String.valueOf(parts[0]))
+            .set("favorite_number", Integer.valueOf(parts[1]))
+            .set("favorite_color", String.valueOf(parts[2]))
+            .build();
   }
 }

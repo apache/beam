@@ -37,6 +37,10 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /** Twister2TranslationContext. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class Twister2TranslationContext {
   private final Twister2PipelineOptions options;
   protected final Map<PValue, TSet<?>> dataSets = new LinkedHashMap<>();
@@ -73,7 +77,7 @@ public abstract class Twister2TranslationContext {
     return tSet;
   }
 
-  public <T> Map<TupleTag<?>, PValue> getInputs() {
+  public <T> Map<TupleTag<?>, PCollection<?>> getInputs() {
     return currentTransform.getInputs();
   }
 
@@ -89,7 +93,7 @@ public abstract class Twister2TranslationContext {
     return currentTransform;
   }
 
-  public Map<TupleTag<?>, PValue> getOutputs() {
+  public Map<TupleTag<?>, PCollection<?>> getOutputs() {
     return getCurrentTransform().getOutputs();
   }
 

@@ -31,6 +31,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * appropriate exception classes while being static analysis friendly.
  */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Preconditions {
   /**
    * Ensures that an object reference passed as a parameter to the calling method is not null.
@@ -433,5 +436,40 @@ public class Preconditions {
       throw new IllegalArgumentException(lenientFormat(errorMessageTemplate, p1, p2, p3, p4));
     }
     return obj;
+  }
+
+  /**
+   * Ensures that a piece of state passed as a parameter to the calling method is not null.
+   *
+   * @param reference an object reference
+   * @return the non-null reference that was validated
+   * @throws IllegalStateException if {@code reference} is null
+   */
+  @CanIgnoreReturnValue
+  @EnsuresNonNull("#1")
+  public static <T extends @NonNull Object> T checkStateNotNull(@Nullable T reference) {
+    if (reference == null) {
+      throw new IllegalStateException();
+    }
+    return reference;
+  }
+
+  /**
+   * Ensures that a piece of state passed as a parameter to the calling method is not null.
+   *
+   * @param reference an object reference
+   * @param errorMessage the exception message to use if the check fails; will be converted to a
+   *     string using {@link String#valueOf(Object)}
+   * @return the non-null reference that was validated
+   * @throws IllegalStateException if {@code reference} is null
+   */
+  @CanIgnoreReturnValue
+  @EnsuresNonNull("#1")
+  public static <T extends @NonNull Object> T checkStateNotNull(
+      @Nullable T reference, @Nullable Object errorMessage) {
+    if (reference == null) {
+      throw new IllegalStateException(String.valueOf(errorMessage));
+    }
+    return reference;
   }
 }

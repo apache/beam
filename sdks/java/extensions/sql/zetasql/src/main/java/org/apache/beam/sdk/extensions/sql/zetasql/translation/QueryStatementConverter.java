@@ -37,12 +37,15 @@ import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMultimap;
 
 /**
  * Converts a resolved Zeta SQL query represented by a tree to corresponding Calcite representation.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class QueryStatementConverter extends RelConverter<ResolvedQueryStmt> {
 
   /** Conversion rules, multimap from node kind to conversion rule. */
@@ -62,7 +65,6 @@ public class QueryStatementConverter extends RelConverter<ResolvedQueryStmt> {
             .put(RESOLVED_ARRAY_SCAN, new ArrayScanColumnRefToUncollect(context))
             .put(RESOLVED_FILTER_SCAN, new FilterScanConverter(context))
             .put(RESOLVED_JOIN_SCAN, new JoinScanConverter(context))
-            .put(RESOLVED_JOIN_SCAN, new JoinScanWithRefConverter(context))
             .put(RESOLVED_LIMIT_OFFSET_SCAN, new LimitOffsetScanToLimitConverter(context))
             .put(RESOLVED_LIMIT_OFFSET_SCAN, new LimitOffsetScanToOrderByLimitConverter(context))
             .put(RESOLVED_ORDER_BY_SCAN, new OrderByScanUnsupportedConverter(context))

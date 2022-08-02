@@ -16,9 +16,7 @@
 #
 
 # pytype: skip-file
-
-from __future__ import absolute_import
-from __future__ import division
+# mypy: check-untyped-defs
 
 import atexit
 import functools
@@ -28,6 +26,7 @@ import threading
 import time
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Dict
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
@@ -96,6 +95,7 @@ class JobServiceHandle(object):
     self.job_service = job_service
     self.options = options
     self.timeout = options.view_as(PortableOptions).job_server_timeout
+    self.artifact_endpoint = options.view_as(PortableOptions).artifact_endpoint
     self._retain_unknown_options = retain_unknown_options
 
   def submit(self, proto_pipeline):
@@ -105,9 +105,12 @@ class JobServiceHandle(object):
     Submit and run the pipeline defined by `proto_pipeline`.
     """
     prepare_response = self.prepare(proto_pipeline)
+    artifact_endpoint = (
+        self.artifact_endpoint or
+        prepare_response.artifact_staging_endpoint.url)
     self.stage(
         proto_pipeline,
-        prepare_response.artifact_staging_endpoint.url,
+        artifact_endpoint,
         prepare_response.staging_session_token)
     return self.run(prepare_response.preparation_id)
 
@@ -165,6 +168,11 @@ class JobServiceHandle(object):
         add_extra_args_fn=add_runner_options,
         retain_unknown_options=self._retain_unknown_options)
 
+    return self.encode_pipeline_options(all_options)
+
+  @staticmethod
+  def encode_pipeline_options(
+      all_options: Dict[str, Any]) -> 'struct_pb2.Struct':
     def convert_pipeline_option_value(v):
       # convert int values: BEAM-5509
       if type(v) == int:
@@ -193,8 +201,12 @@ class JobServiceHandle(object):
             pipeline_options=self.get_pipeline_options()),
         timeout=self.timeout)
 
-  def stage(self, pipeline, artifact_staging_endpoint, staging_session_token):
-    # type: (...) -> Optional[Any]
+  def stage(self,
+            proto_pipeline,  # type: beam_runner_api_pb2.Pipeline
+            artifact_staging_endpoint,
+            staging_session_token
+           ):
+    # type: (...) -> None
 
     """Stage artifacts"""
     if artifact_staging_endpoint:
@@ -220,7 +232,8 @@ class JobServiceHandle(object):
           beam_job_api_pb2.JobMessagesRequest(job_id=preparation_id),
           timeout=self.timeout)
     except Exception:
-      # TODO(BEAM-6442): Unify preparation_id and job_id for all runners.
+      # TODO(https://github.com/apache/beam/issues/19284): Unify preparation_id
+      # and job_id for all runners.
       state_stream = message_stream = None
 
     # Run the job and wait for a result, we don't set a timeout here because
@@ -284,6 +297,7 @@ class PortableRunner(runner.PipelineRunner):
         'use, such as --runner=FlinkRunner or --runner=SparkRunner.')
 
   def create_job_service_handle(self, job_service, options):
+    # type: (...) -> JobServiceHandle
     return JobServiceHandle(job_service, options)
 
   def create_job_service(self, options):
@@ -295,7 +309,7 @@ class PortableRunner(runner.PipelineRunner):
     job_endpoint = options.view_as(PortableOptions).job_endpoint
     if job_endpoint:
       if job_endpoint == 'embed':
-        server = job_server.EmbeddedJobServer()
+        server = job_server.EmbeddedJobServer()  # type: job_server.JobServer
       else:
         job_server_timeout = options.view_as(PortableOptions).job_server_timeout
         server = job_server.ExternalJobServer(job_endpoint, job_server_timeout)
@@ -312,62 +326,98 @@ class PortableRunner(runner.PipelineRunner):
         default_environment=PortableRunner._create_environment(
             portable_options))
 
-    # Preemptively apply combiner lifting, until all runners support it.
-    # These optimizations commute and are idempotent.
+    # TODO: https://github.com/apache/beam/issues/19493
+    # Eventually remove the 'pre_optimize' option alltogether and only perform
+    # the equivalent of the 'default' case below (minus the 'lift_combiners'
+    # part).
     pre_optimize = options.view_as(DebugOptions).lookup_experiment(
-        'pre_optimize', 'lift_combiners').lower()
-    if not options.view_as(StandardOptions).streaming:
-      flink_known_urns = frozenset([
-          common_urns.composites.RESHUFFLE.urn,
-          common_urns.primitives.IMPULSE.urn,
-          common_urns.primitives.FLATTEN.urn,
-          common_urns.primitives.GROUP_BY_KEY.urn
-      ])
-      if pre_optimize == 'none':
-        pass
+        'pre_optimize', 'default').lower()
+    if (not options.view_as(StandardOptions).streaming and
+        pre_optimize != 'none'):
+      if pre_optimize == 'default':
+        phases = [
+            # TODO: https://github.com/apache/beam/issues/18584
+            #       https://github.com/apache/beam/issues/18586
+            # Eventually remove the 'lift_combiners' phase from 'default'.
+            translations.pack_combiners,
+            translations.lift_combiners,
+            translations.sort_stages
+        ]
+        partial = True
       elif pre_optimize == 'all':
-        proto_pipeline = translations.optimize_pipeline(
-            proto_pipeline,
-            phases=[
-                translations.annotate_downstream_side_inputs,
-                translations.annotate_stateful_dofns_as_roots,
-                translations.fix_side_input_pcoll_coders,
-                translations.lift_combiners,
-                translations.expand_sdf,
-                translations.fix_flatten_coders,
-                # fn_api_runner_transforms.sink_flattens,
-                translations.greedily_fuse,
-                translations.read_to_impulse,
-                translations.extract_impulse_stages,
-                translations.remove_data_plane_ops,
-                translations.sort_stages
-            ],
-            known_runner_urns=flink_known_urns)
+        phases = [
+            translations.annotate_downstream_side_inputs,
+            translations.annotate_stateful_dofns_as_roots,
+            translations.fix_side_input_pcoll_coders,
+            translations.pack_combiners,
+            translations.lift_combiners,
+            translations.expand_sdf,
+            translations.fix_flatten_coders,
+            # translations.sink_flattens,
+            translations.greedily_fuse,
+            translations.read_to_impulse,
+            translations.extract_impulse_stages,
+            translations.remove_data_plane_ops,
+            translations.sort_stages
+        ]
+        partial = False
+      elif pre_optimize == 'all_except_fusion':
+        # TODO(https://github.com/apache/beam/issues/19422): Delete this branch
+        # after PortableRunner supports beam:runner:executable_stage:v1.
+        phases = [
+            translations.annotate_downstream_side_inputs,
+            translations.annotate_stateful_dofns_as_roots,
+            translations.fix_side_input_pcoll_coders,
+            translations.pack_combiners,
+            translations.lift_combiners,
+            translations.expand_sdf,
+            translations.fix_flatten_coders,
+            # translations.sink_flattens,
+            # translations.greedily_fuse,
+            translations.read_to_impulse,
+            translations.extract_impulse_stages,
+            translations.remove_data_plane_ops,
+            translations.sort_stages
+        ]
+        partial = True
       else:
         phases = []
         for phase_name in pre_optimize.split(','):
           # For now, these are all we allow.
-          if phase_name in 'lift_combiners':
+          if phase_name in ('pack_combiners', 'lift_combiners'):
             phases.append(getattr(translations, phase_name))
           else:
             raise ValueError(
                 'Unknown or inapplicable phase for pre_optimize: %s' %
                 phase_name)
-        proto_pipeline = translations.optimize_pipeline(
-            proto_pipeline,
-            phases=phases,
-            known_runner_urns=flink_known_urns,
-            partial=True)
+        phases.append(translations.sort_stages)
+        partial = True
+
+      # All (known) portable runners (ie Flink and Spark) support these URNs.
+      known_urns = frozenset([
+          common_urns.composites.RESHUFFLE.urn,
+          common_urns.primitives.IMPULSE.urn,
+          common_urns.primitives.FLATTEN.urn,
+          common_urns.primitives.GROUP_BY_KEY.urn
+      ])
+      proto_pipeline = translations.optimize_pipeline(
+          proto_pipeline,
+          phases=phases,
+          known_runner_urns=known_urns,
+          partial=partial)
+
     return proto_pipeline
 
   def run_pipeline(self, pipeline, options):
     # type: (Pipeline, PipelineOptions) -> PipelineResult
     portable_options = options.view_as(PortableOptions)
 
-    # TODO: https://issues.apache.org/jira/browse/BEAM-5525
+    # TODO: https://github.com/apache/beam/issues/19168
     # portable runner specific default
     if options.view_as(SetupOptions).sdk_location == 'default':
       options.view_as(SetupOptions).sdk_location = 'container'
+
+    experiments = options.view_as(DebugOptions).experiments or []
 
     # This is needed as we start a worker server if one is requested
     # but none is provided.
@@ -376,9 +426,10 @@ class PortableRunner(runner.PipelineRunner):
           DebugOptions).lookup_experiment('use_loopback_process_worker', False)
       portable_options.environment_config, server = (
           worker_pool_main.BeamFnExternalWorkerPoolServicer.start(
-              state_cache_size=sdk_worker_main._get_state_cache_size(options),
+              state_cache_size=
+              sdk_worker_main._get_state_cache_size(experiments),
               data_buffer_time_limit_ms=
-              sdk_worker_main._get_data_buffer_time_limit_ms(options),
+              sdk_worker_main._get_data_buffer_time_limit_ms(experiments),
               use_process=use_loopback_process_worker))
       cleanup_callbacks = [functools.partial(server.stop, 1)]
     else:
@@ -443,7 +494,7 @@ class PipelineResult(runner.PipelineResult):
       message_stream,
       state_stream,
       cleanup_callbacks=()):
-    super(PipelineResult, self).__init__(beam_job_api_pb2.JobState.UNSPECIFIED)
+    super().__init__(beam_job_api_pb2.JobState.UNSPECIFIED)
     self._job_service = job_service
     self._job_id = job_id
     self._messages = []
@@ -454,6 +505,7 @@ class PipelineResult(runner.PipelineResult):
     self._runtime_exception = None
 
   def cancel(self):
+    # type: () -> None
     try:
       self._job_service.Cancel(
           beam_job_api_pb2.CancelJobRequest(job_id=self._job_id))
@@ -464,18 +516,24 @@ class PipelineResult(runner.PipelineResult):
   def state(self):
     runner_api_state = self._job_service.GetState(
         beam_job_api_pb2.GetJobStateRequest(job_id=self._job_id)).state
-    self._state = self._runner_api_state_to_pipeline_state(runner_api_state)
+    self._state = self.runner_api_state_to_pipeline_state(runner_api_state)
     return self._state
 
   @staticmethod
-  def _runner_api_state_to_pipeline_state(runner_api_state):
+  def runner_api_state_to_pipeline_state(runner_api_state):
     return getattr(
         runner.PipelineState,
         beam_job_api_pb2.JobState.Enum.Name(runner_api_state))
 
   @staticmethod
-  def _pipeline_state_to_runner_api_state(pipeline_state):
-    return beam_job_api_pb2.JobState.Enum.Value(pipeline_state)
+  def pipeline_state_to_runner_api_state(pipeline_state):
+    if pipeline_state == runner.PipelineState.PENDING:
+      return beam_job_api_pb2.JobState.STARTING
+    else:
+      try:
+        return beam_job_api_pb2.JobState.Enum.Value(pipeline_state)
+      except ValueError:
+        return beam_job_api_pb2.JobState.UNSPECIFIED
 
   def metrics(self):
     if not self._metrics:
@@ -487,6 +545,7 @@ class PipelineResult(runner.PipelineResult):
     return self._metrics
 
   def _last_error_message(self):
+    # type: () -> str
     # Filter only messages with the "message_response" and error messages.
     messages = [
         m.message_response for m in self._messages
@@ -508,6 +567,7 @@ class PipelineResult(runner.PipelineResult):
     :return: The result of the pipeline, i.e. PipelineResult.
     """
     def read_messages():
+      # type: () -> None
       previous_state = -1
       for message in self._message_stream:
         if message.HasField('message_response'):
@@ -520,7 +580,7 @@ class PipelineResult(runner.PipelineResult):
           if current_state != previous_state:
             _LOGGER.info(
                 "Job state changed to %s",
-                self._runner_api_state_to_pipeline_state(current_state))
+                self.runner_api_state_to_pipeline_state(current_state))
             previous_state = current_state
         self._messages.append(message)
 
@@ -551,7 +611,7 @@ class PipelineResult(runner.PipelineResult):
   def _observe_state(self, message_thread):
     try:
       for state_response in self._state_stream:
-        self._state = self._runner_api_state_to_pipeline_state(
+        self._state = self.runner_api_state_to_pipeline_state(
             state_response.state)
         if state_response.state in TERMINAL_STATES:
           # Wait for any last messages.
@@ -567,6 +627,7 @@ class PipelineResult(runner.PipelineResult):
       self._cleanup()
 
   def _cleanup(self, on_exit=False):
+    # type: (bool) -> None
     if on_exit and self._cleanup_callbacks:
       _LOGGER.info(
           'Running cleanup on exit. If your pipeline should continue running, '
@@ -574,12 +635,15 @@ class PipelineResult(runner.PipelineResult):
           '  with Pipeline() as p:\n'
           '    p.apply(..)\n'
           'This ensures that the pipeline finishes before this program exits.')
-    has_exception = None
+    callback_exceptions = []
     for callback in self._cleanup_callbacks:
       try:
         callback()
-      except Exception:
-        has_exception = True
+      except Exception as e:
+        callback_exceptions.append(e)
+
     self._cleanup_callbacks = ()
-    if has_exception:
-      raise
+    if callback_exceptions:
+      formatted_exceptions = ''.join(
+          [f"\n\t{repr(e)}" for e in callback_exceptions])
+      raise RuntimeError('Errors: {}'.format(formatted_exceptions))

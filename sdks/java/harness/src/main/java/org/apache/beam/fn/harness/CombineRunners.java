@@ -20,17 +20,9 @@ package org.apache.beam.fn.harness;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.apache.beam.fn.harness.control.BundleSplitListener;
-import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient;
-import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
-import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
-import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
@@ -38,10 +30,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingFunction;
-import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
@@ -51,6 +42,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /** Executes different components of Combine PTransforms. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness",
+  "keyfor"
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class CombineRunners {
 
   /** A registrar which provides a factory to handle combine component PTransforms. */
@@ -74,40 +70,60 @@ public class CombineRunners {
   }
 
   private static class PrecombineRunner<KeyT, InputT, AccumT> {
-    private PipelineOptions options;
-    private CombineFn<InputT, AccumT, ?> combineFn;
-    private FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> output;
-    private Coder<KeyT> keyCoder;
-    private GroupingTable<WindowedValue<KeyT>, InputT, AccumT> groupingTable;
-    private Coder<AccumT> accumCoder;
+    private final PipelineOptions options;
+    private final String ptransformId;
+    private final Supplier<Cache<?, ?>> bundleCache;
+    private final CombineFn<InputT, AccumT, ?> combineFn;
+    private final FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> output;
+    private final Coder<KeyT> keyCoder;
+    private PrecombineGroupingTable<KeyT, InputT, AccumT> groupingTable;
+    private boolean isGloballyWindowed;
 
     PrecombineRunner(
         PipelineOptions options,
+        String ptransformId,
+        Supplier<Cache<?, ?>> bundleCache,
+        CombineFn<InputT, AccumT, ?> combineFn,
+        FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> output,
+        Coder<KeyT> keyCoder) {
+      this(options, ptransformId, bundleCache, combineFn, output, keyCoder, false);
+    }
+
+    PrecombineRunner(
+        PipelineOptions options,
+        String ptransformId,
+        Supplier<Cache<?, ?>> bundleCache,
         CombineFn<InputT, AccumT, ?> combineFn,
         FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> output,
         Coder<KeyT> keyCoder,
-        Coder<AccumT> accumCoder) {
+        boolean isGloballyWindowed) {
       this.options = options;
+      this.ptransformId = ptransformId;
+      this.bundleCache = bundleCache;
       this.combineFn = combineFn;
       this.output = output;
       this.keyCoder = keyCoder;
-      this.accumCoder = accumCoder;
+      this.isGloballyWindowed = isGloballyWindowed;
     }
 
     void startBundle() {
       groupingTable =
           PrecombineGroupingTable.combiningAndSampling(
-              options, combineFn, keyCoder, accumCoder, 0.001 /*sizeEstimatorSampleRate*/);
+              options,
+              Caches.subCache(bundleCache.get(), ptransformId),
+              combineFn,
+              keyCoder,
+              0.001 /*sizeEstimatorSampleRate*/,
+              isGloballyWindowed);
     }
 
     void processElement(WindowedValue<KV<KeyT, InputT>> elem) throws Exception {
-      groupingTable.put(
-          elem, (Object outputElem) -> output.accept((WindowedValue<KV<KeyT, AccumT>>) outputElem));
+      groupingTable.put(elem, output::accept);
     }
 
     void finishBundle() throws Exception {
-      groupingTable.flush(
-          (Object outputElem) -> output.accept((WindowedValue<KV<KeyT, AccumT>>) outputElem));
+      groupingTable.flush(output::accept);
+      groupingTable = null;
     }
   }
 
@@ -117,39 +133,29 @@ public class CombineRunners {
       implements PTransformRunnerFactory<PrecombineRunner<KeyT, InputT, AccumT>> {
 
     @Override
-    public PrecombineRunner<KeyT, InputT, AccumT> createRunnerForPTransform(
-        PipelineOptions pipelineOptions,
-        BeamFnDataClient beamFnDataClient,
-        BeamFnStateClient beamFnStateClient,
-        BeamFnTimerClient beamFnTimerClient,
-        String pTransformId,
-        PTransform pTransform,
-        Supplier<String> processBundleInstructionId,
-        Map<String, PCollection> pCollections,
-        Map<String, RunnerApi.Coder> coders,
-        Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        PCollectionConsumerRegistry pCollectionConsumerRegistry,
-        PTransformFunctionRegistry startFunctionRegistry,
-        PTransformFunctionRegistry finishFunctionRegistry,
-        Consumer<ThrowingRunnable> tearDownFunctions,
-        Consumer<ProgressRequestCallback> addProgressRequestCallback,
-        BundleSplitListener splitListener,
-        BundleFinalizer bundleFinalizer)
+    public PrecombineRunner<KeyT, InputT, AccumT> createRunnerForPTransform(Context context)
         throws IOException {
       // Get objects needed to create the runner.
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(
               RunnerApi.Components.newBuilder()
-                  .putAllCoders(coders)
-                  .putAllWindowingStrategies(windowingStrategies)
+                  .putAllCoders(context.getCoders())
+                  .putAllWindowingStrategies(context.getWindowingStrategies())
                   .build());
-      String mainInputTag = Iterables.getOnlyElement(pTransform.getInputsMap().keySet());
-      RunnerApi.PCollection mainInput = pCollections.get(pTransform.getInputsOrThrow(mainInputTag));
+      String mainInputTag =
+          Iterables.getOnlyElement(context.getPTransform().getInputsMap().keySet());
+      RunnerApi.PCollection mainInput =
+          context.getPCollections().get(context.getPTransform().getInputsOrThrow(mainInputTag));
 
       // Input coder may sometimes be WindowedValueCoder depending on runner, instead of the
       // expected KvCoder.
       Coder<?> uncastInputCoder = rehydratedComponents.getCoder(mainInput.getCoderId());
       KvCoder<KeyT, InputT> inputCoder;
+      boolean isGloballyWindowed =
+          rehydratedComponents
+              .getWindowingStrategy(mainInput.getWindowingStrategyId())
+              .getWindowFn()
+              .equals(new GlobalWindows());
       if (uncastInputCoder instanceof WindowedValueCoder) {
         inputCoder =
             (KvCoder<KeyT, InputT>)
@@ -159,30 +165,35 @@ public class CombineRunners {
       }
       Coder<KeyT> keyCoder = inputCoder.getKeyCoder();
 
-      CombinePayload combinePayload = CombinePayload.parseFrom(pTransform.getSpec().getPayload());
+      CombinePayload combinePayload =
+          CombinePayload.parseFrom(context.getPTransform().getSpec().getPayload());
       CombineFn<InputT, AccumT, ?> combineFn =
           (CombineFn)
               SerializableUtils.deserializeFromByteArray(
                   combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
-      Coder<AccumT> accumCoder =
-          (Coder<AccumT>) rehydratedComponents.getCoder(combinePayload.getAccumulatorCoderId());
 
       FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> consumer =
           (FnDataReceiver)
-              pCollectionConsumerRegistry.getMultiplexingConsumer(
-                  Iterables.getOnlyElement(pTransform.getOutputsMap().values()));
+              context.getPCollectionConsumer(
+                  Iterables.getOnlyElement(context.getPTransform().getOutputsMap().values()));
 
       PrecombineRunner<KeyT, InputT, AccumT> runner =
-          new PrecombineRunner<>(pipelineOptions, combineFn, consumer, keyCoder, accumCoder);
+          new PrecombineRunner<>(
+              context.getPipelineOptions(),
+              context.getPTransformId(),
+              context.getBundleCacheSupplier(),
+              combineFn,
+              consumer,
+              keyCoder,
+              isGloballyWindowed);
 
       // Register the appropriate handlers.
-      startFunctionRegistry.register(pTransformId, runner::startBundle);
-      pCollectionConsumerRegistry.register(
-          Iterables.getOnlyElement(pTransform.getInputsMap().values()),
-          pTransformId,
+      context.addStartBundleFunction(runner::startBundle);
+      context.addPCollectionConsumer(
+          Iterables.getOnlyElement(context.getPTransform().getInputsMap().values()),
           (FnDataReceiver)
               (FnDataReceiver<WindowedValue<KV<KeyT, InputT>>>) runner::processElement);
-      finishFunctionRegistry.register(pTransformId, runner::finishBundle);
+      context.addFinishBundleFunction(runner::finishBundle);
 
       return runner;
     }

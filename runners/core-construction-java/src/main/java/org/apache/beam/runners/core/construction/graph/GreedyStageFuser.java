@@ -46,6 +46,9 @@ import org.slf4j.LoggerFactory;
  * <p>A {@link PCollectionNode} with consumers that execute in an environment other than a stage is
  * materialized, and its consumers execute in independent stages.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class GreedyStageFuser {
   // TODO: Provide a way to merge in a compatible subgraph (e.g. one where all of the siblings
   // consume a PCollection materialized by this subgraph and can be fused into it).
@@ -174,8 +177,8 @@ public class GreedyStageFuser {
       Set<PCollectionNode> fusedPCollections) {
     for (PTransformNode consumer : pipeline.getPerElementConsumers(candidate)) {
       if (anyInputsSideInputs(consumer, pipeline)
-          || !(GreedyPCollectionFusers.canFuse(
-              consumer, environment, candidate, fusedPCollections, pipeline))) {
+          || !GreedyPCollectionFusers.canFuse(
+              consumer, environment, candidate, fusedPCollections, pipeline)) {
         // Some of the consumers can't be fused into this subgraph, so the PCollection has to be
         // materialized.
         // TODO: Potentially, some of the consumers can be fused back into this stage later

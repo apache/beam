@@ -19,11 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -76,7 +74,7 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
     self._teardown_called = True
 
 
-@attr('ValidatesRunner')
+@pytest.mark.it_validatesrunner
 class DoFnLifecycleTest(unittest.TestCase):
   def test_dofn_lifecycle(self):
     with TestPipeline() as p:

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -127,10 +127,6 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
                 KeyedWorkItems.elementsWorkItem(
                     "baz", ImmutableSet.of(WindowedValue.valueInGlobalWindow(Integer.MAX_VALUE))),
                 keyCoder)));
-  }
-
-  private <K, V> KV<K, WindowedValue<V>> gwValue(KV<K, V> kv) {
-    return KV.of(kv.getKey(), WindowedValue.valueInGlobalWindow(kv.getValue()));
   }
 
   private static class KeyedWorkItemMatcher<K, V>

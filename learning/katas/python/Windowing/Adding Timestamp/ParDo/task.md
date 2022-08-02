@@ -19,13 +19,13 @@
 Adding Timestamp - ParDo
 ------------------------
 
-Bounded sources (such as a file from TextIO) do not provide timestamps for elements. If you need 
+Bounded sources (such as a file from TextIO) do not provide timestamps for elements. If you need
 timestamps, you must add them to your PCollection’s elements.
 
-You can assign new timestamps to the elements of a PCollection by applying a ParDo transform that 
+You can assign new timestamps to the elements of a PCollection by applying a ParDo transform that
 outputs new elements with timestamps that you set.
 
-**Kata:** Please assign each element a timestamp based on the the `Event.timestamp`.
+**Kata:** Please assign each element a timestamp based on the `Event.timestamp`.
 
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">
@@ -35,7 +35,7 @@ outputs new elements with timestamps that you set.
 
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html#apache_beam.transforms.window.TimestampedValue">
-  beam.window.TimestampedValue</a> to assign timestamp to the element.
+  beam.transforms.window.TimestampedValue</a> to assign timestamp to the element.
 </div>
 
 <div class="hint">

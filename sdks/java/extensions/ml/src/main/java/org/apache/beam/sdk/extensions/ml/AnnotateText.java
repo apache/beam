@@ -40,6 +40,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Experimental
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class AnnotateText
     extends PTransform<PCollection<Document>, PCollection<AnnotateTextResponse>> {
 

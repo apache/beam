@@ -22,10 +22,6 @@ This module is experimental. No backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import collections
 import logging
 import threading
@@ -126,7 +122,7 @@ class PipelineGraph(object):
     rendered_graph = self._renderer.render_pipeline_graph(self)
     if ie.current_env().is_in_notebook:
       try:
-        from IPython.core import display
+        from IPython import display
         display.display(display.HTML(rendered_graph))
       except ImportError:  # Unlikely to happen when is_in_notebook.
         logging.warning(
@@ -186,8 +182,8 @@ class PipelineGraph(object):
       for pcoll_id in transform.outputs.values():
         pcoll_node = None
         if self._pipeline_instrument:
-          pcoll_node = self._pipeline_instrument.cacheable_var_by_pcoll_id(
-              pcoll_id)
+          cacheable = self._pipeline_instrument.cacheables.get(pcoll_id)
+          pcoll_node = cacheable.var if cacheable else None
         # If no PipelineInstrument is available or the PCollection is not
         # watched.
         if not pcoll_node:

@@ -25,6 +25,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -46,6 +47,7 @@ import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /** Functions for GroupByKey with Non-Merging windows translations to Spark. */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class GroupNonMergingWindowsFunctions {
 
   private static final Logger LOG = LoggerFactory.getLogger(GroupNonMergingWindowsFunctions.class);
@@ -58,7 +60,7 @@ public class GroupNonMergingWindowsFunctions {
    * @return {@code true} if group by key and window can be used
    */
   static boolean isEligibleForGroupByWindow(WindowingStrategy<?, ?> windowingStrategy) {
-    return windowingStrategy.getWindowFn().isNonMerging()
+    return !windowingStrategy.needsMerge()
         && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW
         && windowingStrategy.getWindowFn().windowCoder().consistentWithEquals();
   }
@@ -249,16 +251,41 @@ public class GroupNonMergingWindowsFunctions {
       @SuppressWarnings("unchecked")
       final W window = (W) Iterables.getOnlyElement(windowedValue.getWindows());
       final Instant timestamp =
-          windowingStrategy
-              .getTimestampCombiner()
-              .assign(
-                  window,
-                  windowingStrategy
-                      .getWindowFn()
-                      .getOutputTime(windowedValue.getTimestamp(), window));
+          windowingStrategy.getTimestampCombiner().assign(window, windowedValue.getTimestamp());
       // BEAM-7341: Elements produced by GbK are always ON_TIME and ONLY_FIRING
       return WindowedValue.of(
           KV.of(key, value), timestamp, window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
     }
+  }
+
+  /**
+   * Group all values with a given key for that composite key with Spark's groupByKey, dropping the
+   * Window (which must be GlobalWindow) and returning the grouped result in the appropriate global
+   * window.
+   */
+  static <K, V, W extends BoundedWindow>
+      JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupByKeyInGlobalWindow(
+          JavaRDD<WindowedValue<KV<K, V>>> rdd,
+          Coder<K> keyCoder,
+          Coder<V> valueCoder,
+          Partitioner partitioner) {
+    JavaPairRDD<ByteArray, byte[]> rawKeyValues =
+        rdd.mapToPair(
+            wv ->
+                new Tuple2<>(
+                    new ByteArray(CoderHelpers.toByteArray(wv.getValue().getKey(), keyCoder)),
+                    CoderHelpers.toByteArray(wv.getValue().getValue(), valueCoder)));
+    return rawKeyValues
+        .groupByKey()
+        .map(
+            kvs ->
+                WindowedValue.timestampedValueInGlobalWindow(
+                    KV.of(
+                        CoderHelpers.fromByteArray(kvs._1.getValue(), keyCoder),
+                        Iterables.transform(
+                            kvs._2,
+                            encodedValue -> CoderHelpers.fromByteArray(encodedValue, valueCoder))),
+                    GlobalWindow.INSTANCE.maxTimestamp(),
+                    PaneInfo.ON_TIME_AND_ONLY_FIRING));
   }
 }

@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
 type count struct {
@@ -78,6 +78,13 @@ func TestCountElms(t *testing.T) {
 		in    func(s beam.Scope) beam.PCollection
 		count int
 	}{
+		{
+			name: "empty",
+			in: func(s beam.Scope) beam.PCollection {
+				return beam.CreateList(s, []int{})
+			},
+			count: 0,
+		},
 		{
 			name: "single",
 			in: func(s beam.Scope) beam.PCollection {

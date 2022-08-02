@@ -19,12 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import re
-from builtins import range
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -62,7 +59,7 @@ def run(argv=None):
 class TopPerPrefix(beam.PTransform):
   def __init__(self, count):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(TopPerPrefix, self).__init__()
+    # super().__init__()
     beam.PTransform.__init__(self)
     self._count = count
 

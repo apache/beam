@@ -27,14 +27,16 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -178,6 +180,30 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     return name != null ? name : getKindString();
   }
 
+  /**
+   * Sets resource hints for the transform.
+   *
+   * @param resourceHints a {@link ResourceHints} instance.
+   * @return a reference to the same transfrom instance.
+   *     <p>For example:
+   *     <pre>{@code
+   * Pipeline p = ...
+   * ...
+   * p.apply(new SomeTransform().setResourceHints(ResourceHints.create().withMinRam("6 GiB")))
+   * ...
+   *
+   * }</pre>
+   */
+  public PTransform<InputT, OutputT> setResourceHints(@NonNull ResourceHints resourceHints) {
+    this.resourceHints = resourceHints;
+    return this;
+  }
+
+  /** Returns resource hints set on the transform. */
+  public ResourceHints getResourceHints() {
+    return resourceHints;
+  }
+
   /////////////////////////////////////////////////////////////////////////////
 
   // See the note about about PTransform's fake Serializability, to
@@ -188,6 +214,8 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * assigned.
    */
   protected final transient @Nullable String name;
+
+  protected transient @NonNull ResourceHints resourceHints = ResourceHints.create();
 
   protected PTransform() {
     this.name = null;
@@ -292,7 +320,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * provide their own display data.
    */
   @Override
-  public void populateDisplayData(Builder builder) {}
+  public void populateDisplayData(DisplayData.Builder builder) {}
 
   /**
    * For a {@code SerializableFunction<InputT, OutputT>} {@code fn}, returns a {@code PTransform}

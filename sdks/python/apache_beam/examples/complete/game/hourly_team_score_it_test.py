@@ -20,7 +20,7 @@
 Code: beam/sdks/python/apache_beam/examples/complete/game/hourly_team_score.py
 Usage:
 
-  python setup.py nosetests --test-pipeline-options=" \
+  pytest --test-pipeline-options=" \
       --runner=TestDataflowRunner \
       --project=... \
       --region=... \
@@ -33,13 +33,11 @@ Usage:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples.complete.game import hourly_team_score
 from apache_beam.io.gcp.tests import utils
@@ -65,7 +63,7 @@ class HourlyTeamScoreIT(unittest.TestCase):
     self.dataset_ref = utils.create_bq_dataset(
         self.project, self.OUTPUT_DATASET)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_hourly_team_score_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.DONE)
     query = (
@@ -91,6 +89,35 @@ class HourlyTeamScoreIT(unittest.TestCase):
     hourly_team_score.run(
         self.test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
+
+  @pytest.mark.no_xdist
+  @pytest.mark.examples_postcommit
+  def test_hourly_team_score_output_checksum_on_small_input(self):
+    # Small dataset to prevent Out of Memory when running in local runners
+    INPUT_FILE = 'gs://apache-beam-samples/game/small/gaming_data.csv'
+    EXPECTED_CHECKSUM = '91143e81622aa391eb62eaa3f3a5123401edb07d'
+    state_verifier = PipelineStateMatcher(PipelineState.DONE)
+    query = (
+        'SELECT COUNT(*) FROM `%s.%s.%s`' %
+        (self.project, self.dataset_ref.dataset_id, self.OUTPUT_TABLE))
+
+    bigquery_verifier = BigqueryMatcher(self.project, query, EXPECTED_CHECKSUM)
+
+    extra_opts = {
+        'input': INPUT_FILE,
+        'dataset': self.dataset_ref.dataset_id,
+        'window_duration': 1,
+        'on_success_matcher': all_of(state_verifier, bigquery_verifier)
+    }
+
+    # Register clean up before pipeline execution
+    # Note that actual execution happens in reverse order.
+    self.addCleanup(utils.delete_bq_dataset, self.project, self.dataset_ref)
+
+    # Get pipeline options from command argument: --test-pipeline-options,
+    # and start pipeline job by calling pipeline main function.
+    hourly_team_score.run(
+        self.test_pipeline.get_full_options_as_args(**extra_opts))
 
 
 if __name__ == '__main__':

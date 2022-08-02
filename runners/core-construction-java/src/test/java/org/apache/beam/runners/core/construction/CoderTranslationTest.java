@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,9 +42,11 @@ import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -52,6 +54,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -65,6 +68,9 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link CoderTranslation}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class CoderTranslationTest {
   private static final Set<Coder<?>> KNOWN_CODERS =
       ImmutableSet.<Coder<?>>builder()
@@ -90,6 +96,9 @@ public class CoderTranslationTest {
                       Field.of("array", FieldType.array(FieldType.STRING)),
                       Field.of("map", FieldType.map(FieldType.STRING, FieldType.INT32)),
                       Field.of("bar", FieldType.logicalType(FixedBytes.of(123))))))
+          .add(ShardedKey.Coder.of(StringUtf8Coder.of()))
+          .add(TimestampPrefixingWindowCoder.of(IntervalWindowCoder.of()))
+          .add(NullableCoder.of(ByteArrayCoder.of()))
           .build();
 
   /**
@@ -104,7 +113,7 @@ public class CoderTranslationTest {
       // tests, which demonstrates that they are serialized via components and specified URNs rather
       // than java serialized
       Set<Class<? extends Coder>> knownCoderClasses =
-          ModelCoderRegistrar.BEAM_MODEL_CODER_URNS.keySet();
+          new ModelCoderRegistrar().getCoderURNs().keySet();
       Set<Class<? extends Coder>> knownCoderTests = new HashSet<>();
       for (Coder<?> coder : KNOWN_CODERS) {
         knownCoderTests.add(coder.getClass());
@@ -123,12 +132,12 @@ public class CoderTranslationTest {
     public void validateCoderTranslators() {
       assertThat(
           "Every Model Coder must have a Translator",
-          ModelCoderRegistrar.BEAM_MODEL_CODER_URNS.keySet(),
-          equalTo(ModelCoderRegistrar.BEAM_MODEL_CODERS.keySet()));
+          new ModelCoderRegistrar().getCoderURNs().keySet(),
+          equalTo(new ModelCoderRegistrar().getCoderTranslators().keySet()));
       assertThat(
           "All Model Coders should be registered",
           CoderTranslation.KNOWN_TRANSLATORS.keySet(),
-          hasItems(ModelCoderRegistrar.BEAM_MODEL_CODERS.keySet().toArray(new Class[0])));
+          hasItems(new ModelCoderRegistrar().getCoderTranslators().keySet().toArray(new Class[0])));
     }
   }
 

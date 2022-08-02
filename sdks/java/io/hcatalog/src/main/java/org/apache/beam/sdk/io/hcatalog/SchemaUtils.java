@@ -33,6 +33,9 @@ import org.apache.hive.hcatalog.data.schema.HCatSchemaUtils;
 
 /** Utils to convert between HCatalog schema types and Beam schema types. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class SchemaUtils {
 
   private static final Map<HCatFieldSchema.Type, FieldType> HCAT_TO_BEAM_TYPES_MAP =

@@ -20,11 +20,11 @@ HTML files."""
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
+import html
 import os
 import shutil
 import subprocess
+from html.parser import HTMLParser
 
 from apache_beam.runners.interactive.utils import obfuscate
 
@@ -80,7 +80,8 @@ class NotebookExecutor(object):
     for path in self._paths:
       with open(path, 'r') as nb_f:
         nb = nbformat.read(nb_f, as_version=4)
-        ep = ExecutePreprocessor(allow_errors=True, kernel_name='test')
+        ep = ExecutePreprocessor(
+            timeout=-1, allow_errors=True, kernel_name='test')
         ep.preprocess(nb, {'metadata': {'path': os.path.dirname(path)}})
 
       execution_id = obfuscate(path)
@@ -138,4 +139,26 @@ def _extract_html(output, sink):
       sink.write(data['application/javascript'])
       sink.write('</script>\n')
     if 'text/html' in data:
-      sink.write(data['text/html'])
+      parser = IFrameParser()
+      parser.feed(data['text/html'])
+      if parser.srcdocs:
+        sink.write(parser.srcdocs)
+      else:
+        sink.write(data['text/html'])
+
+
+class IFrameParser(HTMLParser):
+  """A parser to extract iframe content from given HTML."""
+  def __init__(self):
+    self._srcdocs = []
+    super().__init__()
+
+  def handle_starttag(self, tag, attrs):
+    if tag == 'iframe':
+      for attr in attrs:
+        if 'srcdoc' in attr:
+          self._srcdocs.append(html.unescape(attr[1]))
+
+  @property
+  def srcdocs(self):
+    return '\n'.join(self._srcdocs)

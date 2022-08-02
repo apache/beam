@@ -31,13 +31,13 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** This handles sideinput in Dataflow. The caller should be based on ExecutableStage framework. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DataflowSideInputHandlerFactory
     implements StateRequestHandlers.SideInputHandlerFactory {
-  private static final Logger LOG = LoggerFactory.getLogger(DataflowSideInputHandlerFactory.class);
 
   private final Map<String, SideInputReader> ptransformIdToSideInputReader;
   private final Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>>

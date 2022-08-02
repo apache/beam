@@ -20,8 +20,9 @@ package org.apache.beam.sdk.transforms.reflect;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -32,11 +33,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
@@ -44,6 +44,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
@@ -64,7 +65,9 @@ import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.GetInitialRestrictionMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.GetInitialWatermarkEstimatorStateMethod;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PipelineOptionsParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
@@ -103,11 +106,21 @@ import org.joda.time.Instant;
 
 /** Utilities for working with {@link DoFnSignature}. See {@link #getSignature}. */
 @Internal
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public class DoFnSignatures {
 
   private DoFnSignatures() {}
 
-  private static final Map<Class<?>, DoFnSignature> signatureCache = new LinkedHashMap<>();
+  /**
+   * Note that special care must be taken to enumerate this object as concurrent hash maps are <a
+   * href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/package-summary.html#Weakly>weakly
+   * consistent</a>.
+   */
+  private static final Map<Class<? extends DoFn<?, ?>>, DoFnSignature> signatureCache =
+      new ConcurrentHashMap<>();
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_NON_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
@@ -142,6 +155,9 @@ public class DoFnSignatures {
               Parameter.WatermarkEstimatorParameter.class,
               Parameter.SideInputParameter.class,
               Parameter.BundleFinalizerParameter.class);
+
+  private static final ImmutableList<Class<? extends Parameter>> ALLOWED_SETUP_PARAMETERS =
+      ImmutableList.of(Parameter.PipelineOptionsParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_START_BUNDLE_PARAMETERS =
       ImmutableList.of(
@@ -183,7 +199,8 @@ public class DoFnSignatures {
               Parameter.TimerParameter.class,
               Parameter.StateParameter.class,
               Parameter.TimerFamilyParameter.class,
-              Parameter.TimerIdParameter.class);
+              Parameter.TimerIdParameter.class,
+              Parameter.KeyParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_ON_WINDOW_EXPIRATION_PARAMETERS =
@@ -203,7 +220,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>> ALLOWED_SPLIT_RESTRICTION_PARAMETERS =
       ImmutableList.of(
@@ -214,7 +232,8 @@ public class DoFnSignatures {
           Parameter.WindowParameter.class,
           Parameter.TimestampParameter.class,
           Parameter.PaneInfoParameter.class,
-          Parameter.PipelineOptionsParameter.class);
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_TRUNCATE_RESTRICTION_PARAMETERS =
@@ -225,7 +244,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>> ALLOWED_NEW_TRACKER_PARAMETERS =
       ImmutableList.of(
@@ -234,7 +254,8 @@ public class DoFnSignatures {
           Parameter.WindowParameter.class,
           Parameter.TimestampParameter.class,
           Parameter.PaneInfoParameter.class,
-          Parameter.PipelineOptionsParameter.class);
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>> ALLOWED_GET_SIZE_PARAMETERS =
       ImmutableList.of(
@@ -243,7 +264,8 @@ public class DoFnSignatures {
           Parameter.WindowParameter.class,
           Parameter.TimestampParameter.class,
           Parameter.PaneInfoParameter.class,
-          Parameter.PipelineOptionsParameter.class);
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_GET_INITIAL_WATERMARK_ESTIMATOR_STATE_PARAMETERS =
@@ -253,7 +275,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_NEW_WATERMARK_ESTIMATOR_PARAMETERS =
@@ -264,7 +287,8 @@ public class DoFnSignatures {
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.SideInputParameter.class);
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
@@ -272,8 +296,8 @@ public class DoFnSignatures {
   }
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} subclass. */
-  public static synchronized <FnT extends DoFn<?, ?>> DoFnSignature getSignature(Class<FnT> fn) {
-    return signatureCache.computeIfAbsent(fn, k -> parseSignature(fn));
+  public static <FnT extends DoFn<?, ?>> DoFnSignature getSignature(Class<FnT> fn) {
+    return signatureCache.computeIfAbsent(fn, DoFnSignatures::parseSignature);
   }
 
   /**
@@ -537,7 +561,7 @@ public class DoFnSignatures {
         findAnnotatedMethod(errors, DoFn.NewWatermarkEstimator.class, fnClass, false);
 
     Collection<Method> onTimerMethods =
-        declaredMethodsWithAnnotation(DoFn.OnTimer.class, fnClass, DoFn.class);
+        ReflectHelpers.declaredMethodsWithAnnotation(DoFn.OnTimer.class, fnClass, DoFn.class);
     HashMap<String, DoFnSignature.OnTimerMethod> onTimerMethodMap =
         Maps.newHashMapWithExpectedSize(onTimerMethods.size());
     for (Method onTimerMethod : onTimerMethods) {
@@ -564,7 +588,7 @@ public class DoFnSignatures {
 
     // Check for TimerFamily
     Collection<Method> onTimerFamilyMethods =
-        declaredMethodsWithAnnotation(DoFn.OnTimerFamily.class, fnClass, DoFn.class);
+        ReflectHelpers.declaredMethodsWithAnnotation(DoFn.OnTimerFamily.class, fnClass, DoFn.class);
     HashMap<String, DoFnSignature.OnTimerFamilyMethod> onTimerFamilyMethodMap =
         Maps.newHashMapWithExpectedSize(onTimerFamilyMethods.size());
 
@@ -637,13 +661,14 @@ public class DoFnSignatures {
     }
 
     if (setupMethod != null) {
+      ErrorReporter setupErrors = errors.forMethod(DoFn.Setup.class, setupMethod);
       signatureBuilder.setSetup(
-          analyzeLifecycleMethod(errors.forMethod(DoFn.Setup.class, setupMethod), setupMethod));
+          analyzeSetupMethod(setupErrors, fnT, setupMethod, inputT, outputT, fnContext));
     }
 
     if (teardownMethod != null) {
       signatureBuilder.setTeardown(
-          analyzeLifecycleMethod(
+          analyzeShutdownMethod(
               errors.forMethod(DoFn.Teardown.class, teardownMethod), teardownMethod));
     }
 
@@ -890,10 +915,10 @@ public class DoFnSignatures {
     } else {
       errors.checkArgument(
           isBounded == null,
-          "Non-splittable, but annotated as @"
-              + ((isBounded == PCollection.IsBounded.BOUNDED)
-                  ? format(DoFn.BoundedPerElement.class)
-                  : format(DoFn.UnboundedPerElement.class)));
+          "Non-splittable, but annotated as @%s",
+          ((isBounded == PCollection.IsBounded.BOUNDED)
+              ? format(DoFn.BoundedPerElement.class)
+              : format(DoFn.UnboundedPerElement.class)));
       checkState(!processElement.hasReturnValue(), "Should have been inferred splittable");
       isBounded = PCollection.IsBounded.BOUNDED;
     }
@@ -1080,7 +1105,6 @@ public class DoFnSignatures {
               onTimerErrors,
               fnContext,
               methodContext,
-              fnClass,
               ParameterDescription.of(
                   m,
                   i,
@@ -1125,7 +1149,6 @@ public class DoFnSignatures {
               onTimerErrors,
               fnContext,
               methodContext,
-              fnClass,
               ParameterDescription.of(
                   m,
                   i,
@@ -1169,7 +1192,6 @@ public class DoFnSignatures {
               onWindowExpirationErrors,
               fnContext,
               methodContext,
-              fnClass,
               ParameterDescription.of(
                   m,
                   i,
@@ -1215,7 +1237,6 @@ public class DoFnSignatures {
               errors.forMethod(DoFn.ProcessElement.class, m),
               fnContext,
               methodContext,
-              fnClass,
               ParameterDescription.of(
                   m,
                   i,
@@ -1289,7 +1310,6 @@ public class DoFnSignatures {
       ErrorReporter methodErrors,
       FnAnalysisContext fnContext,
       MethodAnalysisContext methodContext,
-      TypeDescriptor<? extends DoFn<?, ?>> fnClass,
       ParameterDescription param,
       TypeDescriptor<?> inputT,
       TypeDescriptor<?> outputT) {
@@ -1310,7 +1330,7 @@ public class DoFnSignatures {
     if (fieldAccessString != null) {
       return Parameter.schemaElementParameter(paramT, fieldAccessString, param.getIndex());
     } else if (hasAnnotation(DoFn.Element.class, param.getAnnotations())) {
-      return (paramT.equals(inputT))
+      return paramT.equals(inputT)
           ? Parameter.elementParameter(paramT)
           : Parameter.schemaElementParameter(paramT, null, param.getIndex());
     } else if (hasAnnotation(DoFn.Restriction.class, param.getAnnotations())) {
@@ -1339,7 +1359,7 @@ public class DoFnSignatures {
     } else if (hasAnnotation(DoFn.SideInput.class, param.getAnnotations())) {
       String sideInputId = getSideInputId(param.getAnnotations());
       paramErrors.checkArgument(
-          sideInputId != null, "%s missing %s annotation", format(SideInput.class));
+          sideInputId != null, "%s missing %s annotation", sideInputId, format(SideInput.class));
       return Parameter.sideInputParameter(paramT, sideInputId);
     } else if (rawType.equals(PaneInfo.class)) {
       return Parameter.paneInfoParameter();
@@ -1596,7 +1616,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1628,7 +1647,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1643,11 +1661,42 @@ public class DoFnSignatures {
     return DoFnSignature.BundleMethod.create(m, methodContext.extraParameters);
   }
 
-  private static DoFnSignature.LifecycleMethod analyzeLifecycleMethod(
+  @VisibleForTesting
+  static DoFnSignature.LifecycleMethod analyzeSetupMethod(
+      ErrorReporter errors,
+      TypeDescriptor<? extends DoFn<?, ?>> fnT,
+      Method m,
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> outputT,
+      FnAnalysisContext fnContext) {
+    errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
+    Type[] params = m.getGenericParameterTypes();
+    MethodAnalysisContext methodContext = MethodAnalysisContext.create();
+    for (int i = 0; i < params.length; ++i) {
+      Parameter extraParam =
+          analyzeExtraParameter(
+              errors,
+              fnContext,
+              methodContext,
+              ParameterDescription.of(
+                  m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
+              inputT,
+              outputT);
+      methodContext.addParameter(extraParam);
+    }
+
+    for (Parameter parameter : methodContext.getExtraParameters()) {
+      checkParameterOneOf(errors, parameter, ALLOWED_SETUP_PARAMETERS);
+    }
+
+    return DoFnSignature.LifecycleMethod.create(m, methodContext.extraParameters);
+  }
+
+  private static DoFnSignature.LifecycleMethod analyzeShutdownMethod(
       ErrorReporter errors, Method m) {
     errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
     errors.checkArgument(m.getGenericParameterTypes().length == 0, "Must take zero arguments");
-    return DoFnSignature.LifecycleMethod.create(m);
+    return DoFnSignature.LifecycleMethod.create(m, Collections.emptyList());
   }
 
   @VisibleForTesting
@@ -1671,7 +1720,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1717,7 +1765,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1775,7 +1822,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1828,7 +1874,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1862,7 +1907,8 @@ public class DoFnSignatures {
   private static ImmutableMap<String, TimerFamilyDeclaration> analyzeTimerFamilyDeclarations(
       ErrorReporter errors, Class<?> fnClazz) {
     Map<String, TimerFamilyDeclaration> declarations = new HashMap<>();
-    for (Field field : declaredFieldsWithAnnotation(DoFn.TimerFamily.class, fnClazz, DoFn.class)) {
+    for (Field field :
+        ReflectHelpers.declaredFieldsWithAnnotation(DoFn.TimerFamily.class, fnClazz, DoFn.class)) {
       // TimerSpec fields may generally be private, but will be accessed via the signature
       field.setAccessible(true);
       String id =
@@ -1877,7 +1923,8 @@ public class DoFnSignatures {
   private static ImmutableMap<String, TimerDeclaration> analyzeTimerDeclarations(
       ErrorReporter errors, Class<?> fnClazz) {
     Map<String, DoFnSignature.TimerDeclaration> declarations = new HashMap<>();
-    for (Field field : declaredFieldsWithAnnotation(DoFn.TimerId.class, fnClazz, DoFn.class)) {
+    for (Field field :
+        ReflectHelpers.declaredFieldsWithAnnotation(DoFn.TimerId.class, fnClazz, DoFn.class)) {
       // TimerSpec fields may generally be private, but will be accessed via the signature
       field.setAccessible(true);
       // Add fixed prefix to avoid key collision with TimerFamily.
@@ -1906,7 +1953,7 @@ public class DoFnSignatures {
     }
 
     Class<?> timerSpecRawType = field.getType();
-    if (!(timerSpecRawType.equals(TimerSpec.class))) {
+    if (!timerSpecRawType.equals(TimerSpec.class)) {
       errors.throwIllegalArgument(
           "%s annotation on non-%s field [%s]",
           format(DoFn.TimerId.class), format(TimerSpec.class), field.toString());
@@ -1942,7 +1989,7 @@ public class DoFnSignatures {
     }
 
     Class<?> timerSpecRawType = field.getType();
-    if (!(timerSpecRawType.equals(TimerSpec.class))) {
+    if (!timerSpecRawType.equals(TimerSpec.class)) {
       errors.throwIllegalArgument(
           "%s annotation on non-%s field [%s]",
           format(DoFn.TimerFamily.class), format(TimerSpec.class), field.toString());
@@ -2036,7 +2083,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -2098,7 +2144,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -2164,7 +2209,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -2195,66 +2239,11 @@ public class DoFnSignatures {
     return DoFnSignature.GetSizeMethod.create(m, windowT, methodContext.getExtraParameters());
   }
 
-  private static Collection<Method> declaredMethodsWithAnnotation(
-      Class<? extends Annotation> anno, Class<?> startClass, Class<?> stopClass) {
-    return declaredMembersWithAnnotation(anno, startClass, stopClass, GET_METHODS);
-  }
-
-  private static Collection<Field> declaredFieldsWithAnnotation(
-      Class<? extends Annotation> anno, Class<?> startClass, Class<?> stopClass) {
-    return declaredMembersWithAnnotation(anno, startClass, stopClass, GET_FIELDS);
-  }
-
-  private interface MemberGetter<MemberT> {
-    MemberT[] getMembers(Class<?> clazz);
-  }
-
-  private static final MemberGetter<Method> GET_METHODS = Class::getDeclaredMethods;
-
-  private static final MemberGetter<Field> GET_FIELDS = Class::getDeclaredFields;
-
-  private static <MemberT extends AnnotatedElement>
-      Collection<MemberT> declaredMembersWithAnnotation(
-          Class<? extends Annotation> anno,
-          Class<?> startClass,
-          Class<?> stopClass,
-          MemberGetter<MemberT> getter) {
-    Collection<MemberT> matches = new ArrayList<>();
-
-    Class<?> clazz = startClass;
-    LinkedHashSet<Class<?>> interfaces = new LinkedHashSet<>();
-
-    // First, find all declared methods on the startClass and parents (up to stopClass)
-    while (clazz != null && !clazz.equals(stopClass)) {
-      for (MemberT member : getter.getMembers(clazz)) {
-        if (member.isAnnotationPresent(anno)) {
-          matches.add(member);
-        }
-      }
-
-      // Add all interfaces, including transitive
-      for (TypeDescriptor<?> iface : TypeDescriptor.of(clazz).getInterfaces()) {
-        interfaces.add(iface.getRawType());
-      }
-
-      clazz = clazz.getSuperclass();
-    }
-
-    // Now, iterate over all the discovered interfaces
-    for (Class<?> iface : interfaces) {
-      for (MemberT member : getter.getMembers(iface)) {
-        if (member.isAnnotationPresent(anno)) {
-          matches.add(member);
-        }
-      }
-    }
-    return matches;
-  }
-
   private static Map<String, DoFnSignature.FieldAccessDeclaration> analyzeFieldAccessDeclaration(
       ErrorReporter errors, Class<?> fnClazz) {
     Map<String, FieldAccessDeclaration> fieldAccessDeclarations = new HashMap<>();
-    for (Field field : declaredFieldsWithAnnotation(DoFn.FieldAccess.class, fnClazz, DoFn.class)) {
+    for (Field field :
+        ReflectHelpers.declaredFieldsWithAnnotation(DoFn.FieldAccess.class, fnClazz, DoFn.class)) {
       field.setAccessible(true);
       DoFn.FieldAccess fieldAccessAnnotation = field.getAnnotation(DoFn.FieldAccess.class);
       if (!Modifier.isFinal(field.getModifiers())) {
@@ -2281,7 +2270,8 @@ public class DoFnSignatures {
 
     Map<String, DoFnSignature.StateDeclaration> declarations = new HashMap<>();
 
-    for (Field field : declaredFieldsWithAnnotation(DoFn.StateId.class, fnClazz, DoFn.class)) {
+    for (Field field :
+        ReflectHelpers.declaredFieldsWithAnnotation(DoFn.StateId.class, fnClazz, DoFn.class)) {
       // StateSpec fields may generally be private, but will be accessed via the signature
       field.setAccessible(true);
       String id = field.getAnnotation(DoFn.StateId.class).value();
@@ -2297,7 +2287,7 @@ public class DoFnSignatures {
       }
 
       Class<?> stateSpecRawType = field.getType();
-      if (!(TypeDescriptor.of(stateSpecRawType).isSubtypeOf(TypeDescriptor.of(StateSpec.class)))) {
+      if (!TypeDescriptor.of(stateSpecRawType).isSubtypeOf(TypeDescriptor.of(StateSpec.class))) {
         errors.throwIllegalArgument(
             "%s annotation on non-%s field [%s] that has class %s",
             format(DoFn.StateId.class),
@@ -2344,7 +2334,8 @@ public class DoFnSignatures {
 
   private static @Nullable Method findAnnotatedMethod(
       ErrorReporter errors, Class<? extends Annotation> anno, Class<?> fnClazz, boolean required) {
-    Collection<Method> matches = declaredMethodsWithAnnotation(anno, fnClazz, DoFn.class);
+    Collection<Method> matches =
+        ReflectHelpers.declaredMethodsWithAnnotation(anno, fnClazz, DoFn.class);
 
     if (matches.isEmpty()) {
       errors.checkArgument(!required, "No method annotated with @%s found", format(anno));
@@ -2407,17 +2398,20 @@ public class DoFnSignatures {
               "parameter of type %s at index %s", format(param.getType()), param.getIndex()));
     }
 
-    void throwIllegalArgument(String message, Object... args) {
+    @FormatMethod
+    void throwIllegalArgument(@FormatString String message, Object... args) {
       throw new IllegalArgumentException(label + ": " + String.format(message, args));
     }
 
-    public void checkArgument(boolean condition, String message, Object... args) {
+    @FormatMethod
+    public void checkArgument(boolean condition, @FormatString String message, Object... args) {
       if (!condition) {
         throwIllegalArgument(message, args);
       }
     }
 
-    public void checkNotNull(Object value, String message, Object... args) {
+    @FormatMethod
+    public void checkNotNull(Object value, @FormatString String message, Object... args) {
       if (value == null) {
         throwIllegalArgument(message, args);
       }
@@ -2505,6 +2499,10 @@ public class DoFnSignatures {
     return usesGivenStateClass(doFn, SetState.class);
   }
 
+  public static boolean usesOrderedListState(DoFn<?, ?> doFn) {
+    return usesGivenStateClass(doFn, OrderedListState.class);
+  }
+
   public static boolean usesValueState(DoFn<?, ?> doFn) {
     return usesGivenStateClass(doFn, ValueState.class) || requiresTimeSortedInput(doFn);
   }
@@ -2518,11 +2516,31 @@ public class DoFnSignatures {
   }
 
   public static boolean usesTimers(DoFn<?, ?> doFn) {
-    return signatureForDoFn(doFn).usesTimers() || requiresTimeSortedInput(doFn);
+    return signatureForDoFn(doFn).usesTimers()
+        || requiresTimeSortedInput(doFn)
+        || signatureForDoFn(doFn).onWindowExpiration() != null;
   }
 
   public static boolean usesState(DoFn<?, ?> doFn) {
     return signatureForDoFn(doFn).usesState() || requiresTimeSortedInput(doFn);
+  }
+
+  private static boolean containsBundleFinalizer(List<Parameter> parameters) {
+    return parameters.stream().anyMatch(parameter -> parameter instanceof BundleFinalizerParameter);
+  }
+
+  private static boolean containsBundleFinalizer(@Nullable MethodWithExtraParameters method) {
+    if (method == null) {
+      return false;
+    }
+    return containsBundleFinalizer(method.extraParameters());
+  }
+
+  public static boolean usesBundleFinalizer(DoFn<?, ?> doFn) {
+    DoFnSignature sig = signatureForDoFn(doFn);
+    return containsBundleFinalizer(sig.startBundle())
+        || containsBundleFinalizer(sig.finishBundle())
+        || containsBundleFinalizer(sig.processElement());
   }
 
   public static boolean requiresTimeSortedInput(DoFn<?, ?> doFn) {

@@ -27,42 +27,34 @@ Consult the [Programming Guide I/O section](/documentation/programming-guide#pip
 
 # In-Progress I/O Transforms
 
-This table contains I/O transforms that are currently planned or in-progress. Status information can be found on the JIRA issue, or on the GitHub PR linked to by the JIRA issue (if there is one).
+This table contains I/O transforms that are currently planned or in-progress. Status information can be found on the GitHub Issue issue, or on the GitHub PR linked to by the GitHub Issue issue (if there is one).
 
 <table class="table table-bordered">
   <tr>
-    <th>Name</th><th>Language</th><th>JIRA</th>
+    <th>Name</th><th>Language</th><th>Issue</th>
   </tr>
   <tr>
     <td>Apache DistributedLog</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-607">BEAM-607</a></td>
+    <td><a href="https://github.com/apache/beam/issues/18026">Issue 18026</a></td>
   </tr>
   <tr>
     <td>Apache Sqoop</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-67">BEAM-67</a></td>
+    <td><a href="https://github.com/apache/beam/issues/17958">Issue 17958</a></td>
   </tr>
   <tr>
     <td>Couchbase</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1893">BEAM-1893</a></td>
-  </tr>
-  <tr>
-    <td>InfluxDB</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-2546">BEAM-2546</a></td>
+    <td><a href="https://github.com/apache/beam/issues/18381">Issue 18381</a></td>
   </tr>
   <tr>
     <td>Memcached</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1678">BEAM-1678</a></td>
-  </tr>
-  <tr>
-    <td>Neo4j</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1857">BEAM-1857</a></td>
-  </tr>
-  <tr>
-    <td>Pub/Sub Lite</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-10114">BEAM-10114</a></td>
+    <td><a href="https://github.com/apache/beam/issues/21768">Issue 21768</a></td>
   </tr>
   <tr>
     <td>RestIO</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1946">BEAM-1946</a></td>
+    <td><a href="https://github.com/apache/beam/issues/18356">Issue 18356</a></td>
+  </tr>
+  <tr>
+    <td>NATS IO</td><td></td>
+    <td></td>
   </tr>
 </table>

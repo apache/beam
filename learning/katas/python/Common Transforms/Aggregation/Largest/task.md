@@ -19,7 +19,7 @@
 Aggregation - Largest
 ---------------------
 
-**Kata:** Compute the largest of the elements from an input.
+**Kata:** Compute a list of the two largest elements from an input.
 
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Top.Largest">

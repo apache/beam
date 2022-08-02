@@ -29,11 +29,11 @@ For more information on changes in 2.19.0, check out the
 [detailed release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12346582).
 
 ## Highlights
- * Multiple improvements made into Python SDK harness: 
- [BEAM-8624](https://issues.apache.org/jira/browse/BEAM-8624), 
- [BEAM-8623](https://issues.apache.org/jira/browse/BEAM-8623), 
- [BEAM-7949](https://issues.apache.org/jira/browse/BEAM-7949), 
- [BEAM-8935](https://issues.apache.org/jira/browse/BEAM-8935), 
+ * Multiple improvements made into Python SDK harness:
+ [BEAM-8624](https://issues.apache.org/jira/browse/BEAM-8624),
+ [BEAM-8623](https://issues.apache.org/jira/browse/BEAM-8623),
+ [BEAM-7949](https://issues.apache.org/jira/browse/BEAM-7949),
+ [BEAM-8935](https://issues.apache.org/jira/browse/BEAM-8935),
  [BEAM-8816](https://issues.apache.org/jira/browse/BEAM-8816)
 
 ### I/Os
@@ -86,7 +86,7 @@ For more information on changes in 2.19.0, check out the
 * [BEAM-8995](https://issues.apache.org/jira/browse/BEAM-8995) apache_beam.io.gcp.bigquery_read_it_test failing on Py3.5 PC with: TypeError: the JSON object must be str, not 'bytes'
 * [BEAM-8999](https://issues.apache.org/jira/browse/BEAM-8999) PGBKCVOperation does not respect timestamp combiners
 * [BEAM-9050](https://issues.apache.org/jira/browse/BEAM-9050) Beam pickler doesn't pickle classes that have __module__ set to None.
-* 
+*
 * Various bug fixes and performance improvements.
 
 ## List of Contributors

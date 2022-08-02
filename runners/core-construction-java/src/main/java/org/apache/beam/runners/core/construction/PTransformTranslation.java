@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
@@ -46,7 +45,6 @@ import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -61,6 +59,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Utilities for converting {@link PTransform PTransforms} to {@link RunnerApi Runner API protocol
  * buffers}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness",
+  "keyfor"
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class PTransformTranslation {
   // We specifically copy the values here so that they can be used in switch case statements
   // and we validate that the value matches the actual URN in the static block below.
@@ -74,6 +77,7 @@ public class PTransformTranslation {
   public static final String TEST_STREAM_TRANSFORM_URN = "beam:transform:teststream:v1";
   public static final String MAP_WINDOWS_TRANSFORM_URN = "beam:transform:map_windows:v1";
   public static final String MERGE_WINDOWS_TRANSFORM_URN = "beam:transform:merge_windows:v1";
+  public static final String TO_STRING_TRANSFORM_URN = "beam:transform:to_string:v1";
 
   // Required runner implemented transforms. These transforms should never specify an environment.
   public static final ImmutableSet<String> RUNNER_IMPLEMENTED_TRANSFORMS =
@@ -98,6 +102,10 @@ public class PTransformTranslation {
   public static final String COMBINE_GLOBALLY_TRANSFORM_URN = "beam:transform:combine_globally:v1";
   public static final String RESHUFFLE_URN = "beam:transform:reshuffle:v1";
   public static final String WRITE_FILES_TRANSFORM_URN = "beam:transform:write_files:v1";
+  public static final String GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN =
+      "beam:transform:group_into_batches_with_sharded_key:v1";
+  public static final String PUBSUB_READ = "beam:transform:pubsub_read:v1";
+  public static final String PUBSUB_WRITE = "beam:transform:pubsub_write:v1";
 
   // CombineComponents
   public static final String COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN =
@@ -136,6 +144,9 @@ public class PTransformTranslation {
   public static final String SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN =
       "beam:transform:sdf_process_sized_element_and_restrictions:v1";
 
+  // GroupIntoBatchesComponents
+  public static final String GROUP_INTO_BATCHES_URN = "beam:transform:group_into_batches:v1";
+
   static {
     // Primitives
     checkState(PAR_DO_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.PAR_DO)));
@@ -168,6 +179,8 @@ public class PTransformTranslation {
     checkState(RESHUFFLE_URN.equals(getUrn(StandardPTransforms.Composites.RESHUFFLE)));
     checkState(
         WRITE_FILES_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Composites.WRITE_FILES)));
+    checkState(PUBSUB_READ.equals(getUrn(StandardPTransforms.Composites.PUBSUB_READ)));
+    checkState(PUBSUB_WRITE.equals(getUrn(StandardPTransforms.Composites.PUBSUB_WRITE)));
 
     // CombineComponents
     checkState(
@@ -360,7 +373,8 @@ public class PTransformTranslation {
       }
 
       if (!RUNNER_IMPLEMENTED_TRANSFORMS.contains(urn)) {
-        transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+        transformBuilder.setEnvironmentId(
+            components.getEnvironmentIdFor(appliedPTransform.getResourceHints()));
       }
       return transformBuilder.build();
     }
@@ -428,17 +442,20 @@ public class PTransformTranslation {
 
         // Required runner implemented transforms should not have an environment id.
         if (!RUNNER_IMPLEMENTED_TRANSFORMS.contains(spec.getUrn())) {
-          // TODO(BEAM-9309): Remove existing hacks around deprecated READ transform.
+          // TODO(https://github.com/apache/beam/issues/20094): Remove existing hacks around
+          // deprecated READ transform.
           if (spec.getUrn().equals(READ_TRANSFORM_URN)) {
             // Only assigning environment to Bounded reads. Not assigning an environment to
             // Unbounded
             // reads since they are a Runner translated transform, unless, in the future, we have an
             // adapter available for splittable DoFn.
             if (appliedPTransform.getTransform().getClass() == Read.Bounded.class) {
-              transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+              transformBuilder.setEnvironmentId(
+                  components.getEnvironmentIdFor(appliedPTransform.getResourceHints()));
             }
           } else {
-            transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+            transformBuilder.setEnvironmentId(
+                components.getEnvironmentIdFor(appliedPTransform.getResourceHints()));
           }
         }
       }
@@ -464,26 +481,15 @@ public class PTransformTranslation {
       SdkComponents components)
       throws IOException {
     RunnerApi.PTransform.Builder transformBuilder = RunnerApi.PTransform.newBuilder();
-    for (Map.Entry<TupleTag<?>, PValue> taggedInput : appliedPTransform.getInputs().entrySet()) {
-      checkArgument(
-          taggedInput.getValue() instanceof PCollection,
-          "Unexpected input type %s",
-          taggedInput.getValue().getClass());
+    for (Map.Entry<TupleTag<?>, PCollection<?>> taggedInput :
+        appliedPTransform.getInputs().entrySet()) {
       transformBuilder.putInputs(
-          toProto(taggedInput.getKey()),
-          components.registerPCollection((PCollection<?>) taggedInput.getValue()));
+          toProto(taggedInput.getKey()), components.registerPCollection(taggedInput.getValue()));
     }
-    for (Map.Entry<TupleTag<?>, PValue> taggedOutput : appliedPTransform.getOutputs().entrySet()) {
-      // TODO: Remove gating
-      if (taggedOutput.getValue() instanceof PCollection) {
-        checkArgument(
-            taggedOutput.getValue() instanceof PCollection,
-            "Unexpected output type %s",
-            taggedOutput.getValue().getClass());
-        transformBuilder.putOutputs(
-            toProto(taggedOutput.getKey()),
-            components.registerPCollection((PCollection<?>) taggedOutput.getValue()));
-      }
+    for (Map.Entry<TupleTag<?>, PCollection<?>> taggedOutput :
+        appliedPTransform.getOutputs().entrySet()) {
+      transformBuilder.putOutputs(
+          toProto(taggedOutput.getKey()), components.registerPCollection(taggedOutput.getValue()));
     }
     for (AppliedPTransform<?, ?, ?> subtransform : subtransforms) {
       transformBuilder.addSubtransforms(components.getExistingPTransformId(subtransform));

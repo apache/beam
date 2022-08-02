@@ -23,6 +23,9 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /** A write operation. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class WriteOperation extends ReceivingOperation {
   /** The Sink this operation writes to. */
   public final Sink<?> sink;

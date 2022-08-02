@@ -34,6 +34,8 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import org.apache.beam.sdk.values.KV;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -44,11 +46,22 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BufferedExternalSorter}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class BufferedExternalSorterTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
-  private static Path tmpLocation;
+  private static @Nullable Path tmpLocation = null;
+
+  public static Path getTmpLocation() {
+    if (tmpLocation == null) {
+      throw new IllegalStateException("getTmpLocation called outside of test context");
+    }
+    return tmpLocation;
+  }
 
   @BeforeClass
+  @EnsuresNonNull("tmpLocation")
   public static void setupTempDir() throws IOException {
     tmpLocation = Files.createTempDirectory("tmp");
   }
@@ -56,7 +69,7 @@ public class BufferedExternalSorterTest {
   @AfterClass
   public static void cleanupTempDir() throws IOException {
     Files.walkFileTree(
-        tmpLocation,
+        getTmpLocation(),
         new SimpleFileVisitor<Path>() {
           @Override
           public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
@@ -140,28 +153,28 @@ public class BufferedExternalSorterTest {
   public void testEmpty() throws Exception {
     SorterTestUtils.testEmpty(
         BufferedExternalSorter.create(
-            BufferedExternalSorter.options().withTempLocation(tmpLocation.toString())));
+            BufferedExternalSorter.options().withTempLocation(getTmpLocation().toString())));
   }
 
   @Test
   public void testSingleElement() throws Exception {
     SorterTestUtils.testSingleElement(
         BufferedExternalSorter.create(
-            BufferedExternalSorter.options().withTempLocation(tmpLocation.toString())));
+            BufferedExternalSorter.options().withTempLocation(getTmpLocation().toString())));
   }
 
   @Test
   public void testEmptyKeyValueElement() throws Exception {
     SorterTestUtils.testEmptyKeyValueElement(
         BufferedExternalSorter.create(
-            BufferedExternalSorter.options().withTempLocation(tmpLocation.toString())));
+            BufferedExternalSorter.options().withTempLocation(getTmpLocation().toString())));
   }
 
   @Test
   public void testMultipleIterations() throws Exception {
     SorterTestUtils.testMultipleIterations(
         BufferedExternalSorter.create(
-            BufferedExternalSorter.options().withTempLocation(tmpLocation.toString())));
+            BufferedExternalSorter.options().withTempLocation(getTmpLocation().toString())));
   }
 
   @Test
@@ -169,7 +182,7 @@ public class BufferedExternalSorterTest {
     SorterTestUtils.testRandom(
         () ->
             BufferedExternalSorter.create(
-                BufferedExternalSorter.options().withTempLocation(tmpLocation.toString())),
+                BufferedExternalSorter.options().withTempLocation(getTmpLocation().toString())),
         1000000,
         10);
   }
@@ -179,7 +192,7 @@ public class BufferedExternalSorterTest {
     SorterTestUtils.testRandom(
         () ->
             BufferedExternalSorter.create(
-                BufferedExternalSorter.options().withTempLocation(tmpLocation.toString())),
+                BufferedExternalSorter.options().withTempLocation(getTmpLocation().toString())),
         1,
         1000000);
   }
@@ -188,7 +201,7 @@ public class BufferedExternalSorterTest {
   public void testAddAfterSort() throws Exception {
     SorterTestUtils.testAddAfterSort(
         BufferedExternalSorter.create(
-            BufferedExternalSorter.options().withTempLocation(tmpLocation.toString())),
+            BufferedExternalSorter.options().withTempLocation(getTmpLocation().toString())),
         thrown);
     fail();
   }
@@ -197,7 +210,7 @@ public class BufferedExternalSorterTest {
   public void testSortTwice() throws Exception {
     SorterTestUtils.testSortTwice(
         BufferedExternalSorter.create(
-            BufferedExternalSorter.options().withTempLocation(tmpLocation.toString())),
+            BufferedExternalSorter.options().withTempLocation(getTmpLocation().toString())),
         thrown);
     fail();
   }
@@ -207,7 +220,7 @@ public class BufferedExternalSorterTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be greater than zero");
     BufferedExternalSorter.Options options =
-        BufferedExternalSorter.options().withTempLocation(tmpLocation.toString());
+        BufferedExternalSorter.options().withTempLocation(getTmpLocation().toString());
     options.withMemoryMB(-1);
   }
 

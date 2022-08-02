@@ -23,7 +23,7 @@ A `HadoopFormatIO` is a transform for reading data from any source or writing da
 
 `HadoopFormatIO` allows you to connect to many data sources/sinks that do not yet have a Beam IO transform. However, `HadoopFormatIO` has to make several performance trade-offs in connecting to `InputFormat` or `OutputFormat`. So, if there is another Beam IO transform for connecting specifically to your data source/sink of choice, we recommend you use that one.
 
-  
+
 
 ### Reading using HadoopFormatIO
 
@@ -34,6 +34,7 @@ You will need to pass a Hadoop `Configuration` with parameters specifying how th
 - `value.class` - The `Value` class returned by the `InputFormat` in `mapreduce.job.inputformat.class`.
 
 For example:
+
 {{< highlight java >}}
 Configuration myHadoopConfiguration = new Configuration(false);
 // Set Hadoop InputFormat, key and value class in configuration
@@ -50,6 +51,7 @@ myHadoopConfiguration.setClass("value.class", InputFormatValueClass, Object.clas
 You will need to check if the `Key` and `Value` classes output by the `InputFormat` have a Beam `Coder` available. If not, you can use `withKeyTranslation` or `withValueTranslation` to specify a method transforming instances of those classes into another class that is supported by a Beam `Coder`. These settings are optional and you don't need to specify translation for both key and value.
 
 For example:
+
 {{< highlight java >}}
 SimpleFunction<InputFormatKeyClass, MyKeyClass> myOutputKeyType =
 new SimpleFunction<InputFormatKeyClass, MyKeyClass>() {
@@ -64,7 +66,6 @@ new SimpleFunction<InputFormatValueClass, MyValueClass>() {
   }
 };
 {{< /highlight >}}
-
 {{< highlight py >}}
   # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 {{< /highlight >}}
@@ -287,10 +288,11 @@ PCollection<Text, DynamoDBItemWritable> dynamoDBData =
 
 To read data from an HBase table snapshot, use `org.apache.hadoop.hbase.mapreduce.TableSnapshotInputFormat`.
 Reading from a table snapshot bypasses the HBase region servers, instead reading HBase data files directly from the filesystem.
-This is useful for cases such as reading historical data or offloading of work from the HBase cluster. 
+This is useful for cases such as reading historical data or offloading of work from the HBase cluster.
 There are scenarios when this may prove faster than accessing content through the region servers using the `HBaseIO`.
 
 A table snapshot can be taken using the HBase shell or programmatically:
+
 {{< highlight java >}}
 try (
     Connection connection = ConnectionFactory.createConnection(hbaseConf);
@@ -300,7 +302,7 @@ try (
     "my_snaphshot",
     TableName.valueOf("my_table"),
     HBaseProtos.SnapshotDescription.Type.FLUSH);
-}  
+}
 {{< /highlight >}}
 
 {{< highlight py >}}
@@ -353,7 +355,7 @@ PCollection<ImmutableBytesWritable, Result> hbaseSnapshotData =
 ### Writing using HadoopFormatIO
 
 You will need to pass a Hadoop `Configuration` with parameters specifying how the write will occur. Many properties of the `Configuration` are optional, and some are required for certain `OutputFormat` classes, but the following properties must be set for all `OutputFormat`s:
- 
+
 - `mapreduce.job.id` - The identifier of the write job. E.g.: end timestamp of window.
 - `mapreduce.job.outputformat.class` - The `OutputFormat` class used to connect to your data sink of choice.
 - `mapreduce.job.output.key.class` - The key class passed to the `OutputFormat` in `mapreduce.job.outputformat.class`.
@@ -364,6 +366,7 @@ You will need to pass a Hadoop `Configuration` with parameters specifying how th
 _Note_: All mentioned values have appropriate constants. E.g.: `HadoopFormatIO.OUTPUT_FORMAT_CLASS_ATTR`.
 
 For example:
+
 {{< highlight java >}}
 Configuration myHadoopConfiguration = new Configuration(false);
 // Set Hadoop OutputFormat, key and value class in configuration

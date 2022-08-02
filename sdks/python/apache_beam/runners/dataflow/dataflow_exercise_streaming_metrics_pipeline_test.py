@@ -19,14 +19,21 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
+# beam-playground:
+#   name: DataflowExerciseStreamingMetricsTest
+#   description: Unit-test for the word-counting workflow.
+#   multifile: false
+#   context_line: 48
+#   categories:
+#     - Streaming
+#     - Metrics
 
 import logging
 import unittest
 import uuid
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
 from apache_beam.runners.dataflow import dataflow_exercise_streaming_metrics_pipeline
@@ -63,21 +70,23 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
     self.pub_client = pubsub.PublisherClient()
     self.input_topic_name = INPUT_TOPIC + self.uuid
     self.input_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, self.input_topic_name))
+        name=self.pub_client.topic_path(self.project, self.input_topic_name))
 
     self.output_topic_name = OUTPUT_TOPIC + self.uuid
     self.output_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, self.output_topic_name))
+        name=self.pub_client.topic_path(self.project, self.output_topic_name))
 
     self.sub_client = pubsub.SubscriberClient()
     self.input_sub_name = INPUT_SUB + self.uuid
     self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project, self.input_sub_name),
-        self.input_topic.name)
+        name=self.sub_client.subscription_path(
+            self.project, self.input_sub_name),
+        topic=self.input_topic.name)
     self.output_sub_name = OUTPUT_SUB + self.uuid
     self.output_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project, self.output_sub_name),
-        self.output_topic.name,
+        name=self.sub_client.subscription_path(
+            self.project, self.output_sub_name),
+        topic=self.output_topic.name,
         ack_deadline_seconds=60)
 
   def _inject_words(self, topic, messages):
@@ -115,7 +124,9 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
     return dataflow_exercise_streaming_metrics_pipeline.run(argv)
 
   # Need not run streaming test in batch mode.
-  @attr('IT', 'ValidatesRunner', 'sickbay-batch')
+  @pytest.mark.it_validatesrunner
+  @pytest.mark.no_sickbay_batch
+  @pytest.mark.no_xdist
   def test_streaming_pipeline_returns_expected_user_metrics_fnapi_it(self):
     """
     Runs streaming Dataflow job and verifies that user metrics are reported

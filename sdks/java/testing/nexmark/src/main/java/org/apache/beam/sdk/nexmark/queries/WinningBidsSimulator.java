@@ -36,6 +36,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** A simulator of the {@code WinningBids} query. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
   /** Auctions currently still open, indexed by auction id. */
   private final Map<Long, Auction> openAuctions;

@@ -28,19 +28,21 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.fn.grpc.BeamFnService;
-import org.apache.beam.runners.fnexecution.HeaderAccessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.BeamFnDataBufferingOutboundObserver;
 import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundObserver;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.DecodingFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.server.HeaderAccessor;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +57,9 @@ import org.slf4j.LoggerFactory;
  * org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements} messages to the first client that
  * connects.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+})
 public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
     implements BeamFnService {
 
@@ -98,16 +103,13 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
     private final CompletableFuture<BeamFnDataInboundObserver> future;
 
     private DeferredInboundDataClient(
-        String clientId,
-        LogicalEndpoint inputLocation,
-        Coder<T> coder,
-        FnDataReceiver<T> consumer) {
+        String clientId, LogicalEndpoint inputLocation, FnDataReceiver<ByteString> consumer) {
       this.future =
           getClientFuture(clientId)
               .thenCompose(
                   beamFnDataGrpcMultiplexer -> {
-                    BeamFnDataInboundObserver<T> inboundObserver =
-                        BeamFnDataInboundObserver.forConsumer(inputLocation, coder, consumer);
+                    BeamFnDataInboundObserver inboundObserver =
+                        BeamFnDataInboundObserver.forConsumer(inputLocation, consumer);
                     beamFnDataGrpcMultiplexer.registerConsumer(inputLocation, inboundObserver);
                     return CompletableFuture.completedFuture(inboundObserver);
                   });
@@ -116,6 +118,12 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
     @Override
     public void awaitCompletion() throws Exception {
       future.get().awaitCompletion();
+    }
+
+    @Override
+    @SuppressWarnings("FutureReturnValueIgnored")
+    public void runWhenComplete(Runnable completeRunnable) {
+      future.whenComplete((result, throwable) -> completeRunnable.run());
     }
 
     @Override
@@ -195,18 +203,17 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
           LogicalEndpoint inputLocation, Coder<T> coder, FnDataReceiver<T> consumer) {
         LOG.debug("Registering consumer for {}", inputLocation);
 
-        return new DeferredInboundDataClient(clientId, inputLocation, coder, consumer);
+        return new DeferredInboundDataClient(
+            clientId, inputLocation, new DecodingFnDataReceiver<T>(coder, consumer));
       }
 
       @Override
       public <T> CloseableFnDataReceiver<T> send(LogicalEndpoint outputLocation, Coder<T> coder) {
         LOG.debug("Creating output consumer for {}", outputLocation);
         try {
-          return BeamFnDataBufferingOutboundObserver.forLocation(
-              options,
-              outputLocation,
-              coder,
-              getClientFuture(clientId).get().getOutboundObserver());
+          StreamObserver<Elements> outboundObserver =
+              getClientFuture(clientId).get().getOutboundObserver();
+          return new BeamFnDataOutboundObserver<>(outputLocation, coder, outboundObserver, options);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(e);
