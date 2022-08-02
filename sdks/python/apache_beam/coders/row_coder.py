@@ -32,10 +32,12 @@ from apache_beam.coders.coders import MapCoder
 from apache_beam.coders.coders import NullableCoder
 from apache_beam.coders.coders import SinglePrecisionFloatCoder
 from apache_beam.coders.coders import StrUtf8Coder
+from apache_beam.coders.coders import TimestampCoder
 from apache_beam.coders.coders import VarIntCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
+from apache_beam.typehints.schemas import DATETIME_URN
 from apache_beam.typehints.schemas import PYTHON_ANY_URN
 from apache_beam.typehints.schemas import LogicalType
 from apache_beam.typehints.schemas import named_tuple_from_schema
@@ -168,10 +170,15 @@ def _nonnull_coder_from_type(field_type):
         _coder_from_type(field_type.map_type.key_type),
         _coder_from_type(field_type.map_type.value_type))
   elif type_info == "logical_type":
-    # Special case for the Any logical type. Just use the default coder for an
-    # unknown Python object.
     if field_type.logical_type.urn == PYTHON_ANY_URN:
+      # Special case for the Any logical type. Just use the default coder for an
+      # unknown Python object.
       return typecoders.registry.get_coder(object)
+    elif field_type.logical_type.urn == DATETIME_URN:
+      # Special case for datetime logical type.
+      # DATETIME_URN explicitly uses TimestampCoder which deals with fix length
+      # 8-bytes big-endian-long instead of varint coder.
+      return TimestampCoder()
 
     logical_type = LogicalType.from_runner_api(field_type.logical_type)
     return LogicalTypeCoder(
