@@ -324,6 +324,10 @@ class _MetricsCollector:
     self._inference_batch_latency_micro_secs = (
         beam.metrics.Metrics.distribution(
             namespace, 'inference_batch_latency_micro_secs'))
+    # Sample inference latency in microseconds.
+    self._inference_sample_latency_micro_secs = (
+        beam.metrics.Metrics.distribution(
+            namespace, 'inference_sample_latency_micro_secs'))
     self._model_byte_size = beam.metrics.Metrics.distribution(
         namespace, 'model_byte_size')
     # Model load latency in milliseconds.
@@ -351,11 +355,13 @@ class _MetricsCollector:
       self,
       examples_count: int,
       examples_byte_size: int,
-      latency_micro_secs: int):
-    self._inference_batch_latency_micro_secs.update(latency_micro_secs)
+      latency_micro_secs_batch: int,
+      latency_micro_secs_sample: int):
+    self._inference_batch_latency_micro_secs.update(latency_micro_secs_batch)
     self._inference_counter.inc(examples_count)
     self._inference_request_batch_size.update(examples_count)
     self._inference_request_batch_byte_size.update(examples_byte_size)
+    self._inference_sample_latency_micro_secs.update(latency_micro_secs_sample)
 
 
 class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
@@ -402,10 +408,15 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     predictions = list(result_generator)
 
     end_time = _to_microseconds(self._clock.time_ns())
-    inference_latency = end_time - start_time
-    num_bytes = self._model_handler.get_num_bytes(batch)
     num_elements = len(batch)
-    self._metrics_collector.update(num_elements, num_bytes, inference_latency)
+    inference_latency_batch = end_time - start_time
+    inference_latency_sample = inference_latency_batch / num_elements
+    num_bytes = self._model_handler.get_num_bytes(batch)
+    self._metrics_collector.update(
+        num_elements,
+        num_bytes,
+        inference_latency_batch,
+        inference_latency_sample)
 
     return predictions
 
