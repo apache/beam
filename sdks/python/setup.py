@@ -231,6 +231,7 @@ if __name__ == '__main__':
         'pytz>=2018.3',
         'requests>=2.24.0,<3.0.0',
         'typing-extensions>=3.7.0',
+        'zstandard>=0.18.0,<1',
       # Dynamic dependencies must be specified in a separate list, otherwise
       # Dependabot won't be able to parse the main list. Any dynamic
       # dependencies will not receive updates from Dependabot.

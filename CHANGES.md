@@ -66,6 +66,7 @@
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Previously available in Java sdk, Python sdk now also supports logging level overrides per module. ([#18222](https://github.com/apache/beam/issues/18222)).
+* Added support for Zstd compression to the Python SDK
 
 ## Breaking Changes
 
