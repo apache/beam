@@ -42,9 +42,11 @@ from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerPandas
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
-MODELS = [{
+# yapf: disable
+MODELS = [
+  {
     'name': 'all_features',
-    'required_features': [
+      'required_features': [
         'Area',
         'Year',
         'MinTimeToNearestStation',
@@ -52,31 +54,30 @@ MODELS = [{
         'TotalFloorArea',
         'Frontage',
         'Breadth',
-        'BuildingYear'
-    ]
-},
-          {
-              'name': 'floor_area',
-              'required_features': ['Area', 'Year', 'TotalFloorArea']
-          },
-          {
-              'name': 'stations',
-              'required_features': [
-                  'Area',
-                  'Year',
-                  'MinTimeToNearestStation',
-                  'MaxTimeToNearestStation'
-              ]
-          }, {
-              'name': 'no_features', 'required_features': ['Area', 'Year']
-          }]
+        'BuildingYear']
+  }, {
+  'name': 'floor_area',
+  'required_features': ['Area', 'Year', 'TotalFloorArea']
+  }, {
+    'name': 'stations',
+    'required_features': [
+        'Area',
+        'Year',
+        'MinTimeToNearestStation',
+        'MaxTimeToNearestStation']
+  }, {
+    'name': 'no_features',
+    'required_features': ['Area', 'Year']
+  }
+]
+# yapf: enable
 
 
 def sort_by_features(dataframe, max_size):
   """ Partitions the dataframe by what data it has available."""
   for i, model in enumerate(MODELS):
     required_features = dataframe[model['required_features']]
-    if not required_features.isnull().any().any():
+    if required_features.notnull().any().any():
       return i
   return -1
 
@@ -118,7 +119,7 @@ def parse_known_args(argv):
 
 
 def inference_transform(model_name, model_path):
-  # These sklearn models are a pipeline that use pandas.
+  # This example shows how to load a model
   model_filename = model_path + model_name + '.pickle'
   model_loader = SklearnModelHandlerPandas(
       model_file_type=ModelFileType.PICKLE, model_uri=model_filename)
@@ -133,7 +134,7 @@ def run(argv=None, save_main_session=True):
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
   with beam.Pipeline(options=pipeline_options) as p:
-    # This example uses a single file, but it is possible to use many files.
+    # Input may be a single file or a comma separated list of files.
     file_names = p | 'FileNames' >> beam.Create([known_args.input])
     loaded_data = file_names | beam.ParDo(LoadDataframe())
 
