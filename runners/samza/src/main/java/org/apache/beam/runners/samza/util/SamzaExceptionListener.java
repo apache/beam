@@ -21,6 +21,12 @@ import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.util.Map;
 
+/**
+ * An ExceptionListener following Observer pattern. Any class implementing {@code
+ * PropertyChangeListener} can be registered with SamzaExceptionListener. Any runtime exception
+ * caught by {@code OpAdapter} will be notified to all registered PropertyChangeListener(s) as a
+ * {@code PropertyChangeEvent}
+ */
 public class SamzaExceptionListener {
   private PropertyChangeSupport support;
   private static final SamzaExceptionListener singletonExceptionListener =
