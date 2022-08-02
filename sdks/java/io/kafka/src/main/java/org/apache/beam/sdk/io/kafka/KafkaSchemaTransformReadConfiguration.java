@@ -20,11 +20,11 @@ package org.apache.beam.sdk.io.kafka;
 import com.google.auto.value.AutoValue;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.kafka.common.TopicPartition;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Configuration for reading from a Kafka topic.
