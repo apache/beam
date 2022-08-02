@@ -57,27 +57,31 @@ type Snippet struct {
 
 // ID generates id according to content of the entity
 func (s *Snippet) ID() (string, error) {
-	var files []string
-	for _, v := range s.Files {
-		files = append(files, strings.TrimSpace(v.Content)+strings.TrimSpace(v.Name))
-	}
-	sort.Strings(files)
-	var contentBuilder strings.Builder
-	for i, file := range files {
-		contentBuilder.WriteString(file)
-		if i == len(files)-1 {
-			contentBuilder.WriteString(fmt.Sprintf("%v%s", s.Snippet.Sdk, strings.TrimSpace(s.Snippet.PipeOpts)))
-		}
-	}
-	id, err := generateID(s.Salt, contentBuilder.String(), s.IdLength)
+	id, err := generateIDBasedOnContent(s.Salt, combineUniqueSnippetContent(s), s.IdLength)
 	if err != nil {
 		return "", err
 	}
 	return id, nil
 }
 
-//TODO after removing the cloud storage this method should be deleted. It's a duplicate code from utils package
-func generateID(salt, content string, length int8) (string, error) {
+func combineUniqueSnippetContent(snippet *Snippet) string {
+	var files []string
+	for _, file := range snippet.Files {
+		files = append(files, strings.TrimSpace(file.Content)+strings.TrimSpace(file.Name))
+	}
+	sort.Strings(files)
+	var contentBuilder strings.Builder
+	for i, file := range files {
+		contentBuilder.WriteString(file)
+		if i == len(files)-1 {
+			contentBuilder.WriteString(fmt.Sprintf("%v%s", snippet.Snippet.Sdk, strings.TrimSpace(snippet.Snippet.PipeOpts)))
+		}
+	}
+
+	return contentBuilder.String()
+}
+
+func generateIDBasedOnContent(salt, content string, length int8) (string, error) {
 	hash := sha256.New()
 	if _, err := io.WriteString(hash, salt); err != nil {
 		logger.Errorf("ID(): error during hash generation: %s", err.Error())
