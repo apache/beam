@@ -15,3 +15,12 @@ type Module struct {
 type ContentTree struct {
 	Modules []Module `json:"modules"`
 }
+
+type UnitContent struct {
+	Unit
+	Description         string `json:"description"`
+	Hint                string `json:"hint"`
+	AssignmentSnippetId string `json:"assignment"`
+	SolutionSnippetId   string `json:"solution"`
+	UserSnippetId       string `json:"userSnippet"`
+}
