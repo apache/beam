@@ -2740,14 +2740,14 @@ class ReadFromBigQuery(PTransform):
   def expand(self, pcoll):
     if self.method is ReadFromBigQuery.Method.EXPORT:
       output_pcollection = self._expand_export(pcoll)
-      return ReadFromBigQuery._expand_output_type(self, output_pcollection)
     elif self.method is ReadFromBigQuery.Method.DIRECT_READ:
       output_pcollection = self._expand_direct_read(pcoll)
-      return ReadFromBigQuery._expand_output_type(self, output_pcollection)
+
     else:
       raise ValueError(
           'The method to read from BigQuery must be either EXPORT'
           'or DIRECT_READ.')
+    return self._expand_output_type(output_pcollection)
 
   def _expand_output_type(self, output_pcollection):
     if self.output_type == 'PYTHON_DICT' or self.output_type is None:
@@ -2760,8 +2760,7 @@ class ReadFromBigQuery(PTransform):
       if isinstance(self._kwargs['table'], ValueProvider):
         raise TypeError(
             '%s: table must be of type string'
-            '; got %r instead' %
-            (self.__class__.__name__, type(self._kwargs['table'])))
+            '; got ValueProvider instead' % self.__class__.__name__)
       elif callable(self._kwargs['table']):
         raise TypeError(
             '%s: table must be of type string'

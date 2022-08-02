@@ -35,7 +35,7 @@ except ImportError:
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryToSchema(unittest.TestCase):
-  def test_produce_pcoll_with_schema(self):
+  def test_check_schema_conversions(self):
     fields = [
         bigquery.TableFieldSchema(name='stn', type='STRING', mode="NULLABLE"),
         bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
@@ -43,7 +43,7 @@ class TestBigQueryToSchema(unittest.TestCase):
     ]
     schema = bigquery.TableSchema(fields=fields)
 
-    usertype = bigquery_schema_tools.produce_pcoll_with_schema(
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(
         the_table_schema=schema)
     self.assertEqual(
         usertype.__annotations__,
@@ -53,11 +53,11 @@ class TestBigQueryToSchema(unittest.TestCase):
             'count': np.int64
         })
 
-  def test_produce_pcoll_with_empty_schema(self):
+  def test_check_conversion_with_empty_schema(self):
     fields = []
     schema = bigquery.TableSchema(fields=fields)
 
-    usertype = bigquery_schema_tools.produce_pcoll_with_schema(
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(
         the_table_schema=schema)
     self.assertEqual(usertype.__annotations__, {})
 
@@ -71,7 +71,8 @@ class TestBigQueryToSchema(unittest.TestCase):
     schema = bigquery.TableSchema(fields=fields)
     with self.assertRaisesRegex(ValueError,
                                 "Encountered an unsupported type: 'DOUBLE'"):
-      bigquery_schema_tools.produce_pcoll_with_schema(the_table_schema=schema)
+      bigquery_schema_tools.generate_user_type_from_bq_schema(
+          the_table_schema=schema)
 
   def test_unsupported_mode(self):
     fields = [
@@ -82,7 +83,8 @@ class TestBigQueryToSchema(unittest.TestCase):
     schema = bigquery.TableSchema(fields=fields)
     with self.assertRaisesRegex(ValueError,
                                 "Encountered an unsupported mode: 'NESTED'"):
-      bigquery_schema_tools.produce_pcoll_with_schema(the_table_schema=schema)
+      bigquery_schema_tools.generate_user_type_from_bq_schema(
+          the_table_schema=schema)
 
   @mock.patch.object(BigQueryWrapper, 'get_table')
   def test_bad_schema_public_api_export(self, get_table):
@@ -130,43 +132,16 @@ class TestBigQueryToSchema(unittest.TestCase):
           output_type='BEAM_ROW')
       pipeline
 
-  @mock.patch.object(BigQueryWrapper, 'get_table')
-  def test_unsupported_value_provider(self, get_table):
-    fields = [
-        bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
-        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
-        bigquery.TableFieldSchema(
-            name='count', type='INTEGER', mode="NULLABLE")
-    ]
-    schema = bigquery.TableSchema(fields=fields)
-    table = apache_beam.io.gcp.internal.clients.bigquery. \
-        bigquery_v2_messages.Table(
-        schema=schema)
-    get_table.return_value = table
-
+  def test_unsupported_value_provider(self):
     with self.assertRaisesRegex(TypeError,
                                 'ReadFromBigQuery: table must be of type string'
-                                '; got %r instead' %
-                                (type(value_provider.ValueProvider()))):
+                                '; got ValueProvider instead'):
       p = apache_beam.Pipeline()
       pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
           table=value_provider.ValueProvider(), output_type='BEAM_ROW')
       pipeline
 
-  @mock.patch.object(BigQueryWrapper, 'get_table')
-  def test_unsupported_callable(self, get_table):
-    fields = [
-        bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
-        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
-        bigquery.TableFieldSchema(
-            name='count', type='INTEGER', mode="NULLABLE")
-    ]
-    schema = bigquery.TableSchema(fields=fields)
-    table = apache_beam.io.gcp.internal.clients.bigquery. \
-        bigquery_v2_messages.Table(
-        schema=schema)
-    get_table.return_value = table
-
+  def test_unsupported_callable(self):
     def filterTable(table):
       if table is not None:
         return table
@@ -180,20 +155,7 @@ class TestBigQueryToSchema(unittest.TestCase):
           table=res, output_type='BEAM_ROW')
       pipeline
 
-  @mock.patch.object(BigQueryWrapper, 'get_table')
-  def test_unsupported_query_export(self, get_table):
-    fields = [
-        bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
-        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
-        bigquery.TableFieldSchema(
-            name='count', type='INTEGER', mode="NULLABLE")
-    ]
-    schema = bigquery.TableSchema(fields=fields)
-    table = apache_beam.io.gcp.internal.clients.bigquery. \
-        bigquery_v2_messages.Table(
-        schema=schema)
-    get_table.return_value = table
-
+  def test_unsupported_query_export(self):
     with self.assertRaisesRegex(
         ValueError,
         "Both a query and an output type of 'BEAM_ROW' were specified. "
@@ -206,20 +168,7 @@ class TestBigQueryToSchema(unittest.TestCase):
           output_type='BEAM_ROW')
       pipeline
 
-  @mock.patch.object(BigQueryWrapper, 'get_table')
-  def test_unsupported_query_direct_read(self, get_table):
-    fields = [
-        bigquery.TableFieldSchema(name='stn', type='INTEGER', mode="NULLABLE"),
-        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
-        bigquery.TableFieldSchema(
-            name='count', type='INTEGER', mode="NULLABLE")
-    ]
-    schema = bigquery.TableSchema(fields=fields)
-    table = apache_beam.io.gcp.internal.clients.bigquery. \
-        bigquery_v2_messages.Table(
-        schema=schema)
-    get_table.return_value = table
-
+  def test_unsupported_query_direct_read(self):
     with self.assertRaisesRegex(
         ValueError,
         "Both a query and an output type of 'BEAM_ROW' were specified. "

@@ -45,7 +45,7 @@ BIG_QUERY_TO_PYTHON_TYPES = {
 }
 
 
-def produce_pcoll_with_schema(the_table_schema):
+def generate_user_type_from_bq_schema(the_table_schema):
   #type: (bigquery.TableSchema) -> type
 
   """Convert a schema of type TableSchema into a pcollection element.
@@ -88,7 +88,7 @@ def bq_field_to_type(field, mode):
 
 def convert_to_usertype(table_schema):
   usertype = beam.io.gcp.bigquery_schema_tools. \
-        produce_pcoll_with_schema(table_schema)
+        generate_user_type_from_bq_schema(table_schema)
   return beam.ParDo(
       beam.io.gcp.bigquery_schema_tools.BeamSchemaConversionDoFn(usertype))
 
