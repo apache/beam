@@ -90,7 +90,7 @@ class ThemeSwitchNotifierProvider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<ThemeSwitchNotifier>(
-      create: (context) => ThemeSwitchNotifier(),
+      create: (context) => ThemeSwitchNotifier()..init(),
       child: Consumer<ThemeSwitchNotifier>(
         builder: (context, themeSwitchNotifier, _) => ThemeColorsProvider(
           data: themeSwitchNotifier.themeColors,

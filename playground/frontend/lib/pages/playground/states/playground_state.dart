@@ -64,6 +64,7 @@ class PlaygroundState with ChangeNotifier {
     CodeRepository? codeRepository,
   })  : _sdk = sdk,
         codeController = CodeController(
+          language: sdk.highlightMode,
           webSpaceFix: false,
         ) {
     final uri = Uri.base;
