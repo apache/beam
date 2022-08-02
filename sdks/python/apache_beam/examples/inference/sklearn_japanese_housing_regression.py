@@ -119,7 +119,7 @@ def parse_known_args(argv):
 
 
 def inference_transform(model_name, model_path):
-  # This example shows how to load a model
+  """Returns a RunInference transform."""
   model_filename = model_path + model_name + '.pickle'
   model_loader = SklearnModelHandlerPandas(
       model_file_type=ModelFileType.PICKLE, model_uri=model_filename)
@@ -135,7 +135,7 @@ def run(argv=None, save_main_session=True):
 
   with beam.Pipeline(options=pipeline_options) as p:
     # Input may be a single file or a comma separated list of files.
-    file_names = p | 'FileNames' >> beam.Create([known_args.input])
+    file_names = p | 'FileNames' >> beam.Create(known_args.input.split(','))
     loaded_data = file_names | beam.ParDo(LoadDataframe())
 
     # Some examples don't have all features. Pipelines
