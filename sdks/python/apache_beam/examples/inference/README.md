@@ -269,7 +269,7 @@ https://storage.cloud.google.com/apache-beam-ml/models/japanese_housing/
 
 Note: This example uses more than one model. Since not all features in an example are populated, a different model will be chosen based on available data.
 
-For example an example without distance to the nearest station will use a model that doesn't rely on that data.
+For example, an example without distance to the nearest station will use a model that doesn't rely on that data.
 
 #### Running the Pipeline
 To run locally, use the following command:
