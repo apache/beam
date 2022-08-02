@@ -44,8 +44,9 @@ import (
 	"beam.apache.org/playground/backend/internal/db/mapper"
 	"beam.apache.org/playground/backend/internal/db/schema"
 	"beam.apache.org/playground/backend/internal/db/schema/migration"
-	test_scripts "beam.apache.org/playground/backend/internal/db/test"
 	"beam.apache.org/playground/backend/internal/environment"
+	"beam.apache.org/playground/backend/internal/tests/test_data"
+	"beam.apache.org/playground/backend/internal/tests/test_utils"
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
@@ -160,7 +161,7 @@ func setup() *grpc.Server {
 	appEnv.SetSchemaVersion(actualSchemaVersion)
 
 	// download test data to the Datastore Emulator
-	test_scripts.DownloadCatalogsWithMockData(ctx)
+	test_data.DownloadCatalogsWithMockData(ctx)
 
 	entityMapper := mapper.NewDatastoreMapper(appEnv, props)
 	cacheComponent := components.NewService(cacheService, dbClient)
@@ -187,6 +188,8 @@ func teardown(server *grpc.Server) {
 	removeDir(configFolder)
 	removeDir(javaLogConfigFilename)
 	removeDir(baseFileFolder)
+
+	test_data.RemoveCatalogsWithMockData(ctx)
 }
 
 func removeDir(dir string) {
@@ -832,7 +835,7 @@ func TestPlaygroundController_SaveSnippet(t *testing.T) {
 			args: args{
 				ctx: ctx,
 				info: &pb.SaveSnippetRequest{
-					Files: []*pb.SnippetFile{{Name: "MOCK_NAME", Content: utils.RandomString(1000001)}},
+					Files: []*pb.SnippetFile{{Name: "MOCK_NAME", Content: test_utils.RandomString(1000001)}},
 					Sdk:   pb.Sdk_SDK_JAVA,
 				},
 			},
