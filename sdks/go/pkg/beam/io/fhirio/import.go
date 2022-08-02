@@ -78,6 +78,7 @@ func (fn *createBatchFilesFn) StartBundle(ctx context.Context, _, _ func(string)
 	}
 	fn.fs = fs
 	fn.batchFilePath = fmt.Sprintf("%s/fhirImportBatch-%v.ndjson", fn.TempLocation, uuid.New())
+	log.Infof(ctx, "Opening to write batch file: %v", fn.batchFilePath)
 	fn.batchFileWriter, err = fn.fs.OpenWrite(ctx, fn.batchFilePath)
 	if err != nil {
 		return err
@@ -93,12 +94,13 @@ func (fn *createBatchFilesFn) ProcessElement(ctx context.Context, resource strin
 	}
 }
 
-func (fn *createBatchFilesFn) FinishBundle(emitBatchFilePath, _ func(string)) {
+func (fn *createBatchFilesFn) FinishBundle(ctx context.Context, emitBatchFilePath, _ func(string)) {
 	fn.batchFileWriter.Close()
 	fn.batchFileWriter = nil
 	fn.fs.Close()
 	fn.fs = nil
 	emitBatchFilePath(fn.batchFilePath)
+	log.Infof(ctx, "Batch file created: %v", fn.batchFilePath)
 }
 
 type importFn struct {
@@ -106,6 +108,7 @@ type importFn struct {
 	operationCounters
 	fs                               filesystem.Interface
 	batchFilesPath                   []string
+	tempBatchDir                     string
 	FhirStorePath                    string
 	TempLocation, DeadLetterLocation string
 	ContentStructure                 ContentStructure
@@ -121,18 +124,18 @@ func (fn *importFn) Setup() {
 }
 
 func (fn *importFn) StartBundle(ctx context.Context, _ func(string)) error {
-	fn.batchFilesPath = make([]string, 0)
-	fn.TempLocation = fmt.Sprintf("%s/tmp-%v", fn.TempLocation, uuid.New())
 	fs, err := filesystem.New(ctx, fn.TempLocation)
 	if err != nil {
 		return err
 	}
 	fn.fs = fs
+	fn.batchFilesPath = make([]string, 0)
+	fn.tempBatchDir = fmt.Sprintf("%s/tmp-%v", fn.TempLocation, uuid.New())
 	return nil
 }
 
 func (fn *importFn) ProcessElement(ctx context.Context, batchFilePath string, _ func(string)) {
-	updatedBatchFilePath := fmt.Sprintf("%s/%s", fn.TempLocation, filepath.Base(batchFilePath))
+	updatedBatchFilePath := fmt.Sprintf("%s/%s", fn.tempBatchDir, filepath.Base(batchFilePath))
 	err := filesystem.Rename(ctx, fn.fs, batchFilePath, updatedBatchFilePath)
 	if err != nil {
 		updatedBatchFilePath = batchFilePath
@@ -148,17 +151,21 @@ func (fn *importFn) FinishBundle(ctx context.Context, emitDeadLetter func(string
 		fn.batchFilesPath = nil
 	}()
 
-	importURI := fn.TempLocation + "/*.ndjson"
+	importURI := fn.tempBatchDir + "/*.ndjson"
+	log.Infof(ctx, "About to begin import operation with importURI: %v", importURI)
 	result, err := executeAndRecordLatency(ctx, &fn.latencyMs, func() (operationResults, error) {
 		return fn.client.importResources(fn.FhirStorePath, importURI, fn.ContentStructure)
 	})
 	if err != nil {
 		fn.moveToDeadLetterOrRemoveFailedImportBatchFiles(ctx)
 		fn.operationCounters.errorCount.Inc(ctx, 1)
-		emitDeadLetter(fmt.Sprintf("Failed to import [%v]. Reason: %v", importURI, err))
+		deadLetterMessage := fmt.Sprintf("Failed to import [%v]. Reason: %v", importURI, err)
+		log.Warn(ctx, deadLetterMessage)
+		emitDeadLetter(deadLetterMessage)
 		return
 	}
 
+	log.Infof(ctx, "Imported %v. Results: %v", importURI, result)
 	fn.operationCounters.successCount.Inc(ctx, 1)
 	fn.resourcesSuccessCount.Inc(ctx, result.Successes)
 	fn.resourcesErrorCount.Inc(ctx, result.Failures)
