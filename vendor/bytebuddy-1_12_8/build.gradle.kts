@@ -26,7 +26,7 @@ version = "0.1"
 val vendorJava = project.extensions.extraProperties.get("vendorJava") as groovy.lang.Closure<*>
 vendorJava(
   mapOf(
-    "dependencies" to listOf("net.bytebuddy:byte-buddy:1.12.0"),
+    "dependencies" to listOf("net.bytebuddy:byte-buddy:1.12.13"),
     "relocations" to mapOf(
             "net.bytebuddy" to "org.apache.beam.vendor.bytebuddy.v1_12_8.net.bytebuddy"),
     "exclusions" to listOf(
