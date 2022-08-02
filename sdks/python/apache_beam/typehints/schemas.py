@@ -85,6 +85,7 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.utils.timestamp import Timestamp
 
+DATETIME_URN = "beam:logical_type:datetime:v1"
 PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
 
 # Bi-directional mappings
@@ -656,8 +657,35 @@ MicrosInstantRepresentation = NamedTuple(
 
 
 @LogicalType.register_logical_type
+class DateTimeLogicalType(NoArgumentLogicalType[Timestamp, np.int64]):
+  """Datetime logical type handles values consistent with that encoded by
+  InstantCoder in Java sdk.
+
+  This class handles Timestamp language type as :class:`MicrosInstant`, but it
+  only provides millisecond precision, because it is aimed to handle data
+  encoded by Java sdk's InstantCoder which has same precision level.
+  """
+  @classmethod
+  def representation_type(cls):
+    # type: () -> type
+    return np.int64
+
+  @classmethod
+  def urn(cls):
+    return DATETIME_URN
+
+  @classmethod
+  def language_type(cls):
+    return Timestamp
+
+
+# Make sure MicrosInstant is registered after DateTimeLogicalType so that
+# it overwrites the mapping of Timestamp language type representation choice
+# and thus does not lose microsecond precision inside python sdk.
+@LogicalType.register_logical_type
 class MicrosInstant(NoArgumentLogicalType[Timestamp,
                                           MicrosInstantRepresentation]):
+  """MicroInstant logical type handles Timestamp."""
   @classmethod
   def urn(cls):
     return common_urns.micros_instant.urn
