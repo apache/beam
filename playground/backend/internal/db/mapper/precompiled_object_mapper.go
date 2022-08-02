@@ -43,6 +43,7 @@ func (pom *PrecompiledObjectMapper) ToObjectInfo(exampleDTO *dto.ExampleDTO) *dt
 		Multifile:       exampleDTO.HasMultiFiles(),
 		ContextLine:     exampleDTO.GetContextLine(),
 		DefaultExample:  exampleDTO.IsDefault(),
+		Sdk:             exampleDTO.GetSDK(),
 	}
 }
 
@@ -89,6 +90,7 @@ func (pom *PrecompiledObjectMapper) ToDefaultPrecompiledObjects(defaultExamplesD
 			Multifile:       false,
 			ContextLine:     defaultExamplesDTO.Files[exampleIndx].CntxLine,
 			DefaultExample:  true,
+			Sdk:             pb.Sdk(pb.Sdk_value[example.Sdk.Name]),
 		}
 	}
 	return result
@@ -105,6 +107,7 @@ func (pom *PrecompiledObjectMapper) ToPrecompiledObj(exampleDTO *dto.ExampleDTO)
 		Multifile:       exampleDTO.HasMultiFiles(),
 		ContextLine:     exampleDTO.GetContextLine(),
 		DefaultExample:  exampleDTO.IsDefault(),
+		Sdk:             exampleDTO.GetSDK(),
 	}
 }
 
@@ -140,6 +143,7 @@ func putPrecompiledObjectsToCategory(categoryName string, precompiledObjects *dt
 			Multifile:       object.Multifile,
 			ContextLine:     object.ContextLine,
 			DefaultExample:  object.DefaultExample,
+			Sdk:             object.Sdk,
 		})
 	}
 	sdkCategory.Categories = append(sdkCategory.Categories, &category)
