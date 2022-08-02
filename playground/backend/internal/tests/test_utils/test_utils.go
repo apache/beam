@@ -13,29 +13,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package test_utils
 
-import "testing"
+import "math/rand"
 
-func TestRandomString(t *testing.T) {
-	tests := []struct {
-		name           string
-		actualLength   int
-		expectedLength int
-	}{
-		{
-			name:           "Generation randon string with fixed length",
-			actualLength:   50,
-			expectedLength: 50,
-		},
+// RandomString returns a random string with fixed length
+func RandomString(n int) string {
+	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := RandomString(tt.actualLength)
-			if len(result) != tt.expectedLength {
-				t.Errorf("RandomString() returns a string with unexpected length")
-			}
-		})
-	}
+	return string(b)
 }
