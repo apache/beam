@@ -43,6 +43,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
@@ -73,7 +74,12 @@ public class TableRowToStorageApiProto {
   // The old dremel parser accepts this format, and so does insertall. We need to accept it
   // for backwards compatibility, and it is based on UTC time.
   private static final DateTimeFormatter DATETIME_SPACE_FORMATTER =
-      DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSSSSS").withZone(ZoneOffset.UTC);
+      new DateTimeFormatterBuilder()
+          .append(DateTimeFormatter.ISO_LOCAL_DATE)
+          .appendLiteral(' ')
+          .append(DateTimeFormatter.ISO_LOCAL_TIME)
+          .toFormatter()
+          .withZone(ZoneOffset.UTC);
 
   public static class SchemaConversionException extends Exception {
     SchemaConversionException(String msg) {
