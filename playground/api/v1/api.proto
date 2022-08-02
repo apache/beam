@@ -315,10 +315,10 @@ service PlaygroundService {
   // Cancel code processing
   rpc Cancel(CancelRequest) returns (CancelResponse);
 
-  // Get all precompiled objects from the cloud storage.
+  // Get all precompiled objects from the cloud datastore.
   rpc GetPrecompiledObjects(GetPrecompiledObjectsRequest) returns (GetPrecompiledObjectsResponse);
 
-  // Get precompiled object from the cloud storage.
+  // Get precompiled object from the cloud datastore.
   rpc GetPrecompiledObject(GetPrecompiledObjectRequest) returns (GetPrecompiledObjectResponse);
 
   // Get the code of an PrecompiledObject.

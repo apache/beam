@@ -79,17 +79,6 @@ val test by tasks.registering {
 test { dependsOn(startDatastoreEmulator) }
 test { finalizedBy(stopDatastoreEmulator) }
 
-task("benchmarkPrecompiledObjects") {
-  group = "verification"
-  description = "Run benchmarks for precompiled objects"
-  doLast {
-    exec {
-      executable("go")
-      args("test", "-bench", ".", "-benchmem", "./internal/cloud_bucket/...")
-    }
-  }
-}
-
 task("benchmarkCodeProcessing") {
   group = "verification"
   description = "Run benchmarks for code processing"
@@ -102,7 +91,6 @@ task("benchmarkCodeProcessing") {
 }
 
 task("benchmark") {
-  dependsOn(":playground:backend:benchmarkPrecompiledObjects")
   dependsOn(":playground:backend:benchmarkCodeProcessing")
 }
 
