@@ -17,6 +17,8 @@
 
 # pytype: skip-file
 
+from __future__ import annotations
+
 import logging
 import sys
 from typing import Any
@@ -28,18 +30,27 @@ from typing import Tuple
 
 import numpy as np
 
-import tensorrt as trt
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
-from cuda import cuda
 
-TRT_LOGGER = trt.Logger(trt.Logger.INFO)
-
-LOGGER = logging.getLogger("TensorRTEngineHandlerNumPy") 
+LOGGER = logging.getLogger("TensorRTEngineHandlerNumPy")
+# This try/catch block allows users to submit jobs from a machine without
+# GPU and other dependencies (tensorrt, cuda, etc.) at job submission time.
+try:
+  import tensorrt as trt
+  TRT_LOGGER = trt.Logger(trt.Logger.INFO)
+  trt.init_libnvinfer_plugins(TRT_LOGGER, namespace="")
+  LOGGER.info('tensorrt module successfully imported.')
+except ModuleNotFoundError:
+  TRT_LOGGER = None
+  msg = 'tensorrt module was not found. This is ok as long as the specified ' \
+    'runner has tensorrt dependencies installed.'
+  LOGGER.warning(msg)
 
 
 def _load_engine(engine_path):
+  import tensorrt as trt
   file = FileSystems.open(engine_path, 'rb')
   runtime = trt.Runtime(TRT_LOGGER)
   engine = runtime.deserialize_cuda_engine(file.read())
@@ -48,6 +59,7 @@ def _load_engine(engine_path):
 
 
 def _load_onnx(onnx_path):
+  import tensorrt as trt
   builder = trt.Builder(TRT_LOGGER)
   network = builder.create_network(
       flags=1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
@@ -62,6 +74,7 @@ def _load_onnx(onnx_path):
 
 
 def _build_engine(network, builder):
+  import tensorrt as trt
   config = builder.create_builder_config()
   runtime = trt.Runtime(TRT_LOGGER)
   plan = builder.build_serialized_network(network, config)
@@ -86,6 +99,7 @@ def _validate_inference_args(inference_args):
 
 def _assign_or_fail(args):
   """CUDA error checking."""
+  from cuda import cuda
   err, ret = args[0], args[1:]
   if isinstance(err, cuda.CUresult):
     if err != cuda.CUresult.CUDA_SUCCESS:
@@ -110,6 +124,8 @@ class TensorRTEngine:
     Args:
       engine: trt.ICudaEngine object that contains TensorRT engine
     """
+    from cuda import cuda
+    import tensorrt as trt
     self.engine = engine
     self.context = engine.create_execution_context()
     self.inputs = []
@@ -189,8 +205,6 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     elif 'onnx_path' in kwargs:
       self.onnx_path = kwargs.get('onnx_path')
 
-    trt.init_libnvinfer_plugins(TRT_LOGGER, namespace="")
-
   def batch_elements_kwargs(self):
     """Sets min_batch_size and max_batch_size of a TensorRT engine."""
     return {
@@ -234,6 +248,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     Returns:
       An Iterable of type PredictionResult.
     """
+    from cuda import cuda
     _validate_inference_args(inference_args)
     (
         engine,
