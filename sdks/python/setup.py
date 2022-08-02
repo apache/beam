@@ -269,22 +269,21 @@ if __name__ == '__main__':
             # Transitive dep. Required for google-cloud-spanner v1.
             # See: https://github.com/apache/beam/issues/22454
             'google-api-core!=2.8.2,<3',
-            # NOTE: Maintainers, please do not require google-auth>=2.x.x
-            # Until this issue is closed
-            # https://github.com/googleapis/google-cloud-python/issues/10566
             'google-auth>=1.18.0,<3',
             'google-auth-httplib2>=0.1.0,<0.2.0',
             'google-cloud-datastore>=1.8.0,<2',
             'google-cloud-pubsub>=2.1.0,<3',
             'google-cloud-pubsublite>=1.2.0,<2',
-            # GCP packages required by tests
+          ],
+          'gcp_test': [
             'google-cloud-bigquery>=1.6.0,<3',
             'google-cloud-bigquery-storage>=2.6.3,<2.14',
             'google-cloud-core>=0.28.1,<3',
             'google-cloud-bigtable>=0.31.1,<2',
             'google-cloud-spanner>=1.13.0,<2',
             'grpcio-gcp>=0.2.2,<1',
-            # GCP Packages required by ML functionality
+          ],
+          'gcp_ml': [
             'google-cloud-dlp>=3.0.0,<4',
             'google-cloud-language>=1.3.0,<2',
             'google-cloud-videointelligence>=1.8.0,<2',
