@@ -33,6 +33,7 @@ import 'package:playground/modules/editor/repository/code_repository/code_client
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart'
     as _i7;
 
+// ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
 // ignore_for_file: avoid_setters_without_getters
 // ignore_for_file: comment_references
@@ -133,6 +134,4 @@ class MockCodeClient extends _i1.Mock implements _i5.CodeClient {
               returnValue:
                   Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
           as _i6.Future<_i4.OutputResponse>);
-  @override
-  String toString() => super.toString();
 }

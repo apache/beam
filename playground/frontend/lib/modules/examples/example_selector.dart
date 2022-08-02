@@ -129,23 +129,24 @@ class _ExampleSelectorState extends State<ExampleSelector>
         return ChangeNotifierProvider<PopoverState>(
           create: (context) => PopoverState(false),
           builder: (context, state) {
-            return Consumer2<ExampleState, PlaygroundState>(
-              builder: (context, exampleState, playgroundState, child) => Stack(
+            return Consumer<PlaygroundState>(
+              builder: (context, playgroundState, child) => Stack(
                 children: [
                   OutsideClickHandler(
                     onTap: () {
-                      closeDropdown(exampleState);
+                      _closeDropdown(playgroundState.exampleState);
                       // handle description dialogs
-                      Navigator.of(context, rootNavigator: true).popUntil((route) {
+                      Navigator.of(context, rootNavigator: true)
+                          .popUntil((route) {
                         return route.isFirst;
                       });
                     },
                   ),
                   ChangeNotifierProvider(
                     create: (context) => ExampleSelectorState(
-                      exampleState,
                       playgroundState,
-                      exampleState.getCategories(playgroundState.sdk)!,
+                      playgroundState.exampleState
+                          .getCategories(playgroundState.sdk)!,
                     ),
                     builder: (context, _) => Positioned(
                       left: posModel.xAlignment,
@@ -159,12 +160,13 @@ class _ExampleSelectorState extends State<ExampleSelector>
                             width: kLgContainerWidth,
                             decoration: BoxDecoration(
                               color: Theme.of(context).backgroundColor,
-                              borderRadius: BorderRadius.circular(kMdBorderRadius),
+                              borderRadius:
+                                  BorderRadius.circular(kMdBorderRadius),
                             ),
-                            child: exampleState.sdkCategories == null ||
-                                    playgroundState.selectedExample == null
-                                ? const LoadingIndicator(size: kContainerHeight)
-                                : _buildDropdownContent(context, playgroundState),
+                            child: _buildDropdownContent(
+                              context,
+                              playgroundState,
+                            ),
                           ),
                         ),
                       ),
@@ -173,7 +175,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
                 ],
               ),
             );
-          }
+          },
         );
       },
     );
@@ -183,6 +185,13 @@ class _ExampleSelectorState extends State<ExampleSelector>
     BuildContext context,
     PlaygroundState playgroundState,
   ) {
+    if (playgroundState.exampleState.sdkCategories == null ||
+        playgroundState.selectedExample == null) {
+      return const LoadingIndicator(
+        size: kMdLoadingIndicatorSize,
+      );
+    }
+
     return Column(
       children: [
         SearchField(controller: textController),
@@ -214,7 +223,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
             ),
             onPressed: () => launchUrl(Uri.parse(kAddExampleLink)),
           ),
-        )
+        ),
       ],
     );
   }
@@ -229,7 +238,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
     return positionModel;
   }
 
-  void closeDropdown(ExampleState exampleState) {
+  void _closeDropdown(ExampleState exampleState) {
     animationController.reverse();
     examplesDropdown?.remove();
     exampleState.changeSelectorVisibility();

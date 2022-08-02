@@ -16,14 +16,25 @@
  * limitations under the License.
  */
 
-const kExampleParam = 'example';
-const kIsEditableParam = 'editable';
-const kContextLine = 'line';
+import 'package:playground/modules/sdk/models/sdk.dart';
 
-const kQuickStartCategoryName = 'quick start';
+enum ExampleOrigin {
+  empty,
+  standard,
+  userShared,
+  catalogDefault,
+  ;
 
-const _kIsEmbedded = 'embedded';
+  static ExampleOrigin fromToken(String? token) {
+    if (token == null) {
+      return empty;
+    }
 
-bool isEmbedded() {
-  return Uri.base.toString().contains(_kIsEmbedded);
+    final sdk = SDK.tryParseExamplePath(token);
+    if (sdk != null) {
+      return standard;
+    }
+
+    return userShared;
+  }
 }

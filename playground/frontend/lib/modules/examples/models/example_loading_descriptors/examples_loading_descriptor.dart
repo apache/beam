@@ -16,14 +16,26 @@
  * limitations under the License.
  */
 
-const kExampleParam = 'example';
-const kIsEditableParam = 'editable';
-const kContextLine = 'line';
+import 'package:collection/collection.dart';
 
-const kQuickStartCategoryName = 'quick start';
+import 'package:playground/modules/examples/models/example_loading_descriptors/example_loading_descriptor.dart';
 
-const _kIsEmbedded = 'embedded';
+class ExamplesLoadingDescriptor {
+  final List<ExampleLoadingDescriptor> descriptors;
 
-bool isEmbedded() {
-  return Uri.base.toString().contains(_kIsEmbedded);
+  const ExamplesLoadingDescriptor({
+    required this.descriptors,
+  });
+
+  @override
+  String toString() => descriptors.map((e) => e.toString()).join('_');
+
+  @override
+  int get hashCode => Object.hashAll(descriptors);
+
+  @override
+  bool operator ==(Object other) {
+    return other is ExamplesLoadingDescriptor &&
+        const ListEquality().equals(descriptors, other.descriptors);
+  }
 }

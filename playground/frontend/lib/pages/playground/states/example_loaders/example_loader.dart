@@ -16,14 +16,10 @@
  * limitations under the License.
  */
 
-const kExampleParam = 'example';
-const kIsEditableParam = 'editable';
-const kContextLine = 'line';
+import 'package:playground/modules/examples/models/example_model.dart';
 
-const kQuickStartCategoryName = 'quick start';
+abstract class ExampleLoader {
+  const ExampleLoader();
 
-const _kIsEmbedded = 'embedded';
-
-bool isEmbedded() {
-  return Uri.base.toString().contains(_kIsEmbedded);
+  Future<ExampleModel> get future;
 }

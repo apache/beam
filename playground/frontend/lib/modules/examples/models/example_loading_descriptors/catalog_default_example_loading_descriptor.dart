@@ -16,14 +16,25 @@
  * limitations under the License.
  */
 
-const kExampleParam = 'example';
-const kIsEditableParam = 'editable';
-const kContextLine = 'line';
+import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground/modules/examples/models/example_loading_descriptors/example_loading_descriptor.dart';
+import 'package:playground/modules/examples/models/example_origin.dart';
 
-const kQuickStartCategoryName = 'quick start';
+class CatalogDefaultExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  final SDK sdk;
 
-const _kIsEmbedded = 'embedded';
+  const CatalogDefaultExampleLoadingDescriptor({
+    required this.sdk,
+  });
 
-bool isEmbedded() {
-  return Uri.base.toString().contains(_kIsEmbedded);
+  @override
+  ExampleOrigin get origin => ExampleOrigin.catalogDefault;
+
+  @override
+  int get hashCode => sdk.hashCode;
+
+  @override
+  bool operator ==(Object other) {
+    return other is CatalogDefaultExampleLoadingDescriptor && sdk == other.sdk;
+  }
 }

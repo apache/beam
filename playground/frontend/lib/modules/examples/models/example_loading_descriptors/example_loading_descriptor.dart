@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-const kExampleParam = 'example';
-const kIsEditableParam = 'editable';
-const kContextLine = 'line';
+import 'package:playground/modules/examples/models/example_origin.dart';
 
-const kQuickStartCategoryName = 'quick start';
+abstract class ExampleLoadingDescriptor {
+  const ExampleLoadingDescriptor();
 
-const _kIsEmbedded = 'embedded';
+  ExampleOrigin get origin;
 
-bool isEmbedded() {
-  return Uri.base.toString().contains(_kIsEmbedded);
+  @override
+  String toString() => '$origin';
 }

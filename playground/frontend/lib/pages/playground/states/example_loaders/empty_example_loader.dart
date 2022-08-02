@@ -16,14 +16,26 @@
  * limitations under the License.
  */
 
-const kExampleParam = 'example';
-const kIsEditableParam = 'editable';
-const kContextLine = 'line';
+import 'package:playground/modules/examples/models/example_loading_descriptors/empty_example_loading_descriptor.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/pages/playground/states/example_loaders/example_loader.dart';
+import 'package:playground/pages/playground/states/examples_state.dart';
 
-const kQuickStartCategoryName = 'quick start';
+class EmptyExampleLoader extends ExampleLoader {
+  final EmptyExampleLoadingDescriptor descriptor;
+  final ExampleState exampleState;
 
-const _kIsEmbedded = 'embedded';
+  const EmptyExampleLoader({
+    required this.descriptor,
+    required this.exampleState,
+  });
 
-bool isEmbedded() {
-  return Uri.base.toString().contains(_kIsEmbedded);
+  @override
+  Future<ExampleModel> get future async => ExampleModel(
+        sdk: descriptor.sdk,
+        name: 'Embedded_Example',
+        path: '',
+        description: '',
+        type: ExampleType.example,
+      );
 }
