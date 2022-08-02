@@ -48,7 +48,7 @@ func TestRead(t *testing.T) {
 		},
 	}
 
-	testResourcePaths := []string{"foo", "bar"}
+	testResourcePaths := [][]byte{[]byte("foo"), []byte("bar")}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			p, s, resourcePaths := ptest.CreateList(testResourcePaths)
@@ -59,10 +59,8 @@ func TestRead(t *testing.T) {
 				return strings.Contains(errorMsg, testCase.containedError)
 			})
 			pipelineResult := ptest.RunAndValidate(t, p)
-			err := validateCounter(pipelineResult, errorCounterName, len(testResourcePaths))
-			if err != nil {
-				t.Fatalf("validateCounter returned error [%v]", err.Error())
-			}
+			validateCounter(t, pipelineResult, errorCounterName, len(testResourcePaths))
+			validateCounter(t, pipelineResult, successCounterName, 0)
 		})
 	}
 }

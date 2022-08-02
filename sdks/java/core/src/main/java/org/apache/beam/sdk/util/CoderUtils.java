@@ -27,6 +27,7 @@ import java.lang.reflect.ParameterizedType;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 
@@ -105,6 +106,29 @@ public final class CoderUtils {
       }
       return result;
     }
+  }
+
+  /**
+   * Decodes a value from the given ByteString, validating that no bytes are remaining once decoded.
+   */
+  public static <T> T decodeFromByteString(Coder<T> coder, ByteString encodedValue)
+      throws IOException {
+    return decodeFromByteString(coder, encodedValue, Coder.Context.OUTER);
+  }
+
+  /**
+   * Decodes a value from the given ByteString using a given context, validating that no bytes are
+   * remaining once decoded.
+   */
+  public static <T> T decodeFromByteString(
+      Coder<T> coder, ByteString encodedValue, Coder.Context context) throws IOException {
+    InputStream stream = encodedValue.newInput();
+    T result = coder.decode(stream, context);
+    if (stream.available() != 0) {
+      throw new CoderException(
+          stream.available() + " unexpected extra bytes after decoding " + result);
+    }
+    return result;
   }
 
   /**

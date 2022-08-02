@@ -74,11 +74,17 @@
 ## Deprecations
 
 * Support for Spark 2.4.x is deprecated and will be dropped with the release of Beam 2.44.0 or soon after (Spark runner) ([#22094](https://github.com/apache/beam/issues/22094)).
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* The modules [amazon-web-services](https://github.com/apache/beam/tree/master/sdks/java/io/amazon-web-services) and
+  [kinesis](https://github.com/apache/beam/tree/master/sdks/java/io/kinesis) for AWS Java SDK v1 are deprecated
+  in favor of [amazon-web-services2](https://github.com/apache/beam/tree/master/sdks/java/io/amazon-web-services2)
+  and will be eventually removed after a few Beam releases (Java) ([#21249](https://github.com/apache/beam/issues/21249)).
 
 ## Bugfixes
 
+* Fixed a condition where retrying queries would yield an incorrect cursor in the Java SDK Firestore Connector ([#22089](https://github.com/apache/beam/issues/22089)).
+* Fixed plumbing allowed lateness in Go SDK. It was ignoring the user set value earlier and always used to set to 0. ([#22474](https://github.com/apache/beam/issues/22474)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).

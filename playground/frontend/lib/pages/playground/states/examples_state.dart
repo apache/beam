@@ -124,7 +124,7 @@ class ExampleState with ChangeNotifier {
     notifyListeners();
   }
 
-  loadDefaultExamples() async {
+  Future<void> loadDefaultExamples() async {
     if (defaultExamplesMap.isNotEmpty) {
       return;
     }
@@ -144,10 +144,23 @@ class ExampleState with ChangeNotifier {
     }
 
     defaultExamplesMap.addEntries(defaultExamples);
+    final futures = <Future<void>>[];
+
     for (var entry in defaultExamplesMap.entries) {
-      loadExampleInfo(entry.value, entry.key)
+      final exampleFuture = loadExampleInfo(entry.value, entry.key)
           .then((value) => defaultExamplesMap[entry.key] = value);
+      futures.add(exampleFuture);
     }
     notifyListeners();
+
+    await Future.wait(futures);
+  }
+
+  Future<void> loadDefaultExamplesIfNot() async {
+    if (defaultExamplesMap.isNotEmpty) {
+      return;
+    }
+
+    await loadDefaultExamples();
   }
 }

@@ -24,7 +24,9 @@ import static org.junit.Assert.assertNull;
 import com.google.cloud.Timestamp;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -47,6 +49,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -63,6 +66,7 @@ import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -87,6 +91,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -116,6 +122,8 @@ public class KafkaIOIT {
 
   private static final String TIMESTAMP = Timestamp.now().toString();
 
+  private static final Logger LOG = LoggerFactory.getLogger(KafkaIOIT.class);
+
   private static String expectedHashcode;
 
   private static SyntheticSourceOptions sourceOptions;
@@ -124,7 +132,11 @@ public class KafkaIOIT {
 
   private static InfluxDBSettings settings;
 
+  @Rule public ExpectedLogs kafkaIOITExpectedLogs = ExpectedLogs.none(KafkaIOIT.class);
+
   @Rule public TestPipeline writePipeline = TestPipeline.create();
+
+  @Rule public TestPipeline writePipeline2 = TestPipeline.create();
 
   @Rule public TestPipeline readPipeline = TestPipeline.create();
 
@@ -138,6 +150,7 @@ public class KafkaIOIT {
   }
 
   @Rule public TestPipeline sdfReadPipeline = TestPipeline.fromOptions(sdfPipelineOptions);
+  @Rule public TestPipeline sdfReadPipeline2 = TestPipeline.fromOptions(sdfPipelineOptions);
 
   private static KafkaContainer kafkaContainer;
 
@@ -170,12 +183,12 @@ public class KafkaIOIT {
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
-        .apply("Write to Kafka", writeToKafka());
+        .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic()));
 
     // Use streaming pipeline to read Kafka records.
     readPipeline.getOptions().as(Options.class).setStreaming(true);
     readPipeline
-        .apply("Read from unbounded Kafka", readFromKafka())
+        .apply("Read from unbounded Kafka", readFromKafka().withTopic(options.getKafkaTopic()))
         .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
         .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
         .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
@@ -236,6 +249,94 @@ public class KafkaIOIT {
     if (!options.isWithTestcontainers()) {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
       IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
+    }
+  }
+
+  // Because of existing limitations in streaming testing, this is verified via a combination of
+  // DoFns.  CrashOnExtra will throw an exception if we see any extra records beyond those we
+  // expect, and LogFn acts as a sink we can inspect using ExpectedLogs to verify that we got all
+  // those we expect.
+  @Test
+  public void testKafkaIOSDFResumesCorrectly() throws IOException {
+    roundtripElements("first-pass", 4, writePipeline, sdfReadPipeline);
+    roundtripElements("second-pass", 3, writePipeline2, sdfReadPipeline2);
+  }
+
+  private void roundtripElements(
+      String recordPrefix, Integer recordCount, TestPipeline wPipeline, TestPipeline rPipeline)
+      throws IOException {
+    AdminClient client =
+        AdminClient.create(
+            ImmutableMap.of("bootstrap.servers", options.getKafkaBootstrapServerAddresses()));
+    client.listTopics();
+    Map<Integer, String> records = new HashMap<>();
+    for (int i = 0; i < recordCount; i++) {
+      records.put(i, recordPrefix + "-" + i);
+    }
+
+    wPipeline
+        .apply("Generate Write Elements", Create.of(records))
+        .apply(
+            "Write to Kafka",
+            KafkaIO.<Integer, String>write()
+                .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                .withTopic(options.getKafkaTopic() + "-resuming")
+                .withKeySerializer(IntegerSerializer.class)
+                .withValueSerializer(StringSerializer.class));
+
+    wPipeline.run().waitUntilFinish(Duration.standardSeconds(10));
+
+    rPipeline
+        .apply(
+            "Read from Kafka",
+            KafkaIO.<Integer, String>read()
+                .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                .withConsumerConfigUpdates(
+                    ImmutableMap.of(
+                        "group.id",
+                        "resuming-group",
+                        "auto.offset.reset",
+                        "earliest",
+                        "enable.auto.commit",
+                        "true"))
+                .withTopic(options.getKafkaTopic() + "-resuming")
+                .withKeyDeserializer(IntegerDeserializer.class)
+                .withValueDeserializer(StringDeserializer.class)
+                .withoutMetadata())
+        .apply("Get Values", Values.create())
+        .apply(ParDo.of(new CrashOnExtra(records.values())))
+        .apply(ParDo.of(new LogFn()));
+
+    rPipeline.run().waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    for (String value : records.values()) {
+      kafkaIOITExpectedLogs.verifyError(value);
+    }
+  }
+
+  public static class CrashOnExtra extends DoFn<String, String> {
+    final Set<String> expected;
+
+    public CrashOnExtra(Collection<String> records) {
+      expected = new HashSet<>(records);
+    }
+
+    @ProcessElement
+    public void processElement(@Element String element, OutputReceiver<String> outputReceiver) {
+      if (!expected.contains(element)) {
+        throw new RuntimeException("Received unexpected element: " + element);
+      } else {
+        expected.remove(element);
+        outputReceiver.output(element);
+      }
+    }
+  }
+
+  public static class LogFn extends DoFn<String, String> {
+    @ProcessElement
+    public void processElement(@Element String element, OutputReceiver<String> outputReceiver) {
+      LOG.error(element);
+      outputReceiver.output(element);
     }
   }
 

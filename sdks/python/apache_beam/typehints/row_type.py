@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Sequence
@@ -33,7 +35,12 @@ _BEAM_SCHEMA_ID = "_beam_schema_id"
 
 
 class RowTypeConstraint(typehints.TypeConstraint):
-  def __init__(self, fields: List[Tuple[str, type]], user_type=None):
+  def __init__(
+      self,
+      fields: List[Tuple[str, type]],
+      user_type=None,
+      schema_options: Optional[List[Tuple[str, Any]]] = None,
+      field_options: Optional[Dict[str, List[Tuple[str, Any]]]] = None):
     """For internal use only, no backwards comatibility guaratees.  See
     https://beam.apache.org/documentation/programming-guide/#schemas-for-pl-types
     for guidance on creating PCollections with inferred schemas.
@@ -60,6 +67,11 @@ class RowTypeConstraint(typehints.TypeConstraint):
         from user_type.
       user_type: constructor for a user type (e.g. NamedTuple class) that is
         used to represent this schema in user code.
+      schema_options: A list of (key, value) tuples representing schema-level
+        options.
+      field_options: A dictionary representing field-level options. Dictionary
+        keys are field names, and dictionary values are lists of (key, value)
+        tuples representing field-level options for that field.
     """
     # Recursively wrap row types in a RowTypeConstraint
     self._fields = tuple((name, RowTypeConstraint.from_user_type(typ) or typ)
@@ -76,13 +88,26 @@ class RowTypeConstraint(typehints.TypeConstraint):
     else:
       self._schema_id = None
 
+    self._schema_options = schema_options or []
+    self._field_options = field_options or {}
+
   @staticmethod
-  def from_user_type(user_type: type) -> Optional[RowTypeConstraint]:
+  def from_user_type(
+      user_type: type,
+      schema_options: Optional[List[Tuple[str, Any]]] = None,
+      field_options: Optional[Dict[str, List[Tuple[str, Any]]]] = None
+  ) -> Optional[RowTypeConstraint]:
     if match_is_named_tuple(user_type):
       fields = [(name, user_type.__annotations__[name])
                 for name in user_type._fields]
 
-      return RowTypeConstraint(fields=fields, user_type=user_type)
+      # TODO(https://github.com/apache/beam/issues/22125): Add user API for
+      # specifying schema/field options
+      return RowTypeConstraint(
+          fields=fields,
+          user_type=user_type,
+          schema_options=schema_options,
+          field_options=field_options)
 
     return None
 
@@ -102,6 +127,14 @@ class RowTypeConstraint(typehints.TypeConstraint):
   @property
   def schema_id(self):
     return self._schema_id
+
+  @property
+  def schema_options(self):
+    return self._schema_options
+
+  def field_options(self, field_name):
+    # Raise if field_name is not one of the fields?
+    return self._field_options.get(field_name, [])
 
   def _consistent_with_check_(self, sub):
     return self == sub

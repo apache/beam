@@ -79,6 +79,7 @@ import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -216,7 +217,7 @@ public class CreateExecutableStageNodeFunction
 
       String coderId = "generatedCoder" + idGenerator.getId();
       String windowingStrategyId;
-      try (ByteString.Output output = ByteString.newOutput()) {
+      try (ByteStringOutputStream output = new ByteStringOutputStream()) {
         try {
           Coder<?> javaCoder =
               CloudObjects.coderFromCloudObject(CloudObject.fromSpec(instructionOutput.getCodec()));

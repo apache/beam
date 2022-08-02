@@ -27,7 +27,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public interface ShuffleBatchReader {
   /** The result returned by #read. */
-  public static class Batch {
+  class Batch {
     public final List<ShuffleEntry> entries;
     public final @Nullable ShufflePosition nextStartPosition;
 
@@ -49,6 +49,6 @@ public interface ShuffleBatchReader {
    *     key is greater than or equal to startPosition).
    * @return the first {@link Batch} of entries
    */
-  public Batch read(@Nullable ShufflePosition startPosition, @Nullable ShufflePosition endPosition)
+  Batch read(@Nullable ShufflePosition startPosition, @Nullable ShufflePosition endPosition)
       throws IOException;
 }

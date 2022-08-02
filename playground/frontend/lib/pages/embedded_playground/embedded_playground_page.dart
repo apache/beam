@@ -51,8 +51,7 @@ class EmbeddedPlaygroundPage extends StatelessWidget {
             color: Theme.of(context).backgroundColor,
             child: Output(
               isEmbedded: true,
-              showGraph: state.graphAvailable,
-              key: ValueKey(state.selectedExample?.path ?? state.sdk.toString())
+              playgroundState: state,
             ),
           ),
         ),
