@@ -75,6 +75,7 @@ public class SplittableParDoProcessKeyedElementsOp<
           InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
       processElements;
   private final String transformId;
+  private final String transformFullName;
   private final IsBounded isBounded;
 
   private transient StateInternalsFactory<byte[]> stateInternalsFactory;
@@ -96,7 +97,7 @@ public class SplittableParDoProcessKeyedElementsOp<
     this.outputManagerFactory = outputManagerFactory;
     this.transformId = transformId;
     this.isBounded = isBounded;
-
+    this.transformFullName = transformFullName;
     this.processElements = new ProcessElements<>(processKeyedElements);
   }
 
@@ -245,6 +246,11 @@ public class SplittableParDoProcessKeyedElementsOp<
     fnRunner.finishBundle();
 
     timerInternalsFactory.removeProcessingTimer(keyedTimerData);
+  }
+
+  @Override
+  public String getFullOpName() {
+    return this.transformFullName;
   }
 
   private void fireTimer(byte[] key, TimerData timer) {

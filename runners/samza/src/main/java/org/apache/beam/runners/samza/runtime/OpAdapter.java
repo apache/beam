@@ -18,12 +18,14 @@
 package org.apache.beam.runners.samza.runtime;
 
 import java.io.Serializable;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.samza.util.SamzaExceptionListener;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.samza.config.Config;
@@ -102,7 +104,12 @@ public class OpAdapter<InT, OutT, K>
               String.format("Unexpected input type: %s", message.getType()));
       }
     } catch (Exception e) {
-      LOG.error("Op {} threw an exception during processing", this.getClass().getName(), e);
+      LOG.error("Op {} threw an exception during processing", op.getFullOpName(), e);
+      e.addSuppressed(
+          new RuntimeException(
+              String.format("Op %s threw an exception during processing", op.getFullOpName()), e));
+      SamzaExceptionListener.getInstance()
+          .setException(new AbstractMap.SimpleEntry<>(op.getFullOpName(), e));
       throw UserCodeException.wrap(e);
     }
 

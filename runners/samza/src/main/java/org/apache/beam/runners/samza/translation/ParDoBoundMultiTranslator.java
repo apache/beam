@@ -204,7 +204,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
                   message ->
                       message.getType() != OpMessage.Type.ELEMENT
                           || message.getElement().getValue().getUnionTag() == outputIndex)
-              .flatMapAsync(OpAdapter.adapt(new RawUnionValueToValue()));
+              .flatMapAsync(OpAdapter.adapt(new RawUnionValueToValue(ctx.getTransformFullName())));
 
       ctx.registerMessageStream(indexToPCollectionMap.get(outputIndex), outputStream);
     }
@@ -355,7 +355,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
                   message ->
                       message.getType() != OpMessage.Type.ELEMENT
                           || message.getElement().getValue().getUnionTag() == outputIndex)
-              .flatMapAsync(OpAdapter.adapt(new RawUnionValueToValue()));
+              .flatMapAsync(OpAdapter.adapt(new RawUnionValueToValue(ctx.getTransformFullName())));
 
       ctx.registerMessageStream(indexToIdMap.get(outputIndex), outputStream);
     }
@@ -541,11 +541,22 @@ class ParDoBoundMultiTranslator<InT, OutT>
   }
 
   static class RawUnionValueToValue<OutT> implements Op<RawUnionValue, OutT, Void> {
+    private final String transformFullName;
+
+    public RawUnionValueToValue(String transformFullName) {
+      this.transformFullName = transformFullName;
+    }
+
     @Override
     public void processElement(WindowedValue<RawUnionValue> inputElement, OpEmitter<OutT> emitter) {
       @SuppressWarnings("unchecked")
       final OutT value = (OutT) inputElement.getValue().getValue();
       emitter.emitElement(inputElement.withValue(value));
+    }
+
+    @Override
+    public String getFullOpName() {
+      return this.transformFullName;
     }
   }
 

@@ -219,7 +219,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
 
     final MessageStream<OpMessage<KV<K, OutputT>>> outputStream =
         partitionedInputStream
-            .flatMapAsync(OpAdapter.adapt(new KvToKeyedWorkItemOp<>()))
+            .flatMapAsync(OpAdapter.adapt(new KvToKeyedWorkItemOp<>(transformFullName)))
             .flatMapAsync(
                 OpAdapter.adapt(
                     new GroupByKeyOp<>(

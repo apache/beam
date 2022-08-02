@@ -408,6 +408,11 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     }
   }
 
+  @Override
+  public String getFullOpName() {
+    return this.transformFullName;
+  }
+
   private void fireTimer(KeyedTimerData<?> keyedTimerData) {
     final TimerInternals.TimerData timer = keyedTimerData.getTimerData();
     LOG.debug("Firing timer {}", timer);
