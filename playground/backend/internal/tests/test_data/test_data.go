@@ -18,7 +18,7 @@
 	to the Cloud Datastore for local deployment and testing.
 	Please be aware that this is fictitious data.
 */
-package test_scripts
+package test_data
 
 import (
 	"context"
@@ -30,56 +30,48 @@ import (
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/constants"
-	ds "beam.apache.org/playground/backend/internal/db/datastore"
 	"beam.apache.org/playground/backend/internal/db/entity"
-	"beam.apache.org/playground/backend/internal/db/mapper"
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
 func DownloadCatalogsWithMockData(ctx context.Context) {
-	projectId := getEnv("GOOGLE_CLOUD_PROJECT", "test")
-	dbClient, err := ds.New(ctx, mapper.NewPrecompiledObjectMapper(), projectId)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
+	client, closeClientFunc := createDatastoreClient(ctx)
+	defer closeClientFunc()
 
-	sdks := createSDKEntities()
-	err = dbClient.PutSDKs(ctx, sdks)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
+	sdkKeys, sdks := createSDKEntities()
+	saveEntities(ctx, client, sdkKeys, sdks)
 
 	exampleKeys, examples := createExampleEntities()
-	_, err = dbClient.Client.PutMulti(ctx, exampleKeys, examples)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
+	saveEntities(ctx, client, exampleKeys, examples)
 
 	snippetKeys, snippets := createSnippetEntities(examples)
-	_, err = dbClient.Client.PutMulti(ctx, snippetKeys, snippets)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
+	saveEntities(ctx, client, snippetKeys, snippets)
 
 	fileKeys, files := createFileEntities(examples)
-	_, err = dbClient.Client.PutMulti(ctx, fileKeys, files)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
+	saveEntities(ctx, client, fileKeys, files)
 
 	objKeys, objs := createPCObjEntities(examples)
-	_, err = dbClient.Client.PutMulti(ctx, objKeys, objs)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	err = dbClient.Client.Close()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
+	saveEntities(ctx, client, objKeys, objs)
 }
 
-func createSDKEntities() []*entity.SDKEntity {
+func RemoveCatalogsWithMockData(ctx context.Context) {
+	client, closeClientFunc := createDatastoreClient(ctx)
+	defer closeClientFunc()
+
+	sdkKeys, _ := createSDKEntities()
+	exampleKeys, examples := createExampleEntities()
+	snippetKeys, _ := createSnippetEntities(examples)
+	fileKeys, _ := createFileEntities(examples)
+	objKeys, _ := createPCObjEntities(examples)
+
+	deleteEntities(ctx, client, sdkKeys)
+	deleteEntities(ctx, client, exampleKeys)
+	deleteEntities(ctx, client, snippetKeys)
+	deleteEntities(ctx, client, fileKeys)
+	deleteEntities(ctx, client, objKeys)
+}
+
+func createSDKEntities() ([]*datastore.Key, []*entity.SDKEntity) {
 	sdks := make([]*entity.SDKEntity, 0)
 	for _, sdk := range pb.Sdk_name {
 		if sdk == pb.Sdk_SDK_UNSPECIFIED.String() {
@@ -90,7 +82,11 @@ func createSDKEntities() []*entity.SDKEntity {
 			DefaultExample: "MOCK_DEFAULT_EXAMPLE",
 		})
 	}
-	return sdks
+	keys := make([]*datastore.Key, 0, len(sdks))
+	for _, sdk := range sdks {
+		keys = append(keys, utils.GetSdkKey(sdk.Name))
+	}
+	return keys, sdks
 }
 
 func createExampleEntities() ([]*datastore.Key, []*entity.ExampleEntity) {
@@ -177,6 +173,35 @@ func createPCObjEntities(examples []*entity.ExampleEntity) ([]*datastore.Key, []
 		}
 	}
 	return keys, objs
+}
+
+func deleteEntities(ctx context.Context, client *datastore.Client, keys []*datastore.Key) {
+	err := client.DeleteMulti(ctx, keys)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+}
+
+func saveEntities(ctx context.Context, client *datastore.Client, keys []*datastore.Key, entities interface{}) {
+	_, err := client.PutMulti(ctx, keys, entities)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+}
+
+func createDatastoreClient(ctx context.Context) (*datastore.Client, func()) {
+	projectId := getEnv("GOOGLE_CLOUD_PROJECT", "test")
+	client, err := datastore.NewClient(ctx, projectId)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	closeClientFunc := func() {
+		err := client.Close()
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+	}
+	return client, closeClientFunc
 }
 
 func getEnv(key, defaultValue string) string {

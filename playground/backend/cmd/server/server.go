@@ -34,9 +34,9 @@ import (
 	"beam.apache.org/playground/backend/internal/db/mapper"
 	"beam.apache.org/playground/backend/internal/db/schema"
 	"beam.apache.org/playground/backend/internal/db/schema/migration"
-	"beam.apache.org/playground/backend/internal/db/test"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/tests/test_data"
 )
 
 // runServer is starting http server wrapped on grpc
@@ -127,7 +127,7 @@ func runServer() error {
 
 func downloadCatalogsToDatastoreEmulator(ctx context.Context) {
 	if _, ok := os.LookupEnv("DATASTORE_EMULATOR_HOST"); ok {
-		test_scripts.DownloadCatalogsWithMockData(ctx)
+		test_data.DownloadCatalogsWithMockData(ctx)
 	}
 }
 
