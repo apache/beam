@@ -57,6 +57,7 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Never;
@@ -1795,13 +1796,15 @@ public class PAssert {
 
   private static class IntoStaticWindows implements AssertionWindows {
     private final StaticWindows windowFn;
+    private final BoundedWindow actual;
 
     public static AssertionWindows of(Coder<BoundedWindow> windowCoder, BoundedWindow window) {
-      return new IntoStaticWindows(StaticWindows.of(windowCoder, window));
+      return new IntoStaticWindows(StaticWindows.of(windowCoder, window), window);
     }
 
-    private IntoStaticWindows(StaticWindows windowFn) {
+    private IntoStaticWindows(StaticWindows windowFn, BoundedWindow window) {
       this.windowFn = windowFn;
+      this.actual = window;
     }
 
     @Override
@@ -1816,6 +1819,22 @@ public class PAssert {
 
     @Override
     public <T> PTransform<PCollection<T>, PCollection<T>> windowActuals() {
+      if (actual.equals(GlobalWindow.INSTANCE)) {
+        return new PTransform<PCollection<T>, PCollection<T>>() {
+          @Override
+          public PCollection<T> expand(PCollection<T> input) {
+            WindowingStrategy<?, ?> strategy = input.getWindowingStrategy();
+            if (strategy.isTriggerSpecified()
+                && !(strategy.getTrigger() instanceof DefaultTrigger)
+                && !strategy.isAllowedLatenessSpecified()) {
+              return Window.<T>into(windowFn.intoOnlyExisting())
+                  .withAllowedLateness(Duration.ZERO)
+                  .expand(input);
+            }
+            return Window.<T>into(windowFn.intoOnlyExisting()).expand(input);
+          }
+        };
+      }
       return Window.into(windowFn.intoOnlyExisting());
     }
   }
