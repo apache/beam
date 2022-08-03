@@ -71,6 +71,7 @@ func (cp *CacheComponent) GetCatalogFromCacheOrDatastore(ctx context.Context) ([
 		}
 		if err = cp.cache.SetCatalog(ctx, catalog); err != nil {
 			logger.Errorf("SetCatalog(): cache error: %s", err.Error())
+			return nil, err
 		}
 	}
 	return catalog, nil
@@ -91,6 +92,7 @@ func (cp *CacheComponent) GetDefaultPrecompiledObjectFromCacheOrDatastore(ctx co
 		for sdk, defaultExample := range defaultExamples {
 			if err := cp.cache.SetDefaultPrecompiledObject(ctx, sdk, defaultExample); err != nil {
 				logger.Errorf("error during setting a default example to the cache: %s", err.Error())
+				return nil, err
 			}
 		}
 		defaultExample, ok := defaultExamples[sdk]
