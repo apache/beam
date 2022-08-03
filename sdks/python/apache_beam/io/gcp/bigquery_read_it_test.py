@@ -187,7 +187,8 @@ class ReadTests(BigQueryReadIntegrationTests):
         dataset_id="beam_bigquery_io_test",
         table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
     table = the_table.schema
-    utype = bigquery_schema_tools.produce_pcoll_with_schema(table)
+    utype = bigquery_schema_tools.\
+        generate_user_type_from_bq_schema(table)
     with beam.Pipeline(argv=self.args) as p:
       result = (
           p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
@@ -212,7 +213,8 @@ class ReadTests(BigQueryReadIntegrationTests):
         dataset_id="beam_bigquery_io_test",
         table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
     table = the_table.schema
-    utype = bigquery_schema_tools.produce_pcoll_with_schema(table)
+    utype = bigquery_schema_tools.\
+        generate_user_type_from_bq_schema(table)
     with beam.Pipeline(argv=self.args) as p:
       result = (
           p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
@@ -237,7 +239,8 @@ class ReadTests(BigQueryReadIntegrationTests):
         dataset_id="beam_bigquery_io_test",
         table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
     table = the_table.schema
-    utype = bigquery_schema_tools.produce_pcoll_with_schema(table)
+    utype = bigquery_schema_tools.\
+        generate_user_type_from_bq_schema(table)
     with beam.Pipeline(argv=self.args) as p:
       result = (
           p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
