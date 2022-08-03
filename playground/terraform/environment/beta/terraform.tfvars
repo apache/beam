@@ -1,0 +1,16 @@
+router_cpu = 1
+router_memory = 2
+router_max_instance = 1
+java_cpu = 1
+java_memory = 2
+java_max_instance = 1
+python_cpu = 1
+python_memory = 2
+python_max_instance = 1
+go_cpu = 1
+go_memory = 2
+go_max_instance = 1
+scio_cpu = 1
+scio_memory = 2
+scio_max_instance = 1
+network_name = "default"
