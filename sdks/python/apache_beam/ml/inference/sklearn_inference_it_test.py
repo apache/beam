@@ -18,6 +18,7 @@
 """End-to-End test for Sklearn Inference"""
 
 import logging
+import re
 import unittest
 import uuid
 
@@ -101,9 +102,19 @@ class SklearnInference(unittest.TestCase):
     self.assertEqual(FileSystems().exists(output_file), True)
 
     expected_output_filepath = 'gs://apache-beam-ml/testing/expected_outputs/japanese_housing_subset.txt'  # pylint: disable=line-too-long
-    expected = file_lines_sorted(expected_output_filepath)
-    actual = file_lines_sorted(output_file)
-    self.assertListEqual(expected, actual)
+    expected_outputs = file_lines_sorted(expected_output_filepath)
+    actual_outputs = file_lines_sorted(output_file)
+    self.assertEqual(len(expected_outputs), len(actual_outputs))
+
+    for expected, actual in zip(expected_outputs, actual_outputs):
+      expected_true, expected_predict = re.findall(r'\d+', expected)
+      actual_true, actual_predict = re.findall(r'\d+', actual)
+      self.assertEqual(actual_true, expected_true)
+      # predictions might not be exactly equal due to differences between
+      # environments. This code validates they are within 10 percent.
+      percent_diff = abs(float(expected_predict) - float(actual_predict)
+                         ) / float(expected_predict) * 100.0
+      self.assertLess(percent_diff, 10)
 
 
 if __name__ == '__main__':
