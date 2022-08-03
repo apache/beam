@@ -258,25 +258,9 @@ func (d *Datastore) GetDefaultExamples(ctx context.Context, sdks []*entity.SDKEn
 	for _, sdk := range sdks {
 		exampleKeys = append(exampleKeys, utils.GetExampleKey(sdk.Name, sdk.DefaultExample))
 	}
-	var examplesWithNils = make([]*entity.ExampleEntity, len(exampleKeys))
-	examples := make([]*entity.ExampleEntity, 0)
-	if err = tx.GetMulti(exampleKeys, examplesWithNils); err != nil {
-		if errors, ok := err.(datastore.MultiError); ok {
-			for _, errVal := range errors {
-				if errVal == datastore.ErrNoSuchEntity {
-					for _, exampleVal := range examplesWithNils {
-						if exampleVal != nil {
-							examples = append(examples, exampleVal)
-						}
-					}
-				}
-			}
-		} else {
-			logger.Errorf("error during the getting default examples, err: %s\n", err.Error())
-			return nil, err
-		}
-	} else {
-		examples = examplesWithNils
+	examples, err := getExampleEntities(tx, exampleKeys)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(examples) == 0 {
@@ -289,25 +273,9 @@ func (d *Datastore) GetDefaultExamples(ctx context.Context, sdks []*entity.SDKEn
 	for _, exampleKey := range exampleKeys {
 		snippetKeys = append(snippetKeys, utils.GetSnippetKey(exampleKey.Name))
 	}
-	snippetsWithNils := make([]*entity.SnippetEntity, len(snippetKeys))
-	snippets := make([]*entity.SnippetEntity, 0)
-	if err = tx.GetMulti(snippetKeys, snippetsWithNils); err != nil {
-		if errors, ok := err.(datastore.MultiError); ok {
-			for _, errVal := range errors {
-				if errVal == datastore.ErrNoSuchEntity {
-					for _, snipVal := range snippetsWithNils {
-						if snipVal != nil {
-							snippets = append(snippets, snipVal)
-						}
-					}
-				}
-			}
-		} else {
-			logger.Errorf("error during the getting snippets, err: %s\n", err.Error())
-			return nil, err
-		}
-	} else {
-		snippets = snippetsWithNils
+	snippets, err := getSnippetEntities(tx, snippetKeys)
+	if err != nil {
+		return nil, err
 	}
 
 	//Retrieving files
@@ -466,4 +434,52 @@ func rollback(tx *datastore.Transaction) {
 	if err != nil {
 		logger.Errorf(errorMsgTemplateTxRollback, err.Error())
 	}
+}
+
+func getExampleEntities(tx *datastore.Transaction, keys []*datastore.Key) ([]*entity.ExampleEntity, error) {
+	var examplesWithNils = make([]*entity.ExampleEntity, len(keys))
+	examples := make([]*entity.ExampleEntity, 0)
+	if err := tx.GetMulti(keys, examplesWithNils); err != nil {
+		if errors, ok := err.(datastore.MultiError); ok {
+			for _, errVal := range errors {
+				if errVal == datastore.ErrNoSuchEntity {
+					for _, exampleVal := range examplesWithNils {
+						if exampleVal != nil {
+							examples = append(examples, exampleVal)
+						}
+					}
+				}
+			}
+		} else {
+			logger.Errorf("error during the getting default examples, err: %s\n", err.Error())
+			return nil, err
+		}
+	} else {
+		examples = examplesWithNils
+	}
+	return examples, nil
+}
+
+func getSnippetEntities(tx *datastore.Transaction, keys []*datastore.Key) ([]*entity.SnippetEntity, error) {
+	snippetsWithNils := make([]*entity.SnippetEntity, len(keys))
+	snippets := make([]*entity.SnippetEntity, 0)
+	if err := tx.GetMulti(keys, snippetsWithNils); err != nil {
+		if errors, ok := err.(datastore.MultiError); ok {
+			for _, errVal := range errors {
+				if errVal == datastore.ErrNoSuchEntity {
+					for _, snipVal := range snippetsWithNils {
+						if snipVal != nil {
+							snippets = append(snippets, snipVal)
+						}
+					}
+				}
+			}
+		} else {
+			logger.Errorf("error during the getting snippets, err: %s\n", err.Error())
+			return nil, err
+		}
+	} else {
+		snippets = snippetsWithNils
+	}
+	return snippets, nil
 }
