@@ -337,7 +337,7 @@ class SpannerReadTest(unittest.TestCase):
           p | beam.Create([{
               "invalid": "transaction"
           }]).with_output_types(typing.Any))
-          _ = (
+        _ = (
             p | 'with query' >> ReadFromSpanner(
                 project_id=TEST_PROJECT_ID,
                 instance_id=TEST_INSTANCE_ID,
