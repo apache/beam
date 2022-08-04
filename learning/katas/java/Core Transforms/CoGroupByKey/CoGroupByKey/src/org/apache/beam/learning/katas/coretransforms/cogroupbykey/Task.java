@@ -26,6 +26,7 @@ package org.apache.beam.learning.katas.coretransforms.cogroupbykey;
 //   categories:
 //     - Combiners
 //     - Core Transforms
+//   complexity: MEDIUM
 
 import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;

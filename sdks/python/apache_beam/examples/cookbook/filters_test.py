@@ -26,6 +26,7 @@
 #   context_line: 42
 #   categories:
 #     - Filtering
+#   complexity: MEDIUM
 
 import logging
 import time

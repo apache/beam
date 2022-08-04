@@ -23,6 +23,7 @@ package filter_test
 //   categories:
 //     - Filtering
 //     - Core Transforms
+//   complexity: MEDIUM
 
 import (
 	"testing"

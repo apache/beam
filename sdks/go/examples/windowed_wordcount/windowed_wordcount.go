@@ -45,6 +45,7 @@ package main
 //     - Options
 //     - Combiners
 //     - Quickstart
+//   complexity: MEDIUM
 
 import (
 	"context"

@@ -21,6 +21,7 @@
 #   context_line: 34
 #   categories:
 #     - Streaming
+#   complexity: MEDIUM
 
 import datetime
 import pytz

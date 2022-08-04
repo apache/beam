@@ -22,6 +22,7 @@
 #   context_line: 31
 #   categories:
 #     - Combiners
+#   complexity: MEDIUM
 
 import apache_beam as beam
 

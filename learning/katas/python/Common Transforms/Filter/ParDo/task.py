@@ -21,6 +21,7 @@
 #   context_line: 30
 #   categories:
 #     - Filtering
+#   complexity: MEDIUM
 
 import apache_beam as beam
 

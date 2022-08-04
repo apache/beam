@@ -52,6 +52,7 @@ package main
 //     - Filtering
 //     - Debugging
 //     - Quickstart
+//   complexity: MEDIUM
 
 import (
 	"context"

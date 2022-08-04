@@ -24,6 +24,7 @@ package main
 //     - Debugging
 //     - Combiners
 //     - Filtering
+//   complexity: MEDIUM
 
 import (
 	"context"

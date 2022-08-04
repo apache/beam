@@ -59,6 +59,7 @@ pipeline. You can see the results in your output bucket in the GCS browser.
 #     - Options
 #     - Combiners
 #     - Quickstart
+#   complexity: MEDIUM
 
 import argparse
 import logging

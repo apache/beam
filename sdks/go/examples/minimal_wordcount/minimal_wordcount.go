@@ -49,6 +49,7 @@ package main
 //     - Combiners
 //     - Core Transforms
 //     - Quickstart
+//   complexity: MEDIUM
 
 import (
 	"context"

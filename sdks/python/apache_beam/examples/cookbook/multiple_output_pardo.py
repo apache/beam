@@ -64,6 +64,7 @@ and an output prefix on GCS:::
 #     - IO
 #     - Options
 #     - Multiple Outputs
+#   complexity: MEDIUM
 
 import argparse
 import logging

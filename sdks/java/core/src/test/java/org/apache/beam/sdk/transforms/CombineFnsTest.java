@@ -25,6 +25,7 @@ package org.apache.beam.sdk.transforms;
 //   categories:
 //     - Combiners
 //     - Core Transforms
+//   complexity: MEDIUM
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;

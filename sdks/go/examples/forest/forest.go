@@ -40,6 +40,7 @@ package main
 //   categories:
 //     - Flatten
 //     - Branching
+//   complexity: MEDIUM
 
 import (
 	"context"

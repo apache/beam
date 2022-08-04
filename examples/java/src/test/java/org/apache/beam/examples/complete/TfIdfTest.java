@@ -25,6 +25,7 @@ package org.apache.beam.examples.complete;
 //   categories:
 //     - Side Input
 //     - Flatten
+//   complexity: MEDIUM
 
 import java.net.URI;
 import java.util.Arrays;

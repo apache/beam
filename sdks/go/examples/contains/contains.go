@@ -25,6 +25,7 @@ package main
 //     - Filtering
 //     - Options
 //     - Debugging
+//   complexity: MEDIUM
 
 import (
 	"context"

@@ -26,6 +26,7 @@ package org.apache.beam.learning.katas.coretransforms.combine.binarycombinefnlam
 //   categories:
 //     - Combiners
 //     - Core Transforms
+//   complexity: MEDIUM
 
 import java.math.BigInteger;
 import org.apache.beam.learning.katas.util.Log;

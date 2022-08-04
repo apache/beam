@@ -29,6 +29,7 @@ package org.apache.beam.examples;
 //     - Filtering
 //     - Options
 //     - Quickstart
+//   complexity: MEDIUM
 
 import java.util.Arrays;
 import java.util.List;
