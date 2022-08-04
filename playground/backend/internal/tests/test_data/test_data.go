@@ -114,7 +114,7 @@ func createExampleEntity(name, sdk string) *entity.ExampleEntity {
 		Descr:      "MOCK_DESCR",
 		Tags:       []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
 		Cats:       []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
-		Complexity: 10,
+		Complexity: "MEDIUM",
 		Path:       "MOCK_PATH",
 		Type:       "PRECOMPILED_OBJECT_TYPE_EXAMPLE",
 		Origin:     "PG_EXAMPLES",
