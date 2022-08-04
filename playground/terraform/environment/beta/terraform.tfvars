@@ -13,4 +13,3 @@ go_max_instance = 1
 scio_cpu = 1
 scio_memory = 2
 scio_max_instance = 1
-network_name = "default"
