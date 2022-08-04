@@ -70,6 +70,7 @@ COPY allow_list.py /opt/mitmproxy/
 ENV HTTP_PROXY="http://127.0.0.1:8081"
 ENV HTTPS_PROXY="http://127.0.0.1:8081"
 
+COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
 
 # Create a user group `appgroup` and a user `appuser`
