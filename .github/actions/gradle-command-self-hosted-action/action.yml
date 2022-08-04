@@ -1,0 +1,38 @@
+name: 'Gradle command'
+description: 'Configuration actions to run a gradle command in self-hosted runner'
+inputs:
+  gradle-command:
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Install python 3.7
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.7"
+    - name: Install python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.8"
+    - name: Install python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.9"
+    - name: Setup Java
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: 8
+    - name: Install Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: "1.18.0"
+    - name: Remove default github maven configuration
+      # This step is a workaround to avoid a decryption issue of Beam's
+      # gradle-command-action plugin and github's provided maven
+      # settings.xml file
+      shell: bash
+      run: rm ~/.m2/settings.xml
+    - name: Run :preCommitJob
+      shell: bash
+      run: ./gradlew ${{ inputs.gradle-command }} ${{ inputs.gradle-switches }}
