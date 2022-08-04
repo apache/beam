@@ -23,7 +23,7 @@ type ExampleEntity struct {
 	Descr      string         `datastore:"descr"`
 	Tags       []string       `datastore:"tags"`
 	Cats       []string       `datastore:"cats"`
-	Complexity int8           `datastore:"complexity"`
+	Complexity string         `datastore:"complexity"`
 	Path       string         `datastore:"path"`
 	Type       string         `datastore:"type"`
 	Origin     string         `datastore:"origin"`
