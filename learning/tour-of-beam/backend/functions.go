@@ -13,7 +13,7 @@ var db storage.Iface
 
 func init() {
 	// dependencies
-	db = &storage.Mock{}
+	db = &storage.MockDb{}
 
 	// functions framework
 	functions.HTTP("sdkList", sdkList)
