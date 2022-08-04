@@ -31,6 +31,11 @@ from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.utils.annotations import experimental
 
+__all__ = [
+    'PytorchModelHandlerTensor',
+    'PytorchModelHandlerKeyedTensor',
+]
+
 
 def _load_model(
     model_class: torch.nn.Module, state_dict_path, device, **model_params):

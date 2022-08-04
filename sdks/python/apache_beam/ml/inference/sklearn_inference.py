@@ -39,6 +39,11 @@ except ImportError:
   # joblib is an optional dependency.
   pass
 
+__all__ = [
+    'SklearnModelHandlerNumpy',
+    'SklearnModelHandlerPandas',
+]
+
 
 class ModelFileType(enum.Enum):
   """Defines how a model file is serialized. Options are pickle or joblib."""
