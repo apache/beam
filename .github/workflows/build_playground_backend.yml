@@ -67,21 +67,21 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
         with:
             terraform_version: ${{ env.TERRAFORM_VERSION }}
-        if: startsWith(github.ref, 'refs/tags/')
+
       - name: Set Docker Tag
         run: echo "DOCKERTAG=${GITHUB_SHA}" >> $GITHUB_ENV
       - name: Set Docker Tag If Github Tag was trigger
         run: echo "DOCKERTAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-        if: startsWith(github.ref, 'refs/tags/')
+
       - name: Setup GCP account
         run: |
              echo "${{ secrets.GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
-        if: startsWith(github.ref, 'refs/tags/')
+
       - name: Login to Docker Registry
         run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.PLAYGROUND_REGISTRY_NAME }}
-        if: startsWith(github.ref, 'refs/tags/')
+
       - name: Deploy Backend Applications
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
         run: ./gradlew playground:terraform:deployBackend -Pdocker-tag=${{env.DOCKERTAG}} -Pproject_id=${{ secrets.GCP_PLAYGROUND_PROJECT_ID }} -Pproject_environment='beta' -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}/playground-repository'
-        if: startsWith(github.ref, 'refs/tags/')
+
