@@ -1,0 +1,34 @@
+name: 'Gradle command'
+description: 'Configuration actions to run a gradle command in self-hosted runner'
+inputs:
+  gradle-command:
+    description: 'Gradle task'
+    required: true
+  gradle-switches:
+    required: false
+    description: 'Gradle options'
+    default: ''
+runs:
+  using: "composite"
+  steps:
+    - name: Install python 3.7
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.7"
+    - name: Install python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.8"
+    - name: Set Java Version
+      uses: actions/setup-java@v1
+      with:
+        java-version: 8
+    - name: Remove default github maven configuration
+      # This step is a workaround to avoid a decryption issue of Beam's
+      # gradle-command-action plugin and github's provided maven
+      # settings.xml file
+      shell: bash
+      run: rm ~/.m2/settings.xml
+    - name: Run Gradle Command
+      shell: bash
+      run: ./gradlew ${{ inputs.gradle-command }} ${{ inputs.gradle-switches }}
