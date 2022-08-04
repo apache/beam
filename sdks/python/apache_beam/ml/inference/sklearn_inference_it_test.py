@@ -109,6 +109,8 @@ class SklearnInference(unittest.TestCase):
     for expected, actual in zip(expected_outputs, actual_outputs):
       expected_true, expected_predict = re.findall(r'\d+', expected)
       actual_true, actual_predict = re.findall(r'\d+', actual)
+      # actual_true is the y value from the input csv file.
+      # Therefore it should be an exact match to expected_true.
       self.assertEqual(actual_true, expected_true)
       # predictions might not be exactly equal due to differences between
       # environments. This code validates they are within 10 percent.

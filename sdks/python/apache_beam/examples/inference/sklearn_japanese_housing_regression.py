@@ -74,10 +74,13 @@ MODELS = [
 
 
 def sort_by_features(dataframe, max_size):
-  """ Partitions the dataframe by what data it has available."""
+  """ Returns an index to a model, based on available data."""
   for i, model in enumerate(MODELS):
     required_features = dataframe[model['required_features']]
-    if required_features.notnull().any().any():
+    # A model can only make a prediction if all required features
+    # are present.
+    # required_features is 2D single row, so all must be called twice.
+    if required_features.notnull().all().all():
       return i
   return -1
 
