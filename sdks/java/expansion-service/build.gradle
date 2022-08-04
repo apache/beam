@@ -45,7 +45,7 @@ dependencies {
   implementation library.java.jackson_annotations
   implementation library.java.jackson_databind
   implementation library.java.jackson_dataformat_yaml
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   implementation library.java.vendored_guava_26_0_jre
   implementation library.java.slf4j_api
   runtimeOnly library.java.slf4j_jdk14
