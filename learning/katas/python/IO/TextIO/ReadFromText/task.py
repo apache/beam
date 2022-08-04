@@ -21,6 +21,7 @@
 #   context_line: 29
 #   categories:
 #     - IO
+#   complexity: MEDIUM
 
 import apache_beam as beam
 

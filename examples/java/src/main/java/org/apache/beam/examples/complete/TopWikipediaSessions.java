@@ -29,6 +29,7 @@ package org.apache.beam.examples.complete;
 //     - Combiners
 //     - Options
 //     - Windowing
+//   complexity: MEDIUM
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;

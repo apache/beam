@@ -22,6 +22,7 @@
 #   categories:
 #     - Testing
 #     - Quickstart
+#   complexity: MEDIUM
 
 import apache_beam as beam
 

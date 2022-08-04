@@ -31,6 +31,7 @@
 #     - Options
 #     - Metrics
 #     - Quickstart
+#   complexity: MEDIUM
 
 import argparse
 import logging

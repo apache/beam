@@ -27,6 +27,7 @@ package main
 //   categories:
 //     - IO
 //     - Side Input
+//   complexity: MEDIUM
 
 import (
 	"context"

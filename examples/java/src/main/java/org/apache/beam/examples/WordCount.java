@@ -27,6 +27,7 @@ package org.apache.beam.examples;
 //     - Combiners
 //     - Options
 //     - Quickstart
+//   complexity: MEDIUM
 
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;

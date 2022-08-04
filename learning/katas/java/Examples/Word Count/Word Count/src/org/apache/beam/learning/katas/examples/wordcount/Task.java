@@ -25,6 +25,7 @@ package org.apache.beam.learning.katas.examples.wordcount;
 //   context_line: 43
 //   categories:
 //     - Combiners
+//   complexity: MEDIUM
 
 import java.util.Arrays;
 import org.apache.beam.learning.katas.util.Log;

@@ -23,6 +23,7 @@
 #   context_line: 51
 #   categories:
 #     - Streaming
+#   complexity: MEDIUM
 
 import apache_beam as beam
 from generate_event import GenerateEvent

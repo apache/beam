@@ -25,6 +25,7 @@ package org.apache.beam.learning.katas.triggers.eventtimetriggers;
 //   context_line: 42
 //   categories:
 //     - Streaming
+//   complexity: MEDIUM
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
