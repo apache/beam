@@ -15,8 +15,24 @@
  *  limitations under the License.
  */
 
+@import "media";
+
 .paragraph-wrap {
   a {
     word-break: break-word;
+  }
+}
+
+.calendar-mobile--twitter {
+  @media (max-width: $ak-breakpoint-xs) {
+    iframe {
+      width: 260px !important;
+    }
+  }
+}
+
+.calendar-mobile--events {
+  @media (max-width: $ak-breakpoint-xs) {
+    overflow-x: auto;
   }
 }
