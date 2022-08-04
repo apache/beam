@@ -1,0 +1,33 @@
+name: New environment creation
+
+on:
+  push:
+  workflow_dispatch:
+
+
+jobs:
+  Infrastructure_deployment:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_ENV: beta
+    steps:
+      - name: git clone repo
+        uses: actions/checkout@v2
+      
+      - name: Setup GCP account
+        run: |
+             echo "${{ secrets.S3D_GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
+      - name: Changing bucket name
+        run: |
+          echo "bucket  = "\"${{ secrets.S3D_BUCKET_NAME }}"\"" > playground/terraform/environment/${{ env.PROJECT_ENV }}/state.tfbackend
+          echo "bucket_examples_name = "\"${{ secrets.S3D_BUCKET_NAME }}-example"\"" >> playground/terraform/environment/${{ env.PROJECT_ENV }}/terraform.tfvars
+          echo "state_bucket = "\"${{ secrets.S3D_BUCKET_NAME }}"\"" >> playground/terraform/environment/${{ env.PROJECT_ENV }}/terraform.tfvars
+          echo "project_id = "\"${{ secrets.S3D_GCP_PLAYGROUND_PROJECT_ID }}"\"" >> playground/terraform/environment/${{ env.PROJECT_ENV }}/terraform.tfvars
+      - name: Changing bucket name
+        run: |
+          cat playground/terraform/environment/${{ env.PROJECT_ENV }}/terraform.tfvars
+          
+      - name: Deploy infrastructure
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
+        run: ./gradlew playground:terraform:InitInfrastructure -Pproject_environment="${{ env.PROJECT_ENV }}"
