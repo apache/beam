@@ -29,6 +29,7 @@ resource "google_project_service" "firestore" {
   disable_dependent_services = true
   depends_on = [
     google_app_engine_application.app_playground
+    ]
 }
 
 resource "google_app_engine_flexible_app_version" "default_app" {
