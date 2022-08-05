@@ -20,16 +20,11 @@ import (
 	"os"
 	"testing"
 
+	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/db/datastore"
 	"beam.apache.org/playground/backend/internal/db/mapper"
 	"beam.apache.org/playground/backend/internal/db/schema"
 	"beam.apache.org/playground/backend/internal/environment"
-)
-
-const (
-	datastoreEmulatorHostKey   = "DATASTORE_EMULATOR_HOST"
-	datastoreEmulatorHostValue = "127.0.0.1:8888"
-	datastoreEmulatorProjectId = "test"
 )
 
 var datastoreDb *datastore.Datastore
@@ -43,15 +38,15 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	datastoreEmulatorHost := os.Getenv(datastoreEmulatorHostKey)
+	datastoreEmulatorHost := os.Getenv(constants.EmulatorHostKey)
 	if datastoreEmulatorHost == "" {
-		if err := os.Setenv(datastoreEmulatorHostKey, datastoreEmulatorHostValue); err != nil {
+		if err := os.Setenv(constants.EmulatorHostKey, constants.EmulatorHostValue); err != nil {
 			panic(err)
 		}
 	}
 	ctx = context.Background()
 	var err error
-	datastoreDb, err = datastore.New(ctx, mapper.NewPrecompiledObjectMapper(), datastoreEmulatorProjectId)
+	datastoreDb, err = datastore.New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
 	if err != nil {
 		panic(err)
 	}

@@ -33,4 +33,8 @@ const (
 	PCOutputType = "OUTPUT"
 	PCLogType    = "LOG"
 	PCGraphType  = "GRAPH"
+
+	EmulatorHostKey   = "DATASTORE_EMULATOR_HOST"
+	EmulatorHostValue = "127.0.0.1:8888"
+	EmulatorProjectId = "test"
 )
