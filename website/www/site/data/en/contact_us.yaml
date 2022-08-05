@@ -109,7 +109,7 @@
     - purpose: 'Firehose of build notifications from Jenkins'
       contact: {
         email: commits@beam.apache.org,
-        link: "https://s.apache.org/beam-slack-channel",
+        link: "https://lists.apache.org/list.html?commits@beam.apache.org",
         add: Commits mailing list
       }
       icon: icons/community/contact-us/notification.svg
