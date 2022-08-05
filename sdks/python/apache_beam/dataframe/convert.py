@@ -29,6 +29,7 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam.dataframe import expressions
+from apache_beam.typehints.pandas_type_compatibility import dtype_to_fieldtype
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import schemas
 from apache_beam.dataframe import transforms
@@ -168,7 +169,7 @@ class SeriesToElementsFn(beam.DoFn):
 
   def infer_output_type(self, input_element_type):
     # Raise a TypeError if proxy has an unknown type
-    output_type = schemas._dtype_to_fieldtype(self._proxy.dtype)
+    output_type = dtype_to_fieldtype(self._proxy.dtype)
     return output_type
 
 

@@ -17,18 +17,17 @@
 
 """Unit tests for pandas batched type converters."""
 
-from typing import Optional
 import unittest
+from typing import Optional
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from parameterized import parameterized
 from parameterized import parameterized_class
 
-from apache_beam.typehints import typehints
 from apache_beam.typehints import row_type
+from apache_beam.typehints import typehints
 from apache_beam.typehints.batch import BatchConverter
-from apache_beam.typehints.pandas_type_compatibility import DataFrameBatchConverter
 
 
 @parameterized_class([
