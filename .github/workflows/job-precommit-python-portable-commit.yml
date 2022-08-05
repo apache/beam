@@ -47,7 +47,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python_ver: [ '37', '39']
+        python_ver: ['37']
     timeout-minutes: 120
     steps:
       - name: Checkout code
