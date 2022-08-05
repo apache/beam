@@ -31,7 +31,7 @@ import (
 )
 
 func init() {
-	register.DoFn4x0[context.Context, SearchQuery, func(string, []string), func(string)](&searchResourcesFn{})
+	register.DoFn4x0[context.Context, SearchQuery, func(string, []string), func(string)]((*searchResourcesFn)(nil))
 	register.Emitter1[string]()
 	register.Emitter2[string, []string]()
 }

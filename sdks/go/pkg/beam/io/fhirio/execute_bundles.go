@@ -37,7 +37,7 @@ const (
 )
 
 func init() {
-	register.DoFn4x0[context.Context, string, func(string), func(string)](&executeBundleFn{})
+	register.DoFn4x0[context.Context, string, func(string), func(string)]((*executeBundleFn)(nil))
 	register.Emitter1[string]()
 }
 
