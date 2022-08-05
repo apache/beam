@@ -315,7 +315,7 @@ class SchemaTest(unittest.TestCase):
 
   def test_row_type_constraint_to_schema(self):
     result_type = typing_to_runner_api(
-        row_type.RowTypeConstraint([
+        row_type.RowTypeConstraint.from_fields([
             ('foo', np.int8),
             ('bar', float),
             ('baz', bytes),
@@ -340,7 +340,7 @@ class SchemaTest(unittest.TestCase):
     self.assertEqual(list(schema.fields), expected)
 
   def test_row_type_constraint_to_schema_with_options(self):
-    row_type_with_options = row_type.RowTypeConstraint(
+    row_type_with_options = row_type.RowTypeConstraint.from_fields(
         [
             ('foo', np.int8),
             ('bar', float),
@@ -385,15 +385,17 @@ class SchemaTest(unittest.TestCase):
 
   def test_row_type_constraint_to_schema_with_field_options(self):
     result_type = typing_to_runner_api(
-        row_type.RowTypeConstraint([
+        row_type.RowTypeConstraint.from_fields([
             ('foo', np.int8),
             ('bar', float),
             ('baz', bytes),
         ],
-                                   field_options={
-                                       'foo': [('some_metadata', 123),
-                                               ('some_flag', None)]
-                                   }))
+                                               field_options={
+                                                   'foo': [
+                                                       ('some_metadata', 123),
+                                                       ('some_flag', None)
+                                                   ]
+                                               }))
 
     self.assertIsInstance(result_type, schema_pb2.FieldType)
     self.assertEqual(result_type.WhichOneof("type_info"), "row_type")

@@ -56,6 +56,7 @@ any backwards-compatibility guarantee.
 
 from typing import Any
 from typing import ByteString
+from typing import Dict
 from typing import Generic
 from typing import List
 from typing import Mapping
@@ -146,14 +147,32 @@ PRIMITIVE_TO_ATOMIC_TYPE.update({
 })
 
 
-def named_fields_to_schema(names_and_types):
-  # type: (Union[Dict[str, type], Sequence[Tuple[str, type]]]) -> schema_pb2.Schema # noqa: F821
+def named_fields_to_schema(
+    names_and_types: Union[Dict[str, type], Sequence[Tuple[str, type]]],
+    schema_options: Optional[Sequence[Tuple[str, Any]]] = None,
+    field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None):
+  schema_options = schema_options or []
+  field_options = field_options or {}
+
   if isinstance(names_and_types, dict):
     names_and_types = names_and_types.items()
   return schema_pb2.Schema(
       fields=[
-          schema_pb2.Field(name=name, type=typing_to_runner_api(type))
-          for (name, type) in names_and_types
+          schema_pb2.Field(
+              name=name,
+              type=typing_to_runner_api(type),
+              options=[
+                  SchemaTranslation(
+                      schema_registry=SCHEMA_REGISTRY).option_to_runner_api(
+                          option_tuple)
+                  for option_tuple in field_options.get(name, [])
+              ],
+          ) for (name, type) in names_and_types
+      ],
+      options=[
+          SchemaTranslation(
+              schema_registry=SCHEMA_REGISTRY).option_to_runner_api(
+                  option_tuple) for option_tuple in schema_options
       ],
       id=SCHEMA_REGISTRY.generate_new_id())
 

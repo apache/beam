@@ -133,6 +133,8 @@ class RowCoder(FastCoder):
 
 
 typecoders.registry.register_coder(row_type.RowTypeConstraint, RowCoder)
+typecoders.registry.register_coder(
+    row_type.GeneratedClassRowTypeConstraint, RowCoder)
 
 
 def _coder_from_type(field_type):
