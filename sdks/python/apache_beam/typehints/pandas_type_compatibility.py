@@ -17,14 +17,44 @@
 
 """Utilities for converting between Beam schemas and pandas DataFrames.
 
-For internal use only, no backward compatibility guarantees.
+Imposes a mapping between native Python typings (specifically those compatible
+with :mod:`apache_beam.typehints.schemas`), and common pandas dtypes::
+
+  pandas dtype                    Python typing
+  np.int{8,16,32,64}      <-----> np.int{8,16,32,64}*
+  pd.Int{8,16,32,64}Dtype <-----> Optional[np.int{8,16,32,64}]*
+  np.float{32,64}         <-----> Optional[np.float{32,64}]
+                             \--- np.float{32,64}
+  Not supported           <------ Optional[bytes]
+  np.bool                 <-----> np.bool
+  np.dtype('S')           <-----> bytes
+  pd.BooleanDType()       <-----> Optional[bool]
+  pd.StringDType()        <-----> Optional[str]
+                             \--- str
+  np.object               <-----> Any
+
+  * int, float, bool are treated the same as np.int64, np.float64, np.bool
+
+Note that when converting to pandas dtypes, any types not specified here are
+shunted to ``np.object``.
+
+Similarly when converting from pandas to Python types, types that aren't
+otherwise specified here are shunted to ``Any``. Notably, this includes
+``np.datetime64``.
+
+Pandas does not support hierarchical data natively. Currently, all structured
+types (``Sequence``, ``Mapping``, nested ``NamedTuple`` types), are
+shunted to ``np.object`` like all other unknown types. In the future these
+types may be given special consideration.
+
+Note utilities in this package are for internal use only, we make no backward
+compatibility guarantees, except for the type mapping itself.
 """
 
 from apache_beam.typehints.batch import BatchConverter
 from apache_beam.typehints.typehints import is_nullable
+from apache_beam.typehints.typehints import normalize
 from apache_beam.typehints.row_type import RowTypeConstraint
-from apache_beam.dataframe.schemas import dtype_from_typehint
-from apache_beam.dataframe.schemas import generate_proxy
 
 import pandas as pd
 import numpy as np
@@ -38,6 +68,70 @@ from typing import Dict
 # Name for a valueless field-level option which, when present, indicates that
 # a field should map to an index in the Beam DataFrame API.
 INDEX_OPTION_NAME = 'beam:dataframe:index'
+
+# Generate type map (presented visually in the docstring)
+_BIDIRECTIONAL = [
+    (bool, bool),
+    (np.int8, np.int8),
+    (np.int16, np.int16),
+    (np.int32, np.int32),
+    (np.int64, np.int64),
+    (pd.Int8Dtype(), Optional[np.int8]),
+    (pd.Int16Dtype(), Optional[np.int16]),
+    (pd.Int32Dtype(), Optional[np.int32]),
+    (pd.Int64Dtype(), Optional[np.int64]),
+    (np.float32, Optional[np.float32]),
+    (np.float64, Optional[np.float64]),
+    (object, Any),
+    (pd.StringDtype(), Optional[str]),
+    (pd.BooleanDtype(), Optional[bool]),
+]
+
+PANDAS_TO_BEAM = {
+    pd.Series([], dtype=dtype).dtype: fieldtype
+    for dtype,
+    fieldtype in _BIDIRECTIONAL
+}
+BEAM_TO_PANDAS = {fieldtype: dtype for dtype, fieldtype in _BIDIRECTIONAL}
+
+# Shunt non-nullable Beam types to the same pandas types as their non-nullable
+# equivalents for FLOATs, DOUBLEs, and STRINGs. pandas has no non-nullable dtype
+# for these.
+OPTIONAL_SHUNTS = [np.float32, np.float64, str]
+
+for typehint in OPTIONAL_SHUNTS:
+  BEAM_TO_PANDAS[typehint] = BEAM_TO_PANDAS[Optional[typehint]]
+
+# int, float -> int64, np.float64
+BEAM_TO_PANDAS[int] = BEAM_TO_PANDAS[np.int64]
+BEAM_TO_PANDAS[Optional[int]] = BEAM_TO_PANDAS[Optional[np.int64]]
+BEAM_TO_PANDAS[float] = BEAM_TO_PANDAS[np.float64]
+BEAM_TO_PANDAS[Optional[float]] = BEAM_TO_PANDAS[Optional[np.float64]]
+
+BEAM_TO_PANDAS[bytes] = 'bytes'
+
+# Add shunts for normalized (Beam) typehints as well
+BEAM_TO_PANDAS.update({
+    normalize(typehint): pandas_dtype
+    for (typehint, pandas_dtype) in BEAM_TO_PANDAS.items()
+})
+
+
+def dtype_from_typehint(typehint):
+  # Default to np.object. This is lossy, we won't be able to recover
+  # the type at the output.
+  return BEAM_TO_PANDAS.get(typehint, object)
+
+
+def dtype_to_fieldtype(dtype):
+  fieldtype = PANDAS_TO_BEAM.get(dtype)
+
+  if fieldtype is not None:
+    return fieldtype
+  elif dtype.kind == 'S':
+    return bytes
+  else:
+    return Any
 
 
 class DataFrameBatchConverter(BatchConverter):
