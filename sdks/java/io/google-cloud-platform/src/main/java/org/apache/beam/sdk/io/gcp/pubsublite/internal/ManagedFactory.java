@@ -17,23 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import com.google.api.gax.rpc.ApiException;
-import com.google.cloud.pubsublite.Offset;
-import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
+import java.io.Serializable;
 
 /**
- * The TopicBacklogReader uses the TopicStats API to aggregate the backlog, or the distance between
- * the current cursor and HEAD for a single {subscription, partition} pair.
+ * A ManagedFactory produces instances and tears down any produced instances when it is itself
+ * closed.
+ *
+ * <p>close() should never be called on produced instances.
  */
-interface TopicBacklogReader extends AutoCloseable {
+public interface ManagedFactory<T extends AutoCloseable> extends AutoCloseable, Serializable {
 
-  /**
-   * Compute and aggregate message statistics for message between the provided start offset and
-   * HEAD. This method is blocking.
-   *
-   * @param offset The current offset of the subscriber.
-   * @return A ComputeMessageStatsResponse with the aggregated statistics for messages in the
-   *     backlog.
-   */
-  ComputeMessageStatsResponse computeMessageStats(Offset offset) throws ApiException;
+  T create(SubscriptionPartition subscriptionPartition);
 }

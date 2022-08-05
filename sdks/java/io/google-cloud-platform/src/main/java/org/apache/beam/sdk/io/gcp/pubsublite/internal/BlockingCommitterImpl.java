@@ -17,17 +17,34 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import java.io.Serializable;
+import static com.google.cloud.pubsublite.internal.ExtractStatus.toCanonical;
 
-/**
- * A ManagedBacklogReaderFactory produces TopicBacklogReaders and tears down any produced readers
- * when it is itself closed.
- *
- * <p>close() should never be called on produced readers.
- */
-public interface ManagedBacklogReaderFactory extends AutoCloseable, Serializable {
-  TopicBacklogReader newReader(SubscriptionPartition subscriptionPartition);
+import com.google.cloud.pubsublite.Offset;
+import com.google.cloud.pubsublite.internal.wire.Committer;
+import java.util.concurrent.TimeUnit;
+
+public class BlockingCommitterImpl implements BlockingCommitter {
+
+  private final Committer committer;
+
+  BlockingCommitterImpl(Committer committer) {
+    if (!committer.isRunning()) {
+      throw new RuntimeException(committer.failureCause());
+    }
+    this.committer = committer;
+  }
 
   @Override
-  void close();
+  public void commitOffset(Offset offset) {
+    try {
+      committer.commitOffset(offset).get(1, TimeUnit.MINUTES);
+    } catch (Exception e) {
+      throw toCanonical(e).underlying;
+    }
+  }
+
+  @Override
+  public void close() throws Exception {
+    committer.stopAsync().awaitTerminated(1, TimeUnit.MINUTES);
+  }
 }
