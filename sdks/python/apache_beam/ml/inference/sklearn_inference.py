@@ -31,12 +31,18 @@ from sklearn.base import BaseEstimator
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.utils.annotations import experimental
 
 try:
   import joblib
 except ImportError:
   # joblib is an optional dependency.
   pass
+
+__all__ = [
+    'SklearnModelHandlerNumpy',
+    'SklearnModelHandlerPandas',
+]
 
 
 class ModelFileType(enum.Enum):
@@ -132,6 +138,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     return sum(sys.getsizeof(element) for element in batch)
 
 
+@experimental(extra_message="No backwards-compatibility guarantees.")
 class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
                                              PredictionResult,
                                              BaseEstimator]):
