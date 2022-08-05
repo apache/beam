@@ -51,12 +51,14 @@ types may be given special consideration.
 # pytype: skip-file
 
 from typing import Any
+from typing import Dict
 from typing import NamedTuple
 from typing import Optional
+from typing import Sequence
+from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
-import numpy as np
 import pandas as pd
 
 import apache_beam as beam
@@ -64,8 +66,9 @@ from apache_beam import typehints
 from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms.util import BatchElements
 from apache_beam.typehints.native_type_compatibility import _match_is_optional
+from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import named_fields_from_element_type
-from apache_beam.typehints.schemas import named_fields_to_schema
+from apache_beam.typehints.typehints import normalize
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.typehints.typehints import normalize
@@ -154,6 +157,12 @@ class BatchRowsAsDataFrame(beam.PTransform):
     return pcoll | self._batch_elements_transform | beam.Map(construct)
 
 
+def dtype_from_typehint(typehint):
+  # Default to np.object. This is lossy, we won't be able to recover
+  # the type at the output.
+  return BEAM_TO_PANDAS.get(typehint, object)
+
+
 def generate_proxy(element_type):
   # type: (type) -> pd.DataFrame
 
@@ -162,16 +171,14 @@ def generate_proxy(element_type):
   Currently only supports generating a DataFrame proxy from a schema-aware
   PCollection or a Series proxy from a primitively typed PCollection.
   """
-  if element_type != Any and element_type in BEAM_TO_PANDAS:
-    return pd.Series(dtype=BEAM_TO_PANDAS[element_type])
-
+  dtype = dtype_from_typehint(element_type)
+  if dtype is not object:
+    return pd.Series(dtype=dtype)
   else:
     fields = named_fields_from_element_type(element_type)
     proxy = pd.DataFrame(columns=[name for name, _ in fields])
     for name, typehint in fields:
-      # Default to np.object. This is lossy, we won't be able to recover
-      # the type at the output.
-      dtype = BEAM_TO_PANDAS.get(typehint, object)
+      dtype = dtype_from_typehint(typehint)
       proxy[name] = proxy[name].astype(dtype)
 
     return proxy
@@ -187,6 +194,12 @@ def element_type_from_dataframe(proxy, include_indexes=False):
   Currently only supports generating a DataFrame proxy from a schema-aware
   PCollection.
   """
+  return element_typehint_from_dataframe_proxy(proxy, include_indexes).user_type
+
+
+def element_typehint_from_dataframe_proxy(
+    proxy: pd.DataFrame, include_indexes: bool = False) -> RowTypeConstraint:
+
   output_columns = []
   if include_indexes:
     remaining_index_names = list(proxy.index.names)
@@ -220,9 +233,19 @@ def element_type_from_dataframe(proxy, include_indexes=False):
 
   output_columns.extend(zip(proxy.columns, proxy.dtypes))
 
-  return named_tuple_from_schema(
-      named_fields_to_schema([(column, _dtype_to_fieldtype(dtype))
-                              for (column, dtype) in output_columns]))
+  fields = [(column, _dtype_to_fieldtype(dtype))
+            for (column, dtype) in output_columns]
+  field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]]
+  if include_indexes:
+    field_options = {
+        # TODO: Reference the constant in pandas_type_compatibility
+        index_name: [('beam:dataframe:index', None)]
+        for index_name in proxy.index.names
+    }
+  else:
+    field_options = None
+
+  return RowTypeConstraint.from_fields(fields, field_options=field_options)
 
 
 class _BaseDataframeUnbatchDoFn(beam.DoFn):
