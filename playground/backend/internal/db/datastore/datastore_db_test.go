@@ -22,19 +22,12 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/datastore"
-
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/db/mapper"
+	"beam.apache.org/playground/backend/internal/tests/test_cleaner"
 	"beam.apache.org/playground/backend/internal/utils"
-)
-
-const (
-	datastoreEmulatorHostKey   = "DATASTORE_EMULATOR_HOST"
-	datastoreEmulatorHostValue = "127.0.0.1:8888"
-	datastoreEmulatorProjectId = "test"
 )
 
 var datastoreDb *Datastore
@@ -48,15 +41,15 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	datastoreEmulatorHost := os.Getenv(datastoreEmulatorHostKey)
+	datastoreEmulatorHost := os.Getenv(constants.EmulatorHostKey)
 	if datastoreEmulatorHost == "" {
-		if err := os.Setenv(datastoreEmulatorHostKey, datastoreEmulatorHostValue); err != nil {
+		if err := os.Setenv(constants.EmulatorHostKey, constants.EmulatorHostValue); err != nil {
 			panic(err)
 		}
 	}
 	ctx = context.Background()
 	var err error
-	datastoreDb, err = New(ctx, mapper.NewPrecompiledObjectMapper(), datastoreEmulatorProjectId)
+	datastoreDb, err = New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
 	if err != nil {
 		panic(err)
 	}
@@ -75,9 +68,10 @@ func TestDatastore_PutSnippet(t *testing.T) {
 		snip *entity.Snippet
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name      string
+		args      args
+		wantErr   bool
+		cleanData func()
 	}{
 		{
 			name: "PutSnippet() in the usual case",
@@ -99,6 +93,10 @@ func TestDatastore_PutSnippet(t *testing.T) {
 				}},
 			}},
 			wantErr: false,
+			cleanData: func() {
+				test_cleaner.CleanFiles(t, "MOCK_ID", 1)
+				test_cleaner.CleanSnippet(t, "MOCK_ID")
+			},
 		},
 	}
 
@@ -108,11 +106,9 @@ func TestDatastore_PutSnippet(t *testing.T) {
 			if err != nil {
 				t.Error("PutSnippet() method failed")
 			}
+			tt.cleanData()
 		})
 	}
-
-	cleanData(t, constants.FileKind, "MOCK_ID_0", nil)
-	cleanData(t, constants.SnippetKind, "MOCK_ID", nil)
 }
 
 func TestDatastore_GetSnippet(t *testing.T) {
@@ -122,16 +118,18 @@ func TestDatastore_GetSnippet(t *testing.T) {
 		id  string
 	}
 	tests := []struct {
-		name    string
-		prepare func()
-		args    args
-		wantErr bool
+		name      string
+		prepare   func()
+		args      args
+		wantErr   bool
+		cleanData func()
 	}{
 		{
-			name:    "GetSnippet() with id that is no in the database",
-			prepare: func() {},
-			args:    args{ctx: ctx, id: "MOCK_ID"},
-			wantErr: true,
+			name:      "GetSnippet() with id that is no in the database",
+			prepare:   func() {},
+			args:      args{ctx: ctx, id: "MOCK_ID"},
+			wantErr:   true,
+			cleanData: func() {},
 		},
 		{
 			name: "GetSnippet() in the usual case",
@@ -157,6 +155,10 @@ func TestDatastore_GetSnippet(t *testing.T) {
 			},
 			args:    args{ctx: ctx, id: "MOCK_ID"},
 			wantErr: false,
+			cleanData: func() {
+				test_cleaner.CleanFiles(t, "MOCK_ID", 1)
+				test_cleaner.CleanSnippet(t, "MOCK_ID")
+			},
 		},
 	}
 
@@ -176,11 +178,9 @@ func TestDatastore_GetSnippet(t *testing.T) {
 					t.Error("GetSnippet() unexpected result")
 				}
 			}
+			tt.cleanData()
 		})
 	}
-
-	cleanData(t, constants.FileKind, "MOCK_ID_0", nil)
-	cleanData(t, constants.SnippetKind, "MOCK_ID", nil)
 }
 
 func TestDatastore_PutSDKs(t *testing.T) {
@@ -229,9 +229,10 @@ func TestDatastore_PutSchemaVersion(t *testing.T) {
 		schema *entity.SchemaEntity
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name      string
+		args      args
+		wantErr   bool
+		cleanData func()
 	}{
 		{
 			name: "PutSchemaVersion() in the usual case",
@@ -241,6 +242,9 @@ func TestDatastore_PutSchemaVersion(t *testing.T) {
 				schema: &entity.SchemaEntity{Descr: "MOCK_DESCRIPTION"},
 			},
 			wantErr: false,
+			cleanData: func() {
+				test_cleaner.CleanSchemaVersion(t, "MOCK_ID")
+			},
 		},
 		{
 			name: "PutSchemaVersion() when input data is nil",
@@ -249,7 +253,8 @@ func TestDatastore_PutSchemaVersion(t *testing.T) {
 				id:     "MOCK_ID",
 				schema: nil,
 			},
-			wantErr: false,
+			wantErr:   false,
+			cleanData: func() {},
 		},
 	}
 
@@ -259,10 +264,9 @@ func TestDatastore_PutSchemaVersion(t *testing.T) {
 			if err != nil {
 				t.Error("PutSchemaVersion() method failed")
 			}
+			tt.cleanData()
 		})
 	}
-
-	cleanData(t, constants.SchemaKind, "MOCK_ID", nil)
 }
 
 func TestDatastore_GetFiles(t *testing.T) {
@@ -272,22 +276,28 @@ func TestDatastore_GetFiles(t *testing.T) {
 		numberOfFiles int
 	}
 	tests := []struct {
-		name    string
-		prepare func()
-		args    args
-		wantErr bool
+		name      string
+		prepare   func()
+		args      args
+		wantErr   bool
+		cleanData func()
 	}{
 		{
-			name:    "GetFiles() with snippet id that is no in the database",
-			prepare: func() {},
-			args:    args{ctx: ctx, snipId: "MOCK_ID", numberOfFiles: 1},
-			wantErr: true,
+			name:      "GetFiles() with snippet id that is no in the database",
+			prepare:   func() {},
+			args:      args{ctx: ctx, snipId: "MOCK_ID", numberOfFiles: 1},
+			wantErr:   true,
+			cleanData: func() {},
 		},
 		{
 			name:    "GetFiles() in the usual case",
 			prepare: func() { saveSnippet("MOCK_ID", pb.Sdk_SDK_GO.String()) },
 			args:    args{ctx: ctx, snipId: "MOCK_ID", numberOfFiles: 1},
 			wantErr: false,
+			cleanData: func() {
+				test_cleaner.CleanFiles(t, "MOCK_ID", 1)
+				test_cleaner.CleanSnippet(t, "MOCK_ID")
+			},
 		},
 	}
 
@@ -304,8 +314,7 @@ func TestDatastore_GetFiles(t *testing.T) {
 					files[0].IsMain != true {
 					t.Error("GetFiles() unexpected result")
 				}
-				cleanData(t, constants.FileKind, "MOCK_ID_0", nil)
-				cleanData(t, constants.SnippetKind, "MOCK_ID", nil)
+				tt.cleanData()
 			}
 		})
 	}
@@ -352,10 +361,11 @@ func TestDatastore_GetCatalog(t *testing.T) {
 		sdkCatalog []*entity.SDKEntity
 	}
 	tests := []struct {
-		name    string
-		prepare func()
-		args    args
-		wantErr bool
+		name      string
+		prepare   func()
+		args      args
+		wantErr   bool
+		cleanData func()
 	}{
 		{
 			name: "Getting catalog in the usual case",
@@ -378,6 +388,12 @@ func TestDatastore_GetCatalog(t *testing.T) {
 				}(),
 			},
 			wantErr: false,
+			cleanData: func() {
+				test_cleaner.CleanPCObjs(t, "SDK_JAVA_MOCK_EXAMPLE")
+				test_cleaner.CleanFiles(t, "SDK_JAVA_MOCK_EXAMPLE", 1)
+				test_cleaner.CleanSnippet(t, "SDK_JAVA_MOCK_EXAMPLE")
+				test_cleaner.CleanExample(t, "SDK_JAVA_MOCK_EXAMPLE")
+			},
 		},
 	}
 
@@ -408,10 +424,7 @@ func TestDatastore_GetCatalog(t *testing.T) {
 					actualPCObj.ContextLine != 32 {
 					t.Error("GetCatalog() unexpected result: wrong precompiled obj")
 				}
-				cleanPCObjs(t, "SDK_JAVA_MOCK_EXAMPLE")
-				cleanFiles(t, "SDK_JAVA_MOCK_EXAMPLE", 1)
-				cleanData(t, constants.SnippetKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
-				cleanData(t, constants.ExampleKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
+				tt.cleanData()
 			}
 		})
 	}
@@ -731,14 +744,14 @@ func TestNew(t *testing.T) {
 	}{
 		{
 			name:    "Initialize datastore database",
-			args:    args{ctx: ctx, projectId: datastoreEmulatorProjectId},
+			args:    args{ctx: ctx, projectId: constants.EmulatorProjectId},
 			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := New(ctx, mapper.NewPrecompiledObjectMapper(), datastoreEmulatorProjectId)
+			_, err := New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -788,30 +801,6 @@ func savePCObjs(exampleId string) {
 			ctx,
 			utils.GetPCObjectKey(fmt.Sprintf("%s_%s", exampleId, pcType)),
 			&entity.PrecompiledObjectEntity{Content: "MOCK_CONTENT_" + pcType})
-	}
-}
-
-func cleanPCObjs(t *testing.T, exampleId string) {
-	pcTypes := []string{constants.PCOutputType, constants.PCLogType, constants.PCGraphType}
-	for _, pcType := range pcTypes {
-		cleanData(t, constants.PCObjectKind, utils.GetIDWithDelimiter(exampleId, pcType), nil)
-	}
-}
-
-func cleanFiles(t *testing.T, exampleId string, numberOfFiles int) {
-	for fileIndx := 0; fileIndx < numberOfFiles; fileIndx++ {
-		cleanData(t, constants.FileKind, utils.GetIDWithDelimiter(exampleId, fileIndx), nil)
-	}
-}
-
-func cleanData(t *testing.T, kind, id string, parentId *datastore.Key) {
-	key := datastore.NameKey(kind, id, nil)
-	if parentId != nil {
-		key.Parent = parentId
-	}
-	key.Namespace = constants.Namespace
-	if err := datastoreDb.Client.Delete(ctx, key); err != nil {
-		t.Errorf("Error during data cleaning after the test, err: %s", err.Error())
 	}
 }
 
