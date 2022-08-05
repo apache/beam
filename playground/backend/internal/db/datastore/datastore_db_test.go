@@ -220,10 +220,6 @@ func TestDatastore_PutSDKs(t *testing.T) {
 			}
 		})
 	}
-
-	for _, sdk := range sdks {
-		cleanData(t, constants.SdkKind, sdk.Name, nil)
-	}
 }
 
 func TestDatastore_PutSchemaVersion(t *testing.T) {
@@ -332,12 +328,6 @@ func TestDatastore_GetSDKs(t *testing.T) {
 			args:    args{ctx: ctx},
 			wantErr: false,
 		},
-		{
-			name:    "GetSDKs() when sdks are missing",
-			prepare: func() {},
-			args:    args{ctx: ctx},
-			wantErr: true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -350,9 +340,6 @@ func TestDatastore_GetSDKs(t *testing.T) {
 			if err == nil {
 				if len(sdkEntities) != 4 {
 					t.Error("GetSDK unexpected result, should be four entities")
-				}
-				for _, sdk := range sdks {
-					cleanData(t, constants.SdkKind, sdk.Name, nil)
 				}
 			}
 		})
@@ -529,6 +516,9 @@ func cleanData(t *testing.T, kind, id string, parentId *datastore.Key) {
 func getSDKs() []*entity.SDKEntity {
 	var sdkEntities []*entity.SDKEntity
 	for _, sdk := range pb.Sdk_name {
+		if sdk == pb.Sdk_SDK_UNSPECIFIED.String() {
+			continue
+		}
 		sdkEntities = append(sdkEntities, &entity.SDKEntity{
 			Name:           sdk,
 			DefaultExample: "MOCK_DEFAULT_EXAMPLE",
