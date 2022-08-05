@@ -20,7 +20,6 @@ package fhirio
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -238,13 +237,14 @@ func importResourcesInBatches(s beam.Scope, fhirStorePath, tempDir, deadLetterDi
 }
 
 func tryFallbackToDataflowTempDirOrPanic() string {
-	if f := flag.Lookup("temp_location"); f != nil && f.Value.String() != "" {
-		return f.Value.String()
+	beam.PipelineOptions.LoadOptionsFromFlags(nil)
+	if f := beam.PipelineOptions.Get("temp_location"); f != "" {
+		return f
 	}
 
 	// temp_location is optional, so fallback to staging_location.
-	if f := flag.Lookup("staging_location"); f != nil {
-		return f.Value.String()
+	if f := beam.PipelineOptions.Get("staging_location"); f != "" {
+		return f
 	}
 	panic("could not resolve to a temp directory for import batch files")
 }
