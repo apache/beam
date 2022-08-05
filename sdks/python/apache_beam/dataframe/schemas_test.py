@@ -180,6 +180,13 @@ class SchemasTest(unittest.TestCase):
 
     pd.testing.assert_frame_equal(schemas.generate_proxy(Animal), expected)
 
+  def test_generate_proxy_beam_typehint(self):
+    expected = pd.Series(dtype=pd.Int32Dtype())
+
+    actual = schemas.generate_proxy(typehints.Optional[np.int32])
+
+    pd.testing.assert_series_equal(actual, expected)
+
   def test_nice_types_proxy_roundtrip(self):
     roundtripped = schemas.generate_proxy(
         schemas.element_type_from_dataframe(NICE_TYPES_PROXY))
