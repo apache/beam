@@ -45,8 +45,18 @@ func init() {
 type ContentStructure int
 
 const (
+	// ContentStructureUnspecified is to be used as argument to Import if the content
+	// structure is not specified, the default value BUNDLE is used.
 	ContentStructureUnspecified ContentStructure = iota
+
+	// ContentStructureBundle is to be used as argument to Import if the source file
+	// contains one or more lines of newline-delimited JSON (ndjson). Each line is a
+	// bundle that contains one or more resources.
 	ContentStructureBundle
+
+	// ContentStructureResource is to be used as argument to Import if the source
+	// file contains one or more lines of newline-delimited JSON (ndjson). Each line
+	// is a single resource.
 	ContentStructureResource
 )
 
