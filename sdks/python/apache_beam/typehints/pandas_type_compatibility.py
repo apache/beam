@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Utilities for converting between Beam schemas and pandas DataFrames.
+r"""Utilities for converting between Beam schemas and pandas DataFrames.
 
 Imposes a mapping between native Python typings (specifically those compatible
 with :mod:`apache_beam.typehints.schemas`), and common pandas dtypes::
@@ -51,19 +51,21 @@ Note utilities in this package are for internal use only, we make no backward
 compatibility guarantees, except for the type mapping itself.
 """
 
+from typing import Any
+from typing import List
+from typing import Optional
+
+import numpy as np
+import pandas as pd
+
 from apache_beam.typehints.batch import BatchConverter
+from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.typehints import is_nullable
 from apache_beam.typehints.typehints import normalize
-from apache_beam.typehints.row_type import RowTypeConstraint
 
-import pandas as pd
-import numpy as np
-
-from typing import Any
-from typing import Optional
-from typing import List
-from typing import Tuple
-from typing import Dict
+# No public API currently, this just exists to register BatchConverter
+# implementations.
+__all__ = []
 
 # Name for a valueless field-level option which, when present, indicates that
 # a field should map to an index in the Beam DataFrame API.

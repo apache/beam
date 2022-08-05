@@ -19,8 +19,8 @@ import warnings
 import weakref
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Iterable
 from typing import Dict
+from typing import Iterable
 from typing import Tuple
 from typing import Union
 
@@ -29,10 +29,10 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam.dataframe import expressions
-from apache_beam.typehints.pandas_type_compatibility import dtype_to_fieldtype
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import schemas
 from apache_beam.dataframe import transforms
+from apache_beam.typehints.pandas_type_compatibility import dtype_to_fieldtype
 
 if TYPE_CHECKING:
   # pylint: disable=ungrouped-imports
@@ -60,9 +60,6 @@ def to_dataframe(
   A proxy object must be given if the schema for the PCollection is not known.
   """
   if proxy is None:
-    # TODO: Find a better way to ensure pandas BatchConverters are registered
-    import apache_beam.typehints.pandas_type_compatibility
-
     if pcoll.element_type is None:
       raise ValueError(
           "Cannot infer a proxy because the input PCollection does not have a "
@@ -280,8 +277,6 @@ def to_pcollection(
   }
 
   if yield_elements == "schemas":
-    # TODO: Find a better way to ensure pandas BatchConverters are registered
-    import apache_beam.typehints.pandas_type_compatibility
 
     def maybe_unbatch(pc, value):
       if isinstance(value, frame_base._DeferredScalar):
