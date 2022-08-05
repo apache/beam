@@ -440,14 +440,16 @@ func TestDatastore_GetDefaultExamples(t *testing.T) {
 		prepare func()
 		args    args
 		wantErr bool
+		clean   func()
 	}{
 		{
 			name: "Getting default examples in the usual case",
 			prepare: func() {
 				for sdk := range pb.Sdk_value {
+					exampleId := utils.GetIDWithDelimiter(sdk, "MOCK_DEFAULT_EXAMPLE")
 					saveExample("MOCK_DEFAULT_EXAMPLE", sdk)
-					saveSnippet(sdk+"_MOCK_DEFAULT_EXAMPLE", sdk)
-					savePCObjs(sdk + "_MOCK_DEFAULT_EXAMPLE")
+					saveSnippet(exampleId, sdk)
+					savePCObjs(exampleId)
 				}
 			},
 			args: args{
@@ -455,6 +457,15 @@ func TestDatastore_GetDefaultExamples(t *testing.T) {
 				sdks: getSDKs(),
 			},
 			wantErr: false,
+			clean: func() {
+				for sdk := range pb.Sdk_value {
+					exampleId := utils.GetIDWithDelimiter(sdk, "MOCK_DEFAULT_EXAMPLE")
+					test_cleaner.CleanPCObjs(t, exampleId)
+					test_cleaner.CleanFiles(t, exampleId, 1)
+					test_cleaner.CleanSnippet(t, exampleId)
+					test_cleaner.CleanExample(t, exampleId)
+				}
+			},
 		},
 	}
 
@@ -481,12 +492,7 @@ func TestDatastore_GetDefaultExamples(t *testing.T) {
 						t.Errorf("GetDefaultExamples() unexpected result: wrong precompiled obj")
 					}
 				}
-				for sdk := range pb.Sdk_value {
-					cleanPCObjs(t, sdk+"_MOCK_DEFAULT_EXAMPLE")
-					cleanFiles(t, sdk+"_MOCK_DEFAULT_EXAMPLE", 1)
-					cleanData(t, constants.SnippetKind, sdk+"_MOCK_DEFAULT_EXAMPLE", nil)
-					cleanData(t, constants.ExampleKind, sdk+"_MOCK_DEFAULT_EXAMPLE", nil)
-				}
+				tt.clean()
 			}
 		})
 	}
@@ -503,20 +509,29 @@ func TestDatastore_GetExample(t *testing.T) {
 		prepare func()
 		args    args
 		wantErr bool
+		clean   func()
 	}{
 		{
 			name: "Getting an example in the usual case",
 			prepare: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
 				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				saveSnippet("SDK_JAVA_MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				savePCObjs("SDK_JAVA_MOCK_EXAMPLE")
+				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String())
+				savePCObjs(exampleId)
 			},
 			args: args{
 				ctx:       ctx,
-				exampleId: "SDK_JAVA_MOCK_EXAMPLE",
+				exampleId: utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE"),
 				sdks:      getSDKs(),
 			},
 			wantErr: false,
+			clean: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				test_cleaner.CleanPCObjs(t, exampleId)
+				test_cleaner.CleanFiles(t, exampleId, 1)
+				test_cleaner.CleanSnippet(t, exampleId)
+				test_cleaner.CleanExample(t, exampleId)
+			},
 		},
 	}
 
@@ -539,10 +554,7 @@ func TestDatastore_GetExample(t *testing.T) {
 					example.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_EXAMPLE" {
 					t.Errorf("GetExample() unexpected result: wrong precompiled obj")
 				}
-				cleanPCObjs(t, "SDK_JAVA_MOCK_EXAMPLE")
-				cleanFiles(t, "SDK_JAVA_MOCK_EXAMPLE", 1)
-				cleanData(t, constants.SnippetKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
-				cleanData(t, constants.ExampleKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
+				tt.clean()
 			}
 		})
 	}
@@ -558,19 +570,28 @@ func TestDatastore_GetExampleCode(t *testing.T) {
 		prepare func()
 		args    args
 		wantErr bool
+		clean   func()
 	}{
 		{
 			name: "Getting an example code in the usual case",
 			prepare: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
 				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				saveSnippet("SDK_JAVA_MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				savePCObjs("SDK_JAVA_MOCK_EXAMPLE")
+				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String())
+				savePCObjs(exampleId)
 			},
 			args: args{
 				ctx:       ctx,
-				exampleId: "SDK_JAVA_MOCK_EXAMPLE",
+				exampleId: utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE"),
 			},
 			wantErr: false,
+			clean: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				test_cleaner.CleanPCObjs(t, exampleId)
+				test_cleaner.CleanFiles(t, exampleId, 1)
+				test_cleaner.CleanSnippet(t, exampleId)
+				test_cleaner.CleanExample(t, exampleId)
+			},
 		},
 	}
 
@@ -585,10 +606,7 @@ func TestDatastore_GetExampleCode(t *testing.T) {
 				if code != "MOCK_CONTENT" {
 					t.Errorf("GetExampleCode() unexpected result: wrong precompiled obj")
 				}
-				cleanPCObjs(t, "SDK_JAVA_MOCK_EXAMPLE")
-				cleanFiles(t, "SDK_JAVA_MOCK_EXAMPLE", 1)
-				cleanData(t, constants.SnippetKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
-				cleanData(t, constants.ExampleKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
+				tt.clean()
 			}
 		})
 	}
@@ -604,19 +622,28 @@ func TestDatastore_GetExampleOutput(t *testing.T) {
 		prepare func()
 		args    args
 		wantErr bool
+		clean   func()
 	}{
 		{
 			name: "Getting an example output in the usual case",
 			prepare: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
 				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				saveSnippet("SDK_JAVA_MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				savePCObjs("SDK_JAVA_MOCK_EXAMPLE")
+				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String())
+				savePCObjs(exampleId)
 			},
 			args: args{
 				ctx:       ctx,
-				exampleId: "SDK_JAVA_MOCK_EXAMPLE",
+				exampleId: utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE"),
 			},
 			wantErr: false,
+			clean: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				test_cleaner.CleanPCObjs(t, exampleId)
+				test_cleaner.CleanFiles(t, exampleId, 1)
+				test_cleaner.CleanSnippet(t, exampleId)
+				test_cleaner.CleanExample(t, exampleId)
+			},
 		},
 	}
 
@@ -631,10 +658,7 @@ func TestDatastore_GetExampleOutput(t *testing.T) {
 				if output != "MOCK_CONTENT_OUTPUT" {
 					t.Errorf("GetExampleOutput() unexpected result: wrong precompiled obj")
 				}
-				cleanPCObjs(t, "SDK_JAVA_MOCK_EXAMPLE")
-				cleanFiles(t, "SDK_JAVA_MOCK_EXAMPLE", 1)
-				cleanData(t, constants.SnippetKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
-				cleanData(t, constants.ExampleKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
+				tt.clean()
 			}
 		})
 	}
@@ -650,19 +674,28 @@ func TestDatastore_GetExampleLogs(t *testing.T) {
 		prepare func()
 		args    args
 		wantErr bool
+		clean   func()
 	}{
 		{
 			name: "Getting an example logs in the usual case",
 			prepare: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
 				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				saveSnippet("SDK_JAVA_MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				savePCObjs("SDK_JAVA_MOCK_EXAMPLE")
+				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String())
+				savePCObjs(exampleId)
 			},
 			args: args{
 				ctx:       ctx,
-				exampleId: "SDK_JAVA_MOCK_EXAMPLE",
+				exampleId: utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE"),
 			},
 			wantErr: false,
+			clean: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				test_cleaner.CleanPCObjs(t, exampleId)
+				test_cleaner.CleanFiles(t, exampleId, 1)
+				test_cleaner.CleanSnippet(t, exampleId)
+				test_cleaner.CleanExample(t, exampleId)
+			},
 		},
 	}
 
@@ -677,10 +710,7 @@ func TestDatastore_GetExampleLogs(t *testing.T) {
 				if output != "MOCK_CONTENT_LOG" {
 					t.Errorf("GetExampleLogs() unexpected result: wrong precompiled obj")
 				}
-				cleanPCObjs(t, "SDK_JAVA_MOCK_EXAMPLE")
-				cleanFiles(t, "SDK_JAVA_MOCK_EXAMPLE", 1)
-				cleanData(t, constants.SnippetKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
-				cleanData(t, constants.ExampleKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
+				tt.clean()
 			}
 		})
 	}
@@ -696,19 +726,28 @@ func TestDatastore_GetExampleGraph(t *testing.T) {
 		prepare func()
 		args    args
 		wantErr bool
+		clean   func()
 	}{
 		{
 			name: "Getting an example graph in the usual case",
 			prepare: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
 				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				saveSnippet("SDK_JAVA_MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				savePCObjs("SDK_JAVA_MOCK_EXAMPLE")
+				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String())
+				savePCObjs(exampleId)
 			},
 			args: args{
 				ctx:       ctx,
-				exampleId: "SDK_JAVA_MOCK_EXAMPLE",
+				exampleId: utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE"),
 			},
 			wantErr: false,
+			clean: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				test_cleaner.CleanPCObjs(t, exampleId)
+				test_cleaner.CleanFiles(t, exampleId, 1)
+				test_cleaner.CleanSnippet(t, exampleId)
+				test_cleaner.CleanExample(t, exampleId)
+			},
 		},
 	}
 
@@ -723,10 +762,7 @@ func TestDatastore_GetExampleGraph(t *testing.T) {
 				if output != "MOCK_CONTENT_GRAPH" {
 					t.Errorf("GetExampleGraph() unexpected result: wrong precompiled obj")
 				}
-				cleanPCObjs(t, "SDK_JAVA_MOCK_EXAMPLE")
-				cleanFiles(t, "SDK_JAVA_MOCK_EXAMPLE", 1)
-				cleanData(t, constants.SnippetKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
-				cleanData(t, constants.ExampleKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
+				tt.clean()
 			}
 		})
 	}
