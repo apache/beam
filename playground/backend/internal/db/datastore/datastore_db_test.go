@@ -370,9 +370,10 @@ func TestDatastore_GetCatalog(t *testing.T) {
 		{
 			name: "Getting catalog in the usual case",
 			prepare: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
 				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				saveSnippet("SDK_JAVA_MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				savePCObjs("SDK_JAVA_MOCK_EXAMPLE")
+				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String())
+				savePCObjs(exampleId)
 			},
 			args: args{
 				ctx: ctx,
@@ -389,10 +390,11 @@ func TestDatastore_GetCatalog(t *testing.T) {
 			},
 			wantErr: false,
 			cleanData: func() {
-				test_cleaner.CleanPCObjs(t, "SDK_JAVA_MOCK_EXAMPLE")
-				test_cleaner.CleanFiles(t, "SDK_JAVA_MOCK_EXAMPLE", 1)
-				test_cleaner.CleanSnippet(t, "SDK_JAVA_MOCK_EXAMPLE")
-				test_cleaner.CleanExample(t, "SDK_JAVA_MOCK_EXAMPLE")
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				test_cleaner.CleanPCObjs(t, exampleId)
+				test_cleaner.CleanFiles(t, exampleId, 1)
+				test_cleaner.CleanSnippet(t, exampleId)
+				test_cleaner.CleanExample(t, exampleId)
 			},
 		},
 	}

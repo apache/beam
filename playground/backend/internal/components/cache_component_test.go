@@ -22,8 +22,6 @@ import (
 	"reflect"
 	"testing"
 
-	"cloud.google.com/go/datastore"
-
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
@@ -31,13 +29,8 @@ import (
 	db "beam.apache.org/playground/backend/internal/db/datastore"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/db/mapper"
+	"beam.apache.org/playground/backend/internal/tests/test_cleaner"
 	"beam.apache.org/playground/backend/internal/utils"
-)
-
-const (
-	datastoreEmulatorHostKey   = "DATASTORE_EMULATOR_HOST"
-	datastoreEmulatorHostValue = "127.0.0.1:8888"
-	datastoreEmulatorProjectId = "test"
 )
 
 var datastoreDb *db.Datastore
@@ -53,15 +46,15 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	datastoreEmulatorHost := os.Getenv(datastoreEmulatorHostKey)
+	datastoreEmulatorHost := os.Getenv(constants.EmulatorHostKey)
 	if datastoreEmulatorHost == "" {
-		if err := os.Setenv(datastoreEmulatorHostKey, datastoreEmulatorHostValue); err != nil {
+		if err := os.Setenv(constants.EmulatorHostKey, constants.EmulatorHostValue); err != nil {
 			panic(err)
 		}
 	}
 	ctx = context.Background()
 	cacheService = local.New(ctx)
-	datastoreDb, _ = db.New(ctx, mapper.NewPrecompiledObjectMapper(), datastoreEmulatorProjectId)
+	datastoreDb, _ = db.New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
 	cacheComponent = NewService(cacheService, datastoreDb)
 }
 
@@ -104,9 +97,6 @@ func TestCacheComponent_GetSdkCatalogFromCacheOrDatastore(t *testing.T) {
 			if !reflect.DeepEqual(sdks, result) {
 				t.Error("GetSdkCatalogFromCacheOrDatastore() unexpected result")
 			}
-			for _, sdk := range sdks {
-				cleanData(t, constants.SdkKind, sdk.Name, nil)
-			}
 		})
 	}
 }
@@ -118,6 +108,7 @@ func TestCacheComponent_GetCatalogFromCacheOrDatastore(t *testing.T) {
 		storeType string
 		prepare   func()
 		wantErr   bool
+		clean     func()
 	}{
 		{
 			name:      "Getting catalog from cache in the usual case",
@@ -126,17 +117,28 @@ func TestCacheComponent_GetCatalogFromCacheOrDatastore(t *testing.T) {
 				_ = cacheService.SetCatalog(ctx, catalog)
 			},
 			wantErr: false,
+			clean: func() {
+				_ = cacheService.SetCatalog(ctx, nil)
+			},
 		},
 		{
 			name:      "Getting catalog from datastore in the usual case",
 			storeType: "DB",
 			prepare: func() {
 				_ = cacheService.SetSdkCatalog(ctx, getSDKs())
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
 				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				saveSnippet("SDK_JAVA_MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				savePCObjs("SDK_JAVA_MOCK_EXAMPLE")
+				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String())
+				savePCObjs(exampleId)
 			},
 			wantErr: false,
+			clean: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				test_cleaner.CleanPCObjs(t, exampleId)
+				test_cleaner.CleanFiles(t, exampleId, 1)
+				test_cleaner.CleanSnippet(t, exampleId)
+				test_cleaner.CleanExample(t, exampleId)
+			},
 		},
 	}
 
@@ -153,7 +155,7 @@ func TestCacheComponent_GetCatalogFromCacheOrDatastore(t *testing.T) {
 				if !reflect.DeepEqual(result, catalog) {
 					t.Error("GetCatalogFromCacheOrDatastore() unexpected result")
 				}
-				_ = cacheService.SetCatalog(ctx, nil)
+				tt.clean()
 			case "DB":
 				if result[0].GetSdk() != pb.Sdk_SDK_JAVA {
 					t.Error("GetCatalogFromCacheOrDatastore() unexpected result: wrong sdk")
@@ -174,10 +176,7 @@ func TestCacheComponent_GetCatalogFromCacheOrDatastore(t *testing.T) {
 					actualPCObj.ContextLine != 32 {
 					t.Error("GetCatalogFromCacheOrDatastore() unexpected result: wrong precompiled obj")
 				}
-				cleanPCObjs(t, "SDK_JAVA_MOCK_EXAMPLE")
-				cleanFiles(t, "SDK_JAVA_MOCK_EXAMPLE", 1)
-				cleanData(t, constants.SnippetKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
-				cleanData(t, constants.ExampleKind, "SDK_JAVA_MOCK_EXAMPLE", nil)
+				tt.clean()
 			}
 		})
 	}
@@ -239,17 +238,6 @@ func getPCObj() *pb.PrecompiledObject {
 		Multifile:       false,
 		ContextLine:     32,
 		DefaultExample:  true,
-	}
-}
-
-func cleanData(t *testing.T, kind, id string, parentId *datastore.Key) {
-	key := datastore.NameKey(kind, id, nil)
-	if parentId != nil {
-		key.Parent = parentId
-	}
-	key.Namespace = constants.Namespace
-	if err := datastoreDb.Client.Delete(ctx, key); err != nil {
-		t.Errorf("Error during data cleaning after the test, err: %s", err.Error())
 	}
 }
 
@@ -340,18 +328,5 @@ func savePCObjs(exampleId string) {
 			ctx,
 			utils.GetPCObjectKey(fmt.Sprintf("%s_%s", exampleId, pcType)),
 			&entity.PrecompiledObjectEntity{Content: "MOCK_CONTENT_" + pcType})
-	}
-}
-
-func cleanPCObjs(t *testing.T, exampleId string) {
-	pcTypes := []string{constants.PCOutputType, constants.PCLogType, constants.PCGraphType}
-	for _, pcType := range pcTypes {
-		cleanData(t, constants.PCObjectKind, utils.GetIDWithDelimiter(exampleId, pcType), nil)
-	}
-}
-
-func cleanFiles(t *testing.T, exampleId string, numberOfFiles int) {
-	for fileIndx := 0; fileIndx < numberOfFiles; fileIndx++ {
-		cleanData(t, constants.FileKind, utils.GetIDWithDelimiter(exampleId, fileIndx), nil)
 	}
 }
