@@ -258,6 +258,24 @@ class ReadTests(BigQueryReadIntegrationTests):
               utype(id=4, name='customer2', type='test')
           ]))
 
+  @pytest.mark.it_postcommit
+  def test_from_gbq(self):
+    with beam.Pipeline(argv=self.args) as p:
+      expected_df = (
+          p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+              method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
+              table="apache-beam-testing:"
+              "beam_bigquery_io_test."
+              "dfsqltable_3c7d6fd5_16e0460dfd0",
+              output_type='BEAM_ROW'))
+      #expected_df = convert.to_pcollection(expected_df)
+    with beam.Pipeline(argv=self.args) as p:
+      actual_df = p | apache_beam.dataframe.io.ReadGbq(
+          table="apache-beam-testing:"
+          "beam_bigquery_io_test."
+          "dfsqltable_3c7d6fd5_16e0460dfd0")
+    assert_that(expected_df, equal_to(actual_df))
+
 
 class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
   TABLE_DATA = [{
