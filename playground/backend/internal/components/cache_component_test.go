@@ -17,7 +17,6 @@ package components
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -294,7 +293,7 @@ func saveExample(name, sdk string) {
 		Cats:       []string{"MOCK_CATEGORY"},
 		Complexity: "MEDIUM",
 		Path:       "MOCK_PATH",
-		Type:       "PRECOMPILED_OBJECT_TYPE_EXAMPLE",
+		Type:       pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
 		Origin:     constants.ExampleOrigin,
 		SchVer:     utils.GetSchemaVerKey("MOCK_VERSION"),
 	})
@@ -326,7 +325,7 @@ func savePCObjs(exampleId string) {
 	for _, pcType := range pcTypes {
 		_, _ = datastoreDb.Client.Put(
 			ctx,
-			utils.GetPCObjectKey(fmt.Sprintf("%s_%s", exampleId, pcType)),
+			utils.GetPCObjectKey(exampleId, pcType),
 			&entity.PrecompiledObjectEntity{Content: "MOCK_CONTENT_" + pcType})
 	}
 }
