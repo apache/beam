@@ -23,7 +23,6 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import metrics
-
 from apache_beam.dataframe import convert
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
