@@ -23,6 +23,7 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import metrics
+
 from apache_beam.dataframe import convert
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
@@ -423,6 +424,15 @@ class TransformPartsTest(unittest.TestCase):
           | 'SumB' >> beam.CombineGlobally(sum),
           equal_to([sB.sum()]),
           label='CheckValuesB')
+
+
+class ReadGbqTransformTests(unittest.TestCase):
+  def test_without_specifying_table(self):
+    with self.assertRaisesRegex(
+        ValueError, "A table must be specified to Read from BigQuery."):
+      p = beam.Pipeline()
+      pipeline = p | beam.dataframe.transforms.ReadGbq()
+      pipeline
 
 
 if __name__ == '__main__':

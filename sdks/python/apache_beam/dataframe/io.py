@@ -54,44 +54,6 @@ _DEFAULT_LINES_CHUNKSIZE = 10_000
 _DEFAULT_BYTES_CHUNKSIZE = 1 << 20
 
 
-class ReadGbq(beam.PTransform):
-  def __init__(
-      self,
-      project_id=None,
-      index_col=None,
-      col_order=None,
-      reauth=None,
-      auth_local_webserver=None,
-      dialect=None,
-      location=None,
-      configuration=None,
-      credentials=None,
-      use_bqstorage_api=False,
-      max_results=None,
-      progress_bar_type=None,
-      *args,
-      **kwargs):
-    self.use_bqstorage_api = use_bqstorage_api
-    self._args = args
-    self._kwargs = kwargs
-
-  def expand(self, root):
-    from apache_beam.dataframe import convert  # avoid circular import
-    if self._kwargs['table'] is None:
-      raise ValueError("A table must be specified to Read from BigQuery.")
-    if self.use_bqstorage_api is True:
-      return convert.to_dataframe(
-          root | beam.io.ReadFromBigQuery(
-              table=self._kwargs['table'],
-              method='DIRECT_READ',
-              output_type='BEAM_ROW',
-              *self._args,
-              **self._kwargs))
-    return convert.to_dataframe(
-        root | beam.io.ReadFromBigQuery(
-            output_type='BEAM_ROW', *self._args, **self._kwargs))
-
-
 @frame_base.with_docs_from(pd)
 def read_csv(path, *args, splittable=False, **kwargs):
   """If your files are large and records do not contain quoted newlines, you may
